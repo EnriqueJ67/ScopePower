@@ -38,6 +38,7 @@ import winreg
 import logging
 from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
                       capturar_frame, estado_captura)
+import darks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -859,7 +860,9 @@ def capturar_imagen():
         # ───── Aplicar dark maestro ─────
         ruta_dark = f"calibraciones/dark_{EXPOSICION:.2f}s.fits"
         dark_aplicado = False
-        if os.path.exists(ruta_dark):
+        # ?dark=0 permite apilar sin restar dark aunque exista uno
+        usar_dark = request.args.get("dark", "1") != "0"
+        if usar_dark and os.path.exists(ruta_dark):
             print(f"🌑 Aplicando dark maestro: {ruta_dark}")
             with fits.open(ruta_dark) as hdul_dark:
                 dark_data = hdul_dark[0].data.astype(np.float32)
@@ -1642,63 +1645,56 @@ def vista_apilado():
 
 @app.route('/generar-dark', methods=["GET"])
 def generar_dark():
-    exposicion_actual = float(config["Dispositivos"].get("EXPOSICION_CAPTURA", "1"))
-    return render_template("dark.html", exposicion=exposicion_actual)
+    return render_template("dark.html", mostrar_volver=True)
+
+
+def _config_darks():
+    """Exposición, binning y número de darks según config.ini (valores en vivo)."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    disp = cfg["Dispositivos"]
+    return {
+        "exposicion": float(disp.get("exposicion_captura", 10)),
+        "binning": int(disp.get("binning_camara", 1)),
+        "numero_darks": int(disp.get("numero_darks", 10)),
+    }
+
+
+@app.route('/darks/estado')
+def darks_estado():
+    """Trabajo de darks en curso + datos del último dark para la exposición actual."""
+    conf = _config_darks()
+    return jsonify({
+        "trabajo": darks.trabajo_darks.estado(),
+        "ultimo": darks.info_dark(conf["exposicion"]),
+        "captura": estado_captura.como_dict(),
+        "camara_ocupada": camara.ocupado,
+        "config": conf,
+    })
+
+
+@app.route('/darks/generar', methods=["POST"])
+def darks_generar():
+    """Arranca la generación de darks en segundo plano. El telescopio debe estar tapado."""
+    conf = _config_darks()
+    datos = request.get_json(silent=True) or {}
+    n = int(datos.get("n", conf["numero_darks"]))
+    try:
+        darks.trabajo_darks.iniciar(camara, conf["exposicion"], conf["binning"], n)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True, "n": n, "exposicion": conf["exposicion"]})
+
 
 @app.route('/procesar-dark', methods=["POST"])
 def procesar_dark():
-    import numpy as np
-    from astropy.io import fits
-    import os
-    import time
-    import pythoncom
-
-    if camara.ocupado:
-        return "⏳ La cámara está ocupada con otra captura", 409
-
+    """Compatibilidad con el formulario antiguo: lanza el trabajo y vuelve a dark.html."""
+    conf = _config_darks()
     try:
-        n = 10  # número de darks a promediar
-
-        def _capturar_darks(cam):
-            suma = None
-            for i in range(n):
-                imagen_raw = capturar_frame(cam, EXPOSICION, BINNING,
-                                            descripcion=f"Dark {i+1}/{n}").astype(np.float32)
-                suma = imagen_raw if suma is None else suma + imagen_raw
-                print(f"📸 Captura dark {i+1}/{n} completada")
-            return suma, getattr(cam, "SensorType", None)
-
-        try:
-            suma, sensor_type = camara.ejecutar(_capturar_darks, timeout=n * (EXPOSICION + 90))
-        except CapturaCancelada:
-            return "⏹️ Generación de dark cancelada"
-        except ErrorHardware as e:
-            return f"❌ Error conectando la cámara: {e}"
-
-        # Promediamos y recortamos al rango válido de 16 bits
-        promedio = np.clip(suma / n, 0, 65535).astype(np.uint16)
-
-        # Guardamos el dark maestro en FITS (2D, mismo formato CFA que captura_imagen)
-        os.makedirs("calibraciones", exist_ok=True)
-        nombre_dark = f"calibraciones/dark_{EXPOSICION:.2f}s.fits"
-        hdu = fits.PrimaryHDU(promedio)
-        hdu.header["IMAGETYP"] = "DARK"
-        hdu.header["EXPOSURE"] = EXPOSICION
-
-        # Añadimos el patrón CFA al header
-        _map = {2: 'RGGB', 3: 'CMYG', 4: 'CMYG2', 5: 'LRGB'}
-        patrón = _map.get(sensor_type, "Mono")
-        hdu.header["BAYERPAT"] = (patrón, "Patron CFA segun ASCOM SensorType")
-
-        hdu.writeto(nombre_dark, overwrite=True)
-
-        print(f"✅ Dark maestro generado: {nombre_dark}")
-        return render_template("dark.html",
-                               exposicion=EXPOSICION,
-                               mensaje="✅ Dark maestro generado correctamente")
-
-    except Exception as e:
-        return f"❌ Error generando el dark: {e}"
+        darks.trabajo_darks.iniciar(camara, conf["exposicion"], conf["binning"], conf["numero_darks"])
+    except RuntimeError as e:
+        return render_template("dark.html", mensaje=f"❌ {e}", mostrar_volver=True)
+    return render_template("dark.html", mostrar_volver=True)
 
 
 @app.route("/config-mtf")

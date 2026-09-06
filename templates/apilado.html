@@ -35,6 +35,54 @@
     <div id="estado-guardar" style="margin-top: 8px; font-style: italic; color: #8f8;"></div>
 </div>
 
+<!-- ─── Panel de inicio: darks y arranque del apilado ───────────── -->
+<div id="panel-inicio" style="display: none; max-width: 520px; margin: 15px auto; background: #220000; border: 2px solid #770000; border-radius: 12px; padding: 14px; color: #ffd;">
+    <h4 style="margin: 0 0 10px 0; text-align: center;">🌑 Darks antes de empezar</h4>
+    <div id="darks-ultimo" style="font-size: 14px; color: #ddaaaa; margin-bottom: 10px; text-align: center;">Consultando...</div>
+
+    <label style="display: block; padding: 8px; font-size: 16px;">
+        <input type="radio" name="opcion-dark" value="ultimo" id="opcion-dark-ultimo"> Usar el último dark
+    </label>
+    <label style="display: block; padding: 8px; font-size: 16px;">
+        <input type="radio" name="opcion-dark" value="nuevo" id="opcion-dark-nuevo"> Generar darks nuevos
+        <span style="white-space: nowrap;">(<input type="number" id="darks-n" min="1" max="50" value="10" style="width: 60px; text-align: center; min-height: 32px;"> tomas)</span>
+    </label>
+    <label style="display: block; padding: 8px; font-size: 16px;">
+        <input type="radio" name="opcion-dark" value="sin" id="opcion-dark-sin"> Sin darks
+    </label>
+
+    <div id="inicio-botones" style="text-align: center; margin-top: 12px;">
+        <button class="btn btn-success" onclick="empezarApilado(true)">▶️ Empezar apilado nuevo</button>
+        <button id="boton-continuar" class="btn btn-primary" onclick="empezarApilado(false)" style="display: none;">⏩ Continuar el apilado actual</button>
+    </div>
+
+    <!-- Paso: tapar -->
+    <div id="paso-tapar" style="display: none; text-align: center; margin-top: 12px;">
+        <p style="font-size: 18px;">🔒 Tapa el telescopio completamente y pulsa Aceptar.</p>
+        <button class="btn btn-danger" onclick="lanzarDarks()">✅ Aceptar, ya está tapado</button>
+        <button class="btn btn-secondary" onclick="volverAlInicio()">Cancelar</button>
+    </div>
+
+    <!-- Paso: progreso -->
+    <div id="paso-progreso" style="display: none; text-align: center; margin-top: 12px;">
+        <p id="darks-mensaje" style="font-size: 18px;"></p>
+        <div style="background: #330000; border-radius: 8px; height: 22px; overflow: hidden; margin: 10px 0;">
+            <div id="darks-barra" style="background: #aa2222; height: 100%; width: 0%; transition: width 0.5s;"></div>
+        </div>
+        <p id="darks-cuenta" style="color: #ddaaaa;"></p>
+        <button class="btn btn-secondary" onclick="cancelarCaptura()">⏹️ Cancelar darks</button>
+    </div>
+
+    <!-- Paso: destapar -->
+    <div id="paso-destapar" style="display: none; text-align: center; margin-top: 12px;">
+        <p id="darks-resultado" style="font-size: 18px; color: #66ff66;"></p>
+        <p style="font-size: 18px;">🔓 Destapa el telescopio y pulsa Empezar.</p>
+        <button class="btn btn-success" onclick="arrancarBucle()">▶️ Empezar</button>
+    </div>
+
+    <div id="darks-error" style="color: #ff6666; font-weight: bold; text-align: center; margin-top: 8px;"></div>
+</div>
+
 <!-- Estado y contador -->
 <div style="text-align: center; font-size: 20px; color: #ffaaaa; margin-bottom: 10px;">
     Imágenes apiladas: <span id="contador-apilado">0</span> / <span id="maximo-apilado">-</span><br>
@@ -122,20 +170,127 @@
 </script>
 
 <script>
-    // ——— Inicialización: reiniciar → reanudar → arrancar cliente ———
+    // ——— Inicialización: mostrar el panel de darks/arranque. NO se captura
+    //     nada hasta que el usuario pulsa Empezar (así abrir la página no
+    //     destruye un apilado en curso) ———
+    let bucleActivo = false;      // el bucle de capturas está en marcha
+    let usarDark = true;          // se pasa a /capturar-imagen como &dark=0/1
+    let apiladoNuevo = true;      // Empezar nuevo (reinicia) o continuar
+    let sondeoDarks = null;
+
     window.addEventListener('DOMContentLoaded', () => {
-        fetch('/reiniciar-apilado', { method: 'POST' })
+        cargarParametros();
+        cargarConfigObjetos();
+        actualizarImagen();
+        cargarInfoGoto();
+        prepararInicio();
+    });
+
+    function describirUltimoDark(u) {
+        if (!u || !u.existe) return `ℹ️ No hay ningún dark guardado para ${u ? u.exposicion : "?"} s de exposición.`;
+        let s = `🌑 Último dark: ${u.exposicion} s, hecho el ${u.fecha}`;
+        if (u.antiguedad_min !== undefined) {
+            const h = Math.floor(u.antiguedad_min / 60), m = u.antiguedad_min % 60;
+            s += ` (hace ${h > 0 ? h + " h " : ""}${m} min)`;
+        }
+        if (u.temperatura !== null && u.temperatura !== undefined) s += ` · sensor a ${u.temperatura.toFixed(1)} °C`;
+        if (u.ndarks) s += ` · ${u.ndarks} tomas`;
+        return s;
+    }
+
+    function prepararInicio() {
+        Promise.all([
+            fetch("/darks/estado").then(r => r.json()),
+            actualizarEstadoApilado()
+        ]).then(([d, estado]) => {
+            document.getElementById("darks-ultimo").textContent = describirUltimoDark(d.ultimo);
+            document.getElementById("darks-n").value = d.config.numero_darks || 10;
+            const hayDark = d.ultimo && d.ultimo.existe;
+            document.getElementById("opcion-dark-ultimo").disabled = !hayDark;
+            document.getElementById(hayDark ? "opcion-dark-ultimo" : "opcion-dark-nuevo").checked = true;
+            document.getElementById("boton-continuar").style.display = (estado && estado.total > 0) ? "inline-block" : "none";
+            document.getElementById("panel-inicio").style.display = "block";
+            document.getElementById("estado-carga").textContent = "";
+            if (d.trabajo && d.trabajo.en_curso) mostrarPaso("progreso"), iniciarSondeoDarks();
+        }).catch(console.error);
+    }
+
+    function mostrarPaso(paso) {
+        for (const id of ["inicio-botones", "paso-tapar", "paso-progreso", "paso-destapar"])
+            document.getElementById(id).style.display = "none";
+        const mapa = { inicio: "inicio-botones", tapar: "paso-tapar", progreso: "paso-progreso", destapar: "paso-destapar" };
+        document.getElementById(mapa[paso]).style.display = "block";
+    }
+
+    function volverAlInicio() { mostrarPaso("inicio"); }
+
+    function empezarApilado(nuevo) {
+        apiladoNuevo = nuevo;
+        const opcion = document.querySelector('input[name="opcion-dark"]:checked').value;
+        document.getElementById("darks-error").textContent = "";
+        usarDark = (opcion !== "sin");
+        if (opcion === "nuevo") mostrarPaso("tapar");
+        else arrancarBucle();
+    }
+
+    function lanzarDarks() {
+        const n = parseInt(document.getElementById("darks-n").value) || 10;
+        fetch("/darks/generar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ n })
+        }).then(r => r.json()).then(d => {
+            if (!d.ok) { document.getElementById("darks-error").textContent = "❌ " + (d.error || "No se pudo iniciar"); mostrarPaso("inicio"); return; }
+            mostrarPaso("progreso");
+            iniciarSondeoDarks();
+        }).catch(err => { document.getElementById("darks-error").textContent = "❌ " + err; mostrarPaso("inicio"); });
+    }
+
+    function iniciarSondeoDarks() {
+        if (sondeoDarks) return;
+        sondeoDarks = setInterval(sondearDarks, 1000);
+        sondearDarks();
+    }
+
+    function sondearDarks() {
+        fetch("/darks/estado").then(r => r.json()).then(d => {
+            const t = d.trabajo;
+            if (t.en_curso) {
+                document.getElementById("darks-mensaje").textContent = t.mensaje;
+                document.getElementById("darks-barra").style.width = (t.total ? 100 * t.completadas / t.total : 0) + "%";
+                const c = d.captura;
+                document.getElementById("darks-cuenta").textContent =
+                    (c && c.en_curso) ? `Quedan ${Math.ceil(c.restante)} s de esta toma` : "";
+                return;
+            }
+            clearInterval(sondeoDarks); sondeoDarks = null;
+            if (t.error) {
+                document.getElementById("darks-error").textContent = "❌ " + t.error;
+                mostrarPaso("inicio");
+            } else {
+                document.getElementById("darks-resultado").textContent = "✅ " + t.mensaje;
+                document.getElementById("darks-ultimo").textContent = describirUltimoDark(d.ultimo);
+                usarDark = true;
+                mostrarPaso("destapar");
+            }
+        }).catch(console.error);
+    }
+
+    function arrancarBucle() {
+        const preparar = apiladoNuevo
+            ? fetch('/reiniciar-apilado', { method: 'POST' })
+            : Promise.resolve();
+        preparar
             .then(() => fetch('/reanudar-apilado', { method: 'POST' }))
             .then(() => {
-                cargarParametros();
-                cargarConfigObjetos();
+                document.getElementById("panel-inicio").style.display = "none";
+                document.getElementById("boton-reanudar").style.display = "none";
+                document.getElementById("boton-pausa").style.display = "inline-block";
                 actualizarImagen();
-                actualizarEstadoApilado();
-                cargarInfoGoto();
-                cicloActualizacion();
+                if (!bucleActivo) { bucleActivo = true; cicloActualizacion(); }
             })
             .catch(console.error);
-    });
+    }
 
     // ——— Al abandonar la página, pausamos y reseteamos objetos anotados ———
     window.addEventListener('beforeunload', () => {
@@ -260,7 +415,7 @@
         capturaEnVuelo = true;
         const estado = document.getElementById("estado-carga");
         estado.textContent = "⏳ Capturando...";
-        fetch("/capturar-imagen?apilar=1")
+        fetch(`/capturar-imagen?apilar=1&dark=${usarDark ? 1 : 0}`)
             .then(r => {
                 if (r.status === 409) {
                     estado.textContent = "⏳ La cámara ya está ocupada";

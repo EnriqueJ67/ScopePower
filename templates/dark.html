@@ -1,26 +1,111 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
+
+{% block title %}Dark Maestro{% endblock %}
 
 {% block content %}
 <h2 style="text-align: center;">Generar Dark Maestro</h2>
 {% if mensaje %}
-<div style="text-align: center; margin: 10px 0; font-size: 16px; color: #66ff66;">
+<div style="text-align: center; margin: 10px 0; font-size: 16px; color: #ff9999;">
     {{ mensaje }}
 </div>
 {% endif %}
 
-<div style="text-align: center; margin: 20px;">
-    <p style="font-size: 18px;">🔒 Por favor, tapa el telescopio completamente.</p>
-    <p style="font-size: 16px;">
-        Se generará un dark maestro con exposición:
-        <span style="color: #ffaaaa; font-weight: bold;">{{ exposicion }} s</span>
-    </p>
+<div style="max-width: 500px; margin: 0 auto; text-align: center;">
+    <div id="dark-ultimo" style="background: #220000; border-radius: 10px; padding: 12px; margin-bottom: 15px; color: #ffd;">
+        Consultando el último dark...
+    </div>
+
+    <div id="dark-preparar">
+        <p style="font-size: 18px;">🔒 Tapa el telescopio completamente y pulsa Generar.</p>
+        <p style="font-size: 16px;">
+            Exposición: <b id="dark-exposicion" style="color: #ffaaaa;">-</b> s ·
+            Número de darks:
+            <input type="number" id="dark-n" min="1" max="50" value="10" style="width: 70px; text-align: center;">
+        </p>
+        <button class="btn btn-danger" onclick="generarDarks()">📷 Generar Dark Maestro</button>
+    </div>
+
+    <div id="dark-progreso" style="display: none;">
+        <p id="dark-mensaje" style="font-size: 18px; color: #ffd;"></p>
+        <div style="background: #220000; border-radius: 8px; height: 22px; overflow: hidden; margin: 10px 0;">
+            <div id="dark-barra" style="background: #aa2222; height: 100%; width: 0%; transition: width 0.5s;"></div>
+        </div>
+        <p id="dark-cuenta" style="color: #ddaaaa;"></p>
+        <button class="btn btn-secondary" onclick="cancelarDarks()">⏹️ Cancelar</button>
+    </div>
+
+    <div id="dark-final" style="display: none; margin-top: 15px; font-size: 18px;"></div>
 </div>
 
-<form method="POST" action="{{ url_for('procesar_dark') }}" style="text-align: center;">
-    <button class="btn btn-danger">📷 Generar Dark Maestro</button>
-</form>
+<script>
+    let sondeoDarks = null;
 
-<div style="text-align: center; margin-top: 20px;">
-    <a href="{{ url_for('home') }}" class="btn btn-secondary">🔙 Volver</a>
-</div>
+    function describirUltimo(u) {
+        if (!u || !u.existe) return "ℹ️ No hay ningún dark guardado para " + (u ? u.exposicion : "?") + " s.";
+        let s = `🌑 Último dark: ${u.exposicion} s, hecho el ${u.fecha}`;
+        if (u.antiguedad_min !== undefined) {
+            const h = Math.floor(u.antiguedad_min / 60), m = u.antiguedad_min % 60;
+            s += ` (hace ${h > 0 ? h + " h " : ""}${m} min)`;
+        }
+        if (u.temperatura !== null && u.temperatura !== undefined) s += ` · sensor a ${u.temperatura.toFixed(1)} °C`;
+        if (u.ndarks) s += ` · ${u.ndarks} tomas`;
+        return s;
+    }
+
+    function pintarEstado(d) {
+        document.getElementById("dark-ultimo").textContent = describirUltimo(d.ultimo);
+        document.getElementById("dark-exposicion").textContent = d.config.exposicion;
+        const t = d.trabajo;
+        if (t.en_curso) {
+            document.getElementById("dark-preparar").style.display = "none";
+            document.getElementById("dark-progreso").style.display = "block";
+            document.getElementById("dark-final").style.display = "none";
+            document.getElementById("dark-mensaje").textContent = t.mensaje;
+            const pct = t.total ? (100 * t.completadas / t.total) : 0;
+            document.getElementById("dark-barra").style.width = pct + "%";
+            const c = d.captura;
+            document.getElementById("dark-cuenta").textContent =
+                (c && c.en_curso) ? `Quedan ${Math.ceil(c.restante)} s de esta toma` : "";
+        } else {
+            document.getElementById("dark-progreso").style.display = "none";
+            document.getElementById("dark-preparar").style.display = "block";
+            if (t.terminado) {
+                const f = document.getElementById("dark-final");
+                f.style.display = "block";
+                f.style.color = t.error ? "#ff6666" : "#66ff66";
+                f.textContent = t.error ? "❌ " + t.error : "✅ " + t.mensaje + ". Ya puedes destapar el telescopio.";
+            }
+        }
+        return t.en_curso;
+    }
+
+    function sondear() {
+        fetch("/darks/estado").then(r => r.json()).then(d => {
+            if (!pintarEstado(d) && sondeoDarks) { clearInterval(sondeoDarks); sondeoDarks = null; }
+        }).catch(console.error);
+    }
+
+    function generarDarks() {
+        const n = parseInt(document.getElementById("dark-n").value) || 10;
+        document.getElementById("dark-final").style.display = "none";
+        fetch("/darks/generar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ n })
+        }).then(r => r.json()).then(d => {
+            if (!d.ok) { alert(d.error || "No se pudo iniciar"); return; }
+            if (!sondeoDarks) sondeoDarks = setInterval(sondear, 1000);
+            sondear();
+        }).catch(err => alert("Error: " + err));
+    }
+
+    function cancelarDarks() {
+        fetch("/cancelar-captura", { method: "POST" }).catch(console.error);
+    }
+
+    fetch("/darks/estado").then(r => r.json()).then(d => {
+        document.getElementById("dark-n").value = d.config.numero_darks || 10;
+        if (pintarEstado(d) && !sondeoDarks) sondeoDarks = setInterval(sondear, 1000);
+    }).catch(console.error);
+</script>
 {% endblock %}
