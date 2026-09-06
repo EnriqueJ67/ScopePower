@@ -36,19 +36,12 @@ import cv2
 from apilado import aplicar_estirado_mtf
 import winreg
 import logging
+from registro import configurar_logging
+log = configurar_logging()   # fichero rotativo logs/scopepower.log + consola; print() también va al log
 from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
                       capturar_frame, estado_captura)
 import darks
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-
-# Los mensajes llevan emojis; si la salida va a un fichero o a una consola en
-# cp1252, print() lanzaría UnicodeEncodeError y tumbaría el hilo del apilado.
-for _flujo in (sys.stdout, sys.stderr):
-    try:
-        _flujo.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+import secretos
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -59,7 +52,8 @@ def ruta_absoluta(relativa):
 app = Flask(__name__,
             template_folder=ruta_absoluta("templates"),
             static_folder=ruta_absoluta("static"))
-app.secret_key = 'clave_ultra_secreta_12345'  # Cámbiala por una más segura si quieres
+# Clave de sesión: aleatoria, generada una vez y guardada en secretos.ini
+app.secret_key = secretos.obtener("flask_secret_key")
 
 #from ajuste_mtf_interactivo import app_mtf
 #app.register_blueprint(app_mtf, url_prefix='/ajuste-mtf')
@@ -156,7 +150,8 @@ def identificador_cliente():
 
 import hashlib
 
-SECRETO_ACTIVACION = "mi_clave_privada_123"  # Debe ser exactamente el mismo que uses tú al generar
+# Debe ser exactamente el mismo que uses tú al generar claves; vive en secretos.ini
+SECRETO_ACTIVACION = secretos.obtener("activacion_secreto")
 
 def generar_clave_activacion(identificador, secreto):
     return hashlib.sha256((identificador + secreto).encode()).hexdigest()
@@ -1005,7 +1000,7 @@ def platesolve_astrometry(ruta_imagen):
     try:
         from client import Client, RequestError  # Asegúrate de que client.py está en el mismo directorio
 
-        api_key = config["General"].get("ASTROMETRY_API_KEY", "")
+        api_key = secretos.obtener("astrometry_api_key")
         if not api_key:
             raise Exception("API Key no configurada en config.ini")
 
@@ -1887,6 +1882,20 @@ def guardar_config_datos():
     with open("config.ini", "w") as f:
         config.write(f)
     return "✅ Configuración guardada correctamente"
+
+@app.errorhandler(Exception)
+def error_no_capturado(e):
+    """Registra el error con su traza y muestra un mensaje en vez de la página 500 en blanco."""
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return e
+    log.exception("Error no capturado atendiendo %s %s", request.method, request.path)
+    return render_template_string(
+        "{% extends 'base.html' %}{% block content %}"
+        "<h2>❌ Error inesperado</h2><p>{{ error }}</p>"
+        "<p style='color:#aaa'>Los detalles están en logs/scopepower.log</p>{% endblock %}",
+        error=str(e)), 500
+
 
 @app.route("/ascom-selector")
 def ascom_selector():

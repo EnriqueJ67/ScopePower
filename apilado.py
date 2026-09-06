@@ -249,7 +249,8 @@ def subir_imagen_ftp_async(ruta_local, nombre_remoto="ultima.jpg"):
             # Lectura de credenciales y ruta
             ftp_host = config["FTP"]["host"]
             ftp_user = config["FTP"]["usuario"]
-            ftp_pass = config["FTP"]["contrasena"]
+            import secretos
+            ftp_pass = secretos.obtener("ftp_contrasena")
             ftp_path = config["FTP"].get("ruta_remota", "").strip()
 
             # Verificación del archivo local

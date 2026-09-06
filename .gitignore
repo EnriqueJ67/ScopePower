@@ -26,3 +26,7 @@ objetos_descartados.csv
 
 # Copias sueltas
 *- copia*
+
+# Secretos y logs
+secretos.ini
+logs/
