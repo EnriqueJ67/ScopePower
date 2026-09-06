@@ -1,9 +1,36 @@
-﻿<!-- templates/modo_automatico.html -->
+<!-- templates/modo_automatico.html -->
 {% extends "base.html" %}
 
-{% block title %}Modo Automático{% endblock %}
+{% block title %}Centrado Automático{% endblock %}
 
 {% block content %}
-<h2>Resultado del Modo Automático</h2>
-<p>{{ resultado | safe }}</p>
+<h2>🎯 Centrado Automático</h2>
+<p style="color: #ddaaaa;">
+    Foto corta → resolver → medir el error respecto al último GOTO → corregir, hasta
+    quedar dentro de la tolerancia o agotar las vueltas.
+</p>
+<div id="estado-centrado" style="font-size: 18px; margin-top: 15px; min-height: 3em;"></div>
+<div style="margin-top: 15px;">
+    <button type="button" id="btn-centrar" class="btn btn-success" onclick="lanzar()">🎯 Centrar de nuevo</button>
+</div>
+
+<style>
+    .spinner {
+        display: inline-block; width: 18px; height: 18px;
+        border: 3px solid #ccc; border-top: 3px solid #ffcccc; border-radius: 50%;
+        animation: spin 1s linear infinite; margin-right: 8px; vertical-align: middle;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+<script src="{{ url_for('static', filename='centrado.js') }}"></script>
+<script>
+    function lanzar() {
+        document.getElementById("btn-centrar").disabled = true;
+        iniciarCentrado("estado-centrado", {
+            hablar: true,
+            alTerminar: () => { document.getElementById("btn-centrar").disabled = false; }
+        });
+    }
+    window.addEventListener("DOMContentLoaded", lanzar);
+</script>
 {% endblock %}

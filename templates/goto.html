@@ -151,6 +151,7 @@
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+<script src="{{ url_for('static', filename='centrado.js') }}"></script>
 <script>
     // Crea una instancia de NoSleep
     const noSleep = new NoSleep();
@@ -307,28 +308,19 @@
         }, 1000);
     }
 
+    // Centrado automático en bucle cerrado (static/centrado.js): progreso por
+    // vueltas con el error en minutos de arco y resultado final hablado.
     function lanzarModoAutomatico() {
-        document.getElementById("status").innerHTML = `<span class="spinner"></span> Ejecutando Centrado automático...`;
         document.getElementById("btnModoAutomatico").disabled = true;
-
-        fetch("/modo-automatico")
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById("status").innerHTML = html;
-                // Crear un elemento temporal para eliminar etiquetas HTML y obtener solo el texto plano
-                var tempDiv = document.createElement("div");
-                tempDiv.innerHTML = html;
-                var textoPlano = tempDiv.textContent || tempDiv.innerText || "";
-                // Configurar y ejecutar la síntesis de voz en el navegador
-                var utterance = new SpeechSynthesisUtterance(textoPlano);
-                utterance.rate = 0.8; // Ajusta la velocidad para que sea más pausada
-                utterance.lang = "es-ES";
-                speechSynthesis.speak(utterance);
-            })
-            .catch(err => {
-                document.getElementById("status").innerHTML = "❌ Error al ejecutar modo automático: " + err;
-            });
+        iniciarCentrado("status", {
+            hablar: true,
+            alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
+        });
     }
+    window.addEventListener("DOMContentLoaded", () => engancharCentradoEnCurso("status", {
+        hablar: true,
+        alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
+    }));
 
 
 

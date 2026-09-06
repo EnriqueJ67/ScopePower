@@ -42,6 +42,7 @@ from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
                       capturar_frame, estado_captura)
 import darks
 import secretos
+import centrado
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -376,6 +377,10 @@ def _activar_seguimiento(tel):
 
 montura = TrabajadorCOM("montura", lambda: DRIVER_TELESCOPIO, al_conectar=_activar_seguimiento)
 camara = TrabajadorCOM("cámara", lambda: DRIVER_CAMARA)
+
+# Objetivo del último GOTO (ra en horas, dec en grados): es lo que usa el
+# centrado automático como referencia, no "donde la montura cree que está".
+ULTIMO_GOTO = {}
 
 
 def conectar_telescopio():
@@ -1070,68 +1075,45 @@ def corregir_posicion():
     return render_template('corregir_posicion.html', resultado=resultado_html, mostrar_volver=True)
 
 
-# 🚀 Modo Automático: Captura la imagen, resuelve con ASTAP, sincroniza y recentra el telescopio
+# 🚀 Centrado automático en bucle cerrado (ver centrado.py)
 @app.route('/modo-automatico')
 def modo_automatico():
-    try:
-        # 💣 Borrar imagen anterior si existe
-        if os.path.exists(RUTA_IMAGEN):
-            os.remove(RUTA_IMAGEN)
+    """Página que lanza el centrado y muestra el progreso (menú principal)."""
+    return render_template('modo_automatico.html', mostrar_volver=True)
 
-        # 📸 Captura la imagen (esto renderiza HTML)
-        resultado_captura = capturar_imagen()
 
-        # 🔍 Verificar si el archivo fue realmente generado
-        if not os.path.exists(RUTA_IMAGEN):
-            return render_template('modo_automatico.html', resultado="❌ La imagen no fue generada correctamente.", mostrar_volver=True)
-
+@app.route('/centrado/iniciar', methods=["POST"])
+def centrado_iniciar():
+    """
+    Arranca el centrado en segundo plano. Objetivo: el último GOTO; si no hay,
+    la posición que la montura dice tener ahora mismo.
+    """
+    if ULTIMO_GOTO:
+        ra, dec, objeto, origen = ULTIMO_GOTO["ra"], ULTIMO_GOTO["dec"], ULTIMO_GOTO.get("objeto", ""), "goto"
+    else:
         try:
-            ra_original, dec_original = montura.ejecutar(
-                lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
+            ra, dec = montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
         except ErrorHardware as e:
-            return render_template('modo_automatico.html', resultado=f"❌ Error: No se pudo conectar con el telescopio ({e}).", mostrar_volver=True)
-
-        RUTA_IMAGEN_MONO = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.fits"
-        generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, RUTA_IMAGEN_MONO)
-
-        if not ejecutar_astap(RUTA_IMAGEN_MONO):
-            return render_template('modo_automatico.html', resultado="⏱️ ASTAP no respondió a tiempo.", mostrar_volver=True)
-
-        coordenadas = extraer_coordenadas_ini(RUTA_INI)
-        if coordenadas is None:
-            print("⚠️ ASTAP falló. Intentando con Astrometry.net...")
-            coordenadas = platesolve_astrometry(RUTA_IMAGEN_MONO)
-
-            if coordenadas is None:
-                return render_template('modo_automatico.html', resultado="❌ ASTAP y Astrometry.net no pudieron resolver la imagen.", mostrar_volver=True)
-
-        ra_resuelto, dec_resuelto = coordenadas
-        ra_resuelto = float(ra_resuelto) / 15.0  # Convertimos RA de grados a horas
-
-        altitud = calcular_altitud(ra_resuelto, dec_resuelto)
-
-        if altitud < int(ALTURA_MINIMA):
-            #return "⚠️ Advertencia: El objeto está por debajo de altura minima. Sincronización cancelada."
-            return render_template('modo_automatico.html', resultado="⚠️ Advertencia: El objeto está por debajo de altura minima. Sincronización cancelada.", mostrar_volver=True)
-
-        def _sincronizar(tel):
-            tel.SyncToCoordinates(ra_resuelto, dec_resuelto)
-            tel.SlewToCoordinates(ra_original, dec_original)
-
-        montura.ejecutar(_sincronizar, timeout=120)
-
-        resultado_html = f"""
-        ✅ <b>Modo Automático Completado</b> 🚀<br>
-        📷 Imagen capturada<br>
-        🔍 Coordenadas resueltas: RA {ra_resuelto} h, DEC {dec_resuelto}°<br>
-        🔄 Telescopio sincronizado con ASTAP<br>
-        🎯 Telescopio recentrado a RA {ra_original} h, DEC {dec_original}°
-        """
-        return render_template('modo_automatico.html', resultado=resultado_html, mostrar_volver=True)
+            return jsonify({"ok": False, "error": f"No hay GOTO previo y no se pudo leer la montura: {e}"}), 409
+        objeto, origen = "posición actual de la montura", "montura"
+    try:
+        centrado.trabajo_centrado.iniciar(
+            camara, montura, ra, dec, objeto=objeto,
+            calcular_altitud=calcular_altitud, altura_minima=float(ALTURA_MINIMA))
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True, "objeto": objeto, "origen": origen})
 
 
-    except Exception as e:
-        return f"❌ Error en Modo Automático: {e}"
+@app.route('/centrado/estado')
+def centrado_estado():
+    return jsonify(centrado.trabajo_centrado.estado())
+
+
+@app.route('/centrado/cancelar', methods=["POST"])
+def centrado_cancelar():
+    centrado.trabajo_centrado.cancelar()
+    return jsonify({"mensaje": "⏹️ Cancelando centrado..."})
 
 # Función para leer coordenadas de ASTAP desde el archivo WCS
 def extraer_coordenadas_wcs(ruta_wcs):
@@ -1309,6 +1291,10 @@ def goto_objeto():
 
             if altitud < int(ALTURA_MINIMA):
                 return jsonify({"warning": "El objeto está por debajo de altura mínima. GOTO cancelado."})
+
+            ULTIMO_GOTO.clear()
+            ULTIMO_GOTO.update({"ra": float(ra), "dec": float(dec), "objeto": objeto,
+                                "fuente": fuente_coords, "hora": datetime.now().isoformat(timespec="seconds")})
 
             def _activar_tracking(tel):
                 if not tel.Tracking:
