@@ -39,7 +39,8 @@
 <!-- ─── Panel de inicio: darks y arranque del apilado ───────────── -->
 <div id="panel-inicio" style="display: none; max-width: 520px; margin: 15px auto; background: #220000; border: 2px solid #770000; border-radius: 12px; padding: 14px; color: #ffd;">
     <h4 style="margin: 0 0 10px 0; text-align: center;">🌑 Darks antes de empezar</h4>
-    <div id="darks-ultimo" style="font-size: 14px; color: #ddaaaa; margin-bottom: 10px; text-align: center;">Consultando...</div>
+    <div id="darks-ultimo" style="font-size: 14px; color: #ddaaaa; margin-bottom: 4px; text-align: center;">Consultando...</div>
+    <div id="flat-info" style="font-size: 13px; color: #aa9999; margin-bottom: 10px; text-align: center;"></div>
 
     <label style="display: block; padding: 8px; font-size: 16px;">
         <input type="radio" name="opcion-dark" value="ultimo" id="opcion-dark-ultimo"> Usar el último dark
@@ -254,6 +255,10 @@
             actualizarEstadoApilado()
         ]).then(([d, estado]) => {
             document.getElementById("darks-ultimo").textContent = describirUltimoDark(d.ultimo);
+            const fl = d.flat || {};
+            document.getElementById("flat-info").innerHTML = fl.existe
+                ? `🟦 Flat maestro del ${fl.fecha} (viñeteo ${fl.vinyeteo} %): se aplicará a cada foto`
+                : `ℹ️ Sin flat maestro: viñeteo y sombras de polvo no se corrigen. <a href="/flats">Generar flat</a>`;
             document.getElementById("darks-n").value = d.config.numero_darks || 10;
             const hayDark = d.ultimo && d.ultimo.existe;
             document.getElementById("opcion-dark-ultimo").disabled = !hayDark;

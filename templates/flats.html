@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Flat Maestro{% endblock %}
+
+{% block content %}
+<h2 style="text-align: center;">🟦 Generar Flat Maestro</h2>
+<p style="color: #ddaaaa; font-size: 15px; max-width: 520px; margin: 0 auto 12px auto;">
+    El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fotografiando una
+    superficie uniformemente iluminada. La exposición se ajusta sola.
+</p>
+
+<div style="max-width: 520px; margin: 0 auto; text-align: center;">
+    <div id="flat-ultimo" style="background: #220000; border-radius: 10px; padding: 12px; margin-bottom: 15px; color: #ffd;">
+        Consultando el último flat...
+    </div>
+
+    <div id="flat-preparar">
+        <ol style="text-align: left; font-size: 15px; color: #ffd; padding-left: 22px;">
+            <li>Pon una camiseta blanca bien estirada (dos capas) sobre la boca del tubo, sin arrugas.</li>
+            <li>Apunta el telescopio a una pantalla blanca (móvil o tablet a brillo medio, pegada a la camiseta) o al cielo del crepúsculo, lejos del sol.</li>
+            <li>No cambies el enfoque ni la orientación de la cámara respecto a las fotos de la noche.</li>
+        </ol>
+        <p style="font-size: 15px;">
+            Número de flats:
+            <input type="number" id="flat-n" min="3" max="50" value="{{ conf.numero_flats }}" style="width: 70px; text-align: center;">
+        </p>
+        <label style="display: block; font-size: 15px; padding: 4px 0;">
+            <input type="checkbox" id="flat-darks" checked>
+            Hacer también darks de flat ({{ conf.numero_flat_darks }} tomas, te pedirá tapar el tubo). Recomendado.
+        </label>
+        <button class="btn btn-success" onclick="generarFlats()" style="margin-top: 8px;">🟦 Generar Flat Maestro</button>
+    </div>
+
+    <div id="flat-progreso" style="display: none;">
+        <p id="flat-mensaje" style="font-size: 18px; color: #ffd;"></p>
+        <div style="background: #220000; border-radius: 8px; height: 22px; overflow: hidden; margin: 10px 0;">
+            <div id="flat-barra" style="background: #2255aa; height: 100%; width: 0%; transition: width 0.5s;"></div>
+        </div>
+        <p id="flat-cuenta" style="color: #ddaaaa;"></p>
+        <div id="flat-tapar" style="display: none; margin: 10px 0;">
+            <p style="font-size: 18px;">🔒 Tapa el telescopio (quita la pantalla y pon la tapa) y pulsa Continuar.</p>
+            <button class="btn btn-danger" onclick="continuarFlats()">✅ Continuar, ya está tapado</button>
+        </div>
+        <button class="btn btn-secondary" onclick="cancelarFlats()">⏹️ Cancelar</button>
+    </div>
+
+    <div id="flat-final" style="display: none; margin-top: 15px; font-size: 18px;"></div>
+</div>
+
+<script>
+    let sondeoFlats = null;
+    const NOMBRE_FASE = { exposicion: "Ajustando exposición", flats: "Capturando flats", esperando_tapa: "Esperando", flat_darks: "Darks de flat", combinando: "Combinando" };
+
+    function describirUltimo(u) {
+        if (!u || !u.existe) return "ℹ️ No hay ningún flat maestro guardado.";
+        let s = `🟦 Último flat: hecho el ${u.fecha}`;
+        if (u.exposicion !== null) s += ` · ${u.exposicion} s`;
+        if (u.nflats) s += ` · ${u.nflats} tomas`;
+        if (u.nflatdk) s += ` + ${u.nflatdk} darks de flat`;
+        if (u.vinyeteo !== null && u.vinyeteo !== undefined) s += ` · viñeteo ${u.vinyeteo} %`;
+        return s;
+    }
+
+    function pintarEstado(d) {
+        document.getElementById("flat-ultimo").textContent = describirUltimo(d.ultimo);
+        const t = d.trabajo;
+        if (t.en_curso) {
+            document.getElementById("flat-preparar").style.display = "none";
+            document.getElementById("flat-progreso").style.display = "block";
+            document.getElementById("flat-final").style.display = "none";
+            document.getElementById("flat-mensaje").textContent = (NOMBRE_FASE[t.fase] ? NOMBRE_FASE[t.fase] + ": " : "") + t.mensaje;
+            const pct = (t.fase === "flats" || t.fase === "flat_darks") && t.total ? (100 * t.completadas / t.total) : (t.fase === "combinando" ? 100 : 0);
+            document.getElementById("flat-barra").style.width = pct + "%";
+            const c = d.trabajo.captura;
+            document.getElementById("flat-cuenta").textContent = (c && c.en_curso) ? `Exponiendo ${c.exposicion} s...` : "";
+            document.getElementById("flat-tapar").style.display = t.fase === "esperando_tapa" ? "block" : "none";
+        } else {
+            document.getElementById("flat-progreso").style.display = "none";
+            document.getElementById("flat-preparar").style.display = "block";
+            if (t.terminado) {
+                const f = document.getElementById("flat-final");
+                f.style.display = "block";
+                f.style.color = t.error ? "#ff6666" : "#66ff66";
+                f.textContent = t.error ? "❌ " + t.error : "✅ " + t.mensaje + ". Ya puedes destapar el telescopio.";
+            }
+        }
+        return t.en_curso;
+    }
+
+    function sondear() {
+        fetch("/flats/estado").then(r => r.json()).then(d => {
+            if (!pintarEstado(d) && sondeoFlats) { clearInterval(sondeoFlats); sondeoFlats = null; }
+        }).catch(console.error);
+    }
+
+    function generarFlats() {
+        const n = parseInt(document.getElementById("flat-n").value) || 10;
+        const flat_darks = document.getElementById("flat-darks").checked;
+        document.getElementById("flat-final").style.display = "none";
+        fetch("/flats/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ numero_flats: n, flat_darks }) })
+            .then(r => r.json()).then(d => {
+                if (!d.ok) { alert(d.error || "No se pudo iniciar"); return; }
+                if (!sondeoFlats) sondeoFlats = setInterval(sondear, 1000);
+                sondear();
+            }).catch(err => alert("Error: " + err));
+    }
+
+    function continuarFlats() { fetch("/flats/continuar", { method: "POST" }).catch(console.error); }
+    function cancelarFlats() { fetch("/flats/cancelar", { method: "POST" }).catch(console.error); }
+
+    fetch("/flats/estado").then(r => r.json()).then(d => {
+        if (pintarEstado(d) && !sondeoFlats) sondeoFlats = setInterval(sondear, 1000);
+    }).catch(console.error);
+</script>
+{% endblock %}

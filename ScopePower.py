@@ -41,6 +41,7 @@ log = configurar_logging()   # fichero rotativo logs/scopepower.log + consola; p
 from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
                       capturar_frame, estado_captura)
 import darks
+import flats
 import secretos
 import centrado
 import alineacion
@@ -657,10 +658,15 @@ def aplicar_flat_maestro(imagen_fits, ruta_flat):
             print("⚠️ Tamaño del flat no coincide con la imagen. Saltando corrección.")
             return imagen_fits, False
 
-        flat_data = np.where(flat_data == 0, 1, flat_data)  # evitar división por cero
-        media_flat = np.mean(flat_data)
-        #median_flat=np.median(flat_data)
-        imagen_corr = imagen_fits.astype(np.float32) / flat_data * media_flat
+        # El flat de flats.py ya viene normalizado por canal Bayer a media 1 (así no
+        # altera el balance de color). Un flat antiguo en ADU se normaliza aquí por
+        # su media global. Se limita por abajo para no amplificar el ruido de las
+        # esquinas muy viñeteadas.
+        media_flat = float(np.mean(flat_data))
+        if media_flat > 10:
+            flat_data = flat_data / media_flat
+        flat_data = np.clip(flat_data, 0.2, 5.0)
+        imagen_corr = imagen_fits.astype(np.float32) / flat_data
         imagen_corr = np.clip(imagen_corr, 0, 65535).astype(np.uint16)
 
         print(f"📸 Flat maestro aplicado correctamente: {ruta_flat}")
@@ -1768,6 +1774,7 @@ def darks_estado():
     return jsonify({
         "trabajo": darks.trabajo_darks.estado(),
         "ultimo": darks.info_dark(conf["exposicion"]),
+        "flat": flats.info_flat(),
         "captura": estado_captura.como_dict(),
         "camara_ocupada": camara.ocupado,
         "config": conf,
@@ -1787,6 +1794,50 @@ def darks_generar():
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     return jsonify({"ok": True, "n": n, "exposicion": conf["exposicion"]})
+
+
+@app.route('/flats')
+def vista_flats():
+    return render_template('flats.html', mostrar_volver=True, conf=flats.leer_config())
+
+
+@app.route('/flats/estado')
+def flats_estado():
+    return jsonify({"trabajo": flats.trabajo_flats.estado(), "ultimo": flats.info_flat(),
+                    "config": flats.leer_config(), "camara_ocupada": camara.ocupado})
+
+
+@app.route('/flats/iniciar', methods=["POST"])
+def flats_iniciar():
+    """Arranca la generación del flat maestro (telescopio con la camiseta y la pantalla)."""
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
+                            ("alineación", alineacion.trabajo_alineacion)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    datos = request.get_json(silent=True) or {}
+    conf = flats.leer_config()
+    if "numero_flats" in datos:
+        conf["numero_flats"] = max(1, min(50, int(datos["numero_flats"])))
+    con_flat_darks = bool(datos.get("flat_darks", True))
+    try:
+        flats.trabajo_flats.iniciar(camara, conf=conf, con_flat_darks=con_flat_darks, voz=voz)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True})
+
+
+@app.route('/flats/continuar', methods=["POST"])
+def flats_continuar():
+    flats.trabajo_flats.continuar()
+    return jsonify({"ok": True})
+
+
+@app.route('/flats/cancelar', methods=["POST"])
+def flats_cancelar():
+    flats.trabajo_flats.cancelar()
+    return jsonify({"mensaje": "⏹️ Cancelando flats..."})
 
 
 @app.route('/procesar-dark', methods=["POST"])
