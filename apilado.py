@@ -18,6 +18,7 @@ from collections import deque
 from AutoStrechSTF import apply_stf_color, debayer_rgb
 from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
 import voz
+import procesado
 import cv2
 
 import subprocess
@@ -516,6 +517,95 @@ class ApiladorEnTiempoReal:
 
 
 
+    def generar_preview(self, rgb_cube, num_imagenes_preview, EXPOSICION, ObjetosAnotados=False,
+                        anotar_evolucion=True):
+        """
+        Del cubo lineal (3, H, W) al JPG de vista previa: procesado estilo
+        Seestar (procesado.py) a media resolución, recorte de zoom, texto,
+        miniatura de la tira de evolución y aviso a la web (versión).
+        """
+        self._fase("estirando")
+        rgb_mtf = None
+        if ObjetosAnotados:
+            # resolver_y_generar_imagen_con_objetos ya devuelve un JPG coloreado
+            ruta_obj = "static/scopepower_objetos.jpg"
+            ok = resolver_y_generar_imagen_con_objetos("static/resultado_apilado.fits",
+                                                       ruta_salida_jpg=ruta_obj)
+            if ok and os.path.exists(ruta_obj):
+                rgb_mtf = cv2.cvtColor(cv2.imread(ruta_obj), cv2.COLOR_BGR2RGB)
+            else:
+                print("⚠️ Fallback al flujo normal (objetos anotados).")
+        if rgb_mtf is None:
+            # Procesado completo a media resolución (la web muestra ≤600 px)
+            rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=0.5)
+
+        imagen_bgr = cv2.cvtColor(rgb_mtf, cv2.COLOR_RGB2BGR)
+
+        # Recorte de zoom (config.ini)
+        nuevo_config = configparser.ConfigParser()
+        nuevo_config.read("config.ini")
+        zoom = int(nuevo_config["Dispositivos"].get("zoom_preview", 0))
+        if zoom > 0:
+            h, w = imagen_bgr.shape[:2]
+            margen_h = int(h * zoom / 100 / 2)
+            margen_w = int(w * zoom / 100 / 2)
+            imagen_bgr = imagen_bgr[margen_h:h - margen_h, margen_w:w - margen_w]
+
+        # Texto (se omite con zoom muy alto para no pixelar)
+        if zoom <= 80:
+            alto = imagen_bgr.shape[0]
+            font_scale_grande = max(0.4, min(round(alto / 800.0, 2), 1.5))
+            font_scale_pequeno = font_scale_grande * 0.7
+            thickness_grande = max(1, int(font_scale_grande * 2.5))
+            thickness_pequeno = max(1, int(thickness_grande * 0.7))
+            texto_fecha = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            texto_apilado = f"{num_imagenes_preview} imagenes, {num_imagenes_preview * EXPOSICION:.1f} s"
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            color = (180, 180, 180)
+            (t_width, t_height), _ = cv2.getTextSize(texto_apilado, font, font_scale_grande, thickness_grande)
+            (tw_fecha, th_fecha), _ = cv2.getTextSize(texto_fecha, font, font_scale_pequeno, thickness_pequeno)
+            pos_x = (imagen_bgr.shape[1] - t_width) // 2
+            pos_y = imagen_bgr.shape[0] - 10
+            pos_x_fecha = (imagen_bgr.shape[1] - tw_fecha) // 2
+            pos_y_fecha = pos_y - t_height - 8
+            cv2.putText(imagen_bgr, texto_fecha, (pos_x_fecha + 1, pos_y_fecha + 1), font, font_scale_pequeno, (0, 0, 0), 2)
+            cv2.putText(imagen_bgr, texto_fecha, (pos_x_fecha, pos_y_fecha), font, font_scale_pequeno, color, thickness_pequeno)
+            cv2.putText(imagen_bgr, texto_apilado, (pos_x + 1, pos_y + 1), font, font_scale_grande, (0, 0, 0), 2)
+            cv2.putText(imagen_bgr, texto_apilado, (pos_x, pos_y), font, font_scale_grande, color, thickness_grande)
+
+        # Guardar JPG final
+        self._fase("guardando")
+        cv2.imwrite(ruta_absoluta("static/resultado_apilado_preview.jpg"), imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+
+        # Tira de evolución: miniatura del primer apilado y luego cada N
+        if anotar_evolucion:
+            with self.lock:
+                self.apilados_realizados += 1
+                n_apilado = self.apilados_realizados
+            if n_apilado == 1 or n_apilado % INTERVALO_EVOLUCION == 0:
+                try:
+                    os.makedirs(ruta_absoluta(CARPETA_EVOLUCION), exist_ok=True)
+                    h, w = imagen_bgr.shape[:2]
+                    mini = cv2.resize(imagen_bgr, (ANCHO_MINIATURA, int(h * ANCHO_MINIATURA / w)),
+                                      interpolation=cv2.INTER_AREA)
+                    nombre_mini = f"apilado_{n_apilado:04d}.jpg"
+                    cv2.imwrite(ruta_absoluta(os.path.join(CARPETA_EVOLUCION, nombre_mini)), mini,
+                                [cv2.IMWRITE_JPEG_QUALITY, 75])
+                    with self.lock:
+                        self.evolucion.append({
+                            "n": n_apilado,
+                            "fotos": num_imagenes_preview,
+                            "segundos": round(num_imagenes_preview * EXPOSICION),
+                            "archivo": nombre_mini,
+                            "hora": datetime.now().strftime("%H:%M:%S"),
+                        })
+                except Exception as e:
+                    print(f"⚠️ No se pudo guardar la miniatura de evolución: {e}")
+
+        # El JPG ya está en disco: ahora sí, avisar a la web
+        with self.lock:
+            self.version_preview += 1
+
     def procesar_imagen_fits(self, ruta_fits, ObjetosAnotados=False):
         try:
 
@@ -703,114 +793,7 @@ class ApiladorEnTiempoReal:
 
 
 
-            self._fase("estirando")
-            # Si objetos anotados, lee el jpg anotado y conviértelo a rgb_mtf
-            if ObjetosAnotados:
-                # resolver_y_generar_imagen_con_objetos ya devuelve un JPG coloreado
-                ruta_obj = "static/scopepower_objetos.jpg"
-                ok = resolver_y_generar_imagen_con_objetos("static/resultado_apilado.fits",
-                                                           ruta_salida_jpg=ruta_obj)
-                if ok and os.path.exists(ruta_obj):
-                    img_bgr = cv2.imread(ruta_obj)
-                    rgb_mtf = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-                else:
-                    print("⚠️ Fallback al flujo normal (objetos anotados).")
-                    rgb_mtf = apply_stf_color(rgb_cube)
-            else:
-                # SIN OBJETOS: aplicamos STF al cube CFA
-                rgb_mtf = apply_stf_color(rgb_cube)
-
-            # Leer intensidad de saturación en tiempo real
-            nuevo_config = configparser.ConfigParser()
-            nuevo_config.read("config.ini")
-            intensidad_color = float(nuevo_config["Dispositivos"].get("color_intensity", 1.0))
-
-            # Aumentar saturación
-            rgb_mtf = aumentar_saturacion(rgb_mtf, factor=intensidad_color)
-
-            #rgb_vis = np.moveaxis(rgb_mtf, 0, -1)
-
-            # Convertir a BGR para OpenCV
-            #rgb_uint8 = (rgb_vis * 255).astype(np.uint8)
-            imagen_bgr = cv2.cvtColor(rgb_mtf, cv2.COLOR_RGB2BGR)
-
-            # Leer valor de zoom desde config.ini
-            zoom = int(nuevo_config["Dispositivos"].get("zoom_preview", 0))
-            if zoom > 0:
-                h, w = imagen_bgr.shape[:2]
-                margen_h = int(h * zoom / 100 / 2)
-                margen_w = int(w * zoom / 100 / 2)
-                imagen_bgr = imagen_bgr[margen_h:h - margen_h, margen_w:w - margen_w]
-
-            # ⛔️ Si el zoom es muy alto, omitir texto para evitar pixelado
-            if zoom <= 80:
-                alto = imagen_bgr.shape[0]
-                font_scale_grande = round(alto / 800.0, 2)
-                font_scale_grande = max(0.4, min(font_scale_grande, 1.5))
-
-                font_scale_pequeno = font_scale_grande * 0.7
-                thickness_grande = max(1, int(font_scale_grande * 2.5))
-                thickness_pequeno = max(1, int(thickness_grande * 0.7))
-
-                # Hora y fecha actuales
-                fecha_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                num_imagenes_preview = self.total
-
-                texto_fecha = f"{fecha_hora}"
-                texto_apilado = f"{num_imagenes_preview} imagenes, {num_imagenes_preview * EXPOSICION:.1f} s"
-
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                color = (180, 180, 180)
-
-                # Medir tamaños
-                (t_width, t_height), _ = cv2.getTextSize(texto_apilado, font, font_scale_grande, thickness_grande)
-                (tw_fecha, th_fecha), _ = cv2.getTextSize(texto_fecha, font, font_scale_pequeno, thickness_pequeno)
-
-                # Posiciones centradas
-                pos_x = (imagen_bgr.shape[1] - t_width) // 2
-                pos_y = imagen_bgr.shape[0] - 10
-                pos_x_fecha = (imagen_bgr.shape[1] - tw_fecha) // 2
-                pos_y_fecha = pos_y - t_height - 8
-
-                # Fecha
-                cv2.putText(imagen_bgr, texto_fecha, (pos_x_fecha + 1, pos_y_fecha + 1), font, font_scale_pequeno, (0, 0, 0), 2)
-                cv2.putText(imagen_bgr, texto_fecha, (pos_x_fecha, pos_y_fecha), font, font_scale_pequeno, color, thickness_pequeno)
-
-                # Texto principal
-                cv2.putText(imagen_bgr, texto_apilado, (pos_x + 1, pos_y + 1), font, font_scale_grande, (0, 0, 0), 2)
-                cv2.putText(imagen_bgr, texto_apilado, (pos_x, pos_y), font, font_scale_grande, color, thickness_grande)
-
-            # Guardar JPG final
-            self._fase("guardando")
-            cv2.imwrite(ruta_absoluta("static/resultado_apilado_preview.jpg"), imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 80])
-
-            # Tira de evolución: miniatura del primer apilado y luego cada N
-            with self.lock:
-                self.apilados_realizados += 1
-                n_apilado = self.apilados_realizados
-            if n_apilado == 1 or n_apilado % INTERVALO_EVOLUCION == 0:
-                try:
-                    os.makedirs(ruta_absoluta(CARPETA_EVOLUCION), exist_ok=True)
-                    h, w = imagen_bgr.shape[:2]
-                    mini = cv2.resize(imagen_bgr, (ANCHO_MINIATURA, int(h * ANCHO_MINIATURA / w)),
-                                      interpolation=cv2.INTER_AREA)
-                    nombre_mini = f"apilado_{n_apilado:04d}.jpg"
-                    cv2.imwrite(ruta_absoluta(os.path.join(CARPETA_EVOLUCION, nombre_mini)), mini,
-                                [cv2.IMWRITE_JPEG_QUALITY, 75])
-                    with self.lock:
-                        self.evolucion.append({
-                            "n": n_apilado,
-                            "fotos": num_imagenes_preview,
-                            "segundos": round(num_imagenes_preview * EXPOSICION),
-                            "archivo": nombre_mini,
-                            "hora": datetime.now().strftime("%H:%M:%S"),
-                        })
-                except Exception as e:
-                    print(f"⚠️ No se pudo guardar la miniatura de evolución: {e}")
-
-            # El JPG ya está en disco: ahora sí, avisar a la web
-            with self.lock:
-                self.version_preview += 1
+            self.generar_preview(rgb_cube, num_imagenes_preview, EXPOSICION, ObjetosAnotados)
 
 
 
@@ -931,6 +914,36 @@ def reiniciar_apilado_global():
                     print(f"⚠️ No se pudo eliminar {archivo}: {e}")
 
             print("🔄 Apilador, estado y resultados reiniciados.")
+
+
+def reprocesar_preview():
+    """
+    Regenera la vista previa a partir del FITS apilado que hay en disco con los
+    ajustes de procesado actuales (sin capturar nada). Devuelve (ok, mensaje).
+    """
+    a = apilador_global
+    ruta = "static/resultado_apilado.fits"
+    if a is None or not os.path.exists(ruta):
+        return False, "No hay ningún apilado que reprocesar"
+    if a.procesando:
+        return False, "El apilador está ocupado; espera a que termine la foto actual"
+    try:
+        with fits.open(ruta) as hdul:
+            cubo = hdul[0].data.astype(np.float32)
+            hdr = hdul[0].header
+        n = int(hdr.get("NSTACK", max(1, a.total)))
+        exptot = float(hdr.get("EXPTOT", 0.0))
+        exposicion = exptot / n if n and exptot else 0.0
+        a.procesando = True
+        try:
+            a.generar_preview(cubo, n, exposicion, ObjetosAnotados=False, anotar_evolucion=False)
+        finally:
+            a.procesando = False
+            a.fase = ""
+        return True, "Vista previa regenerada"
+    except Exception as e:
+        print(f"❌ Error reprocesando la vista previa: {e}")
+        return False, f"Error: {e}"
 
 
 def obtener_estado_apilado():

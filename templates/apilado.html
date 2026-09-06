@@ -164,16 +164,35 @@
         </div>
      -->
     <div class="form-group">
-        <label>Intensidad del color</label>
-        <input type="number" id="input-color" class="form-control" min="0" max="3" step="0.1">
+        <label>Estilo</label>
+        <select id="proc-estilo" class="form-control" onchange="aplicarEstilo()">
+            <option value="natural">Natural: gradiente y ruido suave</option>
+            <option value="seestar">Seestar: todo activado, valores medios</option>
+            <option value="agresivo">Agresivo: máximo ruido y contraste</option>
+        </select>
     </div>
-
+    <div class="form-group">
+        <label>Reducción de ruido: <span id="proc-ruido-v"></span></label>
+        <input type="range" id="proc-ruido" min="0" max="1" step="0.05" style="width: 100%;" oninput="document.getElementById('proc-ruido-v').textContent = this.value">
+    </div>
+    <div class="form-group">
+        <label>Contraste local: <span id="proc-contraste-v"></span></label>
+        <input type="range" id="proc-contraste" min="0" max="1" step="0.05" style="width: 100%;" oninput="document.getElementById('proc-contraste-v').textContent = this.value">
+    </div>
+    <div class="form-group">
+        <label>Saturación: <span id="proc-saturacion-v"></span></label>
+        <input type="range" id="proc-saturacion" min="0.5" max="3" step="0.1" style="width: 100%;" oninput="document.getElementById('proc-saturacion-v').textContent = this.value">
+    </div>
+    <div class="form-group">
+        <label><input type="checkbox" id="proc-gradiente"> Quitar gradiente de contaminación lumínica</label><br>
+        <label><input type="checkbox" id="proc-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
+    </div>
     <div class="form-group">
         <label>Zoom (%)</label>
         <input type="number" id="input-zoom" class="form-control" min="0" max="90" step="5">
     </div>
 
-    <button class="btn btn-primary mt-3" onclick="guardarParametrosMTF()">💾 Guardar parámetros</button>
+    <button class="btn btn-primary mt-3" onclick="guardarParametrosMTF()">💾 Aplicar a la vista previa</button>
     <div id="estado-mtf" style="margin-top: 10px; font-style: italic;"></div>
 
 </div>
@@ -381,34 +400,55 @@
             });
     }
 
+    let ESTILOS = {};
+
+    function pintarAjustes(a) {
+        document.getElementById("proc-estilo").value = a.estilo;
+        for (const k of ["ruido", "contraste", "saturacion"]) {
+            document.getElementById("proc-" + k).value = a[k];
+            document.getElementById("proc-" + k + "-v").textContent = a[k];
+        }
+        document.getElementById("proc-gradiente").checked = !!a.gradiente;
+        document.getElementById("proc-aplanar").checked = !!a.aplanar;
+    }
+
     function cargarParametros() {
-        fetch("/config-color").then(r => r.json()).then(d => {
-            document.getElementById("input-color").value = d.intensidad;
+        fetch("/config-procesado").then(r => r.json()).then(d => {
+            ESTILOS = d.estilos || {};
+            pintarAjustes(d.ajustes);
         }).catch(err => {
-            console.error("⚠️ Error al cargar intensidad:", err);
-            document.getElementById("estado-mtf").textContent = "❌ Error al cargar intensidad de color";
+            console.error("⚠️ Error al cargar el procesado:", err);
+            document.getElementById("estado-mtf").textContent = "❌ Error al cargar los ajustes de procesado";
         });
         fetch("/config-zoom").then(r => r.json()).then(d => {
             document.getElementById("input-zoom").value = d.zoom;
-        }).catch(err => {
-            console.error("⚠️ Error al cargar zoom:", err);
-            document.getElementById("estado-mtf").textContent = "❌ Error al cargar zoom";
-        });
+        }).catch(err => console.error("⚠️ Error al cargar zoom:", err));
+    }
+
+    // Al cambiar de estilo, los deslizadores toman los valores del estilo
+    function aplicarEstilo() {
+        const e = ESTILOS[document.getElementById("proc-estilo").value];
+        if (e) pintarAjustes(Object.assign({ estilo: document.getElementById("proc-estilo").value }, e));
     }
 
     function guardarParametrosMTF() {
-        const intensidad = parseFloat(document.getElementById("input-color").value);
+        const estado = document.getElementById("estado-mtf");
         const zoom = parseInt(document.getElementById("input-zoom").value);
-        fetch("/guardar-config-zoom", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ zoom })
-        });
-        fetch("/guardar-config-color", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ intensidad })
-        });
+        const ajustes = {
+            estilo: document.getElementById("proc-estilo").value,
+            ruido: parseFloat(document.getElementById("proc-ruido").value),
+            contraste: parseFloat(document.getElementById("proc-contraste").value),
+            saturacion: parseFloat(document.getElementById("proc-saturacion").value),
+            gradiente: document.getElementById("proc-gradiente").checked,
+            aplanar: document.getElementById("proc-aplanar").checked
+        };
+        estado.textContent = "⏳ Aplicando y regenerando la vista previa...";
+        fetch("/guardar-config-zoom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zoom }) })
+            .then(() => fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ajustes) }))
+            .then(() => fetch("/apilado/reprocesar", { method: "POST" }))
+            .then(r => r.json())
+            .then(d => { estado.textContent = (d.ok ? "✅ " : "⚠️ ") + d.mensaje; if (d.ok) cicloActualizacion(); })
+            .catch(err => estado.textContent = "❌ " + err);
     }
 
     function actualizarImagen() {
@@ -577,6 +617,8 @@
             });
     }
 
+    // El JPG de la galería se procesa a resolución completa en el servidor
+    // (20-30 s); aquí solo se sigue el progreso.
     function guardarImagenJPG() {
         const estado = document.getElementById("estado-guardar");
         estado.textContent = "⏳ Guardando...";
@@ -584,6 +626,14 @@
             .then(r => r.json())
             .then(d => {
                 estado.textContent = d.mensaje || d.error || "❌ Error desconocido.";
+                if (d.en_curso) {
+                    const sondeo = setInterval(() => {
+                        fetch("/guardar-imagen-estado").then(r => r.json()).then(g => {
+                            estado.textContent = g.mensaje;
+                            if (!g.en_curso) clearInterval(sondeo);
+                        }).catch(() => clearInterval(sondeo));
+                    }, 1500);
+                }
             })
             .catch(err => {
                 estado.textContent = "❌ Error al guardar.";

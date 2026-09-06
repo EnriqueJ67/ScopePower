@@ -1873,47 +1873,98 @@ def descargar_fits_apilado():
     else:
         return "❌ El archivo FITS aún no ha sido generado.", 404
 
+# Guardado a resolución completa en segundo plano (tarda 20-30 s en 9 Mpx)
+GUARDADO = {"en_curso": False, "mensaje": "", "archivo": "", "ok": None}
+
+
 @app.route('/guardar-imagen-jpg', methods=['POST'])
 def guardar_imagen_jpg():
+    """
+    Guarda el apilado en la galería: el FITS se copia al momento y el JPG se
+    procesa a resolución completa en segundo plano con el estilo actual.
+    Consultar el progreso en /guardar-imagen-estado.
+    """
+    if GUARDADO["en_curso"]:
+        return jsonify({"error": "⏳ Ya hay un guardado en curso"}), 409
+    origenFits = "static/resultado_apilado.fits"
+    if not os.path.exists(origenFits):
+        return jsonify({"error": "❌ Archivo FITS no encontrado."}), 404
+
+    # Nombre a partir del objeto del último GOTO
+    nombre_objeto = "Objeto"
+    ruta_info = "static/info_objeto_goto.txt"
+    if os.path.exists(ruta_info):
+        with open(ruta_info, "r", encoding="utf-8") as f:
+            for linea in f:
+                if linea.lower().startswith("nombre:"):
+                    nombre_objeto = linea.split(":", 1)[1].strip()
+                    break
+    nombre_objeto = re.sub(r'[^\w\-]', '_', nombre_objeto)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nombre_archivo = f"{nombre_objeto}_{timestamp}.jpg"
+    nombre_archivo_fits = f"{nombre_objeto}_{timestamp}.fits"
+    carpeta_destino = os.path.join("static", "fotos")
+    os.makedirs(carpeta_destino, exist_ok=True)
+    destino = os.path.join(carpeta_destino, nombre_archivo)
+    destinoFits = os.path.join(carpeta_destino, nombre_archivo_fits)
+
+    import shutil
+    shutil.copy(origenFits, destinoFits)
+    GUARDADO.update({"en_curso": True, "ok": None, "archivo": nombre_archivo,
+                     "mensaje": "⏳ Procesando a resolución completa..."})
+
+    def _procesar_y_guardar():
+        import procesado
+        try:
+            with fits.open(destinoFits) as hdul:
+                cubo = hdul[0].data.astype(np.float32)
+                n = int(hdul[0].header.get("NSTACK", 1))
+            rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0)
+            cv2.imwrite(destino, cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 92])
+            GUARDADO.update({"ok": True, "mensaje": f"✅ Imagen guardada como {nombre_archivo} (y su FITS)"})
+            voz.decir("Imagen guardada en la galería")
+        except Exception as e:
+            log.exception("Error procesando la imagen para la galería")
+            # Que no se pierda: al menos la vista previa
+            try:
+                shutil.copy("static/resultado_apilado_preview.jpg", destino)
+            except Exception:
+                pass
+            GUARDADO.update({"ok": False, "mensaje": f"❌ Error al procesar; guardada la vista previa: {e}"})
+        finally:
+            GUARDADO["en_curso"] = False
+
+    threading.Thread(target=_procesar_y_guardar, name="guardar-galeria", daemon=True).start()
+    return jsonify({"mensaje": GUARDADO["mensaje"], "archivo": nombre_archivo, "en_curso": True})
+
+
+@app.route('/guardar-imagen-estado')
+def guardar_imagen_estado():
+    return jsonify(GUARDADO)
+
+
+@app.route('/config-procesado')
+def config_procesado():
+    import procesado
+    return jsonify({"ajustes": procesado.leer_config(), "estilos": procesado.ESTILOS})
+
+
+@app.route('/guardar-config-procesado', methods=['POST'])
+def guardar_config_procesado():
+    import procesado
+    datos = request.get_json(silent=True) or {}
     try:
-        # Leer info del objeto
-        nombre_objeto = "Objeto"
-        ruta_info = "static/info_objeto_goto.txt"
-        if os.path.exists(ruta_info):
-            with open(ruta_info, "r", encoding="utf-8") as f:
-                for linea in f:
-                    if linea.lower().startswith("nombre:"):
-                        nombre_objeto = linea.split(":", 1)[1].strip()
-                        break
-
-        nombre_objeto = re.sub(r'[^\w\-]', '_', nombre_objeto)  # Sanitizar
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nombre_archivo = f"{nombre_objeto}_{timestamp}.jpg"
-        nombre_archivo_fits = f"{nombre_objeto}_{timestamp}.fits"
-
-        # Ruta destino correcta para galería
-        carpeta_destino = os.path.join("static", "fotos")
-        os.makedirs(carpeta_destino, exist_ok=True)
-
-        origen = "static/resultado_apilado_preview.jpg"
-        destino = os.path.join(carpeta_destino, nombre_archivo)
-
-        origenFits = "static/resultado_apilado.fits"
-        destinoFits = os.path.join(carpeta_destino, nombre_archivo_fits)
-
-        if os.path.exists(origen) and os.path.exists(origenFits):
-            import shutil
-            shutil.copy(origen, destino)
-            shutil.copy(origenFits, destinoFits)
-            return jsonify({"mensaje": f"✅ Imagen guardada como: {nombre_archivo} y FITS guardado como: {nombre_archivo_fits}"})
-
-        elif not os.path.exists(origen):
-            return jsonify({"error": "❌ Imagen JPG no encontrada."}), 404
-        else:
-            return jsonify({"error": "❌ Archivo FITS no encontrado."}), 404
-
+        procesado.guardar_config(datos)
     except Exception as e:
-        return jsonify({"error": f"❌ Error al guardar: {e}"}), 500
+        return jsonify({"error": str(e)}), 400
+    return jsonify({"ajustes": procesado.leer_config()})
+
+
+@app.route('/apilado/reprocesar', methods=['POST'])
+def apilado_reprocesar():
+    """Regenera la vista previa con los ajustes actuales sin capturar nada."""
+    ok, msg = apilado.reprocesar_preview()
+    return jsonify({"ok": ok, "mensaje": msg}), (200 if ok else 409)
 
 @app.route('/galeria')
 
