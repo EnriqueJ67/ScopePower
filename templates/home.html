@@ -21,7 +21,7 @@
     <li><a href="/control" class="clic-audio">🎮 Controlar Telescopio</a></li>
     <li><a href="/apilado" class="clic-audio">🌀 Apilado en Tiempo Real</a></li>
     <li><a href="{{ url_for('galeria') }}" class="clic-audio">🌌 Ver Galería</a></li>
-    <li><a href="/salir" class="clic-audio" style="color: #ff6666;"><b>⛔ Cerrar Aplicación</b></a></li>
+    <li><a href="/salir" class="clic-audio" data-confirmar="¿Cerrar ScopePower? Se desconectarán la cámara y la montura y se detendrá el servidor." style="color: #ff6666;"><b>⛔ Cerrar Aplicación</b></a></li>
 </ul>
 
 {% if estado_licencia == "activado" %}
@@ -74,6 +74,9 @@
     document.querySelectorAll('.clic-audio').forEach(link => {
         link.addEventListener('click', function (e) {
             e.preventDefault(); // Evita que el navegador navegue inmediatamente
+
+            // Enlaces con data-confirmar (Cerrar Aplicación) piden confirmación antes
+            if (this.dataset.confirmar && !confirm(this.dataset.confirmar)) return;
 
             const destino = this.href;
 
