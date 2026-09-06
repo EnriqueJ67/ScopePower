@@ -26,6 +26,27 @@
     <button class="btn-dir down" ontouchstart="move('S')" ontouchend="stop()" onmousedown="move('S')" onmouseup="stop()"></button>
     <div></div>
 </div>
+
+<!-- Sincronizaciones guardadas en la app SynScan Pro -->
+<div style="text-align: center; margin-top: 20px;">
+    <button type="button" class="btn btn-secondary" onclick="limpiarSync()">🧹 Borrar sincronizaciones de SynScan</button>
+    <div id="estado-sync" style="margin-top: 6px; font-size: 14px; color: #ddaaaa; min-height: 1.3em;"></div>
+    <div style="font-size: 12px; color: #aa7777;">
+        Borra el modelo de apuntado y las sincronizaciones de sesiones anteriores en la app.
+        Se hace solo al conectar (config: limpiar_sync_al_conectar). Después, el primer Centrado Automático crea el modelo nuevo.
+    </div>
+</div>
+<script>
+    function limpiarSync() {
+        if (!confirm("¿Borrar en la app SynScan las sincronizaciones y el modelo de apuntado? Habrá que volver a centrar por plate solving.")) return;
+        const est = document.getElementById("estado-sync");
+        est.textContent = "⏳ Enviando ClearSyncTo...";
+        fetch("/montura/limpiar-sync", { method: "POST" })
+            .then(r => r.json())
+            .then(d => est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje)
+            .catch(err => est.textContent = "❌ " + err);
+    }
+</script>
 <style>
     .telescope-grid {
         display: grid;

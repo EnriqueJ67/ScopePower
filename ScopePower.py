@@ -399,12 +399,38 @@ def apilado_detener():
 #  los errores de COM entre hilos que obligaban a usar threaded=False.
 # ─────────────────────────────────────────────────────────────────────────────
 
+def limpiar_sincronizaciones(tel):
+    """
+    Borra en la app SynScan Pro las sincronizaciones y el modelo de apuntado de
+    sesiones anteriores. Usa la acción ASCOM "ClearSyncTo" (driver SynScan App
+    1.4+), la misma que emplea el script de alineación automática de Sky-Watcher.
+    Tras esto la app vuelve al modelo por defecto; el primer centrado por plate
+    solving de la noche crea el modelo nuevo. Devuelve (ok, mensaje).
+    Debe ejecutarse en el hilo de la montura (vía montura.ejecutar).
+    """
+    try:
+        tel.Action("ClearSyncTo", "")
+        log.info("Sincronizaciones anteriores borradas en la app SynScan (ClearSyncTo)")
+        return True, "Sincronizaciones anteriores borradas"
+    except Exception as e:
+        msg = f"Este driver no admite ClearSyncTo o la app no respondió: {e}"
+        log.warning(msg)
+        return False, msg
+
+
 def _activar_seguimiento(tel):
     try:
         tel.Tracking = True
     except Exception as e:
         print(f"⚠️ No se pudo activar el seguimiento al conectar: {e}")
     voz.decir("Telescopio conectado")
+
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    if cfg.get("Montura", "limpiar_sync_al_conectar", fallback="true").lower() == "true":
+        ok, msg = limpiar_sincronizaciones(tel)
+        voz.decir("Sincronizaciones anteriores borradas" if ok
+                  else "No se han podido borrar las sincronizaciones anteriores")
 
 montura = TrabajadorCOM("montura", lambda: DRIVER_TELESCOPIO, al_conectar=_activar_seguimiento)
 camara = TrabajadorCOM("cámara", lambda: DRIVER_CAMARA, al_conectar=lambda cam: voz.decir("Cámara conectada"))
@@ -764,6 +790,19 @@ def obtener_coords_cometa(nombre_cometa):
 @app.route('/control')
 def control_telescopio():
     return render_template('control.html', mostrar_volver=True)
+
+@app.route('/montura/limpiar-sync', methods=["POST"])
+def montura_limpiar_sync():
+    """Borra a mano las sincronizaciones/modelo de apuntado guardados en la app SynScan."""
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "mensaje": "Pausa o detén el apilado antes de borrar las sincronizaciones"}), 409
+    try:
+        ok, msg = montura.ejecutar(limpiar_sincronizaciones, timeout=20)
+    except ErrorHardware as e:
+        return jsonify({"ok": False, "mensaje": f"Montura no disponible: {e}"}), 503
+    voz.decir("Sincronizaciones anteriores borradas" if ok else "No se han podido borrar las sincronizaciones")
+    return jsonify({"ok": ok, "mensaje": msg})
+
 
 @app.route('/reconectar-telescopio')
 def reconectar_telescopio():
