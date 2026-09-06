@@ -21,19 +21,29 @@ ERRORES_SEGUIDOS_MAX = 3
 
 
 class BucleCaptura:
-    def __init__(self, capturar, camara, otros_trabajos=()):
+    def __init__(self, capturar, camara, otros_trabajos=(), dither=None):
         """
         capturar(usar_dark) -> dict con al menos {"ok": bool, "mensaje": str}
         camara            : TrabajadorCOM de la cámara (para .ocupado)
         otros_trabajos    : objetos con atributo .en_curso que tienen prioridad
                             sobre el bucle (darks, centrado)
+        dither()          : mueve la montura unos píxeles al azar y espera a que
+                            se asiente; devuelve una descripción. Opcional.
         """
         self._capturar = capturar
         self._camara = camara
         self._otros = list(otros_trabajos)
+        self._dither = dither
         self._lock = threading.Lock()
         self._hilo = None
         self._parar = threading.Event()
+        # Dithering: mover la montura unos píxeles al azar cada N fotos para que
+        # los defectos fijos del sensor no caigan siempre en el mismo sitio.
+        self.dithering = False
+        self.dither_cada = 3
+        self.dithers = 0
+        self.ultimo_dither = ""
+        self.desde_ultimo_dither = 0
         self._reiniciar_estado()
 
     def _reiniciar_estado(self):
@@ -64,6 +74,14 @@ class BucleCaptura:
             self._hilo = threading.Thread(target=self._ejecutar, name="bucle-captura", daemon=True)
             self._hilo.start()
         log.info("Bucle de captura iniciado (dark=%s)", usar_dark)
+
+    def configurar_dithering(self, activado=None, cada=None):
+        with self._lock:
+            if activado is not None:
+                self.dithering = bool(activado)
+            if cada is not None:
+                self.dither_cada = max(1, int(cada))
+        log.info("Dithering %s (cada %d fotos)", "activado" if self.dithering else "desactivado", self.dither_cada)
 
     def pausar(self):
         with self._lock:
@@ -97,6 +115,12 @@ class BucleCaptura:
                 "ultima_captura": self.ultima_captura,
                 "esperando": self.esperando,
                 "inicio": self.inicio.strftime("%H:%M:%S") if self.inicio else "",
+                "dithering": self.dithering,
+                "dither_cada": self.dither_cada,
+                "dithers": self.dithers,
+                "ultimo_dither": self.ultimo_dither,
+                "fotos_hasta_dither": (max(0, self.dither_cada - self.desde_ultimo_dither)
+                                       if self.dithering and self._dither else None),
             }
 
     # ── Hilo ──────────────────────────────────────────────────────────
@@ -121,6 +145,27 @@ class BucleCaptura:
             with self._lock:
                 self.esperando = ""
 
+            # Dithering: antes de la captura, si toca
+            if (self.dithering and self._dither is not None and self.capturas > 0
+                    and self.desde_ultimo_dither >= self.dither_cada):
+                with self._lock:
+                    self.esperando = "dithering (moviendo la montura)"
+                try:
+                    descripcion = self._dither()
+                    with self._lock:
+                        self.dithers += 1
+                        self.ultimo_dither = descripcion or ""
+                    log.info("Dither: %s", descripcion)
+                except Exception as e:
+                    log.warning("Dither fallido: %s", e)
+                    with self._lock:
+                        self.ultimo_dither = f"fallido: {e}"
+                with self._lock:
+                    self.desde_ultimo_dither = 0
+                    self.esperando = ""
+                if self._parar.is_set():
+                    break
+
             try:
                 resultado = self._capturar(self.usar_dark)
             except Exception as e:
@@ -130,6 +175,7 @@ class BucleCaptura:
             with self._lock:
                 if resultado.get("ok"):
                     self.capturas += 1
+                    self.desde_ultimo_dither += 1
                     self.errores_seguidos = 0
                     self.ultimo_error = ""
                     self.ultimo_mensaje = resultado.get("mensaje", "")

@@ -114,6 +114,13 @@
     </style>
     <button id="boton-cancelar" class="btn btn-danger" onclick="cancelarCaptura()" style="display: none;">⏹️ Cancelar exposición</button>
     <div>Descartadas: <span id="descartadas">0</span> sin resolver, <span id="descartadas-calidad">0</span> por calidad</div>
+    <div style="margin: 6px 0;">
+        <label style="font-size: 15px;">
+            <input type="checkbox" id="dither-activo" onchange="cambiarDithering()"> 🎲 Dithering cada
+            <input type="number" id="dither-cada" min="1" max="20" value="3" style="width: 52px; text-align: center; min-height: 30px;" onchange="cambiarDithering()"> fotos
+        </label>
+        <div id="dither-estado" style="font-size: 13px; color: #aa9999;"></div>
+    </div>
     <div id="puntuaciones"></div>
     <div id="mensaje-apilado" style="color: #aaa; font-style: italic;"></div>
     <div id="error-apilado" style="color: #ff6666; font-weight: bold; min-height: 1.3em;"></div>
@@ -511,6 +518,7 @@
                 document.getElementById("puntuaciones").textContent = punt;
 
                 mostrarEstadoCaptura(d.captura, d.procesando, d);
+                pintarDithering(d);
                 return d;
             })
             .catch(err => console.warn("⚠️ Error leyendo estado:", err));
@@ -554,6 +562,36 @@
         } else {
             ciclo.style.display = "none";
         }
+    }
+
+    // ——— Dithering: interruptor en caliente y medida del desplazamiento real ———
+    let ditherInicializado = false;
+    function pintarDithering(d) {
+        const b = d.bucle || {};
+        if (!ditherInicializado && b.dither_cada !== undefined) {
+            document.getElementById("dither-activo").checked = !!b.dithering;
+            document.getElementById("dither-cada").value = b.dither_cada;
+            ditherInicializado = true;
+        }
+        let s = "";
+        if (b.dithering && b.activo) {
+            s += `${b.dithers} movimientos`;
+            if (b.fotos_hasta_dither !== null && b.fotos_hasta_dither !== undefined) s += ` · próximo en ${b.fotos_hasta_dither} foto(s)`;
+            if (b.ultimo_dither) s += ` · último: ${b.ultimo_dither}`;
+        }
+        if (d.desplazamiento_ultimo) {
+            const [dx, dy] = d.desplazamiento_ultimo;
+            s += (s ? " · " : "") + `desplazamiento medido: ${dx > 0 ? "+" : ""}${dx}, ${dy > 0 ? "+" : ""}${dy} px`;
+            if (d.desplazamiento_std) s += ` (dispersión ±${d.desplazamiento_std[0]}, ±${d.desplazamiento_std[1]} px en ${d.desplazamientos_n} fotos)`;
+        }
+        document.getElementById("dither-estado").textContent = s;
+    }
+    function cambiarDithering() {
+        const activado = document.getElementById("dither-activo").checked;
+        const cada = parseInt(document.getElementById("dither-cada").value) || 3;
+        fetch("/apilado/dithering", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activado, cada }) })
+            .then(r => r.json()).then(d => { if (d.bucle) pintarDithering({ bucle: d.bucle }); })
+            .catch(err => console.warn("dithering:", err));
     }
 
     function cancelarCaptura() {

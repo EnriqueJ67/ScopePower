@@ -440,6 +440,9 @@ class ApiladorEnTiempoReal:
         self.apilados_realizados = 0
         # Tira de evolución: miniaturas del apilado cada INTERVALO_EVOLUCION apilados
         self.evolucion = []
+        # Desplazamiento (dx, dy) en px de cada foto alineada respecto a la
+        # referencia: sirve para ver cuánto "dithering natural" da la montura
+        self.desplazamientos = []
 
         self.ref_info = None
 
@@ -708,6 +711,15 @@ class ApiladorEnTiempoReal:
                 if M is None:
                     self._descartar(f"{nombre_fits}: {metodo}", aviso="Foto descartada: no se ha podido alinear")
                     return
+                # Desplazamiento real de esta foto respecto a la referencia (px):
+                # la rotación es alrededor del centro, así que el centro solo se traslada
+                cx, cy = self.ref_info["crpix"]
+                dx = float(M[0, 0] * cx + M[0, 1] * cy + M[0, 2] - cx)
+                dy = float(M[1, 0] * cx + M[1, 1] * cy + M[1, 2] - cy)
+                with self.lock:
+                    self.desplazamientos.append((round(dx, 1), round(dy, 1)))
+                    if len(self.desplazamientos) > 200:
+                        self.desplazamientos.pop(0)
 
             if metodo != "REF":
                 self._fase("alineando")
@@ -876,6 +888,7 @@ def reiniciar_apilado_global():
             apilador_global.ultima_puntuacion = None
             apilador_global.apilados_realizados = 0
             apilador_global.evolucion.clear()
+            apilador_global.desplazamientos.clear()
             apilador_global.version_preview += 1   # la web debe olvidar la imagen anterior
 
             # Miniaturas de la tira de evolución del apilado anterior
@@ -972,5 +985,11 @@ def obtener_estado_apilado():
             "puntuacion_minima": round(min(puntuaciones), 3) if puntuaciones else None,
             "version": a.version_preview,
             "evolucion": list(a.evolucion),
+            "desplazamiento_ultimo": a.desplazamientos[-1] if a.desplazamientos else None,
+            "desplazamiento_std": (
+                [round(float(np.std([d[0] for d in a.desplazamientos])), 1),
+                 round(float(np.std([d[1] for d in a.desplazamientos])), 1)]
+                if len(a.desplazamientos) >= 2 else None),
+            "desplazamientos_n": len(a.desplazamientos),
         }
 

@@ -385,6 +385,27 @@ def apilado_iniciar():
     return jsonify({"ok": True, "bucle": bucle.estado()})
 
 
+@app.route('/apilado/dithering', methods=["POST"])
+def apilado_dithering():
+    """Activa/desactiva el dithering en caliente y lo guarda en config.ini."""
+    datos = request.get_json(silent=True) or {}
+    activado = datos.get("activado")
+    cada = datos.get("cada")
+    bucle.configurar_dithering(activado, cada)
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    if "Dithering" not in cfg:
+        cfg["Dithering"] = {}
+    if activado is not None:
+        cfg["Dithering"]["activado"] = "true" if bucle.dithering else "false"
+    if cada is not None:
+        cfg["Dithering"]["cada_n_fotos"] = str(bucle.dither_cada)
+    with open("config.ini", "w") as f:
+        cfg.write(f)
+    voz.decir("Dithering activado" if bucle.dithering else "Dithering desactivado")
+    return jsonify({"ok": True, "bucle": bucle.estado()})
+
+
 @app.route('/apilado/detener', methods=["POST"])
 def apilado_detener():
     bucle.detener()
@@ -447,6 +468,58 @@ ULTIMO_GOTO = {}
 RUTA_ULTIMA_CAPTURA = ruta_absoluta("static/ultima_captura.jpg")
 ULTIMA_CAPTURA = {"version": 0, "hora": "", "exposicion": 0.0, "dark": False}
 
+def _config_dithering():
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    d = cfg["Dithering"] if "Dithering" in cfg else {}
+    return {
+        "activado": str(d.get("activado", "false")).lower() == "true",
+        "cada_n_fotos": int(d.get("cada_n_fotos", 3)),
+        "amplitud_px": float(d.get("amplitud_px", 15)),
+        "asentamiento_s": float(d.get("asentamiento_s", 3)),
+    }
+
+
+def hacer_dither():
+    """
+    Desplaza la montura una distancia aleatoria de hasta `amplitud_px` píxeles
+    en una dirección aleatoria (movimiento relativo, sin Sync) y espera a que
+    termine y se asiente. Se ejecuta desde el bucle de captura entre fotos.
+    Devuelve una descripción tipo "12 px hacia el NE".
+    """
+    import random, math
+    conf = _config_dithering()
+    # Escala de placa ("/px) a partir del tamaño de píxel de la última captura y la focal
+    pixel_um = ULTIMA_CAPTURA.get("pixel_um") or 3.76
+    escala = 206.265 * pixel_um * BINNING / max(1.0, FOCAL_LEN)
+    px = random.uniform(0.5, 1.0) * conf["amplitud_px"]
+    angulo = random.uniform(0, 2 * math.pi)
+    arcsec = px * escala
+    d_ra_deg, d_dec_deg = arcsec * math.cos(angulo) / 3600.0, arcsec * math.sin(angulo) / 3600.0
+
+    def _mover(tel):
+        dec = tel.Declination
+        ra_dest = (tel.RightAscension + d_ra_deg / 15.0 / max(0.05, math.cos(math.radians(dec)))) % 24.0
+        dec_dest = max(-90.0, min(90.0, dec + d_dec_deg))
+        tel.Tracking = True
+        if getattr(tel, "CanSlewAsync", False):
+            tel.SlewToCoordinatesAsync(ra_dest, dec_dest)
+        else:
+            tel.SlewToCoordinates(ra_dest, dec_dest)
+        inicio = time.time()
+        time.sleep(0.3)
+        while tel.Slewing:
+            if time.time() - inicio > 60:
+                raise ErrorHardware("La montura no terminó el movimiento de dithering en 60 s")
+            time.sleep(0.3)
+
+    montura.ejecutar(_mover, timeout=90)
+    time.sleep(conf["asentamiento_s"])
+    rumbos = ["E", "NE", "N", "NO", "O", "SO", "S", "SE"]
+    rumbo = rumbos[int(((math.degrees(angulo) + 22.5) % 360) // 45)]
+    return f"{px:.0f} px ({arcsec:.0f}\") hacia el {rumbo}"
+
+
 # Bucle de captura del apilado en el servidor (ver bucle_captura.py). Se
 # define aquí y se conecta a capturar_y_guardar más abajo, cuando exista.
 from bucle_captura import BucleCaptura
@@ -455,7 +528,10 @@ bucle = BucleCaptura(
                                                   generar_preview=False, descripcion="Apilado"),
     camara=camara,
     otros_trabajos=(darks.trabajo_darks, centrado.trabajo_centrado),
+    dither=hacer_dither,
 )
+_cfg_dither = _config_dithering()
+bucle.configurar_dithering(_cfg_dither["activado"], _cfg_dither["cada_n_fotos"])
 
 
 def conectar_telescopio():
@@ -987,7 +1063,8 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
                         [cv2.IMWRITE_JPEG_QUALITY, 80])
             ULTIMA_CAPTURA.update({"version": ULTIMA_CAPTURA["version"] + 1,
                                    "hora": time.strftime("%H:%M:%S"),
-                                   "exposicion": EXPOSICION, "dark": dark_aplicado})
+                                   "exposicion": EXPOSICION, "dark": dark_aplicado,
+                                   "pixel_um": float(pixel_size_x)})
         except Exception as e:
             log.warning("No se pudo generar la miniatura de la captura: %s", e)
 
