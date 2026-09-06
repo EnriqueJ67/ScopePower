@@ -10,8 +10,9 @@
         <button class="btn btn-danger">🗑️ Reiniciar Apilado</button>
     </form>
     <!-- Botones de pausa y reanudación -->
-    <button id="boton-pausa" class="btn btn-warning" onclick="pausarApilado()">⏸️ Pausar</button>
+    <button id="boton-pausa" class="btn btn-warning" onclick="pausarApilado()" style="display: none;">⏸️ Pausar</button>
     <button id="boton-reanudar" class="btn btn-success" onclick="reanudarApilado()" style="display: none;">▶️ Reanudar</button>
+    <button id="boton-detener" class="btn btn-secondary" onclick="detenerApilado()" style="display: none;">⏹️ Detener</button>
 </div>
 <!-- Botón para descargar el archivo FITS apilado
 <div style="text-align: center; margin-top: 10px;">
@@ -205,10 +206,34 @@
             document.getElementById("opcion-dark-ultimo").disabled = !hayDark;
             document.getElementById(hayDark ? "opcion-dark-ultimo" : "opcion-dark-nuevo").checked = true;
             document.getElementById("boton-continuar").style.display = (estado && estado.total > 0) ? "inline-block" : "none";
-            document.getElementById("panel-inicio").style.display = "block";
-            document.getElementById("estado-carga").textContent = "";
+            if (estado && estado.bucle && estado.bucle.activo) {
+                // El servidor ya está capturando (p. ej. hemos vuelto a abrir la página)
+                mostrarComoActivo(estado.bucle);
+            } else {
+                document.getElementById("panel-inicio").style.display = "block";
+                document.getElementById("estado-carga").textContent = "";
+            }
             if (d.trabajo && d.trabajo.en_curso) mostrarPaso("progreso"), iniciarSondeoDarks();
+            if (!sondeoEstado) sondeoEstado = setInterval(cicloActualizacion, 2000);
         }).catch(console.error);
+    }
+
+    function mostrarComoActivo(b) {
+        document.getElementById("panel-inicio").style.display = "none";
+        document.getElementById("boton-pausa").style.display = b.pausado ? "none" : "inline-block";
+        document.getElementById("boton-reanudar").style.display = b.pausado ? "inline-block" : "none";
+        document.getElementById("boton-detener").style.display = "inline-block";
+        bucleActivo = true;
+    }
+
+    function mostrarComoDetenido(b) {
+        document.getElementById("boton-pausa").style.display = "none";
+        document.getElementById("boton-reanudar").style.display = "none";
+        document.getElementById("boton-detener").style.display = "none";
+        document.getElementById("panel-inicio").style.display = "block";
+        mostrarPaso("inicio");
+        if (b && b.mensaje) document.getElementById("estado-carga").textContent = "⏹️ " + b.mensaje;
+        bucleActivo = false;
     }
 
     function mostrarPaso(paso) {
@@ -272,25 +297,35 @@
         }).catch(console.error);
     }
 
+    // Arranca el bucle de captura EN EL SERVIDOR; la página solo lo observa.
     function arrancarBucle() {
-        const preparar = apiladoNuevo
-            ? fetch('/reiniciar-apilado', { method: 'POST' })
-            : Promise.resolve();
-        preparar
-            .then(() => fetch('/reanudar-apilado', { method: 'POST' }))
-            .then(() => {
-                document.getElementById("panel-inicio").style.display = "none";
-                document.getElementById("boton-reanudar").style.display = "none";
-                document.getElementById("boton-pausa").style.display = "inline-block";
+        fetch('/apilado/iniciar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nuevo: apiladoNuevo, usar_dark: usarDark })
+        })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { document.getElementById("darks-error").textContent = "❌ " + (d.error || "No se pudo iniciar"); mostrarPaso("inicio"); return; }
+                document.getElementById("estado-carga").textContent = "";
+                mostrarComoActivo(d.bucle);
                 actualizarImagen();
-                if (!bucleActivo) { bucleActivo = true; cicloActualizacion(); }
+                cicloActualizacion();
             })
+            .catch(err => { document.getElementById("darks-error").textContent = "❌ " + err; mostrarPaso("inicio"); });
+    }
+
+    function detenerApilado() {
+        if (!confirm("¿Detener el apilado? Las capturas se paran; el resultado actual se conserva.")) return;
+        fetch('/apilado/detener', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { mostrarComoDetenido(d.bucle); prepararInicio(); })
             .catch(console.error);
     }
 
-    // ——— Al abandonar la página, pausamos y reseteamos objetos anotados ———
+    // ——— Al abandonar la página solo reseteamos objetos anotados. El bucle de
+    //     captura vive en el servidor y sigue apilando aunque cierres el móvil ———
     window.addEventListener('beforeunload', () => {
-        navigator.sendBeacon('/pausar-apilado');
         fetch('/toggle-objetos-anotados', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -402,57 +437,33 @@
         return confirm("¿Seguro que quieres reiniciar el apilado?");
     }
 
-    // Una captura en vuelo como máximo: el servidor responde 409 si la cámara
-    // ya está exponiendo, y aquí no se lanza otra hasta que termine la anterior.
-    let capturaEnVuelo = false;
+    // Cada 2 s: leer el estado del servidor (bucle, cuenta atrás, errores) y
+    // refrescar la imagen cuando haya un apilado nuevo. Aquí NO se captura nada.
+    let sondeoEstado = null;
+    let ultimaMostrada = null;
 
-    function capturarImagenConApiladoYActualizar() {
-        if (capturaEnVuelo) return;
-        capturaEnVuelo = true;
-        const estado = document.getElementById("estado-carga");
-        estado.textContent = "⏳ Capturando...";
-        fetch(`/capturar-imagen?apilar=1&dark=${usarDark ? 1 : 0}`)
-            .then(r => {
-                if (r.status === 409) {
-                    estado.textContent = "⏳ La cámara ya está ocupada";
-                    return;
-                }
-                return r.text().then(txt => {
-                    if (txt.startsWith("Error") || txt.startsWith("❌") || txt.startsWith("⏹")) {
-                        estado.textContent = txt;
-                        return;
-                    }
-                    // El apilado corre en el servidor al aparecer el FITS; esperar un poco
-                    setTimeout(() => {
-                        actualizarImagen();
-                        estado.textContent = "✅ Imagen actualizada";
-                        setTimeout(() => estado.textContent = "", 3000);
-                    }, 2000);
-                });
-            })
-            .catch(err => {
-                estado.textContent = "❌ Error al capturar";
-                console.error("⚠️ Error capturando imagen:", err);
-            })
-            .finally(() => { capturaEnVuelo = false; });
-    }
-
-    // Cada 2 s: refrescar estado (cuenta atrás, errores) y, si toca, lanzar captura.
     function cicloActualizacion() {
-        Promise.all([
-            fetch("/estado-pausa-apilado").then(r => r.json()),
-            actualizarEstadoApilado()
-        ])
-            .then(([pausa, estado]) => {
-                if (pausa.pausado) {
-                    document.getElementById("estado-carga").textContent = "⏸️ Apilado pausado";
-                    return;
-                }
-                const ocupada = estado && (estado.camara_ocupada || estado.procesando);
-                if (!capturaEnVuelo && !ocupada) capturarImagenConApiladoYActualizar();
-            })
-            .catch(console.error)
-            .finally(() => setTimeout(cicloActualizacion, 2000));
+        actualizarEstadoApilado().then(estado => {
+            if (!estado) return;
+            const b = estado.bucle || {};
+            const carga = document.getElementById("estado-carga");
+            if (b.activo) {
+                if (!bucleActivo) mostrarComoActivo(b);
+                document.getElementById("boton-pausa").style.display = b.pausado ? "none" : "inline-block";
+                document.getElementById("boton-reanudar").style.display = b.pausado ? "inline-block" : "none";
+                if (b.pausado) carga.textContent = "⏸️ Apilado pausado";
+                else if (b.esperando) carga.textContent = "⏳ Esperando: " + b.esperando;
+                else if (b.ultimo_error) carga.textContent = "⚠️ " + b.ultimo_error;
+                else carga.textContent = `📷 Capturando en el servidor · ${b.capturas} capturas desde las ${b.inicio}`;
+            } else if (bucleActivo) {
+                // El servidor lo ha detenido (errores seguidos, reinicio desde otra pestaña...)
+                mostrarComoDetenido(b);
+            }
+            if (estado.ultima && estado.ultima !== ultimaMostrada) {
+                ultimaMostrada = estado.ultima;
+                actualizarImagen();
+            }
+        }).catch(console.error);
     }
 
     function pausarApilado() {
@@ -460,6 +471,7 @@
             .then(() => {
                 document.getElementById("boton-pausa").style.display = "none";
                 document.getElementById("boton-reanudar").style.display = "inline-block";
+                document.getElementById("estado-carga").textContent = "⏸️ Apilado pausado (la exposición en curso termina)";
             });
     }
 
@@ -468,6 +480,7 @@
             .then(() => {
                 document.getElementById("boton-reanudar").style.display = "none";
                 document.getElementById("boton-pausa").style.display = "inline-block";
+                document.getElementById("estado-carga").textContent = "";
             });
     }
 

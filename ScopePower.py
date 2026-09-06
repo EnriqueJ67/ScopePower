@@ -348,16 +348,45 @@ def toggle_objetos_anotados():
 @app.route('/pausar-apilado', methods=["POST"])
 def pausar():
     pausar_apilado()
+    bucle.pausar()
     return "⏸️ Apilado pausado"
 
 @app.route('/reanudar-apilado', methods=["POST"])
 def reanudar():
     reanudar_apilado()
+    bucle.reanudar()
     return "▶️ Apilado reanudado"
 
 @app.route('/estado-pausa-apilado')
 def estado_pausa_apilado():
-    return jsonify({"pausado": esta_pausado()})
+    return jsonify({"pausado": esta_pausado() or bucle.pausado})
+
+
+@app.route('/apilado/iniciar', methods=["POST"])
+def apilado_iniciar():
+    """
+    Arranca el bucle de captura en el servidor.
+    JSON: {"nuevo": true|false (reiniciar el apilado), "usar_dark": true|false}
+    """
+    datos = request.get_json(silent=True) or {}
+    nuevo = bool(datos.get("nuevo", True))
+    usar_dark = bool(datos.get("usar_dark", True))
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    if nuevo:
+        bucle.detener("Reiniciado")
+        reiniciar_apilado_global()
+    reanudar_apilado()
+    bucle.iniciar(usar_dark=usar_dark)
+    return jsonify({"ok": True, "bucle": bucle.estado()})
+
+
+@app.route('/apilado/detener', methods=["POST"])
+def apilado_detener():
+    bucle.detener()
+    pausar_apilado()
+    return jsonify({"ok": True, "bucle": bucle.estado()})
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Dispositivos ASCOM
@@ -381,6 +410,16 @@ camara = TrabajadorCOM("cámara", lambda: DRIVER_CAMARA)
 # Objetivo del último GOTO (ra en horas, dec en grados): es lo que usa el
 # centrado automático como referencia, no "donde la montura cree que está".
 ULTIMO_GOTO = {}
+
+# Bucle de captura del apilado en el servidor (ver bucle_captura.py). Se
+# define aquí y se conecta a capturar_y_guardar más abajo, cuando exista.
+from bucle_captura import BucleCaptura
+bucle = BucleCaptura(
+    capturar=lambda usar_dark: capturar_y_guardar(apilar=True, usar_dark=usar_dark,
+                                                  generar_preview=False, descripcion="Apilado"),
+    camara=camara,
+    otros_trabajos=(darks.trabajo_darks, centrado.trabajo_centrado),
+)
 
 
 def conectar_telescopio():
@@ -782,12 +821,17 @@ def stop():
 import numpy as np
 from astropy.io import fits
 
-# Función para capturar imagen y mostrarla en la web
-@app.route('/capturar-imagen')
-def capturar_imagen():
+def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura"):
+    """
+    Expone, calibra (dark/flat), escribe static/captura.fits y, si `apilar`,
+    una copia en capturas/ que recoge el apilador. Devuelve un dict:
+      {"ok": True, "mensaje": ..., "ruta": ...}  o
+      {"ok": False, "mensaje": ..., "cancelada": bool}
+    No usa `request`: sirve tanto para la ruta web como para el bucle del servidor.
+    """
     # Si la cámara ya está exponiendo, no encolar otra captura detrás
     if camara.ocupado:
-        return "⏳ Ya hay una captura en curso", 409
+        return {"ok": False, "mensaje": "⏳ Ya hay una captura en curso", "ocupada": True}
 
     nuevo_config = configparser.ConfigParser()
     nuevo_config.read("config.ini")
@@ -795,7 +839,7 @@ def capturar_imagen():
 
     def _exponer(cam):
         print(f"📸 Iniciando exposición de {EXPOSICION} segundos...")
-        frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion="Captura")
+        frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion=descripcion)
         print("✅ Exposición finalizada.")
         return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY
 
@@ -803,28 +847,20 @@ def capturar_imagen():
         imagen_fits, sensor_type, pixel_size_x, pixel_size_y = camara.ejecutar(
             _exponer, timeout=EXPOSICION + 90)
     except CapturaCancelada:
-        return "⏹️ Captura cancelada"
+        return {"ok": False, "mensaje": "⏹️ Captura cancelada", "cancelada": True}
     except ErrorHardware as e:
-        return f"Error: {e}"
+        return {"ok": False, "mensaje": f"Error: {e}"}
 
     try:
         ra_actual, dec_actual = montura.ejecutar(
             lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
     except ErrorHardware as e:
-        return f"Error: {e}"
+        return {"ok": False, "mensaje": f"Error: {e}"}
 
     try:
-        #imagen_fits = imagen_mono# np.fliplr(imagen_mono)
-        #imagen_rgb = imagen_mono # cv2.cvtColor(imagen_mono, cv2.COLOR_BAYER_RG2RGB)
-
-        # Formato FITS: (3, H, W)
-        #imagen_fits = np.moveaxis(imagen_rgb, -1, 0).astype(np.uint16)
-
         # ───── Aplicar dark maestro ─────
         ruta_dark = f"calibraciones/dark_{EXPOSICION:.2f}s.fits"
         dark_aplicado = False
-        # ?dark=0 permite apilar sin restar dark aunque exista uno
-        usar_dark = request.args.get("dark", "1") != "0"
         if usar_dark and os.path.exists(ruta_dark):
             print(f"🌑 Aplicando dark maestro: {ruta_dark}")
             with fits.open(ruta_dark) as hdul_dark:
@@ -874,14 +910,19 @@ def capturar_imagen():
             hdu.header['FLATFILE'] = (os.path.basename(ruta_flat), 'Archivo flat utilizado')
 
         hdu.writeto(RUTA_IMAGEN, overwrite=True)
+        ruta_guardada = RUTA_IMAGEN
 
         # ───── Guardar para apilado si se solicita ─────
-        apilar = request.args.get("apilar", "0") == "1"
         if apilar:
             os.makedirs("capturas", exist_ok=True)
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             ruta_destino = os.path.join("capturas", f"img_{timestamp}.fits")
             hdu.writeto(ruta_destino, overwrite=True)
+            ruta_guardada = ruta_destino
+
+        if not generar_preview:
+            return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
+                    "dark": dark_aplicado}
 
         # ───   Debayer para preview en RGB   ───
         # imagen_fits aquí es un array 2D (raw CFA de la cámara, uint16).
@@ -911,11 +952,27 @@ def capturar_imagen():
             imagen_png = imagen_mtf
         cv2.imwrite(RUTA_IMAGEN_PNG, imagen_png)
 
-
-        return render_template('imagen.html', mostrar_volver=True)
+        return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
+                "dark": dark_aplicado}
 
     except Exception as e:
-        return f"❌ Error al capturar la imagen: {e}"
+        log.exception("Error al procesar la captura")
+        return {"ok": False, "mensaje": f"❌ Error al capturar la imagen: {e}"}
+
+
+# Función para capturar imagen y mostrarla en la web
+@app.route('/capturar-imagen')
+def capturar_imagen():
+    apilar = request.args.get("apilar", "0") == "1"
+    usar_dark = request.args.get("dark", "1") != "0"   # ?dark=0: no restar dark aunque exista
+    resultado = capturar_y_guardar(apilar=apilar, usar_dark=usar_dark)
+    if not resultado["ok"]:
+        if resultado.get("ocupada"):
+            return resultado["mensaje"], 409
+        return resultado["mensaje"]
+    if apilar:
+        return resultado["mensaje"]
+    return render_template('imagen.html', mostrar_volver=True)
 
 @app.route('/imagen-capturada')
 def imagen_capturada():
@@ -1096,6 +1153,8 @@ def centrado_iniciar():
         except ErrorHardware as e:
             return jsonify({"ok": False, "error": f"No hay GOTO previo y no se pudo leer la montura: {e}"}), 409
         objeto, origen = "posición actual de la montura", "montura"
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de centrar"}), 409
     try:
         centrado.trabajo_centrado.iniciar(
             camara, montura, ra, dec, objeto=objeto,
@@ -1522,6 +1581,7 @@ def estado_apilado():
     estado = obtener_estado_apilado()
     estado["captura"] = estado_captura.como_dict()
     estado["camara_ocupada"] = camara.ocupado
+    estado["bucle"] = bucle.estado()
     return jsonify(estado)
 
 
@@ -1543,6 +1603,7 @@ def cancelar_captura():
 
 @app.route('/reiniciar-apilado', methods=["POST"])
 def reiniciar_apilado():
+    bucle.detener("Reiniciado")
     reiniciar_apilado_global()
     return redirect(url_for('vista_apilado'))
 
@@ -1587,6 +1648,8 @@ def darks_generar():
     conf = _config_darks()
     datos = request.get_json(silent=True) or {}
     n = int(datos.get("n", conf["numero_darks"]))
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de generar darks"}), 409
     try:
         darks.trabajo_darks.iniciar(camara, conf["exposicion"], conf["binning"], n)
     except RuntimeError as e:
