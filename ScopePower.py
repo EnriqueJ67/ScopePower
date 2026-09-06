@@ -413,7 +413,8 @@ def limpiar_sincronizaciones(tel):
         log.info("Sincronizaciones anteriores borradas en la app SynScan (ClearSyncTo)")
         return True, "Sincronizaciones anteriores borradas"
     except Exception as e:
-        msg = f"Este driver no admite ClearSyncTo o la app no respondió: {e}"
+        from hardware import _mensaje_com
+        msg = f"Este driver no admite ClearSyncTo o la app no respondió: {_mensaje_com(e)}"
         log.warning(msg)
         return False, msg
 
