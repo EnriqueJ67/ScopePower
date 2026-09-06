@@ -35,6 +35,19 @@ from datetime import datetime
 import cv2
 from apilado import aplicar_estirado_mtf
 import winreg
+import logging
+from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
+                      capturar_frame, estado_captura)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+# Los mensajes llevan emojis; si la salida va a un fichero o a una consola en
+# cp1252, print() lanzaría UnicodeEncodeError y tumbaría el hilo del apilado.
+for _flujo in (sys.stdout, sys.stderr):
+    try:
+        _flujo.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -349,19 +362,34 @@ def reanudar():
 def estado_pausa_apilado():
     return jsonify({"pausado": esta_pausado()})
 
-telescope = None
+# ─────────────────────────────────────────────────────────────────────────────
+#  Dispositivos ASCOM
+#
+#  Cada dispositivo tiene su propio hilo (ver hardware.py). Las rutas Flask
+#  NUNCA tocan el objeto COM directamente: envían una función al trabajador
+#  con montura.ejecutar(lambda tel: ...) o camara.ejecutar(lambda cam: ...).
+#  Así Flask puede atender varias peticiones a la vez (threaded=True) sin
+#  los errores de COM entre hilos que obligaban a usar threaded=False.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _activar_seguimiento(tel):
+    try:
+        tel.Tracking = True
+    except Exception as e:
+        print(f"⚠️ No se pudo activar el seguimiento al conectar: {e}")
+
+montura = TrabajadorCOM("montura", lambda: DRIVER_TELESCOPIO, al_conectar=_activar_seguimiento)
+camara = TrabajadorCOM("cámara", lambda: DRIVER_CAMARA)
+
 
 def conectar_telescopio():
-    global telescope
+    """Conecta la montura si no lo está. Devuelve True si está disponible."""
     try:
-        pythoncom.CoInitialize()
-        if telescope is None:
-            telescope = win32com.client.Dispatch(DRIVER_TELESCOPIO)  # Cambia por tu driver ASCOM
-            telescope.Connected = True
-            telescope.Tracking = True
-    except Exception as e:
+        montura.ejecutar(lambda tel: None, timeout=30)
+        return True
+    except ErrorHardware as e:
         print(f"Error al conectar telescopio: {e}")
-        telescope = None  # No lo conviertas a str, mejor mantenlo como None
+        return False
 
 
 
@@ -458,19 +486,12 @@ from flask import session, render_template, request
 
 @app.route('/salir')
 def salir():
-    global telescope
-
     # 1) Desconectar telescopio
     desconectar_telescopio()
     # 2) Reiniciar info GOTO
     eliminar_info_goto()
     # 3) Desconectar cámara si es posible
-    try:
-        cam = win32com.client.Dispatch(DRIVER_CAMARA)
-        cam.Connected = True
-        desconectar_camara(cam)
-    except Exception:
-        pass
+    desconectar_camara()
     # 4) Cerrar sesión
     session.pop('usuario', None)
 
@@ -501,34 +522,37 @@ def eliminar_info_goto():
         f.write("ℹ️ No hay datos del objeto GOTO disponibles en esta sesión.\n")
     print("📄 info_objeto_goto.txt reiniciado.")
 
-# Función para conectar con la cámara ASCOM
-def conectar_camara():
-    try:
-        pythoncom.CoInitialize()
-        camara = win32com.client.Dispatch(DRIVER_CAMARA)
-        camara.Connected = True
-        return camara
-    except Exception as e:
-        return str(e)
-
 def desconectar_telescopio():
-    global telescope
-    pythoncom.CoInitialize()  # Asegura contexto COM en el hilo actual
-    try:
-        if telescope is not None and not isinstance(telescope, str):
-            #telescope.Tracking = True
-            telescope.Connected = False
-            print("🔌 Telescopio desconectado.")
-    except Exception as e:
-        print(f"⚠️ Error al desconectar telescopio: {e}")
+    if montura.esta_conectado():
+        montura.desconectar()
+        print("🔌 Telescopio desconectado.")
 
-def desconectar_camara(camara):
+def desconectar_camara():
+    if camara.esta_conectado():
+        camara.desconectar()
+        print("🔌 Cámara desconectada.")
+
+
+def ejecutar_astap(ruta_fits_mono, timeout=90):
+    """
+    Lanza ASTAP sobre un FITS monocromo. Borra los .ini/.wcs anteriores para
+    no leer una solución vieja si ASTAP falla, y no bloquea más de `timeout` s.
+    Devuelve True si ASTAP terminó (haya resuelto o no), False si se colgó.
+    """
+    base = os.path.splitext(ruta_fits_mono)[0]
+    for antiguo in (base + ".ini", base + ".wcs"):
+        try:
+            if os.path.exists(antiguo):
+                os.remove(antiguo)
+        except Exception:
+            pass
+    comando_astap = f'"{RUTA_ASTAP}" -f "{ruta_fits_mono}" -solve -r 50'
     try:
-        if camara is not None and not isinstance(camara, str):
-            camara.Connected = False
-            print("🔌 Cámara desconectada.")
-    except Exception as e:
-        print(f"⚠️ Error al desconectar cámara: {e}")
+        subprocess.run(comando_astap, shell=True, capture_output=True, text=True, timeout=timeout)
+        return True
+    except subprocess.TimeoutExpired:
+        print(f"⏱️ ASTAP no terminó en {timeout} s; se cancela la resolución.")
+        return False
 
 
 
@@ -732,24 +756,18 @@ def control_telescopio():
 
 @app.route('/reconectar-telescopio')
 def reconectar_telescopio():
-    global telescope
-    telescope = None
-    conectar_telescopio()
-    if isinstance(telescope, str):
-        return f"❌ Error: {telescope}"
+    try:
+        montura.reconectar()
+    except ErrorHardware as e:
+        return f"❌ Error: {e}"
     return "✅ Telescopio reconectado correctamente"
 
 @app.route('/move')
 def move():
-    global telescope
-    pythoncom.CoInitialize()
-    conectar_telescopio()
     direction = request.args.get('dir')
     speed = float(request.args.get('speed', 0.5))
 
-    if telescope is None or isinstance(telescope, str):
-        return str(telescope)
-    try:
+    def _mover(telescope):
         # Guardar estado previo de Tracking
         estaba_tracking = telescope.Tracking
 
@@ -769,21 +787,17 @@ def move():
             telescope.Tracking = True
 
         return "Moving"
-    except Exception as e:
-        return str(e)
+
+    try:
+        return montura.ejecutar(_mover, timeout=10)
+    except ErrorHardware as e:
+        return f"❌ {e}"
 
 
 
 @app.route('/stop')
 def stop():
-    global telescope
-    pythoncom.CoInitialize()
-    conectar_telescopio()
-
-    if telescope is None or isinstance(telescope, str):
-        return str(telescope)
-
-    try:
+    def _parar(telescope):
         # Detener movimiento
         telescope.MoveAxis(0, 0)
         telescope.MoveAxis(1, 0)
@@ -792,10 +806,12 @@ def stop():
         if not telescope.Tracking:
             telescope.Tracking = True
             print("✅ Seguimiento reactivado después de parar.")
-
         return "Stopped"
-    except Exception as e:
-        return str(e)
+
+    try:
+        return montura.ejecutar(_parar, timeout=10)
+    except ErrorHardware as e:
+        return f"❌ {e}"
 
 
 # Ruta para capturar una imagen con la cámara ASCOM
@@ -805,32 +821,35 @@ from astropy.io import fits
 # Función para capturar imagen y mostrarla en la web
 @app.route('/capturar-imagen')
 def capturar_imagen():
-    camara = conectar_camara()
-    if isinstance(camara, str):
-        return f"Error: {camara}"
-    global telescope
-    pythoncom.CoInitialize()
-    conectar_telescopio()
+    # Si la cámara ya está exponiendo, no encolar otra captura detrás
+    if camara.ocupado:
+        return "⏳ Ya hay una captura en curso", 409
 
-    if isinstance(telescope, str):
-        return f"Error: {telescope}"
+    nuevo_config = configparser.ConfigParser()
+    nuevo_config.read("config.ini")
+    EXPOSICION = float(nuevo_config["Dispositivos"].get("exposicion_captura", 10))
+
+    def _exponer(cam):
+        print(f"📸 Iniciando exposición de {EXPOSICION} segundos...")
+        frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion="Captura")
+        print("✅ Exposición finalizada.")
+        return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY
 
     try:
-        camara.BinX = BINNING
-        camara.BinY = BINNING
-        camara.NumX = camara.NumX / camara.BinX
-        camara.NumY = camara.NumY / camara.BinY
+        imagen_fits, sensor_type, pixel_size_x, pixel_size_y = camara.ejecutar(
+            _exponer, timeout=EXPOSICION + 90)
+    except CapturaCancelada:
+        return "⏹️ Captura cancelada"
+    except ErrorHardware as e:
+        return f"Error: {e}"
 
-        nuevo_config = configparser.ConfigParser()
-        nuevo_config.read("config.ini")
-        EXPOSICION = float(nuevo_config["Dispositivos"].get("exposicion_captura", 10))
-        print(f"📸 Iniciando exposición de {EXPOSICION} segundos...")
-        camara.StartExposure(EXPOSICION, True)
-        while not camara.ImageReady:
-            time.sleep(1)
-        print("✅ Exposición finalizada.")
-        # Captura monocroma y aplica debayer
-        imagen_fits = np.array(camara.ImageArray, dtype=np.uint16)
+    try:
+        ra_actual, dec_actual = montura.ejecutar(
+            lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
+    except ErrorHardware as e:
+        return f"Error: {e}"
+
+    try:
         #imagen_fits = imagen_mono# np.fliplr(imagen_mono)
         #imagen_rgb = imagen_mono # cv2.cvtColor(imagen_mono, cv2.COLOR_BAYER_RG2RGB)
 
@@ -860,12 +879,10 @@ def capturar_imagen():
 
 
         # ───── Crear FITS ─────
-        ra_actual = telescope.RightAscension
-        dec_actual = telescope.Declination
         hdu = fits.PrimaryHDU(imagen_fits)
         # Mapa de enum → nombre
         _map = {2: 'RGGB', 3: 'CMYG', 4: 'CMYG2', 5: 'LRGB'}
-        patron_bayer = _map.get(camara.SensorType, 'Mono/Colour')
+        patron_bayer = _map.get(sensor_type, 'Mono/Colour')
         hdu.header['BAYERPAT'] = (patron_bayer, 'Patron Bayer segun ASCOM SensorType')
         hdu.header['XBAYROFF'] = (0, 'Desplazamiento X del patron Bayer')
         hdu.header['YBAYROFF'] = (0, 'Desplazamiento Y del patron Bayer')
@@ -876,8 +893,8 @@ def capturar_imagen():
         ra_str, dec_str = formatear_ra_dec(ra_actual, dec_actual)
         hdu.header['OBJCTRA'] = ra_str
         hdu.header['OBJCTDEC'] = dec_str
-        hdu.header['XPIXSZ'] = camara.PixelSizeX * BINNING
-        hdu.header['YPIXSZ'] = camara.PixelSizeY * BINNING
+        hdu.header['XPIXSZ'] = pixel_size_x * BINNING
+        hdu.header['YPIXSZ'] = pixel_size_y * BINNING
         hdu.header['FOCALLEN'] = FOCAL_LEN
         hdu.header['XBINNING'] = BINNING
         hdu.header['YBINNING'] = BINNING
@@ -950,9 +967,8 @@ def platesolve():
         RUTA_IMAGEN_MONO = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.fits"
         generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, RUTA_IMAGEN_MONO)
 
-        comando_astap = f'"{RUTA_ASTAP}" -f "{RUTA_IMAGEN_MONO}" -solve -r 50'
-
-        subprocess.run(comando_astap, shell=True, capture_output=True, text=True)
+        if not ejecutar_astap(RUTA_IMAGEN_MONO):
+            return render_template('platesolve.html', resultado="⏱️ ASTAP no respondió a tiempo.", mostrar_volver=True)
 
         coordenadas = extraer_coordenadas_ini(RUTA_INI)
         if coordenadas is None:
@@ -1048,22 +1064,20 @@ def platesolve_astrometry(ruta_imagen):
 # Ruta para sincronizar y recentrar el telescopio
 @app.route('/corregir-posicion')
 def corregir_posicion():
-   
-    global telescope
-    pythoncom.CoInitialize()  # Asegura contexto COM en el hilo actual
-    conectar_telescopio()
-    
-    if isinstance(telescope, str):
-        return render_template('corregir_posicion.html', resultado=f"❌ Error: {telescope}", mostrar_volver=True)
+    try:
+        ra_inicial, dec_inicial = montura.ejecutar(
+            lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
+    except ErrorHardware as e:
+        return render_template('corregir_posicion.html', resultado=f"❌ Error: {e}", mostrar_volver=True)
 
-
-    ra_inicial, dec_inicial = telescope.RightAscension, telescope.Declination
+    if not os.path.exists(RUTA_IMAGEN):
+        return render_template('corregir_posicion.html', resultado="⚠️ No hay ninguna imagen capturada que resolver.", mostrar_volver=True)
 
     RUTA_IMAGEN_MONO = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.fits"
     generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, RUTA_IMAGEN_MONO)
 
-    comando_astap = f'"{RUTA_ASTAP}" -f "{RUTA_IMAGEN_MONO}" -solve -r 50'
-    subprocess.run(comando_astap, shell=True, capture_output=True, text=True)
+    if not ejecutar_astap(RUTA_IMAGEN_MONO):
+        return render_template('corregir_posicion.html', resultado="⏱️ ASTAP no respondió a tiempo.", mostrar_volver=True)
 
     coordenadas = extraer_coordenadas_ini(RUTA_INI)
     if coordenadas is None:
@@ -1082,8 +1096,14 @@ def corregir_posicion():
     if altitud < int(ALTURA_MINIMA):
         return render_template('corregir_posicion.html', resultado="⚠️ Advertencia: El objeto está por debajo de altura mínima. Proceso cancelado.", mostrar_volver=True)
     
-    telescope.SyncToCoordinates(ra_resuelto, dec_resuelto)
-    telescope.SlewToCoordinates(ra_inicial, dec_inicial)
+    def _sincronizar(tel):
+        tel.SyncToCoordinates(ra_resuelto, dec_resuelto)
+        tel.SlewToCoordinates(ra_inicial, dec_inicial)
+
+    try:
+        montura.ejecutar(_sincronizar, timeout=120)
+    except ErrorHardware as e:
+        return render_template('corregir_posicion.html', resultado=f"❌ Error al sincronizar: {e}", mostrar_volver=True)
 
     resultado_html = "✅ Telescopio sincronizado y recentrado a su posición original."
     return render_template('corregir_posicion.html', resultado=resultado_html, mostrar_volver=True)
@@ -1104,24 +1124,17 @@ def modo_automatico():
         if not os.path.exists(RUTA_IMAGEN):
             return render_template('modo_automatico.html', resultado="❌ La imagen no fue generada correctamente.", mostrar_volver=True)
 
-        global telescope
-        pythoncom.CoInitialize()  # Asegura contexto COM en el hilo actual
-        conectar_telescopio()
-        
-
-        if isinstance(telescope, str):
-            #return f"❌ Error: No se pudo conectar con el telescopio."
-            return render_template('modo_automatico.html', resultado="❌ Error: No se pudo conectar con el telescopio.", mostrar_volver=True)
-
-
-        ra_original = telescope.RightAscension
-        dec_original = telescope.Declination
+        try:
+            ra_original, dec_original = montura.ejecutar(
+                lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
+        except ErrorHardware as e:
+            return render_template('modo_automatico.html', resultado=f"❌ Error: No se pudo conectar con el telescopio ({e}).", mostrar_volver=True)
 
         RUTA_IMAGEN_MONO = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.fits"
         generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, RUTA_IMAGEN_MONO)
 
-        comando_astap = f'"{RUTA_ASTAP}" -f "{RUTA_IMAGEN_MONO}" -solve -r 50'
-        subprocess.run(comando_astap, shell=True, capture_output=True, text=True)
+        if not ejecutar_astap(RUTA_IMAGEN_MONO):
+            return render_template('modo_automatico.html', resultado="⏱️ ASTAP no respondió a tiempo.", mostrar_volver=True)
 
         coordenadas = extraer_coordenadas_ini(RUTA_INI)
         if coordenadas is None:
@@ -1140,8 +1153,11 @@ def modo_automatico():
             #return "⚠️ Advertencia: El objeto está por debajo de altura minima. Sincronización cancelada."
             return render_template('modo_automatico.html', resultado="⚠️ Advertencia: El objeto está por debajo de altura minima. Sincronización cancelada.", mostrar_volver=True)
 
-        telescope.SyncToCoordinates(ra_resuelto, dec_resuelto)
-        telescope.SlewToCoordinates(ra_original, dec_original)
+        def _sincronizar(tel):
+            tel.SyncToCoordinates(ra_resuelto, dec_resuelto)
+            tel.SlewToCoordinates(ra_original, dec_original)
+
+        montura.ejecutar(_sincronizar, timeout=120)
 
         resultado_html = f"""
         ✅ <b>Modo Automático Completado</b> 🚀<br>
@@ -1253,10 +1269,6 @@ def normalizar_nombre_objeto(objeto):
 # Página para GOTO con formulario HTML y reconocimiento de voz
 @app.route("/goto", methods=["GET", "POST"])
 def goto_objeto():
-    global telescope
-    pythoncom.CoInitialize()
-    conectar_telescopio()
-
     if request.method == "POST":
         objeto = request.form.get("objeto", "").strip()
         if not objeto:
@@ -1337,40 +1349,32 @@ def goto_objeto():
             if altitud < int(ALTURA_MINIMA):
                 return jsonify({"warning": "El objeto está por debajo de altura mínima. GOTO cancelado."})
 
-            if telescope is None or isinstance(telescope, str):
-                return jsonify({"error": str(telescope)})
-
-            try:
-                if not telescope.Tracking:
-                    telescope.Tracking = True
+            def _activar_tracking(tel):
+                if not tel.Tracking:
+                    tel.Tracking = True
                     time.sleep(1)
 
-            except Exception as e:
+            try:
+                montura.ejecutar(_activar_tracking, timeout=15)
+            except ErrorHardware as e:
                 return jsonify({"error": f"No se pudo activar el seguimiento: {e}"})
 
-            import threading  # asegúrate de tenerlo al inicio del archivo
-
-            def mover_telescopio_en_segundo_plano(ra, dec):
-                try:
-                    import pythoncom
-                    pythoncom.CoInitialize()
-
-                    driver = config["Dispositivos"]["DRIVER_TELESCOPIO"]
-                    tel = win32com.client.Dispatch(driver)
-                    tel.Connected = True
-                    tel.Tracking = True
+            def _mover_telescopio(tel, ra=ra, dec=dec):
+                tel.Tracking = True
+                if getattr(tel, "CanSlewAsync", False):
+                    tel.SlewToCoordinatesAsync(ra, dec)
+                else:
                     tel.SlewToCoordinates(ra, dec)
-                    # Esperar hasta que comience a moverse
-                    for _ in range(10):  # Esperar hasta 5 segundos
-                        if tel.Slewing:
-                            break
-                        time.sleep(0.5)
-                    #time.sleep(4)  # ⚠️ Espera para que el telescopio arranque antes de comprobar si ha llegado
-                except Exception as e:
-                    print(f"❌ Error al mover el telescopio en hilo: {e}")
+                # Esperar hasta que comience a moverse (máx. 5 s)
+                for _ in range(10):
+                    if tel.Slewing:
+                        break
+                    time.sleep(0.5)
 
-            # Lanzar movimiento en segundo plano
-            threading.Thread(target=mover_telescopio_en_segundo_plano, args=(ra, dec)).start()
+            # Lanzar movimiento en el hilo de la montura sin esperar a que termine
+            futuro = montura.ejecutar_async(_mover_telescopio)
+            futuro.add_done_callback(
+                lambda f: print(f"❌ Error al mover el telescopio: {f.exception()}") if f.exception() else None)
 
             # Responder inmediatamente
             return jsonify({
@@ -1386,15 +1390,12 @@ def goto_objeto():
 
 @app.route("/estado_telescopio")
 def estado_telescopio():
-    global telescope
-    pythoncom.CoInitialize()
+    if not montura.esta_conectado():
+        return jsonify({"slewing": False})
     try:
-        if telescope is not None and not isinstance(telescope, str):
-            slewing = telescope.Slewing
-            return jsonify({"slewing": slewing})
-        else:
-            return jsonify({"slewing": False})
-    except Exception as e:
+        slewing = montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=5)
+        return jsonify({"slewing": slewing})
+    except ErrorHardware as e:
         return jsonify({"slewing": False, "error": str(e)})
 
 @app.route("/info-wikipedia", methods=["POST"])
@@ -1607,8 +1608,27 @@ from apilado import obtener_estado_apilado
 
 @app.route('/estado-apilado')
 def estado_apilado():
-    total, ultima = obtener_estado_apilado()
-    return jsonify({"total": total, "ultima": ultima})
+    estado = obtener_estado_apilado()
+    estado["captura"] = estado_captura.como_dict()
+    estado["camara_ocupada"] = camara.ocupado
+    return jsonify(estado)
+
+
+@app.route('/estado-captura')
+def estado_captura_actual():
+    """Progreso de la exposición en curso (para la cuenta atrás de la web)."""
+    estado = estado_captura.como_dict()
+    estado["camara_ocupada"] = camara.ocupado
+    return jsonify(estado)
+
+
+@app.route('/cancelar-captura', methods=["POST"])
+def cancelar_captura():
+    """Aborta la exposición en curso; la petición de captura devuelve 'cancelada'."""
+    if not estado_captura.como_dict()["en_curso"]:
+        return jsonify({"mensaje": "No hay ninguna captura en curso"})
+    estado_captura.cancelar.set()
+    return jsonify({"mensaje": "⏹️ Cancelando captura..."})
 
 @app.route('/reiniciar-apilado', methods=["POST"])
 def reiniciar_apilado():
@@ -1633,36 +1653,27 @@ def procesar_dark():
     import time
     import pythoncom
 
-    pythoncom.CoInitialize()
-    camara = conectar_camara()
-    if isinstance(camara, str):
-        return f"❌ Error conectando la cámara: {camara}"
+    if camara.ocupado:
+        return "⏳ La cámara está ocupada con otra captura", 409
 
     try:
-        # Ajustamos binning
-        camara.BinX = BINNING
-        camara.BinY = BINNING
-        camara.NumX = camara.NumX / camara.BinX
-        camara.NumY = camara.NumY / camara.BinY
-
-        suma = None
         n = 10  # número de darks a promediar
-        for i in range(n):
-            camara.StartExposure(EXPOSICION, True)
-            while not camara.ImageReady:
-                time.sleep(0.5)
 
-            # Obtenemos el frame raw (CFA) y corregimos orientación
-            imagen_raw = np.array(camara.ImageArray, dtype=np.float32)
-            #imagen_raw = np.fliplr(imagen_raw)
+        def _capturar_darks(cam):
+            suma = None
+            for i in range(n):
+                imagen_raw = capturar_frame(cam, EXPOSICION, BINNING,
+                                            descripcion=f"Dark {i+1}/{n}").astype(np.float32)
+                suma = imagen_raw if suma is None else suma + imagen_raw
+                print(f"📸 Captura dark {i+1}/{n} completada")
+            return suma, getattr(cam, "SensorType", None)
 
-            # Acumulamos
-            if suma is None:
-                suma = imagen_raw
-            else:
-                suma += imagen_raw
-
-            print(f"📸 Captura dark {i+1}/{n} completada")
+        try:
+            suma, sensor_type = camara.ejecutar(_capturar_darks, timeout=n * (EXPOSICION + 90))
+        except CapturaCancelada:
+            return "⏹️ Generación de dark cancelada"
+        except ErrorHardware as e:
+            return f"❌ Error conectando la cámara: {e}"
 
         # Promediamos y recortamos al rango válido de 16 bits
         promedio = np.clip(suma / n, 0, 65535).astype(np.uint16)
@@ -1676,7 +1687,6 @@ def procesar_dark():
 
         # Añadimos el patrón CFA al header
         _map = {2: 'RGGB', 3: 'CMYG', 4: 'CMYG2', 5: 'LRGB'}
-        sensor_type = getattr(camara, "SensorType", None)
         patrón = _map.get(sensor_type, "Mono")
         hdu.header["BAYERPAT"] = (patrón, "Patron CFA segun ASCOM SensorType")
 
@@ -1898,5 +1908,8 @@ if __name__ == '__main__':
     os.makedirs(ruta_absoluta("capturas"), exist_ok=True)
     os.makedirs(ruta_absoluta("static"), exist_ok=True)
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
-    app.run(host='0.0.0.0', port=5000, threaded=False)
+    # threaded=True: cada petición en su hilo. El acceso a la montura y a la
+    # cámara está serializado en hardware.py, así que la web sigue respondiendo
+    # (estado, parar montura, cancelar) mientras hay una exposición en curso.
+    app.run(host='0.0.0.0', port=5000, threaded=True)
 

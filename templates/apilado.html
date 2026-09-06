@@ -37,8 +37,16 @@
 
 <!-- Estado y contador -->
 <div style="text-align: center; font-size: 20px; color: #ffaaaa; margin-bottom: 10px;">
-    Imágenes apiladas: <span id="contador-apilado">0</span><br>
+    Imágenes apiladas: <span id="contador-apilado">0</span> / <span id="maximo-apilado">-</span><br>
     Última captura: <span id="ultima-captura">Ninguna</span>
+</div>
+<div style="text-align: center; font-size: 15px; color: #ddaaaa; margin-bottom: 10px;">
+    <div id="estado-captura-linea" style="min-height: 1.3em;"></div>
+    <button id="boton-cancelar" class="btn btn-danger" onclick="cancelarCaptura()" style="display: none;">⏹️ Cancelar exposición</button>
+    <div>Descartadas: <span id="descartadas">0</span> sin resolver, <span id="descartadas-calidad">0</span> por calidad</div>
+    <div id="puntuaciones"></div>
+    <div id="mensaje-apilado" style="color: #aaa; font-style: italic;"></div>
+    <div id="error-apilado" style="color: #ff6666; font-weight: bold; min-height: 1.3em;"></div>
 </div>
 
 <!-- Imagen apilada -->
@@ -192,44 +200,108 @@
     }
 
     function actualizarEstadoApilado() {
-        fetch("/estado-apilado")
+        return fetch("/estado-apilado")
             .then(r => r.json())
             .then(d => {
                 document.getElementById("contador-apilado").textContent = d.total || 0;
+                document.getElementById("maximo-apilado").textContent = d.maximo || "-";
                 document.getElementById("ultima-captura").textContent = d.ultima || "Ninguna";
-            });
+                document.getElementById("descartadas").textContent = d.descartadas || 0;
+                document.getElementById("descartadas-calidad").textContent = d.descartadas_calidad || 0;
+                document.getElementById("mensaje-apilado").textContent = d.mensaje || "";
+                document.getElementById("error-apilado").textContent = d.ultimo_error ? "⚠️ " + d.ultimo_error : "";
+
+                let punt = "";
+                if (d.puntuacion_ultima !== null && d.puntuacion_ultima !== undefined) {
+                    punt = "Puntuación última: " + d.puntuacion_ultima;
+                    if (d.puntuacion_minima !== null && d.puntuacion_minima !== undefined)
+                        punt += " · peor en el apilado: " + d.puntuacion_minima;
+                }
+                document.getElementById("puntuaciones").textContent = punt;
+
+                mostrarEstadoCaptura(d.captura, d.procesando);
+                return d;
+            })
+            .catch(err => console.warn("⚠️ Error leyendo estado:", err));
+    }
+
+    function mostrarEstadoCaptura(captura, procesando) {
+        const linea = document.getElementById("estado-captura-linea");
+        const boton = document.getElementById("boton-cancelar");
+        if (captura && captura.en_curso) {
+            linea.textContent = `📷 ${captura.descripcion || "Exponiendo"}: quedan ${Math.ceil(captura.restante)} s de ${captura.exposicion} s`;
+            boton.style.display = "inline-block";
+        } else if (procesando) {
+            linea.textContent = "⚙️ Alineando y apilando el último fotograma...";
+            boton.style.display = "none";
+        } else {
+            linea.textContent = "";
+            boton.style.display = "none";
+        }
+    }
+
+    function cancelarCaptura() {
+        fetch("/cancelar-captura", { method: "POST" })
+            .then(r => r.json())
+            .then(d => document.getElementById("estado-carga").textContent = d.mensaje || "")
+            .catch(err => console.warn("⚠️ Error cancelando:", err));
     }
 
     function confirmarReinicio() {
         return confirm("¿Seguro que quieres reiniciar el apilado?");
     }
 
+    // Una captura en vuelo como máximo: el servidor responde 409 si la cámara
+    // ya está exponiendo, y aquí no se lanza otra hasta que termine la anterior.
+    let capturaEnVuelo = false;
+
     function capturarImagenConApiladoYActualizar() {
+        if (capturaEnVuelo) return;
+        capturaEnVuelo = true;
         const estado = document.getElementById("estado-carga");
-        estado.textContent = "⏳ Actualizando...";
+        estado.textContent = "⏳ Capturando...";
         fetch("/capturar-imagen?apilar=1")
-            .then(() => {
-                setTimeout(() => {
-                    actualizarEstadoApilado();
-                    actualizarImagen();
-                    estado.textContent = "✅ Imagen actualizada";
-                    setTimeout(() => estado.textContent = "", 3000);
-                }, 2000);
+            .then(r => {
+                if (r.status === 409) {
+                    estado.textContent = "⏳ La cámara ya está ocupada";
+                    return;
+                }
+                return r.text().then(txt => {
+                    if (txt.startsWith("Error") || txt.startsWith("❌") || txt.startsWith("⏹")) {
+                        estado.textContent = txt;
+                        return;
+                    }
+                    // El apilado corre en el servidor al aparecer el FITS; esperar un poco
+                    setTimeout(() => {
+                        actualizarImagen();
+                        estado.textContent = "✅ Imagen actualizada";
+                        setTimeout(() => estado.textContent = "", 3000);
+                    }, 2000);
+                });
             })
             .catch(err => {
-                estado.textContent = "❌ Error al actualizar imagen";
+                estado.textContent = "❌ Error al capturar";
                 console.error("⚠️ Error capturando imagen:", err);
-            });
+            })
+            .finally(() => { capturaEnVuelo = false; });
     }
 
+    // Cada 2 s: refrescar estado (cuenta atrás, errores) y, si toca, lanzar captura.
     function cicloActualizacion() {
-        fetch("/estado-pausa-apilado")
-            .then(r => r.json())
-            .then(d => {
-                if (!d.pausado) capturarImagenConApiladoYActualizar();
-                else document.getElementById("estado-carga").textContent = "⏸️ Apilado pausado";
+        Promise.all([
+            fetch("/estado-pausa-apilado").then(r => r.json()),
+            actualizarEstadoApilado()
+        ])
+            .then(([pausa, estado]) => {
+                if (pausa.pausado) {
+                    document.getElementById("estado-carga").textContent = "⏸️ Apilado pausado";
+                    return;
+                }
+                const ocupada = estado && (estado.camara_ocupada || estado.procesando);
+                if (!capturaEnVuelo && !ocupada) capturarImagenConApiladoYActualizar();
             })
-            .finally(() => setTimeout(cicloActualizacion, 8000));
+            .catch(console.error)
+            .finally(() => setTimeout(cicloActualizacion, 2000));
     }
 
     function pausarApilado() {

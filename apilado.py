@@ -32,6 +32,18 @@ cfg = configparser.ConfigParser()
 cfg.read("config.ini")
 ruta_astap = cfg["General"]["ruta_astap"]
 
+# Segundos máximos que se espera a ASTAP por fotograma. Si se cuelga, el
+# fotograma se descarta en vez de bloquear el apilado para siempre.
+ASTAP_TIMEOUT = 90
+
+
+def ini_resuelto(ruta_ini):
+    """True si el .ini de ASTAP existe y contiene PLTSOLVD=T."""
+    if not os.path.exists(ruta_ini):
+        return False
+    with open(ruta_ini) as f:
+        return any(L.startswith("PLTSOLVD=T") for L in f)
+
 # ———————————
 # Helpers ASTAP
 # ———————————
@@ -79,12 +91,12 @@ def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
         generar_fits_monocromo_para_astap(ruta_fits, mono)
         subprocess.run(
             f'"{ruta_astap}" -f "{mono}" -solve -r 50',
-            shell=True, capture_output=True, check=True
+            shell=True, capture_output=True, check=True, timeout=ASTAP_TIMEOUT
         )
 
-        # Si no existe el .ini, devolvemos sin más
-        if not os.path.exists(ini):
-            return None, "ASTAP"
+        # Si ASTAP no ha resuelto, devolvemos sin más
+        if not ini_resuelto(ini):
+            return None, "ASTAP no resolvió el fotograma"
 
         # Leemos resultados y calculamos la matriz de transformación
         now = parse_ini_wcs(ini)
@@ -100,6 +112,8 @@ def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
 
         return M, "ASTAP"
 
+    except subprocess.TimeoutExpired:
+        return None, f"ASTAP no terminó en {ASTAP_TIMEOUT} s"
     except subprocess.CalledProcessError as e:
         # Si ASTAP falla internamente, podemos capturar el error
         return None, f"ASTAP error: {e}"
@@ -118,6 +132,82 @@ def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
         # ————————————————————————————————
 
 
+
+
+# ———————————
+# Calidad de fotograma y apilado con memoria acotada
+# ———————————
+def calcular_puntuacion(plano):
+    """
+    Puntúa la calidad de un fotograma a partir de sus estrellas.
+    Devuelve (puntuacion, n_estrellas, nitidez). Mayor puntuación = mejor.
+
+    - n_estrellas: fuentes detectadas por encima de fondo + 5 sigma (nubes,
+      viento o desenfoque fuerte reducen el número).
+    - nitidez: mediana de pico/flujo de cada estrella. Una estrella bien
+      enfocada y sin arrastre concentra su luz en pocos píxeles (pico alto
+      respecto al flujo total); alargada o desenfocada, lo reparte.
+    - puntuacion = nitidez * sqrt(n_estrellas)
+    Se calcula a media resolución para que tarde décimas de segundo.
+    """
+    img = np.asarray(plano, dtype=np.float32)
+    peq = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2), interpolation=cv2.INTER_AREA)
+
+    mediana = float(np.median(peq))
+    mad = float(np.median(np.abs(peq - mediana))) * 1.4826 + 1e-3
+    mascara = (peq > mediana + 5.0 * mad).astype(np.uint8)
+
+    n, etiquetas, stats, _ = cv2.connectedComponentsWithStats(mascara, connectivity=8)
+    if n <= 1:
+        return 0.0, 0, 0.0
+
+    areas = stats[1:, cv2.CC_STAT_AREA]
+    # Descartar píxeles calientes (1-2 px) y manchas grandes (galaxias, nebulosas)
+    validas = (areas >= 3) & (areas <= 200)
+    n_estrellas = int(validas.sum())
+    if n_estrellas == 0:
+        return 0.0, 0, 0.0
+
+    resta = (peq - mediana).ravel()
+    ids = etiquetas.ravel()
+    flujo = np.bincount(ids, weights=resta, minlength=n)
+    pico = np.zeros(n, dtype=np.float32)
+    np.maximum.at(pico, ids, resta.astype(np.float32))
+
+    ratio = pico[1:][validas] / np.maximum(flujo[1:][validas], 1e-6)
+    nitidez = float(np.median(ratio))
+    puntuacion = nitidez * float(np.sqrt(n_estrellas))
+    return puntuacion, n_estrellas, nitidez
+
+
+def apilar_sigma_clip(planos, sigma=2.0, filas_por_bloque=128):
+    """
+    Media con sigma-clipping de una lista de planos (H, W) uint16/float.
+    Procesa por bloques de filas para no materializar N copias completas en
+    memoria (con 35 fotogramas de 9 Mpx eso eran varios GB).
+    Devuelve float32 (H, W).
+    """
+    n = len(planos)
+    h, w = planos[0].shape
+    salida = np.empty((h, w), dtype=np.float32)
+
+    if n < 3:
+        acum = np.zeros((h, w), dtype=np.float32)
+        for p in planos:
+            acum += p
+        salida[:] = acum / n
+        return salida
+
+    for y0 in range(0, h, filas_por_bloque):
+        y1 = min(h, y0 + filas_por_bloque)
+        bloque = np.stack([p[y0:y1] for p in planos], axis=0).astype(np.float32)
+        media = bloque.mean(axis=0)
+        std = bloque.std(axis=0)
+        mascara = np.abs(bloque - media) <= sigma * std + 1e-6
+        cuenta = mascara.sum(axis=0)
+        suma = np.where(mascara, bloque, 0.0).sum(axis=0)
+        salida[y0:y1] = np.where(cuenta > 0, suma / np.maximum(cuenta, 1), media)
+    return salida
 
 
 # ─── Flag para activar/desactivar anotación de objetos ─────────
@@ -319,11 +409,29 @@ class ApiladorEnTiempoReal:
         self.ultima_captura = ""
         self.lock = threading.Lock()
         self.ruta_astap = ruta_astap
-        self.lista_r = deque()
-        self.lista_g = deque()
-        self.lista_b = deque()
+
+        # Fotogramas que forman el apilado. Cada elemento es un dict con los
+        # planos alineados en uint16 ("r","g","b"), su "puntuacion" y "nombre".
+        # Se conservan como máximo NUM_MAX; cuando llega uno mejor que el peor
+        # almacenado lo sustituye. uint16 en vez de float32 = la mitad de RAM.
+        self.fotogramas = []
+        self.num_max = 0
+
+        # Estado visible desde la web
+        self.descartadas = 0           # sin resolver / error
+        self.descartadas_calidad = 0   # peores que las N guardadas
+        self.ultimo_error = ""
+        self.ultimo_mensaje = ""
+        self.ultima_puntuacion = None
+        self.procesando = False
 
         self.ref_info = None
+
+    def _descartar(self, motivo):
+        with self.lock:
+            self.descartadas += 1
+            self.ultimo_error = motivo
+        print(f"⚠️ Fotograma descartado: {motivo}")
         
     def obtener_transformacion(self, img, ref, ruta_fits=None):
         """
@@ -437,70 +545,98 @@ class ApiladorEnTiempoReal:
             # y ya puedes hacer alineación y apilado normalmente
 
 
-            # Generar imagen de referencia si no la hay
-            img_r = self.cargar_fits_grayscale(ruta_fits)
-            if self.imagen_referencia is None:
-                # guardamos la miniatura de referencia
-                self.imagen_referencia = img_r
-                # y también la info ASTAP
-                ref_mono = ruta_fits.replace(".fits","_mono.fits")
-                # generar y resolver para la referencia
-                generar_fits_monocromo_para_astap(ruta_fits, ref_mono)
-                subprocess.run(f'"{ruta_astap}" -f "{ref_mono}" -solve -r 50',
-                               shell=True, capture_output=True)
-                ref_ini = ref_mono.replace(".fits",".ini")
-                self.ref_info = parse_ini_wcs(ref_ini)
+            self.num_max = NUM_MAX
+            nombre_fits = os.path.basename(ruta_fits)
 
-                # — limpieza inicial de archivos de plate‐solve —
-                for fichero in (ref_mono, ref_ini, ref_mono.replace(".fits", ".wcs")):
-                    try: os.remove(fichero)
-                    except: pass
-            # Alinear con la imagen de referencia
-            #M, metodo = obtener_transformacion(img_r, self.imagen_referencia, ruta_fits)
-            #M, tag = compute_astap_transform(ruta_fits, self.ref_info, self.ruta_astap)
-            M, metodo = self.obtener_transformacion(img_r, self.imagen_referencia, ruta_fits)
-            r = self.aplicar_transformacion(r, M, metodo)
-            g = self.aplicar_transformacion(g, M, metodo)
-            b = self.aplicar_transformacion(b, M, metodo)
+            # ── Calidad del fotograma (sobre el canal verde, antes de alinear) ──
+            puntuacion, n_estrellas, nitidez = calcular_puntuacion(g)
+            with self.lock:
+                self.ultima_puntuacion = round(puntuacion, 3)
+                self.ultima_captura = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"⭐ {nombre_fits}: {n_estrellas} estrellas, nitidez {nitidez:.3f}, puntuación {puntuacion:.3f}")
 
-            # Guardar en memoria (usamos deque)
-            self.lista_r.append(r)
-            self.lista_g.append(g)
-            self.lista_b.append(b)
+            if n_estrellas == 0:
+                self._descartar(f"{nombre_fits}: sin estrellas detectables (¿nubes, tapa, desenfoque?)")
+                return
 
-            if len(self.lista_r) > NUM_MAX:
-                self.lista_r.popleft()
-                self.lista_g.popleft()
-                self.lista_b.popleft()
+            # ── Referencia: el primer fotograma que ASTAP consiga resolver ──
+            if self.ref_info is None:
+                ref_mono = ruta_fits.replace(".fits", "_mono.fits")
+                ref_ini = ref_mono.replace(".fits", ".ini")
+                try:
+                    generar_fits_monocromo_para_astap(ruta_fits, ref_mono)
+                    subprocess.run(f'"{ruta_astap}" -f "{ref_mono}" -solve -r 50',
+                                   shell=True, capture_output=True, timeout=ASTAP_TIMEOUT)
+                    if ini_resuelto(ref_ini):
+                        self.ref_info = parse_ini_wcs(ref_ini)
+                        self.imagen_referencia = nombre_fits
+                        print(f"📌 Referencia de alineado: {nombre_fits}")
+                except subprocess.TimeoutExpired:
+                    print(f"⏱️ ASTAP no terminó en {ASTAP_TIMEOUT} s con la referencia")
+                except Exception as e:
+                    print(f"⚠️ Error resolviendo la referencia: {e}")
+                finally:
+                    for fichero in (ref_mono, ref_ini, ref_mono.replace(".fits", ".wcs")):
+                        try:
+                            os.remove(fichero)
+                        except Exception:
+                            pass
 
-            self.total = len(self.lista_r)
-            self.ultima_captura = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if self.ref_info is None:
+                    self._descartar(f"{nombre_fits}: ASTAP no pudo resolver la referencia; se probará con el siguiente")
+                    return
+                # El fotograma de referencia no necesita transformación
+                M, metodo = np.eye(2, 3, dtype=np.float32), "REF"
+            else:
+                M, metodo = compute_astap_transform(ruta_fits, self.ref_info, self.ruta_astap)
+                if M is None:
+                    self._descartar(f"{nombre_fits}: {metodo}")
+                    return
 
-            def sigma_clipped_mean(stack, sigma=2.0):
-                """
-                stack: lista de imágenes (N, H, W)
-                sigma: umbral para excluir outliers
-                """
-                stack = np.stack(stack, axis=0)  # (N, H, W)
-                media = np.mean(stack, axis=0)
-                std = np.std(stack, axis=0)
+            if metodo != "REF":
+                r = self.aplicar_transformacion(r, M, metodo)
+                g = self.aplicar_transformacion(g, M, metodo)
+                b = self.aplicar_transformacion(b, M, metodo)
 
-                # Máscara de valores dentro del rango
-                mascara = np.abs(stack - media) <= sigma * std
-                stack_filtrado = np.where(mascara, stack, np.nan)
+            # ── Selección de los mejores NUM_MAX fotogramas ──
+            fotograma = {
+                "nombre": nombre_fits,
+                "puntuacion": puntuacion,
+                "r": np.clip(r, 0, 65535).astype(np.uint16),
+                "g": np.clip(g, 0, 65535).astype(np.uint16),
+                "b": np.clip(b, 0, 65535).astype(np.uint16),
+            }
+            del r, g, b
 
-                return np.nanmean(stack_filtrado, axis=0)  # promedio ignorando NaNs
+            with self.lock:
+                if len(self.fotogramas) < NUM_MAX:
+                    self.fotogramas.append(fotograma)
+                    self.ultimo_mensaje = f"{nombre_fits} añadido ({len(self.fotogramas)}/{NUM_MAX})"
+                else:
+                    idx_peor = min(range(len(self.fotogramas)), key=lambda i: self.fotogramas[i]["puntuacion"])
+                    peor = self.fotogramas[idx_peor]
+                    if puntuacion > peor["puntuacion"]:
+                        self.fotogramas[idx_peor] = fotograma
+                        self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) sustituye a "
+                                               f"{peor['nombre']} ({peor['puntuacion']:.2f})")
+                    else:
+                        self.descartadas_calidad += 1
+                        self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) no mejora al peor "
+                                               f"almacenado ({peor['puntuacion']:.2f}); descartado")
+                        print(f"ℹ️ {self.ultimo_mensaje}")
+                        return
+                self.total = len(self.fotogramas)
+                fotogramas_actuales = list(self.fotogramas)
+            print(f"📚 {self.ultimo_mensaje}")
 
-            # Calcular promedio con sigma-clipping
-            r = sigma_clipped_mean(self.lista_r)
-            g = sigma_clipped_mean(self.lista_g)
-            b = sigma_clipped_mean(self.lista_b)
+            # ── Apilado (sigma-clipping por bloques, memoria acotada) ──
+            r = apilar_sigma_clip([f["r"] for f in fotogramas_actuales])
+            g = apilar_sigma_clip([f["g"] for f in fotogramas_actuales])
+            b = apilar_sigma_clip([f["b"] for f in fotogramas_actuales])
 
 
             rgb = np.stack([r, g, b], axis=0)
             num_imagenes_preview = self.total
-            if self.total < NUM_MAX:
-                num_imagenes_preview += 1
 
 
             # Usar la cabecera del último FITS como base
@@ -586,11 +722,7 @@ class ApiladorEnTiempoReal:
 
                 # Hora y fecha actuales
                 fecha_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                self.total = len(self.lista_r)
-
                 num_imagenes_preview = self.total
-                if self.total < NUM_MAX:
-                    num_imagenes_preview += 1
 
                 texto_fecha = f"{fecha_hora}"
                 texto_apilado = f"{num_imagenes_preview} imagenes, {num_imagenes_preview * EXPOSICION:.1f} s"
@@ -638,7 +770,9 @@ class ApiladorEnTiempoReal:
             self.limpiar_fits_antiguos()
 
         except Exception as e:
-            print(f"❌ Error procesando imagen: {e}")
+            import traceback
+            traceback.print_exc()
+            self._descartar(f"Error procesando {os.path.basename(ruta_fits)}: {e}")
 
 
 
@@ -660,8 +794,11 @@ class VigilanteCapturas(FileSystemEventHandler):
 
             print(f"📥 Nueva imagen: {event.src_path}")
             time.sleep(0.5)
-            self.apilador.procesar_imagen_fits(event.src_path, ObjetosAnotados=OBJETOS_ANOTADOS)
-            #self.apilador.procesar_imagen_fits(event.src_path)
+            self.apilador.procesando = True
+            try:
+                self.apilador.procesar_imagen_fits(event.src_path, ObjetosAnotados=OBJETOS_ANOTADOS)
+            finally:
+                self.apilador.procesando = False
 
 
 def iniciar_hilo_apilado(carpeta="capturas", alinear=True):
@@ -682,13 +819,16 @@ def reiniciar_apilado_global():
     if apilador_global:
         with apilador_global.lock:
             apilador_global.imagen_referencia = None
+            apilador_global.ref_info = None
             apilador_global.total = 0
             apilador_global.ultima_captura = ""
-
-            # Si estás usando deque
-            apilador_global.lista_r.clear()
-            apilador_global.lista_g.clear()
-            apilador_global.lista_b.clear()
+            apilador_global.inicio_apilado = datetime.now()
+            apilador_global.fotogramas.clear()
+            apilador_global.descartadas = 0
+            apilador_global.descartadas_calidad = 0
+            apilador_global.ultimo_error = ""
+            apilador_global.ultimo_mensaje = ""
+            apilador_global.ultima_puntuacion = None
 
             # Eliminar imágenes FITS de la carpeta
             for nombre in os.listdir(apilador_global.carpeta):
@@ -719,9 +859,26 @@ def reiniciar_apilado_global():
 
 
 def obtener_estado_apilado():
-    global apilador_global
-    if apilador_global:
-        with apilador_global.lock:
-            return apilador_global.total, apilador_global.ultima_captura
-    return 0, "Ninguna"
+    """Estado del apilado para la web (dict serializable a JSON)."""
+    a = apilador_global
+    if not a:
+        return {"total": 0, "ultima": "Ninguna", "maximo": 0, "descartadas": 0,
+                "descartadas_calidad": 0, "ultimo_error": "", "mensaje": "",
+                "referencia": False, "procesando": False,
+                "puntuacion_ultima": None, "puntuacion_minima": None}
+    with a.lock:
+        puntuaciones = [f["puntuacion"] for f in a.fotogramas]
+        return {
+            "total": a.total,
+            "ultima": a.ultima_captura or "Ninguna",
+            "maximo": a.num_max,
+            "descartadas": a.descartadas,
+            "descartadas_calidad": a.descartadas_calidad,
+            "ultimo_error": a.ultimo_error,
+            "mensaje": a.ultimo_mensaje,
+            "referencia": a.ref_info is not None,
+            "procesando": a.procesando,
+            "puntuacion_ultima": a.ultima_puntuacion,
+            "puntuacion_minima": round(min(puntuaciones), 3) if puntuaciones else None,
+        }
 
