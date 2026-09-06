@@ -102,9 +102,11 @@
 
     /* 🔍 Aumentar tamaño en móviles o pantallas pequeñas */
     @media (max-width: 1024px), (max-height: 700px) {
+        /* min(): en un móvil de 375 px, 3 botones de 120 px + huecos desbordaban
+           la pantalla y el navegador reducía toda la página para que cupiera */
         .btn-dir, .btn-center {
-            width: 120px;
-            height: 120px;
+            width: min(120px, 24vw);
+            height: min(120px, 24vw);
         }
 
             .btn-dir::before {

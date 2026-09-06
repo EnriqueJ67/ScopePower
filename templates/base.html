@@ -1,17 +1,22 @@
-﻿<!-- templates/base.html -->
+<!-- templates/base.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#330000">
     <link rel="icon" href="{{ url_for('static', filename='scopepower.ico') }}" type="image/x-icon">
     <title>{% block title %}Telescopio{% endblock %}</title>
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
         body {
             background-color: #330000;
             color: #ffcccc;
             font-family: Arial, sans-serif;
-            padding: 20px;
+            margin: 0;
+            padding: 16px 16px 90px 16px; /* hueco inferior para la barra de navegación */
+            -webkit-text-size-adjust: 100%;
         }
 
         a {
@@ -19,9 +24,78 @@
             font-weight: bold;
         }
 
+        img, video, canvas { max-width: 100%; height: auto; }
+
+        /* Controles cómodos para dedo: ≥44 px de alto, 16 px de letra (evita el zoom de iOS) */
         button, select, input {
             font-size: 16px;
             margin: 5px 0;
+            min-height: 44px;
+        }
+        input[type="checkbox"] { min-height: auto; width: 22px; height: 22px; }
+
+        /* Las plantillas usan clases .btn de Bootstrap sin cargar Bootstrap: las definimos aquí */
+        .btn {
+            display: inline-block;
+            padding: 12px 18px;
+            margin: 4px 2px;
+            min-height: 44px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffcccc;
+            background-color: #550000;
+            border: 1px solid #770000;
+            border-radius: 10px;
+            text-decoration: none;
+            cursor: pointer;
+            line-height: 1.2;
+        }
+        .btn:hover { background-color: #770000; }
+        .btn-danger { background-color: #7a1010; border-color: #a02020; }
+        .btn-success { background-color: #1e4d1e; border-color: #2e7d2e; color: #ccffcc; }
+        .btn-warning { background-color: #6b4a00; border-color: #9a6a00; color: #ffe9b3; }
+        .btn-primary, .btn-info, .btn-outline-info { background-color: #3a2a55; border-color: #5a4a80; color: #ddd0ff; }
+        .btn-secondary { background-color: #444; border-color: #666; color: #eee; }
+        .btn-outline-warning { background-color: transparent; border-color: #9a6a00; color: #ffe9b3; }
+
+        .form-group { margin: 10px 0; }
+        .form-group label { display: block; margin-bottom: 4px; }
+        .form-control { width: 100%; padding: 8px; background: #220000; color: #ffcccc; border: 1px solid #770000; border-radius: 6px; }
+
+        /* ── Barra de navegación inferior ─────────────────────────────── */
+        nav.barra {
+            position: fixed;
+            left: 0; right: 0; bottom: 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: stretch;
+            background-color: #220000;
+            border-top: 2px solid #770000;
+            padding-bottom: env(safe-area-inset-bottom);
+            z-index: 1000;
+        }
+        nav.barra a {
+            flex: 1 1 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            min-height: 60px;
+            padding: 6px 2px;
+            color: #ff9999;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: normal;
+            -webkit-tap-highlight-color: rgba(255,0,0,0.2);
+        }
+        nav.barra a .icono { font-size: 24px; line-height: 1; }
+        nav.barra a.activo { color: #ffffff; background-color: #550000; font-weight: bold; }
+        nav.barra a:active { background-color: #770000; }
+
+        @media (min-width: 700px) {
+            body { padding: 20px 24px 90px 24px; max-width: 1000px; margin: 0 auto; }
+            nav.barra a { font-size: 14px; min-height: 64px; }
         }
     </style>
     {% block head %}{% endblock %}
@@ -30,11 +104,15 @@
 
     {% block content %}{% endblock %}
 
-    <!-- VOLVER AL INICIO -->
-    {% if mostrar_volver %}
-    <div style="margin-bottom: 20px;">
-        <a href='/' style="display: inline-block; margin-top: 20px; font-size: 18px;">⬅️ Volver a la pantalla principal</a>
-    </div>
+    {% if session.get('usuario') and request.path != '/salir' %}
+    {% set actual = request.path %}
+    <nav class="barra" aria-label="Navegación principal">
+        <a href="{{ url_for('home') }}" class="{{ 'activo' if actual == '/' else '' }}"><span class="icono">🏠</span>Inicio</a>
+        <a href="{{ url_for('goto_objeto') }}" class="{{ 'activo' if actual.startswith('/goto') else '' }}"><span class="icono">🔭</span>GoTo</a>
+        <a href="{{ url_for('control_telescopio') }}" class="{{ 'activo' if actual.startswith('/control') else '' }}"><span class="icono">🎮</span>Control</a>
+        <a href="{{ url_for('vista_apilado') }}" class="{{ 'activo' if actual.startswith('/apilado') else '' }}"><span class="icono">🌀</span>Apilado</a>
+        <a href="{{ url_for('galeria') }}" class="{{ 'activo' if actual.startswith('/galeria') else '' }}"><span class="icono">🌌</span>Galería</a>
+    </nav>
     {% endif %}
 
 </body>

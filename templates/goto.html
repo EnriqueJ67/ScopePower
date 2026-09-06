@@ -121,6 +121,33 @@
             font-size: 40px;
         }
     }
+
+    /* Teléfonos: los tamaños de tablet no caben en 375 px de ancho */
+    @media (max-width: 480px) {
+        #gotoForm label {
+            font-size: 24px;
+        }
+
+        #gotoForm input[type="text"] {
+            font-size: 24px;
+            padding: 14px;
+        }
+
+        #gotoForm button {
+            font-size: 22px;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 12px;
+        }
+
+        #status {
+            font-size: 20px;
+        }
+
+        #extraInfo {
+            font-size: 16px;
+        }
+    }
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>

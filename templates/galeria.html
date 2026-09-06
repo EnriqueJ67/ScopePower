@@ -14,7 +14,7 @@
 <div id="galeria" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 10px;">
     {% for nombre in imagenes %}
     <div class="tarjeta" data-objeto="{{ nombre.split('_')[0] }}" data-fecha="{{ nombre.split('_')[1] }}" style="position: relative;">
-        <img src="{{ url_for('static', filename='fotos/' ~ nombre) }}" alt="{{ nombre }}" onclick="abrirLightbox(this.src)" style="width: 250px; border: 3px solid #770000; border-radius: 10px; cursor: zoom-in;">
+        <img src="{{ url_for('static', filename='fotos/' ~ nombre) }}" alt="{{ nombre }}" onclick="abrirLightbox(this.src)" style="width: 250px; max-width: 100%; border: 3px solid #770000; border-radius: 10px; cursor: zoom-in;">
 
         <!-- Nombre debajo -->
         <div style="color: #ffaaaa; margin-top: 5px;">{{ nombre.replace('.jpg','') }}</div>
