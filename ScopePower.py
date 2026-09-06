@@ -28,7 +28,7 @@ from apilado import iniciar_hilo_apilado
 from apilado import pausar_apilado, reanudar_apilado, esta_pausado
 from apilado import aumentar_saturacion #, subir_imagen_ftp_async
 import apilado
-from AutoStrechSTF import apply_stf_color, debayer_rgb
+from AutoStrechSTF import apply_stf_color, debayer_rgb, miniatura_cfa_rgb
 from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
 
 from datetime import datetime
@@ -410,6 +410,11 @@ camara = TrabajadorCOM("cámara", lambda: DRIVER_CAMARA)
 # Objetivo del último GOTO (ra en horas, dec en grados): es lo que usa el
 # centrado automático como referencia, no "donde la montura cree que está".
 ULTIMO_GOTO = {}
+
+# Miniatura de la última toma individual (static/ultima_captura.jpg) y su
+# versión, para que la web la refresque solo cuando haya una nueva.
+RUTA_ULTIMA_CAPTURA = ruta_absoluta("static/ultima_captura.jpg")
+ULTIMA_CAPTURA = {"version": 0, "hora": "", "exposicion": 0.0, "dark": False}
 
 # Bucle de captura del apilado en el servidor (ver bucle_captura.py). Se
 # define aquí y se conecta a capturar_y_guardar más abajo, cuando exista.
@@ -919,6 +924,18 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             ruta_destino = os.path.join("capturas", f"img_{timestamp}.fits")
             hdu.writeto(ruta_destino, overwrite=True)
             ruta_guardada = ruta_destino
+
+        # ───── Miniatura rápida de esta toma (superpíxel, ~0,2 s) ─────
+        try:
+            mini = miniatura_cfa_rgb(imagen_fits, patron_bayer, ancho=600) if imagen_fits.ndim == 2 \
+                else apply_stf_color(cv2.resize(imagen_fits, (600, int(imagen_fits.shape[0] * 600 / imagen_fits.shape[1]))))
+            cv2.imwrite(RUTA_ULTIMA_CAPTURA, cv2.cvtColor(mini, cv2.COLOR_RGB2BGR) if mini.ndim == 3 else mini,
+                        [cv2.IMWRITE_JPEG_QUALITY, 80])
+            ULTIMA_CAPTURA.update({"version": ULTIMA_CAPTURA["version"] + 1,
+                                   "hora": time.strftime("%H:%M:%S"),
+                                   "exposicion": EXPOSICION, "dark": dark_aplicado})
+        except Exception as e:
+            log.warning("No se pudo generar la miniatura de la captura: %s", e)
 
         if not generar_preview:
             return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
@@ -1574,6 +1591,18 @@ def mostrar_apilado():
         return send_file("static/esperando.png", mimetype="image/png")
 
 
+@app.route('/ultima-captura')
+def mostrar_ultima_captura():
+    """Miniatura de la última toma individual (se regenera en cada captura)."""
+    if not os.path.exists(RUTA_ULTIMA_CAPTURA):
+        return send_file("static/esperando.png", mimetype="image/png")
+    response = send_file(RUTA_ULTIMA_CAPTURA, mimetype="image/jpeg")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
 from apilado import obtener_estado_apilado
 
 @app.route('/estado-apilado')
@@ -1582,6 +1611,7 @@ def estado_apilado():
     estado["captura"] = estado_captura.como_dict()
     estado["camara_ocupada"] = camara.ocupado
     estado["bucle"] = bucle.estado()
+    estado["ultima_toma"] = dict(ULTIMA_CAPTURA)
     return jsonify(estado)
 
 

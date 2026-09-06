@@ -30,3 +30,5 @@ objetos_descartados.csv
 # Secretos y logs
 secretos.ini
 logs/
+static/evolucion/
+static/ultima_captura*

@@ -43,6 +43,32 @@ def debayer_rgb(cfa, patron="RGGB"):
     return cv2.cvtColor(cfa, BAYER_A_OPENCV_RGB[patron])
 
 
+def miniatura_cfa_rgb(cfa, patron="RGGB", ancho=600):
+    """
+    Vista previa rápida de un mosaico CFA: en vez de debayerizar 9 Mpx, agrupa
+    cada bloque 2x2 en un píxel RGB (superpíxel), reduce a `ancho` px y estira.
+    Devuelve uint8 (h, w, 3) en RGB. Tarda unas décimas de segundo.
+    """
+    cfa = np.asarray(cfa, dtype=np.float32)
+    h, w = cfa.shape[0] // 2 * 2, cfa.shape[1] // 2 * 2
+    cfa = cfa[:h, :w]
+    p00, p01, p10, p11 = cfa[0::2, 0::2], cfa[0::2, 1::2], cfa[1::2, 0::2], cfa[1::2, 1::2]
+    patron = str(patron).strip().upper()
+    if patron == "BGGR":
+        r, g, b = p11, (p01 + p10) / 2, p00
+    elif patron == "GRBG":
+        r, g, b = p01, (p00 + p11) / 2, p10
+    elif patron == "GBRG":
+        r, g, b = p10, (p00 + p11) / 2, p01
+    else:  # RGGB (y por defecto)
+        r, g, b = p00, (p01 + p10) / 2, p11
+    rgb = np.stack([r, g, b], axis=2)
+    if rgb.shape[1] > ancho:
+        alto = int(round(rgb.shape[0] * ancho / rgb.shape[1]))
+        rgb = cv2.resize(rgb, (ancho, alto), interpolation=cv2.INTER_AREA)
+    return apply_stf_color(rgb)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  STF (auto-stretch estilo PixInsight)
 # ─────────────────────────────────────────────────────────────────────────────

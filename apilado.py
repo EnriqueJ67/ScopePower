@@ -36,6 +36,11 @@ ruta_astap = cfg["General"]["ruta_astap"]
 # fotograma se descarta en vez de bloquear el apilado para siempre.
 ASTAP_TIMEOUT = 90
 
+# Tira de evolución del apilado (miniaturas para ver cómo baja el ruido)
+INTERVALO_EVOLUCION = int(cfg.get("Dispositivos", "intervalo_evolucion", fallback=5))
+CARPETA_EVOLUCION = os.path.join("static", "evolucion")
+ANCHO_MINIATURA = 240
+
 
 def ini_resuelto(ruta_ini):
     """True si el .ini de ASTAP existe y contiene PLTSOLVD=T."""
@@ -426,6 +431,13 @@ class ApiladorEnTiempoReal:
         self.ultima_puntuacion = None
         self.procesando = False
 
+        # Versión del JPG de vista previa: sube SOLO cuando el fichero ya está
+        # escrito, para que la web no pida la imagen antes de tiempo.
+        self.version_preview = 0
+        self.apilados_realizados = 0
+        # Tira de evolución: miniaturas del apilado cada INTERVALO_EVOLUCION apilados
+        self.evolucion = []
+
         self.ref_info = None
 
     def _descartar(self, motivo):
@@ -752,6 +764,34 @@ class ApiladorEnTiempoReal:
             # Guardar JPG final
             cv2.imwrite(ruta_absoluta("static/resultado_apilado_preview.jpg"), imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 80])
 
+            # Tira de evolución: miniatura del primer apilado y luego cada N
+            with self.lock:
+                self.apilados_realizados += 1
+                n_apilado = self.apilados_realizados
+            if n_apilado == 1 or n_apilado % INTERVALO_EVOLUCION == 0:
+                try:
+                    os.makedirs(ruta_absoluta(CARPETA_EVOLUCION), exist_ok=True)
+                    h, w = imagen_bgr.shape[:2]
+                    mini = cv2.resize(imagen_bgr, (ANCHO_MINIATURA, int(h * ANCHO_MINIATURA / w)),
+                                      interpolation=cv2.INTER_AREA)
+                    nombre_mini = f"apilado_{n_apilado:04d}.jpg"
+                    cv2.imwrite(ruta_absoluta(os.path.join(CARPETA_EVOLUCION, nombre_mini)), mini,
+                                [cv2.IMWRITE_JPEG_QUALITY, 75])
+                    with self.lock:
+                        self.evolucion.append({
+                            "n": n_apilado,
+                            "fotos": num_imagenes_preview,
+                            "segundos": round(num_imagenes_preview * EXPOSICION),
+                            "archivo": nombre_mini,
+                            "hora": datetime.now().strftime("%H:%M:%S"),
+                        })
+                except Exception as e:
+                    print(f"⚠️ No se pudo guardar la miniatura de evolución: {e}")
+
+            # El JPG ya está en disco: ahora sí, avisar a la web
+            with self.lock:
+                self.version_preview += 1
+
 
 
             duracion = datetime.now() - self.inicio_apilado
@@ -830,6 +870,19 @@ def reiniciar_apilado_global():
             apilador_global.ultimo_error = ""
             apilador_global.ultimo_mensaje = ""
             apilador_global.ultima_puntuacion = None
+            apilador_global.apilados_realizados = 0
+            apilador_global.evolucion.clear()
+            apilador_global.version_preview += 1   # la web debe olvidar la imagen anterior
+
+            # Miniaturas de la tira de evolución del apilado anterior
+            carpeta_evo = ruta_absoluta(CARPETA_EVOLUCION)
+            if os.path.isdir(carpeta_evo):
+                for nombre in os.listdir(carpeta_evo):
+                    if nombre.lower().endswith(".jpg"):
+                        try:
+                            os.remove(os.path.join(carpeta_evo, nombre))
+                        except Exception as e:
+                            print(f"⚠️ No se pudo eliminar {nombre}: {e}")
 
             # Eliminar imágenes FITS de la carpeta
             for nombre in os.listdir(apilador_global.carpeta):
@@ -866,7 +919,8 @@ def obtener_estado_apilado():
         return {"total": 0, "ultima": "Ninguna", "maximo": 0, "descartadas": 0,
                 "descartadas_calidad": 0, "ultimo_error": "", "mensaje": "",
                 "referencia": False, "procesando": False,
-                "puntuacion_ultima": None, "puntuacion_minima": None}
+                "puntuacion_ultima": None, "puntuacion_minima": None,
+                "version": 0, "evolucion": []}
     with a.lock:
         puntuaciones = [f["puntuacion"] for f in a.fotogramas]
         return {
@@ -881,5 +935,7 @@ def obtener_estado_apilado():
             "procesando": a.procesando,
             "puntuacion_ultima": a.ultima_puntuacion,
             "puntuacion_minima": round(min(puntuaciones), 3) if puntuaciones else None,
+            "version": a.version_preview,
+            "evolucion": list(a.evolucion),
         }
 
