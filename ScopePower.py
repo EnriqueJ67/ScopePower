@@ -440,45 +440,8 @@ def home():
     return render_template("home.html", estado_licencia=estado, dias_restantes=dias_restantes)
 
 
-    
-        
-# @app.route('/salir')
-# def salir():
-#     global telescope
-#     # Intentar desconectar el telescopio
-#     desconectar_telescopio()
-#     eliminar_info_goto()
-
-#     # Intentar desconectar la cámara (si estaba conectada)
-#     try:
-#         camara = win32com.client.Dispatch(DRIVER_CAMARA)
-#         camara.Connected = True  # Asegura que esté conectada para luego desconectar
-#         desconectar_camara(camara)
-#     except Exception as e:
-#         print(f"⚠️ No se pudo conectar/desconectar la cámara antes de salir: {e}")
-
-#     # 🔐 Cerrar sesión
-#     session.pop('usuario', None)
-
-#     shutdown = request.environ.get('werkzeug.server.shutdown')
-#     if shutdown is None:
-#         return render_template('salir.html', mensaje="❌ No se puede cerrar el servidor (¿no estás usando Werkzeug?)", mostrar_volver=True)
-
-#     shutdown()
-#     return render_template('salir.html', mensaje="✅ Servidor detenido correctamente", mostrar_volver=True)
-
-import os, threading
-from flask import session, render_template, request
-
-import os
-import threading
-from flask import session, render_template, request
-
-import os
 import threading
 import ctypes
-import win32com.client
-from flask import session, render_template, request
 
 @app.route('/salir')
 def salir():
@@ -1445,42 +1408,6 @@ def info_wikipedia():
 
     return jsonify({"wikipedia_info": resumen})
 
-def info_wikipediaELIMINAR():
-    objeto = request.form.get("objeto", "").strip()
-    if not objeto:
-        return jsonify({"error": "Debe proporcionar un nombre de objeto."})
-    
-    # Normalizamos eliminando espacios entre letras y dígitos (ej.: "M 42" → "M42")
-    import re
-    objeto = re.sub(r'([A-Za-z])\s+(?=\d)', r'\1', objeto)
-
-    #Esto lo pongo porque wikipedia tambien lleva mal los numeros en letra. ejemplo: m trece da info de M12
-    objeto=reemplazar_numeros_en_texto(objeto)
-
-    import wikipedia
-    wikipedia.set_lang("es")
-    
-    try:
-        # Buscar la página con el nombre dado
-        pagina = wikipedia.page(objeto)
-        # Obtener el resumen del artículo
-        resumen = wikipedia.summary(objeto)
-    except wikipedia.exceptions.DisambiguationError as e:
-        # Si existe ambigüedad, se elige la primera opción.
-        try:
-            opcion = e.options[0]
-            pagina = wikipedia.page(opcion)
-            resumen = wikipedia.summary(opcion)
-        except Exception as e2:
-            resumen = f"'{objeto}' es ambiguo. Posibles opciones: {', '.join(e.options)}"
-    except wikipedia.exceptions.PageError:
-        resumen = f"No se encontró información sobre '{objeto}'."
-    except Exception as e:
-        resumen = f"Ocurrió un error inesperado: {e}"
-    
-    return jsonify({"wikipedia_info": resumen})
-
-
 # Generar el diccionario de números en palabras hasta 9999
 def generar_numeros_en_palabras():
     unidades = ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"]
@@ -1825,14 +1752,23 @@ def eliminar_imagen():
     if 'usuario' not in session:
         return jsonify({"error": "No autorizado"}), 403
 
-    datos = request.get_json()
-    nombre = datos.get("nombre", "")
-    ruta_jpg = os.path.join("static", "fotos", nombre)
+    datos = request.get_json(silent=True) or {}
+    nombre = str(datos.get("nombre", ""))
+
+    # Solo nombres de fichero simples dentro de static/fotos: nada de "..", barras
+    # ni rutas absolutas (antes {"nombre": "../../config.ini"} borraba ese fichero)
+    if nombre != os.path.basename(nombre) or not re.fullmatch(r"[A-Za-z0-9_.\-]+\.jpg", nombre):
+        return jsonify({"error": "Nombre de imagen no válido"}), 400
+
+    carpeta_fotos = os.path.abspath(os.path.join("static", "fotos"))
+    ruta_jpg = os.path.abspath(os.path.join(carpeta_fotos, nombre))
+    if os.path.dirname(ruta_jpg) != carpeta_fotos:
+        return jsonify({"error": "Nombre de imagen no válido"}), 400
 
     # Se obtiene el nombre base para generar el nombre del FITS
     nombre_base, extension = os.path.splitext(nombre)
     nombre_fits = f"{nombre_base}.fits"
-    ruta_fits = os.path.join("static", "fotos", nombre_fits)
+    ruta_fits = os.path.join(carpeta_fotos, nombre_fits)
 
     mensajes = []
     try:
