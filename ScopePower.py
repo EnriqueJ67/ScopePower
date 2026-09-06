@@ -46,6 +46,7 @@ import secretos
 import centrado
 import alineacion
 import voz
+import anuncio_ip
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -559,6 +560,10 @@ def verificar_licencia_y_autenticacion():
     rutas_publicas = {
         '/login', '/logout', '/activar', '/static/', '/identificador-cliente'
     }
+
+    # Primera petición desde otro dispositivo: ya no hace falta anunciar la IP
+    if request.remote_addr not in ("127.0.0.1", "::1", None):
+        anunciador.marcar_conectado(request.remote_addr)
 
     if any(request.path.startswith(r) for r in rutas_publicas):
         return  # Permitir rutas públicas
@@ -2179,6 +2184,48 @@ def guardar_config_datos():
         config.write(f)
     return "✅ Configuración guardada correctamente"
 
+PUERTO_WEB = 5000
+
+
+def _config_anuncio_ip():
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    v = cfg["Voz"] if "Voz" in cfg else {}
+    return {
+        "anunciar_ip": str(v.get("anunciar_ip", "true")).lower() == "true",
+        "intervalo_s": int(v.get("intervalo_anuncio_ip", 30)),
+    }
+
+
+anunciador = anuncio_ip.AnunciadorIP(PUERTO_WEB, voz.decir, intervalo_s=_config_anuncio_ip()["intervalo_s"])
+
+
+@app.route("/red/estado")
+def red_estado():
+    """Direcciones de este PC para conectar desde el móvil (y estado del anuncio por voz)."""
+    return jsonify({
+        "direcciones": [{"ip": ip, "adaptador": ad, "url": f"http://{ip}:{PUERTO_WEB}"} for ip, ad in anuncio_ip.direcciones_ip()],
+        "nombre": anuncio_ip.nombre_equipo(),
+        "url_nombre": f"http://{anuncio_ip.nombre_equipo()}.local:{PUERTO_WEB}",
+        "puerto": PUERTO_WEB,
+        "anuncios": anunciador.anuncios,
+        "conectado": anunciador.esta_conectado(),
+        "anunciar_ip": _config_anuncio_ip()["anunciar_ip"],
+    })
+
+
+@app.route("/voz/anunciar-ip", methods=["POST"])
+def voz_anunciar_ip():
+    """Dicta ahora mismo la IP y el puerto por el altavoz (aunque los avisos estén apagados)."""
+    activada = voz.locutor.config["activada"]
+    voz.locutor.config["activada"] = True
+    try:
+        texto = anunciador.anunciar_ahora()
+    finally:
+        voz.locutor.config["activada"] = activada
+    return jsonify({"ok": True, "texto": texto})
+
+
 @app.route("/voz/estado")
 def voz_estado():
     return jsonify(voz.locutor.estado())
@@ -2251,9 +2298,13 @@ if __name__ == '__main__':
     os.makedirs(ruta_absoluta("capturas"), exist_ok=True)
     os.makedirs(ruta_absoluta("static"), exist_ok=True)
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
-    voz.decir("ScopePower iniciado. Servidor listo.")
+    if _config_anuncio_ip()["anunciar_ip"]:
+        # Dicta IP y puerto cada 30 s hasta la primera conexión desde el móvil
+        anunciador.iniciar()
+    else:
+        voz.decir("ScopePower iniciado. Servidor listo.")
     # threaded=True: cada petición en su hilo. El acceso a la montura y a la
     # cámara está serializado en hardware.py, así que la web sigue respondiendo
     # (estado, parar montura, cancelar) mientras hay una exposición en curso.
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    app.run(host='0.0.0.0', port=PUERTO_WEB, threaded=True)
 

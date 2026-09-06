@@ -63,6 +63,18 @@
         <div id="estado-guardado" class="mt-3 text-center" style="font-style: italic;"></div>
     </form>
 
+    <!-- ─── Direcciones para conectar ───────────────────────────── -->
+    <h4 style="margin-top: 35px;">📡 Conectar desde el móvil</h4>
+    <div id="red-direcciones" style="font-size: 15px; color: #ffd; margin-bottom: 8px;">Consultando...</div>
+    <p style="color: #ddaaaa; font-size: 14px;">
+        Al arrancar, el PC dicta estas direcciones por el altavoz cada 30 segundos hasta que te conectas
+        (opción <code>anunciar_ip</code> en config.ini).
+    </p>
+    <div class="text-center">
+        <button type="button" class="btn btn-primary" onclick="anunciarIP()">🔊 Anunciar IP por voz ahora</button>
+    </div>
+    <div id="estado-red" class="mt-3 text-center" style="font-style: italic;"></div>
+
     <!-- ─── Avisos por voz (altavoz del PC) ───────────────────────── -->
     <h4 style="margin-top: 35px;">🔊 Avisos por voz</h4>
     <p style="color: #ddaaaa; font-size: 14px;">
@@ -178,7 +190,23 @@
             .catch(err => document.getElementById("estado-voz").textContent = "❌ " + err);
     }
 
-    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); });
+    function cargarRed() {
+        fetch("/red/estado").then(r => r.json()).then(d => {
+            let html = "";
+            for (const x of d.direcciones) html += `<div><b>${d === null ? "" : x.url}</b> <span style="color:#aa8888">(${x.adaptador})</span></div>`;
+            html += `<div><b>${d.url_nombre}</b> <span style="color:#aa8888">(nombre del equipo)</span></div>`;
+            if (!d.direcciones.length) html = "❌ No se encuentra ninguna dirección de red";
+            document.getElementById("red-direcciones").innerHTML = html;
+        }).catch(err => document.getElementById("red-direcciones").textContent = "❌ " + err);
+    }
+    function anunciarIP() {
+        document.getElementById("estado-red").textContent = "🔊 Dictando por el altavoz...";
+        fetch("/voz/anunciar-ip", { method: "POST" }).then(r => r.json())
+            .then(d => document.getElementById("estado-red").textContent = "🔊 " + d.texto)
+            .catch(err => document.getElementById("estado-red").textContent = "❌ " + err);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); });
 </script>
 
 {% endblock %}
