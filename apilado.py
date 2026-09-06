@@ -431,6 +431,7 @@ class ApiladorEnTiempoReal:
         self.ultimo_mensaje = ""
         self.ultima_puntuacion = None
         self.procesando = False
+        self.fase = ""   # paso actual del procesado (para la barra de progreso de la web)
 
         # Versión del JPG de vista previa: sube SOLO cuando el fichero ya está
         # escrito, para que la web no pida la imagen antes de tiempo.
@@ -440,6 +441,10 @@ class ApiladorEnTiempoReal:
         self.evolucion = []
 
         self.ref_info = None
+
+    def _fase(self, nombre):
+        with self.lock:
+            self.fase = nombre
 
     def _descartar(self, motivo, aviso="Foto descartada"):
         with self.lock:
@@ -531,6 +536,7 @@ class ApiladorEnTiempoReal:
 
 
             print(f"🔧 Procesando FITS: {ruta_fits}")
+            self._fase("leyendo")
             with fits.open(ruta_fits) as hdul:
                 hdr  = hdul[0].header
                 data = hdul[0].data.astype(np.float32)
@@ -564,6 +570,7 @@ class ApiladorEnTiempoReal:
             nombre_fits = os.path.basename(ruta_fits)
 
             # ── Calidad del fotograma (sobre el canal verde, antes de alinear) ──
+            self._fase("puntuando")
             puntuacion, n_estrellas, nitidez = calcular_puntuacion(g)
             with self.lock:
                 self.ultima_puntuacion = round(puntuacion, 3)
@@ -575,6 +582,7 @@ class ApiladorEnTiempoReal:
                                 aviso="Foto descartada: no se detectan estrellas")
                 return
 
+            self._fase("resolviendo")
             # ── Referencia: el primer fotograma que ASTAP consiga resolver ──
             if self.ref_info is None:
                 ref_mono = ruta_fits.replace(".fits", "_mono.fits")
@@ -612,6 +620,7 @@ class ApiladorEnTiempoReal:
                     return
 
             if metodo != "REF":
+                self._fase("alineando")
                 r = self.aplicar_transformacion(r, M, metodo)
                 g = self.aplicar_transformacion(g, M, metodo)
                 b = self.aplicar_transformacion(b, M, metodo)
@@ -651,6 +660,7 @@ class ApiladorEnTiempoReal:
             voz.decir("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas")
 
             # ── Apilado (sigma-clipping por bloques, memoria acotada) ──
+            self._fase("apilando")
             r = apilar_sigma_clip([f["r"] for f in fotogramas_actuales])
             g = apilar_sigma_clip([f["g"] for f in fotogramas_actuales])
             b = apilar_sigma_clip([f["b"] for f in fotogramas_actuales])
@@ -693,6 +703,7 @@ class ApiladorEnTiempoReal:
 
 
 
+            self._fase("estirando")
             # Si objetos anotados, lee el jpg anotado y conviértelo a rgb_mtf
             if ObjetosAnotados:
                 # resolver_y_generar_imagen_con_objetos ya devuelve un JPG coloreado
@@ -770,6 +781,7 @@ class ApiladorEnTiempoReal:
                 cv2.putText(imagen_bgr, texto_apilado, (pos_x, pos_y), font, font_scale_grande, color, thickness_grande)
 
             # Guardar JPG final
+            self._fase("guardando")
             cv2.imwrite(ruta_absoluta("static/resultado_apilado_preview.jpg"), imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 80])
 
             # Tira de evolución: miniatura del primer apilado y luego cada N
@@ -848,6 +860,7 @@ class VigilanteCapturas(FileSystemEventHandler):
                 self.apilador.procesar_imagen_fits(event.src_path, ObjetosAnotados=OBJETOS_ANOTADOS)
             finally:
                 self.apilador.procesando = False
+                self.apilador.fase = ""
 
 
 def iniciar_hilo_apilado(carpeta="capturas", alinear=True):
@@ -941,6 +954,7 @@ def obtener_estado_apilado():
             "mensaje": a.ultimo_mensaje,
             "referencia": a.ref_info is not None,
             "procesando": a.procesando,
+            "fase": a.fase,
             "puntuacion_ultima": a.ultima_puntuacion,
             "puntuacion_minima": round(min(puntuaciones), 3) if puntuaciones else None,
             "version": a.version_preview,

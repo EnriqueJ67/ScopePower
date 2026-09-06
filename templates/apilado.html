@@ -91,6 +91,26 @@
 </div>
 <div style="text-align: center; font-size: 15px; color: #ddaaaa; margin-bottom: 10px;">
     <div id="estado-captura-linea" style="min-height: 1.3em;"></div>
+    <!-- Barra de progreso del ciclo: exponiendo → procesando (fases) → siguiente -->
+    <div id="ciclo" style="display: none; max-width: 600px; margin: 6px auto 4px auto;">
+        <div id="ciclo-texto" style="font-size: 14px; color: #ffd; margin-bottom: 3px;"></div>
+        <div style="background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 16px; overflow: hidden;">
+            <div id="ciclo-barra" style="height: 100%; width: 0%; background: #2e7d2e; transition: width 0.9s linear;"></div>
+        </div>
+    </div>
+    <style>
+        /* Fase de procesado: barra llena con rayas en movimiento (duración desconocida) */
+        /* !important: el color base va en el atributo style del elemento */
+        #ciclo-barra.procesando {
+            width: 100% !important;
+            background: repeating-linear-gradient(45deg, #8a5a00 0 12px, #b07a10 12px 24px) !important;
+            background-size: 34px 34px !important;
+            animation: ciclo-rayas 1s linear infinite;
+            transition: none;
+        }
+        #ciclo-barra.esperando { background: #555 !important; transition: none; }
+        @keyframes ciclo-rayas { from { background-position: 0 0; } to { background-position: 34px 0; } }
+    </style>
     <button id="boton-cancelar" class="btn btn-danger" onclick="cancelarCaptura()" style="display: none;">⏹️ Cancelar exposición</button>
     <div>Descartadas: <span id="descartadas">0</span> sin resolver, <span id="descartadas-calidad">0</span> por calidad</div>
     <div id="puntuaciones"></div>
@@ -445,24 +465,49 @@
                 }
                 document.getElementById("puntuaciones").textContent = punt;
 
-                mostrarEstadoCaptura(d.captura, d.procesando);
+                mostrarEstadoCaptura(d.captura, d.procesando, d);
                 return d;
             })
             .catch(err => console.warn("⚠️ Error leyendo estado:", err));
     }
 
-    function mostrarEstadoCaptura(captura, procesando) {
+    const NOMBRE_FASE = {
+        leyendo: "Leyendo la foto", puntuando: "Midiendo la calidad", resolviendo: "Resolviendo con ASTAP",
+        alineando: "Alineando", apilando: "Apilando", estirando: "Preparando la vista previa", guardando: "Guardando"
+    };
+
+    function mostrarEstadoCaptura(captura, procesando, estado) {
         const linea = document.getElementById("estado-captura-linea");
         const boton = document.getElementById("boton-cancelar");
+        const ciclo = document.getElementById("ciclo");
+        const texto = document.getElementById("ciclo-texto");
+        const barra = document.getElementById("ciclo-barra");
+        const b = (estado && estado.bucle) || {};
+        const numFoto = (b.capturas || 0) + 1;
+
+        boton.style.display = (captura && captura.en_curso) ? "inline-block" : "none";
+        linea.textContent = "";
+
         if (captura && captura.en_curso) {
-            linea.textContent = `📷 ${captura.descripcion || "Exponiendo"}: quedan ${Math.ceil(captura.restante)} s de ${captura.exposicion} s`;
-            boton.style.display = "inline-block";
+            const hechos = Math.max(0, captura.exposicion - captura.restante);
+            const pct = captura.exposicion > 0 ? Math.min(100, 100 * hechos / captura.exposicion) : 0;
+            barra.className = "";
+            barra.style.width = pct.toFixed(1) + "%";
+            texto.textContent = `📷 ${captura.descripcion === "Apilado" ? "Foto " + numFoto + ": exponiendo" : captura.descripcion || "Exponiendo"} · ${Math.ceil(hechos)} / ${captura.exposicion} s`;
+            ciclo.style.display = "block";
         } else if (procesando) {
-            linea.textContent = "⚙️ Alineando y apilando el último fotograma...";
-            boton.style.display = "none";
+            const fase = NOMBRE_FASE[estado && estado.fase] || "Procesando";
+            const detalle = (estado && estado.fase === "apilando" && estado.total) ? ` ${estado.total} fotos` : "";
+            barra.className = "procesando";
+            texto.textContent = `⚙️ ${fase}${detalle}...`;
+            ciclo.style.display = "block";
+        } else if (b.activo) {
+            barra.className = "esperando";
+            barra.style.width = "100%";
+            texto.textContent = b.pausado ? "⏸️ Pausado" : (b.esperando ? "⏳ Esperando: " + b.esperando : "🔄 Preparando la siguiente foto...");
+            ciclo.style.display = "block";
         } else {
-            linea.textContent = "";
-            boton.style.display = "none";
+            ciclo.style.display = "none";
         }
     }
 
