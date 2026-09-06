@@ -62,6 +62,34 @@
         </div>
         <div id="estado-guardado" class="mt-3 text-center" style="font-style: italic;"></div>
     </form>
+
+    <!-- ─── Avisos por voz (altavoz del PC) ───────────────────────── -->
+    <h4 style="margin-top: 35px;">🔊 Avisos por voz</h4>
+    <p style="color: #ddaaaa; font-size: 14px;">
+        El PC anuncia por su altavoz lo que va haciendo: conexión de telescopio y cámara, GOTO,
+        fotos, apilado, darks y centrado. Se activa o desactiva desde la barra inferior.
+    </p>
+    <div id="voz-disponible" style="font-size: 14px; color: #ddaaaa; margin-bottom: 8px;"></div>
+    <div class="form-group">
+        <label><input type="checkbox" id="voz-capturas"> Anunciar el inicio y el final de cada foto</label>
+    </div>
+    <div class="form-group">
+        <label>Voz</label>
+        <select id="voz-voz" class="form-control"></select>
+    </div>
+    <div class="form-group">
+        <label>Volumen (0-100)</label>
+        <input type="number" id="voz-volumen" class="form-control" min="0" max="100" step="5">
+    </div>
+    <div class="form-group">
+        <label>Velocidad (-10 lenta … 10 rápida)</label>
+        <input type="number" id="voz-velocidad" class="form-control" min="-10" max="10" step="1">
+    </div>
+    <div class="text-center">
+        <button type="button" class="btn btn-success" onclick="guardarVoz()">💾 Guardar voz</button>
+        <button type="button" class="btn btn-primary" onclick="probarVoz()">🔊 Probar voz</button>
+    </div>
+    <div id="estado-voz" class="mt-3 text-center" style="font-style: italic;"></div>
 </div>
 
 <script>
@@ -112,7 +140,45 @@
             .then(msg => document.getElementById("estado-guardado").textContent = msg);
     });
 
-    document.addEventListener("DOMContentLoaded", cargarConfig);
+    function pintarVozConfig(e) {
+        document.getElementById("voz-capturas").checked = !!e.anunciar_capturas;
+        document.getElementById("voz-volumen").value = e.volumen;
+        document.getElementById("voz-velocidad").value = e.velocidad;
+        const sel = document.getElementById("voz-voz");
+        sel.innerHTML = '<option value="">(automática: primera voz en español)</option>';
+        for (const v of (e.voces || [])) {
+            const o = document.createElement("option"); o.value = v; o.textContent = v;
+            if (e.voz && v.toLowerCase().includes(e.voz.toLowerCase())) o.selected = true;
+            sel.appendChild(o);
+        }
+        let disp = "";
+        if (e.disponible === false) disp = "❌ Voz no disponible en este PC: " + (e.ultimo_error || "");
+        else if (e.disponible === true) disp = "✅ Voz en uso: " + (e.voz_usada || "?");
+        else disp = "ℹ️ Aún no se ha hablado desde el arranque; pulsa Probar voz para comprobarla.";
+        document.getElementById("voz-disponible").textContent = disp;
+    }
+    function cargarVoz() {
+        fetch("/voz/estado").then(r => r.json()).then(pintarVozConfig).catch(console.error);
+    }
+    function guardarVoz() {
+        const datos = {
+            anunciar_capturas: document.getElementById("voz-capturas").checked,
+            volumen: parseInt(document.getElementById("voz-volumen").value),
+            velocidad: parseInt(document.getElementById("voz-velocidad").value),
+            voz: document.getElementById("voz-voz").value
+        };
+        fetch("/voz/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) })
+            .then(r => r.json()).then(e => { pintarVozConfig(e); document.getElementById("estado-voz").textContent = "✅ Ajustes de voz guardados"; })
+            .catch(err => document.getElementById("estado-voz").textContent = "❌ " + err);
+    }
+    function probarVoz() {
+        document.getElementById("estado-voz").textContent = "🔊 Hablando por el altavoz del PC...";
+        fetch("/voz/probar", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+            .then(r => r.json()).then(e => { setTimeout(cargarVoz, 1500); })
+            .catch(err => document.getElementById("estado-voz").textContent = "❌ " + err);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); });
 </script>
 
 {% endblock %}

@@ -146,6 +146,11 @@ class BucleCaptura:
                                                f"{self.ultimo_error}")
                         self._parar.set()
                         log.error(self.ultimo_mensaje)
+                        try:
+                            import voz
+                            voz.decir("Apilado detenido por errores seguidos de la cámara")
+                        except Exception:
+                            pass
 
             # Pequeña pausa entre capturas: deja respirar al hilo del apilado
             self._parar.wait(0.3)

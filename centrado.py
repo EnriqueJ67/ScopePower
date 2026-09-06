@@ -247,6 +247,11 @@ class TrabajoCentrado:
                 self.en_curso = False
                 self.terminado = True
             log.info("Centrado terminado: %s (%s) errores=%s", resultado, detalle, self.errores)
+            try:
+                import voz
+                voz.decir(detalle.replace("'", " minutos de arco"))
+            except Exception:
+                pass
 
     def _guardar_fits(self, frame, objetivo):
         os.makedirs(os.path.dirname(RUTA_FITS_CENTRADO), exist_ok=True)

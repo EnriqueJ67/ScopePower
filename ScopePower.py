@@ -43,6 +43,7 @@ from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
 import darks
 import secretos
 import centrado
+import voz
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -403,9 +404,10 @@ def _activar_seguimiento(tel):
         tel.Tracking = True
     except Exception as e:
         print(f"⚠️ No se pudo activar el seguimiento al conectar: {e}")
+    voz.decir("Telescopio conectado")
 
 montura = TrabajadorCOM("montura", lambda: DRIVER_TELESCOPIO, al_conectar=_activar_seguimiento)
-camara = TrabajadorCOM("cámara", lambda: DRIVER_CAMARA)
+camara = TrabajadorCOM("cámara", lambda: DRIVER_CAMARA, al_conectar=lambda cam: voz.decir("Cámara conectada"))
 
 # Objetivo del último GOTO (ra en horas, dec en grados): es lo que usa el
 # centrado automático como referencia, no "donde la montura cree que está".
@@ -434,6 +436,7 @@ def conectar_telescopio():
         return True
     except ErrorHardware as e:
         print(f"Error al conectar telescopio: {e}")
+        voz.decir("No se ha podido conectar con el telescopio")
         return False
 
 
@@ -844,16 +847,20 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
 
     def _exponer(cam):
         print(f"📸 Iniciando exposición de {EXPOSICION} segundos...")
+        voz.decir(f"Empieza exposición de {EXPOSICION:.0f} segundos", categoria="capturas")
         frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion=descripcion)
         print("✅ Exposición finalizada.")
+        voz.decir("Exposición terminada", categoria="capturas")
         return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY
 
     try:
         imagen_fits, sensor_type, pixel_size_x, pixel_size_y = camara.ejecutar(
             _exponer, timeout=EXPOSICION + 90)
     except CapturaCancelada:
+        voz.decir("Captura cancelada")
         return {"ok": False, "mensaje": "⏹️ Captura cancelada", "cancelada": True}
     except ErrorHardware as e:
+        voz.decir("Error de cámara")
         return {"ok": False, "mensaje": f"Error: {e}"}
 
     try:
@@ -1395,9 +1402,25 @@ def goto_objeto():
                     time.sleep(0.5)
 
             # Lanzar movimiento en el hilo de la montura sin esperar a que termine
+            voz.decir(f"Moviendo el telescopio a {objeto}")
             futuro = montura.ejecutar_async(_mover_telescopio)
             futuro.add_done_callback(
                 lambda f: print(f"❌ Error al mover el telescopio: {f.exception()}") if f.exception() else None)
+
+            # Avisar por voz cuando la montura termine el movimiento (sondeo aparte,
+            # sin ocupar el hilo de la montura durante el GOTO)
+            def _avisar_llegada(nombre=objeto):
+                inicio = time.time()
+                time.sleep(3)
+                while time.time() - inicio < 180:
+                    try:
+                        if not montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=5):
+                            voz.decir(f"Telescopio apuntando a {nombre}")
+                            return
+                    except ErrorHardware:
+                        return
+                    time.sleep(1)
+            threading.Thread(target=_avisar_llegada, name="aviso-goto", daemon=True).start()
 
             # Responder inmediatamente
             return jsonify({
@@ -1898,6 +1921,48 @@ def guardar_config_datos():
         config.write(f)
     return "✅ Configuración guardada correctamente"
 
+@app.route("/voz/estado")
+def voz_estado():
+    return jsonify(voz.locutor.estado())
+
+
+@app.route("/voz/toggle", methods=["POST"])
+def voz_toggle():
+    datos = request.get_json(silent=True) or {}
+    if "activada" in datos:
+        activada = bool(datos["activada"])
+    else:
+        activada = not voz.locutor.config["activada"]
+    voz.locutor.activar(activada)
+    if activada:
+        voz.decir("Avisos por voz activados")
+    return jsonify(voz.locutor.estado())
+
+
+@app.route("/voz/config", methods=["POST"])
+def voz_config():
+    datos = request.get_json(silent=True) or {}
+    try:
+        voz.locutor.configurar(**datos)
+    except (TypeError, ValueError) as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(voz.locutor.estado())
+
+
+@app.route("/voz/probar", methods=["POST"])
+def voz_probar():
+    datos = request.get_json(silent=True) or {}
+    texto = datos.get("texto") or "ScopePower listo. Telescopio y cámara conectados."
+    # La prueba suena aunque los avisos estén desactivados
+    activada = voz.locutor.config["activada"]
+    voz.locutor.config["activada"] = True
+    try:
+        encolado = voz.decir(texto)
+    finally:
+        voz.locutor.config["activada"] = activada
+    return jsonify({"ok": encolado, **voz.locutor.estado()})
+
+
 @app.errorhandler(Exception)
 def error_no_capturado(e):
     """Registra el error con su traza y muestra un mensaje en vez de la página 500 en blanco."""
@@ -1928,6 +1993,7 @@ if __name__ == '__main__':
     os.makedirs(ruta_absoluta("capturas"), exist_ok=True)
     os.makedirs(ruta_absoluta("static"), exist_ok=True)
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
+    voz.decir("ScopePower iniciado. Servidor listo.")
     # threaded=True: cada petición en su hilo. El acceso a la montura y a la
     # cámara está serializado en hardware.py, así que la web sigue respondiendo
     # (estado, parar montura, cancelar) mientras hay una exposición en curso.

@@ -187,6 +187,12 @@ class TrabajoDarks:
             with self._lock:
                 self.en_curso = False
                 self.terminado = True
+                aviso = self.error or "Dark maestro guardado. Ya puedes destapar el telescopio"
+            try:
+                import voz
+                voz.decir(aviso)
+            except Exception:
+                pass
 
 
 trabajo_darks = TrabajoDarks()

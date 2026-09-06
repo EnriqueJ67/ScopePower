@@ -112,7 +112,22 @@
         <a href="{{ url_for('control_telescopio') }}" class="{{ 'activo' if actual.startswith('/control') else '' }}"><span class="icono">🎮</span>Control</a>
         <a href="{{ url_for('vista_apilado') }}" class="{{ 'activo' if actual.startswith('/apilado') else '' }}"><span class="icono">🌀</span>Apilado</a>
         <a href="{{ url_for('galeria') }}" class="{{ 'activo' if actual.startswith('/galeria') else '' }}"><span class="icono">🌌</span>Galería</a>
+        <a href="#" id="nav-voz" onclick="alternarVoz(event)" title="Avisos por voz del PC"><span class="icono" id="nav-voz-icono">🔈</span><span id="nav-voz-texto">Voz</span></a>
     </nav>
+    <script>
+        // Interruptor de los avisos hablados por el altavoz del PC (SAPI, ver voz.py)
+        function pintarVoz(e) {
+            const on = !!e.activada;
+            document.getElementById("nav-voz-icono").textContent = on ? "🔊" : "🔇";
+            document.getElementById("nav-voz-texto").textContent = on ? "Voz on" : "Voz off";
+            document.getElementById("nav-voz").style.color = on ? "#ffffff" : "#aa7777";
+        }
+        function alternarVoz(ev) {
+            ev.preventDefault();
+            fetch("/voz/toggle", { method: "POST" }).then(r => r.json()).then(pintarVoz).catch(console.error);
+        }
+        fetch("/voz/estado").then(r => r.json()).then(pintarVoz).catch(() => {});
+    </script>
     {% endif %}
 
 </body>

@@ -17,6 +17,7 @@ import shutil
 from collections import deque
 from AutoStrechSTF import apply_stf_color, debayer_rgb
 from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
+import voz
 import cv2
 
 import subprocess
@@ -440,11 +441,12 @@ class ApiladorEnTiempoReal:
 
         self.ref_info = None
 
-    def _descartar(self, motivo):
+    def _descartar(self, motivo, aviso="Foto descartada"):
         with self.lock:
             self.descartadas += 1
             self.ultimo_error = motivo
         print(f"⚠️ Fotograma descartado: {motivo}")
+        voz.decir(aviso)
         
     def obtener_transformacion(self, img, ref, ruta_fits=None):
         """
@@ -569,7 +571,8 @@ class ApiladorEnTiempoReal:
             print(f"⭐ {nombre_fits}: {n_estrellas} estrellas, nitidez {nitidez:.3f}, puntuación {puntuacion:.3f}")
 
             if n_estrellas == 0:
-                self._descartar(f"{nombre_fits}: sin estrellas detectables (¿nubes, tapa, desenfoque?)")
+                self._descartar(f"{nombre_fits}: sin estrellas detectables (¿nubes, tapa, desenfoque?)",
+                                aviso="Foto descartada: no se detectan estrellas")
                 return
 
             # ── Referencia: el primer fotograma que ASTAP consiga resolver ──
@@ -596,14 +599,16 @@ class ApiladorEnTiempoReal:
                             pass
 
                 if self.ref_info is None:
-                    self._descartar(f"{nombre_fits}: ASTAP no pudo resolver la referencia; se probará con el siguiente")
+                    self._descartar(f"{nombre_fits}: ASTAP no pudo resolver la referencia; se probará con el siguiente",
+                                    aviso="No se ha podido resolver la imagen de referencia. Se intentará con la siguiente")
                     return
+                voz.decir("Imagen de referencia establecida")
                 # El fotograma de referencia no necesita transformación
                 M, metodo = np.eye(2, 3, dtype=np.float32), "REF"
             else:
                 M, metodo = compute_astap_transform(ruta_fits, self.ref_info, self.ruta_astap)
                 if M is None:
-                    self._descartar(f"{nombre_fits}: {metodo}")
+                    self._descartar(f"{nombre_fits}: {metodo}", aviso="Foto descartada: no se ha podido alinear")
                     return
 
             if metodo != "REF":
@@ -637,10 +642,13 @@ class ApiladorEnTiempoReal:
                         self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) no mejora al peor "
                                                f"almacenado ({peor['puntuacion']:.2f}); descartado")
                         print(f"ℹ️ {self.ultimo_mensaje}")
+                        voz.decir("Foto descartada por calidad")
                         return
                 self.total = len(self.fotogramas)
                 fotogramas_actuales = list(self.fotogramas)
+                sustituida = "sustituye" in self.ultimo_mensaje
             print(f"📚 {self.ultimo_mensaje}")
+            voz.decir("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas")
 
             # ── Apilado (sigma-clipping por bloques, memoria acotada) ──
             r = apilar_sigma_clip([f["r"] for f in fotogramas_actuales])
