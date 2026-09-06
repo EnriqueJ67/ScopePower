@@ -43,6 +43,7 @@ from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
 import darks
 import secretos
 import centrado
+import alineacion
 import voz
 
 def ruta_absoluta(relativa):
@@ -1226,6 +1227,44 @@ def centrado_iniciar():
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     return jsonify({"ok": True, "objeto": objeto, "origen": origen})
+
+
+@app.route('/alineacion')
+def vista_alineacion():
+    return render_template('alineacion.html', mostrar_volver=True, conf=alineacion.leer_config())
+
+
+@app.route('/alineacion/iniciar', methods=["POST"])
+def alineacion_iniciar():
+    """Alineación automática de varios puntos por plate solving (ver alineacion.py)."""
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de alinear"}), 409
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    datos = request.get_json(silent=True) or {}
+    conf = alineacion.leer_config()
+    if "puntos" in datos:
+        conf["puntos"] = max(1, min(20, int(datos["puntos"])))
+    if "limpiar_antes" in datos:
+        conf["limpiar_antes"] = bool(datos["limpiar_antes"])
+    try:
+        alineacion.trabajo_alineacion.iniciar(camara, montura, conf=conf,
+                                              limpiar_sync=limpiar_sincronizaciones, voz=voz)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True, "puntos": conf["puntos"]})
+
+
+@app.route('/alineacion/estado')
+def alineacion_estado():
+    return jsonify(alineacion.trabajo_alineacion.estado())
+
+
+@app.route('/alineacion/cancelar', methods=["POST"])
+def alineacion_cancelar():
+    alineacion.trabajo_alineacion.cancelar()
+    return jsonify({"mensaje": "⏹️ Cancelando alineación..."})
 
 
 @app.route('/centrado/estado')

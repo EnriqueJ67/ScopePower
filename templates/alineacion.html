@@ -1,0 +1,122 @@
+<!-- templates/alineacion.html -->
+{% extends "base.html" %}
+
+{% block title %}Alineación Automática{% endblock %}
+
+{% block content %}
+<h2>🧭 Alineación automática</h2>
+<p style="color: #ddaaaa; font-size: 15px;">
+    Borra el modelo de apuntado anterior de la app SynScan, resuelve por plate solving donde apunta el
+    telescopio y sincroniza, y después recorre varias posiciones del cielo sincronizando en cada una.
+    Al terminar, los GOTO de toda la noche salen mucho más centrados. Tarda unos 20 segundos por punto.
+</p>
+
+<div id="panel-alineacion" style="max-width: 520px; margin: 0 auto; background: #220000; border: 2px solid #770000; border-radius: 12px; padding: 14px;">
+    <div id="alineacion-config">
+        <label style="display: block; padding: 6px 0;">
+            Puntos a recorrer (además del inicial):
+            <input type="number" id="alineacion-puntos" min="1" max="20" value="{{ conf.puntos }}" style="width: 70px; text-align: center;">
+        </label>
+        <label style="display: block; padding: 6px 0;">
+            <input type="checkbox" id="alineacion-limpiar" {% if conf.limpiar_antes %}checked{% endif %}>
+            Borrar antes las sincronizaciones anteriores (ClearSyncTo)
+        </label>
+        <p style="font-size: 13px; color: #aa8888; margin: 6px 0 10px 0;">
+            Alturas entre {{ conf.altura_minima|int }}° y {{ conf.altura_maxima|int }}° (config.ini, sección [Alineacion]).
+            Antes de empezar: montura encendida en posición de inicio, apuntando a una zona con estrellas,
+            y sin apilado en marcha.
+        </p>
+        <div style="text-align: center;">
+            <button type="button" id="btn-alinear" class="btn btn-success" onclick="lanzarAlineacion()">🧭 Empezar alineación</button>
+        </div>
+    </div>
+
+    <div id="alineacion-progreso" style="display: none;">
+        <p id="alineacion-mensaje" style="font-size: 17px; color: #ffd;"><span class="spinner"></span></p>
+        <div style="background: #330000; border-radius: 8px; height: 16px; overflow: hidden; margin: 8px 0;">
+            <div id="alineacion-barra" style="background: #2e7d2e; height: 100%; width: 0%; transition: width 0.5s;"></div>
+        </div>
+        <div style="text-align: center;">
+            <button type="button" class="btn btn-secondary" onclick="cancelarAlineacion()">⏹️ Cancelar</button>
+        </div>
+    </div>
+
+    <div id="alineacion-final" style="display: none; font-size: 17px; font-weight: bold; text-align: center; margin-top: 8px;"></div>
+
+    <table id="alineacion-tabla" style="width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 14px; display: none;">
+        <thead><tr style="color: #ddaaaa;"><th style="text-align: left;">#</th><th style="text-align: left;">Posición</th><th>Estado</th><th>Error previo</th></tr></thead>
+        <tbody id="alineacion-filas"></tbody>
+    </table>
+</div>
+
+<style>
+    .spinner {
+        display: inline-block; width: 16px; height: 16px;
+        border: 3px solid #ccc; border-top: 3px solid #ffcccc; border-radius: 50%;
+        animation: spin 1s linear infinite; margin-right: 8px; vertical-align: middle;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    #alineacion-tabla td { padding: 4px 2px; border-top: 1px solid #440000; }
+</style>
+<script>
+    let sondeo = null;
+    const ICONO = { pendiente: "·", moviendo: "🔭", exponiendo: "📷", resolviendo: "🔍", sincronizando: "🔄", ok: "✅", fallido: "❌", omitido: "⏭️", cancelado: "⏹️" };
+
+    function pintar(e) {
+        const enCurso = e.en_curso;
+        document.getElementById("alineacion-config").style.display = enCurso ? "none" : "block";
+        document.getElementById("alineacion-progreso").style.display = enCurso ? "block" : "none";
+        document.getElementById("btn-alinear").disabled = enCurso;
+        if (enCurso) {
+            document.getElementById("alineacion-mensaje").innerHTML = `<span class="spinner"></span>${e.mensaje}` +
+                ((e.captura && e.captura.en_curso) ? ` (quedan ${Math.ceil(e.captura.restante)} s)` : "");
+            const pct = e.total_pasos ? 100 * (e.paso - 1) / e.total_pasos : 0;
+            document.getElementById("alineacion-barra").style.width = pct + "%";
+        }
+        const tabla = document.getElementById("alineacion-tabla");
+        const filas = document.getElementById("alineacion-filas");
+        if (e.puntos && e.puntos.length) {
+            tabla.style.display = "table";
+            filas.innerHTML = e.puntos.map(p =>
+                `<tr><td>${p.n}</td><td>${p.nombre}</td><td style="text-align:center">${ICONO[p.estado] || ""} ${p.estado}</td>` +
+                `<td style="text-align:center">${p.error_arcmin !== null && p.error_arcmin !== undefined ? p.error_arcmin.toFixed(1) + "'" : ""}</td></tr>`).join("");
+        }
+        const fin = document.getElementById("alineacion-final");
+        if (!enCurso && e.terminado) {
+            const color = { completada: "#66ff66", parcial: "#ffcc66", cancelado: "#aaaaaa" }[e.resultado] || "#ff6666";
+            fin.style.display = "block"; fin.style.color = color; fin.textContent = e.detalle;
+        } else {
+            fin.style.display = "none";
+        }
+        return enCurso;
+    }
+
+    function sondear() {
+        fetch("/alineacion/estado").then(r => r.json()).then(e => {
+            if (!pintar(e) && sondeo) { clearInterval(sondeo); sondeo = null; }
+        }).catch(console.error);
+    }
+
+    function lanzarAlineacion() {
+        const puntos = parseInt(document.getElementById("alineacion-puntos").value) || 6;
+        const limpiar = document.getElementById("alineacion-limpiar").checked;
+        fetch("/alineacion/iniciar", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ puntos, limpiar_antes: limpiar })
+        }).then(r => r.json()).then(d => {
+            if (!d.ok) { alert(d.error || "No se pudo iniciar"); return; }
+            if (!sondeo) sondeo = setInterval(sondear, 1000);
+            sondear();
+        }).catch(err => alert("Error: " + err));
+    }
+
+    function cancelarAlineacion() {
+        fetch("/alineacion/cancelar", { method: "POST" }).catch(console.error);
+    }
+
+    // Si ya hay una alineación en marcha al abrir la página, engancharse
+    fetch("/alineacion/estado").then(r => r.json()).then(e => {
+        if (pintar(e) && !sondeo) sondeo = setInterval(sondear, 1000);
+    }).catch(() => { });
+</script>
+{% endblock %}
