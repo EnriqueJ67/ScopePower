@@ -1,0 +1,103 @@
+﻿<!-- templates/imagen.html -->
+{% extends "base.html" %}
+
+{% block title %}Imagen Capturada{% endblock %}
+
+{% block content %}
+<h2>Imagen Capturada</h2>
+<!-- Botón para volver a capturar con nuevos valores -->
+<div style="text-align: center; margin-bottom: 15px;">
+    <a href="{{ url_for('capturar_imagen') }}" class="btn btn-success">📷 Capturar de nuevo</a>
+</div>
+
+<img src="{{ url_for('imagen_capturada') }}" style="width: 100%; max-width: 600px;">
+<br>
+<br>
+<div style="text-align: center; margin-top: 20px;">
+    <a href="{{ url_for('generar_dark') }}" class="btn btn-outline-warning">🌑 Generar Dark Maestro</a>
+</div>
+<!-- Controles MTF -->
+<div class="container" style="max-width: 400px; margin: 30px auto; color: #ccc;">
+    <h4>🔧 Ajustes (vista previa)</h4>
+    <!--
+            <div class="form-group">
+                <label>Shadows</label>
+                <input type="number" id="input-shadows" class="form-control" min="0" max="1" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label>Highlights</label>
+                <input type="number" id="input-highlights" class="form-control" min="0" max="1" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label>Midtone</label>
+                <input type="number" id="input-midtone" class="form-control" min="0" max="1" step="0.01">
+            </div>
+    -->
+    <div class="form-group">
+        <label>Intensidad del color</label>
+        <input type="number" id="input-color" class="form-control" min="0" max="3" step="0.1">
+    </div>
+
+    <button class="btn btn-primary mt-3" onclick="guardarParametrosMTF()">💾 Guardar parámetros</button>
+    <div id="estado-mtf" style="margin-top: 10px; font-style: italic;"></div>
+</div>
+
+    <script>
+        function cargarParametros() {
+            /*
+            fetch("/config-mtf")
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    document.getElementById("input-shadows").value = data.shadows;
+                    document.getElementById("input-highlights").value = data.highlights;
+                    document.getElementById("input-midtone").value = data.midtone;
+                })
+                .catch(err => {
+                    console.error("⚠️ Error al cargar MTF:", err);
+                    document.getElementById("estado-mtf").textContent = "❌ Error al cargar valores MTF";
+                });
+            */
+            fetch("/config-color")
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    document.getElementById("input-color").value = data.intensidad;
+                })
+                .catch(err => {
+                    console.error("⚠️ Error al cargar intensidad:", err);
+                    document.getElementById("estado-mtf").textContent = "❌ Error al cargar intensidad de color";
+                });
+        }
+
+        function guardarParametrosMTF() {
+            //const shadows = parseFloat(document.getElementById("input-shadows").value);
+            //const highlights = parseFloat(document.getElementById("input-highlights").value);
+            //const midtone = parseFloat(document.getElementById("input-midtone").value);
+            const intensidad = parseFloat(document.getElementById("input-color").value);
+            /*
+            fetch("/guardar-config-mtf", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ shadows, highlights, midtone })
+            }).then(r => r.text()).then(msg => {
+                document.getElementById("estado-mtf").textContent = msg;
+            });
+            */
+            fetch("/guardar-config-color", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ intensidad })
+            }).then(r => r.text()).then(msg => {
+                document.getElementById("estado-mtf").textContent = msg;
+            });
+        }
+
+        // Ejecutar al cargar
+        cargarParametros();
+    </script>
+
+
+    {% endblock %}

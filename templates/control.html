@@ -1,0 +1,144 @@
+﻿<!-- templates/control.html -->
+{% extends "base.html" %}
+
+{% block title %}Control del Telescopio{% endblock %}
+
+{% block content %}
+<h2>Control del Telescopio</h2>
+
+<label for="speed">Velocidad:</label>
+<select id="speed">
+    <option value="0.1">Lento</option>
+    <option value="0.5">Medio</option>
+    <option value="1.0">Rápido</option>
+</select>
+
+<div class="telescope-grid">
+    <div></div>
+    <button class="btn-dir up" ontouchstart="move('N')" ontouchend="stop()" onmousedown="move('N')" onmouseup="stop()"></button>
+    <div></div>
+
+    <button class="btn-dir left" ontouchstart="move('W')" ontouchend="stop()" onmousedown="move('W')" onmouseup="stop()"></button>
+    <button class="btn-center" onclick="stop(); vibrar(40)">●</button>
+    <button class="btn-dir right" ontouchstart="move('E')" ontouchend="stop()" onmousedown="move('E')" onmouseup="stop()"></button>
+
+    <div></div>
+    <button class="btn-dir down" ontouchstart="move('S')" ontouchend="stop()" onmousedown="move('S')" onmouseup="stop()"></button>
+    <div></div>
+</div>
+<style>
+    .telescope-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr 1fr;
+        gap: 4vw;
+        width: 100%;
+        height: 50vh;
+        align-items: center;
+        justify-items: center;
+        margin-top: 5vh;
+        touch-action: manipulation;
+        user-select: none;
+    }
+
+    .btn-dir, .btn-center {
+        width: 80px;
+        height: 80px;
+        background-color: #550000;
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+        position: relative;
+    }
+
+        .btn-dir:hover {
+            background-color: #770000;
+        }
+
+    .btn-center {
+        background-color: #330000;
+        color: #ffaaaa;
+        border-radius: 50%;
+        font-size: 24px;
+    }
+
+    .btn-dir::before {
+        content: "";
+        display: inline-block;
+        width: 0;
+        height: 0;
+        border: 16px solid transparent;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .btn-dir.up::before {
+        border-bottom-color: #ffcccc;
+    }
+
+    .btn-dir.down::before {
+        border-top-color: #ffcccc;
+    }
+
+    .btn-dir.left::before {
+        border-right-color: #ffcccc;
+    }
+
+    .btn-dir.right::before {
+        border-left-color: #ffcccc;
+    }
+
+    select#speed {
+        font-size: 18px;
+        margin: 10px 0 25px;
+        padding: 10px;
+        border-radius: 8px;
+        background-color: #220000;
+        color: #ffcccc;
+        border: 2px solid #770000;
+    }
+
+    /* 🔍 Aumentar tamaño en móviles o pantallas pequeñas */
+    @media (max-width: 1024px), (max-height: 700px) {
+        .btn-dir, .btn-center {
+            width: 120px;
+            height: 120px;
+        }
+
+            .btn-dir::before {
+                border-width: 28px;
+            }
+
+        .btn-center {
+            font-size: 36px;
+        }
+    }
+
+
+</style>
+
+<script>
+    const sonidoClick = new Audio("/static/click.wav");
+
+    function vibrar(ms) {
+        if (navigator.vibrate) {
+            navigator.vibrate(ms);
+        }
+    }
+
+    function move(direction) {
+        let speed = document.getElementById('speed').value;
+        fetch(`/move?dir=${direction}&speed=${speed}`, { method: 'GET' });
+        sonidoClick.play();
+        vibrar(50);
+    }
+
+    function stop() {
+        fetch('/stop', { method: 'GET' });
+        sonidoClick.play();
+        vibrar(20);
+    }
+</script>
+{% endblock %}

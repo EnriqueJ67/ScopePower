@@ -1,0 +1,122 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Configuración del Sistema{% endblock %}
+
+{% block content %}
+<h2 style="text-align: center;">⚙️ Configuración del Sistema</h2>
+
+<div class="container" style="max-width: 600px; margin-top: 30px; color: #ccc;">
+    <form id="form-config">
+        <div class="form-group">
+            <label>Driver Telescopio (ASCOM)</label>
+            <div class="input-group">
+                <input type="text" id="driver_telescopio" class="form-control" readonly>
+                <div class="input-group-append">
+                    <button class="btn btn-secondary" type="button" onclick="elegirDriver('Telescope')">Seleccionar</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Driver Cámara (ASCOM)</label>
+            <div class="input-group">
+                <input type="text" id="driver_camara" class="form-control" readonly>
+                <div class="input-group-append">
+                    <button class="btn btn-secondary" type="button" onclick="elegirDriver('Camera')">Seleccionar</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Binning</label>
+            <input type="number" id="binning" class="form-control" min="1" max="4" step="1">
+        </div>
+
+        <div class="form-group">
+            <label>Exposición (segundos)</label>
+            <input type="number" id="exposicion" class="form-control" min="0.1" step="0.1">
+        </div>
+
+        <div class="form-group">
+            <label>Número máximo de imágenes a apilar</label>
+            <input type="number" id="numero_maximo_imagenes" class="form-control" min="1" step="1">
+        </div>
+
+        <div class="form-group">
+            <label>Focal del telescopio (mm)</label>
+            <input type="number" id="focal_len" class="form-control">
+        </div>
+
+        <div class="form-group">
+            <label>Intensidad de color</label>
+            <input type="number" id="color_intensity" class="form-control" min="0" max="5" step="0.1">
+        </div>
+
+        <div class="form-group">
+            <label>Zoom (%)</label>
+            <input type="number" id="zoom_preview" class="form-control" min="0" max="90" step="5">
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-success">💾 Guardar Configuración</button>
+        </div>
+        <div id="estado-guardado" class="mt-3 text-center" style="font-style: italic;"></div>
+    </form>
+</div>
+<!-- Botón Volver -->
+<div style="text-align: center; margin-top: 25px;">
+    <a href="{{ url_for('home') }}" class="btn btn-secondary">🔙 Volver</a>
+</div>
+
+<script>
+    function elegirDriver(tipo) {
+        fetch(`/ascom-selector?tipo=${tipo}`)
+            .then(r => r.json())
+            .then(data => {
+                if (tipo === "Camera") {
+                    document.getElementById("driver_camara").value = data.driver;
+                } else {
+                    document.getElementById("driver_telescopio").value = data.driver;
+                }
+            })
+            .catch(err => alert("❌ Error seleccionando driver ASCOM: " + err));
+    }
+
+    function cargarConfig() {
+        fetch("/config-datos")
+            .then(r => r.json())
+            .then(data => {
+                for (const campo in data) {
+                    if (document.getElementById(campo)) {
+                        document.getElementById(campo).value = data[campo];
+                    }
+                }
+            });
+    }
+
+    document.getElementById("form-config").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const datos = {
+            driver_telescopio: document.getElementById("driver_telescopio").value,
+            driver_camara: document.getElementById("driver_camara").value,
+            binning_camara: document.getElementById("binning").value,
+            exposicion_captura: document.getElementById("exposicion").value,
+            numero_maximo_imagenes: document.getElementById("numero_maximo_imagenes").value,
+            focal_len: document.getElementById("focal_len").value,
+            color_intensity: document.getElementById("color_intensity").value,
+            zoom_preview: document.getElementById("zoom_preview").value
+        };
+
+        fetch("/guardar-config-datos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(datos)
+        }).then(r => r.text())
+            .then(msg => document.getElementById("estado-guardado").textContent = msg);
+    });
+
+    document.addEventListener("DOMContentLoaded", cargarConfig);
+</script>
+
+{% endblock %}

@@ -1,0 +1,96 @@
+﻿<!-- templates/home.html -->
+{% extends "base.html" %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+<h2>ScopePower funcionando 🚀</h2>
+
+<!-- Logo de ScopeBoost -->
+<div style="text-align: center; margin-bottom: 20px;">
+    <img src="/static/logo.png" alt="ScopePower Logo" style="max-width: 300px;">
+    <p><b>ScopeBoost: Real-time Power for Your Telescope</b></p>
+</div>
+
+<ul class="menu">
+    <li><a href="/capturar-imagen" class="clic-audio">📷 Capturar Imagen</a></li>
+    <li><a href="/platesolve" class="clic-audio">🧩 Resolver Plate Solve</a></li>
+    <li><a href="/corregir-posicion" class="clic-audio">📍 Sincronizar Telescopio</a></li>
+    <li><a href="/modo-automatico" class="clic-audio"><b>🤖 Modo Automático</b></a></li>
+    <li><a href="/goto" class="clic-audio"><b>🔭 GOTO Objeto</b></a></li>
+    <li><a href="/control" class="clic-audio">🎮 Controlar Telescopio</a></li>
+    <li><a href="/apilado" class="clic-audio">🌀 Apilado en Tiempo Real</a></li>
+    <li><a href="{{ url_for('galeria') }}" class="clic-audio">🌌 Ver Galería</a></li>
+    <li><a href="/salir" class="clic-audio" style="color: #ff6666;"><b>⛔ Cerrar Aplicación</b></a></li>
+</ul>
+
+{% if estado_licencia == "activado" %}
+<p style="color: green;">✅ Esta copia está activada permanentemente.</p>
+{% elif estado_licencia == "prueba" %}
+<p style="color: orange;">🧪 Modo prueba: quedan {{ dias_restantes }} días.</p>
+{% else %}
+<p style="color: red;">❌ Prueba finalizada. Debes activar ScopePower para continuar.</p>
+{% endif %}
+
+{% if estado_licencia != "activado" %}
+<div style="margin-top: 15px; margin-left: 10px;">
+    <a href="{{ url_for('activar') }}" class="btn btn-danger">🔐 Activar ahora</a>
+</div>
+{% endif %}
+
+<div style="margin-top: 15px; margin-left: 10px;">
+    <a href="/configuracion" class="btn btn-outline-info">⚙️ Configuración del Sistema</a>
+</div>
+
+
+<style>
+    ul.menu {
+        list-style: none;
+        padding: 0;
+    }
+
+        ul.menu li {
+            margin: 20px 0;
+        }
+
+        ul.menu a {
+            display: block;
+            padding: 20px;
+            background-color: #550000;
+            border-radius: 12px;
+            font-size: 24px;
+            text-align: center;
+            color: #ffcccc;
+            text-decoration: none;
+        }
+
+            ul.menu a:hover {
+                background-color: #770000;
+            }
+</style>
+<script>
+    const sonidoClick = new Audio("/static/click.wav");
+
+    document.querySelectorAll('.clic-audio').forEach(link => {
+        link.addEventListener('click', function (e) {
+            e.preventDefault(); // Evita que el navegador navegue inmediatamente
+
+            const destino = this.href;
+
+            // Reproducir sonido y luego ir al enlace
+            sonidoClick.currentTime = 0;
+            sonidoClick.play().then(() => {
+                setTimeout(() => {
+                    window.location.href = destino;
+                }, 150); // Espera ~150ms para que se oiga el clic
+            }).catch(() => {
+                // Si falla el sonido (ej. en iOS), sigue navegando
+                window.location.href = destino;
+            });
+        });
+    });
+</script>
+
+
+{% endblock %}
+

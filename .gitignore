@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+
+# Visual Studio
+.vs/
+
+# Configuración con secretos (usar config.example.ini como plantilla)
+config.ini
+
+# Datos de captura y calibración (grandes, se regeneran)
+capturas/
+calibraciones/
+*.fits
+*.wcs
+static/captura*
+static/resultado_apilado*
+static/scopepower_objetos.jpg
+static/apilado_info.txt
+static/info_objeto_goto.txt
+static/fotos/
+
+# Cachés de anotación de objetos
+objetos_filtrados.csv
+objetos_descartados.csv
+
+# Copias sueltas
+*- copia*

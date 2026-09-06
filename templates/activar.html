@@ -1,0 +1,73 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Activación{% endblock %}
+
+{% block content %}
+
+{% if expirada %}
+<div style="background-color: #330000; color: #ff6666; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+    ⚠️ Tu período de prueba ha finalizado. Debes activar ScopePower para continuar usando la aplicación.
+</div>
+{% endif %}
+
+
+<h2>🔐 Activación de ScopePower</h2>
+
+<p><strong>Identificador del equipo:</strong></p>
+<pre id="identificador" style="font-size: 1.2em; background:#222; padding: 10px; color: #cfc; word-break: break-all;">
+{{ uuid }}
+</pre>
+
+<button onclick="copiarMensajeCompleto()" style="margin-bottom: 20px;">📋 Copiar mensaje para email</button>
+
+
+<p>
+    📧 Envía este código por email a
+    <a href="mailto:activacion@ejemplo.invalid">activacion@ejemplo.invalid</a>
+    para recibir tu clave de activación personalizada.
+</p>
+
+<hr>
+
+{% if correcto %}
+<p style="color: green;">✅ Activación correcta. Puedes iniciar sesión.</p>
+{% elif error %}
+<p style="color: red;">{{ error }}</p>
+{% endif %}
+
+{% if activado %}
+<p style="color: green;">✅ Esta copia ya está activada permanentemente.</p>
+
+{% elif dias_restantes > 0 %}
+<p style="color: orange;">
+    🧪 Estás usando la versión de prueba. Te quedan <strong>{{ dias_restantes }}</strong> días.
+</p>
+
+{% else %}
+<p style="color: red;">
+    ❌ Tu período de prueba ha finalizado. Debes activar la aplicación para continuar.
+</p>
+{% endif %}
+
+
+<form method="post">
+    <label for="clave">Introduce la clave de activación:</label><br>
+    <input type="text" id="clave" name="clave" required style="width: 100%; max-width: 500px;">
+    <button type="submit">Activar</button>
+</form>
+
+<script>
+    function copiarMensajeCompleto() {
+        const uuid = document.getElementById("identificador").innerText.trim();
+        const mensaje = `Hola, este es mi identificador para activar ScopePower:\n\n${uuid}\n\nGracias.`;
+
+        navigator.clipboard.writeText(mensaje).then(() => {
+            alert("✅ Mensaje copiado al portapapeles. Puedes pegarlo en el email.");
+        }).catch(err => {
+            alert("❌ No se pudo copiar: " + err);
+        });
+    }
+</script>
+{% endblock %}
+
+

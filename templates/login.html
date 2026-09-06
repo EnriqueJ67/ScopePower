@@ -1,0 +1,27 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Iniciar Sesión{% endblock %}
+
+{% block content %}
+<div style="max-width: 400px; margin: auto; padding-top: 40px;">
+    <h2 style="text-align: center;">🔒 Iniciar Sesión</h2>
+
+    {% if error %}
+    <div style="color: #ff8080; text-align: center; margin-top: 10px;">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+        <label>
+            Usuario:
+            <input type="text" name="usuario" class="form-control" required>
+        </label>
+        <label>
+            Contraseña:
+            <input type="password" name="clave" class="form-control" required>
+        </label>
+        <button type="submit" class="btn btn-primary">Entrar</button>
+    </form>
+</div>
+{% endblock %}

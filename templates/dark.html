@@ -1,0 +1,26 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<h2 style="text-align: center;">Generar Dark Maestro</h2>
+{% if mensaje %}
+<div style="text-align: center; margin: 10px 0; font-size: 16px; color: #66ff66;">
+    {{ mensaje }}
+</div>
+{% endif %}
+
+<div style="text-align: center; margin: 20px;">
+    <p style="font-size: 18px;">🔒 Por favor, tapa el telescopio completamente.</p>
+    <p style="font-size: 16px;">
+        Se generará un dark maestro con exposición:
+        <span style="color: #ffaaaa; font-weight: bold;">{{ exposicion }} s</span>
+    </p>
+</div>
+
+<form method="POST" action="{{ url_for('procesar_dark') }}" style="text-align: center;">
+    <button class="btn btn-danger">📷 Generar Dark Maestro</button>
+</form>
+
+<div style="text-align: center; margin-top: 20px;">
+    <a href="{{ url_for('home') }}" class="btn btn-secondary">🔙 Volver</a>
+</div>
+{% endblock %}
