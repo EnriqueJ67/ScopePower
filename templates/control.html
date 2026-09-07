@@ -6,8 +6,9 @@
 {% block content %}
 <h2>Control del Telescopio</h2>
 
-<!-- Vertical: velocidad, cruceta, sincronizaciones. Apaisado: cruceta a la
-     izquierda y velocidad + sincronizaciones a la derecha -->
+<!-- Vertical: velocidad y cruceta. Apaisado: cruceta a la izquierda y velocidad a la derecha.
+     Aquí no va nada más: los botones de movimiento se tocan sin mirar y cualquier otro
+     botón cerca acaba pulsado por error (el borrado de sincronizaciones está en Configuración) -->
 <div class="control-layout">
     <div class="control-velocidad">
         <label for="speed">Velocidad:</label>
@@ -34,38 +35,17 @@
         </div>
     </div>
 
-    <!-- Sincronizaciones guardadas en la app SynScan Pro -->
-    <div class="control-sync" style="text-align: center;">
-        <button type="button" class="btn btn-secondary" onclick="limpiarSync()">🧹 Borrar sincronizaciones de SynScan</button>
-        <div id="estado-sync" style="margin-top: 6px; font-size: 14px; color: #ddaaaa; min-height: 1.3em;"></div>
-        <div style="font-size: 12px; color: #aa7777;">
-            Borra el modelo de apuntado y las sincronizaciones de sesiones anteriores en la app.
-            Se hace solo al conectar (config: limpiar_sync_al_conectar). Después, el primer Centrado Automático crea el modelo nuevo.
-        </div>
-    </div>
 </div>
-<script>
-    function limpiarSync() {
-        if (!confirm("¿Borrar en la app SynScan las sincronizaciones y el modelo de apuntado? Habrá que volver a centrar por plate solving.")) return;
-        const est = document.getElementById("estado-sync");
-        est.textContent = "⏳ Enviando ClearSyncTo...";
-        fetch("/montura/limpiar-sync", { method: "POST" })
-            .then(r => r.json())
-            .then(d => est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje)
-            .catch(err => est.textContent = "❌ " + err);
-    }
-</script>
 <style>
     .control-layout {
         display: grid;
         grid-template-columns: 1fr;
-        grid-template-areas: "velocidad" "cruceta" "sync";
+        grid-template-areas: "velocidad" "cruceta";
         gap: 12px 24px;
         align-items: center;
     }
     .control-velocidad { grid-area: velocidad; }
     .control-cruceta { grid-area: cruceta; }
-    .control-sync { grid-area: sync; margin-top: 12px; }
 
     .telescope-grid {
         display: grid;
@@ -133,14 +113,11 @@
     @media (min-width: 700px) and (orientation: landscape) {
         .control-layout {
             grid-template-columns: 1fr 1fr;
-            grid-template-areas: "cruceta velocidad" "cruceta sync";
-            align-items: start;
+            grid-template-areas: "cruceta velocidad";
+            align-items: center;
         }
-        .control-velocidad { align-self: end; }
-        .control-sync { margin-top: 0; }
         .telescope-grid { margin-top: 0; gap: 16px; }
         .btn-dir, .btn-center { width: min(130px, 14vw, 22vh); height: min(130px, 14vw, 22vh); }
-        .control-sync .btn { display: block; width: 100%; margin: 6px 0; }
     }
 
     /* Móvil tumbado: cabecera pequeña para que la cruceta entre sin scroll */
