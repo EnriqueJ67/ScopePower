@@ -7,24 +7,15 @@
 
 <div class="container" style="max-width: 600px; margin-top: 30px; color: #ccc;">
     <form id="form-config">
+        <!-- Drivers ASCOM: lista leída del perfil ASCOM del PC (se puede elegir desde el móvil) -->
         <div class="form-group">
             <label>Driver Telescopio (ASCOM)</label>
-            <div class="input-group">
-                <input type="text" id="driver_telescopio" class="form-control" readonly>
-                <div class="input-group-append">
-                    <button class="btn btn-secondary" type="button" onclick="elegirDriver('Telescope')">Seleccionar</button>
-                </div>
-            </div>
+            <select id="driver_telescopio" class="form-control"></select>
         </div>
 
         <div class="form-group">
             <label>Driver Cámara (ASCOM)</label>
-            <div class="input-group">
-                <input type="text" id="driver_camara" class="form-control" readonly>
-                <div class="input-group-append">
-                    <button class="btn btn-secondary" type="button" onclick="elegirDriver('Camera')">Seleccionar</button>
-                </div>
-            </div>
+            <select id="driver_camara" class="form-control"></select>
         </div>
 
         <div class="form-group">
@@ -105,29 +96,38 @@
 </div>
 
 <script>
-    function elegirDriver(tipo) {
-        fetch(`/ascom-selector?tipo=${tipo}`)
-            .then(r => r.json())
-            .then(data => {
-                if (tipo === "Camera") {
-                    document.getElementById("driver_camara").value = data.driver;
-                } else {
-                    document.getElementById("driver_telescopio").value = data.driver;
-                }
-            })
-            .catch(err => alert("❌ Error seleccionando driver ASCOM: " + err));
+    // Lista de drivers ASCOM registrados (Telescope / Camera), como en la versión de junio
+    async function cargarDrivers(tipo) {
+        const sel = document.getElementById(tipo === "Camera" ? "driver_camara" : "driver_telescopio");
+        sel.disabled = true; sel.innerHTML = "<option>Cargando...</option>";
+        try {
+            const d = await (await fetch(`/ascom-drivers?tipo=${tipo}`)).json();
+            sel.innerHTML = "";
+            for (const { name, progid } of d.drivers) {
+                const o = document.createElement("option"); o.value = progid; o.textContent = `${name} (${progid})`;
+                sel.appendChild(o);
+            }
+            if (!d.drivers.length) sel.innerHTML = "<option value=''>(ningún driver registrado)</option>";
+        } catch (err) {
+            sel.innerHTML = "<option value=''>Error al cargar</option>"; console.error(err);
+        }
+        sel.disabled = false;
     }
 
-    function cargarConfig() {
-        fetch("/config-datos")
-            .then(r => r.json())
-            .then(data => {
-                for (const campo in data) {
-                    if (document.getElementById(campo)) {
-                        document.getElementById(campo).value = data[campo];
-                    }
-                }
-            });
+    async function cargarConfig() {
+        await cargarDrivers("Telescope");
+        await cargarDrivers("Camera");
+        const data = await (await fetch("/config-datos")).json();
+        for (const campo in data) {
+            const el = document.getElementById(campo);
+            if (!el) continue;
+            el.value = data[campo];
+            // Si el driver guardado no está en la lista, añadirlo para no perderlo
+            if (el.tagName === "SELECT" && el.value !== data[campo] && data[campo]) {
+                const o = document.createElement("option"); o.value = data[campo]; o.textContent = data[campo] + " (no registrado)";
+                el.appendChild(o); el.value = data[campo];
+            }
+        }
     }
 
     document.getElementById("form-config").addEventListener("submit", function (e) {

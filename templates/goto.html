@@ -287,12 +287,26 @@
         return icons[type.toLowerCase()] || "🔭";
     }
 
-    // Función esperarFinDeMovimiento: espera hasta que el telescopio deje de moverse
+    // Espera al fin del movimiento (algoritmo de la versión de junio): primero
+    // a que el driver diga Slewing=true (evita leer "parado" antes de que la
+    // montura arranque) y después a que vuelva a false. Si en 10 s nunca
+    // llega a moverse, se da por llegado (movimiento muy corto).
     function esperarFinDeMovimiento(objeto) {
+        let paso = 0, intentos = 0;
         const interval = setInterval(() => {
+            intentos++;
             fetch("/estado_telescopio")
                 .then(response => response.json())
                 .then(data => {
+                    if (paso === 0) {
+                        if (data.slewing) {
+                            paso = 1;
+                            document.getElementById("status").innerHTML = `⏳ Telescopio en movimiento hacia <b>${objeto}</b>...`;
+                        } else if (intentos >= 10) {
+                            paso = 1;
+                        }
+                        return;
+                    }
                     if (!data.slewing) {
                         clearInterval(interval);
                         document.getElementById("status").innerHTML = `🧭 Telescopio en <b>${objeto}</b>`;
@@ -304,6 +318,7 @@
                 .catch(err => {
                     clearInterval(interval);
                     console.error("Error al comprobar estado del telescopio", err);
+                    document.getElementById("status").innerHTML = "❌ Fallo al monitorizar el telescopio.";
                 });
         }, 1000);
     }

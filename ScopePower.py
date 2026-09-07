@@ -888,6 +888,60 @@ def obtener_coords_cometa(nombre_cometa):
 def control_telescopio():
     return render_template('control.html', mostrar_volver=True)
 
+@app.route('/estado-conexion')
+def estado_conexion():
+    """Estado de conexión de montura y cámara (menú principal)."""
+    return jsonify({
+        "conectado": montura.esta_conectado(),
+        "montura": montura.esta_conectado(),
+        "camara": camara.esta_conectado(),
+        "sistema": coordenadas.sistema() if montura.esta_conectado() else None,
+        "error_montura": montura.ultimo_error,
+        "error_camara": camara.ultimo_error,
+    })
+
+
+@app.route('/conectar-equipo', methods=['POST'])
+def conectar_equipo():
+    """Conecta montura y cámara (y lanza Stellarium) desde el botón del menú."""
+    resultado = {"montura": False, "camara": False, "errores": []}
+    try:
+        lanzar_stellarium_si_no_esta_activo()
+    except Exception as e:
+        resultado["errores"].append(f"Stellarium: {e}")
+    try:
+        montura.ejecutar(lambda tel: None, timeout=30)
+        resultado["montura"] = True
+    except ErrorHardware as e:
+        resultado["errores"].append(f"Montura: {e}")
+        voz.decir("No se ha podido conectar con el telescopio")
+    try:
+        camara.ejecutar(lambda cam: None, timeout=30)
+        resultado["camara"] = True
+    except ErrorHardware as e:
+        resultado["errores"].append(f"Cámara: {e}")
+        voz.decir("No se ha podido conectar con la cámara")
+    resultado["ok"] = resultado["montura"] and resultado["camara"]
+    resultado["sistema"] = coordenadas.sistema() if resultado["montura"] else None
+    return jsonify(resultado)
+
+
+@app.route('/ascom-drivers')
+def ascom_drivers():
+    """Drivers ASCOM registrados (Telescope o Camera) sin abrir el diálogo Chooser en el PC."""
+    tipo = request.args.get("tipo", "Telescope")
+    drivers = []
+    try:
+        pythoncom.CoInitialize()
+        profile = win32com.client.Dispatch("ASCOM.Utilities.Profile")
+        for kv in profile.RegisteredDevices(tipo):
+            drivers.append({"progid": str(kv.Key), "name": str(kv.Value)})
+    except Exception as e:
+        log.warning("No se pudo leer el perfil ASCOM (%s): %s", tipo, e)
+    drivers.sort(key=lambda d: d["name"].lower())
+    return jsonify({"drivers": drivers})
+
+
 @app.route('/montura/limpiar-sync', methods=["POST"])
 def montura_limpiar_sync():
     """Borra a mano las sincronizaciones/modelo de apuntado guardados en la app SynScan."""
@@ -1716,8 +1770,19 @@ def goto_objeto():
 def estado_telescopio():
     if not montura.esta_conectado():
         return jsonify({"slewing": False, "conectado": False})
+
+    def _slewing(tel):
+        # SimulaSlewing (config [General]): para drivers cuya propiedad Slewing no
+        # es fiable, se detecta el movimiento por el cambio de RA/DEC en 1,5 s
+        if config["General"].getboolean("SimulaSlewing", fallback=False):
+            ra1, dec1 = tel.RightAscension, tel.Declination
+            time.sleep(1.5)
+            ra2, dec2 = tel.RightAscension, tel.Declination
+            return abs(ra2 - ra1) > 0.0011 or abs(dec2 - dec1) > 0.011
+        return bool(tel.Slewing)
+
     try:
-        slewing = montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=5)
+        slewing = montura.ejecutar(_slewing, timeout=8)
         return jsonify({"slewing": slewing, "conectado": True, "sistema": coordenadas.sistema()})
     except ErrorHardware as e:
         return jsonify({"slewing": False, "conectado": False, "error": str(e)})
