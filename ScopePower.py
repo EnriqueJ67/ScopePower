@@ -1748,20 +1748,36 @@ def goto_objeto():
             futuro.add_done_callback(
                 lambda f: print(f"❌ Error al mover el telescopio: {f.exception()}") if f.exception() else None)
 
-            # Avisar por voz cuando la montura termine el movimiento (sondeo aparte,
-            # sin ocupar el hilo de la montura durante el GOTO)
-            def _avisar_llegada(nombre=objeto):
+            # Al terminar el movimiento (sondeo aparte, sin ocupar el hilo de la
+            # montura): avisar por voz y, como un Seestar, centrar automáticamente
+            # con plate solving si [Centrado] centrar_tras_goto = true.
+            def _al_llegar(nombre=objeto, ra_obj=float(ra), dec_obj=float(dec)):
                 inicio = time.time()
                 time.sleep(3)
                 while time.time() - inicio < 180:
                     try:
                         if not montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=5):
-                            voz.decir(f"Telescopio apuntando a {nombre}")
-                            return
+                            break
                     except ErrorHardware:
                         return
                     time.sleep(1)
-            threading.Thread(target=_avisar_llegada, name="aviso-goto", daemon=True).start()
+                else:
+                    return
+                voz.decir(f"Telescopio apuntando a {nombre}")
+                if not centrado.leer_config().get("centrar_tras_goto", True):
+                    return
+                if (bucle.activo and not bucle.pausado) or camara.ocupado or centrado.trabajo_centrado.en_curso:
+                    print("ℹ️ Centrado tras GOTO omitido: cámara ocupada o apilado en marcha")
+                    return
+                time.sleep(2)   # asentamiento de la montura
+                try:
+                    centrado.trabajo_centrado.iniciar(
+                        camara, montura, ra_obj, dec_obj, objeto=nombre,
+                        calcular_altitud=calcular_altitud, altura_minima=float(ALTURA_MINIMA))
+                    print(f"🎯 Centrado automático tras el GOTO a {nombre}")
+                except RuntimeError as e:
+                    print(f"⚠️ No se pudo iniciar el centrado tras el GOTO: {e}")
+            threading.Thread(target=_al_llegar, name="llegada-goto", daemon=True).start()
 
             # Responder inmediatamente
             return jsonify({
@@ -2021,6 +2037,11 @@ def darks_generar():
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     return jsonify({"ok": True, "n": n, "exposicion": conf["exposicion"]})
+
+
+@app.route('/calibracion')
+def vista_calibracion():
+    return render_template('calibracion.html', mostrar_volver=True)
 
 
 @app.route('/flats')

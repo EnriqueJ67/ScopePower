@@ -16,19 +16,20 @@
      la montura quedan atenuadas hasta que está conectada -->
 <div id="estado-equipo" style="text-align: center; color: #ddaaaa; font-size: 15px; margin-bottom: 6px;">Comprobando el equipo...</div>
 
+<!-- El menú sigue el orden de una noche: conectar, alinear, ir al objeto, apilar.
+     Plate Solve, Sincronizar y Modo Automático siguen existiendo como rutas
+     (/platesolve, /corregir-posicion, /modo-automatico) pero ya no hacen falta:
+     el alineado y el centrado automático tras el GOTO los sustituyen. -->
 <ul class="menu">
     <li><a href="#" id="btn-conectar">🔌 Conectar equipo</a></li>
-    <li><a href="/capturar-imagen" class="clic-audio requiere-conexion">📷 Capturar Imagen</a></li>
-    <li><a href="/platesolve" class="clic-audio requiere-conexion">🧩 Resolver Plate Solve</a></li>
-    <li><a href="/corregir-posicion" class="clic-audio requiere-conexion">📍 Sincronizar Telescopio</a></li>
-    <li><a href="/modo-automatico" class="clic-audio requiere-conexion"><b>🤖 Modo Automático</b></a></li>
     <li><a href="/alineacion" class="clic-audio requiere-conexion">🧭 Alineación Automática</a></li>
-    <li><a href="/constelacion" class="clic-audio requiere-conexion">✨ Recorrido por Constelación</a></li>
-    <li><a href="/flats" class="clic-audio requiere-conexion">🟦 Generar Flat Maestro</a></li>
     <li><a href="/goto" class="clic-audio requiere-conexion"><b>🔭 GOTO Objeto</b></a></li>
-    <li><a href="/control" class="clic-audio requiere-conexion">🎮 Controlar Telescopio</a></li>
-    <li><a href="/apilado" class="clic-audio requiere-conexion">🌀 Apilado en Tiempo Real</a></li>
+    <li><a href="/apilado" class="clic-audio requiere-conexion"><b>🌀 Apilado en Tiempo Real</b></a></li>
+    <li><a href="/constelacion" class="clic-audio requiere-conexion">✨ Recorrido por Constelación</a></li>
     <li><a href="{{ url_for('galeria') }}" class="clic-audio">🌌 Ver Galería</a></li>
+    <li><a href="/control" class="clic-audio requiere-conexion">🎮 Control manual del telescopio</a></li>
+    <li><a href="/capturar-imagen" class="clic-audio requiere-conexion">📷 Foto de prueba (enfoque y encuadre)</a></li>
+    <li><a href="/calibracion" class="clic-audio requiere-conexion">🌑 Calibración: darks y flats</a></li>
     <li><a href="/salir" class="clic-audio" data-confirmar="¿Cerrar ScopePower? Se desconectarán la cámara y la montura y se detendrá el servidor." style="color: #ff6666;"><b>⛔ Cerrar Aplicación</b></a></li>
 </ul>
 

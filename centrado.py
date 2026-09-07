@@ -49,6 +49,7 @@ def leer_config():
         "max_vueltas": int(c.get("max_vueltas", 3)),
         "exposicion": float(c.get("exposicion_centrado", 5.0)),
         "sync_primera_vuelta": str(c.get("sync_primera_vuelta", "true")).lower() == "true",
+        "centrar_tras_goto": str(c.get("centrar_tras_goto", "true")).lower() == "true",
         "asentamiento_s": float(c.get("asentamiento_s", 2.0)),
         "binning": int(d.get("binning_camara", 1)),
         "ruta_astap": cfg.get("General", "ruta_astap", fallback=""),

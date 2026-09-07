@@ -313,6 +313,12 @@
                         document.getElementById("btnModoAutomatico").disabled = false;
                         // Llama a sendWikipediaInfo pasando el tipo almacenado
                         sendWikipediaInfo(window.tipoObjeto);
+                        // El servidor arranca el centrado automático al llegar (centrar_tras_goto):
+                        // engancharse a él para mostrar las vueltas y el error
+                        setTimeout(() => engancharCentradoEnCurso("status", {
+                            hablar: false,
+                            alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
+                        }), 4000);
                     }
                 })
                 .catch(err => {
