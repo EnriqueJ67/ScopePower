@@ -1220,18 +1220,83 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
 def capturar_imagen():
     apilar = request.args.get("apilar", "0") == "1"
     usar_dark = request.args.get("dark", "1") != "0"   # ?dark=0: no restar dark aunque exista
+    quiere_json = request.args.get("json", "0") == "1"
     resultado = capturar_y_guardar(apilar=apilar, usar_dark=usar_dark)
+    if quiere_json:
+        codigo = 200 if resultado["ok"] else (409 if resultado.get("ocupada") else 500)
+        return jsonify(resultado), codigo
     if not resultado["ok"]:
         if resultado.get("ocupada"):
             return resultado["mensaje"], 409
         return resultado["mensaje"]
     if apilar:
         return resultado["mensaje"]
-    return render_template('imagen.html', mostrar_volver=True)
+    return render_template('imagen.html', mostrar_volver=True, hay_foto=True)
 
 @app.route('/imagen-capturada')
 def imagen_capturada():
-    return send_file(RUTA_IMAGEN_PNG, mimetype='image/png')
+    if not os.path.exists(RUTA_IMAGEN_PNG):
+        return send_file("static/esperando.png", mimetype="image/png")
+    response = send_file(RUTA_IMAGEN_PNG, mimetype='image/png')
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
+@app.route('/foto-prueba')
+def foto_prueba():
+    """Página de foto de prueba: no dispara nada al abrirse; el botón de dentro captura."""
+    return render_template('imagen.html', mostrar_volver=True, hay_foto=os.path.exists(RUTA_IMAGEN_PNG))
+
+
+def sincronizar_con_ultima_foto():
+    """
+    Resuelve la última foto de prueba con ASTAP y sincroniza la montura con
+    esas coordenadas (un punto, sin mover el telescopio). Devuelve un dict
+    con ok, mensaje y, si se resolvió, el error que tenía la montura en
+    minutos de arco.
+    """
+    if not os.path.exists(RUTA_IMAGEN):
+        return {"ok": False, "mensaje": "No hay ninguna foto que resolver; haz una foto primero."}
+    if bucle.activo and not bucle.pausado:
+        return {"ok": False, "mensaje": "El apilado está capturando; páusalo antes de sincronizar."}
+    try:
+        ra_m, dec_m = montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
+    except ErrorHardware as e:
+        return {"ok": False, "mensaje": f"Montura no disponible: {e}"}
+
+    ruta_mono = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.fits"
+    generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, ruta_mono)
+    if not ejecutar_astap(ruta_mono):
+        return {"ok": False, "mensaje": "ASTAP no respondió a tiempo."}
+    coords_res = extraer_coordenadas_ini(RUTA_INI)
+    if coords_res is None:
+        return {"ok": False, "mensaje": "ASTAP no ha podido resolver la foto (¿pocas estrellas, desenfoque, nubes?)."}
+    ra_deg, dec_deg = coords_res
+    ra_h = float(ra_deg) / 15.0
+    if calcular_altitud(ra_h, dec_deg) < float(ALTURA_MINIMA):
+        return {"ok": False, "mensaje": "La foto apunta por debajo de la altura mínima; no se sincroniza."}
+
+    # Error que tenía la montura (comparado en J2000)
+    ra_i, dec_i = coordenadas.desde_montura(ra_m, dec_m)
+    error = float(SkyCoord(ra=ra_i * u.hourangle, dec=dec_i * u.deg).separation(
+        SkyCoord(ra=ra_h * u.hourangle, dec=dec_deg * u.deg)).arcmin)
+
+    ra_s, dec_s = coordenadas.a_montura(ra_h, dec_deg)
+    try:
+        montura.ejecutar(lambda tel: tel.SyncToCoordinates(ra_s, dec_s), timeout=20)
+    except ErrorHardware as e:
+        return {"ok": False, "mensaje": f"Error al sincronizar: {e}"}
+    ra_str, dec_str = formatear_ra_dec(ra_h, dec_deg)
+    voz.decir(f"Telescopio sincronizado. Se equivocaba {error:.0f} minutos de arco")
+    log.info("Sincronizado con la foto de prueba: RA %s DEC %s (error previo %.1f')", ra_str, dec_str, error)
+    return {"ok": True, "mensaje": f"Sincronizado con la foto: RA {ra_str}, DEC {dec_str}. La montura se equivocaba {error:.1f}′.",
+            "ra": ra_h, "dec": dec_deg, "error_arcmin": round(error, 2)}
+
+
+@app.route('/sincronizar-foto', methods=['POST'])
+def sincronizar_foto():
+    resultado = sincronizar_con_ultima_foto()
+    return jsonify(resultado), (200 if resultado["ok"] else 409)
     
 # Ruta para resolver plate solve con ASTAP
 @app.route('/platesolve')
@@ -1357,23 +1422,23 @@ def corregir_posicion():
     if not ejecutar_astap(RUTA_IMAGEN_MONO):
         return render_template('corregir_posicion.html', resultado="⏱️ ASTAP no respondió a tiempo.", mostrar_volver=True)
 
-    coordenadas = extraer_coordenadas_ini(RUTA_INI)
-    if coordenadas is None:
+    coords_res = extraer_coordenadas_ini(RUTA_INI)   # (no llamar 'coordenadas': es el módulo)
+    if coords_res is None:
         print("⚠️ ASTAP falló. Intentando con Astrometry.net...")
-        coordenadas = platesolve_astrometry(RUTA_IMAGEN_MONO)
+        coords_res = platesolve_astrometry(RUTA_IMAGEN_MONO)
 
-        if coordenadas is None:
+        if coords_res is None:
             return render_template('corregir_posicion.html', resultado="❌ ASTAP y Astrometry.net no pudieron resolver la imagen.", mostrar_volver=True)
 
 
-    ra_resuelto, dec_resuelto = coordenadas
+    ra_resuelto, dec_resuelto = coords_res
     ra_resuelto = float(ra_resuelto) / 15.0  # Convertimos RA de grados a horas
 
     altitud = calcular_altitud(ra_resuelto, dec_resuelto)
 
     if altitud < int(ALTURA_MINIMA):
         return render_template('corregir_posicion.html', resultado="⚠️ Advertencia: El objeto está por debajo de altura mínima. Proceso cancelado.", mostrar_volver=True)
-    
+
     def _sincronizar(tel):
         # ra_resuelto/dec_resuelto vienen del plate solving (J2000);
         # ra_inicial/dec_inicial se leyeron de la montura (ya en su sistema)

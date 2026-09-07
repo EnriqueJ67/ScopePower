@@ -1,104 +1,125 @@
-﻿<!-- templates/imagen.html -->
+<!-- templates/imagen.html -->
 {% extends "base.html" %}
 
-{% block title %}Imagen Capturada{% endblock %}
+{% block title %}Foto de prueba{% endblock %}
 
 {% block content %}
-<h2>Imagen Capturada</h2>
-<!-- Botón para volver a capturar con nuevos valores -->
-<div style="text-align: center; margin-bottom: 15px;">
-    <a href="{{ url_for('capturar_imagen') }}" class="btn btn-success">📷 Capturar de nuevo</a>
+<h2 style="text-align: center;">📷 Foto de prueba</h2>
+<p style="text-align: center; color: #ddaaaa; font-size: 14px;">
+    Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.
+</p>
+
+<div style="text-align: center; margin-bottom: 10px;">
+    <button id="btn-foto" class="btn btn-success" onclick="hacerFoto()">📷 Hacer foto</button>
+    <button id="btn-sync" class="btn btn-primary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva">📍 Sincronizar telescopio con la foto</button>
+    <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;">⏹️ Cancelar</button>
+</div>
+<div id="estado-foto" style="text-align: center; font-size: 16px; color: #ffd; min-height: 1.5em;"></div>
+<div style="max-width: 600px; margin: 6px auto; display: none;" id="barra-bloque">
+    <div style="background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 14px; overflow: hidden;">
+        <div id="barra" style="height: 100%; width: 0%; background: #2e7d2e; transition: width 0.9s linear;"></div>
+    </div>
+</div>
+<div id="estado-sync" style="text-align: center; font-size: 15px; min-height: 1.5em; margin-bottom: 8px;"></div>
+
+<div style="text-align: center;">
+    <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" style="width: 100%; max-width: 600px; border: 2px solid #775555; border-radius: 10px;">
 </div>
 
-<img src="{{ url_for('imagen_capturada') }}" style="width: 100%; max-width: 600px;">
-<br>
-<br>
 <div style="text-align: center; margin-top: 20px;">
-    <a href="{{ url_for('generar_dark') }}" class="btn btn-outline-warning">🌑 Generar Dark Maestro</a>
-    <a href="{{ url_for('vista_flats') }}" class="btn btn-outline-warning">🟦 Generar Flat Maestro</a>
+    <a href="{{ url_for('vista_calibracion') }}" class="btn btn-outline-warning">🌑 Calibración: darks y flats</a>
 </div>
-<!-- Controles MTF -->
+
 <div class="container" style="max-width: 400px; margin: 30px auto; color: #ccc;">
     <h4>🔧 Ajustes (vista previa)</h4>
-    <!--
-            <div class="form-group">
-                <label>Shadows</label>
-                <input type="number" id="input-shadows" class="form-control" min="0" max="1" step="0.01">
-            </div>
-
-            <div class="form-group">
-                <label>Highlights</label>
-                <input type="number" id="input-highlights" class="form-control" min="0" max="1" step="0.01">
-            </div>
-
-            <div class="form-group">
-                <label>Midtone</label>
-                <input type="number" id="input-midtone" class="form-control" min="0" max="1" step="0.01">
-            </div>
-    -->
     <div class="form-group">
         <label>Intensidad del color</label>
         <input type="number" id="input-color" class="form-control" min="0" max="3" step="0.1">
     </div>
-
     <button class="btn btn-primary mt-3" onclick="guardarParametrosMTF()">💾 Guardar parámetros</button>
     <div id="estado-mtf" style="margin-top: 10px; font-style: italic;"></div>
 </div>
 
-    <script>
-        function cargarParametros() {
-            /*
-            fetch("/config-mtf")
-                .then(r => r.json())
-                .then(data => {
-                    if (data.error) throw new Error(data.error);
-                    document.getElementById("input-shadows").value = data.shadows;
-                    document.getElementById("input-highlights").value = data.highlights;
-                    document.getElementById("input-midtone").value = data.midtone;
-                })
-                .catch(err => {
-                    console.error("⚠️ Error al cargar MTF:", err);
-                    document.getElementById("estado-mtf").textContent = "❌ Error al cargar valores MTF";
-                });
-            */
-            fetch("/config-color")
-                .then(r => r.json())
-                .then(data => {
-                    if (data.error) throw new Error(data.error);
-                    document.getElementById("input-color").value = data.intensidad;
-                })
-                .catch(err => {
-                    console.error("⚠️ Error al cargar intensidad:", err);
-                    document.getElementById("estado-mtf").textContent = "❌ Error al cargar intensidad de color";
-                });
+<script>
+    let sondeo = null;
+    let hayFotoNueva = false;
+
+    function pintarProgreso(c) {
+        const bloque = document.getElementById("barra-bloque");
+        if (c && c.en_curso) {
+            const hechos = Math.max(0, c.exposicion - c.restante);
+            document.getElementById("barra").style.width = (c.exposicion > 0 ? 100 * hechos / c.exposicion : 0) + "%";
+            document.getElementById("estado-foto").textContent = `📷 Exponiendo · ${Math.ceil(hechos)} / ${c.exposicion} s`;
+            bloque.style.display = "block";
+        } else {
+            bloque.style.display = "none";
         }
+    }
 
-        function guardarParametrosMTF() {
-            //const shadows = parseFloat(document.getElementById("input-shadows").value);
-            //const highlights = parseFloat(document.getElementById("input-highlights").value);
-            //const midtone = parseFloat(document.getElementById("input-midtone").value);
-            const intensidad = parseFloat(document.getElementById("input-color").value);
-            /*
-            fetch("/guardar-config-mtf", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ shadows, highlights, midtone })
-            }).then(r => r.text()).then(msg => {
-                document.getElementById("estado-mtf").textContent = msg;
-            });
-            */
-            fetch("/guardar-config-color", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ intensidad })
-            }).then(r => r.text()).then(msg => {
-                document.getElementById("estado-mtf").textContent = msg;
-            });
-        }
+    function sondearCaptura() {
+        fetch("/estado-captura").then(r => r.json()).then(pintarProgreso).catch(() => {});
+    }
 
-        // Ejecutar al cargar
-        cargarParametros();
-    </script>
+    function hacerFoto() {
+        const btn = document.getElementById("btn-foto");
+        btn.disabled = true;
+        document.getElementById("btn-cancelar").style.display = "inline-block";
+        document.getElementById("estado-foto").textContent = "⏳ Preparando la cámara...";
+        document.getElementById("estado-sync").textContent = "";
+        if (!sondeo) sondeo = setInterval(sondearCaptura, 1000);
+        fetch("/capturar-imagen?apilar=0&json=1")
+            .then(r => r.json())
+            .then(d => {
+                clearInterval(sondeo); sondeo = null; pintarProgreso(null);
+                if (d.ok) {
+                    document.getElementById("estado-foto").textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "");
+                    document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
+                    hayFotoNueva = true;
+                    document.getElementById("btn-sync").disabled = false;
+                } else {
+                    document.getElementById("estado-foto").textContent = "❌ " + (d.mensaje || "Error al capturar");
+                }
+            })
+            .catch(err => { clearInterval(sondeo); sondeo = null; document.getElementById("estado-foto").textContent = "❌ " + err; })
+            .finally(() => { btn.disabled = false; document.getElementById("btn-cancelar").style.display = "none"; });
+    }
 
+    function cancelar() {
+        fetch("/cancelar-captura", { method: "POST" }).catch(() => {});
+    }
 
-    {% endblock %}
+    function sincronizar() {
+        const btn = document.getElementById("btn-sync");
+        btn.disabled = true;
+        const est = document.getElementById("estado-sync");
+        est.style.color = "#ffd";
+        est.innerHTML = "⏳ Resolviendo la foto con ASTAP y sincronizando...";
+        fetch("/sincronizar-foto", { method: "POST" })
+            .then(r => r.json())
+            .then(d => {
+                est.style.color = d.ok ? "#66ff66" : "#ff8888";
+                est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
+            })
+            .catch(err => { est.style.color = "#ff8888"; est.textContent = "❌ " + err; })
+            .finally(() => { btn.disabled = !hayFotoNueva; });
+    }
+
+    function cargarParametros() {
+        fetch("/config-color").then(r => r.json()).then(d => {
+            document.getElementById("input-color").value = d.intensidad;
+        }).catch(err => document.getElementById("estado-mtf").textContent = "❌ Error al cargar intensidad de color");
+    }
+
+    function guardarParametrosMTF() {
+        const intensidad = parseFloat(document.getElementById("input-color").value);
+        fetch("/guardar-config-color", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ intensidad })
+        }).then(r => r.text()).then(msg => document.getElementById("estado-mtf").textContent = msg);
+    }
+
+    cargarParametros();
+    // Si ya hay una exposición en marcha (p. ej. desde otra pestaña), mostrarla
+    fetch("/estado-captura").then(r => r.json()).then(c => { if (c.en_curso && !sondeo) sondeo = setInterval(sondearCaptura, 1000); }).catch(() => {});
+</script>
+{% endblock %}
