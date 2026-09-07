@@ -110,6 +110,26 @@
             body { padding: 20px 24px 90px 24px; max-width: 1000px; margin: 0 auto; }
             nav.barra a { font-size: 14px; min-height: 64px; }
         }
+
+        /* Tablet apaisada (ancha y con altura de sobra): la barra pasa al lateral
+           izquierdo para no perder altura de pantalla. En móvil tumbado (poca
+           altura) no cabrían los seis botones en columna: se queda abajo. */
+        @media (min-width: 900px) and (min-height: 500px) and (orientation: landscape) {
+            nav.barra {
+                top: 0; bottom: 0; left: 0; right: auto;
+                width: 92px;
+                flex-direction: column;
+                justify-content: flex-start;
+                border-top: none;
+                border-right: 2px solid #770000;
+                padding-top: env(safe-area-inset-top);
+                padding-left: env(safe-area-inset-left);
+                padding-bottom: 0;
+            }
+            nav.barra a { flex: 0 0 auto; min-height: 76px; width: 100%; }
+            body { padding: 20px 24px 24px 116px; max-width: 1116px; }
+            .pantalla-pill { bottom: 12px; left: calc(50% + 46px); }
+        }
     </style>
     {% block head %}{% endblock %}
 </head>

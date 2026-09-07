@@ -1,4 +1,4 @@
-﻿<!-- templates/control.html -->
+<!-- templates/control.html -->
 {% extends "base.html" %}
 
 {% block title %}Control del Telescopio{% endblock %}
@@ -6,34 +6,42 @@
 {% block content %}
 <h2>Control del Telescopio</h2>
 
-<label for="speed">Velocidad:</label>
-<select id="speed">
-    <option value="0.1">Lento</option>
-    <option value="0.5">Medio</option>
-    <option value="1.0">Rápido</option>
-</select>
+<!-- Vertical: velocidad, cruceta, sincronizaciones. Apaisado: cruceta a la
+     izquierda y velocidad + sincronizaciones a la derecha -->
+<div class="control-layout">
+    <div class="control-velocidad">
+        <label for="speed">Velocidad:</label>
+        <select id="speed">
+            <option value="0.1">Lento</option>
+            <option value="0.5">Medio</option>
+            <option value="1.0">Rápido</option>
+        </select>
+    </div>
 
-<div class="telescope-grid">
-    <div></div>
-    <button class="btn-dir up" ontouchstart="move('N')" ontouchend="stop()" onmousedown="move('N')" onmouseup="stop()"></button>
-    <div></div>
+    <div class="control-cruceta">
+        <div class="telescope-grid">
+            <div></div>
+            <button class="btn-dir up" ontouchstart="move('N')" ontouchend="stop()" onmousedown="move('N')" onmouseup="stop()"></button>
+            <div></div>
 
-    <button class="btn-dir left" ontouchstart="move('W')" ontouchend="stop()" onmousedown="move('W')" onmouseup="stop()"></button>
-    <button class="btn-center" onclick="stop(); vibrar(40)">●</button>
-    <button class="btn-dir right" ontouchstart="move('E')" ontouchend="stop()" onmousedown="move('E')" onmouseup="stop()"></button>
+            <button class="btn-dir left" ontouchstart="move('W')" ontouchend="stop()" onmousedown="move('W')" onmouseup="stop()"></button>
+            <button class="btn-center" onclick="stop(); vibrar(40)">●</button>
+            <button class="btn-dir right" ontouchstart="move('E')" ontouchend="stop()" onmousedown="move('E')" onmouseup="stop()"></button>
 
-    <div></div>
-    <button class="btn-dir down" ontouchstart="move('S')" ontouchend="stop()" onmousedown="move('S')" onmouseup="stop()"></button>
-    <div></div>
-</div>
+            <div></div>
+            <button class="btn-dir down" ontouchstart="move('S')" ontouchend="stop()" onmousedown="move('S')" onmouseup="stop()"></button>
+            <div></div>
+        </div>
+    </div>
 
-<!-- Sincronizaciones guardadas en la app SynScan Pro -->
-<div style="text-align: center; margin-top: 20px;">
-    <button type="button" class="btn btn-secondary" onclick="limpiarSync()">🧹 Borrar sincronizaciones de SynScan</button>
-    <div id="estado-sync" style="margin-top: 6px; font-size: 14px; color: #ddaaaa; min-height: 1.3em;"></div>
-    <div style="font-size: 12px; color: #aa7777;">
-        Borra el modelo de apuntado y las sincronizaciones de sesiones anteriores en la app.
-        Se hace solo al conectar (config: limpiar_sync_al_conectar). Después, el primer Centrado Automático crea el modelo nuevo.
+    <!-- Sincronizaciones guardadas en la app SynScan Pro -->
+    <div class="control-sync" style="text-align: center;">
+        <button type="button" class="btn btn-secondary" onclick="limpiarSync()">🧹 Borrar sincronizaciones de SynScan</button>
+        <div id="estado-sync" style="margin-top: 6px; font-size: 14px; color: #ddaaaa; min-height: 1.3em;"></div>
+        <div style="font-size: 12px; color: #aa7777;">
+            Borra el modelo de apuntado y las sincronizaciones de sesiones anteriores en la app.
+            Se hace solo al conectar (config: limpiar_sync_al_conectar). Después, el primer Centrado Automático crea el modelo nuevo.
+        </div>
     </div>
 </div>
 <script>
@@ -48,39 +56,51 @@
     }
 </script>
 <style>
+    .control-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-areas: "velocidad" "cruceta" "sync";
+        gap: 12px 24px;
+        align-items: center;
+    }
+    .control-velocidad { grid-area: velocidad; }
+    .control-cruceta { grid-area: cruceta; }
+    .control-sync { grid-area: sync; margin-top: 12px; }
+
     .telescope-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        grid-template-rows: 1fr 1fr 1fr;
-        gap: 4vw;
-        width: 100%;
-        height: 50vh;
+        grid-template-columns: repeat(3, auto);
+        grid-template-rows: repeat(3, auto);
+        gap: min(4vw, 24px);
+        justify-content: center;
         align-items: center;
         justify-items: center;
-        margin-top: 5vh;
+        margin: 2vh auto 0 auto;
         touch-action: manipulation;
         user-select: none;
+        -webkit-user-select: none;
     }
 
+    /* Tamaño de los botones: grandes para el dedo, pero que quepan 3 en fila
+       (24vw en móvil) y 3 en columna en pantallas bajas (20vh) */
     .btn-dir, .btn-center {
-        width: 80px;
-        height: 80px;
+        width: min(120px, 24vw, 20vh);
+        height: min(120px, 24vw, 20vh);
         background-color: #550000;
         border: none;
         border-radius: 20px;
         cursor: pointer;
         position: relative;
+        -webkit-tap-highlight-color: rgba(255,0,0,0.25);
     }
-
-        .btn-dir:hover {
-            background-color: #770000;
-        }
+    .btn-dir:hover { background-color: #770000; }
+    .btn-dir:active { background-color: #990000; }
 
     .btn-center {
         background-color: #330000;
         color: #ffaaaa;
         border-radius: 50%;
-        font-size: 24px;
+        font-size: 36px;
     }
 
     .btn-dir::before {
@@ -88,32 +108,20 @@
         display: inline-block;
         width: 0;
         height: 0;
-        border: 16px solid transparent;
+        border: 28px solid transparent;
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
     }
-
-    .btn-dir.up::before {
-        border-bottom-color: #ffcccc;
-    }
-
-    .btn-dir.down::before {
-        border-top-color: #ffcccc;
-    }
-
-    .btn-dir.left::before {
-        border-right-color: #ffcccc;
-    }
-
-    .btn-dir.right::before {
-        border-left-color: #ffcccc;
-    }
+    .btn-dir.up::before { border-bottom-color: #ffcccc; }
+    .btn-dir.down::before { border-top-color: #ffcccc; }
+    .btn-dir.left::before { border-right-color: #ffcccc; }
+    .btn-dir.right::before { border-left-color: #ffcccc; }
 
     select#speed {
         font-size: 18px;
-        margin: 10px 0 25px;
+        margin: 10px 0 10px;
         padding: 10px;
         border-radius: 8px;
         background-color: #220000;
@@ -121,25 +129,30 @@
         border: 2px solid #770000;
     }
 
-    /* 🔍 Aumentar tamaño en móviles o pantallas pequeñas */
-    @media (max-width: 1024px), (max-height: 700px) {
-        /* min(): en un móvil de 375 px, 3 botones de 120 px + huecos desbordaban
-           la pantalla y el navegador reducía toda la página para que cupiera */
-        .btn-dir, .btn-center {
-            width: min(120px, 24vw);
-            height: min(120px, 24vw);
+    /* Apaisado (tablet o móvil tumbado): cruceta a la izquierda, resto a la derecha */
+    @media (min-width: 700px) and (orientation: landscape) {
+        .control-layout {
+            grid-template-columns: 1fr 1fr;
+            grid-template-areas: "cruceta velocidad" "cruceta sync";
+            align-items: start;
         }
-
-            .btn-dir::before {
-                border-width: 28px;
-            }
-
-        .btn-center {
-            font-size: 36px;
-        }
+        .control-velocidad { align-self: end; }
+        .control-sync { margin-top: 0; }
+        .telescope-grid { margin-top: 0; gap: 16px; }
+        .btn-dir, .btn-center { width: min(130px, 14vw, 22vh); height: min(130px, 14vw, 22vh); }
+        .control-sync .btn { display: block; width: 100%; margin: 6px 0; }
     }
 
-
+    /* Móvil tumbado: cabecera pequeña para que la cruceta entre sin scroll */
+    @media (max-height: 500px) and (orientation: landscape) {
+        body { padding-top: 8px; }
+        h2 { font-size: 20px; margin: 4px 0 6px; }
+        .telescope-grid { gap: 10px; }
+        .btn-dir, .btn-center { width: min(120px, 24vw, 17vh); height: min(120px, 24vw, 17vh); }
+        select#speed { margin: 4px 0; }
+        .btn-dir::before { border-width: 18px; }
+        .btn-center { font-size: 24px; }
+    }
 </style>
 
 <script>
