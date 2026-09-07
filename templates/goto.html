@@ -119,10 +119,56 @@
     let recognizing = false;
     let recognitionRunning = false;
 
+    // ——— Reconocimiento de voz ———
+    // Chrome solo permite el micrófono en páginas "seguras": HTTPS o localhost. Por
+    // http://192.168.x.x falla en silencio con el error "not-allowed", y además el
+    // reconocimiento de Chrome se hace en los servidores de Google: sin Internet en
+    // el móvil da "network". Aquí se explica en pantalla en vez de no hacer nada.
+    const ERRORES_VOZ = {
+        "not-allowed": "El navegador no deja usar el micrófono. Si la dirección empieza por http:// (sin s), Chrome lo bloquea: " +
+                       "escribe chrome://flags/#unsafely-treat-insecure-origin-as-secure en el móvil, añade " + location.origin + ", activa la opción y reinicia Chrome. " +
+                       "Si ya es https, revisa el permiso de micrófono de este sitio.",
+        "service-not-allowed": "El reconocimiento de voz está desactivado en este navegador.",
+        "network": "Chrome reconoce la voz en Internet: el móvil necesita conexión de datos o wifi con salida a Internet.",
+        "no-speech": "No se ha oído nada. Vuelve a pulsar y habla enseguida.",
+        "audio-capture": "No se encuentra ningún micrófono.",
+        "aborted": "Escucha cancelada.",
+        "language-not-supported": "El navegador no reconoce español.",
+    };
+
+    function crearReconocimiento() {
+        const Clase = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Clase) {
+            document.getElementById('status').innerHTML = "❌ Este navegador no tiene reconocimiento de voz. En Android usa Chrome.";
+            return null;
+        }
+        if (!window.isSecureContext) {
+            document.getElementById('status').innerHTML = "⚠️ " + ERRORES_VOZ["not-allowed"];
+            // Se intenta igualmente: en algunos navegadores funciona
+        }
+        const r = new Clase();
+        r.lang = 'es-ES';
+        return r;
+    }
+
+    function explicarErrorVoz(event) {
+        const msg = ERRORES_VOZ[event.error] || ("Error de reconocimiento: " + event.error);
+        document.getElementById('status').innerHTML = "❌ " + msg;
+        console.warn("Reconocimiento de voz:", event.error, event.message || "");
+    }
+
     function startSpeechRecognition() {
-        recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'es-ES';
-        recognition.start();
+        recognition = crearReconocimiento();
+        if (!recognition) return;
+        recognition.onstart = () => document.getElementById('status').innerHTML = "🎙️ Escuchando... di el nombre del objeto";
+        recognition.onerror = explicarErrorVoz;
+        recognition.onend = () => { if (document.getElementById('status').innerHTML.startsWith("🎙️ Escuchando")) document.getElementById('status').innerHTML = "🎙️ No se ha entendido nada; prueba otra vez."; };
+        try {
+            recognition.start();
+        } catch (e) {
+            document.getElementById('status').innerHTML = "❌ No se pudo iniciar la escucha: " + e.message;
+            return;
+        }
 
         recognition.onresult = function (event) {
             var texto = event.results[0][0].transcript.trim();
@@ -144,8 +190,8 @@
             return;
         }
 
-        recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'es-ES';
+        recognition = crearReconocimiento();
+        if (!recognition) return;
         recognition.continuous = true;
         recognition.interimResults = false;
 
@@ -190,6 +236,12 @@
 
         recognition.onerror = function (event) {
             console.warn("Error de reconocimiento:", event.error);
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed' || event.error === 'audio-capture') {
+                recognizing = false;              // no tiene sentido reintentar sin micrófono
+                explicarErrorVoz(event);
+                return;
+            }
+            if (event.error === 'network') explicarErrorVoz(event);
 
             if ((event.error === 'no-speech' || event.error === 'network') && recognizing && !recognitionRunning) {
                 setTimeout(() => {
@@ -480,6 +532,15 @@
     document.addEventListener("DOMContentLoaded", function () {
         actualizarEstadoStellarium();
         setInterval(actualizarEstadoStellarium, 10000);
+
+        // Sin HTTPS los botones de voz no van a funcionar en Chrome: avisar antes de que lo intente
+        if (!window.isSecureContext) {
+            const aviso = document.createElement("div");
+            aviso.style.cssText = "font-size: 13px; color: #ffd580; margin: 4px 0 8px;";
+            aviso.innerHTML = "🎙️ Los botones de voz necesitan que Chrome trate esta dirección como segura. " +
+                "Una vez en el móvil: <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>, añadir <code>" + location.origin + "</code>, activar y reiniciar Chrome. También hace falta Internet en el móvil.";
+            document.getElementById("estado_stellarium").insertAdjacentElement("afterend", aviso);
+        }
 
         // Llegada desde "Esta noche": /goto?objeto=Nombre&ra=h&dec=deg -> GOTO inmediato
         const params = new URLSearchParams(window.location.search);
