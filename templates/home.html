@@ -113,13 +113,26 @@
             a.style.opacity = ok ? 1 : 0.4;
             a.style.pointerEvents = ok ? 'auto' : 'none';
         });
-        let txt = ok ? `✅ Montura conectada${d.sistema ? " (" + d.sistema + ")" : ""}` : "🔌 Montura sin conectar";
-        txt += d.camara ? " · ✅ cámara conectada" : " · cámara pendiente (se conecta en la primera foto)";
-        if (!ok && d.error_montura) txt += `<br><span style="color:#ff8888">${d.error_montura}</span>`;
+        let txt;
+        if (d.conectando) {
+            txt = "⏳ Conectando montura y cámara...";
+        } else {
+            txt = ok ? `✅ Montura conectada${d.sistema ? " (" + d.sistema + ")" : ""}` : "🔌 Montura sin conectar";
+            txt += d.camara ? " · ✅ cámara conectada" : " · ❌ cámara sin conectar";
+            if (!ok && d.error_montura) txt += `<br><span style="color:#ff8888">${d.error_montura}</span>`;
+            if (!d.camara && d.error_camara) txt += `<br><span style="color:#ff8888">${d.error_camara}</span>`;
+        }
         document.getElementById('estado-equipo').innerHTML = txt;
         document.getElementById('btn-conectar').textContent = ok ? "🔌 Reconectar equipo" : "🔌 Conectar equipo";
     }
-    fetch('/estado-conexion').then(r => r.json()).then(pintarConexion).catch(() => {});
+    // Tras el login la conexión va en segundo plano: sondear hasta que termine
+    function comprobarConexion() {
+        fetch('/estado-conexion').then(r => r.json()).then(d => {
+            pintarConexion(d);
+            if (d.conectando) setTimeout(comprobarConexion, 2000);
+        }).catch(() => {});
+    }
+    comprobarConexion();
 
     document.getElementById('btn-conectar').addEventListener('click', async (e) => {
         e.preventDefault();

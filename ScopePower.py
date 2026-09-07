@@ -6,6 +6,7 @@ import win32com.client
 import pythoncom
 import subprocess
 import time
+import threading
 import os
 import re
 import numpy as np
@@ -617,9 +618,60 @@ def verificar_licencia_y_autenticacion():
 
 
 
+# Conexión automática al entrar: montura Y cámara, en segundo plano para no
+# bloquear el login (la montura puede tardar 30 s en fallar). El botón
+# Conectar/Reconectar del menú queda para reintentar o aplicar otro driver.
+_conexion_auto = {"en_curso": False, "lock": threading.Lock()}
+
+
+def _conectar_equipo_completo():
+    """Stellarium + montura + cámara. Devuelve el mismo dict que /conectar-equipo."""
+    resultado = {"montura": False, "camara": False, "errores": []}
+    try:
+        lanzar_stellarium_si_no_esta_activo()
+    except Exception as e:
+        resultado["errores"].append(f"Stellarium: {e}")
+    try:
+        if montura.esta_conectado():
+            montura.reconectar(timeout=30)
+        else:
+            montura.ejecutar(lambda tel: None, timeout=30)
+        resultado["montura"] = True
+    except ErrorHardware as e:
+        resultado["errores"].append(f"Montura: {e}")
+        voz.decir("No se ha podido conectar con el telescopio")
+    try:
+        if camara.esta_conectado():
+            camara.reconectar(timeout=30)
+        else:
+            camara.ejecutar(lambda cam: None, timeout=30)
+        resultado["camara"] = True
+    except ErrorHardware as e:
+        resultado["errores"].append(f"Cámara: {e}")
+        voz.decir("No se ha podido conectar con la cámara")
+    resultado["ok"] = resultado["montura"] and resultado["camara"]
+    resultado["sistema"] = coordenadas.sistema() if resultado["montura"] else None
+    return resultado
+
+
 def iniciar_conexion():
-    lanzar_stellarium_si_no_esta_activo()
-    conectar_telescopio()
+    """Tras el login: conectar todo el equipo sin hacer esperar al usuario."""
+    with _conexion_auto["lock"]:
+        if _conexion_auto["en_curso"]:
+            return
+        _conexion_auto["en_curso"] = True
+
+    def _tarea():
+        try:
+            r = _conectar_equipo_completo()
+            log.info("Conexión automática tras el login: montura=%s cámara=%s %s", r["montura"], r["camara"], r["errores"] or "")
+        except Exception:
+            log.exception("Error en la conexión automática")
+        finally:
+            with _conexion_auto["lock"]:
+                _conexion_auto["en_curso"] = False
+
+    threading.Thread(target=_tarea, name="conexion-auto", daemon=True).start()
 
 @app.route("/")
 def home():
@@ -1041,6 +1093,7 @@ def estado_conexion():
     """Estado de conexión de montura y cámara (menú principal)."""
     return jsonify({
         "conectado": montura.esta_conectado(),
+        "conectando": _conexion_auto["en_curso"],
         "montura": montura.esta_conectado(),
         "camara": camara.esta_conectado(),
         "sistema": coordenadas.sistema() if montura.esta_conectado() else None,
@@ -1051,35 +1104,11 @@ def estado_conexion():
 
 @app.route('/conectar-equipo', methods=['POST'])
 def conectar_equipo():
-    """Conecta montura y cámara (y lanza Stellarium) desde el botón del menú."""
-    resultado = {"montura": False, "camara": False, "errores": []}
-    try:
-        lanzar_stellarium_si_no_esta_activo()
-    except Exception as e:
-        resultado["errores"].append(f"Stellarium: {e}")
-    # Reconectar de verdad (desconectar + conectar) para que se aplique un cambio
-    # de driver hecho en Configuración
-    try:
-        if montura.esta_conectado():
-            montura.reconectar(timeout=30)
-        else:
-            montura.ejecutar(lambda tel: None, timeout=30)
-        resultado["montura"] = True
-    except ErrorHardware as e:
-        resultado["errores"].append(f"Montura: {e}")
-        voz.decir("No se ha podido conectar con el telescopio")
-    try:
-        if camara.esta_conectado():
-            camara.reconectar(timeout=30)
-        else:
-            camara.ejecutar(lambda cam: None, timeout=30)
-        resultado["camara"] = True
-    except ErrorHardware as e:
-        resultado["errores"].append(f"Cámara: {e}")
-        voz.decir("No se ha podido conectar con la cámara")
-    resultado["ok"] = resultado["montura"] and resultado["camara"]
-    resultado["sistema"] = coordenadas.sistema() if resultado["montura"] else None
-    return jsonify(resultado)
+    """
+    Botón Conectar/Reconectar del menú: montura y cámara (y Stellarium).
+    Reconecta de verdad (desconectar + conectar) para aplicar un cambio de driver.
+    """
+    return jsonify(_conectar_equipo_completo())
 
 
 @app.route('/ascom-drivers')
