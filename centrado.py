@@ -27,7 +27,7 @@ from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
-from hardware import capturar_frame, CapturaCancelada, ErrorHardware, estado_captura
+from hardware import capturar_frame_con_pixel, pistas_platesolve, CapturaCancelada, ErrorHardware, estado_captura
 import coordenadas
 
 log = logging.getLogger("scopepower.centrado")
@@ -52,6 +52,7 @@ def leer_config():
         "centrar_tras_goto": str(c.get("centrar_tras_goto", "true")).lower() == "true",
         "asentamiento_s": float(c.get("asentamiento_s", 2.0)),
         "binning": int(d.get("binning_camara", 1)),
+        "focal": float(d.get("focal_len", 250)),
         "ruta_astap": cfg.get("General", "ruta_astap", fallback=""),
     }
 
@@ -188,10 +189,10 @@ class TrabajoCentrado:
                 # 1) Foto corta
                 self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: exponiendo {conf['exposicion']:.0f} s")
                 frame = camara.ejecutar(
-                    lambda cam: capturar_frame(cam, conf["exposicion"], conf["binning"],
+                    lambda cam: capturar_frame_con_pixel(cam, conf["exposicion"], conf["binning"],
                                                descripcion=f"Centrado {vuelta}/{conf['max_vueltas']}"),
                     timeout=conf["exposicion"] + 90)
-                self._guardar_fits(frame, objetivo)
+                self._guardar_fits(frame, objetivo, conf)
                 self._comprobar_cancelacion()
 
                 # 2) Resolver
@@ -255,14 +256,15 @@ class TrabajoCentrado:
             except Exception:
                 pass
 
-    def _guardar_fits(self, frame, objetivo):
+    def _guardar_fits(self, frame, objetivo, conf):
         os.makedirs(os.path.dirname(RUTA_FITS_CENTRADO), exist_ok=True)
-        hdu = fits.PrimaryHDU(np.asarray(frame, dtype=np.uint16))
+        datos, px, py = frame
+        hdu = fits.PrimaryHDU(np.asarray(datos, dtype=np.uint16))
         hdu.header["BZERO"] = 32768
         hdu.header["BSCALE"] = 1
-        # Pistas para ASTAP (acelera la búsqueda)
-        hdu.header["RA"] = (objetivo.ra.deg, "Objetivo aproximado (grados)")
-        hdu.header["DEC"] = (objetivo.dec.deg, "Objetivo aproximado (grados)")
+        # Pistas para ASTAP: escala de placa y posición aproximada (sin ellas no resuelve)
+        pistas_platesolve(hdu.header, conf["focal"], px, py, conf["binning"],
+                          ra_h=objetivo.ra.hour, dec_deg=objetivo.dec.deg)
         hdu.writeto(RUTA_FITS_CENTRADO, overwrite=True)
 
     def _corregir(self, montura, objetivo, real, sincronizar, asentamiento):

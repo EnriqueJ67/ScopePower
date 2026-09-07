@@ -244,3 +244,31 @@ def _abortar(camara):
             camara.StopExposure()
     except Exception as e:
         log.warning("No se pudo abortar la exposición: %s", e)
+
+
+def pistas_platesolve(header, focal_mm, pixel_x_um, pixel_y_um, binning=1, ra_h=None, dec_deg=None):
+    """
+    Añade a una cabecera FITS lo que ASTAP necesita para resolver rápido y sin
+    adivinar: escala de placa (FOCALLEN + XPIXSZ/YPIXSZ, ya multiplicados por el
+    binning) y posición aproximada (RA/DEC en grados). Sin FOCALLEN/XPIXSZ ASTAP
+    usa el campo de sus ajustes, y si no coincide con el real no resuelve nunca.
+    """
+    header["FOCALLEN"] = (float(focal_mm), "Longitud focal (mm)")
+    header["XPIXSZ"] = (float(pixel_x_um) * binning, "Tamano de pixel con binning (um)")
+    header["YPIXSZ"] = (float(pixel_y_um) * binning, "Tamano de pixel con binning (um)")
+    header["XBINNING"] = binning
+    header["YBINNING"] = binning
+    if ra_h is not None and dec_deg is not None:
+        header["RA"] = (float(ra_h) * 15.0, "Posicion aproximada de la montura (grados)")
+        header["DEC"] = (float(dec_deg), "Posicion aproximada de la montura (grados)")
+    return header
+
+
+def capturar_frame_con_pixel(camara, exposicion, binning=1, **kw):
+    """capturar_frame() + tamaño de píxel de la cámara: (frame, pixel_x_um, pixel_y_um)."""
+    frame = capturar_frame(camara, exposicion, binning, **kw)
+    try:
+        px, py = float(camara.PixelSizeX), float(camara.PixelSizeY)
+    except Exception:
+        px = py = 3.76   # valor típico si el driver no lo da
+    return frame, px, py

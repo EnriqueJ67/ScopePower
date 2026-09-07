@@ -28,7 +28,7 @@ from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from astropy.time import Time
 import astropy.units as u
 
-from hardware import capturar_frame, CapturaCancelada, ErrorHardware, estado_captura
+from hardware import capturar_frame_con_pixel, pistas_platesolve, CapturaCancelada, ErrorHardware, estado_captura
 from centrado import resolver_con_astap, CentradoCancelado
 import coordenadas
 
@@ -52,6 +52,7 @@ def leer_config():
         "limpiar_antes": str(a.get("limpiar_antes", "true")).lower() == "true",
         "exposicion": float(c.get("exposicion_centrado", 5.0)),
         "binning": int(d.get("binning_camara", 1)),
+        "focal": float(d.get("focal_len", 250)),
         "ruta_astap": cfg.get("General", "ruta_astap", fallback=""),
         "latitud": float(o.get("latitud_observatorio", 0)),
         "longitud": float(o.get("longitud_observatorio", 0)),
@@ -239,12 +240,16 @@ class TrabajoAlineacion:
             self._comprobar()
             self._marcar(idx, estado="exponiendo")
             self._msg(f"Punto {idx + 1}/{total}: exponiendo {conf['exposicion']:.0f} s")
-            frame = camara.ejecutar(
-                lambda cam: capturar_frame(cam, conf["exposicion"], conf["binning"],
-                                           descripcion=f"Alineación {idx + 1}/{total}"),
+            # Dónde cree estar la montura: pista para ASTAP y referencia del error
+            ra_m, dec_m = montura.ejecutar(lambda t: (t.RightAscension, t.Declination), timeout=10)
+            frame, px, py = camara.ejecutar(
+                lambda cam: capturar_frame_con_pixel(cam, conf["exposicion"], conf["binning"],
+                                                     descripcion=f"Alineación {idx + 1}/{total}"),
                 timeout=conf["exposicion"] + 90)
             hdu = fits.PrimaryHDU(np.asarray(frame, dtype=np.uint16))
             hdu.header["BZERO"], hdu.header["BSCALE"] = 32768, 1
+            # Sin FOCALLEN/XPIXSZ ASTAP usa el campo de sus ajustes y no resuelve nada
+            pistas_platesolve(hdu.header, conf["focal"], px, py, conf["binning"], ra_h=ra_m, dec_deg=dec_m)
             hdu.writeto(RUTA_FITS_ALINEACION, overwrite=True)
 
             self._comprobar()
@@ -261,7 +266,6 @@ class TrabajoAlineacion:
             real = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg)
 
             # Error de la montura en este punto (antes de sincronizar), comparando en J2000
-            ra_m, dec_m = montura.ejecutar(lambda t: (t.RightAscension, t.Declination), timeout=10)
             ra_i, dec_i = coordenadas.desde_montura(ra_m, dec_m)
             creia = SkyCoord(ra=ra_i * u.hourangle, dec=dec_i * u.deg)
             error = float(creia.separation(real).arcmin)
