@@ -1,0 +1,106 @@
+<!-- templates/apagar.html -->
+{% extends "base.html" %}
+
+{% block title %}Cerrar o apagar{% endblock %}
+
+{% block content %}
+<h2 style="text-align: center;">⏻ Cerrar o apagar</h2>
+<p style="text-align: center; color: #ddaaaa; font-size: 15px;">
+    Apagar o reiniciar desde aquí cierra Windows de forma ordenada, sin quitarle la alimentación al mini PC.
+    Antes se desconectan la cámara y la montura.
+</p>
+
+<div class="apagar-botones">
+    <button class="btn btn-warning" onclick="cerrarApp()">⛔ Cerrar ScopePower<small>El PC sigue encendido</small></button>
+    <button class="btn btn-primary" onclick="pedir('reiniciar')">🔄 Reiniciar el equipo<small>Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio</small></button>
+    <button class="btn btn-danger" onclick="pedir('apagar')">⏻ Apagar el equipo<small>Después ya se puede quitar la alimentación</small></button>
+</div>
+
+<div id="cuenta" class="cuenta" hidden>
+    <div id="cuenta-texto" style="font-size: 22px;"></div>
+    <div class="barra-bloque"><div id="cuenta-barra" class="barra"></div></div>
+    <button class="btn btn-success" onclick="cancelar()" style="font-size: 20px; padding: 16px 28px;">✋ Cancelar</button>
+</div>
+<div id="estado" style="text-align: center; font-size: 16px; min-height: 1.5em; margin-top: 10px;"></div>
+
+<style>
+    .apagar-botones { display: grid; grid-template-columns: 1fr; gap: 14px; max-width: 520px; margin: 18px auto; }
+    .apagar-botones .btn { margin: 0; padding: 18px; font-size: 20px; text-align: center; }
+    .apagar-botones .btn small { display: block; font-size: 13px; font-weight: normal; opacity: 0.8; margin-top: 4px; }
+    .cuenta { text-align: center; max-width: 520px; margin: 20px auto; padding: 16px; border: 2px solid #aa3333; border-radius: 12px; background: #3a0a0a; }
+    .barra-bloque { background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 14px; overflow: hidden; margin: 12px 0 16px; }
+    .barra { height: 100%; width: 100%; background: #c0392b; transition: width 1s linear; }
+    @media (min-width: 700px) and (orientation: landscape) {
+        .apagar-botones { grid-template-columns: 1fr 1fr 1fr; max-width: 1000px; }
+    }
+</style>
+
+<script>
+    const ESPERA = {{ espera }};
+    let temporizador = null;
+    const estado = document.getElementById("estado");
+
+    function cerrarApp() {
+        if (!confirm("¿Cerrar ScopePower? Se desconectarán la cámara y la montura y se detendrá el servidor. El PC sigue encendido.")) return;
+        window.location.href = "/salir";
+    }
+
+    function pedir(accion) {
+        const texto = accion === "apagar"
+            ? "¿Apagar el equipo? Se desconectarán la cámara y la montura y Windows se cerrará."
+            : "¿Reiniciar el equipo? Se desconectarán la cámara y la montura y Windows se reiniciará.";
+        if (!confirm(texto)) return;
+        estado.textContent = "⏳ Desconectando el equipo...";
+        fetch("/apagar/equipo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accion }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { estado.textContent = "❌ " + d.mensaje; return; }
+                estado.textContent = "";
+                cuentaAtras(d.accion, d.espera);
+            })
+            .catch(err => estado.textContent = "❌ " + err);
+    }
+
+    function cuentaAtras(accion, restante) {
+        const caja = document.getElementById("cuenta");
+        const txt = document.getElementById("cuenta-texto");
+        const barra = document.getElementById("cuenta-barra");
+        caja.hidden = false;
+        document.querySelector(".apagar-botones").hidden = true;
+        clearInterval(temporizador);
+        const total = restante;
+        const pinta = () => {
+            txt.textContent = (accion === "apagar" ? "⏻ El equipo se apaga en " : "🔄 El equipo se reinicia en ") + restante + " s";
+            barra.style.width = (100 * restante / total) + "%";
+        };
+        pinta();
+        temporizador = setInterval(() => {
+            restante -= 1;
+            if (restante <= 0) {
+                clearInterval(temporizador);
+                caja.hidden = true;
+                estado.innerHTML = accion === "apagar"
+                    ? "⏻ <b>El equipo se está apagando.</b> Espera a que se apaguen las luces del mini PC antes de quitarle la alimentación. Ya puedes cerrar esta pestaña."
+                    : "🔄 <b>El equipo se está reiniciando.</b> En un par de minutos vuelve a abrir la app en la misma dirección.";
+                return;
+            }
+            pinta();
+        }, 1000);
+    }
+
+    function cancelar() {
+        fetch("/apagar/cancelar", { method: "POST" })
+            .then(r => r.json())
+            .then(d => {
+                clearInterval(temporizador);
+                document.getElementById("cuenta").hidden = true;
+                document.querySelector(".apagar-botones").hidden = false;
+                estado.textContent = d.ok ? "✅ Cancelado. El equipo sigue encendido (hay que volver a conectar el equipo desde Inicio)." : "❌ " + d.mensaje;
+            })
+            .catch(err => estado.textContent = "❌ " + err);
+    }
+
+    // Si se recarga la página con un apagado en marcha (p. ej. desde otro móvil), mostrar la cuenta atrás
+    fetch("/apagar/estado").then(r => r.json()).then(d => { if (d.accion && d.restante > 0) cuentaAtras(d.accion, d.restante); }).catch(() => {});
+</script>
+{% endblock %}

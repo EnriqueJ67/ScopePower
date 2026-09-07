@@ -675,6 +675,75 @@ def salir():
         mostrar_volver=False
     )
 
+# ─── Apagar o reiniciar el PC de campo desde el móvil ─────────────────────
+# Windows programa el apagado con `shutdown` y deja unos segundos para
+# cancelarlo (`shutdown /a`) por si se ha pulsado sin querer.
+APAGADO_ESPERA_S = 15
+_apagado = {"accion": None, "hasta": 0.0}
+
+
+def _ejecutar_shutdown(argumentos):
+    """Separado para poder sustituirlo en las pruebas."""
+    return subprocess.run(["shutdown"] + argumentos, capture_output=True, text=True, timeout=15)
+
+
+@app.route('/apagar')
+def vista_apagar():
+    return render_template('apagar.html', mostrar_volver=True, espera=APAGADO_ESPERA_S)
+
+
+@app.route('/apagar/equipo', methods=['POST'])
+def apagar_equipo():
+    d = request.get_json(silent=True) or {}
+    accion = d.get("accion")
+    if accion not in ("apagar", "reiniciar"):
+        return jsonify({"ok": False, "mensaje": "Acción no válida"}), 400
+    # Parar lo que haya en marcha y soltar el equipo antes de que Windows lo mate
+    try:
+        if bucle.activo:
+            bucle.detener("Apagado del equipo")
+    except Exception:
+        pass
+    desconectar_telescopio()
+    desconectar_camara()
+    voz.decir("Apagando el equipo" if accion == "apagar" else "Reiniciando el equipo")
+    args = ["/s" if accion == "apagar" else "/r", "/t", str(APAGADO_ESPERA_S), "/f",
+            "/c", "ScopePower: " + ("apagado" if accion == "apagar" else "reinicio") + " pedido desde el movil"]
+    try:
+        r = _ejecutar_shutdown(args)
+    except Exception as e:
+        log.error("No se pudo programar el %s: %s", accion, e)
+        return jsonify({"ok": False, "mensaje": f"No se pudo programar el {accion}: {e}"}), 500
+    if r.returncode != 0:
+        detalle = (r.stderr or r.stdout or "").strip()
+        log.error("shutdown devolvió %s: %s", r.returncode, detalle)
+        return jsonify({"ok": False, "mensaje": f"Windows no aceptó la orden: {detalle or r.returncode}"}), 500
+    _apagado.update(accion=accion, hasta=time.time() + APAGADO_ESPERA_S)
+    log.warning("%s del equipo programado en %s s", "Apagado" if accion == "apagar" else "Reinicio", APAGADO_ESPERA_S)
+    return jsonify({"ok": True, "accion": accion, "espera": APAGADO_ESPERA_S})
+
+
+@app.route('/apagar/cancelar', methods=['POST'])
+def apagar_cancelar():
+    try:
+        r = _ejecutar_shutdown(["/a"])
+    except Exception as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 500
+    _apagado.update(accion=None, hasta=0.0)
+    if r.returncode != 0:
+        # 1116: no había ningún apagado en marcha (ya se canceló o ya pasó el plazo)
+        return jsonify({"ok": False, "mensaje": "No había ningún apagado pendiente"}), 409
+    voz.decir("Apagado cancelado")
+    log.warning("Apagado del equipo cancelado desde el móvil")
+    return jsonify({"ok": True})
+
+
+@app.route('/apagar/estado')
+def apagar_estado():
+    restante = max(0.0, _apagado["hasta"] - time.time()) if _apagado["accion"] else 0.0
+    return jsonify({"accion": _apagado["accion"] if restante > 0 else None, "restante": round(restante)})
+
+
 def eliminar_info_goto():
     ruta = "static/info_objeto_goto.txt"
     with open(ruta, "w", encoding="utf-8") as f:
