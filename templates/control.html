@@ -6,20 +6,35 @@
 {% block content %}
 <h2>Control del Telescopio</h2>
 
-<!-- Vertical: velocidad y cruceta. Apaisado: cruceta a la izquierda y velocidad a la derecha.
-     Aquí no va nada más: los botones de movimiento se tocan sin mirar y cualquier otro
-     botón cerca acaba pulsado por error (el borrado de sincronizaciones está en Configuración) -->
+<!-- Vertical: velocidad, pad, flechas. Apaisado: pad a la izquierda y velocidad + flechas a la derecha.
+     Aquí no va ningún otro botón: se maneja sin mirar y acabaría pulsado por error. -->
 <div class="control-layout">
     <div class="control-velocidad">
-        <label for="speed">Velocidad:</label>
+        <label for="speed">Velocidad máxima:</label>
         <select id="speed">
-            <option value="0.1">Lento</option>
-            <option value="0.5">Medio</option>
-            <option value="1.0">Rápido</option>
+            <option value="0.1">Lenta (0,1°/s)</option>
+            <option value="0.5" selected>Media (0,5°/s)</option>
+            <option value="1.0">Rápida (1°/s)</option>
+            <option value="3.0">Muy rápida (3°/s)</option>
         </select>
+        <div class="invertir">
+            <label><input type="checkbox" id="inv-x"> Invertir izquierda/derecha</label>
+            <label><input type="checkbox" id="inv-y"> Invertir arriba/abajo</label>
+        </div>
+        <div id="pad-estado" class="pad-estado">Arrastra el dedo por el pad</div>
     </div>
 
-    <div class="control-cruceta">
+    <div class="control-pad">
+        <div id="pad" class="pad">
+            <div class="pad-anillo"></div>
+            <div class="pad-cruz h"></div>
+            <div class="pad-cruz v"></div>
+            <svg id="pad-linea" class="pad-linea"><line x1="50%" y1="50%" x2="50%" y2="50%"/></svg>
+            <div id="pad-mando" class="pad-mando"></div>
+        </div>
+    </div>
+
+    <div class="control-flechas">
         <div class="telescope-grid">
             <div></div>
             <button class="btn-dir up" ontouchstart="move('N')" ontouchend="stop()" onmousedown="move('N')" onmouseup="stop()"></button>
@@ -34,65 +49,77 @@
             <div></div>
         </div>
     </div>
-
 </div>
+
 <style>
     .control-layout {
         display: grid;
         grid-template-columns: 1fr;
-        grid-template-areas: "velocidad" "cruceta";
+        grid-template-areas: "velocidad" "pad" "flechas";
         gap: 12px 24px;
         align-items: center;
+        justify-items: center;
     }
-    .control-velocidad { grid-area: velocidad; }
-    .control-cruceta { grid-area: cruceta; }
+    .control-velocidad { grid-area: velocidad; text-align: center; }
+    .control-pad { grid-area: pad; width: 100%; display: flex; justify-content: center; }
+    .control-flechas { grid-area: flechas; margin-top: 6px; }
 
+    .invertir { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; font-size: 14px; color: #ddaaaa; }
+    .invertir input { width: 20px; height: 20px; vertical-align: middle; }
+    .pad-estado { font-size: 15px; color: #ffd; min-height: 1.4em; margin-top: 4px; }
+
+    /* ── Pad ── */
+    .pad {
+        position: relative;
+        width: min(80vw, 60vh, 420px);
+        height: min(80vw, 60vh, 420px);
+        border-radius: 50%;
+        background: radial-gradient(circle, #3a0000 0%, #260000 70%, #1a0000 100%);
+        border: 3px solid #770000;
+        touch-action: none;                 /* el navegador no hace scroll ni zoom con el dedo aquí */
+        user-select: none; -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        overflow: hidden;
+    }
+    .pad.activo { border-color: #ff6666; box-shadow: 0 0 18px rgba(255, 80, 80, 0.45); }
+    .pad-anillo {                            /* zona muerta central */
+        position: absolute; left: 50%; top: 50%; width: 14%; height: 14%;
+        transform: translate(-50%, -50%); border-radius: 50%; border: 2px dashed #884444;
+    }
+    .pad-cruz { position: absolute; background: #5a2222; }
+    .pad-cruz.h { left: 6%; right: 6%; top: 50%; height: 1px; }
+    .pad-cruz.v { top: 6%; bottom: 6%; left: 50%; width: 1px; }
+    .pad-linea { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .pad-linea line { stroke: #ff9999; stroke-width: 3; stroke-linecap: round; }
+    .pad-mando {
+        position: absolute; left: 50%; top: 50%; width: 22%; height: 22%;
+        transform: translate(-50%, -50%); border-radius: 50%;
+        background: #8a1a1a; border: 3px solid #ffcccc; box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+        pointer-events: none;
+    }
+
+    /* ── Flechas (secundarias, más pequeñas) ── */
     .telescope-grid {
         display: grid;
         grid-template-columns: repeat(3, auto);
         grid-template-rows: repeat(3, auto);
-        gap: min(4vw, 24px);
-        justify-content: center;
-        align-items: center;
-        justify-items: center;
-        margin: 2vh auto 0 auto;
+        gap: 10px;
+        justify-content: center; align-items: center; justify-items: center;
+        margin: 0 auto;
         touch-action: manipulation;
-        user-select: none;
-        -webkit-user-select: none;
+        user-select: none; -webkit-user-select: none;
     }
-
-    /* Tamaño de los botones: grandes para el dedo, pero que quepan 3 en fila
-       (24vw en móvil) y 3 en columna en pantallas bajas (20vh) */
     .btn-dir, .btn-center {
-        width: min(120px, 24vw, 20vh);
-        height: min(120px, 24vw, 20vh);
-        background-color: #550000;
-        border: none;
-        border-radius: 20px;
-        cursor: pointer;
-        position: relative;
+        width: min(72px, 18vw, 12vh); height: min(72px, 18vw, 12vh);
+        background-color: #550000; border: none; border-radius: 16px; cursor: pointer; position: relative;
         -webkit-tap-highlight-color: rgba(255,0,0,0.25);
     }
     .btn-dir:hover { background-color: #770000; }
     .btn-dir:active { background-color: #990000; }
-
-    .btn-center {
-        background-color: #330000;
-        color: #ffaaaa;
-        border-radius: 50%;
-        font-size: 36px;
-    }
-
+    .btn-center { background-color: #330000; color: #ffaaaa; border-radius: 50%; font-size: 24px; }
     .btn-dir::before {
-        content: "";
-        display: inline-block;
-        width: 0;
-        height: 0;
-        border: 28px solid transparent;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        content: ""; display: inline-block; width: 0; height: 0; border: 16px solid transparent;
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     }
     .btn-dir.up::before { border-bottom-color: #ffcccc; }
     .btn-dir.down::before { border-top-color: #ffcccc; }
@@ -100,35 +127,28 @@
     .btn-dir.right::before { border-left-color: #ffcccc; }
 
     select#speed {
-        font-size: 18px;
-        margin: 10px 0 10px;
-        padding: 10px;
-        border-radius: 8px;
-        background-color: #220000;
-        color: #ffcccc;
-        border: 2px solid #770000;
+        font-size: 17px; margin: 6px 0 8px; padding: 8px; border-radius: 8px;
+        background-color: #220000; color: #ffcccc; border: 2px solid #770000;
     }
 
-    /* Apaisado (tablet o móvil tumbado): cruceta a la izquierda, resto a la derecha */
+    /* Apaisado: pad a la izquierda; velocidad y flechas a la derecha */
     @media (min-width: 700px) and (orientation: landscape) {
         .control-layout {
             grid-template-columns: 1fr 1fr;
-            grid-template-areas: "cruceta velocidad";
+            grid-template-areas: "pad velocidad" "pad flechas";
             align-items: center;
         }
-        .telescope-grid { margin-top: 0; gap: 16px; }
-        .btn-dir, .btn-center { width: min(130px, 14vw, 22vh); height: min(130px, 14vw, 22vh); }
+        .pad { width: min(44vw, 78vh, 460px); height: min(44vw, 78vh, 460px); }
+        .control-velocidad { align-self: end; }
+        .control-flechas { align-self: start; }
     }
-
-    /* Móvil tumbado: cabecera pequeña para que la cruceta entre sin scroll */
     @media (max-height: 500px) and (orientation: landscape) {
         body { padding-top: 8px; }
         h2 { font-size: 20px; margin: 4px 0 6px; }
-        .telescope-grid { gap: 10px; }
-        .btn-dir, .btn-center { width: min(120px, 24vw, 17vh); height: min(120px, 24vw, 17vh); }
-        select#speed { margin: 4px 0; }
-        .btn-dir::before { border-width: 18px; }
-        .btn-center { font-size: 24px; }
+        .pad { width: min(44vw, 62vh, 300px); height: min(44vw, 62vh, 300px); }
+        .btn-dir, .btn-center { width: min(56px, 14vw, 11vh); height: min(56px, 14vw, 11vh); }
+        .btn-dir::before { border-width: 12px; }
+        select#speed { margin: 2px 0 4px; }
     }
 </style>
 
@@ -141,6 +161,7 @@
         }
     }
 
+    // ── Flechas (como siempre: velocidad fija mientras se mantiene pulsado) ──
     function move(direction) {
         let speed = document.getElementById('speed').value;
         fetch(`/move?dir=${direction}&speed=${speed}`, { method: 'GET' });
@@ -153,5 +174,109 @@
         sonidoClick.play();
         vibrar(20);
     }
+
+    // ── Pad: velocidad proporcional a la distancia del dedo al centro ──
+    //   · zona muerta del 14 % para que un dedo quieto no mueva nada
+    //   · curva exponente 1.7: precisión fina cerca del centro, rapidez en el borde
+    //   · se envía como mucho cada 150 ms y solo si la velocidad cambia; al soltar, parada inmediata
+    //   · el servidor para solo los ejes si deja de recibir órdenes (1,2 s)
+    const ZONA_MUERTA = 0.14, EXPONENTE = 1.7, INTERVALO_MS = 150;
+    const pad = document.getElementById("pad");
+    const mando = document.getElementById("pad-mando");
+    const linea = document.querySelector("#pad-linea line");
+    const estado = document.getElementById("pad-estado");
+    const invX = document.getElementById("inv-x"), invY = document.getElementById("inv-y");
+    let puntero = null, ultimoEnvio = 0, ultimoVx = 0, ultimoVy = 0, temporizador = null, maxDriver = [null, null];
+
+    try {
+        invX.checked = localStorage.getItem("pad_inv_x") === "1";
+        invY.checked = localStorage.getItem("pad_inv_y") === "1";
+        const v = localStorage.getItem("pad_velocidad"); if (v) document.getElementById("speed").value = v;
+    } catch (e) {}
+    invX.addEventListener("change", () => { try { localStorage.setItem("pad_inv_x", invX.checked ? "1" : "0"); } catch (e) {} });
+    invY.addEventListener("change", () => { try { localStorage.setItem("pad_inv_y", invY.checked ? "1" : "0"); } catch (e) {} });
+    document.getElementById("speed").addEventListener("change", ev => { try { localStorage.setItem("pad_velocidad", ev.target.value); } catch (e) {} });
+
+    fetch("/montura/velocidades").then(r => r.json()).then(d => { maxDriver = [d.max_eje0, d.max_eje1]; }).catch(() => {});
+
+    function curva(x) {
+        const a = Math.abs(x);
+        if (a < ZONA_MUERTA) return 0;
+        return Math.sign(x) * Math.pow((a - ZONA_MUERTA) / (1 - ZONA_MUERTA), EXPONENTE);
+    }
+
+    function pintar(nx, ny) {
+        const r = pad.clientWidth / 2;
+        mando.style.left = (50 + nx * 50) + "%";
+        mando.style.top = (50 + ny * 50) + "%";
+        linea.setAttribute("x2", (50 + nx * 50) + "%");
+        linea.setAttribute("y2", (50 + ny * 50) + "%");
+    }
+
+    function enviar(vx, vy, forzar) {
+        const ahora = Date.now();
+        const cambio = Math.abs(vx - ultimoVx) + Math.abs(vy - ultimoVy);
+        if (!forzar && (ahora - ultimoEnvio < INTERVALO_MS || cambio < 0.01)) return;
+        ultimoEnvio = ahora; ultimoVx = vx; ultimoVy = vy;
+        fetch("/pad/mover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vx, vy }) })
+            .then(r => r.json())
+            .then(d => { if (!d.ok) { estado.textContent = "❌ " + (d.mensaje || "Error"); soltar(); } })
+            .catch(() => { estado.textContent = "❌ Sin respuesta del servidor"; });
+    }
+
+    function parar(porBeacon) {
+        ultimoVx = ultimoVy = 0; ultimoEnvio = 0;
+        if (porBeacon && navigator.sendBeacon) { navigator.sendBeacon("/pad/parar"); return; }
+        fetch("/pad/parar", { method: "POST", keepalive: true }).catch(() => {});
+    }
+
+    function procesar(ev) {
+        const rect = pad.getBoundingClientRect();
+        const r = rect.width / 2;
+        let nx = (ev.clientX - rect.left - r) / r;
+        let ny = (ev.clientY - rect.top - r) / r;
+        const d = Math.hypot(nx, ny);
+        if (d > 1) { nx /= d; ny /= d; }               // el mando no sale del círculo
+        pintar(nx, ny);
+        const vmax = parseFloat(document.getElementById("speed").value);
+        let vx = curva(nx) * vmax * (invX.checked ? -1 : 1);
+        let vy = -curva(ny) * vmax * (invY.checked ? -1 : 1);   // arriba en pantalla = eje 1 positivo (N)
+        if (maxDriver[0]) vx = Math.max(-maxDriver[0], Math.min(maxDriver[0], vx));
+        if (maxDriver[1]) vy = Math.max(-maxDriver[1], Math.min(maxDriver[1], vy));
+        vx = Math.round(vx * 1000) / 1000; vy = Math.round(vy * 1000) / 1000;
+        estado.textContent = (vx === 0 && vy === 0) ? "● Centro: parado" :
+            `↔ ${vx >= 0 ? "E" : "W"} ${Math.abs(vx).toFixed(2)}°/s   ↕ ${vy >= 0 ? "N" : "S"} ${Math.abs(vy).toFixed(2)}°/s`;
+        enviar(vx, vy, false);
+    }
+
+    function soltar() {
+        if (puntero === null) return;
+        try { pad.releasePointerCapture(puntero); } catch (e) {}
+        puntero = null;
+        clearInterval(temporizador); temporizador = null;
+        pad.classList.remove("activo");
+        pintar(0, 0);
+        parar(false);
+        estado.textContent = "● Parado";
+        vibrar(20);
+    }
+
+    pad.addEventListener("pointerdown", ev => {
+        if (puntero !== null) return;                   // un solo dedo
+        puntero = ev.pointerId;
+        pad.setPointerCapture(puntero);
+        pad.classList.add("activo");
+        vibrar(30);
+        procesar(ev);
+        // Reenvío periódico aunque el dedo esté quieto: mantiene vivo el vigilante del servidor
+        temporizador = setInterval(() => { if (puntero !== null) enviar(ultimoVx, ultimoVy, true); }, 500);
+        ev.preventDefault();
+    });
+    pad.addEventListener("pointermove", ev => { if (ev.pointerId === puntero) { procesar(ev); ev.preventDefault(); } });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(t => pad.addEventListener(t, ev => { if (ev.pointerId === puntero) soltar(); }));
+
+    // Si la página se oculta o se cierra con el dedo puesto, parar la montura
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") { if (puntero !== null) soltar(); parar(true); } });
+    window.addEventListener("pagehide", () => parar(true));
 </script>
 {% endblock %}
