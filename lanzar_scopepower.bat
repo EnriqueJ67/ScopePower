@@ -10,7 +10,8 @@ REM  Usa el entorno creado por instalar_scopepower.bat (%LOCALAPPDATA%\ScopePowe
 REM  Si no existe, prueba con Python 3.11 del sistema y, en su defecto, con anaconda3.
 REM  La ventana se queda abierta: es la consola del servidor (el log completo esta
 REM  en logs\scopepower.log). Para cerrar la app usa "Cerrar Aplicacion" en la web
-REM  o cierra esta ventana.
+REM  o cierra esta ventana. "Reiniciar ScopePower" en la web sale con codigo 3
+REM  y este bat la vuelve a arrancar sin cerrar la ventana.
 REM
 REM  lanzar_scopepower.bat /test  -> solo muestra que Python usaria y sale
 REM ============================================================================
@@ -46,9 +47,20 @@ if not exist "config.ini" (
     exit /b 1
 )
 
+REM Con esta variable la app sabe que puede pedir un reinicio saliendo con codigo 3
+set "SCOPEPOWER_LANZADOR=1"
+
+:arrancar
 echo Arrancando ScopePower... (esta ventana es la consola del servidor)
 echo.
 %PY% ScopePower.py
+set "CODIGO=%ERRORLEVEL%"
+if "%CODIGO%"=="3" (
+    echo.
+    echo Reiniciando ScopePower...
+    timeout /t 2 /nobreak >nul
+    goto arrancar
+)
 echo.
-echo ScopePower ha terminado (codigo %ERRORLEVEL%). Revisa logs\scopepower.log si ha sido un error.
+echo ScopePower ha terminado (codigo %CODIGO%). Revisa logs\scopepower.log si ha sido un error.
 pause

@@ -738,6 +738,54 @@ def apagar_cancelar():
     return jsonify({"ok": True})
 
 
+# ─── Reiniciar solo ScopePower (el PC sigue encendido) ─────────────────────
+# Si la app la arrancó lanzar_scopepower.bat (variable SCOPEPOWER_LANZADOR), basta
+# con salir con código 3: el bat vuelve a arrancarla en la misma ventana. Si se
+# lanzó a mano con python, se abre una consola nueva con la app y se sale.
+CODIGO_SALIDA_REINICIO = 3
+
+
+def _relanzar_a_mano():
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    bat = os.path.join(raiz, "lanzar_scopepower.bat")
+    if os.path.exists(bat):
+        orden = f'ping -n 3 127.0.0.1 >nul & start "ScopePower" /D "{raiz}" "{bat}"'
+    else:
+        orden = f'ping -n 3 127.0.0.1 >nul & start "ScopePower" /D "{raiz}" "{sys.executable}" "{os.path.join(raiz, "ScopePower.py")}"'
+    DETACHED = 0x00000008 | 0x00000200      # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+    subprocess.Popen(["cmd", "/c", orden], creationflags=DETACHED, close_fds=True)
+
+
+def _terminar_para_reiniciar():
+    try:
+        ctypes.windll.kernel32.FreeConsole()
+    except Exception:
+        pass
+    if os.environ.get("SCOPEPOWER_LANZADOR") == "1":
+        os._exit(CODIGO_SALIDA_REINICIO)     # lanzar_scopepower.bat lo vuelve a arrancar
+    try:
+        _relanzar_a_mano()
+    except Exception as e:
+        log.error("No se pudo relanzar ScopePower: %s", e)
+    os._exit(0)
+
+
+@app.route('/reiniciar-app', methods=['POST'])
+def reiniciar_app():
+    try:
+        if bucle.activo:
+            bucle.detener("Reinicio de ScopePower")
+    except Exception:
+        pass
+    desconectar_telescopio()
+    desconectar_camara()
+    voz.decir("Reiniciando ScopePower")
+    log.warning("Reinicio de ScopePower pedido desde el móvil (%s)",
+                "lo relanza lanzar_scopepower.bat" if os.environ.get("SCOPEPOWER_LANZADOR") == "1" else "se abre en una consola nueva")
+    threading.Timer(0.8, _terminar_para_reiniciar).start()
+    return jsonify({"ok": True, "espera": 8})
+
+
 @app.route('/apagar/estado')
 def apagar_estado():
     restante = max(0.0, _apagado["hasta"] - time.time()) if _apagado["accion"] else 0.0

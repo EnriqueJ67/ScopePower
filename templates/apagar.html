@@ -6,12 +6,13 @@
 {% block content %}
 <h2 style="text-align: center;">🛑 Cerrar o apagar</h2>
 <p style="text-align: center; color: #ddaaaa; font-size: 15px;">
-    Apagar o reiniciar desde aquí cierra Windows de forma ordenada, sin quitarle la alimentación al mini PC.
-    Antes se desconectan la cámara y la montura.
+    Reiniciar ScopePower arregla la mayoría de los atascos sin perder el acceso al mini PC.
+    Apagar o reiniciar el equipo cierra Windows de forma ordenada, sin quitarle la alimentación.
+    En los tres casos se desconectan antes la cámara y la montura.
 </p>
 
 <div class="apagar-botones">
-    <button class="btn btn-warning" onclick="cerrarApp()">⛔ Cerrar ScopePower<small>El PC sigue encendido</small></button>
+    <button class="btn btn-warning" onclick="reiniciarApp()">🔁 Reiniciar ScopePower<small>Solo la app; el PC sigue encendido y en unos segundos vuelve</small></button>
     <button class="btn btn-primary" onclick="pedir('reiniciar')">🔄 Reiniciar el equipo<small>Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio</small></button>
     <button class="btn btn-danger" onclick="pedir('apagar')">🛑 Apagar el equipo<small>Después ya se puede quitar la alimentación</small></button>
 </div>
@@ -41,9 +42,34 @@
     let temporizador = null;
     const estado = document.getElementById("estado");
 
-    function cerrarApp() {
-        if (!confirm("¿Cerrar ScopePower? Se desconectarán la cámara y la montura y se detendrá el servidor. El PC sigue encendido.")) return;
-        window.location.href = "/salir";
+    function reiniciarApp() {
+        if (!confirm("¿Reiniciar ScopePower? Se desconectarán la cámara y la montura y la app vuelve a arrancar en unos segundos.")) return;
+        estado.textContent = "⏳ Desconectando el equipo...";
+        fetch("/reiniciar-app", { method: "POST" })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { estado.textContent = "❌ " + (d.mensaje || "Error"); return; }
+                document.querySelector(".apagar-botones").hidden = true;
+                esperarVuelta();
+            })
+            .catch(err => estado.textContent = "❌ " + err);
+    }
+
+    // Tras el reinicio: sondear hasta que el servidor responda y volver a Inicio
+    function esperarVuelta() {
+        let segundos = 0;
+        estado.innerHTML = "🔁 <b>ScopePower se está reiniciando.</b> Esta página volverá sola a Inicio cuando responda...";
+        const t = setInterval(() => {
+            segundos += 2;
+            fetch("/estado-conexion", { cache: "no-store" })
+                .then(r => { if (r.ok) { clearInterval(t); window.location.href = "/"; } })
+                .catch(() => {
+                    if (segundos >= 90) {
+                        clearInterval(t);
+                        estado.innerHTML = "⚠️ ScopePower no ha vuelto en 90 s. Prueba a recargar dentro de un rato; si no, en el mini PC ejecuta lanzar_scopepower.bat.";
+                    }
+                });
+        }, 2000);
     }
 
     function pedir(accion) {
