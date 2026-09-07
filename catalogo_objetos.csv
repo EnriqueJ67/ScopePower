@@ -1,0 +1,175 @@
+# Catálogo de objetos populares de ScopePower. Coordenadas J2000 (RA en horas, DEC en grados),
+# magnitud visual, tamaño = eje mayor en minutos de arco, popularidad 1-5 (a mano).
+# Datos de OpenNGC (Mattia Verga, CC-BY-SA 4.0, https://github.com/mattiaverga/OpenNGC); nombres y descripciones propios.
+id;nombre;nombre_alt;tipo;ra_h;dec_deg;mag;tamano_arcmin;constelacion;popularidad;descripcion
+Barnard 33;Cabeza de Caballo (Barnard 33);Horsehead Nebula;Nebulosa oscura;5.68306;-2.4583;;6;Orión;5;La silueta oscura del caballo sobre IC 434.
+Caldwell 14;Doble Cúmulo de Perseo;Double Cluster;Cúmulo abierto;2.34500;57.1375;;50;Perseo;5;"h y chi Persei juntos en un campo de 1°; para gran campo."
+M 101;Galaxia del Molinete;NGC 5457;Galaxia;14.05348;54.3489;7.9;24;Osa Mayor;5;"Espiral enorme de frente en la Osa Mayor; tenue pero grande."
+M 104;Galaxia del Sombrero;NGC 4594;Galaxia;12.66651;-11.6231;8.6;8;Virgo;5;Galaxia de canto con banda de polvo, inconfundible.
+M 13;Gran Cúmulo de Hércules;NGC 6205;Cúmulo globular;16.69490;36.4613;5.8;16;Hércules;5;"El globular más famoso del norte; se resuelve en estrellas."
+M 16;Nebulosa del Águila;NGC 6611;Nebulosa;18.31338;-13.8072;6.0;120;Se2;5;Nebulosa de los Pilares de la Creación, en Serpens.
+M 17;Nebulosa Omega;NGC 6618;Nebulosa;18.34642;-16.1715;7.0;13;Sagitario;5;Nebulosa del Cisne, brillante y detallada en Sagitario.
+M 20;Nebulosa Trífida;NGC 6514;Nebulosa;18.04503;-22.9719;8.5;28;Sagitario;5;Emisión roja y reflexión azul partidas por bandas oscuras.
+M 27;Nebulosa Dumbbell;NGC 6853;Nebulosa planetaria;19.99344;22.7210;7.4;7;Zorra;5;"Nebulosa planetaria grande y brillante en Vulpecula; ideal para empezar."
+M 31;Galaxia de Andrómeda;NGC 224;Galaxia;0.71232;41.2691;3.4;178;Andrómeda;5;"La gran galaxia vecina; ocupa varios grados, con M32 y M110."
+M 33;Galaxia del Triángulo;NGC 598;Galaxia;1.56414;30.6602;5.8;62;Triángulo;5;"Espiral grande y tenue; necesita cielo oscuro y exposición."
+M 42;Gran Nebulosa de Orión;NGC 1976;Nebulosa;5.58791;-5.3897;4.0;90;Orión;5;"La nebulosa más brillante del cielo; con M43 y el Trapecio."
+M 45;Las Pléyades;Pleiades;Cúmulo abierto;3.79128;24.1053;1.2;150;Tauro;5;"Cúmulo abierto con nebulosidad azul de reflexión; muy grande."
+M 51;Galaxia del Remolino;NGC 5194;Galaxia;13.49797;47.1952;8.4;14;Canes Venatici;5;"Espiral de frente con su compañera; brazos muy fotogénicos."
+M 57;Nebulosa del Anillo;NGC 6720;Nebulosa planetaria;18.89306;33.0286;8.8;1;Lira;5;"Anillo de humo en Lira; pequeño y muy brillante."
+M 8;Nebulosa de la Laguna;NGC 6523;Nebulosa;18.06146;-24.3802;5.8;45;Sagitario;5;Gran nebulosa de emisión en Sagitario, roja y con cúmulo incrustado.
+M 81;Galaxia de Bode;NGC 3031;Galaxia;9.92588;69.0653;6.9;22;Osa Mayor;5;"Gran espiral en la Osa Mayor; con M82 en el mismo campo."
+M 82;Galaxia del Cigarro;NGC 3034;Galaxia;9.93131;69.6794;8.3;11;Osa Mayor;5;Galaxia con brote estelar y chorros rojos de hidrógeno.
+NGC 2237;Nebulosa Roseta;Rosette A;Nebulosa;6.51517;5.0492;;80;Unicornio;5;Gran anillo de emisión en Monoceros con el cúmulo NGC 2244 dentro.
+NGC 4565;Galaxia de la Aguja;Needle Galaxy;Galaxia;12.60577;25.9877;10.9;17;Cabellera de Berenice;5;La galaxia de canto más bonita del norte, en Coma Berenices.
+NGC 6960;Velo Oeste;Veil Nebula;Resto de supernova;20.76616;30.5951;7.0;210;Cisne;5;Arco occidental del Velo, junto a la estrella 52 Cyg.
+NGC 6992;Velo Este;Eastern Veil;Resto de supernova;20.93863;31.7428;7.0;60;Cisne;5;Filamentos del resto de supernova del Cisne, el arco oriental.
+NGC 7000;Nebulosa de Norteamérica;North America Nebula;Nebulosa;20.98809;44.5288;4.0;120;Cisne;5;"Enorme nebulosa de emisión en el Cisne; roja y con la forma del continente."
+IC 1396;Trompa de Elefante;;Nebulosa;21.64934;57.4891;;14;Cefeo;4;Enorme región de emisión en Cefeo con la trompa oscura.
+IC 1805;Nebulosa del Corazón;;Nebulosa;2.54486;61.4569;6.5;60;Casiopea;4;"Gran nebulosa de emisión en Casiopea; muy grande."
+IC 1848;Nebulosa del Alma;;Nebulosa;2.85294;60.4025;6.5;40;Casiopea;4;Compañera del Corazón, igual de extensa.
+IC 434;IC 434 (fondo de la Cabeza de Caballo);;Nebulosa;5.68358;-2.4538;11.0;90;Orión;4;"Franja de emisión roja sobre la que se recorta la Cabeza de Caballo; junto a la Llama."
+IC 5070;Nebulosa del Pelícano;Pelican Nebula;Nebulosa;20.85020;44.4015;8.0;60;Cisne;4;Junto a Norteamérica, con frentes de ionización.
+M 1;Nebulosa del Cangrejo;NGC 1952;Resto de supernova;5.57555;22.0145;8.4;8;Tauro;4;"Resto de la supernova de 1054 en Tauro; pequeña pero brillante."
+M 106;M106;NGC 4258;Galaxia;12.31597;47.3040;9.3;17;Canes Venatici;4;Espiral brillante en Canes Venatici con brazos anómalos.
+M 11;Cúmulo del Pato Salvaje;NGC 6705;Cúmulo abierto;18.85166;-6.2700;5.8;9;Escudo;4;"Cúmulo abierto densísimo en Scutum; espectacular."
+M 15;M15;NGC 7078;Cúmulo globular;21.49955;12.1668;6.3;11;Pegaso;4;Globular muy compacto en Pegaso.
+M 22;M22;NGC 6656;Cúmulo globular;18.60672;-23.9034;6.2;13;Sagitario;4;Globular grande y brillante en Sagitario.
+M 3;M3;NGC 5272;Cúmulo globular;13.70312;28.3754;6.4;16;Canes Venatici;4;Uno de los globulares más vistosos del norte, en Canes Venatici.
+M 35;M35;NGC 2168;Cúmulo abierto;6.15141;24.3386;5.1;24;Géminis;4;Cúmulo abierto rico en Géminis, con NGC 2158 al lado.
+M 37;M37;NGC 2099;Cúmulo abierto;5.87176;32.5530;5.6;11;Auriga;4;El más rico de los tres cúmulos de Auriga.
+M 44;El Pesebre;NGC 2632;Cúmulo abierto;8.67283;19.6721;3.1;109;Cáncer;4;Cúmulo abierto enorme en Cáncer, visible a simple vista.
+M 5;M5;NGC 5904;Cúmulo globular;15.30938;2.0827;6.0;15;Se1;4;Globular brillante y rico en Serpens.
+M 63;Galaxia del Girasol;NGC 5055;Galaxia;13.26370;42.0293;8.6;12;Canes Venatici;4;Espiral con brazos floculentos en Canes Venatici.
+M 64;Galaxia del Ojo Negro;NGC 4826;Galaxia;12.94546;21.6830;8.5;11;Cabellera de Berenice;4;Espiral con una banda de polvo oscura muy marcada.
+M 76;Pequeña Dumbbell;NGC 650;Nebulosa planetaria;1.70547;51.5755;10.1;1;Perseo;4;Nebulosa planetaria bilobulada en Perseo.
+M 78;M78;NGC 2068;Nebulosa;5.77939;0.0793;8.0;4;Orión;4;Nebulosa de reflexión azulada en Orión.
+M 92;M92;NGC 6341;Cúmulo globular;17.28535;43.1365;6.5;14;Hércules;4;Globular brillante y compacto en Hércules, a la sombra de M13.
+M 97;Nebulosa del Búho;NGC 3587;Nebulosa planetaria;11.24659;55.0190;9.9;4;Osa Mayor;4;Planetaria redonda con dos ojos oscuros, en la Osa Mayor.
+NGC 1499;Nebulosa California;California Nebula;Nebulosa;4.05401;36.3675;5.0;160;Perseo;4;"Nebulosa de emisión muy larga en Perseo; mejor con filtro."
+NGC 2024;Nebulosa de la Llama;;Nebulosa;5.69516;-1.8563;;30;Orión;4;Junto a Alnitak, emisión con bandas oscuras.
+NGC 2264;Árbol de Navidad y Cono;Christmas Tree Cluster;Nebulosa;6.68285;9.8955;3.9;11;Unicornio;4;Cúmulo con nebulosa y la Nebulosa del Cono, en Monoceros.
+NGC 253;Galaxia del Escultor;Sculptor Filament;Galaxia;0.79253;-25.2882;11.1;27;Escultor;4;Espiral grande y brillante, baja en el sur.
+NGC 281;Nebulosa Pacman;;Nebulosa;0.88315;56.6219;;35;Casiopea;4;Nebulosa de emisión con forma de comecocos, en Casiopea.
+NGC 3628;Galaxia de la Hamburguesa;;Galaxia;11.33805;13.5897;9.4;11;Leo;4;Tercera del Triplete de Leo, de canto con banda de polvo.
+NGC 457;Cúmulo de E.T.;Owl Cluster;Cúmulo abierto;1.32574;58.2907;6.4;8;Casiopea;4;Cúmulo abierto con forma de muñeco en Casiopea.
+NGC 4631;Galaxia de la Ballena;Whale Galaxy;Galaxia;12.70222;32.5415;9.2;14;Canes Venatici;4;Espiral de canto deformada, con NGC 4656 (el palo de hockey).
+NGC 6543;Ojo de Gato;Cat's Eye Nebula;Nebulosa planetaria;17.97594;66.6332;9.0;1;Dragón;4;Planetaria pequeña, muy brillante y con halo, en Draco.
+NGC 6888;Nebulosa Creciente;Crescent Nebula;Nebulosa;20.20182;38.3549;7.4;20;Cisne;4;Burbuja de una estrella Wolf-Rayet en el Cisne.
+NGC 6946;Galaxia de los Fuegos Artificiales;Fireworks Galaxy;Galaxia;20.58120;60.1539;9.1;11;Cisne;4;Espiral de frente en Cefeo, famosa por sus supernovas.
+NGC 7023;Nebulosa del Iris;Iris Nebula;Nebulosa;21.02656;68.1696;7.2;10;Cefeo;4;Reflexión azul rodeada de polvo oscuro, en Cefeo.
+NGC 7293;Nebulosa de la Hélice;Helix Nebula;Nebulosa planetaria;22.49405;-20.8373;7.3;16;Acuario;4;Planetaria grande y cercana en Acuario, baja desde el norte.
+NGC 7331;NGC 7331;;Galaxia;22.61778;34.4155;9.4;9;Pegaso;4;Espiral brillante en Pegaso con el grupo de galaxias tenues al lado.
+NGC 7635;Nebulosa de la Burbuja;Bubble Nebula;Nebulosa;23.34600;61.2124;11.0;15;Casiopea;4;Burbuja soplada por una estrella masiva, junto a M52.
+NGC 7789;Rosa de Caroline;;Cúmulo abierto;23.95668;56.7083;6.7;14;Casiopea;4;Cúmulo abierto riquísimo en Casiopea.
+NGC 891;NGC 891;;Galaxia;2.37595;42.3491;10.0;13;Andrómeda;4;Galaxia de canto perfecta con banda de polvo, en Andrómeda.
+Caldwell 41;Las Híades;Hyades;Cúmulo abierto;4.44833;15.8667;;329;Tauro;3;"Cúmulo abierto enorme alrededor de Aldebarán; solo gran campo."
+IC 405;Estrella Llameante;Flaming Star Nebula;Nebulosa;5.27486;34.3562;10.0;50;Auriga;3;Nebulosa de emisión y reflexión en Auriga alrededor de AE Aurigae.
+IC 443;Nebulosa de la Medusa;Gem A;Resto de supernova;6.27706;22.5317;12.0;50;Géminis;3;Resto de supernova filamentoso en Géminis.
+IC 4715;Nube estelar de Sagitario;Small Sgr Star Cloud;Cúmulo abierto;18.28226;-18.5146;4.5;120;Sagitario;3;Campo de estrellas de la Vía Láctea, enorme.
+IC 5146;Nebulosa del Capullo;Cocoon Nebula;Nebulosa;21.89132;47.2669;7.2;10;Cisne;3;Emisión con la nebulosa oscura B168 en el Cisne.
+M 10;M10;NGC 6254;Cúmulo globular;16.95250;-4.0993;5.0;9;Ofiuco;3;Globular brillante en Ofiuco.
+M 108;M108;NGC 3556;Galaxia;11.19194;55.6741;10.1;4;Osa Mayor;3;Espiral de canto en la Osa Mayor, junto a M97.
+M 109;M109;NGC 3992;Galaxia;11.95999;53.3745;9.9;8;Osa Mayor;3;Espiral barrada en la Osa Mayor.
+M 12;M12;NGC 6218;Cúmulo globular;16.78737;-1.9478;6.1;11;Ofiuco;3;Globular suelto en Ofiuco, cerca de M10.
+M 2;M2;NGC 7089;Cúmulo globular;21.55750;-0.8233;6.2;8;Acuario;3;Cúmulo globular compacto y brillante en Acuario.
+M 34;M34;NGC 1039;Cúmulo abierto;2.70206;42.7461;5.2;22;Perseo;3;Cúmulo abierto amplio en Perseo.
+M 36;M36;NGC 1960;Cúmulo abierto;5.60493;34.1407;6.0;7;Auriga;3;Cúmulo abierto en Auriga.
+M 38;M38;NGC 1912;Cúmulo abierto;5.47847;35.8549;6.4;10;Auriga;3;Cúmulo abierto en Auriga, cerca de M36.
+M 4;M4;NGC 6121;Cúmulo globular;16.39317;-26.5255;5.4;28;Escorpio;3;Globular grande y suelto junto a Antares.
+M 41;M41;NGC 2287;Cúmulo abierto;6.76665;-20.7542;4.5;12;Can Mayor;3;Cúmulo abierto brillante bajo Sirio.
+M 43;M43;NGC 1982;Nebulosa;5.59205;-5.2675;9.0;20;Orión;3;Nebulosa de De Mairan, pegada a M42.
+M 46;M46;NGC 2437;Cúmulo abierto;7.69634;-14.8100;6.1;21;Popa;3;Cúmulo abierto rico en Puppis con la planetaria NGC 2438 dentro.
+M 47;M47;NGC 2422;Cúmulo abierto;7.60973;-14.4826;4.4;20;Popa;3;Cúmulo abierto brillante junto a M46.
+M 52;M52;NGC 7654;Cúmulo abierto;23.41344;61.5932;6.9;10;Casiopea;3;Cúmulo abierto en Casiopea, junto a la Burbuja.
+M 53;M53;NGC 5024;Cúmulo globular;13.21534;18.1691;7.8;9;Cabellera de Berenice;3;Globular en Coma Berenices.
+M 6;Cúmulo de la Mariposa;NGC 6405;Cúmulo abierto;17.67243;-32.2542;4.2;16;Escorpio;3;Cúmulo abierto amplio en Escorpio, bajo en el horizonte.
+M 65;M65;NGC 3623;Galaxia;11.31553;13.0924;9.3;8;Leo;3;Espiral del Triplete de Leo.
+M 66;M66;NGC 3627;Galaxia;11.33749;12.9915;8.9;10;Leo;3;Espiral del Triplete de Leo, con NGC 3628 al lado.
+M 7;Cúmulo de Ptolomeo;NGC 6475;Cúmulo abierto;17.89755;-34.7928;3.3;22;Escorpio;3;Cúmulo abierto muy grande y brillante, bajo en Escorpio.
+M 74;M74;NGC 628;Galaxia;1.61160;15.7837;9.3;10;Piscis;3;"Espiral de frente en Piscis, tenue; necesita cielo oscuro."
+M 77;M77;NGC 1068;Galaxia;2.71131;-0.0133;9.3;6;Cetus;3;Galaxia Seyfert con núcleo brillante en Cetus.
+M 83;Molinillo del Sur;NGC 5236;Galaxia;13.61693;-29.8654;7.2;14;Hidra;3;Espiral barrada brillante en Hidra, baja desde el norte.
+M 87;Virgo A;NGC 4486;Galaxia;12.51373;12.3911;9.0;7;Virgo;3;"Elíptica gigante con chorro; centro del cúmulo de Virgo."
+M 94;M94;NGC 4736;Galaxia;12.84807;41.1204;8.2;8;Canes Venatici;3;Espiral con núcleo muy brillante en Canes Venatici.
+M 95;M95;NGC 3351;Galaxia;10.73269;11.7038;9.8;7;Leo;3;Espiral barrada en Leo, con M96.
+M 96;M96;NGC 3368;Galaxia;10.77937;11.8199;9.2;8;Leo;3;Espiral en Leo.
+NGC 2175;Cabeza de Mono;;Nebulosa;6.16099;20.4876;6.8;5;Orión;3;Nebulosa de emisión en Orión, junto a Géminis.
+NGC 2359;Casco de Thor;;Nebulosa;7.30861;-13.2272;;10;Can Mayor;3;Burbuja de emisión con forma de casco, en Canis Major.
+NGC 2392;Nebulosa del Esquimal;Eskimo Nebula;Nebulosa planetaria;7.48632;20.9118;9.6;1;Géminis;3;Planetaria pequeña con doble envoltura en Géminis.
+NGC 2903;NGC 2903;;Galaxia;9.53614;21.5008;8.9;12;Leo;3;Espiral barrada brillante en Leo que Messier pasó por alto.
+NGC 4490;Galaxia del Capullo;;Galaxia;12.51007;41.6439;9.7;7;Canes Venatici;3;Par de galaxias en interacción en Canes Venatici.
+NGC 4656;Palo de Hockey;;Galaxia;12.73270;32.1681;;8;Canes Venatici;3;Galaxia distorsionada junto a la Ballena.
+NGC 5907;Galaxia de la Astilla;;Galaxia;15.26494;56.3288;10.4;11;Dragón;3;Espiral de canto muy fina en Draco.
+NGC 6826;Nebulosa Parpadeante;Blinking Planetary;Nebulosa planetaria;19.74670;50.5250;9.4;0;Cisne;3;Planetaria en el Cisne que parece parpadear.
+NGC 7009;Nebulosa Saturno;Saturn Nebula;Nebulosa planetaria;21.06966;-11.3632;8.0;1;Acuario;3;Planetaria con asas, en Acuario.
+NGC 7380;Nebulosa del Mago;;Nebulosa;22.78917;58.1324;7.2;25;Cefeo;3;Emisión con cúmulo en Cefeo.
+NGC 7662;Bola de Nieve Azul;Copeland's Blue Snowball;Nebulosa planetaria;23.43164;42.5349;8.3;0;Andrómeda;3;Planetaria pequeña y azul en Andrómeda.
+NGC 869;Doble Cúmulo (h Persei);h Persei Cluster;Cúmulo abierto;2.31627;57.1172;3.7;14;Perseo;3;"Con NGC 884, dos cúmulos abiertos juntos; precioso a poco aumento."
+NGC 884;Doble Cúmulo (chi Persei);chi Persei Cluster;Cúmulo abierto;2.37558;57.1441;3.8;10;Perseo;3;Segunda mitad del Doble Cúmulo de Perseo.
+IC 4725;M25;;Cúmulo abierto;18.52966;-19.1149;4.6;14;Sagitario;2;Cúmulo abierto del catálogo Messier.
+M 100;M100;NGC 4321;Galaxia;12.38190;15.8218;9.5;6;Cabellera de Berenice;2;Galaxia del catálogo Messier.
+M 103;M103;NGC 581;Cúmulo abierto;1.55606;60.6580;7.4;4;Casiopea;2;Cúmulo abierto en Casiopea.
+M 105;M105;NGC 3379;Galaxia;10.79711;12.5816;9.3;5;Leo;2;Elíptica en Leo.
+M 107;M107;NGC 6171;Cúmulo globular;16.54220;-13.0536;8.8;8;Ofiuco;2;Cúmulo globular del catálogo Messier.
+M 110;M110;NGC 205;Galaxia;0.67280;41.6853;8.2;16;Andrómeda;2;Compañera elíptica grande de Andrómeda.
+M 14;M14;NGC 6402;Cúmulo globular;17.62671;-3.2459;5.7;10;Ofiuco;2;Cúmulo globular del catálogo Messier.
+M 18;M18;NGC 6613;Cúmulo abierto;18.33291;-17.1020;6.9;6;Sagitario;2;Cúmulo abierto del catálogo Messier.
+M 19;M19;NGC 6273;Cúmulo globular;17.04380;-26.2679;5.6;8;Ofiuco;2;Cúmulo globular del catálogo Messier.
+M 21;M21;NGC 6531;Cúmulo abierto;18.07040;-22.4901;5.9;6;Sagitario;2;Cúmulo abierto del catálogo Messier.
+M 23;M23;NGC 6494;Cúmulo abierto;17.95133;-18.9853;5.5;17;Sagitario;2;Cúmulo abierto del catálogo Messier.
+M 26;M26;NGC 6694;Cúmulo abierto;18.75518;-9.3836;8.9;6;Escudo;2;Cúmulo abierto del catálogo Messier.
+M 28;M28;NGC 6626;Cúmulo globular;18.40914;-24.8698;6.9;5;Sagitario;2;Cúmulo globular del catálogo Messier.
+M 29;M29;NGC 6913;Cúmulo abierto;20.39938;38.5077;6.6;4;Cisne;2;Cúmulo abierto pequeño en el Cisne.
+M 30;M30;NGC 7099;Cúmulo globular;21.67278;-23.1791;7.1;9;Capricornio;2;Cúmulo globular del catálogo Messier.
+M 32;M32;NGC 221;Galaxia;0.71162;40.8653;8.1;8;Andrómeda;2;Compañera elíptica de Andrómeda.
+M 39;M39;NGC 7092;Cúmulo abierto;21.53009;48.4382;4.6;20;Cisne;2;Cúmulo abierto suelto en el Cisne.
+M 48;M48;NGC 2548;Cúmulo abierto;8.22866;-5.7504;5.8;28;Hidra;2;Cúmulo abierto grande en Hidra.
+M 49;M49;NGC 4472;Galaxia;12.49632;8.0005;8.3;10;Virgo;2;Galaxia del catálogo Messier.
+M 50;M50;NGC 2323;Cúmulo abierto;7.04458;-8.3640;5.9;14;Unicornio;2;Cúmulo abierto del catálogo Messier.
+M 54;M54;NGC 6715;Cúmulo globular;18.91758;-30.4785;7.7;5;Sagitario;2;Cúmulo globular del catálogo Messier.
+M 55;M55;NGC 6809;Cúmulo globular;19.66650;-30.9621;6.5;12;Sagitario;2;Cúmulo globular del catálogo Messier.
+M 56;M56;NGC 6779;Cúmulo globular;19.27653;30.1845;8.4;6;Lira;2;Globular pequeño en Lira.
+M 58;M58;NGC 4579;Galaxia;12.62876;11.8182;10.3;5;Virgo;2;Galaxia del catálogo Messier.
+M 59;M59;NGC 4621;Galaxia;12.70062;11.6470;9.6;5;Virgo;2;Galaxia del catálogo Messier.
+M 60;M60;NGC 4649;Galaxia;12.72777;11.5527;8.8;7;Virgo;2;Galaxia del catálogo Messier.
+M 61;M61;NGC 4303;Galaxia;12.36525;4.4736;10.2;7;Virgo;2;Galaxia del catálogo Messier.
+M 62;M62;NGC 6266;Cúmulo globular;17.02017;-30.1124;7.4;8;Ofiuco;2;Cúmulo globular del catálogo Messier.
+M 67;M67;NGC 2682;Cúmulo abierto;8.85559;11.8119;6.9;33;Cáncer;2;Cúmulo abierto viejo en Cáncer.
+M 68;M68;NGC 4590;Cúmulo globular;12.65778;-26.7430;8.0;7;Hidra;2;Cúmulo globular del catálogo Messier.
+M 69;M69;NGC 6637;Cúmulo globular;18.52312;-32.3480;8.3;6;Sagitario;2;Cúmulo globular del catálogo Messier.
+M 70;M70;NGC 6681;Cúmulo globular;18.72018;-32.2919;9.1;7;Sagitario;2;Cúmulo globular del catálogo Messier.
+M 71;M71;NGC 6838;Cúmulo globular;19.89614;18.7784;6.1;7;Flecha;2;Globular suelto en Sagitta.
+M 72;M72;NGC 6981;Cúmulo globular;20.89109;-12.5371;9.0;4;Acuario;2;Cúmulo globular del catálogo Messier.
+M 75;M75;NGC 6864;Cúmulo globular;20.10134;-21.9222;8.3;4;Sagitario;2;Cúmulo globular del catálogo Messier.
+M 79;M79;NGC 1904;Cúmulo globular;5.40294;-24.5242;8.2;7;Liebre;2;Cúmulo globular del catálogo Messier.
+M 80;M80;NGC 6093;Cúmulo globular;16.28403;-22.9751;7.3;6;Escorpio;2;Cúmulo globular del catálogo Messier.
+M 84;M84;NGC 4374;Galaxia;12.41771;12.8870;9.8;7;Virgo;2;Galaxia del catálogo Messier.
+M 85;M85;NGC 4382;Galaxia;12.42336;18.1915;9.1;7;Cabellera de Berenice;2;Galaxia del catálogo Messier.
+M 86;M86;NGC 4406;Galaxia;12.43659;12.9462;8.9;12;Virgo;2;Galaxia del catálogo Messier.
+M 88;M88;NGC 4501;Galaxia;12.53310;14.4204;10.3;9;Cabellera de Berenice;2;Galaxia del catálogo Messier.
+M 89;M89;NGC 4552;Galaxia;12.59439;12.5563;10.1;8;Virgo;2;Galaxia del catálogo Messier.
+M 9;M9;NGC 6333;Cúmulo globular;17.31994;-18.5162;8.4;7;Ofiuco;2;Cúmulo globular del catálogo Messier.
+M 90;M90;NGC 4569;Galaxia;12.61383;13.1629;9.5;9;Virgo;2;Galaxia del catálogo Messier.
+M 91;M91;NGC 4548;Galaxia;12.59068;14.4963;11.0;6;Cabellera de Berenice;2;Galaxia del catálogo Messier.
+M 93;M93;NGC 2447;Cúmulo abierto;7.74145;-23.8531;6.2;15;Popa;2;Cúmulo abierto del catálogo Messier.
+M 98;M98;NGC 4192;Galaxia;12.23008;14.9003;10.8;11;Cabellera de Berenice;2;Galaxia del catálogo Messier.
+M 99;M99;NGC 4254;Galaxia;12.31378;14.4165;9.8;5;Cabellera de Berenice;2;Galaxia del catálogo Messier.
+NGC 1023;NGC 1023;;Galaxia;2.67334;39.0633;9.5;7;Perseo;2;Lenticular brillante en Perseo.
+NGC 1333;NGC 1333;;Nebulosa;3.48200;31.3700;10.9;20;Perseo;2;Reflexión y polvo en Perseo.
+NGC 1502;NGC 1502;;Cúmulo abierto;4.13036;62.3315;6.9;10;Jirafa;2;Cúmulo abierto al final de la Cascada de Kemble.
+NGC 246;Nebulosa de la Calavera;;Nebulosa planetaria;0.78427;-11.8719;10.9;4;Cetus;2;Planetaria grande y tenue en Cetus.
+NGC 2683;Galaxia del OVNI;;Galaxia;8.87815;33.4217;9.7;9;Lince;2;Espiral casi de canto en Lince.
+NGC 3115;Galaxia del Huso;Spindle Galaxy;Galaxia;10.08722;-7.7186;9.1;7;Sextante;2;Lenticular de canto brillante en Sextans.
+NGC 3718;NGC 3718;;Galaxia;11.54301;53.0679;10.7;5;Osa Mayor;2;Espiral deformada en la Osa Mayor.
+NGC 40;Nebulosa de la Pajarita;Bow-Tie nebula;Nebulosa planetaria;0.21695;72.5219;11.9;1;Cefeo;2;Planetaria en Cefeo.
+NGC 4244;Galaxia de la Aguja de Plata;;Galaxia;12.29157;37.8071;10.2;16;Canes Venatici;2;Espiral de canto en Canes Venatici.
+NGC 4725;NGC 4725;;Galaxia;12.84072;25.5008;9.4;10;Cabellera de Berenice;2;Espiral de un solo brazo en Coma Berenices.
+NGC 5033;NGC 5033;;Galaxia;13.22430;36.5939;10.7;10;Canes Venatici;2;Espiral en Canes Venatici.
+NGC 5866;Galaxia del Huso;;Galaxia;15.10819;55.7632;9.9;6;Dragón;2;Lenticular de canto en Draco (posible M102).
+NGC 6210;NGC 6210;;Nebulosa planetaria;16.74153;23.7998;9.7;0;Hércules;2;Planetaria pequeña y brillante en Hércules.
+NGC 663;NGC 663;;Cúmulo abierto;1.77112;61.2182;7.1;6;Casiopea;2;Cúmulo abierto en Casiopea.
+NGC 6820;NGC 6820;;Nebulosa;19.70778;23.0881;15.0;0;Zorra;2;Nebulosa de emisión con pilar en Vulpecula.
+NGC 6939;NGC 6939;;Cúmulo abierto;20.52504;60.6621;7.8;12;Cefeo;2;Cúmulo abierto junto a la galaxia NGC 6946.
+NGC 752;NGC 752;;Cúmulo abierto;1.95967;37.8334;5.7;39;Andrómeda;2;Cúmulo abierto muy amplio en Andrómeda.
+NGC 559;NGC 559;;Cúmulo abierto;1.49255;63.3014;9.5;9;Casiopea;1;Cúmulo abierto en Casiopea.

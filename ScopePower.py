@@ -46,6 +46,7 @@ import secretos
 import centrado
 import alineacion
 import voz
+import esta_noche
 import anuncio_ip
 import coordenadas
 import recorridos
@@ -1501,6 +1502,22 @@ def imagen_capturada():
     return response
 
 
+@app.route('/esta-noche')
+def vista_esta_noche():
+    return render_template('esta_noche.html', mostrar_volver=True)
+
+
+@app.route('/esta-noche/objetos')
+def esta_noche_objetos():
+    try:
+        datos = esta_noche.obtener(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO,
+                                   altura_minima=float(ALTURA_MINIMA))
+    except Exception as e:
+        log.exception("Error calculando Esta noche")
+        return jsonify({"error": str(e)}), 500
+    return jsonify(datos)
+
+
 @app.route('/foto-prueba')
 def foto_prueba():
     """Página de foto de prueba: no dispara nada al abrirse; el botón de dentro captura."""
@@ -2002,8 +2019,17 @@ def goto_objeto():
             fuente_coords = ""
             altitud = None
             info = {}
+            # Coordenadas directas (página Esta noche): no hace falta resolver el nombre
+            ra_directa, dec_directa = request.form.get("ra"), request.form.get("dec")
+            if ra_directa and dec_directa:
+                try:
+                    ra, dec = float(ra_directa), float(dec_directa)
+                    coords = (ra, dec)
+                    fuente_coords = "Catálogo de ScopePower"
+                except ValueError:
+                    return jsonify({"error": "Coordenadas no válidas."})
             # Primero intentar con Stellarium
-            if estado_stellarium():
+            if coords is None and estado_stellarium():
                 info = obtener_coords_desde_stellarium(objeto)
                 if info and "ra" in info and "dec" in info:
                     ra = info["ra"]

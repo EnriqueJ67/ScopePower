@@ -298,10 +298,15 @@
         document.getElementById("extraInfo").innerHTML = "";
         document.getElementById("btnModoAutomatico").disabled = true;
 
+        // Coordenadas directas (vienen de la página Esta noche); solo para ese objeto
+        let cuerpo = "objeto=" + encodeURIComponent(objeto);
+        if (window.coordsDirectas && window.coordsDirectas.objeto === objeto) {
+            cuerpo += "&ra=" + window.coordsDirectas.ra + "&dec=" + window.coordsDirectas.dec;
+        }
         fetch("/goto", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: "objeto=" + encodeURIComponent(objeto)
+            body: cuerpo
         })
             .then(response => response.json())
             .then(data => {
@@ -475,6 +480,17 @@
     document.addEventListener("DOMContentLoaded", function () {
         actualizarEstadoStellarium();
         setInterval(actualizarEstadoStellarium, 10000);
+
+        // Llegada desde "Esta noche": /goto?objeto=Nombre&ra=h&dec=deg -> GOTO inmediato
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("objeto")) {
+            document.getElementById("objeto").value = params.get("objeto");
+            if (params.get("ra") && params.get("dec")) {
+                window.coordsDirectas = { objeto: params.get("objeto"), ra: params.get("ra"), dec: params.get("dec") };
+            }
+            history.replaceState(null, "", "/goto");   // que recargar no repita el GOTO
+            sendGotoRequest();
+        }
     });
 </script>
 {% endblock %}
