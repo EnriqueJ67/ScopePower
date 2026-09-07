@@ -187,6 +187,52 @@ def calcular_puntuacion(plano):
     return puntuacion, n_estrellas, nitidez
 
 
+def calcular_puntuacion_photutils(plano, fwhm_px=2.5, umbral_sigma=4.0):
+    """
+    Métrica de calidad de la versión de junio (AnalizaFits.py), portada:
+    detección con DAOStarFinder y puntuación = suma de (SNR × redondez) de las
+    estrellas, penalizada por fondo brillante. Devuelve (puntuacion,
+    n_estrellas, redondez_media). Se calcula a media resolución.
+    Requiere photutils; si no está instalado devuelve (0, 0, 0).
+    """
+    try:
+        from photutils.detection import DAOStarFinder
+        from astropy.stats import sigma_clipped_stats
+    except ImportError:
+        print("⚠️ photutils no está instalado; usa la métrica 'estrellas'")
+        return 0.0, 0, 0.0
+    img = np.asarray(plano, dtype=np.float32)
+    img = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2), interpolation=cv2.INTER_AREA)
+    _, med_bkg, std_bkg = sigma_clipped_stats(img, sigma=3.0)
+    finder = DAOStarFinder(fwhm=max(1.5, fwhm_px / 2.0), threshold=umbral_sigma * max(std_bkg, 1e-3))
+    tbl = finder(img - med_bkg)
+    if tbl is None or len(tbl) == 0:
+        return 0.0, 0, 0.0
+    brillo_min = max(2 * std_bkg, 70)
+    tbl = tbl[tbl['flux'] > brillo_min]
+    if len(tbl) == 0:
+        return 0.0, 0, 0.0
+    forma = (1 - np.abs(tbl['roundness1'])) * (1 - np.abs(tbl['roundness2']))
+    snr = tbl['flux'] / max(std_bkg, 1e-3)
+    raw = float(np.sum(snr * forma))
+    penalizador = 1.0 / (1.0 + med_bkg / max(float(img.max()), 1.0))
+    return raw * penalizador, int(len(tbl)), float(np.mean(forma))
+
+
+def leer_config_calidad():
+    """[Apilado]: métrica de calidad y umbral relativo (portado de FiltroApilado.py)."""
+    c = cfg["Apilado"] if "Apilado" in cfg else {}
+    cfg2 = configparser.ConfigParser()
+    cfg2.read("config.ini")
+    c = cfg2["Apilado"] if "Apilado" in cfg2 else c
+    return {
+        "metrica": str(c.get("metrica_calidad", "estrellas")).lower(),
+        "umbral_relativo": float(c.get("umbral_calidad", 0.5)),
+        "top_para_umbral": int(c.get("top_para_umbral", 10)),
+        "fwhm_px": float(c.get("fwhm_px", 2.5)),
+    }
+
+
 def apilar_sigma_clip(planos, sigma=2.0, filas_por_bloque=128):
     """
     Media con sigma-clipping de una lista de planos (H, W) uint16/float.
@@ -443,6 +489,9 @@ class ApiladorEnTiempoReal:
         # Desplazamiento (dx, dy) en px de cada foto alineada respecto a la
         # referencia: sirve para ver cuánto "dithering natural" da la montura
         self.desplazamientos = []
+        # Mejores puntuaciones vistas (para el umbral relativo) y umbral actual
+        self.mejores_puntuaciones = []
+        self.umbral = None
 
         self.ref_info = None
 
@@ -664,7 +713,11 @@ class ApiladorEnTiempoReal:
 
             # ── Calidad del fotograma (sobre el canal verde, antes de alinear) ──
             self._fase("puntuando")
-            puntuacion, n_estrellas, nitidez = calcular_puntuacion(g)
+            calidad = leer_config_calidad()
+            if calidad["metrica"] == "photutils":
+                puntuacion, n_estrellas, nitidez = calcular_puntuacion_photutils(g, calidad["fwhm_px"])
+            else:
+                puntuacion, n_estrellas, nitidez = calcular_puntuacion(g)
             with self.lock:
                 self.ultima_puntuacion = round(puntuacion, 3)
                 self.ultima_captura = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -673,6 +726,26 @@ class ApiladorEnTiempoReal:
             if n_estrellas == 0:
                 self._descartar(f"{nombre_fits}: sin estrellas detectables (¿nubes, tapa, desenfoque?)",
                                 aviso="Foto descartada: no se detectan estrellas")
+                return
+
+            # ── Umbral relativo (regla de la versión de junio): se guardan las
+            #    mejores `top_para_umbral` puntuaciones vistas; una foto por debajo
+            #    de umbral_relativo × su media se descarta sin alinear. Las primeras
+            #    fotos entran siempre (el umbral se forma con ellas).
+            with self.lock:
+                if len(self.mejores_puntuaciones) < calidad["top_para_umbral"]:
+                    self.mejores_puntuaciones.append(puntuacion)
+                elif puntuacion > min(self.mejores_puntuaciones):
+                    self.mejores_puntuaciones[self.mejores_puntuaciones.index(min(self.mejores_puntuaciones))] = puntuacion
+                self.umbral = calidad["umbral_relativo"] * (sum(self.mejores_puntuaciones) / len(self.mejores_puntuaciones))
+                umbral = self.umbral
+            if puntuacion < umbral:
+                with self.lock:
+                    self.descartadas_calidad += 1
+                    self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) por debajo del umbral "
+                                           f"({umbral:.2f}, {calidad['umbral_relativo']:.0%} de la media de las mejores); descartada")
+                print(f"ℹ️ {self.ultimo_mensaje}")
+                voz.decir("Foto descartada por calidad")
                 return
 
             self._fase("resolviendo")
@@ -889,6 +962,8 @@ def reiniciar_apilado_global():
             apilador_global.apilados_realizados = 0
             apilador_global.evolucion.clear()
             apilador_global.desplazamientos.clear()
+            apilador_global.mejores_puntuaciones.clear()
+            apilador_global.umbral = None
             apilador_global.version_preview += 1   # la web debe olvidar la imagen anterior
 
             # Miniaturas de la tira de evolución del apilado anterior
@@ -991,5 +1066,7 @@ def obtener_estado_apilado():
                  round(float(np.std([d[1] for d in a.desplazamientos])), 1)]
                 if len(a.desplazamientos) >= 2 else None),
             "desplazamientos_n": len(a.desplazamientos),
+            "umbral": round(a.umbral, 3) if a.umbral is not None else None,
+            "metrica": leer_config_calidad()["metrica"],
         }
 

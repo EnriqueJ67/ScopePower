@@ -514,6 +514,8 @@
                     punt = "Puntuación última: " + d.puntuacion_ultima;
                     if (d.puntuacion_minima !== null && d.puntuacion_minima !== undefined)
                         punt += " · peor en el apilado: " + d.puntuacion_minima;
+                    if (d.umbral !== null && d.umbral !== undefined)
+                        punt += " · umbral de descarte: " + d.umbral;
                 }
                 document.getElementById("puntuaciones").textContent = punt;
 
