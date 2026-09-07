@@ -31,7 +31,9 @@
         const r = textoResultado(e);
         const errores = e.errores.length ? `<br><small>Error por vuelta: ${e.errores.map(x => x.toFixed(1) + "'").join(" → ")}</small>` : "";
         el.innerHTML = `<span style="color:${r.color}; font-weight:bold;">${r.icono} ${r.texto}</span>${errores}`;
-        if (opciones.hablar && "speechSynthesis" in window) {
+        // El PC ya dice el resultado por su altavoz (centrado.py); el móvil solo lo
+        // lee si la voz del PC está apagada (window.vozPCActiva la pone base.html)
+        if (opciones.hablar && !window.vozPCActiva && "speechSynthesis" in window) {
             const u = new SpeechSynthesisUtterance(r.texto.replace(/'/g, " minutos"));
             u.lang = "es-ES"; u.rate = 0.9;
             speechSynthesis.speak(u);

@@ -154,6 +154,7 @@
         // Interruptor de los avisos hablados por el altavoz del PC (SAPI, ver voz.py)
         function pintarVoz(e) {
             const on = !!e.activada;
+            window.vozPCActiva = on;      // las páginas evitan repetir en el móvil lo que ya dice el PC
             document.getElementById("nav-voz-icono").textContent = on ? "🔊" : "🔇";
             document.getElementById("nav-voz-texto").textContent = on ? "Voz on" : "Voz off";
             document.getElementById("nav-voz").style.color = on ? "#ffffff" : "#aa7777";
