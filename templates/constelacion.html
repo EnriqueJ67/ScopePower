@@ -107,24 +107,7 @@
         }
 </style>
 
-<script src="{{ url_for('static', filename='js/NoSleep.js') }}"></script>
-<script>
-    // 1) Instancia
-    const noSleep = new NoSleep();
-
-    // 2) Función que activa NoSleep tras la primera interacción
-    function enableNoSleep() {
-        noSleep.enable();
-        console.log("NoSleep activado: la pantalla se mantendrá encendida.");
-        // Quitamos los listeners para no volver a llamar a enable()
-        document.removeEventListener('click', enableNoSleep, false);
-        document.removeEventListener('touchstart', enableNoSleep, false);
-    }
-
-    // 3) Esperamos al primer click o touchstart
-    document.addEventListener('click', enableNoSleep, false);
-    document.addEventListener('touchstart', enableNoSleep, false);
-</script>
+<!-- La pantalla se mantiene encendida desde base.html (static/js/pantalla.js) -->
 
 <!-- ————— Script principal (lógica original + batch mode) ————— -->
 <script>
@@ -276,7 +259,6 @@
             return;
         }
         resetRecorrido();
-        enableNoSleep();
         const statusEl = document.getElementById("status");
         statusEl.innerHTML = `<span class="spinner"></span> Preparando recorrido para <b>${nombre}</b>…`;
 

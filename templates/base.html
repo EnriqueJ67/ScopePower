@@ -93,6 +93,19 @@
         nav.barra a.activo { color: #ffffff; background-color: #550000; font-weight: bold; }
         nav.barra a:active { background-color: #770000; }
 
+        /* ── Aviso de pantalla encendida (static/js/pantalla.js) ───────── */
+        .pantalla-pill {
+            position: fixed; left: 50%; transform: translateX(-50%);
+            bottom: calc(66px + env(safe-area-inset-bottom));
+            padding: 6px 12px; border-radius: 16px; font-size: 13px;
+            background: #331111; color: #cc9999; border: 1px solid #661111;
+            z-index: 1001; cursor: pointer; white-space: nowrap; max-width: 95vw; overflow: hidden; text-overflow: ellipsis;
+            transition: opacity 0.5s;
+        }
+        .pantalla-pill.aviso { background: #553300; color: #ffdd88; border-color: #aa6600; }
+        .pantalla-pill.activa { opacity: 0.55; font-size: 12px; padding: 3px 10px; }
+        .pantalla-pill.discreta { opacity: 0.35; }
+
         @media (min-width: 700px) {
             body { padding: 20px 24px 90px 24px; max-width: 1000px; margin: 0 auto; }
             nav.barra a { font-size: 14px; min-height: 64px; }
@@ -114,6 +127,9 @@
         <a href="{{ url_for('galeria') }}" class="{{ 'activo' if actual.startswith('/galeria') else '' }}"><span class="icono">🌌</span>Galería</a>
         <a href="#" id="nav-voz" onclick="alternarVoz(event)" title="Avisos por voz del PC"><span class="icono" id="nav-voz-icono">🔈</span><span id="nav-voz-texto">Voz</span></a>
     </nav>
+    <!-- Mantener la pantalla del móvil encendida (se activa con el primer toque) -->
+    <script src="{{ url_for('static', filename='js/NoSleep.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pantalla.js') }}"></script>
     <script>
         // Interruptor de los avisos hablados por el altavoz del PC (SAPI, ver voz.py)
         function pintarVoz(e) {

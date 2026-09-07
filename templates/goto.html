@@ -150,20 +150,8 @@
     }
 </style>
 
-<script src="{{ url_for('static', filename='js/NoSleep.js') }}"></script>
+<!-- La pantalla se mantiene encendida desde base.html (static/js/pantalla.js) -->
 <script src="{{ url_for('static', filename='centrado.js') }}"></script>
-<script>
-    // Crea una instancia de NoSleep
-    const noSleep = new NoSleep();
-    // Habilita NoSleep.js cuando el usuario interactúa con la página
-    document.addEventListener('click', function enableNoSleep() {
-        // Activa la funcionalidad
-        noSleep.enable();
-        console.log("NoSleep activado: la pantalla se mantendrá encendida.");
-        // Remueve el listener para evitar llamadas redundantes
-        document.removeEventListener('click', enableNoSleep, false);
-    }, false);
-</script>
 <script>
     const palabraClave = document.getElementById("config").dataset.palabraClave.toLowerCase();
     const sonidoClick = new Audio("/static/click.wav");
