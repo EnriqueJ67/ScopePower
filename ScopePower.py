@@ -1006,7 +1006,6 @@ def lanzar_stellarium_si_no_esta_activo():
         #subprocess.Popen([ruta_stellarium], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         os.startfile(ruta_stellarium)
         print("🚀 Stellarium lanzado automáticamente.")
-        time.sleep(3)
 
     except Exception as e:
         print(f"❌ Error al lanzar Stellarium: {e}")
@@ -2884,6 +2883,10 @@ if __name__ == '__main__':
     os.makedirs(ruta_absoluta("capturas"), exist_ok=True)
     os.makedirs(ruta_absoluta("static"), exist_ok=True)
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
+    # Stellarium tarda en arrancar: lanzarlo ya, en un hilo, para que esté listo
+    # cuando el usuario entre (config: [General] lanzar_stellarium_al_arrancar)
+    if config["General"].get("lanzar_stellarium_al_arrancar", "true").strip().lower() == "true":
+        threading.Thread(target=lanzar_stellarium_si_no_esta_activo, name="stellarium-arranque", daemon=True).start()
     if _config_anuncio_ip()["anunciar_ip"]:
         # Dicta IP y puerto cada 30 s hasta la primera conexión desde el móvil
         anunciador.iniciar()
