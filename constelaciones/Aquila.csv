@@ -1,0 +1,6 @@
+#desc;La constelación del Águila, ubicada en el ecuador celeste y visible con facilidad en los cielos veraniegos del hemisferio norte, destaca por su estrella principal Altair, que forma junto a Deneb y Vega el famoso Triángulo de Verano; acompañan a Altair Alshain y Tarazed, que perfilan las alas del ave. En ella se halla la nebulosa M16 —conocida por los “Pilares de la Creación”— y varios cúmulos abiertos notables, como NGC 6755 y NGC 6781. De raíces en la astronomía de Ptolomeo, Aquila simboliza el águila que servía a Zeus y, aún hoy, ofrece un bello asterismo fácilmente localizable para quienes disfrutan de la observación estelar.
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Altair;* alf Aql;19 50 47;+08 52 06;0,7;Estrella;
+Tarazed;* gam Aql;19 46 16;+10 36 48;2,7;Estrella;
+Alshain;* bet Aql;19 55 19;+06 24 24;3,7;Estrella;
+Okab;* zet Aql;19 05 25;+13 51 49;2,9;Estrella;

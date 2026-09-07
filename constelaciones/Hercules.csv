@@ -1,0 +1,10 @@
+#desc;La constelación de Hércules es una de las más grandes del cielo y se encuentra en el hemisferio norte, siendo visible principalmente durante las noches de primavera y verano. Aunque no contiene estrellas especialmente brillantes, destaca por su forma irregular y por el famoso "cuadro de Hércules", una figura central compuesta por cuatro estrellas.
+
+El mayor atractivo de esta constelación es el Gran Cúmulo de Hércules (M13), uno de los cúmulos globulares más espectaculares del cielo, fácilmente visible con binoculares desde cielos oscuros. También alberga otro cúmulo interesante, M92, menos conocido pero igualmente notable.
+
+Hércules representa al héroe mitológico griego Heracles, famoso por sus doce trabajos. En el cielo, se lo imagina arrodillado o en combate, aunque su figura no es fácil de reconocer a simple vista. Esta constelación es ideal para observadores aficionados, especialmente por sus objetos de cielo profundo y su ubicación fuera del plano central de la Vía Láctea.
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Kornephoros;* bet Her;16 30 13;+21 29 23;2,7;Estrella;
+Sarin;* del Her;17 15 02;+24 50 21;3,1;Estrella;
+M  13;M  13;16 41 42;+36 27 41;5,8;GlC;
+M  92;M  92;17 17 07;+43 08 09;6,5;GlC;

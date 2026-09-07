@@ -1,0 +1,13 @@
+#desc;Escorpio o Escorpión (Scorpius en latín), es una de las 88 constelaciones modernas. Antiguamente esta constelación se representaba unida a la que hoy se conoce como Libra (que no existía, se cree que fueron los romanos quienes primero la imaginaron). Las estrellas que hoy se conocen como alfa y beta Librae representaban las pinzas sur y norte del escorpión, lo que les dio su nombre actual: alfa Librae es Zubenelgenubi (pinza del sur) y beta Librae es Zubeneschamali (pinza del norte). Representado de esta forma, el escorpión colgaba apacible.
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Antares;* alf Sco;16 29 24;-26 25 55;0,9;Estrella;
+M   4;M   4;16 23 35;-26 31 33;;GlC;
+M  80;M  80;16 17 02;-22 58 34;;GlC;
+Dschubba;* del Sco;16 00 20;-22 37 18;2,3;Estrella;
+Acrab;* bet Sco;16 05 26;-19 48 19;2,5;Estrella;
+Larawag;* eps Sco;16 50 10;-34 17 36;2,2;Estrella;
+Lesath;* ups Sco;17 30 46;-37 17 45;2,6;Estrella;
+Shaula;* lam Sco;17 33 37;-37 06 14;1,6;Estrella;
+NGC  6475;NGC  6475;17 53 47;-34 50 28;;OpC;
+NGC  6405;NGC  6405;17 40 17;-32 14 31;;OpC;
+Sargas;* tet Sco;17 37 19;-42 59 52;1,8;Estrella;

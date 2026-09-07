@@ -1,0 +1,11 @@
+#desc;Pegaso o Pegasus es una constelación del norte, que recibe su nombre de Pegaso, el caballo alado. Es una de las 88 constelaciones modernas y una de las 48 inicialmente descritas por Ptolomeo quien la denominaba como Equus, «el Caballo».
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Enif;* eps Peg;21 44 11;+09 52 30;2,3;Estrella;
+M  15;M  15;21 29 58;+12 10 01;;GlC;
+Biham;* tet Peg;22 10 12;+06 11 53;3,5;Estrella;
+Homam;*  42 Peg;22 41 28;+10 49 53;3,4;Estrella;
+Markab;* alf Peg;23 04 46;+15 12 19;2,4;Estrella;
+Sadalbari;* mu. Peg;22 50 00;+24 36 06;3,4;Estrella;
+Scheat;* bet Peg;23 03 46;+28 04 58;2,4;Estrella;
+Matar;* eta Peg;22 43 00;+30 13 16;2,9;Estrella;
+Algenib;* gam Peg;00 13 14;+15 11 01;2,8;Estrella;

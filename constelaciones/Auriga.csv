@@ -1,0 +1,12 @@
+#desc;Auriga o el Cochero es una constelación del hemisferio norte. Su localización es fácil: basta con mirar un poco más hacia el polo norte celeste desde Orión. Se ve un pentágono de estrellas brillantes, entre las que destaca Capella (α Aurigae). Su nombre, un auriga o un cochero, es aquél que conduce un carro tirado por caballo.
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Capella;* alf Aur;05 16 41;+45 59 53;0,0;Estrella;
+Almaaz;* eps Aur;05 01 58;+43 49 24;2,9;Estrella;
+Haedus;* eta Aur;05 06 31;+41 14 04;3,1;Estrella;
+Saclateni;* zet Aur;05 02 29;+41 04 33;3,7;Estrella;
+M  38;M  38;05 28 40;+35 49 26;6,4;OpC;
+M  36;M  36;05 36 20;+34 08 06;6,0;OpC;
+M  37;M  37;05 52 18;+32 32 42;;OpC;
+Mahasim;* tet Aur;05 59 43;+37 12 45;2,6;Estrella;
+Menkalinan;* bet Aur;05 59 32;+44 56 51;1,8;Estrella;
+Hassaleh;* iot Aur;04 56 60;+33 09 58;2,6;Estrella;

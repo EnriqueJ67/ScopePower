@@ -1,0 +1,18 @@
+#desc;La Osa Mayor o Ursa Maior (abreviado, UMa), también conocida como el Carro Mayor, es una constelación visible durante todo el año en el hemisferio norte. Entre los aficionados se le conoce con el nombre de «el carro» o «el cazo», por la forma que dibujan sus siete estrellas principales, aunque ha recibido otros nombres.
+
+
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Alioth;* eps UMa;12 54 02;+55 57 35;1,7;Estrella;
+Mizar A;* zet01 UMa;13 23 56;+54 55 31;2,2;Estrella;
+M 101;M 101;14 03 13;+54 20 56;7,8;GiP;
+Alkaid;* eta UMa;13 47 32;+49 18 48;1,8;Estrella;
+M  40;M  40;12 22 12;+58 05 00;;?;
+M 109;M 109;11 57 36;+53 22 29;;GiG;
+Phecda;* gam UMa;11 53 50;+53 41 41;2,4;Estrella;
+M  97;M  97;11 14 48;+55 01 08;15,7;PN;
+M 108;M 108;11 11 31;+55 40 27;;SBG;
+Merak;* bet UMa;11 01 50;+56 22 57;2,3;Estrella;
+Dubhe;* alf UMa;11 03 44;+61 45 04;1,7;Estrella;
+M  81;M  81;09 55 33;+69 03 55;6,9;Sy2;
+M  82;M  82;09 55 52;+69 40 47;8,4;AGN;
+Tania Australis;* mu. UMa;10 22 20;+41 29 58;3,0;Estrella;

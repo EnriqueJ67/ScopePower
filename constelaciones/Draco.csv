@@ -1,0 +1,15 @@
+#desc;Draco o el Dragón es una constelación del norte lejano, que es circumpolar para muchos observadores del hemisferio norte. Es una de las 88 constelaciones modernas, y una de las 48 constelaciones listadas por Ptolomeo. El polo norte de la eclíptica está en Draco.
+Aunque muy grande, Draco no tiene estrellas especialmente brillantes. La cabeza del dragón está representada por un cuadrilátero de estrellas situadas entre Hércules y la Osa Menor.
+
+
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Eltanin;* gam Dra;17 56 36;+51 29 20;2,2;Estrella;
+Rastaban;* bet Dra;17 30 26;+52 18 05;2,8;Estrella;
+Grumium;* ksi Dra;17 53 32;+56 52 22;3,7;Estrella;
+Aldhibah;* zet Dra;17 08 47;+65 42 53;3,1;Estrella;
+Athebyne;* eta Dra;16 23 59;+61 30 51;2,7;Estrella;
+Edasich;* iot Dra;15 24 56;+58 57 58;3,2;Estrella;
+M 102;M 102;15 06 30;+55 45 48;9,8;SyG;
+Thuban;* alf Dra;14 04 23;+64 22 33;3,6;Estrella;
+Giausar;* lam Dra;11 31 24;+69 19 52;3,8;Estrella;
+Altais;* del Dra;19 12 33;+67 39 42;3,0;Estrella;

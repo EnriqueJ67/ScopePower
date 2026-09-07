@@ -1,0 +1,14 @@
+#desc;Orión u Orion en latín, es una constelación prominente, quizás la más conocida del cielo. Sus estrellas brillantes y visibles desde ambos hemisferios, hacen que esta constelación sea reconocida mundialmente. La constelación es visible a lo largo de toda la noche durante el invierno en el hemisferio norte, verano en hemisferio sur; es asimismo visible pocas horas antes del amanecer desde finales del mes de agosto hasta mediados de noviembre y puede verse en el cielo nocturno hasta mediados de abril. Orión se encuentra cerca de la constelación del río Eridanus y apoyado por sus dos perros de caza Canis Maior y Canis Minor peleando con la constelación del Tauro. Lleva su nombre por Orión, el gigante cazador de la mitología griega.;;;;
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Rigel;* bet Ori;05 14 32;-08 12 06;0,1;Estrella;
+Lower Sword;NGC  1980;05 35 14;-05 55 26;2,5;Estrella;
+Hatysa;* iot Ori;05 35 26;-05 54 36;2,7;Estrella;
+M  42;M  42;05 35 17;-05 23 15;;HII;La gran nebulosa de Orion
+M  43;M  43;05 35 31;-05 16 12;;HII;
+Alnitak;* zet Ori;05 40 46;-01 56 33;1,7;Estrella;
+Alnilam;* eps Ori;05 36 13;-01 12 07;1,6;Estrella;
+Mintaka;* del Ori;05 32 00;-00 17 57;2,4;Estrella;
+M  78;M  78;05 46 46;+00 04 45;;RNe;
+Betelgeuse;* alf Ori;05 55 10;+07 24 25;0,4;Estrella;
+Bellatrix;* gam Ori;05 25 08;+06 20 59;1,6;Estrella;
+Saiph;* kap Ori;05 47 45;-09 40 11;2;Estrella;

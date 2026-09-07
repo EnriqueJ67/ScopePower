@@ -1,0 +1,8 @@
+#desc;Hydra o la Hidra es la más extensa de las 88 constelaciones modernas, y fue una de las 48 constelaciones registradas en el siglo II por el astrónomo Ptolomeo. Comúnmente representada como una serpiente acuática, la constelación se extiende a ambos lados del ecuador celeste.
+No debe ser confundida con Hydrus, constelación austral de menor tamaño.
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Alphard;* alf Hya;09 27 35;-08 39 31;1,9;Estrella;
+Ashlesha;* eps Hya;08 46 47;+06 25 08;3,3;Estrella;
+NGC  2548;NGC  2548;08 13 39;-05 43 34;;OpC;
+M  68;M  68;12 39 28;-26 44 39;7,9;GlC;
+M  83;M  83;13 37 01;-29 51 57;7,5;SBG;

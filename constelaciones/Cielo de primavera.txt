@@ -1,0 +1,3 @@
+#descripcion:El cielo de primavera (marzo a junio en el hemisferio norte) ofrece una transición fascinante entre las constelaciones del invierno y las del verano. El cielo se vuelve más despejado y estable, lo que lo convierte en una excelente época para la observación astronómica.
+las galaxias abundan, sobre todo en la región de Virgo y Coma Berenices, ideales para telescopios.
+#lista:Leo;Virgo;Coma Berenices;Boyero;Canes Venatici;Hercules

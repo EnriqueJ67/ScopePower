@@ -1,0 +1,14 @@
+#desc;Leo o León (Leo en latín) es una de las constelaciones del zodíaco. Se encuentra entre Cáncer  y Virgo.
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Regulus;* alf Leo;10 08 22;+11 58 02;1,3;Estrella;
+Subra;* omi Leo;09 41 09;+09 53 32;3,5;Estrella;
+Algieba;* gam Leo;10 19 58;+19 50 29;2,3;Estrella;
+Adhafera;* zet Leo;10 16 41;+23 25 02;3,4;Estrella;
+M 105;M 105;10 47 50;+12 34 54;9,7;LIN;
+M  96;M  96;10 46 46;+11 49 12;9,2;GiP;
+M  95;M  95;10 43 58;+11 42 13;9,7;GiP;
+Chertan;* tet Leo;11 14 14;+15 25 46;3,3;Estrella;
+M  65;M  65;11 18 56;+13 05 32;;GiP;
+M  66;M  66;11 20 15;+12 59 29;8,9;GiP;
+Denebola;* bet Leo;11 49 04;+14 34 19;2,1;Estrella;
+Zosma;* del Leo;11 14 07;+20 31 25;2,5;Estrella;

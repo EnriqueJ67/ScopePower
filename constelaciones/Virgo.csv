@@ -1,0 +1,22 @@
+#desc;Virgo o Virgen (Virgo en latín) es una extensa constelación ubicada entre Leo hacia el oeste y Libra hacia el este, siendo la segunda más grande 
+después de Hidra, y la mayor de las constelaciones del Zodiaco.
+Virgo se representa a menudo portando dos gavillas de trigo, una de ellas señalada por la brillante estrella Spica o la Espiga de los agricultores medievales. Para los observadores del hemisferio boreal, la localización de Virgo es fácil gracias a esta estrella, que se encuentra siguiendo la curva que va desde ‘el Carro’ en la Osa Mayor hacia Arturo (α Bootis) y continuando dicha curva hasta llegar a Espiga. En el hemisferio sur, también es sencilla su localización, ya que se puede extender hacia el este una línea imaginaria entre γ Corvi (Gienah Gurab) y δ Corvi (Algorab) (ambas estrellas de Corvus), dando casi directamente la ubicación de α Virginis.
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Spica;* alf Vir;13 25 12;-11 09 41;0,9;Estrella;
+Heze;* zet Vir;13 34 42;-00 35 45;3,3;Estrella;
+Minelauva;* del Vir;12 55 36;+03 23 51;3,3;Estrella;
+Porrima;* gam Vir;12 41 40;-01 26 58;2,7;Estrella;
+Zaniah;* eta Vir;12 19 54;-00 40 00;3,9;Estrella;
+M  61;M  61;12 21 55;+04 28 26;9,6;Sy2;
+M  49;M  49;12 29 47;+08 00 01;12,1;Sy2;
+M  58;M  58;12 37 44;+11 49 06;9,6;Sy2;
+M  89;M  89;12 35 40;+12 33 23;9,7;LIN;
+M  90;M  90;12 36 50;+13 09 47;9,5;Sy2;
+M  87;M  87;12 30 49;+12 23 28;8,6;AGN;
+M  86;M  86;12 26 12;+12 56 45;8,8;GiG;
+M  84;M  84;12 25 04;+12 53 13;10,4;Sy2;
+M  59;M  59;12 42 02;+11 38 49;;GiG;
+M  60;M  60;12 43 40;+11 33 10;;GiP;
+Vindemiatrix;* eps Vir;13 02 11;+10 57 33;2,7;Estrella;
+Zavijava;* bet Vir;11 50 42;+01 45 53;3,5;Estrella;
+M 104;M 104;12 39 59;-11 37 23;8,0;LIN;

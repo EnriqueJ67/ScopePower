@@ -1,0 +1,15 @@
+#desc;Casiopea o Cassiopeia es una de las constelaciones compiladas en el catálogo estelar de Ptolomeo, el Almagesto, del siglo II. Fácilmente reconocible por sus cinco estrellas brillantes que forman un conocido asterismo del cielo circumpolar boreal. Casiopea señala al norte (y a la estrella polar) apuntando desde sus extremos de la «M»  o «W». Tiene al otro lado al Gran Carro de la Osa Mayor.
+Al ser tan fácil de reconocer es muy usada para encontrar el norte cuando no es posible utilizar a la Osa Mayor para este propósito, cuando ésta no es visible en cielos de latitudes templadas (menos de 35°N - Islas Canarias).
+Debido a su cercanía al polo norte, esta constelación es circumpolar boreal, es decir, siempre visible por encima del horizonte septentrional a partir de 45-50° de latitud norte, la latitud de ciudades como Berlín o Londres.
+Para los observadores desde el hemisferio sur, esta constelación permanecerá siempre invisible si la latitud de lugar es inferior a su mínima declinación, es decir, 43°S.
+El mejor mes para ver a Casiopea es octubre, siendo su asterismo más característico el formado por sus cinco estrellas más brillantes (de oeste a este): Caph, Schedar, Cih, Ruchbah y Segin. Estas estrellas toman la característica forma de una "M". Es en este mes cuando tiene la mejor visibilidad para los observadores australes, que la verán formando una "M" muy baja en el horizonte norte.
+Por otra parte, el Sol, observado desde la cercana Alfa Centauri, aparecería en la constelación de Casiopea como una estrella de magnitud 0,5. La conocida «W» de Casiopea aparecería con forma de zigzag, estando el Sol situado en el extremo izquierdo próximo a ε Cassiopeiae.
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Schedar;* alf Cas;00 40 30;+56 32 14;2,2;Estrella;
+Achird;* eta Cas;00 49 06;+57 48 55;3,4;Estrella;
+Fulu;* zet Cas;00 36 58;+53 53 49;3,6;Estrella;
+Caph;* bet Cas;00 09 11;+59 08 59;2,2;Estrella;
+M  52;M  52;23 24 47;+61 35 24;;OpC;
+Ruchbah;* del Cas;01 25 49;+60 14 07;2,6;Estrella;
+M 103;M 103;01 33 21;+60 39 32;7,4;OpC;
+Segin;* eps Cas;01 54 24;+63 40 12;3,3;Estrella;

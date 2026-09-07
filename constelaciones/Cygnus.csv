@@ -1,0 +1,9 @@
+#desc;Cygnus o el Cisne es una constelación del hemisferio norte que atraviesa la Vía Láctea. La disposición de sus principales estrellas hace que a veces sea conocida como la Cruz del Norte, en contraste con la constelación austral de la Cruz del Sur.
+nombre;nombre_tecnico;ra;dec;mag;tipo;infoExtra
+Deneb;* alf Cyg;20 41 26;+45 16 49;1,2;Estrella;
+SADR;* gam Cyg;20 22 14;+40 15 24;2,2;Estrella;
+M  29;M  29;20 23 46;+38 29 13;6,5;OpC;
+Aljanah;* eps Cyg;20 46 13;+33 58 13;2,4;Estrella;
+Fawaris;* del Cyg;19 44 58;+45 07 51;2,8;Estrella;
+Albereo;* bet01 Cyg;19 30 43;+27 57 35;3,0;Estrella;
+NGC  7092;NGC  7092;21 31 33;+48 14 49;;OpC;

@@ -48,6 +48,7 @@ import alineacion
 import voz
 import anuncio_ip
 import coordenadas
+import recorridos
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -1328,6 +1329,103 @@ def centrado_iniciar():
     return jsonify({"ok": True, "objeto": objeto, "origen": origen})
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  Recorrido por constelación (portado de la versión de junio; ver recorridos.py)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/constelacion')
+def vista_constelacion():
+    return render_template("constelacion.html", mostrar_volver=True)
+
+
+@app.route('/recorrido-constelacion', methods=['POST'])
+def recorrido_constelacion():
+    raw = request.form.get('nombre', '').strip()
+    if not raw:
+        return jsonify({'error': '❌ Falta el nombre de la constelación.'}), 400
+    try:
+        descripcion, estrellas = recorridos.recorrido_constelacion(raw, reemplazar_numeros_en_texto)
+    except RuntimeError as e:
+        return jsonify({'error': f"⚠️ {e}"}), 404
+    except Exception as e:
+        log.exception("Error preparando el recorrido de %s", raw)
+        return jsonify({'error': f"❌ Error al consultar SIMBAD: {e}"}), 500
+    return jsonify({'descripcion': descripcion, 'estrellas': estrellas})
+
+
+def _config_recorrido():
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    r = cfg["Recorrido"] if "Recorrido" in cfg else {}
+    return {"centrar": str(r.get("centrar", "false")).lower() == "true",
+            "espera_centrado_s": int(r.get("espera_centrado_s", 120))}
+
+
+@app.route("/iniciar-recorrido", methods=["POST"])
+def iniciar_recorrido():
+    """Mueve el telescopio a un objeto del recorrido y espera a que llegue (opcionalmente centra)."""
+    datos = request.get_json(silent=True) or {}
+    estrella = datos.get("estrella", {})
+    nombre, ra, dec = estrella.get("nombre"), estrella.get("ra"), estrella.get("dec")
+    if not nombre or ra is None or dec is None:
+        return jsonify({"error": "❌ Datos de estrella incompletos."})
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"error": "El apilado está capturando; páusalo antes del recorrido."})
+
+    if calcular_altitud(ra=float(ra), dec=float(dec)) < float(ALTURA_MINIMA):
+        return jsonify({"skipped": True, "nombre": nombre})
+
+    ULTIMO_GOTO.clear()
+    ULTIMO_GOTO.update({"ra": float(ra), "dec": float(dec), "objeto": nombre, "fuente": "recorrido",
+                        "hora": datetime.now().isoformat(timespec="seconds")})
+    voz.decir(f"Moviendo el telescopio a {nombre}")
+
+    def _mover(tel):
+        tel.Tracking = True
+        ra_m, dec_m = coordenadas.a_montura(float(ra), float(dec))
+        if getattr(tel, "CanSlewAsync", False):
+            tel.SlewToCoordinatesAsync(ra_m, dec_m)
+        else:
+            tel.SlewToCoordinates(ra_m, dec_m)
+        inicio = time.time()
+        time.sleep(0.5)
+        while tel.Slewing:
+            if time.time() - inicio > 180:
+                raise ErrorHardware("La montura no terminó el movimiento en 180 s")
+            time.sleep(0.5)
+
+    try:
+        montura.ejecutar(_mover, timeout=200)
+    except ErrorHardware as e:
+        return jsonify({"error": f"❌ Error durante GOTO: {e}"})
+
+    conf = _config_recorrido()
+    if conf["centrar"] and not camara.ocupado:
+        try:
+            centrado.trabajo_centrado.iniciar(camara, montura, float(ra), float(dec), objeto=nombre,
+                                              calcular_altitud=calcular_altitud, altura_minima=float(ALTURA_MINIMA))
+            inicio = time.time()
+            while centrado.trabajo_centrado.estado()["en_curso"] and time.time() - inicio < conf["espera_centrado_s"]:
+                time.sleep(0.5)
+        except RuntimeError as e:
+            print(f"⚠️ Centrado omitido en el recorrido: {e}")
+    return jsonify({"ok": True, "nombre": nombre})
+
+
+@app.route('/listar-txt-constelaciones')
+def listar_txt_constelaciones():
+    return jsonify(recorridos.listar_recorridos_txt())
+
+
+@app.route('/leer-txt-constelacion')
+def leer_txt_constelacion():
+    resultado = recorridos.leer_recorrido_txt(request.args.get('file', ''))
+    if resultado is None:
+        return jsonify({"error": "Fichero no encontrado"}), 404
+    descripcion, lista = resultado
+    return jsonify({"descripcion": descripcion, "lista": lista})
+
+
 @app.route('/alineacion')
 def vista_alineacion():
     return render_template('alineacion.html', mostrar_volver=True, conf=alineacion.leer_config())
@@ -1626,52 +1724,12 @@ def estado_telescopio():
 
 @app.route("/info-wikipedia", methods=["POST"])
 def info_wikipedia():
+    """Resumen de Wikipedia en español, con caché en info_objetos/ (funciona sin internet la 2ª vez)."""
     raw_objeto = request.form.get("objeto", "").strip()
     if not raw_objeto:
         return jsonify({"error": "Debe proporcionar un nombre de objeto."})
+    return jsonify({"wikipedia_info": recorridos.obten_resumen_wiki(raw_objeto, reemplazar_numeros_en_texto)})
 
-    import re, wikipedia
-    wikipedia.set_lang("es")
-
-    # 1) Normalizamos: quitamos espacios letra→número para hacer "M42" de "M 42"
-    sin_espacios = re.sub(r'([A-Za-z])\s+(?=\d)', r'\1', raw_objeto)
-
-    # 2) Reemplazamos números en texto ("trece"→"13"), si aplica
-    candidato1 = reemplazar_numeros_en_texto(sin_espacios)
-
-    # 3) Generamos alternativa con espacio ("M106"→"M 106")
-    candidato2 = re.sub(r'([A-Za-z])(?=\d)', r'\1 ', candidato1)
-
-    resumen = None
-    ultima_excepcion = None
-
-    for nombre in (candidato1, candidato2):
-        try:
-            # intentar página y resumen
-            _ = wikipedia.page(nombre)
-            resumen = wikipedia.summary(nombre)
-            break
-        except wikipedia.exceptions.DisambiguationError as e:
-            # si hay ambigüedad, tomamos la primera opción
-            try:
-                opcion = e.options[0]
-                resumen = wikipedia.summary(opcion)
-                break
-            except Exception as e2:
-                ultima_excepcion = e2
-        except wikipedia.exceptions.PageError as e:
-            # no existe esa forma — lo guardamos y probamos la siguiente
-            ultima_excepcion = e
-        except Exception as e:
-            # otro error inesperado: salimos del bucle
-            ultima_excepcion = e
-            break
-
-    if not resumen:
-        # si no encontró con ninguno de los dos formatos
-        resumen = f"No se encontró información sobre '{raw_objeto}'."
-
-    return jsonify({"wikipedia_info": resumen})
 
 # Generar el diccionario de números en palabras hasta 9999
 def generar_numeros_en_palabras():
