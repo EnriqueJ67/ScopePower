@@ -9,36 +9,61 @@
     Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.
 </p>
 
-<div style="text-align: center; margin-bottom: 10px;">
-    <button id="btn-foto" class="btn btn-success" onclick="hacerFoto()">📷 Hacer foto</button>
-    <button id="btn-sync" class="btn btn-primary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva">📍 Sincronizar telescopio con la foto</button>
-    <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;">⏹️ Cancelar</button>
-</div>
-<div id="estado-foto" style="text-align: center; font-size: 16px; color: #ffd; min-height: 1.5em;"></div>
-<div style="max-width: 600px; margin: 6px auto; display: none;" id="barra-bloque">
-    <div style="background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 14px; overflow: hidden;">
-        <div id="barra" style="height: 100%; width: 0%; background: #2e7d2e; transition: width 0.9s linear;"></div>
+<!-- En pantalla ancha: foto a la izquierda, botones y ajustes a la derecha -->
+<div class="foto-layout">
+    <div class="foto-imagen">
+        <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}">
+    </div>
+
+    <div class="foto-controles">
+        <div class="foto-botones">
+            <button id="btn-foto" class="btn btn-success" onclick="hacerFoto()">📷 Hacer foto</button>
+            <button id="btn-sync" class="btn btn-primary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva">📍 Sincronizar telescopio con la foto</button>
+            <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;">⏹️ Cancelar</button>
+        </div>
+        <div id="estado-foto" style="text-align: center; font-size: 16px; color: #ffd; min-height: 1.5em;"></div>
+        <div style="margin: 6px auto; display: none;" id="barra-bloque">
+            <div style="background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 14px; overflow: hidden;">
+                <div id="barra" style="height: 100%; width: 0%; background: #2e7d2e; transition: width 0.9s linear;"></div>
+            </div>
+        </div>
+        <div id="estado-sync" style="text-align: center; font-size: 15px; min-height: 1.5em; margin-bottom: 8px;"></div>
+
+        <div style="text-align: center; margin-top: 10px;">
+            <a href="{{ url_for('vista_calibracion') }}" class="btn btn-outline-warning">🌑 Calibración: darks y flats</a>
+        </div>
+
+        <div class="ajustes" style="color: #ccc;">
+            <h4>🔧 Ajustes (vista previa)</h4>
+            <div class="form-group">
+                <label>Intensidad del color</label>
+                <input type="number" id="input-color" class="form-control" min="0" max="3" step="0.1">
+            </div>
+            <button class="btn btn-primary mt-3" onclick="guardarParametrosMTF()">💾 Guardar parámetros</button>
+            <div id="estado-mtf" style="margin-top: 10px; font-style: italic;"></div>
+        </div>
     </div>
 </div>
-<div id="estado-sync" style="text-align: center; font-size: 15px; min-height: 1.5em; margin-bottom: 8px;"></div>
 
-<div style="text-align: center;">
-    <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" style="width: 100%; max-width: 600px; border: 2px solid #775555; border-radius: 10px;">
-</div>
+<style>
+    .foto-layout { display: grid; grid-template-columns: 1fr; gap: 12px 20px; align-items: start; }
+    .foto-imagen { text-align: center; }
+    .foto-imagen img { width: 100%; max-width: 600px; border: 2px solid #775555; border-radius: 10px; }
+    .foto-botones { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
+    .foto-botones .btn { margin: 0; width: 100%; box-sizing: border-box; }
+    .ajustes { max-width: 400px; margin: 24px auto 0 auto; }
 
-<div style="text-align: center; margin-top: 20px;">
-    <a href="{{ url_for('vista_calibracion') }}" class="btn btn-outline-warning">🌑 Calibración: darks y flats</a>
-</div>
-
-<div class="container" style="max-width: 400px; margin: 30px auto; color: #ccc;">
-    <h4>🔧 Ajustes (vista previa)</h4>
-    <div class="form-group">
-        <label>Intensidad del color</label>
-        <input type="number" id="input-color" class="form-control" min="0" max="3" step="0.1">
-    </div>
-    <button class="btn btn-primary mt-3" onclick="guardarParametrosMTF()">💾 Guardar parámetros</button>
-    <div id="estado-mtf" style="margin-top: 10px; font-style: italic;"></div>
-</div>
+    @media (min-width: 700px) {
+        .foto-layout { grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); }
+        .foto-imagen img { max-width: 100%; }
+        .foto-imagen { position: sticky; top: 8px; }
+        .ajustes { margin-top: 18px; }
+    }
+    @media (max-height: 500px) and (orientation: landscape) {
+        h2 { font-size: 20px; margin: 4px 0; }
+        .foto-imagen img { max-height: calc(100vh - 110px); width: auto; max-width: 100%; }
+    }
+</style>
 
 <script>
     let sondeo = null;

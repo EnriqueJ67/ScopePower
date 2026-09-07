@@ -32,3 +32,6 @@ secretos.ini
 logs/
 static/evolucion/
 static/ultima_captura*
+
+# Configuración local de Claude Code
+.claude/

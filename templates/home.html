@@ -7,7 +7,7 @@
 <h2>ScopePower funcionando 🚀</h2>
 
 <!-- Logo de ScopeBoost -->
-<div style="text-align: center; margin-bottom: 20px;">
+<div class="cabecera" style="text-align: center; margin-bottom: 20px;">
     <img src="/static/logo.png" alt="ScopePower Logo" style="max-width: 300px;">
     <p><b>ScopeBoost: Real-time Power for Your Telescope</b></p>
 </div>
@@ -30,7 +30,7 @@
     <li><a href="/control" class="clic-audio requiere-conexion">🎮 Control manual del telescopio</a></li>
     <li><a href="/foto-prueba" class="clic-audio requiere-conexion">📷 Foto de prueba (enfoque y encuadre)</a></li>
     <li><a href="/calibracion" class="clic-audio requiere-conexion">🌑 Calibración: darks y flats</a></li>
-    <li><a href="/salir" class="clic-audio" data-confirmar="¿Cerrar ScopePower? Se desconectarán la cámara y la montura y se detendrá el servidor." style="color: #ff6666;"><b>⛔ Cerrar Aplicación</b></a></li>
+    <li class="ancho"><a href="/salir" class="clic-audio" data-confirmar="¿Cerrar ScopePower? Se desconectarán la cámara y la montura y se detendrá el servidor." style="color: #ff6666;"><b>⛔ Cerrar Aplicación</b></a></li>
 </ul>
 
 {% if estado_licencia == "activado" %}
@@ -53,29 +53,32 @@
 
 
 <style>
-    ul.menu {
-        list-style: none;
-        padding: 0;
+    ul.menu { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr; gap: 14px; }
+    ul.menu li { margin: 0; }
+    ul.menu a {
+        display: flex; align-items: center; justify-content: center; height: 100%; box-sizing: border-box;
+        padding: 20px; background-color: #550000; border-radius: 12px; font-size: 24px;
+        text-align: center; color: #ffcccc; text-decoration: none;
     }
+    ul.menu a:hover { background-color: #770000; }
 
-        ul.menu li {
-            margin: 20px 0;
-        }
-
-        ul.menu a {
-            display: block;
-            padding: 20px;
-            background-color: #550000;
-            border-radius: 12px;
-            font-size: 24px;
-            text-align: center;
-            color: #ffcccc;
-            text-decoration: none;
-        }
-
-            ul.menu a:hover {
-                background-color: #770000;
-            }
+    /* Pantalla ancha (tablet, móvil apaisado): menú a dos columnas, Cerrar a lo ancho */
+    @media (min-width: 700px) {
+        ul.menu { grid-template-columns: 1fr 1fr; }
+        ul.menu li.ancho { grid-column: 1 / -1; }
+        ul.menu a { font-size: 22px; padding: 18px 12px; }
+    }
+    @media (min-width: 700px) and (orientation: portrait) {
+        ul.menu a { font-size: 23px; padding: 26px 10px; }
+    }
+    /* Móvil apaisado: logo y cabecera pequeños para que se vea el menú */
+    @media (max-height: 500px) and (orientation: landscape) {
+        h2 { font-size: 18px; margin: 4px 0; }
+        .cabecera img { max-width: 140px !important; }
+        .cabecera p { margin: 2px 0; font-size: 13px; }
+        ul.menu { gap: 8px; }
+        ul.menu a { padding: 12px 8px; font-size: 18px; }
+    }
 </style>
 <script>
     const sonidoClick = new Audio("/static/click.wav");
