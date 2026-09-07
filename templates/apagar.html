@@ -4,7 +4,7 @@
 {% block title %}Cerrar o apagar{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center;">⏻ Cerrar o apagar</h2>
+<h2 style="text-align: center;">🛑 Cerrar o apagar</h2>
 <p style="text-align: center; color: #ddaaaa; font-size: 15px;">
     Apagar o reiniciar desde aquí cierra Windows de forma ordenada, sin quitarle la alimentación al mini PC.
     Antes se desconectan la cámara y la montura.
@@ -13,12 +13,12 @@
 <div class="apagar-botones">
     <button class="btn btn-warning" onclick="cerrarApp()">⛔ Cerrar ScopePower<small>El PC sigue encendido</small></button>
     <button class="btn btn-primary" onclick="pedir('reiniciar')">🔄 Reiniciar el equipo<small>Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio</small></button>
-    <button class="btn btn-danger" onclick="pedir('apagar')">⏻ Apagar el equipo<small>Después ya se puede quitar la alimentación</small></button>
+    <button class="btn btn-danger" onclick="pedir('apagar')">🛑 Apagar el equipo<small>Después ya se puede quitar la alimentación</small></button>
 </div>
 
 <div id="cuenta" class="cuenta" hidden>
     <div id="cuenta-texto" style="font-size: 22px;"></div>
-    <div class="barra-bloque"><div id="cuenta-barra" class="barra"></div></div>
+    <div class="cuenta-bloque"><div id="cuenta-barra" class="cuenta-progreso"></div></div>
     <button class="btn btn-success" onclick="cancelar()" style="font-size: 20px; padding: 16px 28px;">✋ Cancelar</button>
 </div>
 <div id="estado" style="text-align: center; font-size: 16px; min-height: 1.5em; margin-top: 10px;"></div>
@@ -28,8 +28,9 @@
     .apagar-botones .btn { margin: 0; padding: 18px; font-size: 20px; text-align: center; }
     .apagar-botones .btn small { display: block; font-size: 13px; font-weight: normal; opacity: 0.8; margin-top: 4px; }
     .cuenta { text-align: center; max-width: 520px; margin: 20px auto; padding: 16px; border: 2px solid #aa3333; border-radius: 12px; background: #3a0a0a; }
-    .barra-bloque { background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 14px; overflow: hidden; margin: 12px 0 16px; }
-    .barra { height: 100%; width: 100%; background: #c0392b; transition: width 1s linear; }
+    /* Ojo: no llamar ".barra" a nada, es la clase de la barra de navegación de base.html */
+    .cuenta-bloque { background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 14px; overflow: hidden; margin: 12px 0 16px; }
+    .cuenta-progreso { height: 100%; width: 100%; background: #c0392b; transition: width 1s linear; }
     @media (min-width: 700px) and (orientation: landscape) {
         .apagar-botones { grid-template-columns: 1fr 1fr 1fr; max-width: 1000px; }
     }
@@ -70,7 +71,7 @@
         clearInterval(temporizador);
         const total = restante;
         const pinta = () => {
-            txt.textContent = (accion === "apagar" ? "⏻ El equipo se apaga en " : "🔄 El equipo se reinicia en ") + restante + " s";
+            txt.textContent = (accion === "apagar" ? "🛑 El equipo se apaga en " : "🔄 El equipo se reinicia en ") + restante + " s";
             barra.style.width = (100 * restante / total) + "%";
         };
         pinta();
@@ -80,7 +81,7 @@
                 clearInterval(temporizador);
                 caja.hidden = true;
                 estado.innerHTML = accion === "apagar"
-                    ? "⏻ <b>El equipo se está apagando.</b> Espera a que se apaguen las luces del mini PC antes de quitarle la alimentación. Ya puedes cerrar esta pestaña."
+                    ? "🛑 <b>El equipo se está apagando.</b> Espera a que se apaguen las luces del mini PC antes de quitarle la alimentación. Ya puedes cerrar esta pestaña."
                     : "🔄 <b>El equipo se está reiniciando.</b> En un par de minutos vuelve a abrir la app en la misma dirección.";
                 return;
             }
