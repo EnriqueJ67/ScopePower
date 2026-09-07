@@ -22,7 +22,7 @@ SECCION = "Secretos"
 # código para que las licencias ya generadas sigan siendo válidas.
 _DEFECTOS = {
     "flask_secret_key": None,        # None = generar uno aleatorio
-    "activacion_secreto": "mi_clave_privada_123",
+    "activacion_secreto": "***SECRETO-ELIMINADO***",   # el de la versión de junio (generar_clave.py)
     "ftp_contrasena": "",
     "astrometry_api_key": "",
 }

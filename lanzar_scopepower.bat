@@ -1,0 +1,54 @@
+@echo off
+setlocal
+chcp 65001 >nul
+title ScopePower
+
+REM ============================================================================
+REM  lanzar_scopepower.bat  -  arranca el servidor de ScopePower
+REM
+REM  Usa el entorno creado por instalar_scopepower.bat (%LOCALAPPDATA%\ScopePower\venv).
+REM  Si no existe, prueba con Python 3.11 del sistema y, en su defecto, con anaconda3.
+REM  La ventana se queda abierta: es la consola del servidor (el log completo esta
+REM  en logs\scopepower.log). Para cerrar la app usa "Cerrar Aplicacion" en la web
+REM  o cierra esta ventana.
+REM
+REM  lanzar_scopepower.bat /test  -> solo muestra que Python usaria y sale
+REM ============================================================================
+
+cd /d "%~dp0"
+set "PYTHONIOENCODING=utf-8"
+set "PY="
+
+if exist "%LOCALAPPDATA%\ScopePower\venv\Scripts\python.exe" set "PY=%LOCALAPPDATA%\ScopePower\venv\Scripts\python.exe"
+if not defined PY (
+    py -3.11 -c "import cv2, astropy, flask" >nul 2>&1 && set "PY=py -3.11"
+)
+if not defined PY (
+    if exist "%USERPROFILE%\anaconda3\python.exe" (
+        "%USERPROFILE%\anaconda3\python.exe" -c "import cv2, astropy, flask" >nul 2>&1 && set "PY=%USERPROFILE%\anaconda3\python.exe"
+    )
+)
+if not defined PY (
+    echo No se encuentra un Python con las dependencias de ScopePower.
+    echo Ejecuta primero instalar_scopepower.bat
+    pause
+    exit /b 1
+)
+
+if /I "%~1"=="/test" (
+    echo Python que se usaria: %PY%
+    exit /b 0
+)
+
+if not exist "config.ini" (
+    echo No existe config.ini. Ejecuta instalar_scopepower.bat o copia config.example.ini a config.ini
+    pause
+    exit /b 1
+)
+
+echo Arrancando ScopePower... (esta ventana es la consola del servidor)
+echo.
+%PY% ScopePower.py
+echo.
+echo ScopePower ha terminado (codigo %ERRORLEVEL%). Revisa logs\scopepower.log si ha sido un error.
+pause
