@@ -215,7 +215,16 @@ def firmar_clave(clave_str):
     firma = hashlib.sha256((clave_str + SECRETO_ACTIVACION).encode()).hexdigest()
     return f"{clave_str}|{firma}"
 
+def activacion_requerida():
+    """[General] activacion_requerida = false desactiva por completo la activación (pruebas)."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    return cfg.get("General", "activacion_requerida", fallback="true").strip().lower() == "true"
+
+
 def estado_licencia():
+    if not activacion_requerida():
+        return "activado"
     try:
         # Verificar clave de activación
         clave = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\\Microsoft\\Windows\\CurrentVersion\\WinUpdateTelemetry")
