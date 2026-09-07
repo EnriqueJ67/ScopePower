@@ -603,27 +603,37 @@ class ApiladorEnTiempoReal:
             margen_w = int(w * zoom / 100 / 2)
             imagen_bgr = imagen_bgr[margen_h:h - margen_h, margen_w:w - margen_w]
 
-        # Texto (se omite con zoom muy alto para no pixelar)
+        # Marco decorativo con texto (versión de junio, frame_and_text.py): nombre del
+        # objeto, fotos y tiempo. Se omite con zoom muy alto. Si falla, texto simple.
         if zoom <= 80:
-            alto = imagen_bgr.shape[0]
-            font_scale_grande = max(0.4, min(round(alto / 800.0, 2), 1.5))
-            font_scale_pequeno = font_scale_grande * 0.7
-            thickness_grande = max(1, int(font_scale_grande * 2.5))
-            thickness_pequeno = max(1, int(thickness_grande * 0.7))
-            texto_fecha = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            texto_apilado = f"{num_imagenes_preview} imagenes, {num_imagenes_preview * EXPOSICION:.1f} s"
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            color = (180, 180, 180)
-            (t_width, t_height), _ = cv2.getTextSize(texto_apilado, font, font_scale_grande, thickness_grande)
-            (tw_fecha, th_fecha), _ = cv2.getTextSize(texto_fecha, font, font_scale_pequeno, thickness_pequeno)
-            pos_x = (imagen_bgr.shape[1] - t_width) // 2
-            pos_y = imagen_bgr.shape[0] - 10
-            pos_x_fecha = (imagen_bgr.shape[1] - tw_fecha) // 2
-            pos_y_fecha = pos_y - t_height - 8
-            cv2.putText(imagen_bgr, texto_fecha, (pos_x_fecha + 1, pos_y_fecha + 1), font, font_scale_pequeno, (0, 0, 0), 2)
-            cv2.putText(imagen_bgr, texto_fecha, (pos_x_fecha, pos_y_fecha), font, font_scale_pequeno, color, thickness_pequeno)
-            cv2.putText(imagen_bgr, texto_apilado, (pos_x + 1, pos_y + 1), font, font_scale_grande, (0, 0, 0), 2)
-            cv2.putText(imagen_bgr, texto_apilado, (pos_x, pos_y), font, font_scale_grande, color, thickness_grande)
+            obj_name = "Objeto"
+            info_path = ruta_absoluta("static/info_objeto_goto.txt")
+            if os.path.isfile(info_path):
+                with open(info_path, "r", encoding="utf-8", errors="replace") as f:
+                    for line in f:
+                        if line.startswith("Nombre:"):
+                            obj_name = line.split(":", 1)[1].strip() or obj_name
+                            break
+            texto_apilado = f"{obj_name}  ·  {num_imagenes_preview} fotos, {num_imagenes_preview * EXPOSICION:.0f} s  ·  {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+            usar_marco = nuevo_config["Apilado"].get("marco_decorativo", "true").lower() == "true" if "Apilado" in nuevo_config else True
+            dibujado = False
+            if usar_marco:
+                try:
+                    from frame_and_text import add_frame_and_text
+                    imagen_bgr = add_frame_and_text(imagen_bgr, texto_apilado)
+                    dibujado = True
+                except Exception as e:
+                    print(f"⚠️ Marco decorativo no disponible ({e}); texto simple")
+            if not dibujado:
+                alto = imagen_bgr.shape[0]
+                font_scale = max(0.4, min(round(alto / 800.0, 2), 1.5))
+                thickness = max(1, int(font_scale * 2.5))
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                (t_width, t_height), _ = cv2.getTextSize(texto_apilado, font, font_scale, thickness)
+                pos_x = (imagen_bgr.shape[1] - t_width) // 2
+                pos_y = imagen_bgr.shape[0] - 10
+                cv2.putText(imagen_bgr, texto_apilado, (pos_x + 1, pos_y + 1), font, font_scale, (0, 0, 0), 2)
+                cv2.putText(imagen_bgr, texto_apilado, (pos_x, pos_y), font, font_scale, (180, 180, 180), thickness)
 
         # Guardar JPG final
         self._fase("guardando")

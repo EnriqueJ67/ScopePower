@@ -18,6 +18,26 @@ config = configparser.ConfigParser()
 config.read("config.ini")
 RUTA_ASTAP = config["General"]["RUTA_ASTAP"]
 
+# Datos de respaldo para objetos a los que SIMBAD no da tamaño/ángulo/magnitud
+# (portado de la versión de junio). Dimensiones en minutos de arco, ángulo en
+# grados, mag = magnitud V. Añadir aquí los que falten.
+OBJ_FALLBACK = {
+    'M 8':      {'maj': 90.0, 'min': 40.0, 'angle': 20.0, 'mag': 6.0},
+    'M 40':     {'maj': 0.5,  'min': 0.5,  'angle': None, 'mag': 9.0},
+    'M 43':     {'maj': 20.0, 'min': 15.0, 'angle': None, 'mag': 9.0},
+    'NGC 6994': {'maj': 9.0,  'min': 9.0,  'angle': None, 'mag': 8.9},
+    'M 78':     {'maj': 8.0,  'min': 8.0,  'angle': 10.0, 'mag': 8.3},
+    'M 82':     {'maj': 11.2, 'min': 4.3,  'angle': 65.0, 'mag': 8.4},
+}
+
+
+def datos_fallback(nombre):
+    """{maj, min, angle, mag} de OBJ_FALLBACK para `nombre` (espacios normalizados) o None."""
+    if not isinstance(nombre, str):
+        return None
+    clave = " ".join(nombre.strip().upper().split())
+    return OBJ_FALLBACK.get(clave)
+
 
 def extraer_coordenadas_ini(ruta_ini):
     if not os.path.exists(ruta_ini):
@@ -179,6 +199,13 @@ def obtener_objetos_simbad(ruta_ini, ruta_fits, mag_max=12.0):
             tam_menor = limpiar_numero(fila['galdim_minaxis'])
             mag = limpiar_numero(fila['V'])
 
+            # Si SIMBAD no trae tamaño o magnitud y el objeto está en OBJ_FALLBACK, rellenar
+            fb = datos_fallback(nombre)
+            if fb:
+                tam_mayor = tam_mayor or fb['maj']
+                tam_menor = tam_menor or fb['min']
+                mag = mag or fb['mag']
+
             razones = []
             if not isinstance(nombre, str):
                 razones.append("nombre no es string")
@@ -209,6 +236,8 @@ def obtener_objetos_simbad(ruta_ini, ruta_fits, mag_max=12.0):
             dec = coord.dec.deg
 
             ang = fila['galdim_angle']
+            if (not ang or hasattr(ang, "mask")) and fb and fb.get('angle') is not None:
+                ang = fb['angle']
             #angulo_dibujo = -(float(ang) - 90) if ang and not hasattr(ang, "mask") else None
             if ang and not hasattr(ang, "mask"):
                 angulo_dibujo = -(float(ang) - 90)
@@ -263,7 +292,7 @@ def obtener_objetos_simbad(ruta_ini, ruta_fits, mag_max=12.0):
     return objetos
 
 
-def generar_jpg_con_circulos_desde_ini(ruta_fits, ruta_ini, objetos_simbad, ruta_salida="salida.jpg", usar_circulo=False):
+def generar_jpg_con_circulos_desde_ini(ruta_fits, ruta_ini, objetos_simbad, ruta_salida="salida.jpg", usar_circulo=True):
     import math, cv2, numpy as np
     from astropy.io import fits
     from astropy.io.fits import Header
@@ -399,6 +428,15 @@ def resolver_y_generar_imagen_con_objetos(ruta_fits, mag_max=14.0, ruta_salida_j
 
     # 3. Generar la imagen final con círculos
     generar_jpg_con_circulos_desde_ini(ruta_fits, ruta_ini, objetos_simbad, ruta_salida_jpg)
+
+    # 4. Las cachés CSV son de ESTE campo: borrarlas para que un objetivo nuevo
+    #    no se anote con los objetos del anterior (cambio de la versión de junio)
+    for cache in ("objetos_descartados.csv", "objetos_filtrados.csv"):
+        try:
+            if os.path.exists(cache):
+                os.remove(cache)
+        except Exception:
+            pass
 
     return ruta_salida_jpg
 
