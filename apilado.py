@@ -16,7 +16,7 @@ from datetime import datetime
 import shutil
 from collections import deque
 from AutoStrechSTF import apply_stf_color, debayer_rgb
-from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
+import anotaciones
 import voz
 import procesado
 import cv2
@@ -577,19 +577,21 @@ class ApiladorEnTiempoReal:
         miniatura de la tira de evolución y aviso a la web (versión).
         """
         self._fase("estirando")
-        rgb_mtf = None
+        # Procesado completo a media resolución (la web muestra ≤600 px)
+        rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=0.5)
         if ObjetosAnotados:
-            # resolver_y_generar_imagen_con_objetos ya devuelve un JPG coloreado
-            ruta_obj = "static/scopepower_objetos.jpg"
-            ok = resolver_y_generar_imagen_con_objetos("static/resultado_apilado.fits",
-                                                       ruta_salida_jpg=ruta_obj)
-            if ok and os.path.exists(ruta_obj):
-                rgb_mtf = cv2.cvtColor(cv2.imread(ruta_obj), cv2.COLOR_BGR2RGB)
-            else:
-                print("⚠️ Fallback al flujo normal (objetos anotados).")
-        if rgb_mtf is None:
-            # Procesado completo a media resolución (la web muestra ≤600 px)
-            rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=0.5)
+            # Objetos del campo dibujados SOBRE la imagen procesada (anotaciones.py):
+            # catálogo local sin Internet, SIMBAD si hay red, letra proporcional
+            self._fase("anotando")
+            try:
+                anotada = anotaciones.anotar(rgb_mtf, "static/resultado_apilado.fits")
+                if anotada is not None:
+                    rgb_mtf = anotada
+                    cv2.imwrite("static/scopepower_objetos.jpg", cv2.cvtColor(anotada, cv2.COLOR_RGB2BGR))
+                else:
+                    print("⚠️ No se pudo resolver el campo: vista previa sin anotaciones.")
+            except Exception as e:
+                print(f"⚠️ Error anotando objetos ({e}): vista previa sin anotaciones.")
 
         imagen_bgr = cv2.cvtColor(rgb_mtf, cv2.COLOR_RGB2BGR)
 
