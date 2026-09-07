@@ -253,6 +253,8 @@ def estado_licencia():
         return "expirado"
 
 def validar_licencia():
+    if not activacion_requerida():
+        return True
     if not comprobar_reloj_no_atrasado():
         print("⚠️ Se detectó cambio en el reloj del sistema. Bloqueando acceso.")
         return False
