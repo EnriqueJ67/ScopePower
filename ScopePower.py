@@ -47,6 +47,7 @@ import centrado
 import alineacion
 import voz
 import anuncio_ip
+import coordenadas
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -448,6 +449,12 @@ def _activar_seguimiento(tel):
         tel.Tracking = True
     except Exception as e:
         print(f"⚠️ No se pudo activar el seguimiento al conectar: {e}")
+    # ¿La montura trabaja en J2000 o en JNow? Condiciona todos los GOTO y Sync.
+    try:
+        sistema = coordenadas.establecer_desde_ascom(tel.EquatorialSystem)
+        print(f"🧭 Sistema de coordenadas de la montura: {sistema}")
+    except Exception as e:
+        print(f"⚠️ No se pudo leer EquatorialSystem de la montura ({e}); se asume J2000")
     voz.decir("Telescopio conectado")
 
     cfg = configparser.ConfigParser()
@@ -1273,7 +1280,10 @@ def corregir_posicion():
         return render_template('corregir_posicion.html', resultado="⚠️ Advertencia: El objeto está por debajo de altura mínima. Proceso cancelado.", mostrar_volver=True)
     
     def _sincronizar(tel):
-        tel.SyncToCoordinates(ra_resuelto, dec_resuelto)
+        # ra_resuelto/dec_resuelto vienen del plate solving (J2000);
+        # ra_inicial/dec_inicial se leyeron de la montura (ya en su sistema)
+        ra_s, dec_s = coordenadas.a_montura(ra_resuelto, dec_resuelto)
+        tel.SyncToCoordinates(ra_s, dec_s)
         tel.SlewToCoordinates(ra_inicial, dec_inicial)
 
     try:
@@ -1302,7 +1312,8 @@ def centrado_iniciar():
         ra, dec, objeto, origen = ULTIMO_GOTO["ra"], ULTIMO_GOTO["dec"], ULTIMO_GOTO.get("objeto", ""), "goto"
     else:
         try:
-            ra, dec = montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
+            ra, dec = coordenadas.desde_montura(
+                *montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10))
         except ErrorHardware as e:
             return jsonify({"ok": False, "error": f"No hay GOTO previo y no se pudo leer la montura: {e}"}), 409
         objeto, origen = "posición actual de la montura", "montura"
@@ -1558,10 +1569,12 @@ def goto_objeto():
 
             def _mover_telescopio(tel, ra=ra, dec=dec):
                 tel.Tracking = True
+                # Las coordenadas resueltas son J2000; la montura puede pedir JNow
+                ra_m, dec_m = coordenadas.a_montura(ra, dec)
                 if getattr(tel, "CanSlewAsync", False):
-                    tel.SlewToCoordinatesAsync(ra, dec)
+                    tel.SlewToCoordinatesAsync(ra_m, dec_m)
                 else:
-                    tel.SlewToCoordinates(ra, dec)
+                    tel.SlewToCoordinates(ra_m, dec_m)
                 # Esperar hasta que comience a moverse (máx. 5 s)
                 for _ in range(10):
                     if tel.Slewing:
@@ -1604,12 +1617,12 @@ def goto_objeto():
 @app.route("/estado_telescopio")
 def estado_telescopio():
     if not montura.esta_conectado():
-        return jsonify({"slewing": False})
+        return jsonify({"slewing": False, "conectado": False})
     try:
         slewing = montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=5)
-        return jsonify({"slewing": slewing})
+        return jsonify({"slewing": slewing, "conectado": True, "sistema": coordenadas.sistema()})
     except ErrorHardware as e:
-        return jsonify({"slewing": False, "error": str(e)})
+        return jsonify({"slewing": False, "conectado": False, "error": str(e)})
 
 @app.route("/info-wikipedia", methods=["POST"])
 def info_wikipedia():

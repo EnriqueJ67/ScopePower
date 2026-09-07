@@ -28,6 +28,7 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 
 from hardware import capturar_frame, CapturaCancelada, ErrorHardware, estado_captura
+import coordenadas
 
 log = logging.getLogger("scopepower.centrado")
 
@@ -270,8 +271,9 @@ class TrabajoCentrado:
 
         def _mover(tel):
             if sincronizar:
-                tel.SyncToCoordinates(real.ra.hour, real.dec.deg)
-                ra_dest, dec_dest = objetivo.ra.hour, objetivo.dec.deg
+                # real y objetivo son J2000 (plate solving / catálogo): a sistema de la montura
+                tel.SyncToCoordinates(*coordenadas.a_montura(real.ra.hour, real.dec.deg))
+                ra_dest, dec_dest = coordenadas.a_montura(objetivo.ra.hour, objetivo.dec.deg)
             else:
                 # Desplazamiento relativo sobre lo que la montura cree que apunta
                 ra_dest = (tel.RightAscension + d_ra / 15.0) % 24.0

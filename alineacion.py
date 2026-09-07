@@ -30,6 +30,7 @@ import astropy.units as u
 
 from hardware import capturar_frame, CapturaCancelada, ErrorHardware, estado_captura
 from centrado import resolver_con_astap, CentradoCancelado
+import coordenadas
 
 log = logging.getLogger("scopepower.alineacion")
 
@@ -161,7 +162,7 @@ class TrabajoAlineacion:
                               height=conf["altitud"] * u.m)
         try:
             # ── Plan ─────────────────────────────────────────────────
-            ra0, dec0 = montura.ejecutar(lambda t: (t.RightAscension, t.Declination), timeout=10)
+            ra0, dec0 = coordenadas.desde_montura(*montura.ejecutar(lambda t: (t.RightAscension, t.Declination), timeout=10))
             inicial = SkyCoord(ra=ra0 * u.hourangle, dec=dec0 * u.deg)
             az0 = float(inicial.transform_to(AltAz(obstime=Time.now(), location=lugar)).az.deg)
             plan = plan_de_puntos(conf["puntos"], conf["altura_maxima"], conf["altura_minima"], az0)
@@ -231,7 +232,7 @@ class TrabajoAlineacion:
                 if abs(objetivo.dec.deg) > 85:
                     self._marcar(idx, estado="omitido", detalle="demasiado cerca del polo")
                     return
-                self._mover(montura, objetivo.ra.hour, objetivo.dec.deg)
+                self._mover(montura, *coordenadas.a_montura(objetivo.ra.hour, objetivo.dec.deg))
                 self._msg(f"Punto {idx + 1}/{total}: estabilizando seguimiento ({conf['asentamiento_s']:.0f} s)")
                 self._esperar(conf["asentamiento_s"])
 
@@ -259,13 +260,15 @@ class TrabajoAlineacion:
             ra_deg, dec_deg = solucion
             real = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg)
 
-            # Error de la montura en este punto (antes de sincronizar)
+            # Error de la montura en este punto (antes de sincronizar), comparando en J2000
             ra_m, dec_m = montura.ejecutar(lambda t: (t.RightAscension, t.Declination), timeout=10)
-            creia = SkyCoord(ra=ra_m * u.hourangle, dec=dec_m * u.deg)
+            ra_i, dec_i = coordenadas.desde_montura(ra_m, dec_m)
+            creia = SkyCoord(ra=ra_i * u.hourangle, dec=dec_i * u.deg)
             error = float(creia.separation(real).arcmin)
 
             self._marcar(idx, estado="sincronizando", error_arcmin=round(error, 2))
-            montura.ejecutar(lambda t: t.SyncToCoordinates(real.ra.hour, real.dec.deg), timeout=20)
+            ra_s, dec_s = coordenadas.a_montura(real.ra.hour, real.dec.deg)
+            montura.ejecutar(lambda t: t.SyncToCoordinates(ra_s, dec_s), timeout=20)
             time.sleep(1.0)   # la app necesita un momento para procesar el sync
             self._marcar(idx, estado="ok")
             with self._lock:
