@@ -88,6 +88,22 @@ DRIVER_TELESCOPIO = config["Dispositivos"]["DRIVER_TELESCOPIO"]
 BINNING = int(config["Dispositivos"]["BINNING_CAMARA"])
 EXPOSICION = float(config["Dispositivos"]["EXPOSICION_CAPTURA"])
 FOCAL_LEN = float(config["Dispositivos"]["FOCAL_LEN"])
+
+
+def _dispositivos():
+    """
+    Drivers, binning y focal leídos de config.ini EN EL MOMENTO (no al arrancar),
+    para que un cambio en Configuración se aplique sin reiniciar la app.
+    """
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    d = cfg["Dispositivos"]
+    return {
+        "driver_camara": d.get("driver_camara", DRIVER_CAMARA),
+        "driver_telescopio": d.get("driver_telescopio", DRIVER_TELESCOPIO),
+        "binning": int(d.get("binning_camara", BINNING)),
+        "focal": float(d.get("focal_len", FOCAL_LEN)),
+    }
 #PIXEL_SIZE = float(config["Dispositivos"]["PIXEL_SIZE"])
 PALABRA_CLAVE_GOTO = config["General"].get("PALABRA_CLAVE_GOTO", "").lower().strip()
 
@@ -476,8 +492,10 @@ def _activar_seguimiento(tel):
         voz.decir("Sincronizaciones anteriores borradas" if ok
                   else "No se han podido borrar las sincronizaciones anteriores")
 
-montura = TrabajadorCOM("montura", lambda: DRIVER_TELESCOPIO, al_conectar=_activar_seguimiento)
-camara = TrabajadorCOM("cámara", lambda: DRIVER_CAMARA, al_conectar=lambda cam: voz.decir("Cámara conectada"))
+# El driver se lee de config.ini al conectar: cambiarlo en Configuración y pulsar
+# "Reconectar equipo" basta, sin reiniciar la app.
+montura = TrabajadorCOM("montura", lambda: _dispositivos()["driver_telescopio"], al_conectar=_activar_seguimiento)
+camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_conectar=lambda cam: voz.decir("Cámara conectada"))
 
 # Objetivo del último GOTO (ra en horas, dec en grados): es lo que usa el
 # centrado automático como referencia, no "donde la montura cree que está".
@@ -511,7 +529,8 @@ def hacer_dither():
     conf = _config_dithering()
     # Escala de placa ("/px) a partir del tamaño de píxel de la última captura y la focal
     pixel_um = ULTIMA_CAPTURA.get("pixel_um") or 3.76
-    escala = 206.265 * pixel_um * BINNING / max(1.0, FOCAL_LEN)
+    disp = _dispositivos()
+    escala = 206.265 * pixel_um * disp["binning"] / max(1.0, disp["focal"])
     px = random.uniform(0.5, 1.0) * conf["amplitud_px"]
     angulo = random.uniform(0, 2 * math.pi)
     arcsec = px * escala
@@ -920,14 +939,22 @@ def conectar_equipo():
         lanzar_stellarium_si_no_esta_activo()
     except Exception as e:
         resultado["errores"].append(f"Stellarium: {e}")
+    # Reconectar de verdad (desconectar + conectar) para que se aplique un cambio
+    # de driver hecho en Configuración
     try:
-        montura.ejecutar(lambda tel: None, timeout=30)
+        if montura.esta_conectado():
+            montura.reconectar(timeout=30)
+        else:
+            montura.ejecutar(lambda tel: None, timeout=30)
         resultado["montura"] = True
     except ErrorHardware as e:
         resultado["errores"].append(f"Montura: {e}")
         voz.decir("No se ha podido conectar con el telescopio")
     try:
-        camara.ejecutar(lambda cam: None, timeout=30)
+        if camara.esta_conectado():
+            camara.reconectar(timeout=30)
+        else:
+            camara.ejecutar(lambda cam: None, timeout=30)
         resultado["camara"] = True
     except ErrorHardware as e:
         resultado["errores"].append(f"Cámara: {e}")
@@ -1045,6 +1072,8 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     nuevo_config = configparser.ConfigParser()
     nuevo_config.read("config.ini")
     EXPOSICION = float(nuevo_config["Dispositivos"].get("exposicion_captura", 10))
+    disp = _dispositivos()
+    BINNING, FOCAL_LEN = disp["binning"], disp["focal"]     # valores en vivo, no los de arranque
 
     def _exponer(cam):
         print(f"📸 Iniciando exposición de {EXPOSICION} segundos...")
@@ -2345,12 +2374,22 @@ def obtener_config_datos():
 def guardar_config_datos():
     data = request.get_json()
     config.read("config.ini")
+    antes = _dispositivos()
     for clave, valor in data.items():
         if clave in config["Dispositivos"]:
             config["Dispositivos"][clave] = str(valor)
     with open("config.ini", "w") as f:
         config.write(f)
-    return "✅ Configuración guardada correctamente"
+    # Si cambia un driver, desconectar ese dispositivo: la siguiente conexión usa el nuevo
+    despues = _dispositivos()
+    avisos = []
+    if despues["driver_camara"] != antes["driver_camara"] and camara.esta_conectado():
+        camara.desconectar()
+        avisos.append("cámara desconectada; se conectará con el driver nuevo")
+    if despues["driver_telescopio"] != antes["driver_telescopio"] and montura.esta_conectado():
+        montura.desconectar()
+        avisos.append("montura desconectada; pulsa Reconectar equipo en el inicio")
+    return "✅ Configuración guardada correctamente" + (" (" + "; ".join(avisos) + ")" if avisos else "")
 
 PUERTO_WEB = 5000
 
