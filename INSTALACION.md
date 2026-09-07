@@ -60,3 +60,14 @@ código, plantillas y recursos, y respeta lo que es propio del PC de campo: `con
 `secretos.ini`, `calibraciones\`, `capturas\`, `logs\` y la galería (`static\fotos\`).
 Para probar la copia en otra carpeta: `copiar_a_campo.bat D:\prueba`.
 Si `requirements.txt` ha cambiado, ejecutar después `instalar_scopepower.bat` en el PC de campo.
+
+## Arrancar ScopePower al encender el mini PC
+
+En el PC de campo, ejecutar una vez `poner_en_inicio.bat` (doble clic). Crea un acceso directo a
+`lanzar_scopepower.bat` en la carpeta de Inicio del usuario, así que al iniciar sesión arranca el
+servidor y el altavoz dicta la IP hasta que alguien se conecta. `poner_en_inicio.bat quitar` lo deshace.
+
+Para que el mini PC arranque sin teclado ni pantalla hace falta que Windows inicie sesión solo:
+ejecutar `netplwiz`, desmarcar "Los usuarios deben escribir su nombre y contraseña para usar el
+equipo" y escribir la contraseña del usuario. Con eso, encender el mini PC basta para tener la app
+lista, y el botón "Reiniciar el equipo" de la app vuelve a dejarla arrancada.
