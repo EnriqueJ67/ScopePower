@@ -972,31 +972,35 @@ import csv
 import requests
 
 
+_estado_stellarium_previo = {"ok": None}
+
+
 def estado_stellarium():
     try:
         url = "http://localhost:8090/api/objects/info?name=Polaris&format=json"
         r = requests.get(url, timeout=2)
-        if r.status_code == 200 and "found" in r.json():
-            print("✅ Stellarium está activo y responde.")
-            return True
-        else:
-            print("⚠️ Stellarium está en ejecución pero no responde como se espera.")
-            return False
-    except Exception as e:
-
-        print(f"❌ Stellarium no responde. Intentando lanzarlo: {e}")
-        lanzar_stellarium_si_no_esta_activo()
-        # Darle unos segundos para arrancar antes de verificar de nuevo
-        time.sleep(3)
-        return False
+        # Sin print: la pantalla GoTo pregunta cada 10 s y llenaba el log.
+        # Solo se anota cuando cambia el estado.
+        ok = r.status_code == 200 and "found" in r.json()
+    except Exception:
+        ok = False
+    if ok != _estado_stellarium_previo.get("ok"):
+        log.info("Stellarium %s", "responde" if ok else "no responde")
+        _estado_stellarium_previo["ok"] = ok
+    if ok:
+        return True
+    # No responde: intentar lanzarlo (si ya está arrancando, no hace nada) y
+    # darle unos segundos antes de la siguiente comprobación
+    lanzar_stellarium_si_no_esta_activo()
+    time.sleep(3)
+    return False
 
 def lanzar_stellarium_si_no_esta_activo():
     try:
         # Verificar si ya está en ejecución
         tareas = subprocess.check_output('tasklist', shell=True, encoding='cp1252')  # ← Aquí está el cambio
         if "stellarium.exe" in tareas.lower():
-            print("ℹ️ Stellarium ya está en ejecución.")
-            return
+            return          # ya está (o está arrancando): sin mensaje, se llama cada 10 s desde GoTo
 
         ruta_stellarium = config["General"].get("RUTA_STELLARIUM", "")
         if not os.path.exists(ruta_stellarium):
