@@ -1,0 +1,19 @@
+<!-- templates/_modal_voz.html: ventana que explica por qué no funciona el reconocimiento
+     de voz y cómo arreglarlo. La abren goto.html y constelacion.html con explicarFalloVoz()
+     (static/js/ayuda_voz.js) cuando un botón de voz falla. -->
+<div id="modal-voz" class="modal" onclick="if (event.target === this) cerrarModalVoz()">
+    <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="modal-voz-titulo">
+        <div class="modal-titulo" id="modal-voz-titulo"><svg class="ico"><use href="#i-mic"/></svg><span id="modal-voz-cabecera">La voz no funciona en este navegador</span></div>
+        <p class="modal-texto" id="modal-voz-texto"></p>
+        <ol class="modal-pasos" id="modal-voz-pasos-http">
+            <li><div>Abre una pestaña nueva en Chrome y entra en esta dirección:
+                <div class="copiable"><code id="modal-voz-flag">chrome://flags/#unsafely-treat-insecure-origin-as-secure</code><button type="button" class="btn btn-sm btn-secondary" onclick="copiarTexto('modal-voz-flag', this)">Copiar</button></div></div></li>
+            <li><div>En la casilla de texto de esa opción pega la dirección de ScopePower:
+                <div class="copiable"><code id="modal-voz-origen"></code><button type="button" class="btn btn-sm btn-secondary" onclick="copiarTexto('modal-voz-origen', this)">Copiar</button></div></div></li>
+            <li><div>Cambia la opción de <b>Disabled</b> a <b>Enabled</b> y pulsa <b>Relaunch</b> para reiniciar Chrome.</div></li>
+            <li><div>Vuelve a ScopePower y acepta el permiso del micrófono cuando lo pida.</div></li>
+        </ol>
+        <p class="modal-texto texto-3" id="modal-voz-nota" style="font-size: 13px;">Se hace una sola vez por móvil. El reconocimiento de voz de Chrome se procesa en Internet, así que el móvil también necesita datos o una wifi con salida a Internet.</p>
+        <div class="modal-acciones"><button type="button" class="btn btn-primary" onclick="cerrarModalVoz()">Entendido</button></div>
+    </div>
+</div>

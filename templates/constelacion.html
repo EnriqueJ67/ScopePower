@@ -70,6 +70,9 @@
     .estrella-activa { background: var(--accent-soft) !important; font-weight: 700; color: var(--text); border-left-color: var(--accent-2) !important; }
 </style>
 
+{% include '_modal_voz.html' %}
+<script src="{{ url_for('static', filename='js/ayuda_voz.js') }}"></script>
+
 <!-- La pantalla se mantiene encendida desde base.html (static/js/pantalla.js) -->
 
 <script>
@@ -381,7 +384,11 @@
     }
     // Reconocimiento de voz para rellenar nombre
     function reconocimientoVoz() {
-        const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)(); rec.lang = 'es-ES'; rec.start();
+        const Clase = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Clase) { document.getElementById('status').innerText = '❌ Este navegador no tiene reconocimiento de voz. En Android usa Chrome.'; return; }
+        const rec = new Clase(); rec.lang = 'es-ES';
+        document.getElementById('status').innerText = '🎙️ Escuchando... di "constelación" y el nombre';
+        try { rec.start(); } catch (e) { document.getElementById('status').innerText = '❌ No se pudo iniciar la escucha: ' + e.message; return; }
         rec.onresult = e => {
             let txt = e.results[0][0].transcript.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
             if (txt.startsWith('constelacion ')) {
@@ -390,7 +397,12 @@
                 document.getElementById('status').innerHTML = `✅ Constelación detectada: <b>${val}</b>`;
             } else document.getElementById('status').innerText = '⚠️ Diga "constelación X".';
         };
-        rec.onerror = e => document.getElementById('status').innerText = '❌ Error de reconocimiento: ' + e.error;
+        rec.onerror = e => {
+            const MENSAJES = { "not-allowed": "El navegador no deja usar el micrófono.", "network": "Sin Internet en el móvil para reconocer la voz.",
+                               "no-speech": "No se ha oído nada. Vuelve a pulsar y habla enseguida.", "audio-capture": "No se encuentra ningún micrófono.", "aborted": "Escucha cancelada." };
+            document.getElementById('status').innerText = '❌ ' + (MENSAJES[e.error] || ('Error de reconocimiento: ' + e.error));
+            explicarFalloVoz(e.error);   // abre la ventana de ayuda si tiene arreglo (static/js/ayuda_voz.js)
+        };
     }
 
     // Al finalizar recorrido, obtiene info de Wikipedia
