@@ -14,7 +14,24 @@
         <span class="chip" id="estado_stellarium"><span class="dot"></span>Stellarium</span>
     </div>
 </div>
-<div id="aviso-voz-hueco"></div>
+<!-- Ventana que explica por qué no funciona la voz y cómo arreglarlo. Solo sale al
+     pulsar un botón de voz y fallar (micrófono bloqueado o sin Internet). -->
+<div id="modal-voz" class="modal" onclick="if (event.target === this) cerrarModalVoz()">
+    <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="modal-voz-titulo">
+        <div class="modal-titulo" id="modal-voz-titulo"><svg class="ico"><use href="#i-mic"/></svg><span id="modal-voz-cabecera">La voz no funciona en este navegador</span></div>
+        <p class="modal-texto" id="modal-voz-texto"></p>
+        <ol class="modal-pasos" id="modal-voz-pasos-http">
+            <li><div>Abre una pestaña nueva en Chrome y entra en esta dirección:
+                <div class="copiable"><code id="modal-voz-flag">chrome://flags/#unsafely-treat-insecure-origin-as-secure</code><button type="button" class="btn btn-sm btn-secondary" onclick="copiarTexto('modal-voz-flag', this)">Copiar</button></div></div></li>
+            <li><div>En la casilla de texto de esa opción pega la dirección de ScopePower:
+                <div class="copiable"><code id="modal-voz-origen"></code><button type="button" class="btn btn-sm btn-secondary" onclick="copiarTexto('modal-voz-origen', this)">Copiar</button></div></div></li>
+            <li><div>Cambia la opción de <b>Disabled</b> a <b>Enabled</b> y pulsa <b>Relaunch</b> para reiniciar Chrome.</div></li>
+            <li><div>Vuelve a ScopePower y acepta el permiso del micrófono cuando lo pida.</div></li>
+        </ol>
+        <p class="modal-texto texto-3" id="modal-voz-nota" style="font-size: 13px;">Se hace una sola vez por móvil. El reconocimiento de voz de Chrome se procesa en Internet, así que el móvil también necesita datos o una wifi con salida a Internet.</p>
+        <div class="modal-acciones"><button type="button" class="btn btn-primary" onclick="cerrarModalVoz()">Entendido</button></div>
+    </div>
+</div>
 
 <!-- En pantallas anchas (tablet, móvil apaisado) el formulario va a la izquierda
      y el estado + información del objeto a la derecha -->
@@ -60,8 +77,6 @@
         content: "Aquí aparecerá el estado del movimiento y la información del objeto.";
         color: var(--text-3); font-size: 14px;
     }
-    /* Aviso de voz sin HTTPS (lo crea el script) */
-    .aviso-voz { margin-bottom: 12px; }
 
     @media (min-width: 760px) {
         .goto-layout { grid-template-columns: minmax(300px, 5fr) 4fr; }
@@ -107,9 +122,7 @@
     // reconocimiento de Chrome se hace en los servidores de Google: sin Internet en
     // el móvil da "network". Aquí se explica en pantalla en vez de no hacer nada.
     const ERRORES_VOZ = {
-        "not-allowed": "El navegador no deja usar el micrófono. Si la dirección empieza por http:// (sin s), Chrome lo bloquea: " +
-                       "escribe chrome://flags/#unsafely-treat-insecure-origin-as-secure en el móvil, añade " + location.origin + ", activa la opción y reinicia Chrome. " +
-                       "Si ya es https, revisa el permiso de micrófono de este sitio.",
+        "not-allowed": "El navegador no deja usar el micrófono.",
         "service-not-allowed": "El reconocimiento de voz está desactivado en este navegador.",
         "network": "Chrome reconoce la voz en Internet: el móvil necesita conexión de datos o wifi con salida a Internet.",
         "no-speech": "No se ha oído nada. Vuelve a pulsar y habla enseguida.",
@@ -124,10 +137,8 @@
             document.getElementById('status').innerHTML = "❌ Este navegador no tiene reconocimiento de voz. En Android usa Chrome.";
             return null;
         }
-        if (!window.isSecureContext) {
-            document.getElementById('status').innerHTML = "⚠️ " + ERRORES_VOZ["not-allowed"];
-            // Se intenta igualmente: en algunos navegadores funciona
-        }
+        // Sin HTTPS Chrome suele bloquear el micrófono, pero se intenta igualmente: en
+        // algunos navegadores funciona. Si falla, explicarErrorVoz abre la ventana de ayuda.
         const r = new Clase();
         r.lang = 'es-ES';
         return r;
@@ -137,7 +148,42 @@
         const msg = ERRORES_VOZ[event.error] || ("Error de reconocimiento: " + event.error);
         document.getElementById('status').innerHTML = "❌ " + msg;
         console.warn("Reconocimiento de voz:", event.error, event.message || "");
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") mostrarModalVoz(window.isSecureContext ? "permiso" : "http");
+        else if (event.error === "network") mostrarModalVoz("red");
     }
+
+    // ——— Ventana de ayuda de la voz ———
+    //   http    : la página va por http:// y Chrome bloquea el micrófono (lo normal en la red local)
+    //   permiso : ya es https/localhost pero el permiso del micrófono está denegado
+    //   red     : el móvil no tiene salida a Internet y Chrome no puede reconocer la voz
+    function mostrarModalVoz(motivo) {
+        const cab = document.getElementById("modal-voz-cabecera");
+        const txt = document.getElementById("modal-voz-texto");
+        const pasos = document.getElementById("modal-voz-pasos-http");
+        const nota = document.getElementById("modal-voz-nota");
+        document.getElementById("modal-voz-origen").textContent = location.origin;
+        pasos.hidden = motivo !== "http";
+        nota.hidden = motivo !== "http";
+        if (motivo === "http") {
+            cab.textContent = "La voz no funciona todavía en este móvil";
+            txt.textContent = "No es un fallo de ScopePower: Chrome solo permite el micrófono en direcciones https, y esta va por http. Se arregla en un minuto diciéndole a Chrome que trate esta dirección como segura:";
+        } else if (motivo === "red") {
+            cab.textContent = "La voz necesita Internet en el móvil";
+            txt.textContent = "Chrome reconoce la voz en los servidores de Google. El móvil está conectado a la wifi del telescopio pero sin salida a Internet: activa los datos móviles (Chrome los usará para la voz) o conéctate a una wifi con Internet.";
+        } else {
+            cab.textContent = "El micrófono está bloqueado";
+            txt.textContent = "Chrome tiene denegado el permiso del micrófono para esta dirección. Toca el candado o el icono de ajustes junto a la dirección, entra en Permisos y permite el Micrófono; después recarga la página.";
+        }
+        document.getElementById("modal-voz").classList.add("abierto");
+    }
+    function cerrarModalVoz() { document.getElementById("modal-voz").classList.remove("abierto"); }
+    function copiarTexto(id, boton) {
+        const texto = document.getElementById(id).textContent;
+        (navigator.clipboard ? navigator.clipboard.writeText(texto) : Promise.reject()).then(() => {
+            boton.textContent = "Copiado"; setTimeout(() => boton.textContent = "Copiar", 1500);
+        }).catch(() => { window.prompt("Copia esta dirección:", texto); });
+    }
+    document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarModalVoz(); });
 
     // Samsung Internet (y a veces Chrome) entrega el mismo resultado dos veces:
     // una provisional y otra final, o dos finales seguidos. Sin este filtro se
@@ -539,15 +585,6 @@
     document.addEventListener("DOMContentLoaded", function () {
         actualizarEstadoStellarium();
         setInterval(actualizarEstadoStellarium, 10000);
-
-        // Sin HTTPS los botones de voz no van a funcionar en Chrome: avisar antes de que lo intente
-        if (!window.isSecureContext) {
-            const aviso = document.createElement("div");
-            aviso.className = "aviso aviso-warn aviso-voz";
-            aviso.innerHTML = "🎙️ Los botones de voz necesitan que Chrome trate esta dirección como segura. " +
-                "Una vez en el móvil: <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>, añadir <code>" + location.origin + "</code>, activar y reiniciar Chrome. También hace falta Internet en el móvil.";
-            document.getElementById("aviso-voz-hueco").appendChild(aviso);
-        }
 
         // Llegada desde "Esta noche": /goto?objeto=Nombre&ra=h&dec=deg -> GOTO inmediato
         const params = new URLSearchParams(window.location.search);
