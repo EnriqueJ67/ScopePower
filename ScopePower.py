@@ -2545,8 +2545,9 @@ def obtener_config_zoom():
 def guardar_config_zoom():
     try:
         data = request.get_json()
+        zoom = min(90, max(0, int(float(data["zoom"]))))
         config.read("config.ini")
-        config["Dispositivos"]["zoom_preview"] = str(data["zoom"])
+        config["Dispositivos"]["zoom_preview"] = str(zoom)
         with open("config.ini", "w") as configfile:
             config.write(configfile)
         return "✅ Zoom guardado correctamente"
@@ -2588,8 +2589,9 @@ GUARDADO = {"en_curso": False, "mensaje": "", "archivo": "", "ok": None}
 @app.route('/guardar-imagen-jpg', methods=['POST'])
 def guardar_imagen_jpg():
     """
-    Guarda el apilado en la galería: el FITS se copia al momento y el JPG se
-    procesa a resolución completa en segundo plano con el estilo actual.
+    Guarda el apilado en la galería: el FITS se copia al momento (campo completo)
+    y el JPG se procesa a resolución completa en segundo plano con el estilo y el
+    recorte de zoom actuales.
     Consultar el progreso en /guardar-imagen-estado.
     """
     if GUARDADO["en_curso"]:
@@ -2627,6 +2629,8 @@ def guardar_imagen_jpg():
             with fits.open(destinoFits) as hdul:
                 cubo = hdul[0].data.astype(np.float32)
                 n = int(hdul[0].header.get("NSTACK", 1))
+            # Mismo recorte de zoom que la vista previa; el FITS se guarda entero
+            cubo, _, _ = procesado.recortar_centro(cubo, procesado.fraccion_campo())
             rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0)
             cv2.imwrite(destino, cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 92])
             GUARDADO.update({"ok": True, "mensaje": f"✅ Imagen guardada como {nombre_archivo} (y su FITS)"})

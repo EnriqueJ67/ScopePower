@@ -572,19 +572,29 @@ class ApiladorEnTiempoReal:
     def generar_preview(self, rgb_cube, num_imagenes_preview, EXPOSICION, ObjetosAnotados=False,
                         anotar_evolucion=True):
         """
-        Del cubo lineal (3, H, W) al JPG de vista previa: procesado estilo
-        Seestar (procesado.py) a media resolución, recorte de zoom, texto,
-        miniatura de la tira de evolución y aviso a la web (versión).
+        Del cubo lineal (3, H, W) al JPG de vista previa: recorte de zoom,
+        procesado estilo Seestar (procesado.py), texto, miniatura de la tira de
+        evolución y aviso a la web (versión).
         """
         self._fase("estirando")
-        # Procesado completo a media resolución (la web muestra ≤600 px)
-        rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=0.5)
+        nuevo_config = configparser.ConfigParser()
+        nuevo_config.read("config.ini")
+        # Recorte de zoom (zoom_preview en config.ini) sobre el cubo lineal, ANTES
+        # de procesar. El apilado y el FITS siguen a campo completo. Con el campo
+        # completo (o el 75 %) se procesa a media resolución (la web muestra ≤600 px);
+        # con el 50 % o menos, a resolución completa: mismo coste que el campo
+        # entero a media resolución y el doble de detalle en los objetos pequeños.
+        fraccion = procesado.fraccion_campo(nuevo_config)
+        rgb_cube, x0, y0 = procesado.recortar_centro(rgb_cube, fraccion)
+        recorte = (x0, y0, rgb_cube.shape[2], rgb_cube.shape[1]) if fraccion < 0.999 else None
+        escala = 0.5 if fraccion > 0.5 else 1.0
+        rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=escala)
         if ObjetosAnotados:
             # Objetos del campo dibujados SOBRE la imagen procesada (anotaciones.py):
             # catálogo local sin Internet, SIMBAD si hay red, letra proporcional
             self._fase("anotando")
             try:
-                anotada = anotaciones.anotar(rgb_mtf, "static/resultado_apilado.fits")
+                anotada = anotaciones.anotar(rgb_mtf, "static/resultado_apilado.fits", recorte=recorte)
                 if anotada is not None:
                     rgb_mtf = anotada
                     cv2.imwrite("static/scopepower_objetos.jpg", cv2.cvtColor(anotada, cv2.COLOR_RGB2BGR))
@@ -595,19 +605,9 @@ class ApiladorEnTiempoReal:
 
         imagen_bgr = cv2.cvtColor(rgb_mtf, cv2.COLOR_RGB2BGR)
 
-        # Recorte de zoom (config.ini)
-        nuevo_config = configparser.ConfigParser()
-        nuevo_config.read("config.ini")
-        zoom = int(nuevo_config["Dispositivos"].get("zoom_preview", 0))
-        if zoom > 0:
-            h, w = imagen_bgr.shape[:2]
-            margen_h = int(h * zoom / 100 / 2)
-            margen_w = int(w * zoom / 100 / 2)
-            imagen_bgr = imagen_bgr[margen_h:h - margen_h, margen_w:w - margen_w]
-
         # Marco decorativo con texto (versión de junio, frame_and_text.py): nombre del
-        # objeto, fotos y tiempo. Se omite con zoom muy alto. Si falla, texto simple.
-        if zoom <= 80:
+        # objeto, fotos y tiempo. Se omite con recortes extremos. Si falla, texto simple.
+        if fraccion >= 0.2:
             obj_name = "Objeto"
             info_path = ruta_absoluta("static/info_objeto_goto.txt")
             if os.path.isfile(info_path):

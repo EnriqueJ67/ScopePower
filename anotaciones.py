@@ -174,12 +174,15 @@ def _fusionar(catalogo, simbad, wcs, tol_px=40):
     return resultado
 
 
-def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, factor):
+def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, factor, desplazamiento=(0, 0)):
     """
     Dibuja elipses/círculos y etiquetas sobre img_bgr (ya reducida por `factor`
     respecto al FITS que resolvió ASTAP). Tamaño de letra y grosor proporcionales.
+    desplazamiento: (x0, y0) en píxeles del FITS de la esquina superior izquierda
+    de img_bgr, cuando esta es un recorte central del campo (zoom).
     """
     h, w = img_bgr.shape[:2]
+    dx, dy = desplazamiento
     lado = max(h, w)
     grosor = max(1, int(round(lado / 700)))
     fuente = max(0.45, lado / 1500)
@@ -197,7 +200,8 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, factor):
     for o in objetos:
         try:
             xw, yw = wcs.all_world2pix([o["ra"]], [o["dec"]], 0)
-            x, y = int(round(float(xw[0]) * factor)), int(round(float(yw[0]) * factor))
+            x = int(round((float(xw[0]) - dx) * factor))
+            y = int(round((float(yw[0]) - dy) * factor))
             if not (0 <= x < w and 0 <= y < h):
                 continue
             semi_maj = (o["tamano_arcsec"] / 2.0) / escala_arcsec * factor
@@ -237,10 +241,12 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, factor):
     return n
 
 
-def anotar(rgb_procesado, ruta_fits, usar_simbad=True):
+def anotar(rgb_procesado, ruta_fits, usar_simbad=True, recorte=None):
     """
     Devuelve una copia de rgb_procesado (uint8 RGB, a cualquier escala del FITS)
     con los objetos del campo anotados, o None si no se pudo resolver el campo.
+    recorte: (x0, y0, ancho, alto) en píxeles del FITS si rgb_procesado es un
+    recorte central del campo (zoom); None si es el campo completo.
     """
     from astropy.io import fits as _fits
     with _fits.open(ruta_fits) as hdul:
@@ -250,14 +256,18 @@ def anotar(rgb_procesado, ruta_fits, usar_simbad=True):
         log.info("Anotaciones: el campo no se pudo resolver")
         return None
     wcs, escala_arcsec, angulo_cam, ruta_ini = res
-    factor = rgb_procesado.shape[1] / float(ancho_fits)
+    if recorte:
+        x0, y0, ancho_rec, _ = recorte
+    else:
+        x0, y0, ancho_rec = 0, 0, ancho_fits
+    factor = rgb_procesado.shape[1] / float(ancho_rec)
     objetos = objetos_catalogo_en_campo(wcs, ancho_fits, alto_fits)
     if usar_simbad:
         objetos = _fusionar(objetos, objetos_simbad(ruta_ini, ruta_fits), wcs)
     if not objetos:
         log.info("Anotaciones: ningún objeto conocido en el campo")
     img = cv2.cvtColor(rgb_procesado, cv2.COLOR_RGB2BGR)
-    n = dibujar(img, wcs, escala_arcsec, angulo_cam, objetos, factor)
+    n = dibujar(img, wcs, escala_arcsec, angulo_cam, objetos, factor, desplazamiento=(x0, y0))
     log.info("Anotaciones: %d objetos dibujados (%d del catálogo local)", n,
              sum(1 for o in objetos if o.get("fuente") == "catalogo"))
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

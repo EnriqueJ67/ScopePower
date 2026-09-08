@@ -68,6 +68,49 @@ def guardar_config(cambios):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  0. Recorte de zoom (campo visible)
+# ─────────────────────────────────────────────────────────────────────────────
+# Con un sensor grande y focal corta los objetos pequeños (globulares,
+# planetarias, galaxias) salen diminutos. zoom_preview ([Dispositivos] de
+# config.ini) es el porcentaje que se quita por los bordes: 0 = campo completo,
+# 50 = se ve el 50 % del lado, 75 = el 25 %. El recorte se hace sobre el cubo
+# lineal, ANTES de procesar: el plate solve, el alineado y el FITS apilado
+# siguen a campo completo (cuantas más estrellas, mejor resuelve).
+
+def fraccion_campo(config=None):
+    """Fracción del lado del campo que se muestra (1.0 = todo), según zoom_preview."""
+    try:
+        if config is None:
+            config = configparser.ConfigParser()
+            config.read("config.ini")
+        zoom = int(float(config["Dispositivos"].get("zoom_preview", 0)))
+    except Exception:
+        zoom = 0
+    zoom = min(90, max(0, zoom))
+    return (100 - zoom) / 100.0
+
+
+def recortar_centro(cubo, fraccion):
+    """
+    Recorte central de un cubo (3, H, W) o imagen (H, W, 3) conservando
+    `fraccion` del ancho y del alto. Devuelve (recorte, x0, y0): el
+    desplazamiento en píxeles de la esquina superior izquierda respecto a la
+    imagen completa, que necesitan las anotaciones.
+    """
+    if fraccion >= 0.999:
+        return cubo, 0, 0
+    canales_primero = cubo.ndim == 3 and cubo.shape[0] == 3 and cubo.shape[-1] != 3
+    h, w = (cubo.shape[1], cubo.shape[2]) if canales_primero else cubo.shape[:2]
+    nh, nw = max(8, int(round(h * fraccion))), max(8, int(round(w * fraccion)))
+    y0, x0 = (h - nh) // 2, (w - nw) // 2
+    if canales_primero:
+        rec = cubo[:, y0:y0 + nh, x0:x0 + nw]
+    else:
+        rec = cubo[y0:y0 + nh, x0:x0 + nw]
+    return np.ascontiguousarray(rec), x0, y0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  1. Gradiente de fondo (espacio lineal)
 # ─────────────────────────────────────────────────────────────────────────────
 

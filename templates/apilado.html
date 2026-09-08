@@ -196,8 +196,14 @@
         <label><input type="checkbox" id="proc-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
     </div>
     <div class="form-group">
-        <label>Zoom (%)</label>
-        <input type="number" id="input-zoom" class="form-control" min="0" max="90" step="5">
+        <label>Campo visible (zoom)</label>
+        <select id="input-zoom" class="form-control">
+            <option value="0">100 % (campo completo)</option>
+            <option value="25">75 %</option>
+            <option value="50">50 %</option>
+            <option value="75">25 % (objetos pequeños)</option>
+        </select>
+        <small style="color: #aaa;">Recorta por los bordes la vista previa y el JPG de la galería, para ver más grandes los cúmulos globulares, planetarias y galaxias. El apilado y el FITS siguen a campo completo.</small>
     </div>
 
     <button class="btn btn-primary mt-3" onclick="guardarParametrosMTF()">💾 Aplicar a la vista previa</button>
@@ -421,8 +427,19 @@
             document.getElementById("estado-mtf").textContent = "❌ Error al cargar los ajustes de procesado";
         });
         fetch("/config-zoom").then(r => r.json()).then(d => {
-            document.getElementById("input-zoom").value = d.zoom;
+            pintarZoom(d.zoom);
         }).catch(err => console.error("⚠️ Error al cargar zoom:", err));
+    }
+
+    // El config puede traer un valor antiguo (p. ej. 10): elegir la opción más cercana
+    function pintarZoom(zoom) {
+        const sel = document.getElementById("input-zoom");
+        const z = parseInt(zoom) || 0;
+        let mejor = sel.options[0];
+        for (const o of sel.options) {
+            if (Math.abs(parseInt(o.value) - z) < Math.abs(parseInt(mejor.value) - z)) mejor = o;
+        }
+        sel.value = mejor.value;
     }
 
     // Al cambiar de estilo, los deslizadores toman los valores del estilo
@@ -433,7 +450,7 @@
 
     function guardarParametrosMTF() {
         const estado = document.getElementById("estado-mtf");
-        const zoom = parseInt(document.getElementById("input-zoom").value);
+        const zoom = parseInt(document.getElementById("input-zoom").value) || 0;
         const ajustes = {
             estilo: document.getElementById("proc-estilo").value,
             ruido: parseFloat(document.getElementById("proc-ruido").value),
