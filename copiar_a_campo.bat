@@ -51,6 +51,8 @@ robocopy "%ORIGEN%\static" "%DESTINO%\static" *.png *.ico *.wav *.js %OPC% /XF c
 if errorlevel 8 set "ERRORES=1"
 robocopy "%ORIGEN%\static\js" "%DESTINO%\static\js" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
+robocopy "%ORIGEN%\static\css" "%DESTINO%\static\css" /MIR %OPC%
+if errorlevel 8 set "ERRORES=1"
 
 echo  [4/7] Herramientas, constelaciones e informacion de objetos
 robocopy "%ORIGEN%\herramientas" "%DESTINO%\herramientas" /MIR %OPC%
