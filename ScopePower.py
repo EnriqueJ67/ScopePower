@@ -1553,10 +1553,15 @@ def buscar_objetos():
         for o in esta_noche.cargar_catalogo():
             # Cada nombre por separado: "*31" debe encajar con "M 31", no con un
             # texto pegado donde "NGC 6531" del nombre alternativo acabe en 31
-            campos = [cuerpos_menores._normalizar(x) for x in (o["id"], o["nombre"], o["nombre_alt"]) if x]
-            if rx and any(rx.search(c) for c in campos):
-                resultados.append({"nombre": o["nombre"], "detalle": f"{o['id']} · {o['tipo']}" + (f" · mag {o['mag']}" if o["mag"] is not None else ""),
-                                   "tipo": o["tipo"], "mag": o["mag"], "ra": o["ra_h"], "dec": o["dec_deg"]})
+            if not rx:
+                break
+            principal = any(rx.search(cuerpos_menores._normalizar(x)) for x in (o["id"], o["nombre"]) if x)
+            por_alt = (not principal) and bool(o["nombre_alt"]) and bool(rx.search(cuerpos_menores._normalizar(o["nombre_alt"])))
+            if principal or por_alt:
+                # Si encaja por el nombre alternativo (p. ej. "NGC 6531" de M21), mostrarlo para que se entienda
+                detalle = f"{o['id']}" + (f" · {o['nombre_alt']}" if por_alt else "") + f" · {o['tipo']}" + (f" · mag {o['mag']}" if o["mag"] is not None else "")
+                resultados.append({"nombre": o["nombre"], "detalle": detalle, "tipo": o["tipo"], "mag": o["mag"],
+                                   "ra": o["ra_h"], "dec": o["dec_deg"], "_orden": 1 if por_alt else 0})
     except Exception as e:
         log.warning("Búsqueda en el catálogo: %s", e)
     try:
@@ -1568,11 +1573,11 @@ def buscar_objetos():
             except Exception:
                 pass
             resultados.append({"nombre": c["nombre"], "detalle": ("Cometa" if c["tipo"] == "cometa" else "Asteroide") + (f" · mag {mag}" if mag is not None else ""),
-                               "tipo": c["tipo"], "mag": mag})
+                               "tipo": c["tipo"], "mag": mag, "_orden": 0})
     except Exception as e:
         log.warning("Búsqueda en cuerpos menores: %s", e)
-    # Los más brillantes primero (sin magnitud, al final)
-    resultados.sort(key=lambda r: (r["mag"] is None, r["mag"] if r["mag"] is not None else 99))
+    # Primero los que encajan por su nombre, luego por el alternativo; dentro, los más brillantes
+    resultados.sort(key=lambda r: (r.pop("_orden", 0), r["mag"] is None, r["mag"] if r["mag"] is not None else 99))
     return jsonify({"resultados": resultados[:40]})
 
 
