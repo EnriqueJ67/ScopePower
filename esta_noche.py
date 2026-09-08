@@ -126,6 +126,19 @@ def calcular(lat, lon, alt_m=0.0, altura_minima=20.0, ahora=None, catalogo=None)
         alturas = np.vstack([alturas, cc[:, None].transform_to(marco).alt.deg])
         alt_ahora = np.append(alt_ahora, float(SkyCoord(ra=c_ahora.ra.deg * u.deg, dec=c_ahora.dec.deg * u.deg).transform_to(marco_ahora).alt.deg))
 
+    # Cometas y asteroides brillantes (elementos del MPC guardados; ver cuerpos_menores.py)
+    try:
+        import cuerpos_menores
+        menores = cuerpos_menores.brillantes(lat, lon, alt_m, cuando=medio.to_datetime(), mag_max=12.0)
+    except Exception as e:
+        log.warning("Sin cuerpos menores: %s", e)
+        menores = []
+    if menores:
+        cm = SkyCoord(ra=[m["ra_h"] for m in menores] * u.hourangle, dec=[m["dec_deg"] for m in menores] * u.deg)
+        alturas = np.vstack([alturas, cm[:, None].transform_to(marco).alt.deg])
+        alt_ahora = np.append(alt_ahora, cm.transform_to(marco_ahora).alt.deg)
+        objetos.extend(menores)
+
     horas_noche = (fin - inicio).to(u.hour).value
     resultado = []
     for i, o in enumerate(objetos):

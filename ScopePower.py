@@ -48,6 +48,7 @@ import centrado
 import alineacion
 import voz
 import esta_noche
+import cuerpos_menores
 import anuncio_ip
 import coordenadas
 import recorridos
@@ -971,31 +972,35 @@ import csv
 import requests
 
 
+_estado_stellarium_previo = {"ok": None}
+
+
 def estado_stellarium():
     try:
         url = "http://localhost:8090/api/objects/info?name=Polaris&format=json"
         r = requests.get(url, timeout=2)
-        if r.status_code == 200 and "found" in r.json():
-            print("✅ Stellarium está activo y responde.")
-            return True
-        else:
-            print("⚠️ Stellarium está en ejecución pero no responde como se espera.")
-            return False
-    except Exception as e:
-
-        print(f"❌ Stellarium no responde. Intentando lanzarlo: {e}")
-        lanzar_stellarium_si_no_esta_activo()
-        # Darle unos segundos para arrancar antes de verificar de nuevo
-        time.sleep(3)
-        return False
+        # Sin print: la pantalla GoTo pregunta cada 10 s y llenaba el log.
+        # Solo se anota cuando cambia el estado.
+        ok = r.status_code == 200 and "found" in r.json()
+    except Exception:
+        ok = False
+    if ok != _estado_stellarium_previo.get("ok"):
+        log.info("Stellarium %s", "responde" if ok else "no responde")
+        _estado_stellarium_previo["ok"] = ok
+    if ok:
+        return True
+    # No responde: intentar lanzarlo (si ya está arrancando, no hace nada) y
+    # darle unos segundos antes de la siguiente comprobación
+    lanzar_stellarium_si_no_esta_activo()
+    time.sleep(3)
+    return False
 
 def lanzar_stellarium_si_no_esta_activo():
     try:
         # Verificar si ya está en ejecución
         tareas = subprocess.check_output('tasklist', shell=True, encoding='cp1252')  # ← Aquí está el cambio
         if "stellarium.exe" in tareas.lower():
-            print("ℹ️ Stellarium ya está en ejecución.")
-            return
+            return          # ya está (o está arrancando): sin mensaje, se llama cada 10 s desde GoTo
 
         ruta_stellarium = config["General"].get("RUTA_STELLARIUM", "")
         if not os.path.exists(ruta_stellarium):
@@ -1528,6 +1533,61 @@ def imagen_capturada():
     response = send_file(RUTA_IMAGEN_PNG, mimetype='image/png')
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
+
+
+@app.route('/buscar-objetos')
+def buscar_objetos():
+    """
+    Sugerencias para el GoTo: ?q=patrón. '*' vale por cualquier texto y '?'
+    por un carácter ("*tsuchinshan*", "c/2023*", "12p*"); sin comodines
+    busca que lo contenga. Mira en cometas y asteroides (listas del MPC) y
+    en el catálogo de Esta noche. Devuelve nombre exacto, tipo, magnitud y,
+    para los del catálogo, coordenadas para ir directo.
+    """
+    q = request.args.get("q", "").strip()
+    if len(q.replace("*", "").replace("?", "").strip()) < 2:
+        return jsonify({"resultados": []})
+    resultados = []
+    try:
+        rx = cuerpos_menores._patron_a_regex(q)
+        for o in esta_noche.cargar_catalogo():
+            texto = " | ".join(x for x in (o["id"], o["nombre"], o["nombre_alt"]) if x)
+            if rx and rx.search(cuerpos_menores._normalizar(texto)):
+                resultados.append({"nombre": o["nombre"], "detalle": f"{o['id']} · {o['tipo']}" + (f" · mag {o['mag']}" if o["mag"] is not None else ""),
+                                   "tipo": o["tipo"], "mag": o["mag"], "ra": o["ra_h"], "dec": o["dec_deg"]})
+    except Exception as e:
+        log.warning("Búsqueda en el catálogo: %s", e)
+    try:
+        for c in cuerpos_menores.buscar_patron(q, maximo=40):
+            mag = None
+            try:
+                _, _, info = cuerpos_menores.coordenadas(c["nombre"], LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+                mag = info["mag"]
+            except Exception:
+                pass
+            resultados.append({"nombre": c["nombre"], "detalle": ("Cometa" if c["tipo"] == "cometa" else "Asteroide") + (f" · mag {mag}" if mag is not None else ""),
+                               "tipo": c["tipo"], "mag": mag})
+    except Exception as e:
+        log.warning("Búsqueda en cuerpos menores: %s", e)
+    # Los más brillantes primero (sin magnitud, al final)
+    resultados.sort(key=lambda r: (r["mag"] is None, r["mag"] if r["mag"] is not None else 99))
+    return jsonify({"resultados": resultados[:40]})
+
+
+@app.route('/cuerpos-menores/estado')
+def cuerpos_menores_estado():
+    e = cuerpos_menores.estado()
+    try:
+        n = len(cuerpos_menores.cargar())
+    except Exception:
+        n = 0
+    return jsonify({"edad_cometas_dias": e["cometas"], "edad_asteroides_dias": e["asteroides"], "cuerpos": n})
+
+
+@app.route('/cuerpos-menores/actualizar', methods=['POST'])
+def cuerpos_menores_actualizar():
+    n, msg = cuerpos_menores.actualizar(forzar=True)
+    return jsonify({"ok": n > 0, "mensaje": msg, **cuerpos_menores.estado()})
 
 
 @app.route('/esta-noche')
@@ -2095,6 +2155,14 @@ def goto_objeto():
 
                     fuente_coords = "Efemérides planetarias (Astropy)"
                 
+                elif cuerpos_menores.buscar(objeto) is not None:
+                    # Cometa o asteroide de las listas del MPC guardadas: se calcula aquí, sin Internet
+                    ra, dec, info_cm = cuerpos_menores.coordenadas(objeto, LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+                    coords = SkyCoord(ra=ra * u.hourangle, dec=dec * u.deg)
+                    fuente_coords = f"Elementos orbitales del MPC ({info_cm['tipo']}, sin Internet)"
+                    info = {"name": info_cm["nombre"], "type": info_cm["tipo"], "mag": info_cm["mag"],
+                            "distance": info_cm["distancia_ua"], "alt": info_cm["alt"]}
+
                 elif '/' in objeto or objeto.lower().startswith(('c/', 'p/')):
                     ra, dec = obtener_coords_cometa(objeto)
                     if ra is None or dec is None:
@@ -2890,6 +2958,8 @@ if __name__ == '__main__':
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
     # Stellarium tarda en arrancar: lanzarlo ya, en un hilo, para que esté listo
     # cuando el usuario entre (config: [General] lanzar_stellarium_al_arrancar)
+    # Elementos orbitales de cometas y asteroides (MPC): renovar si hay red, en un hilo
+    cuerpos_menores.actualizar_en_segundo_plano()
     if config["General"].get("lanzar_stellarium_al_arrancar", "true").strip().lower() == "true":
         threading.Thread(target=lanzar_stellarium_si_no_esta_activo, name="stellarium-arranque", daemon=True).start()
     if _config_anuncio_ip()["anunciar_ip"]:

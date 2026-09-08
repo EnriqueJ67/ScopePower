@@ -35,3 +35,6 @@ static/ultima_captura*
 
 # Configuración local de Claude Code
 .claude/
+
+# Elementos orbitales descargados del MPC (se renuevan solos)
+datos/mpc/
