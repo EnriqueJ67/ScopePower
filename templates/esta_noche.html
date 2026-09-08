@@ -21,6 +21,7 @@
         <option value="Cúmulo globular">Cúmulos globulares</option>
         <option value="Resto de supernova">Restos de supernova</option>
         <option value="Planeta">Planetas y Luna</option>
+        <option value="Cometa">Cometas y asteroides</option>
     </select>
     <select id="orden" onchange="pintar()">
         <option value="puntuacion">Recomendados</option>
@@ -62,7 +63,7 @@
 <script>
     let datos = null;
     const iconos = { "Galaxia": "🌌", "Nebulosa": "☁️", "Nebulosa planetaria": "💍", "Cúmulo abierto": "✨", "Cúmulo globular": "🔮",
-                     "Resto de supernova": "💥", "Planeta": "🪐", "Luna": "🌙", "Nebulosa oscura": "🐴" };
+                     "Resto de supernova": "💥", "Planeta": "🪐", "Luna": "🌙", "Nebulosa oscura": "🐴", "Cometa": "☄️", "Asteroide": "🪨" };
 
     function cargar() {
         fetch("/esta-noche/objetos").then(r => r.json()).then(d => {
@@ -78,7 +79,7 @@
         const tipo = document.getElementById("filtro-tipo").value;
         const soloAhora = document.getElementById("solo-ahora").checked;
         const orden = document.getElementById("orden").value;
-        let lista = datos.objetos.filter(o => !tipo || o.tipo === tipo || (tipo === "Planeta" && o.tipo === "Luna"));
+        let lista = datos.objetos.filter(o => !tipo || o.tipo === tipo || (tipo === "Planeta" && o.tipo === "Luna") || (tipo === "Cometa" && o.tipo === "Asteroide"));
         if (soloAhora) lista = lista.filter(o => o.visible_ahora);
         lista.sort((a, b) => b[orden] - a[orden] || b.puntuacion - a.puntuacion);
         const cont = document.getElementById("tarjetas");

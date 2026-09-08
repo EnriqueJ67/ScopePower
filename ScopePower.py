@@ -48,6 +48,7 @@ import centrado
 import alineacion
 import voz
 import esta_noche
+import cuerpos_menores
 import anuncio_ip
 import coordenadas
 import recorridos
@@ -1530,6 +1531,22 @@ def imagen_capturada():
     return response
 
 
+@app.route('/cuerpos-menores/estado')
+def cuerpos_menores_estado():
+    e = cuerpos_menores.estado()
+    try:
+        n = len(cuerpos_menores.cargar())
+    except Exception:
+        n = 0
+    return jsonify({"edad_cometas_dias": e["cometas"], "edad_asteroides_dias": e["asteroides"], "cuerpos": n})
+
+
+@app.route('/cuerpos-menores/actualizar', methods=['POST'])
+def cuerpos_menores_actualizar():
+    n, msg = cuerpos_menores.actualizar(forzar=True)
+    return jsonify({"ok": n > 0, "mensaje": msg, **cuerpos_menores.estado()})
+
+
 @app.route('/esta-noche')
 def vista_esta_noche():
     return render_template('esta_noche.html', mostrar_volver=True)
@@ -2095,6 +2112,14 @@ def goto_objeto():
 
                     fuente_coords = "Efemérides planetarias (Astropy)"
                 
+                elif cuerpos_menores.buscar(objeto) is not None:
+                    # Cometa o asteroide de las listas del MPC guardadas: se calcula aquí, sin Internet
+                    ra, dec, info_cm = cuerpos_menores.coordenadas(objeto, LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+                    coords = SkyCoord(ra=ra * u.hourangle, dec=dec * u.deg)
+                    fuente_coords = f"Elementos orbitales del MPC ({info_cm['tipo']}, sin Internet)"
+                    info = {"name": info_cm["nombre"], "type": info_cm["tipo"], "mag": info_cm["mag"],
+                            "distance": info_cm["distancia_ua"], "alt": info_cm["alt"]}
+
                 elif '/' in objeto or objeto.lower().startswith(('c/', 'p/')):
                     ra, dec = obtener_coords_cometa(objeto)
                     if ra is None or dec is None:
@@ -2890,6 +2915,8 @@ if __name__ == '__main__':
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
     # Stellarium tarda en arrancar: lanzarlo ya, en un hilo, para que esté listo
     # cuando el usuario entre (config: [General] lanzar_stellarium_al_arrancar)
+    # Elementos orbitales de cometas y asteroides (MPC): renovar si hay red, en un hilo
+    cuerpos_menores.actualizar_en_segundo_plano()
     if config["General"].get("lanzar_stellarium_al_arrancar", "true").strip().lower() == "true":
         threading.Thread(target=lanzar_stellarium_si_no_esta_activo, name="stellarium-arranque", daemon=True).start()
     if _config_anuncio_ip()["anunciar_ip"]:
