@@ -1,60 +1,51 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Activación{% endblock %}
 
 {% block content %}
-
-{% if expirada %}
-<div style="background-color: #330000; color: #ff6666; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
-    ⚠️ Tu período de prueba ha finalizado. Debes activar ScopePower para continuar usando la aplicación.
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Activación de ScopePower</h1>
+        <p class="pagina-sub">Envía el identificador del equipo y recibirás una clave de activación personalizada.</p>
+    </div>
 </div>
-{% endif %}
 
+<div class="card card-centrada">
+    {% if expirada %}
+    <div class="aviso aviso-err"><svg class="ico"><use href="#i-info"/></svg>Tu período de prueba ha finalizado. Debes activar ScopePower para continuar usando la aplicación.</div>
+    {% endif %}
 
-<h2>🔐 Activación de ScopePower</h2>
+    {% if activado %}
+    <div class="aviso aviso-ok"><svg class="ico"><use href="#i-ok"/></svg>Esta copia ya está activada permanentemente.</div>
+    {% elif dias_restantes > 0 %}
+    <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>Estás usando la versión de prueba. Te quedan <b>&nbsp;{{ dias_restantes }}&nbsp;</b> días.</div>
+    {% else %}
+    <div class="aviso aviso-err"><svg class="ico"><use href="#i-info"/></svg>Tu período de prueba ha finalizado. Debes activar la aplicación para continuar.</div>
+    {% endif %}
 
-<p><strong>Identificador del equipo:</strong></p>
-<pre id="identificador" style="font-size: 1.2em; background:#222; padding: 10px; color: #cfc; word-break: break-all;">
-{{ uuid }}
-</pre>
+    <div class="seccion-titulo">Identificador del equipo</div>
+    <pre id="identificador" style="font-size: 15px;">{{ uuid }}</pre>
+    <div class="fila mt-2">
+        <button class="btn btn-secondary" onclick="copiarMensajeCompleto()">Copiar mensaje para email</button>
+        <span class="texto-2" style="font-size: 14px;">Envíalo a <a href="mailto:activacion@ejemplo.invalid">activacion@ejemplo.invalid</a></span>
+    </div>
 
-<button onclick="copiarMensajeCompleto()" style="margin-bottom: 20px;">📋 Copiar mensaje para email</button>
+    <hr>
 
+    {% if correcto %}
+    <div class="aviso aviso-ok"><svg class="ico"><use href="#i-ok"/></svg>Activación correcta. Puedes iniciar sesión.</div>
+    {% elif error %}
+    <div class="aviso aviso-err"><svg class="ico"><use href="#i-info"/></svg>{{ error }}</div>
+    {% endif %}
 
-<p>
-    📧 Envía este código por email a
-    <a href="mailto:activacion@ejemplo.invalid">activacion@ejemplo.invalid</a>
-    para recibir tu clave de activación personalizada.
-</p>
-
-<hr>
-
-{% if correcto %}
-<p style="color: green;">✅ Activación correcta. Puedes iniciar sesión.</p>
-{% elif error %}
-<p style="color: red;">{{ error }}</p>
-{% endif %}
-
-{% if activado %}
-<p style="color: green;">✅ Esta copia ya está activada permanentemente.</p>
-
-{% elif dias_restantes > 0 %}
-<p style="color: orange;">
-    🧪 Estás usando la versión de prueba. Te quedan <strong>{{ dias_restantes }}</strong> días.
-</p>
-
-{% else %}
-<p style="color: red;">
-    ❌ Tu período de prueba ha finalizado. Debes activar la aplicación para continuar.
-</p>
-{% endif %}
-
-
-<form method="post">
-    <label for="clave">Introduce la clave de activación:</label><br>
-    <input type="text" id="clave" name="clave" required style="width: 100%; max-width: 500px;">
-    <button type="submit">Activar</button>
-</form>
+    <form method="post">
+        <div class="campo">
+            <label for="clave">Clave de activación</label>
+            <input type="text" id="clave" name="clave" required autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block"><svg><use href="#i-candado"/></svg>Activar</button>
+    </form>
+</div>
 
 <script>
     function copiarMensajeCompleto() {
@@ -69,5 +60,3 @@
     }
 </script>
 {% endblock %}
-
-

@@ -4,64 +4,59 @@
 {% block title %}Foto de prueba{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center;">📷 Foto de prueba</h2>
-<p style="text-align: center; color: #ddaaaa; font-size: 14px;">
-    Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.
-</p>
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Foto de prueba</h1>
+        <p class="pagina-sub">Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.</p>
+    </div>
+</div>
 
 <!-- En pantalla ancha: foto a la izquierda, botones y ajustes a la derecha -->
-<div class="foto-layout">
+<div class="grid-2 ancha foto-layout">
     <div class="foto-imagen">
-        <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}">
+        <div class="visor">
+            <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" alt="Última foto">
+            <div class="visor-pie" id="barra-bloque" style="display: none;">
+                <div id="estado-foto-pie"></div>
+                <div class="progress"><div id="barra" class="progress-bar ok"></div></div>
+            </div>
+        </div>
     </div>
 
     <div class="foto-controles">
-        <div class="foto-botones">
-            <button id="btn-foto" class="btn btn-success" onclick="hacerFoto()">📷 Hacer foto</button>
-            <button id="btn-sync" class="btn btn-primary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva">📍 Sincronizar telescopio con la foto</button>
-            <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;">⏹️ Cancelar</button>
-        </div>
-        <div id="estado-foto" style="text-align: center; font-size: 16px; color: #ffd; min-height: 1.5em;"></div>
-        <div style="margin: 6px auto; display: none;" id="barra-bloque">
-            <div style="background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 14px; overflow: hidden;">
-                <div id="barra" style="height: 100%; width: 0%; background: #2e7d2e; transition: width 0.9s linear;"></div>
+        <div class="card">
+            <div class="acciones-grid">
+                <button id="btn-foto" class="btn btn-primary btn-lg" onclick="hacerFoto()"><svg><use href="#i-foto"/></svg>Hacer foto</button>
+                <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;"><svg><use href="#i-stop"/></svg>Cancelar</button>
+                <button id="btn-sync" class="btn btn-secondary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-sync"/></svg>Sincronizar telescopio con la foto</button>
             </div>
-        </div>
-        <div id="estado-sync" style="text-align: center; font-size: 15px; min-height: 1.5em; margin-bottom: 8px;"></div>
-
-        <div style="text-align: center; margin-top: 10px;">
-            <a href="{{ url_for('vista_calibracion') }}" class="btn btn-outline-warning">🌑 Calibración: darks y flats</a>
+            <div id="estado-foto" class="estado mt-2"></div>
+            <div id="estado-sync" class="estado"></div>
         </div>
 
-        <div class="ajustes" style="color: #ccc;">
-            <h4>🔧 Ajustes (vista previa)</h4>
-            <div class="form-group">
-                <label>Intensidad del color</label>
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Vista previa</h3></div>
+            <div class="campo">
+                <label for="input-color">Intensidad del color</label>
                 <input type="number" id="input-color" class="form-control" min="0" max="3" step="0.1">
             </div>
-            <button class="btn btn-primary mt-3" onclick="guardarParametrosMTF()">💾 Guardar parámetros</button>
-            <div id="estado-mtf" style="margin-top: 10px; font-style: italic;"></div>
+            <div class="fila entre">
+                <button class="btn btn-secondary" onclick="guardarParametrosMTF()"><svg><use href="#i-guardar"/></svg>Guardar</button>
+                <div id="estado-mtf" class="estado"></div>
+            </div>
         </div>
+
+        <a href="{{ url_for('vista_calibracion') }}" class="btn btn-ghost btn-block"><svg><use href="#i-calibracion"/></svg>Calibración: darks y flats</a>
     </div>
 </div>
 
 <style>
-    .foto-layout { display: grid; grid-template-columns: 1fr; gap: 12px 20px; align-items: start; }
-    .foto-imagen { text-align: center; }
-    .foto-imagen img { width: 100%; max-width: 600px; border: 2px solid #775555; border-radius: 10px; }
-    .foto-botones { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
-    .foto-botones .btn { margin: 0; width: 100%; box-sizing: border-box; }
-    .ajustes { max-width: 400px; margin: 24px auto 0 auto; }
-
-    @media (min-width: 700px) {
-        .foto-layout { grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); }
-        .foto-imagen img { max-width: 100%; }
-        .foto-imagen { position: sticky; top: 8px; }
-        .ajustes { margin-top: 18px; }
-    }
+    .foto-controles { display: flex; flex-direction: column; gap: 12px; }
+    .foto-controles .card + .card { margin-top: 0; }
+    @media (min-width: 760px) { .foto-imagen { position: sticky; top: calc(var(--header-h) + 10px); } }
     @media (max-height: 500px) and (orientation: landscape) {
-        h2 { font-size: 20px; margin: 4px 0; }
-        .foto-imagen img { max-height: calc(100vh - 110px); width: auto; max-width: 100%; }
+        .foto-layout { grid-template-columns: minmax(0, 1fr) minmax(260px, 1fr); }
+        .foto-imagen img { max-height: calc(100vh - 90px); width: auto; max-width: 100%; margin: 0 auto; }
     }
 </style>
 
@@ -74,7 +69,8 @@
         if (c && c.en_curso) {
             const hechos = Math.max(0, c.exposicion - c.restante);
             document.getElementById("barra").style.width = (c.exposicion > 0 ? 100 * hechos / c.exposicion : 0) + "%";
-            document.getElementById("estado-foto").textContent = `📷 Exponiendo · ${Math.ceil(hechos)} / ${c.exposicion} s`;
+            document.getElementById("estado-foto-pie").textContent = `Exponiendo · ${Math.ceil(hechos)} / ${c.exposicion} s`;
+            document.getElementById("estado-foto").textContent = `Exponiendo · ${Math.ceil(hechos)} / ${c.exposicion} s`;
             bloque.style.display = "block";
         } else {
             bloque.style.display = "none";
@@ -88,21 +84,24 @@
     function hacerFoto() {
         const btn = document.getElementById("btn-foto");
         btn.disabled = true;
-        document.getElementById("btn-cancelar").style.display = "inline-block";
-        document.getElementById("estado-foto").textContent = "⏳ Preparando la cámara...";
+        document.getElementById("btn-cancelar").style.display = "inline-flex";
+        document.getElementById("estado-foto").innerHTML = '<span class="spinner"></span>Preparando la cámara...';
         document.getElementById("estado-sync").textContent = "";
         if (!sondeo) sondeo = setInterval(sondearCaptura, 1000);
         fetch("/capturar-imagen?apilar=0&json=1")
             .then(r => r.json())
             .then(d => {
                 clearInterval(sondeo); sondeo = null; pintarProgreso(null);
+                const est = document.getElementById("estado-foto");
                 if (d.ok) {
-                    document.getElementById("estado-foto").textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "");
+                    est.className = "estado ok mt-2";
+                    est.textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "");
                     document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
                     hayFotoNueva = true;
                     document.getElementById("btn-sync").disabled = false;
                 } else {
-                    document.getElementById("estado-foto").textContent = "❌ " + (d.mensaje || "Error al capturar");
+                    est.className = "estado err mt-2";
+                    est.textContent = "❌ " + (d.mensaje || "Error al capturar");
                 }
             })
             .catch(err => { clearInterval(sondeo); sondeo = null; document.getElementById("estado-foto").textContent = "❌ " + err; })
@@ -117,15 +116,15 @@
         const btn = document.getElementById("btn-sync");
         btn.disabled = true;
         const est = document.getElementById("estado-sync");
-        est.style.color = "#ffd";
-        est.innerHTML = "⏳ Resolviendo la foto con ASTAP y sincronizando...";
+        est.className = "estado";
+        est.innerHTML = '<span class="spinner"></span>Resolviendo la foto con ASTAP y sincronizando...';
         fetch("/sincronizar-foto", { method: "POST" })
             .then(r => r.json())
             .then(d => {
-                est.style.color = d.ok ? "#66ff66" : "#ff8888";
+                est.className = "estado " + (d.ok ? "ok" : "err");
                 est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
             })
-            .catch(err => { est.style.color = "#ff8888"; est.textContent = "❌ " + err; })
+            .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; })
             .finally(() => { btn.disabled = !hayFotoNueva; });
     }
 

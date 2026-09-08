@@ -4,10 +4,14 @@
 {% block title %}Esta noche{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center;">🌠 Esta noche</h2>
-<p id="resumen" style="text-align: center; color: #ddaaaa; font-size: 14px; min-height: 1.4em;">Calculando qué se ve bien hoy...</p>
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Esta noche</h1>
+        <p class="pagina-sub" id="resumen"><span class="spinner"></span>Calculando qué se ve bien hoy...</p>
+    </div>
+</div>
 
-<div class="filtros">
+<div class="card card-plana filtros">
     <select id="filtro-tipo" onchange="pintar()">
         <option value="">Todos los tipos</option>
         <option value="Galaxia">Galaxias</option>
@@ -18,41 +22,41 @@
         <option value="Resto de supernova">Restos de supernova</option>
         <option value="Planeta">Planetas y Luna</option>
     </select>
-    <label><input type="checkbox" id="solo-ahora" onchange="pintar()"> Solo visibles ahora</label>
     <select id="orden" onchange="pintar()">
         <option value="puntuacion">Recomendados</option>
         <option value="alt_ahora">Más altos ahora</option>
         <option value="alt_max">Más altos esta noche</option>
     </select>
+    <label class="switch"><input type="checkbox" id="solo-ahora" onchange="pintar()"> Solo visibles ahora</label>
 </div>
 
-<div id="tarjetas" class="tarjetas"></div>
-<div id="vacio" style="text-align: center; color: #aa7777; margin-top: 20px;" hidden>Nada cumple el filtro. Prueba con otro tipo o quita "solo visibles ahora".</div>
+<div id="tarjetas" class="tarjetas mt-2"></div>
+<div id="vacio" class="card centro texto-2 mt-2" hidden>Nada cumple el filtro. Prueba con otro tipo o quita "solo visibles ahora".</div>
 
 <style>
-    .filtros { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; align-items: center; margin: 6px 0 14px; font-size: 14px; color: #ddaaaa; }
-    .filtros select { background: #220000; color: #ffcccc; border: 1px solid #770000; border-radius: 8px; padding: 8px; font-size: 15px; }
-    .filtros input { width: 20px; height: 20px; vertical-align: middle; }
+    .filtros { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: center; padding: 12px; }
+    @media (min-width: 620px) { .filtros { grid-template-columns: 1fr 1fr auto; } }
 
-    .tarjetas { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .tarjetas { display: grid; grid-template-columns: 1fr; gap: 10px; }
     @media (min-width: 700px) { .tarjetas { grid-template-columns: 1fr 1fr; } }
     @media (min-width: 1000px) and (orientation: landscape) { .tarjetas { grid-template-columns: 1fr 1fr 1fr; } }
 
-    .tarjeta { background: #3a0a0a; border: 1px solid #661111; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
-    .tarjeta.ahora { border-color: #2e7d2e; }
-    .tarjeta.mas-tarde { border-color: #9a6a00; }
+    .tarjeta { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; box-shadow: var(--shadow-sm); }
+    .tarjeta.ahora { border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
+    .tarjeta.mas-tarde { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
     .tarjeta.no { opacity: 0.55; }
-    .tarjeta .cabecera { display: flex; flex-direction: column; gap: 2px; }
-    .tarjeta .nombre { font-size: 19px; font-weight: bold; color: #ffdddd; }
-    .tarjeta .id { font-size: 13px; color: #cc9999; }
-    .tarjeta .datos { font-size: 13px; color: #ddaaaa; }
-    .tarjeta .desc { font-size: 14px; color: #ffcccc; }
-    .tarjeta .visib { font-size: 14px; }
-    .tarjeta .visib.ok { color: #88ee88; }
-    .tarjeta .visib.tarde { color: #ffd580; }
-    .tarjeta .visib.no { color: #cc8888; }
-    .tarjeta .estrellas { color: #ffcc44; letter-spacing: 1px; font-size: 13px; }
-    .tarjeta .btn { margin: 4px 0 0; text-align: center; }
+    .tarjeta .cabecera { display: flex; align-items: flex-start; gap: 10px; }
+    .tarjeta .icono { font-size: 22px; line-height: 1; padding-top: 2px; }
+    .tarjeta .nombre { font-size: 18px; font-weight: 700; line-height: 1.2; }
+    .tarjeta .id { font-size: 13px; color: var(--text-3); }
+    .tarjeta .datos { font-size: 13px; color: var(--text-2); }
+    .tarjeta .desc { font-size: 14px; color: var(--text-2); }
+    .tarjeta .visib { font-size: 13.5px; font-weight: 600; }
+    .tarjeta .visib.ok { color: var(--ok); }
+    .tarjeta .visib.tarde { color: var(--warn); }
+    .tarjeta .visib.no { color: var(--text-3); }
+    .tarjeta .estrellas { color: var(--warn); letter-spacing: 1px; font-size: 12px; }
+    .tarjeta .btn { margin-top: 6px; }
 </style>
 
 <script>
@@ -82,18 +86,19 @@
         document.getElementById("vacio").hidden = lista.length > 0;
         for (const o of lista) {
             let clase, visib, texto;
-            if (o.visible_ahora) { clase = "ahora"; visib = "ok"; texto = `✅ Ahora a ${o.alt_ahora}° · máximo ${o.alt_max}° a las ${o.hora_max}`; }
-            else if (o.visible_desde) { clase = "mas-tarde"; visib = "tarde"; texto = `🕒 Visible de ${o.visible_desde} a ${o.visible_hasta} · máximo ${o.alt_max}° a las ${o.hora_max}`; }
-            else { clase = "no"; visib = "no"; texto = `⛔ Esta noche no sube de ${o.alt_max}°`; }
+            if (o.visible_ahora) { clase = "ahora"; visib = "ok"; texto = `Ahora a ${o.alt_ahora}° · máximo ${o.alt_max}° a las ${o.hora_max}`; }
+            else if (o.visible_desde) { clase = "mas-tarde"; visib = "tarde"; texto = `Visible de ${o.visible_desde} a ${o.visible_hasta} · máximo ${o.alt_max}° a las ${o.hora_max}`; }
+            else { clase = "no"; visib = "no"; texto = `Esta noche no sube de ${o.alt_max}°`; }
             const datosTxt = [o.tipo, o.constelacion, o.mag !== null ? `mag ${o.mag}` : "", o.tamano_arcmin ? `${o.tamano_arcmin}′` : ""].filter(Boolean).join(" · ");
             const div = document.createElement("div");
             div.className = "tarjeta " + clase;
             div.innerHTML = `
-                <div class="cabecera"><span class="nombre">${iconos[o.tipo] || "🔭"} ${o.nombre}</span><span class="id">${o.id !== o.nombre ? o.id : ""}${o.nombre_alt && o.nombre_alt !== o.id ? " · " + o.nombre_alt : ""}</span></div>
+                <div class="cabecera"><span class="icono">${iconos[o.tipo] || "🔭"}</span>
+                    <div><div class="nombre">${o.nombre}</div><div class="id">${o.id !== o.nombre ? o.id : ""}${o.nombre_alt && o.nombre_alt !== o.id ? " · " + o.nombre_alt : ""}</div></div></div>
                 <div class="datos">${datosTxt} <span class="estrellas">${"★".repeat(o.popularidad)}${"☆".repeat(5 - o.popularidad)}</span></div>
                 <div class="desc">${o.descripcion}</div>
                 <div class="visib ${visib}">${texto}</div>
-                <a class="btn ${o.visible_ahora ? "btn-success" : "btn-secondary"}" href="/goto?objeto=${encodeURIComponent(o.nombre)}&ra=${o.ra_h}&dec=${o.dec_deg}">🔭 Ir y centrar</a>`;
+                <a class="btn ${o.visible_ahora ? "btn-primary" : "btn-secondary"}" href="/goto?objeto=${encodeURIComponent(o.nombre)}&ra=${o.ra_h}&dec=${o.dec_deg}"><svg><use href="#i-goto"/></svg>Ir y centrar</a>`;
             cont.appendChild(div);
         }
     }

@@ -1,88 +1,76 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
+
+{% block title %}Galería{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center; color: #ffaa88;">📷 Galería de Imágenes Astronómicas</h2>
-
-<div style="text-align: center; margin: 20px;">
-    <label for="orden" style="color: #ffcccc;">Ordenar por:</label>
-    <select id="orden" onchange="ordenarGaleria()" style="background: #330000; color: #ffcccc; padding: 6px; border-radius: 5px;">
-        <option value="objeto">🪐 Objeto</option>
-        <option value="fecha">📅 Fecha</option>
-    </select>
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Galería</h1>
+        <p class="pagina-sub">{{ imagenes|length }} imágenes guardadas desde el apilado.</p>
+    </div>
+    <div class="pagina-acciones">
+        <div class="segmentado" id="orden-seg">
+            <button type="button" class="activo" data-orden="fecha" onclick="ordenarGaleria('fecha')">Fecha</button>
+            <button type="button" data-orden="objeto" onclick="ordenarGaleria('objeto')">Objeto</button>
+        </div>
+    </div>
 </div>
 
-<div id="galeria" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 10px;">
+{% if not imagenes %}
+<div class="card centro">
+    <svg class="ico" style="width: 40px; height: 40px; color: var(--text-3);"><use href="#i-galeria"/></svg>
+    <p class="card-sub mt-2">Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí.</p>
+    <a href="/apilado" class="btn btn-primary">Ir al apilado</a>
+</div>
+{% endif %}
+
+<div id="galeria" class="galeria">
     {% for nombre in imagenes %}
-    <div class="tarjeta" data-objeto="{{ nombre.split('_')[0] }}" data-fecha="{{ nombre.split('_')[1] }}" style="position: relative;">
-        <img src="{{ url_for('static', filename='fotos/' ~ nombre) }}" alt="{{ nombre }}" onclick="abrirLightbox(this.src)" style="width: 250px; max-width: 100%; border: 3px solid #770000; border-radius: 10px; cursor: zoom-in;">
-
-        <!-- Nombre debajo -->
-        <div style="color: #ffaaaa; margin-top: 5px;">{{ nombre.replace('.jpg','') }}</div>
-
-        <!-- Botón flotante tipo X -->
-        <button onclick="eliminarImagen('{{ nombre }}')"
-                style="position: absolute; top: 5px; right: 5px; background: rgba(150,0,0,0.8); color: #fff; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; font-weight: bold; cursor: pointer;"
-                title="Eliminar imagen">
-            ×
-        </button>
+    {% set partes = nombre.replace('.jpg', '').rsplit('_', 2) %}
+    <div class="foto tarjeta" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes|length == 3 else nombre }}">
+        <img src="{{ url_for('static', filename='fotos/' ~ nombre) }}" alt="{{ nombre }}" loading="lazy" onclick="abrirLightbox(this.src, this.closest('.foto').querySelector('.foto-nombre').textContent)">
+        <div class="foto-pie">
+            <div class="foto-nombre">{{ partes[0].replace('_', ' ') }}</div>
+            <div class="foto-fecha">
+                {% if partes|length == 3 and partes[1]|length == 8 %}
+                {{ partes[1][6:8] }}/{{ partes[1][4:6] }}/{{ partes[1][0:4] }} · {{ partes[2][0:2] }}:{{ partes[2][2:4] }}
+                {% else %}{{ nombre }}{% endif %}
+            </div>
+        </div>
+        <button class="foto-borrar" onclick="eliminarImagen('{{ nombre }}')" title="Eliminar imagen">×</button>
     </div>
     {% endfor %}
 </div>
 
-<!-- Lightbox flotante -->
-<div id="lightbox" style="
-    display: none;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(20, 0, 0, 0.95);
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    padding: 20px;
-    box-sizing: border-box;">
-
-    <img id="imagen-grande" src="" style="
-        width: auto;
-        height: auto;
-        max-width: 95vw;
-        max-height: 95vh;
-        border: 5px solid #aa0000;
-        border-radius: 10px;
-        box-shadow: 0 0 30px #aa0000;
-        object-fit: contain;">
+<!-- Visor a pantalla completa -->
+<div id="lightbox" class="lightbox">
+    <img id="imagen-grande" src="" alt="">
+    <div class="lightbox-pie" id="lightbox-pie"></div>
 </div>
 
-
-
 <script>
-    function abrirLightbox(src) {
-        const lightbox = document.getElementById('lightbox');
-        const imagen = document.getElementById('imagen-grande');
-        imagen.src = src;
-        lightbox.style.display = "flex";
+    function abrirLightbox(src, nombre) {
+        document.getElementById('imagen-grande').src = src;
+        document.getElementById('lightbox-pie').textContent = (nombre || "") + " · toca para cerrar";
+        document.getElementById('lightbox').classList.add("abierto");
     }
+    document.getElementById('lightbox').onclick = () => document.getElementById('lightbox').classList.remove("abierto");
+    document.addEventListener("keydown", e => { if (e.key === "Escape") document.getElementById('lightbox').classList.remove("abierto"); });
 
-    document.getElementById('lightbox').onclick = () => {
-        document.getElementById('lightbox').style.display = "none";
-    };
-
-    function ordenarGaleria() {
-        const criterio = document.getElementById("orden").value;
+    function ordenarGaleria(criterio) {
+        document.querySelectorAll("#orden-seg button").forEach(b => b.classList.toggle("activo", b.dataset.orden === criterio));
         const galeria = document.getElementById("galeria");
         const tarjetas = Array.from(galeria.children);
-
         tarjetas.sort((a, b) => {
-            let valA = a.dataset[criterio].toLowerCase();
-            let valB = b.dataset[criterio].toLowerCase();
-            return valA.localeCompare(valB);
+            const valA = (a.dataset[criterio] || "").toLowerCase(), valB = (b.dataset[criterio] || "").toLowerCase();
+            return criterio === "fecha" ? valB.localeCompare(valA) : valA.localeCompare(valB);   // fecha: la más reciente primero
         });
-
         tarjetas.forEach(t => galeria.appendChild(t));
     }
+    ordenarGaleria("fecha");
+
     function eliminarImagen(nombre) {
         if (!confirm("¿Seguro que quieres eliminar esta imagen?")) return;
-
         fetch("/eliminar-imagen", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -90,14 +78,13 @@
         })
             .then(res => res.json())
             .then(data => {
-                alert(data.mensaje || data.error);
                 if (data.ok) {
-                    const tarjeta = document.querySelector(`.tarjeta button[onclick*="'${nombre}'"]`).parentElement;
+                    const tarjeta = document.querySelector(`.tarjeta button[onclick*="'${nombre}'"]`).closest(".foto");
                     tarjeta.remove();
+                } else {
+                    alert(data.mensaje || data.error);
                 }
-
             });
     }
-
 </script>
 {% endblock %}

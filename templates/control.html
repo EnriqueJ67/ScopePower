@@ -1,25 +1,30 @@
 <!-- templates/control.html -->
 {% extends "base.html" %}
 
-{% block title %}Control del Telescopio{% endblock %}
+{% block title %}Control manual{% endblock %}
 
 {% block content %}
-<h2>Control del Telescopio</h2>
-
 <!-- Vertical: velocidad, pad, flechas. Apaisado: pad a la izquierda y velocidad + flechas a la derecha.
      Aquí no va ningún otro botón: se maneja sin mirar y acabaría pulsado por error. -->
 <div class="control-layout">
     <div class="control-velocidad">
-        <label for="speed">Velocidad máxima:</label>
-        <select id="speed">
+        <div class="seccion-titulo" style="margin-top: 0;">Velocidad máxima</div>
+        <!-- El select lo lee el script (id="speed"); el grupo de botones solo lo cambia -->
+        <select id="speed" hidden>
             <option value="0.1">Lenta (0,1°/s)</option>
             <option value="0.5" selected>Media (0,5°/s)</option>
             <option value="1.0">Rápida (1°/s)</option>
             <option value="3.0">Muy rápida (3°/s)</option>
         </select>
+        <div class="segmentado" id="speed-seg">
+            <button type="button" data-v="0.1">0,1°/s</button>
+            <button type="button" data-v="0.5">0,5°/s</button>
+            <button type="button" data-v="1.0">1°/s</button>
+            <button type="button" data-v="3.0">3°/s</button>
+        </div>
         <div class="invertir">
-            <label><input type="checkbox" id="inv-x"> Invertir izquierda/derecha</label>
-            <label><input type="checkbox" id="inv-y"> Invertir arriba/abajo</label>
+            <label class="switch"><input type="checkbox" id="inv-x"> Invertir izq./der.</label>
+            <label class="switch"><input type="checkbox" id="inv-y"> Invertir arriba/abajo</label>
         </div>
         <div id="pad-estado" class="pad-estado">Arrastra el dedo por el pad</div>
     </div>
@@ -29,6 +34,7 @@
             <div class="pad-anillo"></div>
             <div class="pad-cruz h"></div>
             <div class="pad-cruz v"></div>
+            <span class="pad-letra n">N</span><span class="pad-letra s">S</span><span class="pad-letra e">E</span><span class="pad-letra w">W</span>
             <svg id="pad-linea" class="pad-linea"><line x1="50%" y1="50%" x2="50%" y2="50%"/></svg>
             <div id="pad-mando" class="pad-mando"></div>
         </div>
@@ -37,15 +43,15 @@
     <div class="control-flechas">
         <div class="telescope-grid">
             <div></div>
-            <button class="btn-dir up" ontouchstart="move('N')" ontouchend="stop()" onmousedown="move('N')" onmouseup="stop()"></button>
+            <button class="btn-dir up" ontouchstart="move('N')" ontouchend="stop()" onmousedown="move('N')" onmouseup="stop()" aria-label="Norte"></button>
             <div></div>
 
-            <button class="btn-dir left" ontouchstart="move('W')" ontouchend="stop()" onmousedown="move('W')" onmouseup="stop()"></button>
-            <button class="btn-center" onclick="stop(); vibrar(40)">●</button>
-            <button class="btn-dir right" ontouchstart="move('E')" ontouchend="stop()" onmousedown="move('E')" onmouseup="stop()"></button>
+            <button class="btn-dir left" ontouchstart="move('W')" ontouchend="stop()" onmousedown="move('W')" onmouseup="stop()" aria-label="Oeste"></button>
+            <button class="btn-center" onclick="stop(); vibrar(40)" aria-label="Parar"><svg><use href="#i-stop"/></svg></button>
+            <button class="btn-dir right" ontouchstart="move('E')" ontouchend="stop()" onmousedown="move('E')" onmouseup="stop()" aria-label="Este"></button>
 
             <div></div>
-            <button class="btn-dir down" ontouchstart="move('S')" ontouchend="stop()" onmousedown="move('S')" onmouseup="stop()"></button>
+            <button class="btn-dir down" ontouchstart="move('S')" ontouchend="stop()" onmousedown="move('S')" onmouseup="stop()" aria-label="Sur"></button>
             <div></div>
         </div>
     </div>
@@ -56,45 +62,52 @@
         display: grid;
         grid-template-columns: 1fr;
         grid-template-areas: "velocidad" "pad" "flechas";
-        gap: 12px 24px;
+        gap: 14px 24px;
         align-items: center;
         justify-items: center;
     }
-    .control-velocidad { grid-area: velocidad; text-align: center; }
+    .control-velocidad { grid-area: velocidad; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .control-pad { grid-area: pad; width: 100%; display: flex; justify-content: center; }
-    .control-flechas { grid-area: flechas; margin-top: 6px; }
+    .control-flechas { grid-area: flechas; margin-top: 4px; }
 
-    .invertir { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; font-size: 14px; color: #ddaaaa; }
-    .invertir input { width: 20px; height: 20px; vertical-align: middle; }
-    .pad-estado { font-size: 15px; color: #ffd; min-height: 1.4em; margin-top: 4px; }
+    .invertir { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-size: 13.5px; }
+    .pad-estado { font-size: 14px; color: var(--text-2); min-height: 1.4em; font-variant-numeric: tabular-nums; }
 
     /* ── Pad ── */
     .pad {
         position: relative;
-        width: min(80vw, 60vh, 420px);
-        height: min(80vw, 60vh, 420px);
+        width: min(80vw, 58vh, 420px);
+        height: min(80vw, 58vh, 420px);
         border-radius: 50%;
-        background: radial-gradient(circle, #3a0000 0%, #260000 70%, #1a0000 100%);
-        border: 3px solid #770000;
+        background: radial-gradient(circle at 50% 45%, var(--surface-3) 0%, var(--surface) 55%, var(--bg-2) 100%);
+        border: 2px solid var(--border-2);
+        box-shadow: inset 0 0 40px rgba(0,0,0,0.45), var(--shadow);
         touch-action: none;                 /* el navegador no hace scroll ni zoom con el dedo aquí */
         user-select: none; -webkit-user-select: none;
         -webkit-tap-highlight-color: transparent;
         overflow: hidden;
+        transition: border-color .15s, box-shadow .15s;
     }
-    .pad.activo { border-color: #ff6666; box-shadow: 0 0 18px rgba(255, 80, 80, 0.45); }
+    .pad.activo { border-color: var(--accent-2); box-shadow: inset 0 0 40px rgba(0,0,0,0.45), 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-glow); }
     .pad-anillo {                            /* zona muerta central */
         position: absolute; left: 50%; top: 50%; width: 14%; height: 14%;
-        transform: translate(-50%, -50%); border-radius: 50%; border: 2px dashed #884444;
+        transform: translate(-50%, -50%); border-radius: 50%; border: 1.5px dashed var(--border-2);
     }
-    .pad-cruz { position: absolute; background: #5a2222; }
-    .pad-cruz.h { left: 6%; right: 6%; top: 50%; height: 1px; }
-    .pad-cruz.v { top: 6%; bottom: 6%; left: 50%; width: 1px; }
+    .pad-cruz { position: absolute; background: var(--border-2); opacity: 0.7; }
+    .pad-cruz.h { left: 8%; right: 8%; top: 50%; height: 1px; }
+    .pad-cruz.v { top: 8%; bottom: 8%; left: 50%; width: 1px; }
+    .pad-letra { position: absolute; font-size: 12px; font-weight: 700; color: var(--text-3); letter-spacing: 0.05em; }
+    .pad-letra.n { top: 7%; left: 50%; transform: translateX(-50%); }
+    .pad-letra.s { bottom: 7%; left: 50%; transform: translateX(-50%); }
+    .pad-letra.e { right: 7%; top: 50%; transform: translateY(-50%); }
+    .pad-letra.w { left: 7%; top: 50%; transform: translateY(-50%); }
     .pad-linea { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-    .pad-linea line { stroke: #ff9999; stroke-width: 3; stroke-linecap: round; }
+    .pad-linea line { stroke: var(--accent-2); stroke-width: 3; stroke-linecap: round; opacity: 0.8; }
     .pad-mando {
         position: absolute; left: 50%; top: 50%; width: 22%; height: 22%;
         transform: translate(-50%, -50%); border-radius: 50%;
-        background: #8a1a1a; border: 3px solid #ffcccc; box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+        background: linear-gradient(160deg, var(--accent-2), var(--accent)); border: 3px solid rgba(255,255,255,0.85);
+        box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 18px var(--accent-glow);
         pointer-events: none;
     }
 
@@ -103,33 +116,31 @@
         display: grid;
         grid-template-columns: repeat(3, auto);
         grid-template-rows: repeat(3, auto);
-        gap: 10px;
+        gap: 8px;
         justify-content: center; align-items: center; justify-items: center;
         margin: 0 auto;
         touch-action: manipulation;
         user-select: none; -webkit-user-select: none;
     }
     .btn-dir, .btn-center {
-        width: min(72px, 18vw, 12vh); height: min(72px, 18vw, 12vh);
-        background-color: #550000; border: none; border-radius: 16px; cursor: pointer; position: relative;
-        -webkit-tap-highlight-color: rgba(255,0,0,0.25);
+        width: min(68px, 17vw, 11vh); height: min(68px, 17vw, 11vh);
+        background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 16px; cursor: pointer; position: relative;
+        -webkit-tap-highlight-color: transparent; color: var(--text);
+        transition: background .1s, transform .08s;
     }
-    .btn-dir:hover { background-color: #770000; }
-    .btn-dir:active { background-color: #990000; }
-    .btn-center { background-color: #330000; color: #ffaaaa; border-radius: 50%; font-size: 24px; }
+    .btn-dir:hover { background: var(--surface-3); }
+    .btn-dir:active { background: var(--accent); border-color: transparent; transform: scale(0.96); }
+    .btn-center { background: var(--bg-2); border-radius: 50%; display: grid; place-items: center; color: var(--err); }
+    .btn-center svg { width: 40%; height: 40%; }
+    .btn-center:active { background: var(--err-soft); }
     .btn-dir::before {
-        content: ""; display: inline-block; width: 0; height: 0; border: 16px solid transparent;
+        content: ""; display: inline-block; width: 0; height: 0; border: 13px solid transparent;
         position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     }
-    .btn-dir.up::before { border-bottom-color: #ffcccc; }
-    .btn-dir.down::before { border-top-color: #ffcccc; }
-    .btn-dir.left::before { border-right-color: #ffcccc; }
-    .btn-dir.right::before { border-left-color: #ffcccc; }
-
-    select#speed {
-        font-size: 17px; margin: 6px 0 8px; padding: 8px; border-radius: 8px;
-        background-color: #220000; color: #ffcccc; border: 2px solid #770000;
-    }
+    .btn-dir.up::before { border-bottom-color: var(--text); transform: translate(-50%, -70%); }
+    .btn-dir.down::before { border-top-color: var(--text); transform: translate(-50%, -30%); }
+    .btn-dir.left::before { border-right-color: var(--text); transform: translate(-70%, -50%); }
+    .btn-dir.right::before { border-left-color: var(--text); transform: translate(-30%, -50%); }
 
     /* Apaisado: pad a la izquierda; velocidad y flechas a la derecha */
     @media (min-width: 700px) and (orientation: landscape) {
@@ -138,17 +149,15 @@
             grid-template-areas: "pad velocidad" "pad flechas";
             align-items: center;
         }
-        .pad { width: min(44vw, 78vh, 460px); height: min(44vw, 78vh, 460px); }
+        .pad { width: min(44vw, 74vh, 460px); height: min(44vw, 74vh, 460px); }
         .control-velocidad { align-self: end; }
         .control-flechas { align-self: start; }
     }
     @media (max-height: 500px) and (orientation: landscape) {
-        body { padding-top: 8px; }
-        h2 { font-size: 20px; margin: 4px 0 6px; }
-        .pad { width: min(44vw, 62vh, 300px); height: min(44vw, 62vh, 300px); }
-        .btn-dir, .btn-center { width: min(56px, 14vw, 11vh); height: min(56px, 14vw, 11vh); }
-        .btn-dir::before { border-width: 12px; }
-        select#speed { margin: 2px 0 4px; }
+        .pad { width: min(44vw, 66vh, 300px); height: min(44vw, 66vh, 300px); }
+        .btn-dir, .btn-center { width: min(52px, 13vw, 11vh); height: min(52px, 13vw, 11vh); }
+        .btn-dir::before { border-width: 10px; }
+        .control-layout { gap: 8px 16px; }
     }
 </style>
 
@@ -160,6 +169,19 @@
             navigator.vibrate(ms);
         }
     }
+
+    // ── Velocidad: grupo de botones que escribe en el <select id="speed"> ──
+    function pintarVelocidad() {
+        const v = document.getElementById("speed").value;
+        document.querySelectorAll("#speed-seg button").forEach(b => b.classList.toggle("activo", b.dataset.v === v));
+    }
+    document.querySelectorAll("#speed-seg button").forEach(b => b.addEventListener("click", () => {
+        const sel = document.getElementById("speed");
+        sel.value = b.dataset.v;
+        sel.dispatchEvent(new Event("change"));
+        pintarVelocidad();
+        vibrar(15);
+    }));
 
     // ── Flechas (como siempre: velocidad fija mientras se mantiene pulsado) ──
     function move(direction) {
@@ -193,6 +215,7 @@
         invY.checked = localStorage.getItem("pad_inv_y") === "1";
         const v = localStorage.getItem("pad_velocidad"); if (v) document.getElementById("speed").value = v;
     } catch (e) {}
+    pintarVelocidad();
     invX.addEventListener("change", () => { try { localStorage.setItem("pad_inv_x", invX.checked ? "1" : "0"); } catch (e) {} });
     invY.addEventListener("change", () => { try { localStorage.setItem("pad_inv_y", invY.checked ? "1" : "0"); } catch (e) {} });
     document.getElementById("speed").addEventListener("change", ev => { try { localStorage.setItem("pad_velocidad", ev.target.value); } catch (e) {} });
@@ -206,7 +229,6 @@
     }
 
     function pintar(nx, ny) {
-        const r = pad.clientWidth / 2;
         mando.style.left = (50 + nx * 50) + "%";
         mando.style.top = (50 + ny * 50) + "%";
         linea.setAttribute("x2", (50 + nx * 50) + "%");

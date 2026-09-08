@@ -1,86 +1,110 @@
-﻿<!-- templates/home.html -->
 {% extends "base.html" %}
 
 {% block title %}Inicio{% endblock %}
+{% block titulo_cabecera %}{% endblock %}
 
 {% block content %}
-<h2>ScopePower funcionando 🚀</h2>
 
-<!-- Logo de ScopeBoost -->
-<div class="cabecera" style="text-align: center; margin-bottom: 20px;">
-    <img src="/static/logo.png" alt="ScopePower Logo" style="max-width: 300px;">
-    <p><b>ScopeBoost: Real-time Power for Your Telescope</b></p>
+<!-- Estado del equipo: las opciones que necesitan la montura quedan atenuadas hasta que está conectada -->
+<div class="card hero">
+    <div class="hero-logo"><img src="/static/logo_transparente.png" alt="ScopePower"></div>
+    <div class="hero-estado">
+        <div class="fila" id="hero-chips">
+            <span class="chip chip-lg chip-icono" id="hero-montura"><svg><use href="#i-telescopio"/></svg>Montura</span>
+            <span class="chip chip-lg chip-icono" id="hero-camara"><svg><use href="#i-foto"/></svg>Cámara</span>
+        </div>
+        <div id="estado-equipo" class="estado mt-1">Comprobando el equipo...</div>
+    </div>
+    <button type="button" class="btn btn-primary" id="btn-conectar"><svg><use href="#i-conectar"/></svg><span id="btn-conectar-texto">Conectar equipo</span></button>
 </div>
-
-<!-- Estado del equipo (portado de la versión de junio): las opciones que necesitan
-     la montura quedan atenuadas hasta que está conectada -->
-<div id="estado-equipo" style="text-align: center; color: #ddaaaa; font-size: 15px; margin-bottom: 6px;">Comprobando el equipo...</div>
 
 <!-- El menú sigue el orden de una noche: conectar, alinear, ir al objeto, apilar.
      Plate Solve, Sincronizar y Modo Automático siguen existiendo como rutas
      (/platesolve, /corregir-posicion, /modo-automatico) pero ya no hacen falta:
      el alineado y el centrado automático tras el GOTO los sustituyen. -->
-<ul class="menu">
-    <li><a href="#" id="btn-conectar">🔌 Conectar equipo</a></li>
-    <li><a href="/alineacion" class="clic-audio requiere-conexion">🧭 Alineación Automática</a></li>
-    <li><a href="/goto" class="clic-audio requiere-conexion"><b>🔭 GOTO Objeto</b></a></li>
-    <li><a href="/esta-noche" class="clic-audio requiere-conexion">🌠 Esta noche: objetos recomendados</a></li>
-    <li><a href="/apilado" class="clic-audio requiere-conexion"><b>🌀 Apilado en Tiempo Real</b></a></li>
-    <li><a href="/constelacion" class="clic-audio requiere-conexion">✨ Recorrido por Constelación</a></li>
-    <li><a href="{{ url_for('galeria') }}" class="clic-audio">🌌 Ver Galería</a></li>
-    <li><a href="/control" class="clic-audio requiere-conexion">🎮 Control manual del telescopio</a></li>
-    <li><a href="/foto-prueba" class="clic-audio requiere-conexion">📷 Foto de prueba (enfoque y encuadre)</a></li>
-    <li><a href="/calibracion" class="clic-audio requiere-conexion">🌑 Calibración: darks y flats</a></li>
-    <li class="ancho"><a href="/apagar" class="clic-audio" style="color: #ff6666;"><b>🛑 Cerrar aplicación o apagar el equipo</b></a></li>
-</ul>
+<div class="tiles mt-3">
+    <a href="/goto" class="tile tile-grande destacada clic-audio requiere-conexion">
+        <span class="tile-ico"><svg><use href="#i-goto"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">GoTo a un objeto</span><span class="tile-desc">Por nombre o por voz, con centrado automático por plate solving</span></span>
+        <svg class="ico flecha"><use href="#i-flecha"/></svg>
+    </a>
+    <a href="/apilado" class="tile tile-grande destacada clic-audio requiere-conexion">
+        <span class="tile-ico"><svg><use href="#i-apilado"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Apilado en tiempo real</span><span class="tile-desc">La imagen mejora foto a foto; guarda el resultado en la galería</span></span>
+        <svg class="ico flecha"><use href="#i-flecha"/></svg>
+    </a>
 
-{% if estado_licencia == "activado" %}
-<p style="color: green;">✅ Esta copia está activada permanentemente.</p>
-{% elif estado_licencia == "prueba" %}
-<p style="color: orange;">🧪 Modo prueba: quedan {{ dias_restantes }} días.</p>
-{% else %}
-<p style="color: red;">❌ Prueba finalizada. Debes activar ScopePower para continuar.</p>
-{% endif %}
-
-{% if estado_licencia != "activado" %}
-<div style="margin-top: 15px; margin-left: 10px;">
-    <a href="{{ url_for('activar') }}" class="btn btn-danger">🔐 Activar ahora</a>
+    <a href="/alineacion" class="tile clic-audio requiere-conexion">
+        <span class="tile-ico ok"><svg><use href="#i-brujula"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Alineación automática</span><span class="tile-desc">Modelo de apuntado por plate solving</span></span>
+    </a>
+    <a href="/esta-noche" class="tile clic-audio requiere-conexion">
+        <span class="tile-ico warn"><svg><use href="#i-noche"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Esta noche</span><span class="tile-desc">Objetos recomendados ahora</span></span>
+    </a>
+    <a href="/constelacion" class="tile clic-audio requiere-conexion">
+        <span class="tile-ico info"><svg><use href="#i-constelacion"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Recorrido guiado</span><span class="tile-desc">Constelaciones estrella a estrella</span></span>
+    </a>
+    <a href="{{ url_for('galeria') }}" class="tile clic-audio">
+        <span class="tile-ico"><svg><use href="#i-galeria"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Galería</span><span class="tile-desc">Imágenes guardadas</span></span>
+    </a>
+    <a href="/control" class="tile clic-audio requiere-conexion">
+        <span class="tile-ico neutro"><svg><use href="#i-control"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Control manual</span><span class="tile-desc">Pad táctil y flechas</span></span>
+    </a>
+    <a href="/foto-prueba" class="tile clic-audio requiere-conexion">
+        <span class="tile-ico neutro"><svg><use href="#i-foto"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Foto de prueba</span><span class="tile-desc">Enfoque y encuadre</span></span>
+    </a>
+    <a href="/calibracion" class="tile clic-audio requiere-conexion">
+        <span class="tile-ico neutro"><svg><use href="#i-calibracion"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Calibración</span><span class="tile-desc">Darks y flats</span></span>
+    </a>
+    <a href="/configuracion" class="tile clic-audio">
+        <span class="tile-ico neutro"><svg><use href="#i-ajustes"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Configuración</span><span class="tile-desc">Drivers, exposición, voz, red</span></span>
+    </a>
+    <a href="/apagar" class="tile clic-audio">
+        <span class="tile-ico" style="background: var(--err-soft); color: var(--err);"><svg><use href="#i-power"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Cerrar o apagar</span><span class="tile-desc">Reiniciar la app o apagar el equipo</span></span>
+    </a>
 </div>
-{% endif %}
 
-<div style="margin-top: 15px; margin-left: 10px;">
-    <a href="/configuracion" class="btn btn-outline-info">⚙️ Configuración del Sistema</a>
+<div class="fila mt-3" style="justify-content: center;">
+    {% if estado_licencia == "activado" %}
+    <span class="chip chip-ok"><span class="dot"></span>Copia activada</span>
+    {% elif estado_licencia == "prueba" %}
+    <span class="chip chip-warn"><span class="dot"></span>Modo prueba · quedan {{ dias_restantes }} días</span>
+    <a href="{{ url_for('activar') }}" class="btn btn-sm btn-danger">Activar ahora</a>
+    {% else %}
+    <span class="chip chip-err"><span class="dot"></span>Prueba finalizada</span>
+    <a href="{{ url_for('activar') }}" class="btn btn-sm btn-danger">Activar ahora</a>
+    {% endif %}
 </div>
-
 
 <style>
-    ul.menu { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr; gap: 14px; }
-    ul.menu li { margin: 0; }
-    ul.menu a {
-        display: flex; align-items: center; justify-content: center; height: 100%; box-sizing: border-box;
-        padding: 20px; background-color: #550000; border-radius: 12px; font-size: 24px;
-        text-align: center; color: #ffcccc; text-decoration: none;
-    }
-    ul.menu a:hover { background-color: #770000; }
-
-    /* Pantalla ancha (tablet, móvil apaisado): menú a dos columnas, Cerrar a lo ancho */
+    .hero { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: center; }
+    .hero-logo img { max-width: 240px; display: block; margin: 0 auto; border-radius: 12px; }
+    .hero-estado { text-align: center; }
+    .hero-estado .fila { justify-content: center; }
+    .hero .btn { justify-self: center; min-width: 220px; }
     @media (min-width: 700px) {
-        ul.menu { grid-template-columns: 1fr 1fr; }
-        ul.menu li.ancho { grid-column: 1 / -1; }
-        ul.menu a { font-size: 22px; padding: 18px 12px; }
+        .hero { grid-template-columns: auto 1fr auto; gap: 20px; }
+        .hero-logo img { max-width: 210px; margin: 0; }
+        .hero-estado { text-align: left; }
+        .hero-estado .fila { justify-content: flex-start; }
     }
-    @media (min-width: 700px) and (orientation: portrait) {
-        ul.menu a { font-size: 23px; padding: 26px 10px; }
-    }
-    /* Móvil apaisado: logo y cabecera pequeños para que se vea el menú */
+    /* Móvil apaisado: sin logo, que se vea el menú */
     @media (max-height: 500px) and (orientation: landscape) {
-        h2 { font-size: 18px; margin: 4px 0; }
-        .cabecera img { max-width: 140px !important; }
-        .cabecera p { margin: 2px 0; font-size: 13px; }
-        ul.menu { gap: 8px; }
-        ul.menu a { padding: 12px 8px; font-size: 18px; }
+        .hero-logo { display: none; }
+        .hero { grid-template-columns: 1fr auto; gap: 12px; }
+        .hero-estado { text-align: left; }
+        .hero-estado .fila { justify-content: flex-start; }
     }
 </style>
+
 <script>
     const sonidoClick = new Audio("/static/click.wav");
 
@@ -88,7 +112,7 @@
         link.addEventListener('click', function (e) {
             e.preventDefault(); // Evita que el navegador navegue inmediatamente
 
-            // Enlaces con data-confirmar (Cerrar Aplicación) piden confirmación antes
+            // Enlaces con data-confirmar piden confirmación antes
             if (this.dataset.confirmar && !confirm(this.dataset.confirmar)) return;
 
             const destino = this.href;
@@ -96,9 +120,7 @@
             // Reproducir sonido y luego ir al enlace
             sonidoClick.currentTime = 0;
             sonidoClick.play().then(() => {
-                setTimeout(() => {
-                    window.location.href = destino;
-                }, 150); // Espera ~150ms para que se oiga el clic
+                setTimeout(() => { window.location.href = destino; }, 150); // Espera ~150ms para que se oiga el clic
             }).catch(() => {
                 // Si falla el sonido (ej. en iOS), sigue navegando
                 window.location.href = destino;
@@ -109,47 +131,49 @@
     // ——— Conexión del equipo ———
     function pintarConexion(d) {
         const ok = !!d.montura;
-        document.querySelectorAll('.requiere-conexion').forEach(a => {
-            a.style.opacity = ok ? 1 : 0.4;
-            a.style.pointerEvents = ok ? 'auto' : 'none';
-        });
+        document.querySelectorAll('.requiere-conexion').forEach(a => a.classList.toggle('apagada', !ok));
+        const chipM = document.getElementById('hero-montura'), chipC = document.getElementById('hero-camara');
+        const clase = (bien, busy) => "chip chip-lg chip-icono " + (busy ? "chip-busy" : (bien ? "chip-ok" : "chip-err"));
+        chipM.className = clase(d.montura, d.conectando && !d.montura);
+        chipC.className = clase(d.camara, d.conectando && !d.camara);
+        chipM.innerHTML = `<svg><use href="#i-telescopio"/></svg>Montura${d.montura && d.sistema ? " · " + d.sistema : ""}`;
+        chipC.innerHTML = `<svg><use href="#i-foto"/></svg>Cámara`;
+
         let txt;
         if (d.conectando) {
-            txt = "⏳ Conectando montura y cámara...";
+            txt = "Conectando montura y cámara...";
+        } else if (ok && d.camara) {
+            txt = "Equipo listo. Alinea, ve a un objeto o empieza a apilar.";
         } else {
-            txt = ok ? `✅ Montura conectada${d.sistema ? " (" + d.sistema + ")" : ""}` : "🔌 Montura sin conectar";
-            txt += d.camara ? " · ✅ cámara conectada" : " · ❌ cámara sin conectar";
-            if (!ok && d.error_montura) txt += `<br><span style="color:#ff8888">${d.error_montura}</span>`;
-            if (!d.camara && d.error_camara) txt += `<br><span style="color:#ff8888">${d.error_camara}</span>`;
+            txt = ok ? "Montura conectada; la cámara no responde." : "La montura no está conectada.";
+            if (!ok && d.error_montura) txt += `<br><span class="texto-err">${d.error_montura}</span>`;
+            if (!d.camara && d.error_camara) txt += `<br><span class="texto-err">${d.error_camara}</span>`;
         }
         document.getElementById('estado-equipo').innerHTML = txt;
-        document.getElementById('btn-conectar').textContent = ok ? "🔌 Reconectar equipo" : "🔌 Conectar equipo";
+        document.getElementById('btn-conectar-texto').textContent = ok ? "Reconectar equipo" : "Conectar equipo";
     }
-    // Tras el login la conexión va en segundo plano: sondear hasta que termine
-    function comprobarConexion() {
-        fetch('/estado-conexion').then(r => r.json()).then(d => {
-            pintarConexion(d);
-            if (d.conectando) setTimeout(comprobarConexion, 2000);
-        }).catch(() => {});
-    }
-    comprobarConexion();
+    // La cabecera (base.html) sondea /estado-conexion y avisa con este evento
+    document.addEventListener('estado-equipo', ev => pintarConexion(ev.detail));
+    if (window.estadoEquipo) pintarConexion(window.estadoEquipo);
 
     document.getElementById('btn-conectar').addEventListener('click', async (e) => {
         e.preventDefault();
         sonidoClick.play().catch(() => {});
-        document.getElementById('estado-equipo').textContent = "⏳ Conectando montura y cámara...";
+        const btn = document.getElementById('btn-conectar');
+        btn.disabled = true;
+        document.getElementById('estado-equipo').innerHTML = '<span class="spinner"></span>Conectando montura y cámara...';
         try {
             const d = await (await fetch('/conectar-equipo', { method: 'POST' })).json();
             pintarConexion(d);
             if (d.errores && d.errores.length) {
-                document.getElementById('estado-equipo').innerHTML += `<br><span style="color:#ff8888">${d.errores.join("<br>")}</span>`;
+                document.getElementById('estado-equipo').innerHTML += `<br><span class="texto-err">${d.errores.join("<br>")}</span>`;
             }
+            if (window.refrescarEstadoEquipo) refrescarEstadoEquipo();
         } catch (err) {
-            document.getElementById('estado-equipo').textContent = "❌ Error al conectar: " + err;
+            document.getElementById('estado-equipo').innerHTML = '<span class="texto-err">Error al conectar: ' + err + '</span>';
+        } finally {
+            btn.disabled = false;
         }
     });
 </script>
-
-
 {% endblock %}
-

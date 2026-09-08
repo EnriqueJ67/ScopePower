@@ -11,11 +11,11 @@
     function textoResultado(e) {
         const err = e.error_final !== null && e.error_final !== undefined ? `${e.error_final.toFixed(1)}'` : "?";
         switch (e.resultado) {
-            case "centrado": return { color: "#66ff66", icono: "✅", texto: `Centrado: ${e.detalle}` };
-            case "fuera_tolerancia": return { color: "#ffcc66", icono: "🟡", texto: `Mejorado pero fuera de tolerancia: ${e.detalle}` };
-            case "sin_mejora": return { color: "#ffcc66", icono: "🟠", texto: `Sin mejora: ${e.detalle}` };
-            case "cancelado": return { color: "#aaaaaa", icono: "⏹️", texto: e.detalle };
-            default: return { color: "#ff6666", icono: "❌", texto: e.detalle || ("Error (" + err + ")") };
+            case "centrado": return { color: "var(--ok)", icono: "✅", texto: `Centrado: ${e.detalle}` };
+            case "fuera_tolerancia": return { color: "var(--warn)", icono: "🟡", texto: `Mejorado pero fuera de tolerancia: ${e.detalle}` };
+            case "sin_mejora": return { color: "var(--warn)", icono: "🟠", texto: `Sin mejora: ${e.detalle}` };
+            case "cancelado": return { color: "var(--text-3)", icono: "⏹️", texto: e.detalle };
+            default: return { color: "var(--err)", icono: "❌", texto: e.detalle || ("Error (" + err + ")") };
         }
     }
 
@@ -24,7 +24,7 @@
         const cuenta = (e.captura && e.captura.en_curso) ? ` (quedan ${Math.ceil(e.captura.restante)} s)` : "";
         el.innerHTML = `<span class="spinner"></span> ${e.mensaje}${cuenta}<br>` +
             `<small>Objetivo: ${e.objeto || "?"} · tolerancia ${e.tolerancia}'${errores}</small><br>` +
-            `<button type="button" class="btn btn-secondary" onclick="cancelarCentrado()">⏹️ Cancelar centrado</button>`;
+            `<button type="button" class="btn btn-sm btn-ghost" onclick="cancelarCentrado()">Cancelar centrado</button>`;
     }
 
     function pintarFinal(el, e, opciones) {
@@ -57,7 +57,7 @@
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) {
-                    el.innerHTML = `<span style="color:#ff6666">❌ ${d.error || "No se pudo iniciar el centrado"}</span>`;
+                    el.innerHTML = `<span style="color:var(--err)">❌ ${d.error || "No se pudo iniciar el centrado"}</span>`;
                     if (opciones.alTerminar) opciones.alTerminar(null);
                     return;
                 }
@@ -65,7 +65,7 @@
                 sondear(el, opciones);
             })
             .catch(err => {
-                el.innerHTML = `<span style="color:#ff6666">❌ Error al iniciar el centrado: ${err}</span>`;
+                el.innerHTML = `<span style="color:var(--err)">❌ Error al iniciar el centrado: ${err}</span>`;
                 if (opciones.alTerminar) opciones.alTerminar(null);
             });
     };

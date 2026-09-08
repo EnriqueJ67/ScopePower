@@ -1,9 +1,10 @@
-﻿<!-- templates/corregir_posicion.html -->
 {% extends "base.html" %}
 
-{% block title %}Corregir Posición{% endblock %}
+{% block title %}Sincronización{% endblock %}
 
 {% block content %}
-<h2>Resultado de Sincronización</h2>
-<p>{{ resultado | safe }}</p>
+<div class="pagina-cabecera"><div><h1 class="pagina-titulo">Resultado de sincronización</h1></div></div>
+<div class="card card-centrada">
+    <p style="margin: 0;">{{ resultado | safe }}</p>
+</div>
 {% endblock %}

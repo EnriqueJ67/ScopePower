@@ -1,223 +1,205 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
+
+{% block title %}Apilado{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center;">Apilado en Tiempo Real</h2>
-
-<!-- Botones debajo del título -->
-<div style="text-align: center; margin-top: 10px; margin-bottom: 15px;">
-    <!-- Botón reiniciar -->
-    <form method="POST" action="{{ url_for('reiniciar_apilado') }}" onsubmit="return confirmarReinicio()" style="display: inline;">
-        <button class="btn btn-danger">🗑️ Reiniciar Apilado</button>
-    </form>
-    <!-- Botones de pausa y reanudación -->
-    <button id="boton-pausa" class="btn btn-warning" onclick="pausarApilado()" style="display: none;">⏸️ Pausar</button>
-    <button id="boton-reanudar" class="btn btn-success" onclick="reanudarApilado()" style="display: none;">▶️ Reanudar</button>
-    <button id="boton-detener" class="btn btn-secondary" onclick="detenerApilado()" style="display: none;">⏹️ Detener</button>
-</div>
-<!-- Botón para descargar el archivo FITS apilado
-<div style="text-align: center; margin-top: 10px;">
-    <a href="/descargar-fits-apilado" class="btn btn-info" download>
-        💾 Descargar FITS Apilado
-    </a>
-</div>
- -->
-<!-- ─── Checkbox Objetos Anotados arriba ───────── -->
-<div style="text-align: center; margin: 10px 0;">
-    <label style="font-size: 1.1em; color: #ffd;">
-        <input type="checkbox" id="checkbox-objetos-anotados">
-        Objetos anotados
-
-    </label>
-</div>
-
-<!-- Botón para guardar imagen JPG -->
-<div style="text-align: center; margin-top: 10px;">
-    <button class="btn btn-success" onclick="guardarImagenJPG()">📸 Guardar Imagen</button>
-    <div id="estado-guardar" style="margin-top: 8px; font-style: italic; color: #8f8;"></div>
-</div>
-
-<!-- ─── Panel de inicio: darks y arranque del apilado ───────────── -->
-<div id="panel-inicio" style="display: none; max-width: 520px; margin: 15px auto; background: #220000; border: 2px solid #770000; border-radius: 12px; padding: 14px; color: #ffd;">
-    <h4 style="margin: 0 0 10px 0; text-align: center;">🌑 Darks antes de empezar</h4>
-    <div id="darks-ultimo" style="font-size: 14px; color: #ddaaaa; margin-bottom: 4px; text-align: center;">Consultando...</div>
-    <div id="flat-info" style="font-size: 13px; color: #aa9999; margin-bottom: 10px; text-align: center;"></div>
-
-    <label style="display: block; padding: 8px; font-size: 16px;">
-        <input type="radio" name="opcion-dark" value="ultimo" id="opcion-dark-ultimo"> Usar el último dark
-    </label>
-    <label style="display: block; padding: 8px; font-size: 16px;">
-        <input type="radio" name="opcion-dark" value="nuevo" id="opcion-dark-nuevo"> Generar darks nuevos
-        <span style="white-space: nowrap;">(<input type="number" id="darks-n" min="1" max="50" value="10" style="width: 60px; text-align: center; min-height: 32px;"> tomas)</span>
-    </label>
-    <label style="display: block; padding: 8px; font-size: 16px;">
-        <input type="radio" name="opcion-dark" value="sin" id="opcion-dark-sin"> Sin darks
-    </label>
-
-    <div id="inicio-botones" style="text-align: center; margin-top: 12px;">
-        <button class="btn btn-success" onclick="empezarApilado(true)">▶️ Empezar apilado nuevo</button>
-        <button id="boton-continuar" class="btn btn-primary" onclick="empezarApilado(false)" style="display: none;">⏩ Continuar el apilado actual</button>
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Apilado en tiempo real</h1>
+        <p class="pagina-sub" id="estado-carga">Actualizando...</p>
     </div>
-
-    <!-- Paso: tapar -->
-    <div id="paso-tapar" style="display: none; text-align: center; margin-top: 12px;">
-        <p style="font-size: 18px;">🔒 Tapa el telescopio completamente y pulsa Aceptar.</p>
-        <button class="btn btn-danger" onclick="lanzarDarks()">✅ Aceptar, ya está tapado</button>
-        <button class="btn btn-secondary" onclick="volverAlInicio()">Cancelar</button>
-    </div>
-
-    <!-- Paso: progreso -->
-    <div id="paso-progreso" style="display: none; text-align: center; margin-top: 12px;">
-        <p id="darks-mensaje" style="font-size: 18px;"></p>
-        <div style="background: #330000; border-radius: 8px; height: 22px; overflow: hidden; margin: 10px 0;">
-            <div id="darks-barra" style="background: #aa2222; height: 100%; width: 0%; transition: width 0.5s;"></div>
-        </div>
-        <p id="darks-cuenta" style="color: #ddaaaa;"></p>
-        <button class="btn btn-secondary" onclick="cancelarCaptura()">⏹️ Cancelar darks</button>
-    </div>
-
-    <!-- Paso: destapar -->
-    <div id="paso-destapar" style="display: none; text-align: center; margin-top: 12px;">
-        <p id="darks-resultado" style="font-size: 18px; color: #66ff66;"></p>
-        <p style="font-size: 18px;">🔓 Destapa el telescopio y pulsa Empezar.</p>
-        <button class="btn btn-success" onclick="arrancarBucle()">▶️ Empezar</button>
-    </div>
-
-    <div id="darks-error" style="color: #ff6666; font-weight: bold; text-align: center; margin-top: 8px;"></div>
-</div>
-
-<!-- Estado y contador -->
-<div style="text-align: center; font-size: 20px; color: #ffaaaa; margin-bottom: 10px;">
-    Imágenes apiladas: <span id="contador-apilado">0</span> / <span id="maximo-apilado">-</span><br>
-    Última captura: <span id="ultima-captura">Ninguna</span>
-</div>
-<div style="text-align: center; font-size: 15px; color: #ddaaaa; margin-bottom: 10px;">
-    <div id="estado-captura-linea" style="min-height: 1.3em;"></div>
-    <!-- Barra de progreso del ciclo: exponiendo → procesando (fases) → siguiente -->
-    <div id="ciclo" style="display: none; max-width: 600px; margin: 6px auto 4px auto;">
-        <div id="ciclo-texto" style="font-size: 14px; color: #ffd; margin-bottom: 3px;"></div>
-        <div style="background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 16px; overflow: hidden;">
-            <div id="ciclo-barra" style="height: 100%; width: 0%; background: #2e7d2e; transition: width 0.9s linear;"></div>
-        </div>
-    </div>
-    <style>
-        /* Fase de procesado: barra llena con rayas en movimiento (duración desconocida) */
-        /* !important: el color base va en el atributo style del elemento */
-        #ciclo-barra.procesando {
-            width: 100% !important;
-            background: repeating-linear-gradient(45deg, #8a5a00 0 12px, #b07a10 12px 24px) !important;
-            background-size: 34px 34px !important;
-            animation: ciclo-rayas 1s linear infinite;
-            transition: none;
-        }
-        #ciclo-barra.esperando { background: #555 !important; transition: none; }
-        @keyframes ciclo-rayas { from { background-position: 0 0; } to { background-position: 34px 0; } }
-    </style>
-    <button id="boton-cancelar" class="btn btn-danger" onclick="cancelarCaptura()" style="display: none;">⏹️ Cancelar exposición</button>
-    <div>Descartadas: <span id="descartadas">0</span> sin resolver, <span id="descartadas-calidad">0</span> por calidad</div>
-    <div style="margin: 6px 0;">
-        <label style="font-size: 15px;">
-            <input type="checkbox" id="dither-activo" onchange="cambiarDithering()"> 🎲 Dithering cada
-            <input type="number" id="dither-cada" min="1" max="20" value="3" style="width: 52px; text-align: center; min-height: 30px;" onchange="cambiarDithering()"> fotos
-        </label>
-        <div id="dither-estado" style="font-size: 13px; color: #aa9999;"></div>
-    </div>
-    <div id="puntuaciones"></div>
-    <div id="mensaje-apilado" style="color: #aaa; font-style: italic;"></div>
-    <div id="error-apilado" style="color: #ff6666; font-weight: bold; min-height: 1.3em;"></div>
-</div>
-
-<!-- Imagen apilada + última toma individual -->
-<div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 14px;">
-    <div style="flex: 1 1 320px; max-width: 600px; text-align: center;">
-        <img id="preview" src="" alt="Apilado" style="width: 100%; border: 2px solid #ccc; border-radius: 10px; image-rendering: auto;">
-        <div style="color: #ddaaaa; font-size: 14px; margin-top: 4px;">Apilado acumulado</div>
-    </div>
-    <div style="flex: 0 1 240px; max-width: 300px; text-align: center;">
-        <img id="ultima-toma" src="" alt="Última toma" style="width: 100%; border: 2px solid #775555; border-radius: 10px;">
-        <div id="ultima-toma-texto" style="color: #ddaaaa; font-size: 13px; margin-top: 4px;">Última toma</div>
+    <div class="pagina-acciones">
+        <button id="boton-pausa" class="btn btn-warning" onclick="pausarApilado()" style="display: none;">⏸ Pausar</button>
+        <button id="boton-reanudar" class="btn btn-success" onclick="reanudarApilado()" style="display: none;">▶ Reanudar</button>
+        <button id="boton-detener" class="btn btn-secondary" onclick="detenerApilado()" style="display: none;">⏹ Detener</button>
+        <form method="POST" action="{{ url_for('reiniciar_apilado') }}" onsubmit="return confirmarReinicio()" style="display: inline;">
+            <button class="btn btn-ghost" title="Borra las fotos apiladas y empieza de cero"><svg><use href="#i-papelera"/></svg><span class="oculto-movil">Reiniciar</span></button>
+        </form>
     </div>
 </div>
 
-<!-- Tira de evolución del apilado -->
-<div id="evolucion-bloque" style="display: none; margin-top: 14px;">
-    <div style="text-align: center; color: #ddaaaa; font-size: 14px; margin-bottom: 6px;">
-        📈 Evolución del apilado <small>(toca una miniatura para verla en grande)</small>
-    </div>
-    <div id="evolucion" style="display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px; -webkit-overflow-scrolling: touch;"></div>
-</div>
+<div class="grid-2 ancha apilado-layout">
+    <!-- ─── Columna principal: imagen apilada, progreso y cifras ─────────── -->
+    <div class="columna">
+        <!-- Panel de inicio: darks y arranque del apilado. Plegado por defecto para que
+             la imagen apilada quede arriba; la cabecera ya lleva el botón de Empezar. -->
+        <div id="panel-inicio" class="card card-acento panel-inicio" style="display: none;">
+            <div class="panel-inicio-cabecera">
+                <button type="button" class="panel-inicio-toggle" onclick="alternarPanelInicio()" title="Opciones de darks">
+                    <span class="tile-ico"><svg><use href="#i-calibracion"/></svg></span>
+                    <span class="tile-texto"><span class="tile-titulo">Empezar apilado</span><span class="tile-desc" id="inicio-resumen">Consultando darks...</span></span>
+                    <svg class="ico flecha"><use href="#i-flecha"/></svg>
+                </button>
+                <div id="inicio-botones" class="acciones">
+                    <button class="btn btn-primary" onclick="empezarApilado(true)"><svg><use href="#i-play"/></svg>Empezar</button>
+                    <button id="boton-continuar" class="btn btn-secondary" onclick="empezarApilado(false)" style="display: none;" title="Sigue sumando fotos al apilado que ya hay">Continuar</button>
+                </div>
+            </div>
 
-<!-- Info del objeto actual -->
-<div style="text-align: center; margin-top: 20px; color: #ffd;">
-    <h4>📌 Objeto GOTO Actual</h4>
-    <pre id="info-goto" style="white-space: pre-wrap; background-color: #220000; padding: 10px; border-radius: 8px;"></pre>
-</div>
+            <div id="panel-inicio-cuerpo" class="panel-inicio-cuerpo" hidden>
+                <div id="darks-ultimo" class="estado mb-1">Consultando...</div>
+                <div id="flat-info" class="texto-3 mb-2" style="font-size: 13px;"></div>
 
-<!-- Controles MTF -->
-<div class="container" style="max-width: 400px; margin: 30px auto; color: #ccc;">
-    <h4>🔧 Ajustes (vista previa)</h4>
-    <!--
-        <div class="form-group">
-            <label>Shadows (Menor = fondo + oscuro)</label>
-            <input type="number" id="input-shadows" class="form-control" min="0" max="1" step="0.001">
+                <label class="opcion"><input type="radio" name="opcion-dark" value="ultimo" id="opcion-dark-ultimo"> Usar el último dark</label>
+                <label class="opcion"><input type="radio" name="opcion-dark" value="nuevo" id="opcion-dark-nuevo"> Generar darks nuevos
+                    <span style="white-space: nowrap; margin-left: auto;"><input type="number" id="darks-n" class="corto" min="1" max="50" value="10"> tomas</span></label>
+                <label class="opcion"><input type="radio" name="opcion-dark" value="sin" id="opcion-dark-sin"> Sin darks</label>
+            </div>
+
+            <!-- Paso: tapar -->
+            <div id="paso-tapar" class="mt-2" style="display: none;">
+                <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>Tapa el telescopio completamente y pulsa Aceptar.</div>
+                <div class="acciones-grid dos">
+                    <button class="btn btn-danger" onclick="lanzarDarks()">Aceptar, ya está tapado</button>
+                    <button class="btn btn-ghost" onclick="volverAlInicio()">Cancelar</button>
+                </div>
+            </div>
+
+            <!-- Paso: progreso -->
+            <div id="paso-progreso" class="mt-2" style="display: none;">
+                <p id="darks-mensaje" class="estado" style="font-size: 16px; color: var(--text);"></p>
+                <div class="progress alta"><div id="darks-barra" class="progress-bar"></div></div>
+                <p id="darks-cuenta" class="estado mt-1"></p>
+                <button class="btn btn-ghost btn-block" onclick="cancelarCaptura()">Cancelar darks</button>
+            </div>
+
+            <!-- Paso: destapar -->
+            <div id="paso-destapar" class="mt-2" style="display: none;">
+                <p id="darks-resultado" class="estado ok"></p>
+                <div class="aviso aviso-ok"><svg class="ico"><use href="#i-ok"/></svg>Destapa el telescopio y pulsa Empezar.</div>
+                <button class="btn btn-primary btn-lg btn-block" onclick="arrancarBucle()"><svg><use href="#i-play"/></svg>Empezar</button>
+            </div>
+
+            <div id="darks-error" class="estado err mt-1" style="font-weight: 600;"></div>
         </div>
 
-        <div class="form-group">
-            <label>Highlights (Mayor = objetos + brillantes)</label>
-            <input type="number" id="input-highlights" class="form-control" min="0" max="1" step="0.001">
+        <div class="visor">
+            <img id="preview" src="" alt="Apilado">
+            <div class="visor-overlay">
+                <span class="chip"><svg class="ico-sm"><use href="#i-apilado"/></svg><span id="contador-apilado">0</span>&nbsp;/ <span id="maximo-apilado">-</span> fotos</span>
+                <span class="chip" id="chip-ultima">Última: <span id="ultima-captura">Ninguna</span></span>
+            </div>
+            <div class="visor-pie" id="ciclo" style="display: none;">
+                <div id="ciclo-texto"></div>
+                <div class="progress"><div id="ciclo-barra" class="progress-bar ok"></div></div>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label>Midtone (Menor = imagen + brillante)</label>
-            <input type="number" id="input-midtone" class="form-control" min="0" max="1" step="0.001">
+        <button class="btn btn-success btn-lg btn-block" onclick="guardarImagenJPG()" title="Procesa el apilado acumulado a resolución completa y lo guarda en la galería"><svg><use href="#i-guardar"/></svg>Guardar el apilado en la galería</button>
+        <div id="estado-guardar" class="estado centro" style="margin-top: -4px;"></div>
+
+        <div class="fila entre">
+            <div id="estado-captura-linea" class="estado"></div>
+            <button id="boton-cancelar" class="btn btn-sm btn-danger" onclick="cancelarCaptura()" style="display: none;">⏹ Cancelar exposición</button>
         </div>
-     -->
-    <div class="form-group">
-        <label>Estilo</label>
-        <select id="proc-estilo" class="form-control" onchange="aplicarEstilo()">
-            <option value="natural">Natural: gradiente y ruido suave</option>
-            <option value="seestar">Seestar: todo activado, valores medios</option>
-            <option value="agresivo">Agresivo: máximo ruido y contraste</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <label>Reducción de ruido: <span id="proc-ruido-v"></span></label>
-        <input type="range" id="proc-ruido" min="0" max="1" step="0.05" style="width: 100%;" oninput="document.getElementById('proc-ruido-v').textContent = this.value">
-    </div>
-    <div class="form-group">
-        <label>Contraste local: <span id="proc-contraste-v"></span></label>
-        <input type="range" id="proc-contraste" min="0" max="1" step="0.05" style="width: 100%;" oninput="document.getElementById('proc-contraste-v').textContent = this.value">
-    </div>
-    <div class="form-group">
-        <label>Saturación: <span id="proc-saturacion-v"></span></label>
-        <input type="range" id="proc-saturacion" min="0.5" max="3" step="0.1" style="width: 100%;" oninput="document.getElementById('proc-saturacion-v').textContent = this.value">
-    </div>
-    <div class="form-group">
-        <label><input type="checkbox" id="proc-gradiente"> Quitar gradiente de contaminación lumínica</label><br>
-        <label><input type="checkbox" id="proc-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
-    </div>
-    <div class="form-group">
-        <label>Campo visible (zoom)</label>
-        <select id="input-zoom" class="form-control">
-            <option value="0">100 % (campo completo)</option>
-            <option value="25">75 %</option>
-            <option value="50">50 %</option>
-            <option value="75">25 % (objetos pequeños)</option>
-        </select>
-        <small style="color: #aaa;">Recorta por los bordes la vista previa y el JPG de la galería, para ver más grandes los cúmulos globulares, planetarias y galaxias. El apilado y el FITS siguen a campo completo.</small>
+
+        <div class="stats">
+            <div class="stat"><div class="etiqueta">Descartadas</div><div class="valor"><span id="descartadas">0</span> <small>sin resolver</small></div></div>
+            <div class="stat"><div class="etiqueta">Por calidad</div><div class="valor"><span id="descartadas-calidad">0</span> <small>fotos</small></div></div>
+            <div class="stat stat-ancho"><div class="etiqueta">Calidad</div><div class="valor" id="puntuaciones" style="font-size: 14px; white-space: normal; font-weight: 500; color: var(--text-2);">—</div></div>
+        </div>
+        <div id="mensaje-apilado" class="estado texto-3"></div>
+        <div id="error-apilado" class="estado err"></div>
+
+        <!-- Tira de evolución del apilado -->
+        <div id="evolucion-bloque" class="card" style="display: none;">
+            <div class="card-header"><h3 class="card-title">Evolución del apilado</h3><span class="texto-3" style="font-size: 12.5px;">Toca una miniatura para verla en grande</span></div>
+            <div id="evolucion" class="miniaturas"></div>
+        </div>
     </div>
 
-    <button class="btn btn-primary mt-3" onclick="guardarParametrosMTF()">💾 Aplicar a la vista previa</button>
-    <div id="estado-mtf" style="margin-top: 10px; font-style: italic;"></div>
+    <!-- ─── Columna lateral: arranque, última toma, ajustes ─────────────── -->
+    <div class="columna lateral">
+        <!-- Última toma individual -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title">Última toma</h3><span id="ultima-toma-texto" class="texto-3" style="font-size: 12.5px;"></span></div>
+            <img id="ultima-toma" src="" alt="Última toma" style="width: 100%; border-radius: 10px; background: #000; display: block;">
+        </div>
 
+        <!-- Guardar y opciones rápidas -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title">Opciones</h3></div>
+            <label class="switch"><input type="checkbox" id="checkbox-objetos-anotados"> Objetos anotados en la imagen</label>
+            <div class="fila mt-2">
+                <label class="switch"><input type="checkbox" id="dither-activo" onchange="cambiarDithering()"> Dithering cada</label>
+                <input type="number" id="dither-cada" class="corto" min="1" max="20" value="3" style="width: 64px;" onchange="cambiarDithering()"> <span class="texto-2" style="font-size: 14px;">fotos</span>
+            </div>
+            <div id="dither-estado" class="texto-3 mt-1" style="font-size: 13px;"></div>
+        </div>
+
+        <!-- Info del objeto actual -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-goto"/></svg>Objeto del último GoTo</h3></div>
+            <pre id="info-goto"></pre>
+        </div>
+
+        <!-- Procesado de la vista previa -->
+        <details class="card procesado">
+            <summary class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Procesado de la vista previa<svg class="ico flecha"><use href="#i-flecha"/></svg></summary>
+            <div class="mt-2">
+                <div class="campo">
+                    <label>Estilo</label>
+                    <select id="proc-estilo" class="form-control" onchange="aplicarEstilo()">
+                        <option value="natural">Natural: gradiente y ruido suave</option>
+                        <option value="seestar">Seestar: todo activado, valores medios</option>
+                        <option value="agresivo">Agresivo: máximo ruido y contraste</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Reducción de ruido</span><span id="proc-ruido-v"></span></div>
+                    <input type="range" id="proc-ruido" min="0" max="1" step="0.05" oninput="document.getElementById('proc-ruido-v').textContent = this.value">
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Contraste local</span><span id="proc-contraste-v"></span></div>
+                    <input type="range" id="proc-contraste" min="0" max="1" step="0.05" oninput="document.getElementById('proc-contraste-v').textContent = this.value">
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Saturación</span><span id="proc-saturacion-v"></span></div>
+                    <input type="range" id="proc-saturacion" min="0.5" max="3" step="0.1" oninput="document.getElementById('proc-saturacion-v').textContent = this.value">
+                </div>
+                <label class="fila-check"><input type="checkbox" id="proc-gradiente"> Quitar gradiente de contaminación lumínica</label>
+                <label class="fila-check"><input type="checkbox" id="proc-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
+                <div class="campo mt-2">
+                    <label>Campo visible (zoom)</label>
+                    <select id="input-zoom" class="form-control">
+                        <option value="0">100 % (campo completo)</option>
+                        <option value="25">75 %</option>
+                        <option value="50">50 %</option>
+                        <option value="75">25 % (objetos pequeños)</option>
+                    </select>
+                    <small class="ayuda">Recorta por los bordes la vista previa y el JPG de la galería, para ver más grandes los cúmulos globulares, planetarias y galaxias. El apilado y el FITS siguen a campo completo.</small>
+                </div>
+                <button class="btn btn-primary btn-block" onclick="guardarParametrosMTF()">Aplicar a la vista previa</button>
+                <div id="estado-mtf" class="estado mt-1"></div>
+            </div>
+        </details>
+    </div>
 </div>
-<!-- Estado de carga centrado -->
-<div style="text-align: center; margin-top: 10px;">
-    <div id="estado-carga" style="display: inline-block; color: #aaa; font-style: italic; min-height: 1.2em;">
-        ⏳ Actualizando...
-    </div>
-</div>
 
-
+<style>
+    .apilado-layout { align-items: start; }
+    .panel-inicio { padding: 10px 12px; }
+    .panel-inicio-cabecera { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .panel-inicio-toggle { flex: 1 1 200px; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 4px; margin: 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 10px; }
+    .panel-inicio-toggle:hover { background: var(--surface-2); }
+    .panel-inicio-toggle .flecha { color: var(--text-3); transition: transform .2s; }
+    .panel-inicio.abierto .panel-inicio-toggle .flecha { transform: rotate(90deg); }
+    .panel-inicio .acciones { flex: 0 0 auto; margin-left: auto; }
+    .panel-inicio-cuerpo { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .lateral .card + .card, .lateral .card + details, .lateral details + .card { margin-top: 0; }
+    .stat-ancho { grid-column: 1 / -1; }
+    @media (min-width: 560px) { .stats { grid-template-columns: 1fr 1fr 2fr; } .stat-ancho { grid-column: auto; } }
+    details.procesado summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    details.procesado summary::-webkit-details-marker { display: none; }
+    details.procesado summary .flecha { margin-left: auto; color: var(--text-3); transition: transform .2s; }
+    details.procesado[open] summary .flecha { transform: rotate(90deg); }
+    #info-goto { min-height: 2.6em; font-size: 13px; }
+    #estado-guardar:empty { display: none; }
+    #info-goto:empty::before { content: "Todavía no se ha hecho ningún GoTo."; color: var(--text-3); font-family: var(--font); }
+    @media (max-height: 500px) and (orientation: landscape) {
+        .apilado-layout { grid-template-columns: minmax(0, 1fr) minmax(260px, 1fr); }
+    }
+</style>
 
 <!-- La pantalla se mantiene encendida desde base.html (static/js/pantalla.js) -->
 
@@ -264,7 +246,8 @@
             const hayDark = d.ultimo && d.ultimo.existe;
             document.getElementById("opcion-dark-ultimo").disabled = !hayDark;
             document.getElementById(hayDark ? "opcion-dark-ultimo" : "opcion-dark-nuevo").checked = true;
-            document.getElementById("boton-continuar").style.display = (estado && estado.total > 0) ? "inline-block" : "none";
+            actualizarResumenInicio();
+            document.getElementById("boton-continuar").style.display = (estado && estado.total > 0) ? "inline-flex" : "none";
             if (estado && estado.bucle && estado.bucle.activo) {
                 // El servidor ya está capturando (p. ej. hemos vuelto a abrir la página)
                 mostrarComoActivo(estado.bucle);
@@ -279,9 +262,9 @@
 
     function mostrarComoActivo(b) {
         document.getElementById("panel-inicio").style.display = "none";
-        document.getElementById("boton-pausa").style.display = b.pausado ? "none" : "inline-block";
-        document.getElementById("boton-reanudar").style.display = b.pausado ? "inline-block" : "none";
-        document.getElementById("boton-detener").style.display = "inline-block";
+        document.getElementById("boton-pausa").style.display = b.pausado ? "none" : "inline-flex";
+        document.getElementById("boton-reanudar").style.display = b.pausado ? "inline-flex" : "none";
+        document.getElementById("boton-detener").style.display = "inline-flex";
         bucleActivo = true;
     }
 
@@ -299,8 +282,29 @@
         for (const id of ["inicio-botones", "paso-tapar", "paso-progreso", "paso-destapar"])
             document.getElementById(id).style.display = "none";
         const mapa = { inicio: "inicio-botones", tapar: "paso-tapar", progreso: "paso-progreso", destapar: "paso-destapar" };
-        document.getElementById(mapa[paso]).style.display = "block";
+        document.getElementById(mapa[paso]).style.display = paso === "inicio" ? "flex" : "block";
+        // Durante los darks (tapar, progreso, destapar) se ocultan las opciones; en inicio se recuerda lo que eligió el usuario
+        if (paso === "inicio") plegarPanelInicio(!panelInicioAbierto);
+        else document.getElementById("panel-inicio-cuerpo").hidden = true;
     }
+
+    // ——— Panel de inicio plegable: la cabecera lleva Empezar; las opciones de darks se despliegan al tocarla ———
+    let panelInicioAbierto = false;
+    function plegarPanelInicio(plegado) {
+        document.getElementById("panel-inicio-cuerpo").hidden = plegado;
+        document.getElementById("panel-inicio").classList.toggle("abierto", !plegado);
+    }
+    function alternarPanelInicio() {
+        panelInicioAbierto = !panelInicioAbierto;
+        plegarPanelInicio(!panelInicioAbierto);
+    }
+    function actualizarResumenInicio() {
+        const marcada = document.querySelector('input[name="opcion-dark"]:checked');
+        const n = parseInt(document.getElementById("darks-n").value) || 10;
+        const textos = { ultimo: "Con el último dark guardado", nuevo: `Darks nuevos: ${n} tomas (habrá que tapar el tubo)`, sin: "Sin darks" };
+        document.getElementById("inicio-resumen").textContent = marcada ? textos[marcada.value] + " · toca para cambiar" : "Toca para elegir los darks";
+    }
+    document.querySelectorAll('input[name="opcion-dark"], #darks-n').forEach(el => el.addEventListener("change", actualizarResumenInicio));
 
     function volverAlInicio() { mostrarPaso("inicio"); }
 
@@ -493,9 +497,9 @@
         tira.innerHTML = "";
         for (const e of lista) {
             const item = document.createElement("div");
-            item.style.cssText = "flex: 0 0 auto; text-align: center; cursor: pointer;";
-            item.innerHTML = `<img src="/static/evolucion/${e.archivo}?${e.n}" style="width: 120px; border: 2px solid #775555; border-radius: 8px;">` +
-                `<div style="font-size: 12px; color: #ddaaaa;">${e.fotos} fotos · ${e.segundos} s</div>`;
+            item.className = "miniatura";
+            item.innerHTML = `<img src="/static/evolucion/${e.archivo}?${e.n}">` +
+                `<div>${e.fotos} fotos · ${e.segundos} s</div>`;
             item.onclick = () => { document.getElementById("preview").src = `/static/evolucion/${e.archivo}?${e.n}`; };
             tira.appendChild(item);
         }
@@ -545,24 +549,24 @@
         const b = (estado && estado.bucle) || {};
         const numFoto = (b.capturas || 0) + 1;
 
-        boton.style.display = (captura && captura.en_curso) ? "inline-block" : "none";
+        boton.style.display = (captura && captura.en_curso) ? "inline-flex" : "none";
         linea.textContent = "";
 
         if (captura && captura.en_curso) {
             const hechos = Math.max(0, captura.exposicion - captura.restante);
             const pct = captura.exposicion > 0 ? Math.min(100, 100 * hechos / captura.exposicion) : 0;
-            barra.className = "";
+            barra.className = "progress-bar ok";
             barra.style.width = pct.toFixed(1) + "%";
             texto.textContent = `📷 ${captura.descripcion === "Apilado" ? "Foto " + numFoto + ": exponiendo" : captura.descripcion || "Exponiendo"} · ${Math.ceil(hechos)} / ${captura.exposicion} s`;
             ciclo.style.display = "block";
         } else if (procesando) {
             const fase = NOMBRE_FASE[estado && estado.fase] || "Procesando";
             const detalle = (estado && estado.fase === "apilando" && estado.total) ? ` ${estado.total} fotos` : "";
-            barra.className = "procesando";
+            barra.className = "progress-bar procesando";
             texto.textContent = `⚙️ ${fase}${detalle}...`;
             ciclo.style.display = "block";
         } else if (b.activo) {
-            barra.className = "esperando";
+            barra.className = "progress-bar esperando";
             barra.style.width = "100%";
             texto.textContent = b.pausado ? "⏸️ Pausado" : (b.esperando ? "⏳ Esperando: " + b.esperando : "🔄 Preparando la siguiente foto...");
             ciclo.style.display = "block";
@@ -625,8 +629,8 @@
             const carga = document.getElementById("estado-carga");
             if (b.activo) {
                 if (!bucleActivo) mostrarComoActivo(b);
-                document.getElementById("boton-pausa").style.display = b.pausado ? "none" : "inline-block";
-                document.getElementById("boton-reanudar").style.display = b.pausado ? "inline-block" : "none";
+                document.getElementById("boton-pausa").style.display = b.pausado ? "none" : "inline-flex";
+                document.getElementById("boton-reanudar").style.display = b.pausado ? "inline-flex" : "none";
                 if (b.pausado) carga.textContent = "⏸️ Apilado pausado";
                 else if (b.esperando) carga.textContent = "⏳ Esperando: " + b.esperando;
                 else if (b.ultimo_error) carga.textContent = "⚠️ " + b.ultimo_error;
@@ -653,7 +657,7 @@
         fetch("/pausar-apilado", { method: "POST" })
             .then(() => {
                 document.getElementById("boton-pausa").style.display = "none";
-                document.getElementById("boton-reanudar").style.display = "inline-block";
+                document.getElementById("boton-reanudar").style.display = "inline-flex";
                 document.getElementById("estado-carga").textContent = "⏸️ Apilado pausado (la exposición en curso termina)";
             });
     }
@@ -662,7 +666,7 @@
         fetch("/reanudar-apilado", { method: "POST" })
             .then(() => {
                 document.getElementById("boton-reanudar").style.display = "none";
-                document.getElementById("boton-pausa").style.display = "inline-block";
+                document.getElementById("boton-pausa").style.display = "inline-flex";
                 document.getElementById("estado-carga").textContent = "";
             });
     }

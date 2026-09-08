@@ -1,51 +1,53 @@
 {% extends "base.html" %}
 
-{% block title %}Flat Maestro{% endblock %}
+{% block title %}Flat maestro{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center;">🟦 Generar Flat Maestro</h2>
-<p style="color: #ddaaaa; font-size: 15px; max-width: 520px; margin: 0 auto 12px auto;">
-    El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fotografiando una
-    superficie uniformemente iluminada. La exposición se ajusta sola.
-</p>
-
-<div style="max-width: 520px; margin: 0 auto; text-align: center;">
-    <div id="flat-ultimo" style="background: #220000; border-radius: 10px; padding: 12px; margin-bottom: 15px; color: #ffd;">
-        Consultando el último flat...
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Generar flat maestro</h1>
+        <p class="pagina-sub">
+            El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fotografiando una
+            superficie uniformemente iluminada. La exposición se ajusta sola.
+        </p>
     </div>
+</div>
+
+<div class="card card-centrada">
+    <div id="flat-ultimo" class="aviso aviso-info">Consultando el último flat...</div>
 
     <div id="flat-preparar">
-        <ol style="text-align: left; font-size: 15px; color: #ffd; padding-left: 22px;">
+        <ol class="pasos">
             <li>Pon una camiseta blanca bien estirada (dos capas) sobre la boca del tubo, sin arrugas.</li>
             <li>Apunta el telescopio a una pantalla blanca (móvil o tablet a brillo medio, pegada a la camiseta) o al cielo del crepúsculo, lejos del sol.</li>
             <li>No cambies el enfoque ni la orientación de la cámara respecto a las fotos de la noche.</li>
         </ol>
-        <p style="font-size: 15px;">
-            Número de flats:
-            <input type="number" id="flat-n" min="3" max="50" value="{{ conf.numero_flats }}" style="width: 70px; text-align: center;">
-        </p>
-        <label style="display: block; font-size: 15px; padding: 4px 0;">
-            <input type="checkbox" id="flat-darks" checked>
-            Hacer también darks de flat ({{ conf.numero_flat_darks }} tomas, te pedirá tapar el tubo). Recomendado.
-        </label>
-        <button class="btn btn-success" onclick="generarFlats()" style="margin-top: 8px;">🟦 Generar Flat Maestro</button>
+        <div class="fila entre mb-2">
+            <label for="flat-n" style="margin: 0;">Número de flats</label>
+            <input type="number" id="flat-n" class="corto" min="3" max="50" value="{{ conf.numero_flats }}">
+        </div>
+        <label class="switch mb-2"><input type="checkbox" id="flat-darks" checked> Hacer también darks de flat ({{ conf.numero_flat_darks }} tomas, te pedirá tapar el tubo). Recomendado.</label>
+        <button class="btn btn-primary btn-lg btn-block" onclick="generarFlats()"><svg><use href="#i-sol"/></svg>Generar flat maestro</button>
     </div>
 
     <div id="flat-progreso" style="display: none;">
-        <p id="flat-mensaje" style="font-size: 18px; color: #ffd;"></p>
-        <div style="background: #220000; border-radius: 8px; height: 22px; overflow: hidden; margin: 10px 0;">
-            <div id="flat-barra" style="background: #2255aa; height: 100%; width: 0%; transition: width 0.5s;"></div>
-        </div>
-        <p id="flat-cuenta" style="color: #ddaaaa;"></p>
+        <p id="flat-mensaje" class="estado" style="font-size: 16px; color: var(--text);"></p>
+        <div class="progress alta"><div id="flat-barra" class="progress-bar info"></div></div>
+        <p id="flat-cuenta" class="estado mt-1"></p>
         <div id="flat-tapar" style="display: none; margin: 10px 0;">
-            <p style="font-size: 18px;">🔒 Tapa el telescopio (quita la pantalla y pon la tapa) y pulsa Continuar.</p>
-            <button class="btn btn-danger" onclick="continuarFlats()">✅ Continuar, ya está tapado</button>
+            <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>Tapa el telescopio (quita la pantalla y pon la tapa) y pulsa Continuar.</div>
+            <button class="btn btn-danger btn-block" onclick="continuarFlats()">Continuar, ya está tapado</button>
         </div>
-        <button class="btn btn-secondary" onclick="cancelarFlats()">⏹️ Cancelar</button>
+        <button class="btn btn-ghost btn-block mt-1" onclick="cancelarFlats()"><svg><use href="#i-stop"/></svg>Cancelar</button>
     </div>
 
-    <div id="flat-final" style="display: none; margin-top: 15px; font-size: 18px;"></div>
+    <div id="flat-final" class="centro mt-2" style="display: none; font-size: 16px; font-weight: 600;"></div>
 </div>
+
+<style>
+    .pasos { padding-left: 22px; margin: 0 0 12px; font-size: 14.5px; color: var(--text-2); }
+    .pasos li { margin-bottom: 6px; }
+</style>
 
 <script>
     let sondeoFlats = null;
@@ -80,7 +82,7 @@
             if (t.terminado) {
                 const f = document.getElementById("flat-final");
                 f.style.display = "block";
-                f.style.color = t.error ? "#ff6666" : "#66ff66";
+                f.style.color = t.error ? "var(--err)" : "var(--ok)";
                 f.textContent = t.error ? "❌ " + t.error : "✅ " + t.mensaje + ". Ya puedes destapar el telescopio.";
             }
         }

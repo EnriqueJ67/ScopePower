@@ -1,115 +1,77 @@
 {% extends "base.html" %}
 
-{% block title %}Recorrido por Constelación{% endblock %}
+{% block title %}Recorrido guiado{% endblock %}
 
 {% block content %}
-<h2>🔭 Recorrido por Constelación</h2>
-
-<!-- ————— Paso 1: Selector de recorridos ————— -->
-<div id="recorrido-header" style="text-align:center; margin-bottom:20px;">
-    <select id="listaRecorridos">
-        <option value="">-- SELECCIONA --</option>
-    </select>
-    <button type="button" id="btnIniciarRecorrido" disabled>▶️ Iniciar recorrido</button>
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Recorrido por constelación</h1>
+        <p class="pagina-sub">El telescopio recorre las estrellas y objetos de una constelación mientras el móvil los explica en voz alta.</p>
+    </div>
 </div>
 
-<form id="formConstelacion">
-    <label for="nombre_constelacion">Nombre de la constelación:</label>
-    <input type="text" id="nombre_constelacion" name="nombre_constelacion" required>
+<div class="grid-2 recorrido-layout">
+    <div class="columna">
+        <!-- ————— Paso 1: Selector de recorridos ————— -->
+        <div class="card" id="recorrido-header">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-constelacion"/></svg>Recorridos preparados</h3></div>
+            <div class="campo">
+                <select id="listaRecorridos" class="form-control">
+                    <option value="">Elige un recorrido</option>
+                </select>
+            </div>
+            <button type="button" id="btnIniciarRecorrido" class="btn btn-primary btn-lg btn-block" disabled><svg><use href="#i-play"/></svg>Iniciar recorrido</button>
+        </div>
 
-    <button type="button" onclick="reconocimientoVoz()">🎙️ Escuchar</button>
-    <button type="button" onclick="iniciarRecorrido()">▶️ Preparar recorrido</button>
-</form>
+        <form id="formConstelacion" class="card">
+            <div class="card-header"><h3 class="card-title">Una constelación suelta</h3></div>
+            <label for="nombre_constelacion">Nombre de la constelación</label>
+            <input type="text" id="nombre_constelacion" name="nombre_constelacion" required placeholder="Orión, Casiopea, Escorpio…">
+            <div class="acciones-grid dos mt-2">
+                <button type="button" class="btn btn-secondary" onclick="reconocimientoVoz()"><svg><use href="#i-mic"/></svg>Decirla</button>
+                <button type="button" class="btn btn-primary" onclick="iniciarRecorrido()"><svg><use href="#i-play"/></svg>Preparar recorrido</button>
+            </div>
+        </form>
+    </div>
 
-<p id="status" style="font-size: 24px; margin-top: 20px;"></p>
-<div id="etiquetaEstrella" style="font-size: 36px; color: yellow; margin-top: 40px;"></div>
-<div id="infoEstrellaExtra" style="margin-top: 10px; font-size: 20px; color: #ffcccc;"></div>
-
-<ul id="listaEstrellas" style="margin-top: 30px; font-size: 20px; line-height: 1.6;"></ul>
-
-<div style="text-align: center; margin-top: 30px;">
-    <button id="btnControlAudio" style="display: none;" onclick="toggleAudio()">⏸️ Pausar</button>
+    <div class="columna">
+        <div class="card recorrido-estado">
+            <div id="status" class="estado" style="font-size: 17px; color: var(--text);"></div>
+            <div id="etiquetaEstrella" class="estrella-actual"></div>
+            <div id="infoEstrellaExtra" class="estrella-info"></div>
+            <div class="centro mt-2">
+                <button id="btnControlAudio" class="btn btn-warning btn-lg" style="display: none;" onclick="toggleAudio()">⏸️ Pausar</button>
+            </div>
+        </div>
+        <div class="card" id="card-lista">
+            <div class="card-header"><h3 class="card-title">Estrellas y objetos</h3></div>
+            <ul id="listaEstrellas" class="lista-estrellas"></ul>
+        </div>
+    </div>
 </div>
 
 <style>
+    .recorrido-layout { align-items: start; }
+    .recorrido-layout .columna .card + .card { margin-top: 0; }
+    .recorrido-estado { min-height: 120px; }
+    .recorrido-estado:has(#status:empty):has(#etiquetaEstrella:empty)::before { content: "Aquí verás el estado del recorrido, la estrella actual y su explicación."; color: var(--text-3); font-size: 14px; }
+    .estrella-actual { font-size: 34px; font-weight: 700; color: var(--warn); margin-top: 10px; line-height: 1.15; letter-spacing: -0.01em; }
+    .estrella-actual:empty { display: none; }
+    .estrella-info { margin-top: 8px; font-size: 16px; color: var(--text-2); }
+    .lista-estrellas { list-style: none; padding: 0; margin: 0; font-size: 16px; }
+    .lista-estrellas li { padding: 9px 12px; border-radius: 10px; border-left: 4px solid transparent; margin-bottom: 4px; background: var(--bg-2); transition: background .15s; }
+    .lista-estrellas:empty::before { content: "Aún no hay recorrido preparado."; color: var(--text-3); font-size: 14px; }
+    #card-lista:has(.lista-estrellas:empty) { display: none; }
+    #status:empty { display: none; }
+    #status button { margin-top: 10px; }
 
     /* Estilo para ítems saltados */
-    .estrella-skip {
-        color: #666;
-        opacity: 0.6;
-        text-decoration: line-through;
-    }
-    .estrella-activa {
-        background-color: #440000;
-        font-weight: bold;
-        color: #ffdddd;
-        border-left: 5px solid #ffcccc;
-        padding-left: 10px;
-    }
-
-    #formConstelacion {
-        max-width: 500px;
-        margin: auto;
-        padding: 10px;
-        box-sizing: border-box;
-    }
-
-        #formConstelacion label {
-            display: block;
-            margin-bottom: 10px;
-            font-size: 32px;
-            font-weight: bold;
-        }
-
-        #formConstelacion input[type="text"] {
-            width: 100%;
-            padding: 20px;
-            font-size: 32px;
-            margin-bottom: 25px;
-            border: 2px solid #770000;
-            border-radius: 10px;
-            background-color: #220000;
-            color: #ffcccc;
-        }
-
-    #btnControlAudio {
-        display: inline-block; /* Para que ocupe sólo lo que necesite */
-        width: auto; /* Elimina el ancho 100% */
-        margin: 15px 0;
-        padding: 24px 32px; /* Ajusta el padding horizontal si quieres más anchura */
-        font-size: 32px;
-        background-color: #550000;
-        color: #ffcccc;
-        border: none;
-        border-radius: 12px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-    #formConstelacion button {
-        display: block;
-        width: 100%;
-        margin: 15px 0;
-        padding: 24px;
-        font-size: 32px;
-        background-color: #550000;
-        color: #ffcccc;
-        border: none;
-        border-radius: 12px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-        /* Hover para ambos botones */
-        #formConstelacion button:hover,
-        #btnControlAudio:hover {
-            background-color: #770000;
-        }
+    .estrella-skip { color: var(--text-3); opacity: 0.6; text-decoration: line-through; }
+    .estrella-activa { background: var(--accent-soft) !important; font-weight: 700; color: var(--text); border-left-color: var(--accent-2) !important; }
 </style>
 
 <!-- La pantalla se mantiene encendida desde base.html (static/js/pantalla.js) -->
 
-<!-- ————— Script principal (lógica original + batch mode) ————— -->
 <script>
     // Variables globales
     let listaEstrellas = [];
@@ -289,7 +251,7 @@
                     ul.appendChild(li);
                 });  // ← esto es clave para que veas las estrellas :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
 
-                document.getElementById('btnControlAudio').style.display = 'inline-block';
+                document.getElementById('btnControlAudio').style.display = 'inline-flex';
 
                 if (batchMode) {
                     // Arrancamos YA la explicación en batch
@@ -298,8 +260,8 @@
                     // Modo manual: mostramos el botón de “Iniciar explicación”
                     statusEl.innerHTML = '✅ Estrellas preparadas.';
                     const btnExp = document.createElement('button');
-                    btnExp.textContent = '🚀 Iniciar explicación';
-                    btnExp.style.fontSize = '28px';
+                    btnExp.textContent = 'Iniciar explicación';
+                    btnExp.className = 'btn btn-primary btn-lg btn-block';
                     btnExp.onclick = iniciarExplicacion;
                     statusEl.appendChild(btnExp);
                 }
@@ -482,7 +444,7 @@
                     sel.innerHTML = '<option value="">(No hay recorridos disponibles)</option>';
                     return;
                 }
-                sel.innerHTML = '<option value="">-- SELECCIONA --</option>';
+                sel.innerHTML = '<option value="">Elige un recorrido</option>';
                 files.forEach(f => {
                     const opt = document.createElement('option');
                     opt.value = f;

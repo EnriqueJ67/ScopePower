@@ -1,40 +1,39 @@
 {% extends "base.html" %}
 
-{% block title %}Dark Maestro{% endblock %}
+{% block title %}Dark maestro{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center;">Generar Dark Maestro</h2>
-{% if mensaje %}
-<div style="text-align: center; margin: 10px 0; font-size: 16px; color: #ff9999;">
-    {{ mensaje }}
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Generar dark maestro</h1>
+        <p class="pagina-sub">Con el tubo tapado, varias tomas a la misma exposición que las fotos de la noche.</p>
+    </div>
 </div>
+{% if mensaje %}
+<div class="aviso aviso-err card-centrada"><svg class="ico"><use href="#i-info"/></svg>{{ mensaje }}</div>
 {% endif %}
 
-<div style="max-width: 500px; margin: 0 auto; text-align: center;">
-    <div id="dark-ultimo" style="background: #220000; border-radius: 10px; padding: 12px; margin-bottom: 15px; color: #ffd;">
-        Consultando el último dark...
-    </div>
+<div class="card card-centrada">
+    <div id="dark-ultimo" class="aviso aviso-info">Consultando el último dark...</div>
 
     <div id="dark-preparar">
-        <p style="font-size: 18px;">🔒 Tapa el telescopio completamente y pulsa Generar.</p>
-        <p style="font-size: 16px;">
-            Exposición: <b id="dark-exposicion" style="color: #ffaaaa;">-</b> s ·
-            Número de darks:
-            <input type="number" id="dark-n" min="1" max="50" value="10" style="width: 70px; text-align: center;">
-        </p>
-        <button class="btn btn-danger" onclick="generarDarks()">📷 Generar Dark Maestro</button>
+        <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>Tapa el telescopio completamente y pulsa Generar.</div>
+        <div class="fila entre mb-2">
+            <span class="texto-2">Exposición: <b id="dark-exposicion" style="color: var(--text);">-</b> s</span>
+            <span class="fila"><label for="dark-n" style="margin: 0;">Número de darks</label>
+                <input type="number" id="dark-n" class="corto" min="1" max="50" value="10"></span>
+        </div>
+        <button class="btn btn-danger btn-lg btn-block" onclick="generarDarks()"><svg><use href="#i-foto"/></svg>Generar dark maestro</button>
     </div>
 
     <div id="dark-progreso" style="display: none;">
-        <p id="dark-mensaje" style="font-size: 18px; color: #ffd;"></p>
-        <div style="background: #220000; border-radius: 8px; height: 22px; overflow: hidden; margin: 10px 0;">
-            <div id="dark-barra" style="background: #aa2222; height: 100%; width: 0%; transition: width 0.5s;"></div>
-        </div>
-        <p id="dark-cuenta" style="color: #ddaaaa;"></p>
-        <button class="btn btn-secondary" onclick="cancelarDarks()">⏹️ Cancelar</button>
+        <p id="dark-mensaje" class="estado" style="font-size: 16px; color: var(--text);"></p>
+        <div class="progress alta"><div id="dark-barra" class="progress-bar"></div></div>
+        <p id="dark-cuenta" class="estado mt-1"></p>
+        <button class="btn btn-ghost btn-block" onclick="cancelarDarks()"><svg><use href="#i-stop"/></svg>Cancelar</button>
     </div>
 
-    <div id="dark-final" style="display: none; margin-top: 15px; font-size: 18px;"></div>
+    <div id="dark-final" class="centro mt-2" style="display: none; font-size: 16px; font-weight: 600;"></div>
 </div>
 
 <script>
@@ -72,7 +71,7 @@
             if (t.terminado) {
                 const f = document.getElementById("dark-final");
                 f.style.display = "block";
-                f.style.color = t.error ? "#ff6666" : "#66ff66";
+                f.style.color = t.error ? "var(--err)" : "var(--ok)";
                 f.textContent = t.error ? "❌ " + t.error : "✅ " + t.mensaje + ". Ya puedes destapar el telescopio.";
             }
         }

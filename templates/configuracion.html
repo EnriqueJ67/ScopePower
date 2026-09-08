@@ -1,117 +1,137 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Configuración del Sistema{% endblock %}
+{% block title %}Configuración{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center;">⚙️ Configuración del Sistema</h2>
-
-<div class="container" style="max-width: 600px; margin-top: 30px; color: #ccc;">
-    <form id="form-config">
-        <!-- Drivers ASCOM: lista leída del perfil ASCOM del PC (se puede elegir desde el móvil) -->
-        <div class="form-group">
-            <label>Driver Telescopio (ASCOM)</label>
-            <select id="driver_telescopio" class="form-control"></select>
-        </div>
-
-        <div class="form-group">
-            <label>Driver Cámara (ASCOM)</label>
-            <select id="driver_camara" class="form-control"></select>
-        </div>
-
-        <div class="form-group">
-            <label>Binning</label>
-            <input type="number" id="binning" class="form-control" min="1" max="4" step="1">
-        </div>
-
-        <div class="form-group">
-            <label>Exposición (segundos)</label>
-            <input type="number" id="exposicion" class="form-control" min="0.1" step="0.1">
-        </div>
-
-        <div class="form-group">
-            <label>Número máximo de imágenes a apilar</label>
-            <input type="number" id="numero_maximo_imagenes" class="form-control" min="1" step="1">
-        </div>
-
-        <div class="form-group">
-            <label>Focal del telescopio (mm)</label>
-            <input type="number" id="focal_len" class="form-control">
-        </div>
-
-        <div class="form-group">
-            <label>Intensidad de color</label>
-            <input type="number" id="color_intensity" class="form-control" min="0" max="5" step="0.1">
-        </div>
-
-        <div class="form-group">
-            <label>Campo visible (zoom)</label>
-            <select id="zoom_preview" class="form-control">
-                <option value="0">100 % (campo completo)</option>
-                <option value="25">75 %</option>
-                <option value="50">50 %</option>
-                <option value="75">25 % (objetos pequeños)</option>
-            </select>
-            <small style="color: #aaa;">Recorte por los bordes de la vista previa y del JPG de la galería; el apilado y el FITS siguen a campo completo.</small>
-        </div>
-
-        <div class="text-center mt-4">
-            <button type="submit" class="btn btn-success">💾 Guardar Configuración</button>
-        </div>
-        <div id="estado-guardado" class="mt-3 text-center" style="font-style: italic;"></div>
-    </form>
-
-    <!-- ─── Direcciones para conectar ───────────────────────────── -->
-    <h4 style="margin-top: 35px;">📡 Conectar desde el móvil</h4>
-    <div id="red-direcciones" style="font-size: 15px; color: #ffd; margin-bottom: 8px;">Consultando...</div>
-    <p style="color: #ddaaaa; font-size: 14px;">
-        Al arrancar, el PC dicta estas direcciones por el altavoz cada 30 segundos hasta que te conectas
-        (opción <code>anunciar_ip</code> en config.ini).
-    </p>
-    <div class="text-center">
-        <button type="button" class="btn btn-primary" onclick="anunciarIP()">🔊 Anunciar IP por voz ahora</button>
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Configuración</h1>
+        <p class="pagina-sub">Equipo, captura, red y voz. Los cambios se guardan en config.ini.</p>
     </div>
-    <div id="estado-red" class="mt-3 text-center" style="font-style: italic;"></div>
-
-    <!-- ─── Montura: sincronizaciones guardadas en la app SynScan Pro ── -->
-    <h4 style="margin-top: 35px;">🧭 Montura SynScan</h4>
-    <p style="color: #ddaaaa; font-size: 14px;">
-        La app SynScan guarda las sincronizaciones y el modelo de apuntado de sesiones anteriores.
-        Se borran solos al conectar (opción <code>limpiar_sync_al_conectar</code> en config.ini); este botón
-        lo hace a mano. Después, la Alineación Automática o el primer Centrado crean el modelo nuevo.
-    </p>
-    <div class="text-center">
-        <button type="button" class="btn btn-secondary" onclick="limpiarSync()">🧹 Borrar sincronizaciones de SynScan</button>
-    </div>
-    <div id="estado-sync" class="mt-3 text-center" style="font-style: italic;"></div>
-
-    <!-- ─── Avisos por voz (altavoz del PC) ───────────────────────── -->
-    <h4 style="margin-top: 35px;">🔊 Avisos por voz</h4>
-    <p style="color: #ddaaaa; font-size: 14px;">
-        El PC anuncia por su altavoz lo que va haciendo: conexión de telescopio y cámara, GOTO,
-        fotos, apilado, darks y centrado. Se activa o desactiva desde la barra inferior.
-    </p>
-    <div id="voz-disponible" style="font-size: 14px; color: #ddaaaa; margin-bottom: 8px;"></div>
-    <div class="form-group">
-        <label><input type="checkbox" id="voz-capturas"> Anunciar el inicio y el final de cada foto</label>
-    </div>
-    <div class="form-group">
-        <label>Voz</label>
-        <select id="voz-voz" class="form-control"></select>
-    </div>
-    <div class="form-group">
-        <label>Volumen (0-100)</label>
-        <input type="number" id="voz-volumen" class="form-control" min="0" max="100" step="5">
-    </div>
-    <div class="form-group">
-        <label>Velocidad (-10 lenta … 10 rápida)</label>
-        <input type="number" id="voz-velocidad" class="form-control" min="-10" max="10" step="1">
-    </div>
-    <div class="text-center">
-        <button type="button" class="btn btn-success" onclick="guardarVoz()">💾 Guardar voz</button>
-        <button type="button" class="btn btn-primary" onclick="probarVoz()">🔊 Probar voz</button>
-    </div>
-    <div id="estado-voz" class="mt-3 text-center" style="font-style: italic;"></div>
 </div>
+
+<div class="grid-2 config-layout">
+    <div class="columna">
+        <form id="form-config" class="card">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-telescopio"/></svg>Equipo y captura</h3></div>
+            <!-- Drivers ASCOM: lista leída del perfil ASCOM del PC (se puede elegir desde el móvil) -->
+            <div class="form-group">
+                <label>Driver de la montura (ASCOM)</label>
+                <select id="driver_telescopio" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label>Driver de la cámara (ASCOM)</label>
+                <select id="driver_camara" class="form-control"></select>
+            </div>
+            <div class="dos-campos">
+                <div class="form-group">
+                    <label>Binning</label>
+                    <input type="number" id="binning" class="form-control" min="1" max="4" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Exposición (s)</label>
+                    <input type="number" id="exposicion" class="form-control" min="0.1" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Máximo de fotos a apilar</label>
+                    <input type="number" id="numero_maximo_imagenes" class="form-control" min="1" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Focal (mm)</label>
+                    <input type="number" id="focal_len" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Intensidad de color</label>
+                    <input type="number" id="color_intensity" class="form-control" min="0" max="5" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Campo visible (zoom)</label>
+                    <select id="zoom_preview" class="form-control">
+                        <option value="0">100 % (campo completo)</option>
+                        <option value="25">75 %</option>
+                        <option value="50">50 %</option>
+                        <option value="75">25 % (objetos pequeños)</option>
+                    </select>
+                </div>
+            </div>
+            <small class="ayuda mb-2">El zoom recorta por los bordes la vista previa y el JPG de la galería; el apilado y el FITS siguen a campo completo.</small>
+            <div class="fila entre mt-2">
+                <button type="submit" class="btn btn-primary"><svg><use href="#i-guardar"/></svg>Guardar configuración</button>
+                <div id="estado-guardado" class="estado"></div>
+            </div>
+        </form>
+
+        <!-- ─── Montura: sincronizaciones guardadas en la app SynScan Pro ── -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-brujula"/></svg>Montura SynScan</h3></div>
+            <p class="card-sub">
+                La app SynScan guarda las sincronizaciones y el modelo de apuntado de sesiones anteriores.
+                Se borran solos al conectar (opción <code>limpiar_sync_al_conectar</code> en config.ini); este botón
+                lo hace a mano. Después, la Alineación Automática o el primer Centrado crean el modelo nuevo.
+            </p>
+            <div class="fila entre">
+                <button type="button" class="btn btn-secondary" onclick="limpiarSync()">Borrar sincronizaciones de SynScan</button>
+                <div id="estado-sync" class="estado"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="columna">
+        <!-- ─── Direcciones para conectar ───────────────────────────── -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-red"/></svg>Conectar desde el móvil</h3></div>
+            <div id="red-direcciones" class="direcciones mb-2">Consultando...</div>
+            <p class="card-sub">
+                Al arrancar, el PC dicta estas direcciones por el altavoz cada 30 segundos hasta que te conectas
+                (opción <code>anunciar_ip</code> en config.ini).
+            </p>
+            <div class="fila entre">
+                <button type="button" class="btn btn-secondary" onclick="anunciarIP()"><svg><use href="#i-altavoz"/></svg>Anunciar IP por voz</button>
+                <div id="estado-red" class="estado"></div>
+            </div>
+        </div>
+
+        <!-- ─── Avisos por voz (altavoz del PC) ───────────────────────── -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-voz-on"/></svg>Avisos por voz</h3></div>
+            <p class="card-sub">
+                El PC anuncia por su altavoz lo que va haciendo: conexión de telescopio y cámara, GoTo,
+                fotos, apilado, darks y centrado. Se activa o desactiva desde la barra inferior.
+            </p>
+            <div id="voz-disponible" class="estado mb-2"></div>
+            <label class="switch mb-2"><input type="checkbox" id="voz-capturas"> Anunciar el inicio y el final de cada foto</label>
+            <div class="form-group">
+                <label>Voz</label>
+                <select id="voz-voz" class="form-control"></select>
+            </div>
+            <div class="dos-campos">
+                <div class="form-group">
+                    <label>Volumen (0-100)</label>
+                    <input type="number" id="voz-volumen" class="form-control" min="0" max="100" step="5">
+                </div>
+                <div class="form-group">
+                    <label>Velocidad (-10 … 10)</label>
+                    <input type="number" id="voz-velocidad" class="form-control" min="-10" max="10" step="1">
+                </div>
+            </div>
+            <div class="acciones">
+                <button type="button" class="btn btn-primary" onclick="guardarVoz()"><svg><use href="#i-guardar"/></svg>Guardar voz</button>
+                <button type="button" class="btn btn-secondary" onclick="probarVoz()"><svg><use href="#i-altavoz"/></svg>Probar voz</button>
+            </div>
+            <div id="estado-voz" class="estado mt-1"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .config-layout { align-items: start; }
+    .config-layout .columna .card + .card { margin-top: 0; }
+    .dos-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    .direcciones { font-size: 15px; }
+    .direcciones div { padding: 8px 12px; background: var(--bg-2); border-radius: 10px; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .direcciones b { font-family: var(--mono); font-weight: 600; color: var(--text); }
+    .direcciones span { color: var(--text-3); font-size: 13px; }
+</style>
 
 <script>
     function limpiarSync() {
@@ -231,8 +251,8 @@
     function cargarRed() {
         fetch("/red/estado").then(r => r.json()).then(d => {
             let html = "";
-            for (const x of d.direcciones) html += `<div><b>${d === null ? "" : x.url}</b> <span style="color:#aa8888">(${x.adaptador})</span></div>`;
-            html += `<div><b>${d.url_nombre}</b> <span style="color:#aa8888">(nombre del equipo)</span></div>`;
+            for (const x of d.direcciones) html += `<div><b>${x.url}</b> <span>${x.adaptador}</span></div>`;
+            html += `<div><b>${d.url_nombre}</b> <span>nombre del equipo</span></div>`;
             if (!d.direcciones.length) html = "❌ No se encuentra ninguna dirección de red";
             document.getElementById("red-direcciones").innerHTML = html;
         }).catch(err => document.getElementById("red-direcciones").textContent = "❌ " + err);

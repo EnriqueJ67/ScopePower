@@ -2865,9 +2865,10 @@ def error_no_capturado(e):
         return e
     log.exception("Error no capturado atendiendo %s %s", request.method, request.path)
     return render_template_string(
-        "{% extends 'base.html' %}{% block content %}"
-        "<h2>❌ Error inesperado</h2><p>{{ error }}</p>"
-        "<p style='color:#aaa'>Los detalles están en logs/scopepower.log</p>{% endblock %}",
+        "{% extends 'base.html' %}{% block title %}Error{% endblock %}{% block content %}"
+        "<div class='pagina-cabecera'><div><h1 class='pagina-titulo'>Error inesperado</h1></div></div>"
+        "<div class='card card-centrada'><div class='aviso aviso-err'>{{ error }}</div>"
+        "<p class='texto-3' style='margin:0'>Los detalles están en logs/scopepower.log</p></div>{% endblock %}",
         error=str(e)), 500
 
 

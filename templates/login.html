@@ -1,27 +1,35 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Iniciar Sesión{% endblock %}
+{% block title %}Iniciar sesión{% endblock %}
+{% block titulo_cabecera %}{% endblock %}
 
 {% block content %}
-<div style="max-width: 400px; margin: auto; padding-top: 40px;">
-    <h2 style="text-align: center;">🔒 Iniciar Sesión</h2>
+<div class="login">
+    <div class="card login-card">
+        <img src="/static/logo_transparente.png" alt="ScopePower" class="login-logo">
+        <p class="card-sub centro">Controla el telescopio desde el móvil</p>
 
-    {% if error %}
-    <div style="color: #ff8080; text-align: center; margin-top: 10px;">
-        {{ error }}
+        {% if error %}
+        <div class="aviso aviso-err"><svg class="ico"><use href="#i-info"/></svg>{{ error }}</div>
+        {% endif %}
+
+        <form method="post" class="columna">
+            <div class="campo">
+                <label for="usuario">Usuario</label>
+                <input type="text" id="usuario" name="usuario" class="form-control" required autocomplete="username" autocapitalize="none">
+            </div>
+            <div class="campo">
+                <label for="clave">Contraseña</label>
+                <input type="password" id="clave" name="clave" class="form-control" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg btn-block"><svg><use href="#i-candado"/></svg>Entrar</button>
+        </form>
     </div>
-    {% endif %}
-
-    <form method="post" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
-        <label>
-            Usuario:
-            <input type="text" name="usuario" class="form-control" required>
-        </label>
-        <label>
-            Contraseña:
-            <input type="password" name="clave" class="form-control" required>
-        </label>
-        <button type="submit" class="btn btn-primary">Entrar</button>
-    </form>
 </div>
+
+<style>
+    .login { min-height: calc(100vh - var(--header-h) - 120px); display: flex; align-items: center; justify-content: center; padding: 10px 0; }
+    .login-card { width: 100%; max-width: 400px; padding: 24px 22px; }
+    .login-logo { display: block; max-width: 260px; margin: 0 auto 8px; border-radius: 12px; }
+</style>
 {% endblock %}

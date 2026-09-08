@@ -3,22 +3,26 @@
 {% block title %}Calibración{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center;">🌑 Calibración</h2>
-<p style="color: #ddaaaa; font-size: 15px; max-width: 520px; margin: 0 auto 16px auto; text-align: center;">
-    Los darks quitan el ruido térmico y los píxeles calientes; los flats, el viñeteo y las sombras de polvo.
-    Se restan a cada foto antes de apilar. El apilado también ofrece hacer los darks al empezar.
-</p>
-
-<div style="max-width: 520px; margin: 0 auto;">
-    <div style="background: #220000; border: 2px solid #770000; border-radius: 12px; padding: 14px; margin-bottom: 14px;">
-        <h4 style="margin: 0 0 6px 0;">🌑 Dark maestro</h4>
-        <div id="info-dark" style="font-size: 14px; color: #ddaaaa; margin-bottom: 10px;">Consultando...</div>
-        <a href="{{ url_for('generar_dark') }}" class="btn btn-danger">Generar darks (tapar el tubo)</a>
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Calibración</h1>
+        <p class="pagina-sub">
+            Los darks quitan el ruido térmico y los píxeles calientes; los flats, el viñeteo y las sombras de polvo.
+            Se restan a cada foto antes de apilar. El apilado también ofrece hacer los darks al empezar.
+        </p>
     </div>
-    <div style="background: #220000; border: 2px solid #770000; border-radius: 12px; padding: 14px;">
-        <h4 style="margin: 0 0 6px 0;">🟦 Flat maestro</h4>
-        <div id="info-flat" style="font-size: 14px; color: #ddaaaa; margin-bottom: 10px;">Consultando...</div>
-        <a href="{{ url_for('vista_flats') }}" class="btn btn-primary">Generar flats (camiseta y pantalla)</a>
+</div>
+
+<div class="grid-2" style="max-width: 900px;">
+    <div class="card">
+        <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-calibracion"/></svg>Dark maestro</h3></div>
+        <div id="info-dark" class="estado mb-2">Consultando...</div>
+        <a href="{{ url_for('generar_dark') }}" class="btn btn-danger btn-block">Generar darks (tapar el tubo)</a>
+    </div>
+    <div class="card" style="margin-top: 0;">
+        <div class="card-header"><h3 class="card-title"><svg class="ico" style="color: var(--info);"><use href="#i-sol"/></svg>Flat maestro</h3></div>
+        <div id="info-flat" class="estado mb-2">Consultando...</div>
+        <a href="{{ url_for('vista_flats') }}" class="btn btn-primary btn-block">Generar flats (camiseta y pantalla)</a>
     </div>
 </div>
 

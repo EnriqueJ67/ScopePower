@@ -4,34 +4,42 @@
 {% block title %}Cerrar o apagar{% endblock %}
 
 {% block content %}
-<h2 style="text-align: center;">🛑 Cerrar o apagar</h2>
-<p style="text-align: center; color: #ddaaaa; font-size: 15px;">
-    Reiniciar ScopePower arregla la mayoría de los atascos sin perder el acceso al mini PC.
-    Apagar o reiniciar el equipo cierra Windows de forma ordenada, sin quitarle la alimentación.
-    En los tres casos se desconectan antes la cámara y la montura.
-</p>
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Cerrar o apagar</h1>
+        <p class="pagina-sub">
+            Reiniciar ScopePower arregla la mayoría de los atascos sin perder el acceso al mini PC.
+            Apagar o reiniciar el equipo cierra Windows de forma ordenada, sin quitarle la alimentación.
+            En los tres casos se desconectan antes la cámara y la montura.
+        </p>
+    </div>
+</div>
 
 <div class="apagar-botones">
-    <button class="btn btn-warning" onclick="reiniciarApp()">🔁 Reiniciar ScopePower<small>Solo la app; el PC sigue encendido y en unos segundos vuelve</small></button>
-    <button class="btn btn-primary" onclick="pedir('reiniciar')">🔄 Reiniciar el equipo<small>Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio</small></button>
-    <button class="btn btn-danger" onclick="pedir('apagar')">🛑 Apagar el equipo<small>Después ya se puede quitar la alimentación</small></button>
+    <button class="tile" onclick="reiniciarApp()">
+        <span class="tile-ico warn"><svg><use href="#i-refrescar"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Reiniciar ScopePower</span><span class="tile-desc">Solo la app; el PC sigue encendido y en unos segundos vuelve</span></span>
+    </button>
+    <button class="tile" onclick="pedir('reiniciar')">
+        <span class="tile-ico info"><svg><use href="#i-refrescar"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Reiniciar el equipo</span><span class="tile-desc">Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio</span></span>
+    </button>
+    <button class="tile" onclick="pedir('apagar')">
+        <span class="tile-ico" style="background: var(--err-soft); color: var(--err);"><svg><use href="#i-power"/></svg></span>
+        <span class="tile-texto"><span class="tile-titulo">Apagar el equipo</span><span class="tile-desc">Después ya se puede quitar la alimentación</span></span>
+    </button>
 </div>
 
-<div id="cuenta" class="cuenta" hidden>
-    <div id="cuenta-texto" style="font-size: 22px;"></div>
-    <div class="cuenta-bloque"><div id="cuenta-barra" class="cuenta-progreso"></div></div>
-    <button class="btn btn-success" onclick="cancelar()" style="font-size: 20px; padding: 16px 28px;">✋ Cancelar</button>
+<div id="cuenta" class="card card-centrada card-acento centro mt-3" hidden>
+    <div id="cuenta-texto" style="font-size: 22px; font-weight: 700;"></div>
+    <div class="progress alta mt-2 mb-3"><div id="cuenta-barra" class="progress-bar" style="width: 100%;"></div></div>
+    <button class="btn btn-success btn-xl" onclick="cancelar()">Cancelar</button>
 </div>
-<div id="estado" style="text-align: center; font-size: 16px; min-height: 1.5em; margin-top: 10px;"></div>
+<div id="estado" class="estado centro mt-3" style="font-size: 16px;"></div>
 
 <style>
-    .apagar-botones { display: grid; grid-template-columns: 1fr; gap: 14px; max-width: 520px; margin: 18px auto; }
-    .apagar-botones .btn { margin: 0; padding: 18px; font-size: 20px; text-align: center; }
-    .apagar-botones .btn small { display: block; font-size: 13px; font-weight: normal; opacity: 0.8; margin-top: 4px; }
-    .cuenta { text-align: center; max-width: 520px; margin: 20px auto; padding: 16px; border: 2px solid #aa3333; border-radius: 12px; background: #3a0a0a; }
-    /* Ojo: no llamar ".barra" a nada, es la clase de la barra de navegación de base.html */
-    .cuenta-bloque { background: #2a0000; border: 1px solid #660000; border-radius: 8px; height: 14px; overflow: hidden; margin: 12px 0 16px; }
-    .cuenta-progreso { height: 100%; width: 100%; background: #c0392b; transition: width 1s linear; }
+    .apagar-botones { display: grid; grid-template-columns: 1fr; gap: 12px; max-width: 560px; margin: 0 auto; }
+    .apagar-botones .tile { font: inherit; text-align: left; cursor: pointer; width: 100%; }
     @media (min-width: 700px) and (orientation: landscape) {
         .apagar-botones { grid-template-columns: 1fr 1fr 1fr; max-width: 1000px; }
     }
@@ -58,7 +66,7 @@
     // Tras el reinicio: sondear hasta que el servidor responda y volver a Inicio
     function esperarVuelta() {
         let segundos = 0;
-        estado.innerHTML = "🔁 <b>ScopePower se está reiniciando.</b> Esta página volverá sola a Inicio cuando responda...";
+        estado.innerHTML = '<span class="spinner"></span><b>ScopePower se está reiniciando.</b> Esta página volverá sola a Inicio cuando responda...';
         const t = setInterval(() => {
             segundos += 2;
             fetch("/estado-conexion", { cache: "no-store" })
@@ -97,7 +105,7 @@
         clearInterval(temporizador);
         const total = restante;
         const pinta = () => {
-            txt.textContent = (accion === "apagar" ? "🛑 El equipo se apaga en " : "🔄 El equipo se reinicia en ") + restante + " s";
+            txt.textContent = (accion === "apagar" ? "El equipo se apaga en " : "El equipo se reinicia en ") + restante + " s";
             barra.style.width = (100 * restante / total) + "%";
         };
         pinta();
