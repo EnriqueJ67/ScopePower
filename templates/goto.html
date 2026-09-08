@@ -23,8 +23,10 @@
         <label for="objeto">Objeto</label>
         <div class="buscador">
             <svg class="ico"><use href="#i-goto"/></svg>
-            <input type="text" id="objeto" name="objeto" required autocomplete="off" placeholder="M31, Andrómeda, Júpiter, Vega…" enterkeyhint="go">
+            <input type="text" id="objeto" name="objeto" required autocomplete="off" placeholder="M31, Andrómeda, Vesta, *atlas*…" enterkeyhint="go" oninput="sugerir()">
         </div>
+        <div id="sugerencias" class="sugerencias" hidden></div>
+        <div class="ayuda-busqueda">Escribe parte del nombre y elige de la lista. <code>*</code> vale por cualquier texto: <code>*atlas*</code>, <code>c/2025*</code>, <code>12p*</code></div>
 
         <button type="button" class="btn btn-primary btn-xl btn-block principal" onclick="sendGotoRequest()"><svg><use href="#i-goto"/></svg>GoTo</button>
         <div class="acciones-grid dos botones">
@@ -49,6 +51,13 @@
     .buscador input { padding-left: 46px; font-size: 20px; min-height: 58px; border-radius: 14px; }
     #gotoForm .botones { margin-top: 10px; }
     #gotoForm .botones .btn { min-height: 50px; }
+    .sugerencias { background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 12px; margin: -6px 0 10px; max-height: 260px; overflow-y: auto; }
+    .sugerencias div { padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 16px; }
+    .sugerencias div:last-child { border-bottom: none; }
+    .sugerencias div:hover, .sugerencias div:active { background: var(--surface-3); }
+    .sugerencias small { display: block; color: var(--text-3); font-size: 12.5px; }
+    .sugerencias .nada { color: var(--text-3); cursor: default; }
+    .ayuda-busqueda { font-size: 12px; color: var(--text-3); margin: -4px 0 12px; }
     .goto-info { min-height: 120px; }
     #status { font-size: 18px; line-height: 1.4; word-wrap: break-word; }
     #extraInfo { font-size: 15px; margin-top: 10px; color: var(--text-2); }
@@ -99,6 +108,41 @@
     let recognition;
     let recognizing = false;
     let recognitionRunning = false;
+
+    // ——— Sugerencias mientras se escribe (catálogo local, cometas y asteroides) ———
+    let temporizadorSugerir = null;
+    function sugerir() {
+        const q = document.getElementById("objeto").value.trim();
+        const caja = document.getElementById("sugerencias");
+        clearTimeout(temporizadorSugerir);
+        window.coordsDirectas = null;
+        if (q.replace(/[*?]/g, "").length < 2) { caja.hidden = true; return; }
+        temporizadorSugerir = setTimeout(() => {
+            fetch("/buscar-objetos?q=" + encodeURIComponent(q)).then(r => r.json()).then(d => {
+                caja.innerHTML = "";
+                if (!d.resultados.length) {
+                    caja.innerHTML = '<div class="nada">Sin coincidencias en el catálogo local. GoTo lo intentará con Stellarium o Internet.</div>';
+                } else {
+                    for (const r of d.resultados) {
+                        const div = document.createElement("div");
+                        div.innerHTML = `${r.nombre}<small>${r.detalle}</small>`;
+                        div.onclick = () => elegirSugerencia(r);
+                        caja.appendChild(div);
+                    }
+                }
+                caja.hidden = false;
+            }).catch(() => { caja.hidden = true; });
+        }, 250);
+    }
+    function elegirSugerencia(r) {
+        document.getElementById("objeto").value = r.nombre;
+        document.getElementById("sugerencias").hidden = true;
+        window.coordsDirectas = (r.ra !== undefined) ? { objeto: r.nombre, ra: r.ra, dec: r.dec } : null;
+        sonidoClick.play().catch(() => {});
+    }
+    document.addEventListener("click", ev => {
+        if (!ev.target.closest("#sugerencias") && ev.target.id !== "objeto") document.getElementById("sugerencias").hidden = true;
+    });
 
     // ——— Reconocimiento de voz ———
     // Chrome solo permite el micrófono en páginas "seguras": HTTPS o localhost. Por

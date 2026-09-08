@@ -191,6 +191,36 @@ def buscar(nombre):
     return None
 
 
+def _patron_a_regex(patron):
+    """'c/2023*' -> regex; '*' = cualquier texto. Sin comodín: contiene."""
+    p = _normalizar(patron)
+    if not p:
+        return None
+    if "*" not in p and "?" not in p:
+        return re.compile(re.escape(p))
+    partes = [re.escape(x) for x in re.split(r"([*?])", p)]
+    rx = "".join(".*" if x == r"\*" else "." if x == r"\?" else x for x in partes)
+    return re.compile("^" + rx + "$")
+
+
+def buscar_patron(patron, maximo=30):
+    """
+    Cuerpos cuyo nombre encaja con el patrón ('*' cualquier texto, '?' un
+    carácter; sin comodines, que lo contenga). Devuelve [{nombre, tipo}].
+    """
+    rx = _patron_a_regex(patron)
+    if rx is None:
+        return []
+    cuerpos = cargar()
+    salida = []
+    for c in cuerpos:
+        if rx.search(_normalizar(c["nombre"])):
+            salida.append({"nombre": c["nombre"], "tipo": c["tipo"]})
+            if len(salida) >= maximo:
+                break
+    return salida
+
+
 # ── Posiciones ──────────────────────────────────────────────────────────────
 def _observador(lat, lon, alt_m, cuando):
     import ephem

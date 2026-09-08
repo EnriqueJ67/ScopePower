@@ -1535,6 +1535,45 @@ def imagen_capturada():
     return response
 
 
+@app.route('/buscar-objetos')
+def buscar_objetos():
+    """
+    Sugerencias para el GoTo: ?q=patrón. '*' vale por cualquier texto y '?'
+    por un carácter ("*tsuchinshan*", "c/2023*", "12p*"); sin comodines
+    busca que lo contenga. Mira en cometas y asteroides (listas del MPC) y
+    en el catálogo de Esta noche. Devuelve nombre exacto, tipo, magnitud y,
+    para los del catálogo, coordenadas para ir directo.
+    """
+    q = request.args.get("q", "").strip()
+    if len(q.replace("*", "").replace("?", "").strip()) < 2:
+        return jsonify({"resultados": []})
+    resultados = []
+    try:
+        rx = cuerpos_menores._patron_a_regex(q)
+        for o in esta_noche.cargar_catalogo():
+            texto = " | ".join(x for x in (o["id"], o["nombre"], o["nombre_alt"]) if x)
+            if rx and rx.search(cuerpos_menores._normalizar(texto)):
+                resultados.append({"nombre": o["nombre"], "detalle": f"{o['id']} · {o['tipo']}" + (f" · mag {o['mag']}" if o["mag"] is not None else ""),
+                                   "tipo": o["tipo"], "mag": o["mag"], "ra": o["ra_h"], "dec": o["dec_deg"]})
+    except Exception as e:
+        log.warning("Búsqueda en el catálogo: %s", e)
+    try:
+        for c in cuerpos_menores.buscar_patron(q, maximo=40):
+            mag = None
+            try:
+                _, _, info = cuerpos_menores.coordenadas(c["nombre"], LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+                mag = info["mag"]
+            except Exception:
+                pass
+            resultados.append({"nombre": c["nombre"], "detalle": ("Cometa" if c["tipo"] == "cometa" else "Asteroide") + (f" · mag {mag}" if mag is not None else ""),
+                               "tipo": c["tipo"], "mag": mag})
+    except Exception as e:
+        log.warning("Búsqueda en cuerpos menores: %s", e)
+    # Los más brillantes primero (sin magnitud, al final)
+    resultados.sort(key=lambda r: (r["mag"] is None, r["mag"] if r["mag"] is not None else 99))
+    return jsonify({"resultados": resultados[:40]})
+
+
 @app.route('/cuerpos-menores/estado')
 def cuerpos_menores_estado():
     e = cuerpos_menores.estado()
