@@ -1551,8 +1551,10 @@ def buscar_objetos():
     try:
         rx = cuerpos_menores._patron_a_regex(q)
         for o in esta_noche.cargar_catalogo():
-            texto = " | ".join(x for x in (o["id"], o["nombre"], o["nombre_alt"]) if x)
-            if rx and rx.search(cuerpos_menores._normalizar(texto)):
+            # Cada nombre por separado: "*31" debe encajar con "M 31", no con un
+            # texto pegado donde "NGC 6531" del nombre alternativo acabe en 31
+            campos = [cuerpos_menores._normalizar(x) for x in (o["id"], o["nombre"], o["nombre_alt"]) if x]
+            if rx and any(rx.search(c) for c in campos):
                 resultados.append({"nombre": o["nombre"], "detalle": f"{o['id']} · {o['tipo']}" + (f" · mag {o['mag']}" if o["mag"] is not None else ""),
                                    "tipo": o["tipo"], "mag": o["mag"], "ra": o["ra_h"], "dec": o["dec_deg"]})
     except Exception as e:
