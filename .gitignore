@@ -38,3 +38,6 @@ static/ultima_captura*
 
 # Elementos orbitales descargados del MPC (se renuevan solos)
 datos/mpc/
+
+# Vista previa de la foto del centrado (la genera centrado.py)
+static/centrado_preview.jpg
