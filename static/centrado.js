@@ -3,7 +3,8 @@
 //
 //   iniciarCentrado(idEstado, opciones)
 //     idEstado : id del elemento donde pintar el progreso y el resultado
-//     opciones : { alTerminar(estado), hablar: true|false }
+//     opciones : { alTerminar(estado), hablar: true|false, siguientePaso: true|false }
+//                siguientePaso: al terminar, botones para ir al apilado o a la foto de prueba
 
 (function () {
     let sondeo = null;
@@ -19,18 +20,34 @@
         }
     }
 
+    // Miniatura de la última foto del centrado (centrado.py la genera en cada vuelta)
+    function htmlImagen(e) {
+        if (!e.imagen) return "";
+        return `<div class="centrado-foto"><a href="/centrado/imagen?v=${e.imagen.version}" target="_blank" title="Abrir a tamaño completo">` +
+            `<img src="/centrado/imagen?v=${e.imagen.version}" alt="Foto del centrado"></a>` +
+            `<div class="centrado-foto-pie">Foto del centrado · vuelta ${e.imagen.vuelta} · ${e.imagen.hora}</div></div>`;
+    }
+    function htmlSiguiente(opciones) {
+        if (!opciones.siguientePaso) return "";
+        return `<div class="centrado-siguiente"><div class="seccion-titulo">Siguiente paso</div><div class="acciones">` +
+            `<a class="btn btn-primary" href="/apilado"><svg><use href="#i-apilado"/></svg>Empezar apilado</a>` +
+            `<a class="btn btn-secondary" href="/foto-prueba"><svg><use href="#i-foto"/></svg>Foto de prueba</a></div></div>`;
+    }
+
     function pintarProgreso(el, e) {
         const errores = e.errores.length ? " · errores: " + e.errores.map(x => x.toFixed(1) + "'").join(" → ") : "";
         const cuenta = (e.captura && e.captura.en_curso) ? ` (quedan ${Math.ceil(e.captura.restante)} s)` : "";
         el.innerHTML = `<span class="spinner"></span> ${e.mensaje}${cuenta}<br>` +
             `<small>Objetivo: ${e.objeto || "?"} · tolerancia ${e.tolerancia}'${errores}</small><br>` +
-            `<button type="button" class="btn btn-sm btn-ghost" onclick="cancelarCentrado()">Cancelar centrado</button>`;
+            `<button type="button" class="btn btn-sm btn-ghost" onclick="cancelarCentrado()">Cancelar centrado</button>` +
+            htmlImagen(e);
     }
 
     function pintarFinal(el, e, opciones) {
         const r = textoResultado(e);
         const errores = e.errores.length ? `<br><small>Error por vuelta: ${e.errores.map(x => x.toFixed(1) + "'").join(" → ")}</small>` : "";
-        el.innerHTML = `<span style="color:${r.color}; font-weight:bold;">${r.icono} ${r.texto}</span>${errores}`;
+        el.innerHTML = `<span style="color:${r.color}; font-weight:bold;">${r.icono} ${r.texto}</span>${errores}` +
+            htmlImagen(e) + htmlSiguiente(opciones);
         // El PC ya dice el resultado por su altavoz (centrado.py); el móvil solo lo
         // lee si la voz del PC está apagada (window.vozPCActiva la pone base.html)
         if (opciones.hablar && !window.vozPCActiva && "speechSynthesis" in window) {

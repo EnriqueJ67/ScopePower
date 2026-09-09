@@ -108,35 +108,67 @@
         </div>
     </div>
 
-    <!-- ─── Columna lateral: arranque, última toma, ajustes ─────────────── -->
-    <div class="columna lateral">
-        <!-- Última toma individual -->
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Última toma</h3><span id="ultima-toma-texto" class="texto-3" style="font-size: 12.5px;"></span></div>
-            <img id="ultima-toma" src="" alt="Última toma" style="width: 100%; border-radius: 10px; background: #000; display: block;">
-        </div>
-
-        <!-- Guardar y opciones rápidas -->
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Opciones</h3></div>
-            <label class="switch"><input type="checkbox" id="checkbox-objetos-anotados"> Objetos anotados en la imagen</label>
-            <div class="fila mt-2">
-                <label class="switch"><input type="checkbox" id="dither-activo" onchange="cambiarDithering()"> Dithering cada</label>
-                <input type="number" id="dither-cada" class="corto" min="1" max="20" value="3" style="width: 64px;" onchange="cambiarDithering()"> <span class="texto-2" style="font-size: 14px;">fotos</span>
+    <!-- ─── Columna lateral: paneles plegables, en el orden que elija el usuario ──
+         (orden y plegado se guardan en config.ini vía /preferencias) ─────────── -->
+    <div class="columna lateral" id="paneles-apilado">
+        <section class="card panel" data-panel="ultima-toma">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title">Última toma</h3>
+                <span id="ultima-toma-texto" class="panel-sub"></span>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
             </div>
-            <div id="dither-estado" class="texto-3 mt-1" style="font-size: 13px;"></div>
-        </div>
+            <div class="panel-cuerpo">
+                <img id="ultima-toma" src="" alt="Última toma" style="width: 100%; border-radius: 10px; background: #000; display: block;">
+            </div>
+        </section>
 
-        <!-- Info del objeto actual -->
-        <div class="card">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-goto"/></svg>Objeto del último GoTo</h3></div>
-            <pre id="info-goto"></pre>
-        </div>
+        <section class="card panel" data-panel="opciones">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title">Opciones</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <label class="switch"><input type="checkbox" id="checkbox-objetos-anotados"> Objetos anotados en la imagen</label>
+                <div class="fila mt-2">
+                    <label class="switch"><input type="checkbox" id="dither-activo" onchange="cambiarDithering()"> Dithering cada</label>
+                    <input type="number" id="dither-cada" class="corto" min="1" max="20" value="3" style="width: 64px;" onchange="cambiarDithering()"> <span class="texto-2" style="font-size: 14px;">fotos</span>
+                </div>
+                <div id="dither-estado" class="texto-3 mt-1" style="font-size: 13px;"></div>
+            </div>
+        </section>
 
-        <!-- Procesado de la vista previa -->
-        <details class="card procesado">
-            <summary class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Procesado de la vista previa<svg class="ico flecha"><use href="#i-flecha"/></svg></summary>
-            <div class="mt-2">
+        <section class="card panel" data-panel="info-goto">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-goto"/></svg>Objeto del último GoTo</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <pre id="info-goto"></pre>
+            </div>
+        </section>
+
+        <section class="card panel" data-panel="procesado">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Procesado de la vista previa</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
                 <div class="campo">
                     <label>Estilo</label>
                     <select id="proc-estilo" class="form-control" onchange="aplicarEstilo()">
@@ -172,7 +204,7 @@
                 <button class="btn btn-primary btn-block" onclick="guardarParametrosMTF()">Aplicar a la vista previa</button>
                 <div id="estado-mtf" class="estado mt-1"></div>
             </div>
-        </details>
+        </section>
     </div>
 </div>
 
@@ -186,13 +218,14 @@
     .panel-inicio.abierto .panel-inicio-toggle .flecha { transform: rotate(90deg); }
     .panel-inicio .acciones { flex: 0 0 auto; margin-left: auto; }
     .panel-inicio-cuerpo { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
-    .lateral .card + .card, .lateral .card + details, .lateral details + .card { margin-top: 0; }
+    .lateral .card + .card { margin-top: 0; }
     .stat-ancho { grid-column: 1 / -1; }
     @media (min-width: 560px) { .stats { grid-template-columns: 1fr 1fr 2fr; } .stat-ancho { grid-column: auto; } }
-    details.procesado summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-    details.procesado summary::-webkit-details-marker { display: none; }
-    details.procesado summary .flecha { margin-left: auto; color: var(--text-3); transition: transform .2s; }
-    details.procesado[open] summary .flecha { transform: rotate(90deg); }
+    /* Pantalla ancha: la columna lateral se queda fija y hace su propio scroll, así la
+       imagen apilada no se pierde de vista al tocar los ajustes de procesado */
+    @media (min-width: 760px) {
+        .lateral { position: sticky; top: calc(var(--header-h) + 12px); max-height: calc(100vh - var(--header-h) - 24px); overflow-y: auto; scrollbar-width: thin; padding-right: 2px; }
+    }
     #info-goto { min-height: 2.6em; font-size: 13px; }
     #estado-guardar:empty { display: none; }
     #info-goto:empty::before { content: "Todavía no se ha hecho ningún GoTo."; color: var(--text-3); font-family: var(--font); }
@@ -211,6 +244,65 @@
     let usarDark = true;          // se pasa a /capturar-imagen como &dark=0/1
     let apiladoNuevo = true;      // Empezar nuevo (reinicia) o continuar
     let sondeoDarks = null;
+
+    // ——— Preferencias guardadas en el servidor (config.ini, sección [Interfaz]) ———
+    //     orden y plegado de los paneles laterales, y la opción de darks al empezar
+    let PREFS = {};
+    let prefPaneles = { orden: [], plegados: ["procesado"] };
+    const prefsCargadas = fetch("/preferencias").then(r => r.json()).then(d => {
+        PREFS = d || {};
+        if (PREFS.apilado_paneles && Array.isArray(PREFS.apilado_paneles.orden)) prefPaneles = PREFS.apilado_paneles;
+        aplicarPaneles();
+        return PREFS;
+    }).catch(() => { aplicarPaneles(); return {}; });
+
+    function guardarPreferencias(datos) {
+        return fetch("/preferencias", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) })
+            .catch(err => console.warn("No se pudieron guardar las preferencias:", err));
+    }
+
+    function aplicarPaneles() {
+        const cont = document.getElementById("paneles-apilado");
+        const paneles = Array.from(cont.querySelectorAll(".panel"));
+        const orden = prefPaneles.orden || [];
+        const pos = p => { const i = orden.indexOf(p.dataset.panel); return i < 0 ? 99 : i; };
+        paneles.sort((a, b) => pos(a) - pos(b));
+        paneles.forEach(p => {
+            cont.appendChild(p);
+            p.classList.toggle("plegado", (prefPaneles.plegados || []).includes(p.dataset.panel));
+        });
+        paneles.forEach((p, i) => {
+            p.querySelector(".panel-subir").disabled = i === 0;
+            p.querySelector(".panel-bajar").disabled = i === paneles.length - 1;
+        });
+    }
+    // Se guarda con un pequeño retardo: varios toques seguidos hacen una sola escritura
+    // (dos peticiones a la vez podrían pisarse al escribir config.ini)
+    let guardadoPaneles = null;
+    function guardarPaneles() {
+        const paneles = Array.from(document.querySelectorAll("#paneles-apilado .panel"));
+        prefPaneles = {
+            orden: paneles.map(p => p.dataset.panel),
+            plegados: paneles.filter(p => p.classList.contains("plegado")).map(p => p.dataset.panel)
+        };
+        clearTimeout(guardadoPaneles);
+        guardadoPaneles = setTimeout(() => guardarPreferencias({ apilado_paneles: prefPaneles }), 400);
+    }
+    function moverPanel(boton, delta) {
+        const panel = boton.closest(".panel");
+        const paneles = Array.from(document.querySelectorAll("#paneles-apilado .panel"));
+        const i = paneles.indexOf(panel), j = i + delta;
+        if (j < 0 || j >= paneles.length) return;
+        [paneles[i], paneles[j]] = [paneles[j], paneles[i]];
+        prefPaneles.orden = paneles.map(p => p.dataset.panel);
+        aplicarPaneles();
+        guardarPaneles();
+    }
+    function alternarPanel(el) {
+        const panel = el.closest(".panel");
+        panel.classList.toggle("plegado");
+        guardarPaneles();
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
         cargarParametros();
@@ -247,6 +339,14 @@
             document.getElementById("opcion-dark-ultimo").disabled = !hayDark;
             document.getElementById(hayDark ? "opcion-dark-ultimo" : "opcion-dark-nuevo").checked = true;
             actualizarResumenInicio();
+            // Lo que eligió la última vez (si sigue teniendo sentido: "último dark" necesita que exista)
+            prefsCargadas.then(p => {
+                const guardada = p.opcion_dark;
+                if (guardada && !(guardada === "ultimo" && !hayDark) && document.getElementById("opcion-dark-" + guardada)) {
+                    document.getElementById("opcion-dark-" + guardada).checked = true;
+                    actualizarResumenInicio();
+                }
+            });
             document.getElementById("boton-continuar").style.display = (estado && estado.total > 0) ? "inline-flex" : "none";
             if (estado && estado.bucle && estado.bucle.activo) {
                 // El servidor ya está capturando (p. ej. hemos vuelto a abrir la página)
@@ -305,6 +405,11 @@
         document.getElementById("inicio-resumen").textContent = marcada ? textos[marcada.value] + " · toca para cambiar" : "Toca para elegir los darks";
     }
     document.querySelectorAll('input[name="opcion-dark"], #darks-n').forEach(el => el.addEventListener("change", actualizarResumenInicio));
+    document.querySelectorAll('input[name="opcion-dark"]').forEach(el => el.addEventListener("change", () => guardarPreferencias({ opcion_dark: el.value })));
+    document.getElementById("darks-n").addEventListener("change", () => {
+        const n = parseInt(document.getElementById("darks-n").value);
+        if (n >= 1 && n <= 50) guardarPreferencias({ numero_darks: n });
+    });
 
     function volverAlInicio() { mostrarPaso("inicio"); }
 

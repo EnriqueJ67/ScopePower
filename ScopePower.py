@@ -377,9 +377,78 @@ def get_config_objetos():
 @app.route('/toggle-objetos-anotados', methods=['POST'])
 def toggle_objetos_anotados():
     data = request.get_json()
-    # Actualiza el flag
+    # Actualiza el flag y lo deja guardado para la próxima sesión ([Apilado] objetos_anotados)
     apilado.OBJETOS_ANOTADOS = bool(data.get("objetos", False))
+    _guardar_en_config("Apilado", {"objetos_anotados": "true" if apilado.OBJETOS_ANOTADOS else "false"})
     return jsonify({"ok": True})
+
+
+# ───────────────────────── Preferencias de la interfaz ─────────────────────────
+# Cosas que el usuario quiere escribir una sola vez (orden de los paneles de Apilado,
+# opción de darks al empezar, número de darks...). Se guardan en config.ini para que
+# valgan desde cualquier móvil o tablet. Solo se aceptan las claves de esta lista.
+PREFERENCIAS = {
+    # clave web: (sección, clave en config.ini, tipo)
+    "apilado_paneles": ("Interfaz", "apilado_paneles", "json"),
+    "opcion_dark": ("Interfaz", "opcion_dark", "texto"),
+    "numero_darks": ("Dispositivos", "numero_darks", "entero"),
+}
+
+
+_CONFIG_LOCK = threading.Lock()   # dos peticiones a la vez no deben pisarse al reescribir config.ini
+
+
+def _guardar_en_config(seccion, valores):
+    """Escribe (o sobreescribe) varias claves de una sección de config.ini."""
+    with _CONFIG_LOCK:
+        cfg = configparser.ConfigParser()
+        cfg.read("config.ini")
+        if seccion not in cfg:
+            cfg[seccion] = {}
+        for clave, valor in valores.items():
+            cfg[seccion][clave] = str(valor)
+        with open("config.ini", "w") as f:
+            cfg.write(f)
+
+
+def _leer_preferencias():
+    import json
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    salida = {}
+    for clave, (seccion, clave_ini, tipo) in PREFERENCIAS.items():
+        if seccion not in cfg or clave_ini not in cfg[seccion]:
+            continue
+        bruto = cfg[seccion][clave_ini]
+        try:
+            if tipo == "json":
+                salida[clave] = json.loads(bruto)
+            elif tipo == "entero":
+                salida[clave] = int(bruto)
+            else:
+                salida[clave] = bruto
+        except (ValueError, TypeError):
+            pass
+    return salida
+
+
+@app.route('/preferencias', methods=['GET', 'POST'])
+def preferencias():
+    import json
+    if request.method == 'POST':
+        datos = request.get_json(silent=True) or {}
+        for clave, valor in datos.items():
+            if clave not in PREFERENCIAS:
+                return jsonify({"error": f"Preferencia desconocida: {clave}"}), 400
+            seccion, clave_ini, tipo = PREFERENCIAS[clave]
+            if tipo == "json":
+                valor = json.dumps(valor, ensure_ascii=False)
+            elif tipo == "entero":
+                valor = int(valor)
+            else:
+                valor = str(valor)[:200]
+            _guardar_en_config(seccion, {clave_ini: valor})
+    return jsonify(_leer_preferencias())
 
 @app.route('/pausar-apilado', methods=["POST"])
 def pausar():
@@ -1975,6 +2044,9 @@ def alineacion_iniciar():
         conf["puntos"] = max(1, min(20, int(datos["puntos"])))
     if "limpiar_antes" in datos:
         conf["limpiar_antes"] = bool(datos["limpiar_antes"])
+    if "puntos" in datos or "limpiar_antes" in datos:
+        _guardar_en_config("Alineacion", {"puntos": conf["puntos"],
+                                          "limpiar_antes": "true" if conf["limpiar_antes"] else "false"})
     try:
         alineacion.trabajo_alineacion.iniciar(camara, montura, conf=conf,
                                               limpiar_sync=limpiar_sincronizaciones, voz=voz)
@@ -2003,6 +2075,17 @@ def centrado_estado():
 def centrado_cancelar():
     centrado.trabajo_centrado.cancelar()
     return jsonify({"mensaje": "⏹️ Cancelando centrado..."})
+
+
+@app.route('/centrado/imagen')
+def centrado_imagen():
+    """JPG de la última foto del centrado (centrado.py la genera en cada vuelta)."""
+    ruta = ruta_absoluta(centrado.RUTA_PREVIEW_CENTRADO)
+    if not os.path.exists(ruta):
+        return send_file("static/esperando.png", mimetype="image/png")
+    respuesta = send_file(ruta, mimetype="image/jpeg")
+    respuesta.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return respuesta
 
 # Función para leer coordenadas de ASTAP desde el archivo WCS
 def extraer_coordenadas_wcs(ruta_wcs):
@@ -2516,6 +2599,8 @@ def darks_generar():
     n = int(datos.get("n", conf["numero_darks"]))
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de generar darks"}), 409
+    if n != conf["numero_darks"]:
+        _guardar_en_config("Dispositivos", {"numero_darks": n})   # se recuerda para la próxima vez
     try:
         darks.trabajo_darks.iniciar(camara, conf["exposicion"], conf["binning"], n)
     except RuntimeError as e:
@@ -2962,6 +3047,9 @@ def ascom_selector():
 if __name__ == '__main__':
     os.makedirs(ruta_absoluta("capturas"), exist_ok=True)
     os.makedirs(ruta_absoluta("static"), exist_ok=True)
+    # Objetos anotados: lo que dejó puesto el usuario la última vez ([Apilado] objetos_anotados)
+    apilado.OBJETOS_ANOTADOS = config["Apilado"].get("objetos_anotados", "false").strip().lower() == "true" \
+        if "Apilado" in config else False
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
     # Stellarium tarda en arrancar: lanzarlo ya, en un hilo, para que esté listo
     # cuando el usuario entre (config: [General] lanzar_stellarium_al_arrancar)

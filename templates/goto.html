@@ -352,7 +352,7 @@
                         // El servidor arranca el centrado automático al llegar (centrar_tras_goto):
                         // engancharse a él para mostrar las vueltas y el error
                         setTimeout(() => engancharCentradoEnCurso("status", {
-                            hablar: false,
+                            hablar: false, siguientePaso: true,
                             alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
                         }), 4000);
                     }
@@ -370,12 +370,12 @@
     function lanzarModoAutomatico() {
         document.getElementById("btnModoAutomatico").disabled = true;
         iniciarCentrado("status", {
-            hablar: true,
+            hablar: true, siguientePaso: true,
             alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
         });
     }
     window.addEventListener("DOMContentLoaded", () => engancharCentradoEnCurso("status", {
-        hablar: true,
+        hablar: true, siguientePaso: true,
         alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
     }));
 
@@ -441,8 +441,8 @@
                     if (info.alt) html += `<li><b>Altitud:</b> ${info.alt.toFixed(2)}°</li>`;
                     if (info.az) html += `<li><b>Azimut:</b> ${info.az.toFixed(2)}°</li>`;
                     if (info.distance) html += `<li><b>Distancia:</b> ${info.distance.toFixed(2)}</li>`;
-                    if (info.phase !== null) html += `<li><b>Fase:</b> ${(info.phase * 100).toFixed(1)}%</li>`;
-                    if (info.illumination !== null) html += `<li><b>Iluminación:</b> ${(info.illumination * 100).toFixed(1)}%</li>`;
+                    if (info.phase !== null && info.phase !== undefined) html += `<li><b>Fase:</b> ${(info.phase * 100).toFixed(1)}%</li>`;
+                    if (info.illumination !== null && info.illumination !== undefined) html += `<li><b>Iluminación:</b> ${(info.illumination * 100).toFixed(1)}%</li>`;
                     html += "</ul>";
                     document.getElementById("extraInfo").innerHTML = html;
 

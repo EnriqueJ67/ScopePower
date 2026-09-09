@@ -33,6 +33,8 @@ import coordenadas
 log = logging.getLogger("scopepower.centrado")
 
 RUTA_FITS_CENTRADO = os.path.join("static", "centrado_mono.fits")
+# Vista previa JPG de la última foto del centrado (la enseña la pantalla GoTo)
+RUTA_PREVIEW_CENTRADO = os.path.join("static", "centrado_preview.jpg")
 
 
 class CentradoCancelado(Exception):
@@ -103,6 +105,7 @@ class TrabajoCentrado:
     def __init__(self):
         self._lock = threading.Lock()
         self._cancelar = threading.Event()
+        self.imagen_version = 0    # sube con cada vista previa nueva (la web la refresca por ella)
         self._reiniciar()
 
     def _reiniciar(self):
@@ -117,6 +120,7 @@ class TrabajoCentrado:
         self.detalle = ""
         self.objetivo = None       # (ra_h, dec_deg)
         self.objeto = ""
+        self.imagen = None         # {"version", "hora", "vuelta"} de la última vista previa
 
     def estado(self):
         with self._lock:
@@ -132,6 +136,7 @@ class TrabajoCentrado:
                 "resultado": self.resultado,
                 "detalle": self.detalle,
                 "objeto": self.objeto,
+                "imagen": dict(self.imagen) if self.imagen else None,
                 "captura": estado_captura.como_dict(),
             }
 
@@ -188,11 +193,13 @@ class TrabajoCentrado:
 
                 # 1) Foto corta
                 self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: exponiendo {conf['exposicion']:.0f} s")
-                frame = camara.ejecutar(
-                    lambda cam: capturar_frame_con_pixel(cam, conf["exposicion"], conf["binning"],
-                                               descripcion=f"Centrado {vuelta}/{conf['max_vueltas']}"),
+                frame, sensor_type = camara.ejecutar(
+                    lambda cam: (capturar_frame_con_pixel(cam, conf["exposicion"], conf["binning"],
+                                                          descripcion=f"Centrado {vuelta}/{conf['max_vueltas']}"),
+                                 getattr(cam, "SensorType", None)),
                     timeout=conf["exposicion"] + 90)
                 self._guardar_fits(frame, objetivo, conf)
+                self._guardar_preview(frame, sensor_type, vuelta)
                 self._comprobar_cancelacion()
 
                 # 2) Resolver
@@ -266,6 +273,34 @@ class TrabajoCentrado:
         pistas_platesolve(hdu.header, conf["focal"], px, py, conf["binning"],
                           ra_h=objetivo.ra.hour, dec_deg=objetivo.dec.deg)
         hdu.writeto(RUTA_FITS_CENTRADO, overwrite=True)
+
+    def _guardar_preview(self, frame, sensor_type, vuelta):
+        """JPG pequeño de la foto del centrado para la pantalla GoTo. Nunca interrumpe el centrado."""
+        try:
+            import cv2
+            datos = np.asarray(frame[0])
+            patron = {2: "RGGB", 3: "CMYG", 4: "CMYG2", 5: "LRGB"}.get(sensor_type)
+            if datos.ndim == 2 and patron:
+                from AutoStrechSTF import miniatura_cfa_rgb
+                mini = miniatura_cfa_rgb(datos, patron, ancho=600)
+                mini = cv2.cvtColor(mini, cv2.COLOR_RGB2BGR)
+            else:
+                # Cámara mono (o ya en color): reducir y estirar por percentiles
+                if datos.ndim == 3:
+                    datos = datos.mean(axis=2)
+                d = datos.astype(np.float32)
+                alto = max(1, int(d.shape[0] * 600 / d.shape[1]))
+                d = cv2.resize(d, (600, alto), interpolation=cv2.INTER_AREA)
+                lo, hi = np.percentile(d, (0.5, 99.7))
+                mini = np.clip((d - lo) / max(hi - lo, 1e-6), 0, 1)
+                mini = (np.sqrt(mini) * 255).astype(np.uint8)
+            os.makedirs(os.path.dirname(RUTA_PREVIEW_CENTRADO), exist_ok=True)
+            cv2.imwrite(RUTA_PREVIEW_CENTRADO, mini, [cv2.IMWRITE_JPEG_QUALITY, 82])
+            with self._lock:
+                self.imagen_version += 1
+                self.imagen = {"version": self.imagen_version, "hora": time.strftime("%H:%M:%S"), "vuelta": vuelta}
+        except Exception as e:
+            log.warning("No se pudo generar la vista previa del centrado: %s", e)
 
     def _corregir(self, montura, objetivo, real, sincronizar, asentamiento):
         # Error en el cielo: hacia dónde hay que mover (objetivo - real)
