@@ -39,6 +39,9 @@
 
     <div class="card goto-info vacia">
         <div id="status"></div>
+        <!-- El centrado tiene su propio hueco: los mensajes de Wikipedia ("Resumen reproducido")
+             escriben en #status y no deben tapar el resultado, la foto ni los botones -->
+        <div id="centrado" class="centrado-bloque"></div>
         <div id="extraInfo"></div>
     </div>
 </div>
@@ -60,6 +63,8 @@
     .ayuda-busqueda { font-size: 12px; color: var(--text-3); margin: -4px 0 12px; }
     .goto-info { min-height: 120px; }
     #status { font-size: 18px; line-height: 1.4; word-wrap: break-word; }
+    .centrado-bloque { font-size: 16px; line-height: 1.4; }
+    .centrado-bloque:not(:empty) { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
     #extraInfo { font-size: 15px; margin-top: 10px; color: var(--text-2); }
     #extraInfo h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
     #extraInfo ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr; gap: 4px; }
@@ -351,7 +356,7 @@
                         sendWikipediaInfo(window.tipoObjeto);
                         // El servidor arranca el centrado automático al llegar (centrar_tras_goto):
                         // engancharse a él para mostrar las vueltas y el error
-                        setTimeout(() => engancharCentradoEnCurso("status", {
+                        setTimeout(() => engancharCentradoEnCurso("centrado", {
                             hablar: false, siguientePaso: true,
                             alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
                         }), 4000);
@@ -369,12 +374,12 @@
     // vueltas con el error en minutos de arco y resultado final hablado.
     function lanzarModoAutomatico() {
         document.getElementById("btnModoAutomatico").disabled = true;
-        iniciarCentrado("status", {
+        iniciarCentrado("centrado", {
             hablar: true, siguientePaso: true,
             alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
         });
     }
-    window.addEventListener("DOMContentLoaded", () => engancharCentradoEnCurso("status", {
+    window.addEventListener("DOMContentLoaded", () => engancharCentradoEnCurso("centrado", {
         hablar: true, siguientePaso: true,
         alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
     }));
@@ -574,7 +579,7 @@
     // Quitar el texto de ayuda de la columna derecha en cuanto haya algo que mostrar
     new MutationObserver(() => {
         const info = document.querySelector(".goto-info");
-        if (info && (document.getElementById("status").textContent.trim() || document.getElementById("extraInfo").textContent.trim())) info.classList.remove("vacia");
+        if (info && (document.getElementById("status").textContent.trim() || document.getElementById("centrado").textContent.trim() || document.getElementById("extraInfo").textContent.trim())) info.classList.remove("vacia");
     }).observe(document.querySelector(".goto-info"), { childList: true, subtree: true, characterData: true });
 
     document.addEventListener("DOMContentLoaded", function () {
