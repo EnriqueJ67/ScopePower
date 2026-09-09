@@ -352,8 +352,8 @@
                         clearInterval(interval);
                         document.getElementById("status").innerHTML = `🧭 Telescopio en <b>${objeto}</b>`;
                         document.getElementById("btnModoAutomatico").disabled = false;
-                        // Llama a sendWikipediaInfo pasando el tipo almacenado
-                        sendWikipediaInfo(window.tipoObjeto);
+                        // Leer la información del objeto (esperando al centrado si el PC va a hablar)
+                        sendWikipediaInfo(window.tipoObjeto, true);
                         // El servidor arranca el centrado automático al llegar (centrar_tras_goto):
                         // engancharse a él para mostrar las vueltas y el error
                         setTimeout(() => engancharCentradoEnCurso("centrado", {
@@ -504,7 +504,35 @@
     }
 
     // Función sendWikipediaInfo modificada para recibir el parámetro "tipo"
-    function sendWikipediaInfo(tipo) {
+    // Lee el resumen en el móvil sin solaparse con el altavoz del PC: si la voz del PC está
+    // activa y hay un centrado en marcha, espera a que termine (el PC dice el resultado al
+    // acabar) y a que el PC termine su frase. Con la voz del PC apagada, lee al momento.
+    function hablarSinPisarAlPC(utterance, esperarCentrado) {
+        const arrancar = () => {
+            if (infoUtterance !== utterance) return;               // el usuario pidió otra cosa mientras tanto
+            document.getElementById("status").innerHTML = "✅ Información obtenida, reproduciendo...";
+            speechSynthesis.cancel();                             // si había otra lectura en marcha, no se solapan
+            speechSynthesis.speak(utterance);
+            document.getElementById("btnInfoAudio").innerHTML = "⏸️ Pause info";
+        };
+        if (!window.vozPCActiva || !esperarCentrado) { arrancar(); return; }
+        let esperas = 0, vioCentrado = false;
+        const comprobar = () => {
+            fetch("/centrado/estado").then(r => r.json()).then(e => {
+                if (e.en_curso && esperas < 150) {                // como mucho 5 minutos
+                    esperas++; vioCentrado = true;
+                    document.getElementById("status").innerHTML = "⏸️ El resumen se leerá cuando termine el centrado (el PC está hablando)";
+                    setTimeout(comprobar, 2000);
+                } else {
+                    setTimeout(arrancar, vioCentrado ? 6000 : 0);  // el PC tarda unos segundos en decir el resultado
+                }
+            }).catch(arrancar);
+        };
+        // El centrado tras el GoTo lo arranca el servidor con un pequeño retraso: dar margen a que aparezca
+        setTimeout(comprobar, 3000);
+    }
+
+    function sendWikipediaInfo(tipo, esperarCentrado) {
         const objeto = document.getElementById("objeto").value.trim();
         if (!objeto) {
             document.getElementById("status").innerHTML = "❌ Debe ingresar un objeto celeste.";
@@ -546,10 +574,7 @@
                     };
                     // Guarda el utterance para poder gestionarlo posteriormente
                     infoUtterance = utterance;
-                    speechSynthesis.cancel();          // si había otra lectura en marcha, no se solapan
-                    speechSynthesis.speak(utterance);
-                    // Cambiar el texto del botón a "Pause info"
-                    document.getElementById("btnInfoAudio").innerHTML = "⏸️ Pause info";
+                    hablarSinPisarAlPC(utterance, esperarCentrado);
                 }
             })
             .catch(err => {
