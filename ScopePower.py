@@ -1172,7 +1172,38 @@ def estado_conexion():
         "sistema": coordenadas.sistema() if montura.esta_conectado() else None,
         "error_montura": montura.ultimo_error,
         "error_camara": camara.ultimo_error,
+        # Hora del PC: el móvil la compara con la suya y avisa si difieren (sin Internet el reloj del PC puede irse)
+        "hora_utc_ms": int(time.time() * 1000),
+        "hora_local": datetime.now().strftime("%H:%M:%S"),
     })
+
+
+# ───────────────────────── Ubicación del observatorio ─────────────────────────
+# Latitud, longitud y altitud viven en config.ini ([Observatorio]) y en las constantes
+# de este módulo. Se pueden cambiar desde Configuración, a mano o con el GPS del móvil.
+@app.route('/observatorio', methods=['GET', 'POST'])
+def observatorio():
+    global LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO
+    if request.method == 'POST':
+        datos = request.get_json(silent=True) or {}
+        try:
+            lat = float(datos["latitud"])
+            lon = float(datos["longitud"])
+            alt = float(datos.get("altitud", ALTITUD_OBSERVATORIO))
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Latitud y longitud deben ser números"}), 400
+        if not (-90 <= lat <= 90) or not (-180 <= lon <= 180) or not (-500 <= alt <= 9000):
+            return jsonify({"ok": False, "error": "Valores fuera de rango"}), 400
+        LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO = round(lat, 6), round(lon, 6), int(round(alt))
+        _guardar_en_config("Observatorio", {"latitud_observatorio": LATITUD_OBSERVATORIO,
+                                            "longitud_observatorio": LONGITUD_OBSERVATORIO,
+                                            "altitud_observatorio": ALTITUD_OBSERVATORIO})
+        log.info("Ubicación del observatorio cambiada: %.5f, %.5f, %d m (%s)", lat, lon, ALTITUD_OBSERVATORIO, datos.get("origen", "manual"))
+        voz.decir("Ubicación del observatorio actualizada")
+    return jsonify({"ok": True, "latitud": LATITUD_OBSERVATORIO, "longitud": LONGITUD_OBSERVATORIO,
+                    "altitud": ALTITUD_OBSERVATORIO, "hora_utc_ms": int(time.time() * 1000),
+                    "hora_local": datetime.now().strftime("%H:%M:%S"),
+                    "zona_horaria": time.strftime("%Z")})
 
 
 @app.route('/conectar-equipo', methods=['POST'])

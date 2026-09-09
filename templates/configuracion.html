@@ -88,6 +88,49 @@
     </div>
 
     <div class="columna">
+        <!-- ─── Ubicación del observatorio y hora del PC ───────────────── -->
+        <div class="card" id="hora">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-lugar"/></svg>Ubicación y hora</h3></div>
+            <p class="card-sub">
+                Con estos datos se calcula qué objetos están altos, los puntos de la alineación y la posición
+                de cometas y asteroides. La montura tiene su propia ubicación en la app SynScan.
+            </p>
+            <div class="dos-campos">
+                <div class="form-group">
+                    <label>Latitud (grados, + norte)</label>
+                    <input type="number" id="obs-lat" class="form-control" step="0.0001" min="-90" max="90">
+                </div>
+                <div class="form-group">
+                    <label>Longitud (grados, + este)</label>
+                    <input type="number" id="obs-lon" class="form-control" step="0.0001" min="-180" max="180">
+                </div>
+                <div class="form-group">
+                    <label>Altitud (m)</label>
+                    <input type="number" id="obs-alt" class="form-control" step="1" min="-500" max="9000">
+                </div>
+            </div>
+            <div class="acciones">
+                <button type="button" class="btn btn-primary" onclick="usarUbicacionMovil()"><svg><use href="#i-lugar"/></svg>Usar la ubicación de este móvil</button>
+                <button type="button" class="btn btn-secondary" onclick="guardarObservatorio('manual')"><svg><use href="#i-guardar"/></svg>Guardar</button>
+            </div>
+            <div id="estado-obs" class="estado mt-1"></div>
+            <hr>
+            <div class="fila entre">
+                <div>
+                    <div class="seccion-titulo" style="margin: 0 0 4px;">Hora del PC</div>
+                    <div id="hora-pc" class="estado" style="font-size: 16px; color: var(--text);">Consultando...</div>
+                </div>
+                <span class="chip chip-icono" id="chip-hora-detalle"><svg><use href="#i-reloj"/></svg><span id="hora-desfase">…</span></span>
+            </div>
+            <div id="hora-aviso" class="aviso aviso-warn mt-2" hidden>
+                <svg class="ico"><use href="#i-info"/></svg>
+                <span>El reloj del PC no coincide con el del móvil. Sin Internet, Windows no puede ponerlo en hora solo:
+                en el mini PC, botón derecho sobre el reloj, <b>Ajustar fecha y hora</b>, desactiva y activa
+                <b>Establecer la hora automáticamente</b> cuando tenga red, o pon la hora a mano. Un desfase de minutos
+                apenas afecta al GoTo (el centrado lo corrige), pero sí a "Esta noche", a la alineación y a los cometas.</span>
+            </div>
+        </div>
+
         <!-- ─── Direcciones para conectar ───────────────────────────── -->
         <div class="card">
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-red"/></svg>Conectar desde el móvil</h3></div>
@@ -289,7 +332,75 @@
             .catch(err => document.getElementById("estado-red").textContent = "❌ " + err);
     }
 
-    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); });
+    // ——— Ubicación del observatorio y hora del PC ———
+    function pintarObservatorio(d) {
+        document.getElementById("obs-lat").value = d.latitud;
+        document.getElementById("obs-lon").value = d.longitud;
+        document.getElementById("obs-alt").value = d.altitud;
+        pintarHora(d);
+    }
+    function pintarHora(d) {
+        if (!d.hora_utc_ms) return;
+        const desfase = Math.round((d.hora_utc_ms - Date.now()) / 1000);   // + = el PC va adelantado
+        document.getElementById("hora-pc").textContent = `${d.hora_local}` + (d.zona_horaria ? ` (${d.zona_horaria})` : "") + ` · móvil: ${new Date().toLocaleTimeString("es-ES")}`;
+        const chip = document.getElementById("chip-hora-detalle");
+        const s = Math.abs(desfase);
+        const texto = s < 2 ? "en hora" : (s >= 3600 ? Math.round(s / 3600) + " h" : (s >= 60 ? Math.round(s / 60) + " min" : s + " s")) + (desfase > 0 ? " adelantado" : " atrasado");
+        document.getElementById("hora-desfase").textContent = texto;
+        chip.className = "chip chip-icono " + (s < 60 ? "chip-ok" : "chip-warn");
+        document.getElementById("hora-aviso").hidden = s < 60;
+    }
+    function cargarObservatorio() {
+        fetch("/observatorio").then(r => r.json()).then(pintarObservatorio).catch(err => document.getElementById("estado-obs").textContent = "❌ " + err);
+    }
+    function guardarObservatorio(origen, extra) {
+        const est = document.getElementById("estado-obs");
+        const datos = Object.assign({
+            latitud: parseFloat(document.getElementById("obs-lat").value),
+            longitud: parseFloat(document.getElementById("obs-lon").value),
+            altitud: parseFloat(document.getElementById("obs-alt").value),
+            origen
+        }, extra || {});
+        est.className = "estado mt-1"; est.textContent = "⏳ Guardando...";
+        fetch("/observatorio", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || "No se pudo guardar"); return; }
+                pintarObservatorio(d);
+                est.className = "estado ok mt-1";
+                est.textContent = origen === "gps" ? "✅ Ubicación del móvil guardada en el PC" : "✅ Ubicación guardada";
+            })
+            .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
+    }
+    function usarUbicacionMovil() {
+        const est = document.getElementById("estado-obs");
+        if (!navigator.geolocation) { est.className = "estado err mt-1"; est.textContent = "❌ Este navegador no da la ubicación."; return; }
+        // Chrome solo da el GPS en https; por http falla con "permiso denegado" y se explica en la ventana de ayuda
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>Pidiendo la posición al móvil (puede tardar unos segundos al aire libre)...';
+        navigator.geolocation.getCurrentPosition(pos => {
+            const c = pos.coords;
+            document.getElementById("obs-lat").value = c.latitude.toFixed(5);
+            document.getElementById("obs-lon").value = c.longitude.toFixed(5);
+            if (c.altitude !== null && c.altitude !== undefined) document.getElementById("obs-alt").value = Math.round(c.altitude);
+            guardarObservatorio("gps", { precision_m: Math.round(c.accuracy || 0) });
+        }, err => {
+            est.className = "estado err mt-1";
+            if (err.code === err.PERMISSION_DENIED) {
+                est.textContent = "❌ El navegador no ha dado la ubicación.";
+                if (!window.isSecureContext) mostrarModalVoz("ubicacion");
+                else est.textContent += " Permite la ubicación para este sitio en los ajustes de Chrome (candado junto a la dirección).";
+            } else if (err.code === err.TIMEOUT) {
+                est.textContent = "❌ El móvil no ha encontrado la posición a tiempo. Prueba al aire libre, con el GPS activado.";
+            } else {
+                est.textContent = "❌ No se pudo obtener la posición: " + err.message;
+            }
+        }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 60000 });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); });
 </script>
+
+{% include '_modal_voz.html' %}
+<script src="{{ url_for('static', filename='js/ayuda_voz.js') }}"></script>
 
 {% endblock %}

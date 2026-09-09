@@ -64,6 +64,8 @@
     <symbol id="i-pantalla-salir" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M20 15h-5v5M4 15h5v5"/></symbol>
     <symbol id="i-arriba" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></symbol>
     <symbol id="i-abajo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-reloj" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-lugar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.3-6-11a6 6 0 0112 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></symbol>
     <symbol id="i-sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
 </svg>
 
@@ -78,6 +80,8 @@
         {% if session.get('usuario') %}
         <span class="chip chip-icono" id="chip-montura" title="Montura"><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">Montura</span></span>
         <span class="chip chip-icono" id="chip-camara" title="Cámara"><svg><use href="#i-foto"/></svg><span class="oculto-movil">Cámara</span></span>
+        <!-- Solo aparece si el reloj del PC difiere del móvil más de un minuto -->
+        <a class="chip chip-icono chip-warn" id="chip-hora" href="/configuracion#hora" hidden><svg><use href="#i-reloj"/></svg><span class="oculto-movil" id="chip-hora-texto"></span></a>
         {% endif %}
         <button type="button" class="header-boton" id="btn-pantalla" onclick="alternarPantallaCompleta()" title="Pantalla completa" hidden><svg><use id="btn-pantalla-icono" href="#i-pantalla"/></svg></button>
         <button type="button" class="header-boton" id="btn-tema" onclick="alternarTema()" title="Cambiar entre tema noche (rojo) y oscuro"><svg><use href="#i-tema"/></svg></button>
@@ -159,7 +163,24 @@
     // Se consulta cada 15 s; las páginas pueden escuchar el evento "estado-equipo"
     // (window.estadoEquipo guarda el último) y pedir un refresco con refrescarEstadoEquipo().
     window.estadoEquipo = null;
+    // Diferencia entre el reloj del PC y el del móvil (el móvil tiene hora de red; el PC en el
+    // campo, sin Internet, puede irse). Positivo = el PC va adelantado.
+    window.desfaseHoraPC = null;
+    function comprobarHora(d) {
+        if (!d.hora_utc_ms) return;
+        window.desfaseHoraPC = Math.round((d.hora_utc_ms - Date.now()) / 1000);
+        const chip = document.getElementById("chip-hora");
+        if (!chip) return;
+        const s = Math.abs(window.desfaseHoraPC);
+        if (s < 60) { chip.hidden = true; return; }
+        const texto = s >= 3600 ? Math.round(s / 3600) + " h" : Math.round(s / 60) + " min";
+        document.getElementById("chip-hora-texto").textContent = texto;
+        chip.title = `El reloj del PC va ${window.desfaseHoraPC > 0 ? "adelantado" : "atrasado"} ${texto} respecto a este móvil. Toca para ver cómo corregirlo.`;
+        chip.hidden = false;
+    }
+
     function pintarChipsEquipo(d) {
+        comprobarHora(d);
         const m = document.getElementById("chip-montura"), c = document.getElementById("chip-camara");
         if (!m || !c) return;
         const clase = (ok, busy) => "chip chip-icono " + (busy ? "chip-busy" : (ok ? "chip-ok" : "chip-err"));

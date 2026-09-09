@@ -25,6 +25,10 @@ function mostrarModalVoz(motivo) {
     if (motivo === "http") {
         cab.textContent = "La voz no funciona todavía en este móvil";
         txt.textContent = "No es un fallo de ScopePower: Chrome solo permite el micrófono en direcciones https, y esta va por http. Se arregla en un minuto diciéndole a Chrome que trate esta dirección como segura:";
+    } else if (motivo === "ubicacion") {
+        pasos.hidden = false; nota.hidden = false;
+        cab.textContent = "La ubicación del móvil no está disponible";
+        txt.textContent = "Chrome solo da la posición GPS en direcciones https, y esta va por http. Se arregla igual que la voz, diciéndole a Chrome que trate esta dirección como segura (y aceptando el permiso de ubicación cuando lo pida):";
     } else if (motivo === "red") {
         cab.textContent = "La voz necesita Internet en el móvil";
         txt.textContent = "Chrome reconoce la voz en los servidores de Google. El móvil está conectado a la wifi del telescopio pero sin salida a Internet: activa los datos móviles (Chrome los usará para la voz) o conéctate a una wifi con Internet.";
