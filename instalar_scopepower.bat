@@ -94,6 +94,30 @@ REM pywin32 necesita un paso extra para registrar sus DLL (COM/ASCOM)
 "%VENV%\Scripts\python.exe" "%VENV%\Scripts\pywin32_postinstall.py" -install >nul 2>&1
 echo [OK] Dependencias instaladas.
 
+REM ---- 3b) Permiso "Cambiar la hora del sistema" para los usuarios ----
+REM       Con el se puede poner el PC en hora desde el movil (Configuracion > Ubicacion y hora)
+REM       sin ser administrador. Hace efecto al iniciar sesion de nuevo en Windows.
+REM       secedit exporta en UTF-16, por eso la comprobacion y el cambio se hacen en PowerShell.
+set "SECTMP=%TEMP%\scopepower_derechos.inf"
+secedit /export /cfg "%SECTMP%" /areas USER_RIGHTS >nul 2>&1
+powershell -NoProfile -Command "$f='%SECTMP%'; if(-not (Test-Path $f)){exit 2}; $c=Get-Content $f; $l=$c | Where-Object { $_ -match '^SeSystemtimePrivilege' }; if($l -and $l -match 'S-1-5-32-545'){exit 3}; if($l){ $c=$c -replace '^(SeSystemtimePrivilege\s*=\s*)(.+)$','${1}${2},*S-1-5-32-545' } else { $c=$c -replace '^(\[Privilege Rights\])$','${1}' + [Environment]::NewLine + 'SeSystemtimePrivilege = *S-1-5-32-545' }; Set-Content -Path $f -Value $c -Encoding Unicode; exit 0"
+set "CODIGO_SEC=%ERRORLEVEL%"
+if "%CODIGO_SEC%"=="3" (
+    echo [OK] Permiso para cambiar la hora ya concedido a los usuarios.
+) else if "%CODIGO_SEC%"=="0" (
+    secedit /configure /db "%TEMP%\scopepower_derechos.sdb" /cfg "%SECTMP%" /areas USER_RIGHTS >nul 2>&1
+    if !ERRORLEVEL! EQU 0 (
+        echo [OK] Los usuarios pueden poner el PC en hora desde el movil ^(hace efecto al volver a iniciar sesion^).
+    ) else (
+        echo [AVISO] No se pudo conceder el permiso para cambiar la hora. Se puede dar a mano en secpol.msc:
+        echo         Directivas locales ^> Asignacion de derechos de usuario ^> Cambiar la hora del sistema ^> anadir Usuarios.
+    )
+) else (
+    echo [AVISO] No se pudo leer la directiva de seguridad; el permiso para cambiar la hora no se ha tocado.
+)
+del "%SECTMP%" >nul 2>&1
+del "%TEMP%\scopepower_derechos.sdb" >nul 2>&1
+
 REM ---- 4) Firewall: el movil tiene que llegar al puerto 5000 ----
 netsh advfirewall firewall show rule name="ScopePower 5000" >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (

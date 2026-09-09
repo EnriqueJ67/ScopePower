@@ -124,11 +124,13 @@
             </div>
             <div id="hora-aviso" class="aviso aviso-warn mt-2" hidden>
                 <svg class="ico"><use href="#i-info"/></svg>
-                <span>El reloj del PC no coincide con el del móvil. Sin Internet, Windows no puede ponerlo en hora solo:
-                en el mini PC, botón derecho sobre el reloj, <b>Ajustar fecha y hora</b>, desactiva y activa
-                <b>Establecer la hora automáticamente</b> cuando tenga red, o pon la hora a mano. Un desfase de minutos
-                apenas afecta al GoTo (el centrado lo corrige), pero sí a "Esta noche", a la alineación y a los cometas.</span>
+                <span>El reloj del PC no coincide con el del móvil. Un desfase de minutos apenas afecta al GoTo
+                (el centrado lo corrige), pero sí a "Esta noche", a la alineación y a los cometas.</span>
             </div>
+            <div class="acciones mt-2">
+                <button type="button" class="btn btn-secondary" id="btn-poner-hora" onclick="ponerPCEnHora()"><svg><use href="#i-reloj"/></svg>Poner el PC en hora con este móvil</button>
+            </div>
+            <div id="estado-hora" class="estado mt-1"></div>
         </div>
 
         <!-- ─── Direcciones para conectar ───────────────────────────── -->
@@ -350,6 +352,20 @@
         chip.className = "chip chip-icono " + (s < 60 ? "chip-ok" : "chip-warn");
         document.getElementById("hora-aviso").hidden = s < 60;
     }
+    function ponerPCEnHora() {
+        const est = document.getElementById("estado-hora");
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>Enviando la hora del móvil al PC...';
+        fetch("/hora", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hora_utc_ms: Date.now() }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + d.error; return; }
+                est.className = "estado ok mt-1";
+                est.textContent = `✅ PC en hora (corregidos ${d.corregido_s > 0 ? "+" : ""}${d.corregido_s} s)`;
+                pintarHora(d);
+                if (window.refrescarEstadoEquipo) refrescarEstadoEquipo();   // quita el aviso de la cabecera
+            })
+            .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
+    }
     function cargarObservatorio() {
         fetch("/observatorio").then(r => r.json()).then(pintarObservatorio).catch(err => document.getElementById("estado-obs").textContent = "❌ " + err);
     }
@@ -368,7 +384,8 @@
                 if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || "No se pudo guardar"); return; }
                 pintarObservatorio(d);
                 est.className = "estado ok mt-1";
-                est.textContent = origen === "gps" ? "✅ Ubicación del móvil guardada en el PC" : "✅ Ubicación guardada";
+                est.textContent = (origen === "gps" ? "✅ Ubicación del móvil guardada en el PC" : "✅ Ubicación guardada")
+                    + (d.stellarium ? " y en Stellarium" : (d.stellarium === false ? " (Stellarium no estaba abierto)" : ""));
             })
             .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
     }

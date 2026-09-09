@@ -19,7 +19,9 @@ con internet:
 1. Instala Python 3.11 si no está (winget o descarga de python.org).
 2. Crea un entorno propio en `%LOCALAPPDATA%\ScopePower\venv` (fuera de OneDrive).
 3. Instala las librerías de `requirements.txt` (opencv, astropy, photutils, ...).
-4. Abre el puerto 5000 en el firewall para que el móvil pueda conectar.
+4. Abre el puerto 5000 en el firewall para que el móvil pueda conectar, y concede a los
+   usuarios el permiso "Cambiar la hora del sistema" (para poner el PC en hora desde el
+   móvil; hace efecto al volver a iniciar sesión en Windows).
 5. Crea el acceso directo **ScopePower** en el escritorio.
 6. Comprueba ASCOM, drivers, ASTAP, Stellarium, SynScan Pro y la voz en español.
 

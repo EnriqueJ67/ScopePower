@@ -1200,10 +1200,48 @@ def observatorio():
                                             "altitud_observatorio": ALTITUD_OBSERVATORIO})
         log.info("Ubicación del observatorio cambiada: %.5f, %.5f, %d m (%s)", lat, lon, ALTITUD_OBSERVATORIO, datos.get("origen", "manual"))
         voz.decir("Ubicación del observatorio actualizada")
+        stellarium = _stellarium_poner_ubicacion(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+    else:
+        stellarium = None
     return jsonify({"ok": True, "latitud": LATITUD_OBSERVATORIO, "longitud": LONGITUD_OBSERVATORIO,
                     "altitud": ALTITUD_OBSERVATORIO, "hora_utc_ms": int(time.time() * 1000),
                     "hora_local": datetime.now().strftime("%H:%M:%S"),
-                    "zona_horaria": time.strftime("%Z")})
+                    "zona_horaria": time.strftime("%Z"), "stellarium": stellarium})
+
+
+def _stellarium_poner_ubicacion(lat, lon, alt):
+    """Misma ubicación en Stellarium (si está abierto), para que sus alturas y acimuts coincidan."""
+    try:
+        r = requests.post("http://localhost:8090/api/location/setlocationfields",
+                          data={"latitude": lat, "longitude": lon, "altitude": int(alt), "name": "ScopePower", "planet": "Earth"},
+                          timeout=3)
+        ok = r.status_code == 200
+        log.info("Ubicación enviada a Stellarium: %s", "ok" if ok else f"respuesta {r.status_code}")
+        return ok
+    except Exception as e:
+        log.info("Stellarium no disponible para actualizar la ubicación: %s", e)
+        return False
+
+
+@app.route('/hora', methods=['POST'])
+def poner_pc_en_hora():
+    """Pone el reloj del PC con la hora del móvil (milisegundos UTC, como Date.now())."""
+    import hora_sistema
+    datos = request.get_json(silent=True) or {}
+    try:
+        hora_ms = float(datos["hora_utc_ms"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Falta la hora del móvil"}), 400
+    try:
+        antes = hora_sistema.poner_en_hora(hora_ms)
+    except hora_sistema.SinPermisoHora as e:
+        return jsonify({"ok": False, "error": str(e), "sin_permiso": True}), 403
+    except Exception as e:
+        log.exception("No se pudo poner el PC en hora")
+        return jsonify({"ok": False, "error": f"No se pudo cambiar la hora: {e}"}), 500
+    voz.decir("Reloj del ordenador puesto en hora")
+    return jsonify({"ok": True, "corregido_s": round(-antes, 1), "hora_utc_ms": int(time.time() * 1000),
+                    "hora_local": datetime.now().strftime("%H:%M:%S"), "zona_horaria": time.strftime("%Z")})
 
 
 @app.route('/conectar-equipo', methods=['POST'])
