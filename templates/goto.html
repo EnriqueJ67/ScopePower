@@ -555,11 +555,11 @@
                 if (data.error) {
                     document.getElementById("status").innerHTML = "❌ " + data.error;
                 } else if (data.wikipedia_info) {
-                    let textoParaHablar = "";
-                    if (tipo) {
-                        textoParaHablar = `${objeto} (${tipo}): ${data.wikipedia_info}`;
-                    } else {
-                        textoParaHablar = `${objeto}: ${data.wikipedia_info}`;
+                    // El servidor manda el texto ya preparado para voz (frase de datos + descripción);
+                    // el montaje antiguo queda por si una versión vieja no lo envía
+                    let textoParaHablar = data.texto_hablar || "";
+                    if (!textoParaHablar) {
+                        textoParaHablar = tipo ? `${objeto} (${tipo}): ${data.wikipedia_info}` : `${objeto}: ${data.wikipedia_info}`;
                     }
                     document.getElementById("status").innerHTML = "✅ Información obtenida, reproduciendo...";
                     // Crear el utterance

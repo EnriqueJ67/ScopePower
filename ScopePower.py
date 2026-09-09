@@ -2381,11 +2381,16 @@ def estado_telescopio():
 
 @app.route("/info-wikipedia", methods=["POST"])
 def info_wikipedia():
-    """Resumen de Wikipedia en español, con caché en info_objetos/ (funciona sin internet la 2ª vez)."""
+    """
+    Descripción del objeto para leer en el móvil (descripciones.py): catálogo propio con
+    texto escrito para voz; si no está, caché de Wikipedia en info_objetos/; si no, Wikipedia.
+    """
     raw_objeto = request.form.get("objeto", "").strip()
     if not raw_objeto:
         return jsonify({"error": "Debe proporcionar un nombre de objeto."})
-    return jsonify({"wikipedia_info": recorridos.obten_resumen_wiki(raw_objeto, reemplazar_numeros_en_texto)})
+    import descripciones
+    d = descripciones.describir(raw_objeto, reemplazar_numeros_en_texto)
+    return jsonify({"wikipedia_info": d["texto"], "texto_hablar": d["texto_hablar"], "fuente": d["fuente"], "objeto": d["objeto"]})
 
 
 # Generar el diccionario de números en palabras hasta 9999

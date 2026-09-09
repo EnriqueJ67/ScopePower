@@ -116,6 +116,20 @@ def nombre_iau(raw):
 #  Wikipedia con caché en info_objetos/
 # ─────────────────────────────────────────────────────────────────────────────
 
+def clave_y_slug(raw_objeto, reemplazar_numeros=None):
+    """'M 13' -> ('m13', 'm13'): clave de búsqueda en Wikipedia y nombre del fichero de caché."""
+    key = raw_objeto.strip().lower()
+    key = re.sub(r'([a-z])\s+(?=\d)', r"\1", key)
+    if reemplazar_numeros:
+        key = reemplazar_numeros(key)
+    slug = re.sub(r"[^\w\- ]", "", key).replace(" ", "_")
+    return key, slug
+
+
+def ruta_cache_wiki(raw_objeto, reemplazar_numeros=None):
+    return os.path.join(CARPETA_INFO, f"{clave_y_slug(raw_objeto, reemplazar_numeros)[1]}.txt")
+
+
 def obten_resumen_wiki(raw_objeto, reemplazar_numeros=None):
     """
     Resumen en español de Wikipedia para `raw_objeto`, probando variantes y
@@ -124,11 +138,7 @@ def obten_resumen_wiki(raw_objeto, reemplazar_numeros=None):
     convierte "eme trece" en "m13".
     """
     os.makedirs(CARPETA_INFO, exist_ok=True)
-    key = raw_objeto.strip().lower()
-    key = re.sub(r'([a-z])\s+(?=\d)', r"\1", key)
-    if reemplazar_numeros:
-        key = reemplazar_numeros(key)
-    slug = re.sub(r"[^\w\- ]", "", key).replace(" ", "_")
+    key, slug = clave_y_slug(raw_objeto, reemplazar_numeros)
     ruta = os.path.join(CARPETA_INFO, f"{slug}.txt")
     if os.path.isfile(ruta):
         with open(ruta, encoding="utf-8") as f:
