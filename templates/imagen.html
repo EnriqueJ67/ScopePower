@@ -7,7 +7,7 @@
 <div class="pagina-cabecera">
     <div>
         <h1 class="pagina-titulo">Foto de prueba</h1>
-        <p class="pagina-sub">Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.</p>
+        <p class="pagina-sub" id="sub-foto">Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.</p>
     </div>
 </div>
 
@@ -32,6 +32,29 @@
             </div>
             <div id="estado-foto" class="estado mt-2"></div>
             <div id="estado-sync" class="estado"></div>
+        </div>
+
+        <!-- ─── Modo día: exposición automática para Sol (con filtro), Luna y paisaje ─── -->
+        <div class="card" id="card-dia">
+            <div class="card-header">
+                <h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>Modo día</h3>
+                <label class="switch"><input type="checkbox" id="modo-dia" onchange="cambiarModoDia()"> Activado</label>
+            </div>
+            <div id="dia-cuerpo" hidden>
+                <p class="card-sub">La app busca sola la exposición, de microsegundos a segundos, con la ganancia al mínimo y sin darks. Elige qué vas a fotografiar:</p>
+                <div class="segmentado" id="dia-objetivo">
+                    <button type="button" data-v="sol" onclick="elegirObjetivoDia('sol')">☀️ Sol</button>
+                    <button type="button" data-v="luna" onclick="elegirObjetivoDia('luna')">🌙 Luna</button>
+                    <button type="button" data-v="paisaje" onclick="elegirObjetivoDia('paisaje')">🏔️ Paisaje</button>
+                </div>
+                <div id="dia-aviso-sol" class="aviso aviso-err mt-2" hidden>
+                    <svg class="ico"><use href="#i-info"/></svg>
+                    <span><b>Filtro solar obligatorio</b>, delante del objetivo y bien sujeto, y tapa el buscador. Sin filtro, el Sol
+                    destroza el sensor en segundos y ciega a quien mire por el telescopio. La app no puede comprobar que el filtro está puesto.</span>
+                </div>
+                <div id="dia-info" class="texto-3 mt-2" style="font-size: 13px;"></div>
+                <div id="dia-intentos" class="texto-3 mt-1" style="font-size: 13px;"></div>
+            </div>
         </div>
 
         <div class="card">
@@ -81,7 +104,122 @@
         fetch("/estado-captura").then(r => r.json()).then(pintarProgreso).catch(() => {});
     }
 
+    // ——— Modo día ———
+    let modoDia = false, objetivoDia = "paisaje", solConfirmado = false, sondeoDia = null;
+    let seguimientoCambiado = false;      // se puso solar/lunar: al salir del modo día se vuelve a sidéreo
+    const NOMBRE_OBJETIVO = { sol: "Sol", luna: "Luna", paisaje: "paisaje" };
+
+    function pintarModoDia() {
+        document.getElementById("modo-dia").checked = modoDia;
+        document.getElementById("dia-cuerpo").hidden = !modoDia;
+        document.getElementById("card-dia").classList.toggle("card-acento", modoDia);
+        document.querySelectorAll("#dia-objetivo button").forEach(b => b.classList.toggle("activo", b.dataset.v === objetivoDia));
+        document.getElementById("dia-aviso-sol").hidden = !(modoDia && objetivoDia === "sol");
+        document.getElementById("btn-foto").innerHTML = modoDia
+            ? `<svg><use href="#i-sol"/></svg>Foto de día: ${NOMBRE_OBJETIVO[objetivoDia]}`
+            : `<svg><use href="#i-foto"/></svg>Hacer foto`;
+        document.getElementById("btn-sync").hidden = modoDia;     // de día no hay plate solving
+        document.getElementById("sub-foto").textContent = modoDia
+            ? "Modo día: la exposición se ajusta sola. Apunta con GoTo (Sol, Luna) y afina con el control manual."
+            : "Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.";
+    }
+    function cambiarModoDia() {
+        modoDia = document.getElementById("modo-dia").checked;
+        pintarModoDia();
+        guardarPreferencias({ modo_dia: modoDia ? "on" : "off" });
+        if (!modoDia && seguimientoCambiado) {
+            seguimientoCambiado = false;
+            fetch("/foto-dia/seguimiento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ velocidad: "sidereo" }) })
+                .then(r => r.json()).then(d => { document.getElementById("estado-foto").textContent = d.ok ? "✅ Montura de vuelta a seguimiento sidéreo" : "⚠️ " + d.mensaje; }).catch(() => {});
+        }
+    }
+    function elegirObjetivoDia(v) {
+        objetivoDia = v;
+        pintarModoDia();
+        pintarUltimasDia();
+        guardarPreferencias({ foto_dia_objetivo: v });
+    }
+    function guardarPreferencias(datos) {
+        fetch("/preferencias", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) }).catch(() => {});
+    }
+    let ultimasDia = {};
+    function pintarUltimasDia() {
+        const u = ultimasDia[objetivoDia];
+        document.getElementById("dia-info").textContent = u ? `Última exposición buena para ${NOMBRE_OBJETIVO[objetivoDia]}: ${u.texto}. La búsqueda empieza ahí.` : "Todavía no hay una exposición guardada para este objetivo; la búsqueda empieza desde un valor típico.";
+    }
+    function textoIntentos(e) {
+        if (!e.intentos || !e.intentos.length) return "";
+        return "Pruebas: " + e.intentos.map(i => `${formatearExp(i.exposicion)} → ${Math.round(100 * i.nivel)} %`).join(" · ");
+    }
+    function formatearExp(s) {
+        if (s === null || s === undefined) return "?";
+        if (s < 0.001) return Math.round(s * 1e6) + " µs";
+        if (s < 1) return (s * 1000).toFixed(1).replace(".0", "") + " ms";
+        return s.toFixed(2).replace(".00", "") + " s";
+    }
+
+    function hacerFotoDia() {
+        const btn = document.getElementById("btn-foto");
+        const est = document.getElementById("estado-foto");
+        if (objetivoDia === "sol" && !solConfirmado) {
+            if (!confirm("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio.")) return;
+            solConfirmado = true;
+        }
+        btn.disabled = true;
+        document.getElementById("btn-cancelar").style.display = "inline-flex";
+        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Preparando la cámara...';
+        document.getElementById("dia-intentos").textContent = "";
+        fetch("/foto-dia/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); terminarFotoDia(); return; }
+                if (!sondeoDia) sondeoDia = setInterval(sondearFotoDia, 700);
+                sondearFotoDia();
+            })
+            .catch(err => { est.className = "estado err mt-2"; est.textContent = "❌ " + err; terminarFotoDia(); });
+    }
+    function sondearFotoDia() {
+        fetch("/foto-dia/estado").then(r => r.json()).then(e => {
+            const est = document.getElementById("estado-foto");
+            document.getElementById("dia-intentos").textContent = textoIntentos(e);
+            if (e.en_curso) {
+                est.className = "estado mt-2";
+                est.innerHTML = `<span class="spinner"></span>${e.mensaje}`;
+                pintarProgreso(e.captura);
+                return;
+            }
+            clearInterval(sondeoDia); sondeoDia = null; pintarProgreso(null);
+            if (e.terminado) {
+                if (e.error) { est.className = "estado err mt-2"; est.textContent = "❌ " + e.error; }
+                else {
+                    est.className = "estado " + (e.saturada ? "warn" : "ok") + " mt-2";
+                    est.textContent = (e.saturada ? "⚠️ " : "✅ ") + e.mensaje + (e.ganancia !== null && e.ganancia !== undefined ? ` · ganancia ${e.ganancia}` : "");
+                    document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
+                    if (e.seguimiento) seguimientoCambiado = true;
+                }
+                if (e.ultimas) { ultimasDia = e.ultimas; pintarUltimasDia(); }
+            }
+            terminarFotoDia();
+        }).catch(err => { document.getElementById("estado-foto").textContent = "❌ " + err; clearInterval(sondeoDia); sondeoDia = null; terminarFotoDia(); });
+    }
+    function terminarFotoDia() {
+        document.getElementById("btn-foto").disabled = false;
+        document.getElementById("btn-cancelar").style.display = "none";
+    }
+
+    // Preferencias guardadas (modo día activado y objetivo) y últimas exposiciones
+    fetch("/preferencias").then(r => r.json()).then(p => {
+        if (p.foto_dia_objetivo && NOMBRE_OBJETIVO[p.foto_dia_objetivo]) objetivoDia = p.foto_dia_objetivo;
+        modoDia = p.modo_dia === "on";
+        pintarModoDia();
+    }).catch(() => pintarModoDia());
+    fetch("/foto-dia/estado").then(r => r.json()).then(e => {
+        ultimasDia = e.ultimas || {}; pintarUltimasDia();
+        if (e.en_curso && !sondeoDia) { document.getElementById("btn-foto").disabled = true; sondeoDia = setInterval(sondearFotoDia, 700); }
+    }).catch(() => {});
+
     function hacerFoto() {
+        if (modoDia) { hacerFotoDia(); return; }
         const btn = document.getElementById("btn-foto");
         btn.disabled = true;
         document.getElementById("btn-cancelar").style.display = "inline-flex";

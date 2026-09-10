@@ -45,6 +45,7 @@ import darks
 import flats
 import secretos
 import centrado
+import foto_dia
 import alineacion
 import voz
 import esta_noche
@@ -392,6 +393,8 @@ PREFERENCIAS = {
     "apilado_paneles": ("Interfaz", "apilado_paneles", "json"),
     "opcion_dark": ("Interfaz", "opcion_dark", "texto"),
     "numero_darks": ("Dispositivos", "numero_darks", "entero"),
+    "modo_dia": ("Interfaz", "modo_dia", "texto"),                 # "on"/"off": la Foto de prueba arranca en modo día
+    "foto_dia_objetivo": ("Interfaz", "foto_dia_objetivo", "texto"),   # sol | luna | paisaje
 }
 
 
@@ -2613,6 +2616,72 @@ def estado_captura_actual():
     estado = estado_captura.como_dict()
     estado["camara_ocupada"] = camara.ocupado
     return jsonify(estado)
+
+
+# ───────────────────────── Foto de día (exposición automática) ─────────────────────────
+def _config_foto_dia():
+    """Última exposición que funcionó para cada objetivo ([FotoDia] en config.ini)."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    f = cfg["FotoDia"] if "FotoDia" in cfg else {}
+    salida = {}
+    for objetivo in foto_dia.OBJETIVOS:
+        try:
+            salida[objetivo] = float(f.get(f"exposicion_{objetivo}", 0)) or None
+        except ValueError:
+            salida[objetivo] = None
+    return salida
+
+
+@app.route('/foto-dia/iniciar', methods=["POST"])
+def foto_dia_iniciar():
+    """Foto de prueba en modo día: busca sola la exposición (Sol con filtro, Luna o paisaje)."""
+    datos = request.get_json(silent=True) or {}
+    objetivo = str(datos.get("objetivo", "paisaje"))
+    if objetivo not in foto_dia.OBJETIVOS:
+        return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    ultimas = _config_foto_dia()
+
+    def _al_terminar(estado):
+        # Solo se recuerda una exposición que llegó cerca del nivel buscado (ni saturada ni a oscuras)
+        objetivo_nivel = foto_dia.OBJETIVOS[objetivo]["nivel"]
+        if not estado["error"] and estado["exposicion"] and not estado["saturada"]                 and estado["nivel"] is not None and estado["nivel"] >= 0.5 * objetivo_nivel:
+            _guardar_en_config("FotoDia", {f"exposicion_{objetivo}": f"{estado['exposicion']:.6f}"})
+    try:
+        foto_dia.trabajo_foto_dia.iniciar(camara, objetivo, _dispositivos()["binning"],
+                                          exposicion_inicial=ultimas.get(objetivo), montura=montura,
+                                          ruta_fits=RUTA_IMAGEN, ruta_png=RUTA_IMAGEN_PNG,
+                                          al_terminar=_al_terminar, voz=voz)
+    except (RuntimeError, ValueError) as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    voz.decir(f"Foto de día de {foto_dia.OBJETIVOS[objetivo]['nombre']}", categoria="capturas")
+    return jsonify({"ok": True, "objetivo": objetivo, "exposicion_inicial": ultimas.get(objetivo)})
+
+
+@app.route('/foto-dia/estado')
+def foto_dia_estado():
+    e = foto_dia.trabajo_foto_dia.estado()
+    e["ultimas"] = {k: {"s": v, "texto": foto_dia.formatear_exposicion(v)} for k, v in _config_foto_dia().items() if v}
+    return jsonify(e)
+
+
+@app.route('/foto-dia/seguimiento', methods=["POST"])
+def foto_dia_seguimiento():
+    """Velocidad de seguimiento de la montura: sidereo | solar | lunar (al salir del modo día se vuelve a sidéreo)."""
+    datos = request.get_json(silent=True) or {}
+    velocidad = str(datos.get("velocidad", "sidereo"))
+    if velocidad not in foto_dia.VELOCIDADES:
+        return jsonify({"ok": False, "error": "Velocidad desconocida"}), 400
+    if not montura.esta_conectado():
+        return jsonify({"ok": False, "error": "La montura no está conectada"}), 409
+    ok = foto_dia.poner_seguimiento(montura, velocidad)
+    return jsonify({"ok": ok, "velocidad": velocidad,
+                    "mensaje": f"Seguimiento {velocidad}" if ok else "El driver de la montura no admite cambiar la velocidad de seguimiento"})
 
 
 @app.route('/cancelar-captura', methods=["POST"])
