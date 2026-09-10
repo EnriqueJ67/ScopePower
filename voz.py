@@ -136,18 +136,26 @@ class Locutor:
                 sapi = self._inicializar()
                 if sapi is None:
                     continue
-            try:
-                if self._aplicar_ajustes:
-                    self._ajustar(sapi)
-                    self._aplicar_ajustes = False
-                with self._lock:
-                    self.ultimo_texto = texto
-                sapi.Speak(texto)   # síncrono dentro de este hilo; no bloquea a nadie más
-            except Exception as e:
-                with self._lock:
-                    self.ultimo_error = str(e)
-                log.warning("Error hablando: %s", e)
-                sapi = None   # reintentar inicialización en el siguiente aviso
+            # Si SAPI falla (p. ej. SPERR_NOT_FOUND al apagar, o la salida de audio
+            # que cambia), se vuelve a crear la voz y se reintenta UNA vez el mismo
+            # texto, para no perder el aviso
+            for intento in (1, 2):
+                try:
+                    if self._aplicar_ajustes:
+                        self._ajustar(sapi)
+                        self._aplicar_ajustes = False
+                    with self._lock:
+                        self.ultimo_texto = texto
+                    sapi.Speak(texto)   # síncrono dentro de este hilo; no bloquea a nadie más
+                    break
+                except Exception as e:
+                    with self._lock:
+                        self.ultimo_error = str(e)
+                    log.warning("Error hablando «%s» (intento %d): %s", texto, intento, e)
+                    sapi = self._inicializar() if intento == 1 else None
+                    self._aplicar_ajustes = True
+                    if sapi is None:
+                        break
 
     def _inicializar(self):
         try:
@@ -177,10 +185,17 @@ class Locutor:
             elegida = next((v for v in candidatas if preferida in v.GetDescription().lower()), None)
         if elegida is None:
             # Preferir una voz en español (LCID que termina en 0A: 40A es-ES, C0A es-ES, 80A es-MX...)
-            elegida = next((v for v in candidatas
-                            if str(v.GetAttribute("Language")).upper().endswith("0A")), None)
+            def _idioma(v):
+                try:
+                    return str(v.GetAttribute("Language")).upper()
+                except Exception:      # algunas voces no declaran idioma: SPERR_NOT_FOUND
+                    return ""
+            elegida = next((v for v in candidatas if _idioma(v).endswith("0A")), None)
         if elegida is not None:
-            sapi.Voice = elegida
+            try:
+                sapi.Voice = elegida
+            except Exception as e:
+                log.warning("No se pudo seleccionar la voz %s: %s", elegida.GetDescription(), e)
         sapi.Volume = max(0, min(100, cfg["volumen"]))
         sapi.Rate = max(-10, min(10, cfg["velocidad"]))
         with self._lock:
