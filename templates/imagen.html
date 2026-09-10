@@ -54,6 +54,38 @@
                 </div>
                 <div id="dia-info" class="texto-3 mt-2" style="font-size: 13px;"></div>
                 <div id="dia-intentos" class="texto-3 mt-1" style="font-size: 13px;"></div>
+
+                <hr>
+                <!-- ─── Timelapse ─── -->
+                <div class="seccion-titulo" style="margin-top: 0;">Timelapse</div>
+                <div class="dos-campos">
+                    <div class="form-group">
+                        <label for="tl-fotos">Número de fotos</label>
+                        <input type="number" id="tl-fotos" class="form-control" min="1" max="5000" step="1" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="tl-intervalo">Cada (segundos)</label>
+                        <input type="number" id="tl-intervalo" class="form-control" min="1" max="3600" step="1" value="10">
+                    </div>
+                </div>
+                <div id="tl-duracion" class="texto-3" style="font-size: 13px; margin-top: -4px;"></div>
+                <div class="acciones mt-2">
+                    <button type="button" id="btn-tl" class="btn btn-primary" onclick="empezarTimelapse()"><svg><use href="#i-play"/></svg>Empezar timelapse</button>
+                    <button type="button" id="btn-tl-parar" class="btn btn-danger" onclick="pararTimelapse()" hidden><svg><use href="#i-stop"/></svg>Parar</button>
+                </div>
+                <div id="tl-progreso" class="mt-2" hidden>
+                    <div class="fila entre"><span id="tl-texto" class="estado" style="color: var(--text);"></span><span id="tl-siguiente" class="texto-3" style="font-size: 13px;"></span></div>
+                    <div class="progress alta mt-1"><div id="tl-barra" class="progress-bar"></div></div>
+                </div>
+                <div id="tl-estado" class="estado mt-1"></div>
+                <div id="tl-video" class="mt-2" hidden>
+                    <div class="fila">
+                        <button type="button" id="btn-tl-video" class="btn btn-secondary" onclick="montarVideo()"><svg><use href="#i-galeria"/></svg>Montar vídeo</button>
+                        <label style="margin: 0;">a <input type="number" id="tl-fps" class="corto" min="1" max="60" value="25" style="width: 64px;"> fotos/s</label>
+                    </div>
+                    <div id="tl-video-estado" class="estado mt-1"></div>
+                </div>
+                <div id="tl-anteriores" class="mt-2"></div>
             </div>
         </div>
 
@@ -75,6 +107,12 @@
 
 <style>
     .foto-controles { display: flex; flex-direction: column; gap: 12px; }
+    .dos-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    .tl-lista { list-style: none; padding: 0; margin: 0; }
+    .tl-lista li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+    .tl-lista img { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: #000; flex: none; }
+    .tl-lista .nombre { flex: 1; min-width: 0; }
+    .tl-lista .nombre small { display: block; color: var(--text-3); }
     .foto-controles .card + .card { margin-top: 0; }
     @media (min-width: 760px) { .foto-imagen { position: sticky; top: calc(var(--header-h) + 10px); } }
     @media (max-height: 500px) and (orientation: landscape) {
@@ -157,6 +195,106 @@
         if (s < 1) return (s * 1000).toFixed(1).replace(".0", "") + " ms";
         return s.toFixed(2).replace(".00", "") + " s";
     }
+
+    // ——— Timelapse ———
+    let sondeoTl = null, carpetaTl = "", ultimaVersionTl = -1;
+    function textoDuracion() {
+        const n = parseInt(document.getElementById("tl-fotos").value) || 0, i = parseFloat(document.getElementById("tl-intervalo").value) || 0;
+        const s = n * i;
+        const dur = s >= 3600 ? `${(s / 3600).toFixed(1)} h` : s >= 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`;
+        document.getElementById("tl-duracion").textContent = n && i ? `Durará unos ${dur}; a 25 fotos por segundo, el vídeo tendrá ${(n / 25).toFixed(1)} s.` : "";
+    }
+    ["tl-fotos", "tl-intervalo"].forEach(id => document.getElementById(id).addEventListener("input", textoDuracion));
+    textoDuracion();
+
+    function empezarTimelapse() {
+        const est = document.getElementById("tl-estado");
+        if (objetivoDia === "sol" && !solConfirmado) {
+            if (!confirm("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio.")) return;
+            solConfirmado = true;
+        }
+        const fotos = parseInt(document.getElementById("tl-fotos").value) || 100;
+        const intervalo = parseFloat(document.getElementById("tl-intervalo").value) || 10;
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>Empezando el timelapse...';
+        fetch("/timelapse/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, fotos, intervalo }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
+                carpetaTl = d.carpeta;
+                if (!sondeoTl) sondeoTl = setInterval(sondearTimelapse, 1000);
+                sondearTimelapse();
+            })
+            .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
+    }
+    function pararTimelapse() {
+        fetch("/timelapse/cancelar", { method: "POST" }).catch(() => {});
+    }
+    function pintarTimelapse(e) {
+        const activo = e.en_curso;
+        document.getElementById("btn-tl").hidden = activo;
+        document.getElementById("btn-tl-parar").hidden = !activo;
+        document.getElementById("btn-foto").disabled = activo;
+        document.getElementById("tl-progreso").hidden = !activo && !e.terminado;
+        const est = document.getElementById("tl-estado");
+        if (activo || e.terminado) {
+            document.getElementById("tl-texto").textContent = `${e.hechas} / ${e.total} fotos` + (e.exposicion ? ` · ${e.exposicion_texto}` + (e.nivel !== null ? ` · nivel ${Math.round(100 * e.nivel)} %` : "") : "");
+            document.getElementById("tl-barra").style.width = (e.total ? 100 * e.hechas / e.total : 0) + "%";
+            document.getElementById("tl-siguiente").textContent = activo ? (e.captura && e.captura.en_curso ? "exponiendo…" : (e.siguiente_en > 0 ? `siguiente en ${Math.ceil(e.siguiente_en)} s` : "")) : "";
+        }
+        if (activo) { est.className = "estado mt-1"; est.innerHTML = `<span class="spinner"></span>${e.mensaje}`; }
+        else if (e.terminado) { est.className = "estado " + (e.error ? "warn" : "ok") + " mt-1"; est.textContent = (e.error ? "⚠️ " : "✅ ") + e.mensaje; }
+        // última foto en el visor grande
+        if (e.ultima && e.carpeta && e.version !== ultimaVersionTl) {
+            ultimaVersionTl = e.version;
+            document.getElementById("foto").src = `/static/timelapse/${e.carpeta}/${e.ultima.archivo}?v=${e.version}`;
+            document.getElementById("estado-foto").className = "estado mt-2";
+            document.getElementById("estado-foto").textContent = `Timelapse: foto ${e.ultima.n} a las ${e.ultima.hora} · ${formatearExp(e.ultima.exposicion)}`;
+        }
+        // vídeo: se puede montar cuando hay una serie terminada (o cancelada con fotos)
+        const puedeVideo = !activo && e.carpeta && e.hechas >= 2;
+        document.getElementById("tl-video").hidden = !puedeVideo;
+        if (puedeVideo) carpetaTl = e.carpeta;
+        const v = e.video;
+        const ve = document.getElementById("tl-video-estado");
+        if (v && v.en_curso) { document.getElementById("btn-tl-video").disabled = true; ve.className = "estado mt-1"; ve.innerHTML = `<span class="spinner"></span>Montando el vídeo… ${v.progreso} %`; }
+        else if (v && v.ruta) { document.getElementById("btn-tl-video").disabled = false; ve.className = "estado ok mt-1"; ve.innerHTML = `✅ Vídeo listo: <a href="/static/timelapse/${v.carpeta}/timelapse.mp4" target="_blank">abrir o descargar timelapse.mp4</a>`; }
+        else if (v && v.error) { document.getElementById("btn-tl-video").disabled = false; ve.className = "estado err mt-1"; ve.textContent = "❌ " + v.error; }
+        pintarAnteriores(e.anteriores || []);
+        return activo || (v && v.en_curso);
+    }
+    function pintarAnteriores(lista) {
+        const cont = document.getElementById("tl-anteriores");
+        if (!lista.length) { cont.innerHTML = ""; return; }
+        cont.innerHTML = '<div class="seccion-titulo">Timelapses guardados</div><ul class="tl-lista">' + lista.map(t => {
+            const img = t.ultima ? `<img src="/static/timelapse/${t.carpeta}/${t.ultima}" alt="">` : "";
+            const fecha = t.carpeta.replace(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})\d{2}_(\w+)$/, "$3/$2/$1 $4:$5 · $6");
+            const video = t.video ? `<a class="btn btn-sm btn-secondary" href="/static/timelapse/${t.carpeta}/timelapse.mp4" target="_blank">Vídeo</a>`
+                                  : `<button type="button" class="btn btn-sm btn-ghost" onclick="montarVideo('${t.carpeta}')">Montar vídeo</button>`;
+            return `<li>${img}<span class="nombre">${fecha}<small>${t.fotos} fotos</small></span>${video}</li>`;
+        }).join("") + "</ul>";
+    }
+    function montarVideo(carpeta) {
+        carpeta = carpeta || carpetaTl;
+        if (!carpeta) return;
+        const fps = parseInt(document.getElementById("tl-fps").value) || 25;
+        document.getElementById("tl-video").hidden = false;
+        const ve = document.getElementById("tl-video-estado");
+        ve.className = "estado mt-1"; ve.innerHTML = '<span class="spinner"></span>Montando el vídeo…';
+        fetch("/timelapse/video", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ carpeta, fps }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { ve.className = "estado err mt-1"; ve.textContent = "❌ " + d.error; return; }
+                if (!sondeoTl) sondeoTl = setInterval(sondearTimelapse, 1000);
+            })
+            .catch(err => { ve.className = "estado err mt-1"; ve.textContent = "❌ " + err; });
+    }
+    function sondearTimelapse() {
+        fetch("/timelapse/estado").then(r => r.json()).then(e => {
+            if (!pintarTimelapse(e) && sondeoTl) { clearInterval(sondeoTl); sondeoTl = null; }
+        }).catch(() => {});
+    }
+    // Al abrir la página: engancharse a un timelapse en marcha y listar los guardados
+    fetch("/timelapse/estado").then(r => r.json()).then(e => { if (pintarTimelapse(e) && !sondeoTl) sondeoTl = setInterval(sondearTimelapse, 1000); }).catch(() => {});
 
     function hacerFotoDia() {
         const btn = document.getElementById("btn-foto");

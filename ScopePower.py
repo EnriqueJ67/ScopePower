@@ -1502,6 +1502,8 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     # Si la cámara ya está exponiendo, no encolar otra captura detrás
     if camara.ocupado:
         return {"ok": False, "mensaje": "⏳ Ya hay una captura en curso", "ocupada": True}
+    if foto_dia.trabajo_timelapse.en_curso:
+        return {"ok": False, "mensaje": "⏳ Hay un timelapse en marcha; párala antes desde Foto de prueba", "ocupada": True}
 
     nuevo_config = configparser.ConfigParser()
     nuevo_config.read("config.ini")
@@ -2668,6 +2670,69 @@ def foto_dia_estado():
     e = foto_dia.trabajo_foto_dia.estado()
     e["ultimas"] = {k: {"s": v, "texto": foto_dia.formatear_exposicion(v)} for k, v in _config_foto_dia().items() if v}
     return jsonify(e)
+
+
+@app.route('/timelapse/iniciar', methods=["POST"])
+def timelapse_iniciar():
+    """Serie de fotos de día: {"objetivo", "fotos", "intervalo"}."""
+    datos = request.get_json(silent=True) or {}
+    objetivo = str(datos.get("objetivo", "paisaje"))
+    if objetivo not in foto_dia.OBJETIVOS:
+        return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
+                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    ultimas = _config_foto_dia()
+
+    def _al_terminar(estado):
+        objetivo_nivel = foto_dia.OBJETIVOS[objetivo]["nivel"]
+        if estado["exposicion"] and estado["nivel"] is not None and estado["nivel"] >= 0.5 * objetivo_nivel:
+            _guardar_en_config("FotoDia", {f"exposicion_{objetivo}": f"{estado['exposicion']:.6f}"})
+    try:
+        foto_dia.trabajo_timelapse.iniciar(camara, objetivo, _dispositivos()["binning"],
+                                           total=datos.get("fotos", 100), intervalo=datos.get("intervalo", 10),
+                                           exposicion_inicial=ultimas.get(objetivo), montura=montura,
+                                           al_terminar=_al_terminar, voz=voz,
+                                           raiz=ruta_absoluta(foto_dia.CARPETA_TIMELAPSE))
+    except (RuntimeError, ValueError) as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True, "carpeta": os.path.basename(foto_dia.trabajo_timelapse.carpeta)})
+
+
+@app.route('/timelapse/estado')
+def timelapse_estado():
+    e = foto_dia.trabajo_timelapse.estado()
+    e["carpeta"] = os.path.basename(e["carpeta"]) if e["carpeta"] else ""
+    if e.get("video") and e["video"].get("carpeta"):
+        e["video"]["carpeta"] = os.path.basename(e["video"]["carpeta"])
+        e["video"]["ruta"] = os.path.basename(e["video"]["ruta"]) if e["video"].get("ruta") else ""
+    e["anteriores"] = foto_dia.listar_timelapses(ruta_absoluta(foto_dia.CARPETA_TIMELAPSE))
+    return jsonify(e)
+
+
+@app.route('/timelapse/cancelar', methods=["POST"])
+def timelapse_cancelar():
+    foto_dia.trabajo_timelapse.cancelar()
+    return jsonify({"mensaje": "⏹️ Parando el timelapse..."})
+
+
+@app.route('/timelapse/video', methods=["POST"])
+def timelapse_video():
+    """Monta el MP4 de una carpeta de timelapse: {"carpeta", "fps"}."""
+    datos = request.get_json(silent=True) or {}
+    nombre = os.path.basename(str(datos.get("carpeta", "")))
+    carpeta = os.path.join(ruta_absoluta(foto_dia.CARPETA_TIMELAPSE), nombre)
+    if not nombre or not os.path.isdir(carpeta):
+        return jsonify({"ok": False, "error": "Carpeta de timelapse desconocida"}), 404
+    fps = max(1, min(60, int(datos.get("fps", 25))))
+    try:
+        foto_dia.trabajo_timelapse.montar_video(carpeta, fps=fps)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True})
 
 
 @app.route('/foto-dia/seguimiento', methods=["POST"])
