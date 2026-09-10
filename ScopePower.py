@@ -395,6 +395,7 @@ PREFERENCIAS = {
     "numero_darks": ("Dispositivos", "numero_darks", "entero"),
     "modo_dia": ("Interfaz", "modo_dia", "texto"),                 # "on"/"off": la Foto de prueba arranca en modo día
     "foto_dia_objetivo": ("Interfaz", "foto_dia_objetivo", "texto"),   # sol | luna | paisaje
+    "foto_dia_campo": ("Interfaz", "foto_dia_campo", "entero"),        # % del campo visible en el modo día (100, 75, 50, 35, 25)
 }
 
 
@@ -2621,6 +2622,14 @@ def estado_captura_actual():
 
 
 # ───────────────────────── Foto de día (exposición automática) ─────────────────────────
+def _campo_foto_dia(datos):
+    """Fracción del campo visible pedida por la web (100 % = todo el sensor)."""
+    try:
+        return max(0.2, min(1.0, float(datos.get("campo", 100)) / 100.0))
+    except (TypeError, ValueError):
+        return 1.0
+
+
 def _config_foto_dia():
     """Última exposición que funcionó para cada objetivo ([FotoDia] en config.ini)."""
     cfg = configparser.ConfigParser()
@@ -2658,7 +2667,7 @@ def foto_dia_iniciar():
         foto_dia.trabajo_foto_dia.iniciar(camara, objetivo, _dispositivos()["binning"],
                                           exposicion_inicial=ultimas.get(objetivo), montura=montura,
                                           ruta_fits=RUTA_IMAGEN, ruta_png=RUTA_IMAGEN_PNG,
-                                          al_terminar=_al_terminar, voz=voz)
+                                          al_terminar=_al_terminar, voz=voz, campo=_campo_foto_dia(datos))
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     voz.decir(f"Foto de día de {foto_dia.OBJETIVOS[objetivo]['nombre']}", categoria="capturas")
@@ -2696,7 +2705,7 @@ def timelapse_iniciar():
                                            total=datos.get("fotos", 100), intervalo=datos.get("intervalo", 10),
                                            exposicion_inicial=ultimas.get(objetivo), montura=montura,
                                            al_terminar=_al_terminar, voz=voz,
-                                           raiz=ruta_absoluta(foto_dia.CARPETA_TIMELAPSE))
+                                           raiz=ruta_absoluta(foto_dia.CARPETA_TIMELAPSE), campo=_campo_foto_dia(datos))
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     return jsonify({"ok": True, "carpeta": os.path.basename(foto_dia.trabajo_timelapse.carpeta)})

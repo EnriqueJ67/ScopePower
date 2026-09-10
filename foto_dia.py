@@ -82,6 +82,24 @@ def _patron(sensor_type):
     return {2: "RGGB", 3: "CMYG", 4: "CMYG2", 5: "LRGB"}.get(sensor_type)
 
 
+def recortar_centro(frame, campo):
+    """
+    Recorta el centro del fotograma dejando la fracción `campo` del ancho y del alto
+    (1.0 = campo completo). Los bordes quedan en coordenadas pares para no romper el
+    patrón Bayer del mosaico CFA.
+    """
+    campo = float(campo)
+    if campo >= 0.999:
+        return frame
+    campo = max(0.1, campo)
+    alto, ancho = frame.shape[0], frame.shape[1]
+    w = max(16, int(ancho * campo)) & ~1
+    h = max(16, int(alto * campo)) & ~1
+    x0 = ((ancho - w) // 2) & ~1
+    y0 = ((alto - h) // 2) & ~1
+    return frame[y0:y0 + h, x0:x0 + w]
+
+
 def preparar_camara(cam, conf):
     """Ganancia al mínimo (de día sobra luz) y límites reales. Devuelve un dict con lo que hace falta luego."""
     ganancia_previa, ganancia = None, None
@@ -114,11 +132,13 @@ def restaurar_camara(cam, prep):
             pass
 
 
-def capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos, informar=None, descripcion="Foto de día"):
+def capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos, informar=None, descripcion="Foto de día", campo=1.0):
     """
     Expone y corrige la exposición hasta que la zona más brillante queda cerca del
     nivel objetivo (o se agotan los intentos). Devuelve
     (frame, exposicion, nivel, saturada, intentos) con el mejor fotograma no saturado.
+    La medida se hace sobre el recorte central `campo` (lo que se va a ver), el
+    fotograma devuelto es el completo.
     """
     objetivo_nivel = conf["nivel"]
     blanco, minima = prep["blanco"], prep["minima"]
@@ -129,8 +149,9 @@ def capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos, infor
         if informar:
             informar(f"{descripcion}: prueba {intento}, exponiendo {formatear_exposicion(exposicion)}")
         frame = capturar_frame(cam, exposicion, binning, descripcion=f"{descripcion} {intento}")
-        nivel = float(np.percentile(frame, 99.8)) / blanco
-        saturados = float(np.mean(frame >= 0.98 * blanco))
+        zona = recortar_centro(frame, campo)
+        nivel = float(np.percentile(zona, 99.8)) / blanco
+        saturados = float(np.mean(zona >= 0.98 * blanco))
         intentos.append({"exposicion": exposicion, "nivel": round(nivel, 3)})
         if informar:
             informar(f"{descripcion}: prueba {intento}, {formatear_exposicion(exposicion)} → nivel {100 * nivel:.0f} %", intentos)
@@ -236,7 +257,7 @@ class TrabajoFotoDia:
         log.info(texto)
 
     def iniciar(self, camara, objetivo, binning, exposicion_inicial=None, montura=None,
-                ruta_fits=None, ruta_png=None, al_terminar=None, voz=None):
+                ruta_fits=None, ruta_png=None, al_terminar=None, voz=None, campo=1.0):
         if objetivo not in OBJETIVOS:
             raise ValueError(f"Objetivo desconocido: {objetivo}")
         with self._lock:
@@ -250,11 +271,11 @@ class TrabajoFotoDia:
             self.mensaje = "Preparando la cámara..."
             self.fase = "ajustando"
         hilo = threading.Thread(target=self._ejecutar, name="foto-dia", daemon=True,
-                                args=(camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_png, al_terminar, voz))
+                                args=(camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_png, al_terminar, voz, campo))
         hilo.start()
         return hilo
 
-    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_png, al_terminar, voz):
+    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_png, al_terminar, voz, campo=1.0):
         conf = OBJETIVOS[objetivo]
         error = ""
         try:
@@ -270,7 +291,7 @@ class TrabajoFotoDia:
                 try:
                     frame, exposicion, nivel, saturada, intentos = capturar_ajustando(
                         cam, conf, binning, prep, exposicion_inicial or conf["inicial"], MAX_INTENTOS,
-                        informar=lambda t, i=None: self._msg(t, i, fase="ajustando"))
+                        informar=lambda t, i=None: self._msg(t, i, fase="ajustando"), campo=campo)
                     return frame, exposicion, nivel, saturada, prep
                 finally:
                     restaurar_camara(cam, prep)
@@ -283,7 +304,7 @@ class TrabajoFotoDia:
             if ruta_png:
                 import cv2
                 os.makedirs(os.path.dirname(ruta_png) or ".", exist_ok=True)
-                cv2.imwrite(ruta_png, frame_a_imagen8(frame, prep["sensor_type"]))
+                cv2.imwrite(ruta_png, frame_a_imagen8(recortar_centro(frame, campo), prep["sensor_type"]))
             with self._lock:
                 self.version += 1
                 self.ruta_fits = ruta_fits or ""
@@ -375,7 +396,7 @@ class TrabajoTimelapse:
         estado_captura.cancelar.set()
 
     def iniciar(self, camara, objetivo, binning, total, intervalo, exposicion_inicial=None,
-                montura=None, al_terminar=None, voz=None, raiz=None):
+                montura=None, al_terminar=None, voz=None, raiz=None, campo=1.0):
         if objetivo not in OBJETIVOS:
             raise ValueError(f"Objetivo desconocido: {objetivo}")
         total, intervalo = int(total), float(intervalo)
@@ -396,11 +417,11 @@ class TrabajoTimelapse:
             self.carpeta = os.path.join(raiz or CARPETA_TIMELAPSE, f"{self.inicio}_{objetivo}")
             self.mensaje = "Preparando el timelapse..."
         hilo = threading.Thread(target=self._ejecutar, name="timelapse", daemon=True,
-                                args=(camara, objetivo, binning, exposicion_inicial, montura, al_terminar, voz))
+                                args=(camara, objetivo, binning, exposicion_inicial, montura, al_terminar, voz, campo))
         hilo.start()
         return hilo
 
-    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, al_terminar, voz):
+    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, al_terminar, voz, campo=1.0):
         import cv2
         conf = OBJETIVOS[objetivo]
         error = ""
@@ -433,10 +454,10 @@ class TrabajoTimelapse:
                     frame, exposicion, nivel, saturada, _ = camara.ejecutar(
                         lambda cam: capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos,
                                                        informar=lambda t, i=None: self._msg(f"Foto {n}/{self.total} · {t}"),
-                                                       descripcion=f"Timelapse {n}"),
+                                                       descripcion=f"Timelapse {n}", campo=campo),
                         timeout=180)
                     archivo = f"foto_{n:04d}.jpg"
-                    cv2.imwrite(os.path.join(carpeta, archivo), frame_a_imagen8(frame, prep["sensor_type"]),
+                    cv2.imwrite(os.path.join(carpeta, archivo), frame_a_imagen8(recortar_centro(frame, campo), prep["sensor_type"]),
                                 [cv2.IMWRITE_JPEG_QUALITY, 92])
                     hora = datetime.now().strftime("%H:%M:%S")
                     escritor.writerow([n, hora, f"{exposicion:.6f}", f"{nivel:.3f}", archivo])

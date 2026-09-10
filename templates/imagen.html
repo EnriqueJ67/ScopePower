@@ -52,6 +52,17 @@
                     <span><b>Filtro solar obligatorio</b>, delante del objetivo y bien sujeto, y tapa el buscador. Sin filtro, el Sol
                     destroza el sensor en segundos y ciega a quien mire por el telescopio. La app no puede comprobar que el filtro está puesto.</span>
                 </div>
+                <div class="campo mt-2">
+                    <label for="dia-campo">Campo visible (recorte)</label>
+                    <select id="dia-campo" class="form-control" onchange="cambiarCampoDia()">
+                        <option value="100">100 % (campo completo)</option>
+                        <option value="75">75 %</option>
+                        <option value="50">50 %</option>
+                        <option value="35">35 % (Sol y Luna grandes)</option>
+                        <option value="25">25 % (objetos pequeños)</option>
+                    </select>
+                    <small class="ayuda">Recorta por los bordes la foto, las tomas del timelapse y el vídeo, y mide la exposición solo en esa zona. El FITS sigue a campo completo. Con 260 mm de focal, el Sol y la Luna ocupan un 20 % del ancho del sensor.</small>
+                </div>
                 <div id="dia-info" class="texto-3 mt-2" style="font-size: 13px;"></div>
                 <div id="dia-intentos" class="texto-3 mt-1" style="font-size: 13px;"></div>
 
@@ -171,6 +182,8 @@
                 .then(r => r.json()).then(d => { document.getElementById("estado-foto").textContent = d.ok ? "✅ Montura de vuelta a seguimiento sidéreo" : "⚠️ " + d.mensaje; }).catch(() => {});
         }
     }
+    function campoDia() { return parseInt(document.getElementById("dia-campo").value) || 100; }
+    function cambiarCampoDia() { guardarPreferencias({ foto_dia_campo: campoDia() }); }
     function elegirObjetivoDia(v) {
         objetivoDia = v;
         pintarModoDia();
@@ -216,7 +229,7 @@
         const fotos = parseInt(document.getElementById("tl-fotos").value) || 100;
         const intervalo = parseFloat(document.getElementById("tl-intervalo").value) || 10;
         est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>Empezando el timelapse...';
-        fetch("/timelapse/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, fotos, intervalo }) })
+        fetch("/timelapse/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, fotos, intervalo, campo: campoDia() }) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
@@ -307,7 +320,7 @@
         document.getElementById("btn-cancelar").style.display = "inline-flex";
         est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Preparando la cámara...';
         document.getElementById("dia-intentos").textContent = "";
-        fetch("/foto-dia/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia }) })
+        fetch("/foto-dia/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, campo: campoDia() }) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); terminarFotoDia(); return; }
@@ -348,6 +361,7 @@
     // Preferencias guardadas (modo día activado y objetivo) y últimas exposiciones
     fetch("/preferencias").then(r => r.json()).then(p => {
         if (p.foto_dia_objetivo && NOMBRE_OBJETIVO[p.foto_dia_objetivo]) objetivoDia = p.foto_dia_objetivo;
+        if (p.foto_dia_campo) document.getElementById("dia-campo").value = String(p.foto_dia_campo);
         modoDia = p.modo_dia === "on";
         pintarModoDia();
     }).catch(() => pintarModoDia());
