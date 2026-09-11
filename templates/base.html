@@ -9,6 +9,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="icon" href="{{ url_for('static', filename='scopepower.ico') }}" type="image/x-icon">
+    <!-- Instalable como app (Añadir a pantalla de inicio): se abre sin barras del navegador -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.png') }}">
     <title>{% block title %}ScopePower{% endblock %} · ScopePower</title>
     <!-- Tema elegido (noche = rojo, oscuro = neutro) antes de pintar, para que no parpadee -->
@@ -108,28 +110,57 @@
     }
 
     // ——— Pantalla completa (API Fullscreen; en iPhone no existe y el botón queda oculto) ———
+    // Al cambiar de página el navegador sale solo de pantalla completa y no deja volver sin un
+    // gesto del usuario, así que se recuerda la preferencia y se vuelve a pedir con el primer toque.
     (function () {
+        const CLAVE = "scopepower_pantalla_completa";
         const raiz = document.documentElement;
         const btn = document.getElementById("btn-pantalla");
         const pedir = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
         if (!pedir || (document.fullscreenEnabled === false)) return;
+        // Instalada como app (manifest display: fullscreen/standalone) ya va sin barras: no hace falta el botón
+        if (window.matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches) return;
         btn.hidden = false;
+        let navegando = false;   // salir por cambio de página no es que el usuario haya renunciado
+        function preferencia() { try { return localStorage.getItem(CLAVE) === "on"; } catch (e) { return false; } }
+        function guardar(v) { try { localStorage.setItem(CLAVE, v); } catch (e) {} }
         function enPantallaCompleta() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+        function entrar() { return Promise.resolve(pedir.call(raiz, { navigationUI: "hide" })).catch(() => {}); }
         function pintar() {
             const on = enPantallaCompleta();
             document.getElementById("btn-pantalla-icono").setAttribute("href", on ? "#i-pantalla-salir" : "#i-pantalla");
             btn.title = on ? "Salir de pantalla completa" : "Pantalla completa";
         }
+        function cambio() {
+            pintar();
+            if (!enPantallaCompleta() && !navegando) guardar("off");   // el usuario salió (botón, Escape o atrás)
+        }
         window.alternarPantallaCompleta = function () {
             if (enPantallaCompleta()) {
                 (document.exitFullscreen || document.webkitExitFullscreen).call(document);
             } else {
-                Promise.resolve(pedir.call(raiz, { navigationUI: "hide" })).catch(() => {});
+                guardar("on");
+                entrar();
             }
         };
-        document.addEventListener("fullscreenchange", pintar);
-        document.addEventListener("webkitfullscreenchange", pintar);
+        document.addEventListener("fullscreenchange", cambio);
+        document.addEventListener("webkitfullscreenchange", cambio);
+        ["beforeunload", "pagehide"].forEach(ev => window.addEventListener(ev, () => { navegando = true; }));
+        document.addEventListener("click", ev => {
+            const a = ev.target.closest("a[href]");
+            if (a && !a.getAttribute("href").startsWith("#")) navegando = true;
+        }, true);
         pintar();
+        // Página nueva con la preferencia activa: volver a pantalla completa con el primer gesto
+        if (preferencia()) {
+            let pidiendo = false;
+            function primerGesto() {
+                if (pidiendo || enPantallaCompleta()) return;
+                pidiendo = true;   // si el gesto no vale (p. ej. pointerup de ratón) se reintenta con el siguiente
+                Promise.resolve(pedir.call(raiz, { navigationUI: "hide" })).catch(() => {}).then(() => { pidiendo = false; });
+            }
+            ["pointerup", "touchend", "click", "keydown"].forEach(ev => document.addEventListener(ev, primerGesto, { capture: true, passive: true }));
+        }
     })();
 </script>
 

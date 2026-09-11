@@ -1,0 +1,15 @@
+{
+    "name": "ScopePower",
+    "short_name": "ScopePower",
+    "description": "Real-time power for your telescope",
+    "start_url": "/",
+    "scope": "/",
+    "display": "fullscreen",
+    "orientation": "any",
+    "background_color": "#0d080b",
+    "theme_color": "#0d080b",
+    "icons": [
+        { "src": "/static/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/static/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    ]
+}
