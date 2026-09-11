@@ -53,6 +53,9 @@ robocopy "%ORIGEN%\static\js" "%DESTINO%\static\js" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
 robocopy "%ORIGEN%\static\css" "%DESTINO%\static\css" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
+REM Motor del planetario offline (Celestia Atlas): codigo, catalogos y Via Lactea
+robocopy "%ORIGEN%\static\atlas" "%DESTINO%\static\atlas" /MIR %OPC%
+if errorlevel 8 set "ERRORES=1"
 
 echo  [4/7] Herramientas, constelaciones e informacion de objetos
 robocopy "%ORIGEN%\herramientas" "%DESTINO%\herramientas" /MIR %OPC%

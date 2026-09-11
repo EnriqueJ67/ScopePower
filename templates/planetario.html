@@ -1,0 +1,309 @@
+<!-- templates/planetario.html -->
+{% extends "base.html" %}
+
+{% block title %}Planetario{% endblock %}
+
+{% block head %}
+<!-- Motor Celestia Atlas (static/atlas, ver ORIGEN.md). Los catálogos son scripts clásicos
+     con "defer" para que estén cargados cuando arranque el módulo de abajo. -->
+<script src="{{ url_for('static', filename='atlas/estrellas-brillantes.js') }}" defer></script>
+<script src="{{ url_for('static', filename='atlas/hyg-star-catalog.js') }}" defer></script>
+<script src="{{ url_for('static', filename='atlas/western-constellations.js') }}" defer></script>
+<script src="{{ url_for('static', filename='atlas/dso-catalog.js') }}" defer></script>
+<script type="importmap">{"imports":{"astronomy-engine":"{{ url_for('static', filename='atlas/vendor/astronomy-engine-2.1.19.esm.js') }}"}}</script>
+{% endblock %}
+
+{% block content %}
+<div class="card card-plana barra-atlas">
+    <div class="buscador">
+        <input id="buscar" type="search" placeholder="Buscar: M31, NGC 7000, Vega, Jupiter…" autocomplete="off" spellcheck="false">
+        <div id="sugerencias" class="sugerencias" hidden></div>
+    </div>
+    <button type="button" class="btn" id="btn-modo" title="Cambiar entre horizonte (Alt/Az) y ecuatorial (RA/Dec)">Alt/Az</button>
+    <button type="button" class="btn" id="btn-montura" title="Centrar el mapa donde apunta la montura" disabled><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">Montura</span></button>
+    <label class="switch" title="El mapa sigue a la montura"><input type="checkbox" id="seguir"> Seguir</label>
+</div>
+
+<div class="atlas-marco">
+    <div id="atlas" class="atlas"></div>
+    <div id="estado" class="estado-atlas"><span class="spinner"></span> Cargando el cielo…</div>
+    <div id="panel" class="panel" hidden>
+        <div class="panel-cab">
+            <div>
+                <div class="panel-nombre" id="p-nombre"></div>
+                <div class="panel-datos texto-2" id="p-datos"></div>
+            </div>
+            <button type="button" class="btn btn-icono" id="btn-cerrar" title="Cerrar"><svg><use href="#i-cerrar"/></svg></button>
+        </div>
+        <div class="panel-acciones">
+            <button type="button" class="btn btn-primary" id="btn-ir"><svg><use href="#i-goto"/></svg><span id="btn-ir-texto">Ir</span></button>
+            <a class="btn" id="btn-info" href="#" target="_blank" rel="noopener" hidden><svg><use href="#i-info"/></svg>Info</a>
+        </div>
+    </div>
+</div>
+<p class="credito texto-3">Motor <a href="https://github.com/acocalypso/celestia_atlas" target="_blank" rel="noopener">Celestia Atlas</a> (MIT) ·
+    estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · <a href="/static/atlas/THIRD_PARTY_NOTICES.md" target="_blank">créditos</a></p>
+
+<style>
+    .barra-atlas { display: flex; gap: 8px; align-items: center; padding: 10px; flex-wrap: wrap; }
+    .buscador { position: relative; flex: 1 1 220px; min-width: 0; }
+    .buscador input { width: 100%; }
+    .sugerencias { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; background: var(--surface-2); border: 1px solid var(--border-2); border-radius: var(--radius-sm); max-height: 40vh; overflow: auto; box-shadow: var(--shadow); }
+    .sugerencias div { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .sugerencias div:last-child { border-bottom: 0; }
+    .sugerencias div:hover, .sugerencias div.activa { background: var(--surface-3); }
+    .sugerencias small { color: var(--text-3); margin-left: 6px; }
+
+    .atlas-marco { position: relative; margin-top: 10px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: #030812; }
+    .atlas { width: 100%; height: calc(100vh - var(--header-h) - var(--nav-h) - 150px); height: calc(100dvh - var(--header-h) - var(--nav-h) - 150px); min-height: 340px; touch-action: none; }
+    .estado-atlas { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 5; font-size: 13px; padding: 6px 10px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--bg) 78%, transparent); color: var(--text-2); pointer-events: none; }
+    .estado-atlas b { color: var(--text); }
+
+    .panel { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 6; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--border-2); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); backdrop-filter: blur(6px); }
+    @media (min-width: 700px) { .panel { left: auto; width: 340px; } }
+    .panel-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .panel-nombre { font-size: 18px; font-weight: 700; line-height: 1.2; }
+    .panel-datos { font-size: 13px; margin-top: 4px; line-height: 1.45; }
+    .panel-acciones { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .btn-icono { padding: 6px 8px; }
+    .credito { font-size: 12px; margin: 8px 2px 0; }
+    .credito a { color: inherit; text-decoration: underline; }
+</style>
+
+<script type="module">
+    import { createCelestiaAtlasViewer, equatorialToHorizontal, horizontalToEquatorial, calculateCameraFieldOfView }
+        from "{{ url_for('static', filename='atlas/src/index.js') }}";
+
+    const $ = id => document.getElementById(id);
+    const estadoEl = $("estado");
+    let cfg = null;               // última respuesta de /planetario/estado
+    let viewer = null, observador = null, seleccionado = null;
+    let modo = "horizontal", encuadrePuesto = false, gotoEnCurso = false;
+
+    // Los catálogos vienen como globales (window.STAR_DATA, HYG_STAR_DATA, DSO_CATALOG_DATA, WESTERN_CONSTELLATIONS).
+    // STAR_DATA son las 130 estrellas con nombre propio; HYG las excluye, así que se juntan.
+    const stars = [...(window.STAR_DATA ?? []), ...(window.HYG_STAR_DATA ?? [])].map(s => ({ ...s, id: s.id || s.name, name: s.name || s.id,
+        aliases: [...(s.aliases ?? []), ...(s.alias ? [s.alias] : [])],
+        raDeg: Number.isFinite(s.raDeg) ? s.raDeg : s.ra * 15, decDeg: Number.isFinite(s.decDeg) ? s.decDeg : s.dec,
+        frame: s.frame || "ICRS", type: "Star" }));
+    const catalog = (window.DSO_CATALOG_DATA ?? []).map(o => ({ ...o, name: o.name || o.id,
+        typeCode: o.typeCode || o.objectType || o.type,
+        angularSizeArcMin: o.angularSizeArcMin ?? { major: o.major, minor: o.minor } }));
+
+    // Nombres del Sistema Solar tal como los entiende /goto (sin acentos): el PC calcula
+    // sus coordenadas con astropy, así que a esos no se les mandan RA/Dec del mapa.
+    const sistemaSolar = { sun: "Sol", moon: "Luna", mercury: "Mercurio", venus: "Venus", mars: "Marte",
+        jupiter: "Jupiter", saturn: "Saturno", uranus: "Urano", neptune: "Neptuno", pluto: "Pluton" };
+    const tipos = { Star: "Estrella", G: "Galaxia", GPair: "Par de galaxias", GTrpl: "Trío de galaxias", GGroup: "Grupo de galaxias",
+        PN: "Nebulosa planetaria", Neb: "Nebulosa", HII: "Región HII", EmN: "Nebulosa de emisión", RfN: "Nebulosa de reflexión",
+        DrkN: "Nebulosa oscura", SNR: "Resto de supernova", OCl: "Cúmulo abierto", GCl: "Cúmulo globular", "Cl+N": "Cúmulo con nebulosa",
+        "*Ass": "Asociación estelar", "**": "Estrella doble", "*": "Estrella", Planet: "Planeta", Moon: "Luna", Sun: "Sol", Comet: "Cometa" };
+
+    function coordsDe(t) {
+        const ra = t?.coordinates?.raDeg ?? t?.raDeg, dec = t?.coordinates?.decDeg ?? t?.decDeg;
+        return Number.isFinite(ra) && Number.isFinite(dec) ? { raDeg: ra, decDeg: dec, frame: t.coordinates?.frame || t.frame || "ICRS" } : null;
+    }
+    const horas = raDeg => { const h = raDeg / 15, m = (h % 1) * 60; return `${Math.floor(h)}h ${m.toFixed(1).padStart(4, "0")}m`; };
+    const grados = d => `${d < 0 ? "−" : "+"}${Math.floor(Math.abs(d))}° ${((Math.abs(d) % 1) * 60).toFixed(0).padStart(2, "0")}′`;
+
+    async function iniciar() {
+        try {
+            cfg = await (await fetch("/planetario/estado")).json();
+        } catch (e) {
+            estadoEl.innerHTML = "❌ No se pudo leer el estado del PC: " + e;
+            return;
+        }
+        observador = { latitudeDeg: cfg.observador.latitud, longitudeDeg: cfg.observador.longitud, elevationM: cfg.observador.altitud };
+        try {
+            viewer = createCelestiaAtlasViewer({
+                container: $("atlas"), catalog, stars, constellations: window.WESTERN_CONSTELLATIONS ?? {},
+                observer: observador, utcMs: cfg.hora_utc_ms,
+                skySurveySource: null,          // sin teselas DSS: todo local
+                onSelect: mostrarPanel,
+                onError: e => console.error("atlas", e),
+            });
+        } catch (e) {
+            estadoEl.innerHTML = "❌ El navegador no puede dibujar el planetario: " + e.message;
+            return;
+        }
+        window.viewer = viewer;
+        viewer.setCoordinateMode(modo);
+        viewer.setDisplayOptions({ cardinals: true, constellations: true, labels: true, horizon: true, hideBelowHorizon: true,
+            milkyWay: true, solarSystem: true, comets: true, atmosphere: false,
+            starMagnitudeLimit: 6.5, deepSkyMagnitudeLimit: 11.5, galaxyMagnitudeLimit: 11.5 });
+        if (cfg.altura_minima > 0) {   // la altura mínima de config.ini, como horizonte del observatorio
+            viewer.setHorizon([0, 90, 180, 270].map(az => ({ azimuthDeg: az, altitudeDeg: cfg.altura_minima })));
+        }
+        aplicarTema();
+        // Vista inicial: mirando al sur, a 45° de altura, campo ancho
+        try {
+            const centro = horizontalToEquatorial({ azimuthDeg: 180, altitudeDeg: 45 }, observador, cfg.hora_utc_ms, "ICRS");
+            viewer.setView({ center: { raDeg: centro.raDeg, decDeg: centro.decDeg, frame: "ICRS" }, fovDeg: 90 });
+        } catch (e) { console.warn("vista inicial", e); }
+        // El motor no puede dibujar con un canvas de 0×0 (pestaña en segundo plano,
+        // página aún oculta): solo se anima cuando el contenedor tiene tamaño y está visible.
+        new ResizeObserver(sincronizarVisibilidad).observe($("atlas"));
+        sincronizarVisibilidad();
+        aplicarEstado(cfg);
+        if (cfg.montura?.conectada) viewer.focusMount();
+        setInterval(refrescar, 2000);
+    }
+
+    function sincronizarVisibilidad() {
+        if (!viewer) return;
+        const caja = $("atlas");
+        const visible = !document.hidden && caja.clientWidth > 0 && caja.clientHeight > 0;
+        if (visible) { viewer.resume(); viewer.resize(); } else viewer.pause();
+    }
+
+    async function refrescar() {
+        if (document.hidden || !viewer) return;
+        try { cfg = await (await fetch("/planetario/estado")).json(); } catch (e) { return; }
+        aplicarEstado(cfg);
+    }
+
+    function aplicarEstado(c) {
+        // Reloj del PC (si el móvil y el PC difieren, manda el PC, que es quien mueve la montura)
+        if (Math.abs(viewer.getTime() - c.hora_utc_ms) > 3000) viewer.setTime(c.hora_utc_ms);
+        // Marcador de la montura
+        const m = c.montura || {};
+        if (m.conectada && Number.isFinite(m.ra_h)) {
+            viewer.setMountPosition({ coordinates: { raDeg: m.ra_h * 15, decDeg: m.dec_deg, frame: "J2000" },
+                connected: true, stale: false, timestampUtcMs: c.hora_utc_ms });
+        } else {
+            viewer.setMountPosition(null);
+        }
+        $("btn-montura").disabled = !m.conectada;
+        // Encuadre de la cámara (una vez que se conoce el sensor)
+        if (!encuadrePuesto && c.camara?.ancho_px && c.camara?.pixel_um && c.focal_mm) {
+            try {
+                const cam = calculateCameraFieldOfView({ sensorWidthPx: c.camara.ancho_px, sensorHeightPx: c.camara.alto_px,
+                    pixelSizeMicrons: c.camara.pixel_um, focalLengthMm: c.focal_mm });
+                viewer.setFieldOfView({ widthDeg: cam.widthDeg, heightDeg: cam.heightDeg, rotationDeg: 0, rotationConvention: "clockwise-from-celestial-north" });
+                encuadrePuesto = true;
+            } catch (e) { console.warn("encuadre", e); }
+        }
+        $("btn-ir-texto").textContent = c.centrar_tras_goto ? "Ir y centrar" : "Ir";
+        pintarEstado(c);
+    }
+
+    function pintarEstado(c) {
+        if (gotoEnCurso) return;   // mientras /goto responde se muestra su propio mensaje
+        const m = c.montura || {}, cen = c.centrado || {};
+        let txt;
+        if (!m.conectada) txt = "Montura no conectada: el mapa funciona, pero no se puede ir a los objetos";
+        else if (cen.en_curso) txt = `🎯 Centrando <b>${cen.objeto || ""}</b> (vuelta ${cen.vuelta}/${cen.max_vueltas}): ${cen.mensaje || ""}`;
+        else if (m.slewing) txt = `↗ Montura moviéndose${c.ultimo_goto?.objeto ? " a <b>" + c.ultimo_goto.objeto + "</b>" : ""}…`;
+        else txt = `Montura en RA ${horas(m.ra_h * 15)} · Dec ${grados(m.dec_deg)}` +
+            (c.ultimo_goto?.objeto ? ` · último GoTo: <b>${c.ultimo_goto.objeto}</b>` : "") +
+            (cen.terminado && cen.resultado ? ` · centrado: ${cen.resultado}` : "");
+        estadoEl.innerHTML = txt;
+    }
+
+    // ——— Selección y GoTo ———
+    function mostrarPanel(t) {
+        seleccionado = t || null;
+        const p = $("panel");
+        if (!t) { p.hidden = true; return; }
+        const c = coordsDe(t);
+        const nombre = t.displayName || t.name;
+        $("p-nombre").textContent = nombre;
+        const partes = [tipos[t.typeCode] || tipos[t.type] || t.type || t.typeCode || ""];
+        const mag = t.mag ?? t.magnitude;
+        if (Number.isFinite(mag)) partes.push(`mag ${(+mag).toFixed(1)}`);
+        let html = partes.filter(Boolean).join(" · ");
+        if (c) {
+            let alt = "";
+            try {
+                const h = equatorialToHorizontal(c, observador, viewer.getTime());
+                alt = `<br>Alt ${h.altitudeDeg.toFixed(1)}° · Az ${h.azimuthDeg.toFixed(1)}°`;
+                if (h.altitudeDeg < (cfg?.altura_minima ?? 0)) alt += ` <span style="color: var(--warn)">· bajo la altura mínima (${cfg.altura_minima}°)</span>`;
+            } catch (e) {}
+            html += `<br>RA ${horas(c.raDeg)} · Dec ${grados(c.decDeg)}${alt}`;
+        }
+        $("p-datos").innerHTML = html;
+        $("btn-ir").disabled = !c;
+        p.hidden = false;
+    }
+    $("btn-cerrar").onclick = () => mostrarPanel(null);
+
+    // Nombre que se manda a /goto: para el Sistema Solar el nombre en español (el PC calcula
+    // la posición); para el cielo profundo la designación de catálogo (M31, NGC 7000), que es
+    // lo que entienden el catálogo propio, la voz y las descripciones; para estrellas, su nombre.
+    const designacion = /^(M|NGC|IC|C|B|Sh2|LDN|LBN|Abell|Cr|Mel|Tr|Ced|vdB|RCW)\s?\d/i;
+    function nombreParaGoto(t) {
+        const clave = String(t.name || "").toLowerCase();
+        if (sistemaSolar[clave]) return { objeto: sistemaSolar[clave], conCoords: false };
+        const id = String(t.id || "");
+        if (designacion.test(id)) return { objeto: id.replace(/^M0+(\d)/, "M$1"), conCoords: true };
+        return { objeto: t.name || t.displayName, conCoords: true };
+    }
+
+    $("btn-ir").onclick = async () => {
+        if (!seleccionado) return;
+        const c = coordsDe(seleccionado);
+        const { objeto, conCoords } = nombreParaGoto(seleccionado);
+        let cuerpo = "objeto=" + encodeURIComponent(objeto);
+        if (conCoords && c) cuerpo += `&ra=${c.raDeg / 15}&dec=${c.decDeg}`;
+        gotoEnCurso = true;
+        $("btn-ir").disabled = true;
+        estadoEl.innerHTML = `<span class="spinner"></span> Enviando GoTo a <b>${objeto}</b>…`;
+        try {
+            const r = await (await fetch("/goto", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: cuerpo })).json();
+            if (r.error) estadoEl.innerHTML = "❌ " + r.error;
+            else if (r.warning) estadoEl.innerHTML = "⚠️ " + r.warning;
+            else estadoEl.innerHTML = r.message || "✅ GoTo enviado";
+            if (!r.error && !r.warning) { $("seguir").checked = true; viewer.setMountFollow(true); }
+        } catch (e) {
+            estadoEl.innerHTML = "❌ " + e;
+        }
+        setTimeout(() => { gotoEnCurso = false; }, 4000);   // dejar leer la respuesta antes de volver al estado normal
+        $("btn-ir").disabled = false;
+    };
+
+    // ——— Búsqueda ———
+    const inp = $("buscar"), sug = $("sugerencias");
+    let resultados = [];
+    function elegir(r) {
+        viewer.focusTarget(r); viewer.select(r); mostrarPanel(r);
+        sug.hidden = true; inp.value = ""; inp.blur();
+    }
+    inp.addEventListener("input", () => {
+        const q = inp.value.trim();
+        sug.innerHTML = ""; resultados = [];
+        if (!viewer || q.length < 2) { sug.hidden = true; return; }
+        resultados = viewer.search(q).slice(0, 8);
+        for (const r of resultados) {
+            const d = document.createElement("div");
+            const tipo = tipos[r.typeCode] || tipos[r.type] || "";
+            d.innerHTML = `${r.displayName || r.name}${tipo ? `<small>${tipo}</small>` : ""}`;
+            d.onclick = () => elegir(r);
+            sug.appendChild(d);
+        }
+        sug.hidden = resultados.length === 0;
+    });
+    inp.addEventListener("keydown", e => { if (e.key === "Enter" && resultados[0]) { e.preventDefault(); elegir(resultados[0]); } if (e.key === "Escape") sug.hidden = true; });
+    document.addEventListener("click", e => { if (!e.target.closest(".buscador")) sug.hidden = true; });
+
+    // ——— Botones de la barra ———
+    $("btn-modo").onclick = () => {
+        modo = modo === "horizontal" ? "equatorial" : "horizontal";
+        viewer?.setCoordinateMode(modo);
+        $("btn-modo").textContent = modo === "horizontal" ? "Alt/Az" : "RA/Dec";
+    };
+    $("btn-montura").onclick = () => viewer?.focusMount();
+    $("seguir").onchange = e => viewer?.setMountFollow(e.target.checked);
+
+    // ——— Tema (noche = rojo → modo noche del atlas), visibilidad y tamaño ———
+    function aplicarTema() {
+        const noche = document.documentElement.getAttribute("data-tema") !== "oscuro";
+        viewer?.setDisplayOptions({ nightMode: noche });
+    }
+    new MutationObserver(aplicarTema).observe(document.documentElement, { attributes: true, attributeFilter: ["data-tema"] });
+    document.addEventListener("visibilitychange", sincronizarVisibilidad);
+    window.addEventListener("resize", sincronizarVisibilidad);
+    document.addEventListener("fullscreenchange", () => setTimeout(sincronizarVisibilidad, 100));
+
+    iniciar();
+</script>
+{% endblock %}

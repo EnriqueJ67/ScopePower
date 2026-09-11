@@ -1755,6 +1755,56 @@ def vista_esta_noche():
     return render_template('esta_noche.html', mostrar_volver=True)
 
 
+@app.route('/planetario')
+def vista_planetario():
+    """Mapa del cielo offline (Celestia Atlas, static/atlas): tocar un objeto y hacer GOTO."""
+    return render_template('planetario.html', mostrar_volver=True)
+
+
+# Geometría del sensor (px y tamaño de píxel) para dibujar el encuadre de la
+# cámara sobre el mapa. Se lee una sola vez de la cámara cuando está libre.
+_geometria_camara = {}
+
+
+@app.route('/planetario/estado')
+def planetario_estado():
+    """
+    Lo que el planetario necesita del PC en cada refresco: observador y hora,
+    dónde apunta la montura (J2000), el encuadre de la cámara y cómo va el centrado.
+    """
+    montura_info = {"conectada": False}
+    if montura.esta_conectado():
+        try:
+            ra_m, dec_m, slewing = montura.ejecutar(
+                lambda tel: (tel.RightAscension, tel.Declination, bool(tel.Slewing)),
+                timeout=5, conectar=False)
+            ra_h, dec_deg = coordenadas.desde_montura(ra_m, dec_m)
+            montura_info = {"conectada": True, "ra_h": ra_h, "dec_deg": dec_deg, "slewing": slewing}
+        except Exception as e:   # ErrorHardware o driver que no responde: el mapa sigue sin marcador
+            montura_info = {"conectada": False, "error": str(e)}
+    if not _geometria_camara and camara.esta_conectado() and not camara.ocupado:
+        try:
+            ancho, alto, px = camara.ejecutar(
+                lambda cam: (int(cam.CameraXSize), int(cam.CameraYSize), float(cam.PixelSizeX)),
+                timeout=5, conectar=False)
+            _geometria_camara.update({"ancho_px": ancho, "alto_px": alto, "pixel_um": px})
+        except Exception as e:
+            log.debug("Geometría de la cámara no disponible aún: %s", e)
+    return jsonify({
+        "observador": {"latitud": LATITUD_OBSERVATORIO, "longitud": LONGITUD_OBSERVATORIO,
+                       "altitud": ALTITUD_OBSERVATORIO},
+        "hora_utc_ms": int(time.time() * 1000),
+        "altura_minima": float(ALTURA_MINIMA),
+        "focal_mm": FOCAL_LEN,
+        "camara": dict(_geometria_camara),
+        "montura": montura_info,
+        "ultimo_goto": ({"objeto": ULTIMO_GOTO.get("objeto", ""), "ra_h": ULTIMO_GOTO.get("ra"),
+                         "dec_deg": ULTIMO_GOTO.get("dec")} if ULTIMO_GOTO else None),
+        "centrar_tras_goto": bool(centrado.leer_config().get("centrar_tras_goto", True)),
+        "centrado": centrado.trabajo_centrado.estado(),
+    })
+
+
 @app.route('/esta-noche/objetos')
 def esta_noche_objetos():
     try:
