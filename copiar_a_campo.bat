@@ -47,7 +47,7 @@ robocopy "%ORIGEN%\templates" "%DESTINO%\templates" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
 
 echo  [3/7] Recursos fijos (static\ sin fotos ni temporales)
-robocopy "%ORIGEN%\static" "%DESTINO%\static" *.png *.ico *.wav *.js %OPC% /XF captura*.* resultado_apilado*.* ultima_captura.jpg scopepower_objetos.jpg
+robocopy "%ORIGEN%\static" "%DESTINO%\static" *.png *.ico *.wav *.js manifest.json %OPC% /XF captura*.* resultado_apilado*.* ultima_captura.jpg scopepower_objetos.jpg
 if errorlevel 8 set "ERRORES=1"
 robocopy "%ORIGEN%\static\js" "%DESTINO%\static\js" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
