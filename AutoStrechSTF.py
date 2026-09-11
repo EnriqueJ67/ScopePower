@@ -43,6 +43,26 @@ def debayer_rgb(cfa, patron="RGGB"):
     return cv2.cvtColor(cfa, BAYER_A_OPENCV_RGB[patron])
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  Imagen para la web
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# La foto de prueba se servía como PNG a resolución completa: con el IMX533
+# (3008x3008) son ~18 MB por foto, que por el wifi del SynScan (menos de
+# 1 Mbit/s real) tardaban minutos en verse. La web la muestra a menos de
+# 1000 px, así que basta con un JPG reducido; el FITS sigue guardándose entero.
+ANCHO_WEB = 1600
+CALIDAD_JPG_WEB = 88
+
+
+def guardar_jpg_web(ruta, imagen_bgr, ancho=ANCHO_WEB, calidad=CALIDAD_JPG_WEB):
+    """Reduce `imagen_bgr` (uint8, BGR o gris) a `ancho` px como mucho y la guarda en JPG."""
+    alto, ancho_orig = imagen_bgr.shape[:2]
+    if ancho_orig > ancho:
+        imagen_bgr = cv2.resize(imagen_bgr, (ancho, int(alto * ancho / ancho_orig)), interpolation=cv2.INTER_AREA)
+    return cv2.imwrite(ruta, imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, int(calidad)])
+
+
 def miniatura_cfa_rgb(cfa, patron="RGGB", ancho=600):
     """
     Vista previa rápida de un mosaico CFA: en vez de debayerizar 9 Mpx, agrupa

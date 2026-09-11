@@ -257,7 +257,7 @@ class TrabajoFotoDia:
         log.info(texto)
 
     def iniciar(self, camara, objetivo, binning, exposicion_inicial=None, montura=None,
-                ruta_fits=None, ruta_png=None, al_terminar=None, voz=None, campo=1.0):
+                ruta_fits=None, ruta_web=None, al_terminar=None, voz=None, campo=1.0):
         if objetivo not in OBJETIVOS:
             raise ValueError(f"Objetivo desconocido: {objetivo}")
         with self._lock:
@@ -271,11 +271,11 @@ class TrabajoFotoDia:
             self.mensaje = "Preparando la cámara..."
             self.fase = "ajustando"
         hilo = threading.Thread(target=self._ejecutar, name="foto-dia", daemon=True,
-                                args=(camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_png, al_terminar, voz, campo))
+                                args=(camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_web, al_terminar, voz, campo))
         hilo.start()
         return hilo
 
-    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_png, al_terminar, voz, campo=1.0):
+    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_web, al_terminar, voz, campo=1.0):
         conf = OBJETIVOS[objetivo]
         error = ""
         try:
@@ -301,10 +301,10 @@ class TrabajoFotoDia:
             self._msg("Guardando la foto...", fase="guardando")
             if ruta_fits:
                 guardar_fits(frame, exposicion, prep, binning, ruta_fits)
-            if ruta_png:
-                import cv2
-                os.makedirs(os.path.dirname(ruta_png) or ".", exist_ok=True)
-                cv2.imwrite(ruta_png, frame_a_imagen8(recortar_centro(frame, campo), prep["sensor_type"]))
+            if ruta_web:
+                from AutoStrechSTF import guardar_jpg_web
+                os.makedirs(os.path.dirname(ruta_web) or ".", exist_ok=True)
+                guardar_jpg_web(ruta_web, frame_a_imagen8(recortar_centro(frame, campo), prep["sensor_type"]))
             with self._lock:
                 self.version += 1
                 self.ruta_fits = ruta_fits or ""
@@ -457,8 +457,11 @@ class TrabajoTimelapse:
                                                        descripcion=f"Timelapse {n}", campo=campo),
                         timeout=180)
                     archivo = f"foto_{n:04d}.jpg"
-                    cv2.imwrite(os.path.join(carpeta, archivo), frame_a_imagen8(recortar_centro(frame, campo), prep["sensor_type"]),
-                                [cv2.IMWRITE_JPEG_QUALITY, 92])
+                    imagen = frame_a_imagen8(recortar_centro(frame, campo), prep["sensor_type"])
+                    cv2.imwrite(os.path.join(carpeta, archivo), imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
+                    # Miniatura de la última foto para la lista de timelapses de la web
+                    from AutoStrechSTF import guardar_jpg_web
+                    guardar_jpg_web(os.path.join(carpeta, MINIATURA_TIMELAPSE), imagen, ancho=ANCHO_MINIATURA_TIMELAPSE, calidad=80)
                     hora = datetime.now().strftime("%H:%M:%S")
                     escritor.writerow([n, hora, f"{exposicion:.6f}", f"{nivel:.3f}", archivo])
                     registro.flush()
@@ -524,7 +527,7 @@ class TrabajoTimelapse:
         import cv2
         error, ruta = "", ""
         try:
-            fotos = sorted(f for f in os.listdir(carpeta) if f.lower().endswith(".jpg"))
+            fotos = fotos_timelapse(carpeta)
             if len(fotos) < 2:
                 raise RuntimeError("Hacen falta al menos dos fotos para montar un vídeo")
             primera = cv2.imread(os.path.join(carpeta, fotos[0]))
@@ -551,8 +554,21 @@ class TrabajoTimelapse:
                 self.video.update({"en_curso": False, "ruta": ruta if not error else "", "error": error, "progreso": 100 if not error else 0})
 
 
+MINIATURA_TIMELAPSE = "miniatura.jpg"
+ANCHO_MINIATURA_TIMELAPSE = 160
+
+
+def fotos_timelapse(carpeta):
+    """Fotogramas de un timelapse en orden (foto_0001.jpg, ...), sin la miniatura."""
+    return sorted(f for f in os.listdir(carpeta) if f.lower().startswith("foto_") and f.lower().endswith(".jpg"))
+
+
 def listar_timelapses(raiz=None, maximo=10):
-    """Carpetas de timelapse con su número de fotos y si ya tienen vídeo, las más recientes primero."""
+    """
+    Carpetas de timelapse con su número de fotos y si ya tienen vídeo, las más
+    recientes primero. `miniatura` es la imagen pequeña para la lista (la última
+    foto entera pesa varios MB); los timelapses antiguos no la tienen.
+    """
     raiz = raiz or CARPETA_TIMELAPSE
     salida = []
     if not os.path.isdir(raiz):
@@ -561,9 +577,10 @@ def listar_timelapses(raiz=None, maximo=10):
         ruta = os.path.join(raiz, nombre)
         if not os.path.isdir(ruta):
             continue
-        fotos = sorted(f for f in os.listdir(ruta) if f.lower().endswith(".jpg"))
+        fotos = fotos_timelapse(ruta)
         salida.append({"carpeta": nombre, "fotos": len(fotos), "primera": fotos[0] if fotos else None,
                        "ultima": fotos[-1] if fotos else None,
+                       "miniatura": MINIATURA_TIMELAPSE if os.path.isfile(os.path.join(ruta, MINIATURA_TIMELAPSE)) else None,
                        "video": os.path.isfile(os.path.join(ruta, "timelapse.mp4"))})
     return salida
 

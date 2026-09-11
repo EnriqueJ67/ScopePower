@@ -292,7 +292,8 @@
         const cont = document.getElementById("tl-anteriores");
         if (!lista.length) { cont.innerHTML = ""; return; }
         cont.innerHTML = '<div class="seccion-titulo">Timelapses guardados</div><ul class="tl-lista">' + lista.map(t => {
-            const img = t.ultima ? `<img src="/static/timelapse/${t.carpeta}/${t.ultima}" alt="">` : "";
+            // Miniatura pequeña; los timelapses de antes de que existiera van sin imagen (la foto entera pesa varios MB)
+            const img = t.miniatura ? `<img src="/static/timelapse/${t.carpeta}/${t.miniatura}" alt="">` : "";
             const fecha = t.carpeta.replace(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})\d{2}_(\w+)$/, "$3/$2/$1 $4:$5 · $6");
             const video = t.video ? `<a class="btn btn-sm btn-secondary" href="/static/timelapse/${t.carpeta}/timelapse.mp4" target="_blank">Vídeo</a>`
                                   : `<button type="button" class="btn btn-sm btn-ghost" onclick="montarVideo('${t.carpeta}')">Montar vídeo</button>`;

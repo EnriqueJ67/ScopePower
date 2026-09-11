@@ -31,7 +31,7 @@ from apilado import aumentar_saturacion #, subir_imagen_ftp_async
 import apilado
 import firma
 import io
-from AutoStrechSTF import apply_stf_color, debayer_rgb, miniatura_cfa_rgb
+from AutoStrechSTF import apply_stf_color, debayer_rgb, miniatura_cfa_rgb, guardar_jpg_web
 from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
 
 from datetime import datetime
@@ -82,7 +82,8 @@ USUARIOS_HASH = dict(config["Usuarios"])
 
 RUTA_ASTAP = config["General"]["RUTA_ASTAP"]
 RUTA_IMAGEN = ruta_absoluta("static/captura.fits") # config["General"]["RUTA_IMAGEN"]
-RUTA_IMAGEN_PNG = os.path.splitext(RUTA_IMAGEN)[0] + ".png" # config["General"]["RUTA_IMAGEN_PNG"]
+# Versión para la web de la foto de prueba: JPG reducido (ver guardar_jpg_web), no el PNG entero
+RUTA_IMAGEN_WEB = os.path.splitext(RUTA_IMAGEN)[0] + ".jpg"
 RUTA_WCS = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.wcs"
 RUTA_INI = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.ini"
 ruta_stellarium = config["General"].get("RUTA_STELLARIUM", "")
@@ -1662,12 +1663,12 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         # Aplicar saturación real
         imagen_mtf = aumentar_saturacion(imagen_mtf, factor=intensidad_color)
 
-        # Guardar PNG a resolución completa (cv2 espera BGR)
+        # Guardar la versión para la web, reducida y en JPG (cv2 espera BGR)
         if imagen_mtf.ndim == 3:
-            imagen_png = cv2.cvtColor(imagen_mtf, cv2.COLOR_RGB2BGR)
+            imagen_web = cv2.cvtColor(imagen_mtf, cv2.COLOR_RGB2BGR)
         else:
-            imagen_png = imagen_mtf
-        cv2.imwrite(RUTA_IMAGEN_PNG, imagen_png)
+            imagen_web = imagen_mtf
+        guardar_jpg_web(RUTA_IMAGEN_WEB, imagen_web)
 
         return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
                 "dark": dark_aplicado, "ganancia": ganancia_real}
@@ -1701,9 +1702,9 @@ def capturar_imagen():
 
 @app.route('/imagen-capturada')
 def imagen_capturada():
-    if not os.path.exists(RUTA_IMAGEN_PNG):
+    if not os.path.exists(RUTA_IMAGEN_WEB):
         return send_file("static/esperando.png", mimetype="image/png")
-    response = send_file(RUTA_IMAGEN_PNG, mimetype='image/png')
+    response = send_file(RUTA_IMAGEN_WEB, mimetype='image/jpeg')
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
 
@@ -1848,7 +1849,7 @@ def esta_noche_objetos():
 @app.route('/foto-prueba')
 def foto_prueba():
     """Página de foto de prueba: no dispara nada al abrirse; el botón de dentro captura."""
-    return render_template('imagen.html', mostrar_volver=True, hay_foto=os.path.exists(RUTA_IMAGEN_PNG))
+    return render_template('imagen.html', mostrar_volver=True, hay_foto=os.path.exists(RUTA_IMAGEN_WEB))
 
 
 def sincronizar_con_ultima_foto():
@@ -2754,7 +2755,7 @@ def foto_dia_iniciar():
     try:
         foto_dia.trabajo_foto_dia.iniciar(camara, objetivo, _dispositivos()["binning"],
                                           exposicion_inicial=ultimas.get(objetivo), montura=montura,
-                                          ruta_fits=RUTA_IMAGEN, ruta_png=RUTA_IMAGEN_PNG,
+                                          ruta_fits=RUTA_IMAGEN, ruta_web=RUTA_IMAGEN_WEB,
                                           al_terminar=_al_terminar, voz=voz, campo=_campo_foto_dia(datos))
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
