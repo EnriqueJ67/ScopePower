@@ -22,10 +22,12 @@
     <button type="button" class="btn" id="btn-modo" title="Cambiar entre horizonte (Alt/Az) y ecuatorial (RA/Dec)">Alt/Az</button>
     <button type="button" class="btn" id="btn-montura" title="Centrar el mapa donde apunta la montura" disabled><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">Montura</span></button>
     <label class="switch" title="El mapa sigue a la montura"><input type="checkbox" id="seguir"> Seguir</label>
+    <label class="switch" title="Chinchetas con los objetos recomendados de Esta noche"><input type="checkbox" id="chinchetas" checked> Esta noche</label>
 </div>
 
 <div class="atlas-marco">
     <div id="atlas" class="atlas"></div>
+    <div id="capa-noche" class="capa-noche" aria-label="Objetos recomendados esta noche"></div>
     <div id="estado" class="estado-atlas"><span class="spinner"></span> Cargando el cielo…</div>
     <div id="panel" class="panel" hidden>
         <div class="panel-cab">
@@ -41,6 +43,23 @@
         </div>
     </div>
 </div>
+<!-- Ficha de un objeto de "Esta noche" al tocar su chincheta -->
+<div id="modal-objeto" class="modal" onclick="if (event.target === this) cerrarFicha()">
+    <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="ficha-nombre">
+        <div class="modal-titulo"><span id="ficha-icono" class="ficha-icono"></span><span id="ficha-nombre"></span></div>
+        <div class="texto-3" id="ficha-id" style="font-size: 13px; margin-top: -4px;"></div>
+        <div class="texto-2" id="ficha-datos" style="font-size: 13.5px; margin-top: 8px;"></div>
+        <p class="modal-texto" id="ficha-desc"></p>
+        <div id="ficha-visib" style="font-weight: 600; font-size: 13.5px;"></div>
+        <div class="texto-3" id="ficha-coords" style="font-size: 13px; margin-top: 4px;"></div>
+        <div class="modal-acciones">
+            <button type="button" class="btn btn-primary" id="ficha-ir"><svg><use href="#i-goto"/></svg><span id="ficha-ir-texto">Ir y centrar</span></button>
+            <button type="button" class="btn" id="ficha-ver"><svg><use href="#i-planetario"/></svg>Ver en el mapa</button>
+            <button type="button" class="btn" onclick="cerrarFicha()">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <p class="credito texto-3">Motor <a href="https://github.com/acocalypso/celestia_atlas" target="_blank" rel="noopener">Celestia Atlas</a> (MIT) ·
     estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · <a href="/static/atlas/THIRD_PARTY_NOTICES.md" target="_blank">créditos</a></p>
 
@@ -66,12 +85,27 @@
     .panel-datos { font-size: 13px; margin-top: 4px; line-height: 1.45; }
     .panel-acciones { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
     .btn-icono { padding: 6px 8px; }
+
+    /* Chinchetas de "Esta noche": capa HTML sobre el lienzo, recolocada a cada fotograma */
+    .capa-noche { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+    .capa-noche[hidden] { display: none; }
+    .chincheta { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 5px; pointer-events: auto; cursor: pointer;
+                 background: none; border: 0; padding: 0; color: var(--text); font: inherit; transform: translate(-12px, -12px); will-change: transform; }
+    .chincheta .cuadro { width: 24px; height: 24px; box-sizing: border-box; border: 2px solid var(--ok); border-radius: 5px; background: rgba(0, 0, 0, 0.55);
+                         display: grid; place-items: center; font-size: 13px; line-height: 1; box-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
+    .chincheta.tarde .cuadro { border-color: var(--warn); border-style: dashed; }
+    .chincheta .etiqueta { font-size: 11.5px; font-weight: 600; text-shadow: 0 0 4px #000, 0 0 2px #000; white-space: nowrap; pointer-events: none; }
+    .chincheta.sin-etiqueta .etiqueta { display: none; }
+    .chincheta:hover .cuadro, .chincheta:active .cuadro { background: var(--surface-3); }
+    .ficha-icono { font-size: 22px; line-height: 1; }
+    .modal-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
     .credito { font-size: 12px; margin: 8px 2px 0; }
     .credito a { color: inherit; text-decoration: underline; }
 </style>
 
 <script type="module">
-    import { createCelestiaAtlasViewer, equatorialToHorizontal, horizontalToEquatorial, calculateCameraFieldOfView }
+    import { createCelestiaAtlasViewer, equatorialToHorizontal, horizontalToEquatorial, calculateCameraFieldOfView,
+             alignViewToHorizon, projectEquatorial }
         from "{{ url_for('static', filename='atlas/src/index.js') }}";
 
     const $ = id => document.getElementById(id);
@@ -147,6 +181,9 @@
         aplicarEstado(cfg);
         if (cfg.montura?.conectada) viewer.focusMount();
         setInterval(refrescar, 2000);
+        cargarEstaNoche();
+        setInterval(cargarEstaNoche, 5 * 60 * 1000);   // la visibilidad "ahora" cambia
+        requestAnimationFrame(recolocarChinchetas);
     }
 
     function sincronizarVisibilidad() {
@@ -240,27 +277,130 @@
         return { objeto: t.name || t.displayName, conCoords: true };
     }
 
-    $("btn-ir").onclick = async () => {
-        if (!seleccionado) return;
-        const c = coordsDe(seleccionado);
-        const { objeto, conCoords } = nombreParaGoto(seleccionado);
+    // Envía el GoTo por la misma ruta que la página GoTo y "Esta noche". Con ra_h/dec_deg
+    // el PC no tiene que resolver el nombre; sin ellas (Sistema Solar) lo calcula él.
+    async function enviarGoto(objeto, ra_h, dec_deg, boton) {
         let cuerpo = "objeto=" + encodeURIComponent(objeto);
-        if (conCoords && c) cuerpo += `&ra=${c.raDeg / 15}&dec=${c.decDeg}`;
+        if (Number.isFinite(ra_h) && Number.isFinite(dec_deg)) cuerpo += `&ra=${ra_h}&dec=${dec_deg}`;
         gotoEnCurso = true;
-        $("btn-ir").disabled = true;
+        if (boton) boton.disabled = true;
         estadoEl.innerHTML = `<span class="spinner"></span> Enviando GoTo a <b>${objeto}</b>…`;
+        let ok = false;
         try {
             const r = await (await fetch("/goto", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: cuerpo })).json();
             if (r.error) estadoEl.innerHTML = "❌ " + r.error;
             else if (r.warning) estadoEl.innerHTML = "⚠️ " + r.warning;
             else estadoEl.innerHTML = r.message || "✅ GoTo enviado";
-            if (!r.error && !r.warning) { $("seguir").checked = true; viewer.setMountFollow(true); }
+            ok = !r.error && !r.warning;
+            if (ok) { $("seguir").checked = true; viewer.setMountFollow(true); }
         } catch (e) {
             estadoEl.innerHTML = "❌ " + e;
         }
         setTimeout(() => { gotoEnCurso = false; }, 4000);   // dejar leer la respuesta antes de volver al estado normal
-        $("btn-ir").disabled = false;
+        if (boton) boton.disabled = false;
+        return ok;
+    }
+
+    $("btn-ir").onclick = () => {
+        if (!seleccionado) return;
+        const c = coordsDe(seleccionado);
+        const { objeto, conCoords } = nombreParaGoto(seleccionado);
+        enviarGoto(objeto, conCoords && c ? c.raDeg / 15 : NaN, conCoords && c ? c.decDeg : NaN, $("btn-ir"));
     };
+
+    // ——— Chinchetas de "Esta noche" ———
+    // Los objetos recomendados (mismo cálculo que la página Esta noche) se pintan como
+    // cuadraditos HTML encima del lienzo, proyectados con la misma función que usa el motor.
+    const iconosTipo = { "Galaxia": "🌌", "Nebulosa": "☁️", "Nebulosa planetaria": "💍", "Cúmulo abierto": "✨", "Cúmulo globular": "🔮",
+                         "Resto de supernova": "💥", "Planeta": "🪐", "Luna": "🌙", "Nebulosa oscura": "🐴", "Cometa": "☄️", "Asteroide": "🪨" };
+    const capa = $("capa-noche");
+    let chinchetas = [];          // [{o, el}]
+    let fichaActual = null;
+
+    async function cargarEstaNoche() {
+        try {
+            const d = await (await fetch("/esta-noche/objetos")).json();
+            if (d.error) throw new Error(d.error);
+            capa.innerHTML = "";
+            // Solo lo que se ve esta noche (ahora o más tarde); lo que no sube de la altura mínima no se pinta
+            chinchetas = d.objetos.filter(o => o.visible_ahora || o.visible_desde).map(o => {
+                const el = document.createElement("button");
+                el.type = "button";
+                el.className = "chincheta " + (o.visible_ahora ? "ahora" : "tarde");
+                el.title = o.nombre + (o.visible_ahora ? ` · ahora a ${o.alt_ahora}°` : ` · visible desde las ${o.visible_desde}`);
+                el.innerHTML = `<span class="cuadro">${iconosTipo[o.tipo] || "🔭"}</span><span class="etiqueta">${o.nombre}</span>`;
+                el.hidden = true;
+                el.addEventListener("click", ev => { ev.stopPropagation(); abrirFicha(o); });
+                capa.appendChild(el);
+                return { o, el };
+            });
+        } catch (e) {
+            console.warn("Esta noche no disponible para el planetario:", e);
+        }
+    }
+
+    let ultimaRecolocacion = 0;
+    function recolocarChinchetas(t) {
+        requestAnimationFrame(recolocarChinchetas);
+        if (!viewer || capa.hidden || !chinchetas.length || t - ultimaRecolocacion < 80) return;   // ~12 veces por segundo basta
+        ultimaRecolocacion = t;
+        const w = $("atlas").clientWidth, h = $("atlas").clientHeight;
+        if (!w || !h) return;
+        let vista, ahora;
+        try {
+            vista = viewer.getView(); ahora = viewer.getTime();
+            if (modo === "horizontal") vista = alignViewToHorizon(vista, observador, ahora);
+        } catch (e) { return; }
+        const conEtiqueta = vista.fovDeg <= 100;
+        for (const { o, el } of chinchetas) {
+            const coords = { raDeg: o.ra_h * 15, decDeg: o.dec_deg, frame: "ICRS" };
+            let p = null;
+            try {
+                const hz = equatorialToHorizontal(coords, observador, ahora);
+                if (hz.altitudeDeg >= 0) p = projectEquatorial(coords, vista, w, h);   // bajo el horizonte no se pinta, como el motor
+            } catch (e) {}
+            const visible = p && p.x >= -20 && p.x <= w + 20 && p.y >= -20 && p.y <= h + 20;
+            if (!visible) { if (!el.hidden) el.hidden = true; continue; }
+            if (el.hidden) el.hidden = false;
+            el.classList.toggle("sin-etiqueta", !conEtiqueta);
+            el.style.transform = `translate(${(p.x - 12).toFixed(1)}px, ${(p.y - 12).toFixed(1)}px)`;
+        }
+    }
+
+    function abrirFicha(o) {
+        fichaActual = o;
+        $("ficha-icono").textContent = iconosTipo[o.tipo] || "🔭";
+        $("ficha-nombre").textContent = o.nombre;
+        $("ficha-id").textContent = [o.id !== o.nombre ? o.id : "", o.nombre_alt && o.nombre_alt !== o.id ? o.nombre_alt : ""].filter(Boolean).join(" · ");
+        const estrellas = "★".repeat(o.popularidad || 0) + "☆".repeat(Math.max(0, 5 - (o.popularidad || 0)));
+        $("ficha-datos").innerHTML = [o.tipo, o.constelacion, o.mag !== null && o.mag !== undefined ? `mag ${o.mag}` : "", o.tamano_arcmin ? `${o.tamano_arcmin}′` : ""]
+            .filter(Boolean).join(" · ") + ` <span style="color: var(--warn); letter-spacing: 1px; font-size: 12px;">${estrellas}</span>`;
+        $("ficha-desc").textContent = o.descripcion || "";
+        const v = $("ficha-visib");
+        if (o.visible_ahora) { v.style.color = "var(--ok)"; v.textContent = `Visible ahora a ${o.alt_ahora}° · máximo ${o.alt_max}° a las ${o.hora_max}`; }
+        else { v.style.color = "var(--warn)"; v.textContent = `Visible de ${o.visible_desde} a ${o.visible_hasta} · máximo ${o.alt_max}° a las ${o.hora_max}`; }
+        let coords = `RA ${horas(o.ra_h * 15)} · Dec ${grados(o.dec_deg)}`;
+        try { const hz = equatorialToHorizontal({ raDeg: o.ra_h * 15, decDeg: o.dec_deg, frame: "ICRS" }, observador, viewer.getTime()); coords += ` · Alt ${hz.altitudeDeg.toFixed(1)}° · Az ${hz.azimuthDeg.toFixed(1)}°`; } catch (e) {}
+        $("ficha-coords").textContent = coords;
+        $("ficha-ir-texto").textContent = cfg?.centrar_tras_goto ? "Ir y centrar" : "Ir";
+        $("ficha-ir").className = "btn " + (o.visible_ahora ? "btn-primary" : "btn-secondary");
+        $("modal-objeto").classList.add("abierto");
+    }
+    window.cerrarFicha = () => { $("modal-objeto").classList.remove("abierto"); fichaActual = null; };
+    $("ficha-ir").onclick = async () => {
+        if (!fichaActual) return;
+        const o = fichaActual;
+        // Igual que el botón "Ir y centrar" de Esta noche: nombre + coordenadas del catálogo propio
+        const ok = await enviarGoto(o.nombre, o.ra_h, o.dec_deg, $("ficha-ir"));
+        if (ok) cerrarFicha();
+    };
+    $("ficha-ver").onclick = () => {
+        if (!fichaActual) return;
+        viewer.setView({ center: { raDeg: fichaActual.ra_h * 15, decDeg: fichaActual.dec_deg, frame: "ICRS" }, fovDeg: 15 });
+        cerrarFicha();
+    };
+    $("chinchetas").onchange = e => { capa.hidden = !e.target.checked; };
+    document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarFicha(); });
 
     // ——— Búsqueda ———
     const inp = $("buscar"), sug = $("sugerencias");
