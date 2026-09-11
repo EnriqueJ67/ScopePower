@@ -27,7 +27,7 @@ import numpy as np
 import cv2
 from astropy.io import fits
 
-from hardware import capturar_frame, CapturaCancelada, ErrorHardware, estado_captura
+from hardware import capturar_frame, ganancia_configurada, CapturaCancelada, ErrorHardware, estado_captura
 from apilado import apilar_sigma_clip
 
 log = logging.getLogger("scopepower.flats")
@@ -186,7 +186,7 @@ class TrabajoFlats:
 
     def _capturar(self, camara, exposicion, binning, descripcion, timeout_extra=60):
         return camara.ejecutar(
-            lambda cam: capturar_frame(cam, exposicion, binning, descripcion=descripcion),
+            lambda cam: capturar_frame(cam, exposicion, binning, descripcion=descripcion, ganancia=ganancia_configurada()),
             timeout=exposicion + timeout_extra)
 
     def _ejecutar(self, camara, conf, con_flat_darks, voz):

@@ -337,7 +337,12 @@
         prepararInicio();
     });
 
-    function describirUltimoDark(u) {
+    // El dark solo sirve si se hizo con la misma ganancia que los lights
+    function darkNoCasa(u, conf) {
+        return !!(u && u.existe && conf && conf.ganancia !== null && conf.ganancia !== undefined
+                  && u.gain !== null && u.gain !== undefined && Math.round(u.gain) !== conf.ganancia);
+    }
+    function describirUltimoDark(u, conf) {
         if (!u || !u.existe) return `ℹ️ No hay ningún dark guardado para ${u ? u.exposicion : "?"} s de exposición.`;
         let s = `🌑 Último dark: ${u.exposicion} s, hecho el ${u.fecha}`;
         if (u.antiguedad_min !== undefined) {
@@ -345,7 +350,9 @@
             s += ` (hace ${h > 0 ? h + " h " : ""}${m} min)`;
         }
         if (u.temperatura !== null && u.temperatura !== undefined) s += ` · sensor a ${u.temperatura.toFixed(1)} °C`;
+        if (u.gain !== null && u.gain !== undefined) s += ` · ganancia ${Math.round(u.gain)}`;
         if (u.ndarks) s += ` · ${u.ndarks} tomas`;
+        if (darkNoCasa(u, conf)) s += ` ⚠️ La cámara está ahora a ganancia ${conf.ganancia}: este dark no sirve, genera darks nuevos.`;
         return s;
     }
 
@@ -354,13 +361,15 @@
             fetch("/darks/estado").then(r => r.json()),
             actualizarEstadoApilado()
         ]).then(([d, estado]) => {
-            document.getElementById("darks-ultimo").textContent = describirUltimoDark(d.ultimo);
+            document.getElementById("darks-ultimo").textContent = describirUltimoDark(d.ultimo, d.config);
+            document.getElementById("darks-ultimo").classList.toggle("err", darkNoCasa(d.ultimo, d.config));
             const fl = d.flat || {};
             document.getElementById("flat-info").innerHTML = fl.existe
                 ? `🟦 Flat maestro del ${fl.fecha} (viñeteo ${fl.vinyeteo} %): se aplicará a cada foto`
                 : `ℹ️ Sin flat maestro: viñeteo y sombras de polvo no se corrigen. <a href="/flats">Generar flat</a>`;
             document.getElementById("darks-n").value = d.config.numero_darks || 10;
-            const hayDark = d.ultimo && d.ultimo.existe;
+            // Un dark con otra ganancia cuenta como "no hay dark": se propone generar nuevos
+            const hayDark = d.ultimo && d.ultimo.existe && !darkNoCasa(d.ultimo, d.config);
             document.getElementById("opcion-dark-ultimo").disabled = !hayDark;
             document.getElementById(hayDark ? "opcion-dark-ultimo" : "opcion-dark-nuevo").checked = true;
             actualizarResumenInicio();
@@ -483,7 +492,8 @@
                 mostrarPaso("inicio");
             } else {
                 document.getElementById("darks-resultado").textContent = "✅ " + t.mensaje;
-                document.getElementById("darks-ultimo").textContent = describirUltimoDark(d.ultimo);
+                document.getElementById("darks-ultimo").textContent = describirUltimoDark(d.ultimo, d.config);
+                document.getElementById("darks-ultimo").classList.remove("err");
                 usarDark = true;
                 mostrarPaso("destapar");
             }
@@ -612,7 +622,8 @@
         document.getElementById("ultima-toma").src = `/ultima-captura?${Date.now()}`;
         if (info && info.hora) {
             document.getElementById("ultima-toma-texto").textContent =
-                `Última toma ${info.hora} · ${info.exposicion} s` + (info.dark ? " · dark" : "");
+                `Última toma ${info.hora} · ${info.exposicion} s` + (info.dark ? " · dark" : "")
+                + (info.ganancia !== null && info.ganancia !== undefined ? ` · ganancia ${info.ganancia}` : "");
         }
     }
 

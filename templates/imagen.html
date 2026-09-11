@@ -30,6 +30,17 @@
                 <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;"><svg><use href="#i-stop"/></svg>Cancelar</button>
                 <button id="btn-sync" class="btn btn-secondary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-sync"/></svg>Sincronizar telescopio con la foto</button>
             </div>
+            <!-- Ganancia solo para las fotos de prueba de esta pantalla (para enfocar con
+                 exposiciones cortas). No se guarda: la de noche se ajusta en Configuración. -->
+            <div class="fila mt-2" id="fila-ganancia" style="justify-content: space-between;">
+                <label for="ganancia-prueba" class="texto-2" style="margin: 0; font-size: 14px;">Ganancia para esta foto</label>
+                <span class="fila" style="flex-wrap: nowrap; gap: 6px;">
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarGananciaPrueba(-50)" title="50 menos">−50</button>
+                    <input type="number" id="ganancia-prueba" class="corto" min="0" step="1" style="width: 78px;" placeholder="config">
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarGananciaPrueba(50)" title="50 más">+50</button>
+                </span>
+            </div>
+            <div id="ganancia-ayuda" class="texto-3" style="font-size: 12.5px;"></div>
             <div id="estado-foto" class="estado mt-2"></div>
             <div id="estado-sync" class="estado"></div>
         </div>
@@ -168,6 +179,8 @@
             ? `<svg><use href="#i-sol"/></svg>Foto de día: ${NOMBRE_OBJETIVO[objetivoDia]}`
             : `<svg><use href="#i-foto"/></svg>Hacer foto`;
         document.getElementById("btn-sync").hidden = modoDia;     // de día no hay plate solving
+        document.getElementById("fila-ganancia").hidden = modoDia;  // de día la ganancia va al mínimo sola
+        document.getElementById("ganancia-ayuda").hidden = modoDia;
         document.getElementById("sub-foto").textContent = modoDia
             ? "Modo día: la exposición se ajusta sola. Apunta con GoTo (Sol, Luna) y afina con el control manual."
             : "Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.";
@@ -378,14 +391,16 @@
         document.getElementById("estado-foto").innerHTML = '<span class="spinner"></span>Preparando la cámara...';
         document.getElementById("estado-sync").textContent = "";
         if (!sondeo) sondeo = setInterval(sondearCaptura, 1000);
-        fetch("/capturar-imagen?apilar=0&json=1")
+        const g = document.getElementById("ganancia-prueba").value.trim();
+        fetch("/capturar-imagen?apilar=0&json=1" + (g !== "" ? "&ganancia=" + encodeURIComponent(g) : ""))
             .then(r => r.json())
             .then(d => {
                 clearInterval(sondeo); sondeo = null; pintarProgreso(null);
                 const est = document.getElementById("estado-foto");
                 if (d.ok) {
                     est.className = "estado ok mt-2";
-                    est.textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "");
+                    est.textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "")
+                        + (d.ganancia !== null && d.ganancia !== undefined ? ` · ganancia ${d.ganancia}` : "");
                     document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
                     hayFotoNueva = true;
                     document.getElementById("btn-sync").disabled = false;
@@ -401,6 +416,26 @@
     function cancelar() {
         fetch("/cancelar-captura", { method: "POST" }).catch(() => {});
     }
+
+    // ——— Ganancia de las fotos de prueba: parte de la de Configuración, con el rango del driver ———
+    let gananciaConfig = null, gananciaMin = 0, gananciaMax = 9999;
+    function cambiarGananciaPrueba(delta) {
+        const campo = document.getElementById("ganancia-prueba");
+        let n = (campo.value.trim() !== "" ? parseInt(campo.value) : (gananciaConfig !== null ? gananciaConfig : 0)) + delta;
+        campo.value = Math.min(gananciaMax, Math.max(gananciaMin, n));
+    }
+    fetch("/camara/ganancia").then(r => r.json()).then(g => {
+        gananciaConfig = g.configurada;
+        const campo = document.getElementById("ganancia-prueba");
+        const ayuda = document.getElementById("ganancia-ayuda");
+        if (g.conectada && g.soportada && g.minima !== null) { gananciaMin = g.minima; gananciaMax = g.maxima; campo.min = g.minima; campo.max = g.maxima; }
+        const base = g.configurada !== null ? g.configurada : (g.actual !== null && g.actual !== undefined ? g.actual : null);
+        if (base !== null) campo.value = base;
+        let s = g.configurada !== null ? `De noche se usa ${g.configurada} (Configuración). ` : "En Configuración no hay ganancia fijada: se usa la del driver. ";
+        if (g.conectada && g.soportada && g.minima !== null) s += `Rango ${g.minima}–${g.maxima}. `;
+        s += "Sube la ganancia para enfocar con exposiciones cortas; aquí no se guarda.";
+        ayuda.textContent = s;
+    }).catch(() => {});
 
     function sincronizar() {
         const btn = document.getElementById("btn-sync");

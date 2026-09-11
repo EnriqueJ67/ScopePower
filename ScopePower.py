@@ -42,7 +42,7 @@ import logging
 from registro import configurar_logging
 log = configurar_logging()   # fichero rotativo logs/scopepower.log + consola; print() también va al log
 from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
-                      capturar_frame, estado_captura)
+                      capturar_frame, estado_captura, ganancia_configurada, leer_ganancia)
 import darks
 import flats
 import secretos
@@ -109,6 +109,7 @@ def _dispositivos():
         "driver_telescopio": d.get("driver_telescopio", DRIVER_TELESCOPIO),
         "binning": int(d.get("binning_camara", BINNING)),
         "focal": float(d.get("focal_len", FOCAL_LEN)),
+        "ganancia": ganancia_configurada(),   # None = la que tenga el driver
     }
 #PIXEL_SIZE = float(config["Dispositivos"]["PIXEL_SIZE"])
 PALABRA_CLAVE_GOTO = config["General"].get("PALABRA_CLAVE_GOTO", "").lower().strip()
@@ -1512,13 +1513,14 @@ def montura_velocidades():
 import numpy as np
 from astropy.io import fits
 
-def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura"):
+def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura", ganancia=None):
     """
     Expone, calibra (dark/flat), escribe static/captura.fits y, si `apilar`,
     una copia en capturas/ que recoge el apilador. Devuelve un dict:
       {"ok": True, "mensaje": ..., "ruta": ...}  o
       {"ok": False, "mensaje": ..., "cancelada": bool}
     No usa `request`: sirve tanto para la ruta web como para el bucle del servidor.
+    `ganancia`: solo para esta captura (Foto de prueba); si es None, la de config.ini.
     """
     # Si la cámara ya está exponiendo, no encolar otra captura detrás
     if camara.ocupado:
@@ -1531,17 +1533,18 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     EXPOSICION = float(nuevo_config["Dispositivos"].get("exposicion_captura", 10))
     disp = _dispositivos()
     BINNING, FOCAL_LEN = disp["binning"], disp["focal"]     # valores en vivo, no los de arranque
+    GANANCIA = disp["ganancia"] if ganancia is None else int(ganancia)
 
     def _exponer(cam):
         print(f"📸 Iniciando exposición de {EXPOSICION} segundos...")
         voz.decir(f"Empieza exposición de {EXPOSICION:.0f} segundos", categoria="capturas")
-        frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion=descripcion)
+        frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion=descripcion, ganancia=GANANCIA)
         print("✅ Exposición finalizada.")
         voz.decir("Exposición terminada", categoria="capturas")
-        return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY
+        return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY, leer_ganancia(cam)["actual"]
 
     try:
-        imagen_fits, sensor_type, pixel_size_x, pixel_size_y = camara.ejecutar(
+        imagen_fits, sensor_type, pixel_size_x, pixel_size_y, ganancia_real = camara.ejecutar(
             _exponer, timeout=EXPOSICION + 90)
     except CapturaCancelada:
         voz.decir("Captura cancelada")
@@ -1600,6 +1603,8 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         hdu.header['XBINNING'] = BINNING
         hdu.header['YBINNING'] = BINNING
         hdu.header['IMAGETYP'] = 'LIGHT'
+        if ganancia_real is not None:
+            hdu.header['GAIN'] = (ganancia_real, 'Ganancia de la camara')
         hdu.header['DATE-OBS'] = time.strftime("%Y%m%d_%H%M%S")
         hdu.header['DARKCORR'] = ('T' if dark_aplicado else 'F', 'Dark master aplicado')
         if dark_aplicado:
@@ -1628,13 +1633,13 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             ULTIMA_CAPTURA.update({"version": ULTIMA_CAPTURA["version"] + 1,
                                    "hora": time.strftime("%H:%M:%S"),
                                    "exposicion": EXPOSICION, "dark": dark_aplicado,
-                                   "pixel_um": float(pixel_size_x)})
+                                   "ganancia": ganancia_real, "pixel_um": float(pixel_size_x)})
         except Exception as e:
             log.warning("No se pudo generar la miniatura de la captura: %s", e)
 
         if not generar_preview:
             return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
-                    "dark": dark_aplicado}
+                    "dark": dark_aplicado, "ganancia": ganancia_real}
 
         # ───   Debayer para preview en RGB   ───
         # imagen_fits aquí es un array 2D (raw CFA de la cámara, uint16).
@@ -1678,7 +1683,11 @@ def capturar_imagen():
     apilar = request.args.get("apilar", "0") == "1"
     usar_dark = request.args.get("dark", "1") != "0"   # ?dark=0: no restar dark aunque exista
     quiere_json = request.args.get("json", "0") == "1"
-    resultado = capturar_y_guardar(apilar=apilar, usar_dark=usar_dark)
+    try:
+        ganancia = int(request.args["ganancia"]) if request.args.get("ganancia", "").strip() else None
+    except ValueError:
+        ganancia = None
+    resultado = capturar_y_guardar(apilar=apilar, usar_dark=usar_dark, ganancia=ganancia)
     if quiere_json:
         codigo = 200 if resultado["ok"] else (409 if resultado.get("ocupada") else 500)
         return jsonify(resultado), codigo
@@ -2870,6 +2879,7 @@ def _config_darks():
         "exposicion": float(disp.get("exposicion_captura", 10)),
         "binning": int(disp.get("binning_camara", 1)),
         "numero_darks": int(disp.get("numero_darks", 10)),
+        "ganancia": ganancia_configurada(),
     }
 
 
@@ -2898,7 +2908,7 @@ def darks_generar():
     if n != conf["numero_darks"]:
         _guardar_en_config("Dispositivos", {"numero_darks": n})   # se recuerda para la próxima vez
     try:
-        darks.trabajo_darks.iniciar(camara, conf["exposicion"], conf["binning"], n)
+        darks.trabajo_darks.iniciar(camara, conf["exposicion"], conf["binning"], n, ganancia=conf["ganancia"])
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     return jsonify({"ok": True, "n": n, "exposicion": conf["exposicion"]})
@@ -3247,10 +3257,26 @@ def obtener_config_datos():
         "binning": config["Dispositivos"].getint("binning_camara"),
         "exposicion": config["Dispositivos"].getfloat("exposicion_captura"),
         "numero_maximo_imagenes": config["Dispositivos"].getint("numero_maximo_imagenes"),
+        "ganancia_camara": config["Dispositivos"].get("ganancia_camara", "").strip(),   # "" = la del driver
         "focal_len": config["Dispositivos"].getfloat("focal_len"),
         "color_intensity": config["Dispositivos"].getfloat("color_intensity"),
         "zoom_preview": config["Dispositivos"].getint("zoom_preview")
     })
+
+@app.route("/camara/ganancia")
+def camara_ganancia():
+    """
+    Ganancia configurada y, si la cámara está conectada, la actual y el rango
+    del driver (GainMin/GainMax). Sin conectar solo devuelve la de config.ini.
+    """
+    salida = {"configurada": ganancia_configurada(), "conectada": camara.esta_conectado()}
+    if salida["conectada"]:
+        try:
+            salida.update(camara.ejecutar(leer_ganancia, timeout=10))
+        except ErrorHardware as e:
+            salida["error"] = str(e)
+    return jsonify(salida)
+
 
 @app.route("/guardar-config-datos", methods=["POST"])
 def guardar_config_datos():
@@ -3258,8 +3284,8 @@ def guardar_config_datos():
     config.read("config.ini")
     antes = _dispositivos()
     for clave, valor in data.items():
-        if clave in config["Dispositivos"]:
-            config["Dispositivos"][clave] = str(valor)
+        if clave in config["Dispositivos"] or clave in ("ganancia_camara",):
+            config["Dispositivos"][clave] = str(valor).strip()
     with open("config.ini", "w") as f:
         config.write(f)
     # Si cambia un driver, desconectar ese dispositivo: la siguiente conexión usa el nuevo

@@ -27,7 +27,7 @@ from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
-from hardware import capturar_frame_con_pixel, pistas_platesolve, CapturaCancelada, ErrorHardware, estado_captura
+from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, CapturaCancelada, ErrorHardware, estado_captura
 import coordenadas
 
 log = logging.getLogger("scopepower.centrado")
@@ -195,7 +195,8 @@ class TrabajoCentrado:
                 self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: exponiendo {conf['exposicion']:.0f} s")
                 frame, sensor_type = camara.ejecutar(
                     lambda cam: (capturar_frame_con_pixel(cam, conf["exposicion"], conf["binning"],
-                                                          descripcion=f"Centrado {vuelta}/{conf['max_vueltas']}"),
+                                                          descripcion=f"Centrado {vuelta}/{conf['max_vueltas']}",
+                                                          ganancia=ganancia_configurada()),
                                  getattr(cam, "SensorType", None)),
                     timeout=conf["exposicion"] + 90)
                 self._guardar_fits(frame, objetivo, conf)

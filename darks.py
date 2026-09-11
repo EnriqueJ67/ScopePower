@@ -97,11 +97,12 @@ class TrabajoDarks:
                 "ruta": self.ruta,
             }
 
-    def iniciar(self, camara, exposicion, binning, n=10):
+    def iniciar(self, camara, exposicion, binning, n=10, ganancia=None):
         """
         Lanza la captura de `n` darks en el hilo de la cámara. Devuelve al
         instante; el progreso se consulta con estado(). Lanza RuntimeError si
         ya hay un trabajo en curso o la cámara está ocupada.
+        `ganancia`: la de config.ini, para que el dark case con los lights.
         """
         n = max(1, int(n))
         exposicion = float(exposicion)
@@ -122,7 +123,7 @@ class TrabajoDarks:
                 with self._lock:
                     self.mensaje = f"Capturando dark {i + 1} de {n}"
                 frame = capturar_frame(cam, exposicion, binning,
-                                       descripcion=f"Dark {i + 1}/{n}", light=False)
+                                       descripcion=f"Dark {i + 1}/{n}", light=False, ganancia=ganancia)
                 frames.append(frame)
                 with self._lock:
                     self.completadas = i + 1

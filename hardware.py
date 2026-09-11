@@ -16,6 +16,7 @@
 import threading
 import time
 import logging
+import configparser
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
 import numpy as np
@@ -210,11 +211,77 @@ class EstadoCaptura:
 estado_captura = EstadoCaptura()
 
 
-def capturar_frame(camara, exposicion, binning=1, estado=None, descripcion="", light=True):
+# ─── Ganancia ───────────────────────────────────────────────────────────────
+#  [Dispositivos] ganancia_camara en config.ini. Vacío = no tocarla (queda la que
+#  tenga guardada el driver ASCOM). Se fija antes de cada exposición de noche
+#  (lights, darks, flats, centrado); la Foto de día pone la suya al mínimo.
+
+def ganancia_configurada():
+    """Ganancia de config.ini como entero, o None si está vacía o no es válida."""
+    try:
+        cfg = configparser.ConfigParser()
+        cfg.read("config.ini")
+        v = cfg["Dispositivos"].get("ganancia_camara", "").strip()
+        return int(float(v)) if v else None
+    except (KeyError, ValueError):
+        return None
+
+
+def leer_ganancia(camara):
+    """
+    Ganancia actual y rango del driver. Dentro del hilo de la cámara.
+    {"soportada": bool, "actual": int|None, "minima": int|None, "maxima": int|None}
+    """
+    try:
+        actual = int(camara.Gain)
+    except Exception as e:
+        return {"soportada": False, "actual": None, "minima": None, "maxima": None, "error": str(e)}
+    try:
+        minima, maxima = int(camara.GainMin), int(camara.GainMax)
+    except Exception:
+        minima = maxima = None   # drivers con lista de ganancias (Gains) en vez de rango
+    return {"soportada": True, "actual": actual, "minima": minima, "maxima": maxima}
+
+
+_aviso_ganancia_dado = False
+
+
+def aplicar_ganancia(camara, ganancia):
+    """
+    Fija la ganancia si `ganancia` no es None (recortada al rango del driver).
+    Devuelve la ganancia real de la cámara tras el ajuste, o None si el driver
+    no la expone. Dentro del hilo de la cámara. Si el driver no lo permite,
+    avisa una sola vez y sigue con la que tenga.
+    """
+    global _aviso_ganancia_dado
+    if ganancia is None:
+        try:
+            return int(camara.Gain)
+        except Exception:
+            return None
+    try:
+        objetivo = int(ganancia)
+        try:
+            objetivo = min(max(objetivo, int(camara.GainMin)), int(camara.GainMax))
+        except Exception:
+            pass
+        if int(camara.Gain) != objetivo:
+            camara.Gain = objetivo
+            log.info("Ganancia de la cámara fijada a %d", objetivo)
+        return int(camara.Gain)
+    except Exception as e:
+        if not _aviso_ganancia_dado:
+            log.warning("La cámara no deja fijar la ganancia (%s); se usa la del driver", e)
+            _aviso_ganancia_dado = True
+        return None
+
+
+def capturar_frame(camara, exposicion, binning=1, estado=None, descripcion="", light=True, ganancia=None):
     """
     Expone y devuelve el fotograma crudo (CFA) como np.uint16 2D.
     Debe ejecutarse DENTRO del hilo de la cámara (vía TrabajadorCOM.ejecutar).
 
+    - `ganancia`: se fija antes de exponer si no es None (ver aplicar_ganancia).
     - Configura el binning y el área completa del sensor (sin acumular divisiones).
     - Sondea ImageReady cada 0,2 s; si `estado.cancelar` se activa, aborta la
       exposición y lanza CapturaCancelada.
@@ -223,6 +290,7 @@ def capturar_frame(camara, exposicion, binning=1, estado=None, descripcion="", l
     estado = estado or estado_captura
     exposicion = float(exposicion)
 
+    aplicar_ganancia(camara, ganancia)
     camara.BinX = binning
     camara.BinY = binning
     camara.StartX = 0

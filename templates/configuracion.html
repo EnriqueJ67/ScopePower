@@ -33,6 +33,11 @@
                     <input type="number" id="exposicion" class="form-control" min="0.1" step="0.1">
                 </div>
                 <div class="form-group">
+                    <label>Ganancia de la cámara</label>
+                    <input type="number" id="ganancia_camara" class="form-control" min="0" step="1" placeholder="la del driver">
+                    <small class="ayuda" id="ganancia-ayuda">Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM).</small>
+                </div>
+                <div class="form-group">
                     <label>Máximo de fotos a apilar</label>
                     <input type="number" id="numero_maximo_imagenes" class="form-control" min="1" step="1">
                 </div>
@@ -251,6 +256,7 @@
         await cargarDrivers("Telescope");
         await cargarDrivers("Camera");
         const data = await (await fetch("/config-datos")).json();
+        mostrarRangoGanancia();
         for (const campo in data) {
             const el = document.getElementById(campo);
             if (!el) continue;
@@ -282,6 +288,7 @@
             binning_camara: document.getElementById("binning").value,
             exposicion_captura: document.getElementById("exposicion").value,
             numero_maximo_imagenes: document.getElementById("numero_maximo_imagenes").value,
+            ganancia_camara: document.getElementById("ganancia_camara").value,
             focal_len: document.getElementById("focal_len").value,
             color_intensity: document.getElementById("color_intensity").value,
             zoom_preview: document.getElementById("zoom_preview").value
@@ -294,6 +301,24 @@
         }).then(r => r.text())
             .then(msg => document.getElementById("estado-guardado").textContent = msg);
     });
+
+    // Rango real de ganancia del driver (solo si la cámara está conectada) y aviso
+    // de que cambiarla obliga a rehacer los darks
+    function mostrarRangoGanancia() {
+        fetch("/camara/ganancia").then(r => r.json()).then(g => {
+            const ayuda = document.getElementById("ganancia-ayuda");
+            const campo = document.getElementById("ganancia_camara");
+            let s = "Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM).";
+            if (g.conectada && g.soportada) {
+                if (g.minima !== null && g.maxima !== null) { campo.min = g.minima; campo.max = g.maxima; s += ` Rango de esta cámara: ${g.minima}–${g.maxima}.`; }
+                s += ` Ahora mismo la cámara está a ${g.actual}.`;
+            } else if (g.conectada) {
+                s += " Este driver no permite cambiar la ganancia desde la app.";
+            }
+            s += " Si la cambias, genera darks nuevos: un dark hecho con otra ganancia no sirve.";
+            ayuda.textContent = s;
+        }).catch(() => {});
+    }
 
     function pintarVozConfig(e) {
         document.getElementById("voz-capturas").checked = !!e.anunciar_capturas;

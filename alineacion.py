@@ -28,7 +28,7 @@ from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from astropy.time import Time
 import astropy.units as u
 
-from hardware import capturar_frame_con_pixel, pistas_platesolve, CapturaCancelada, ErrorHardware, estado_captura
+from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, CapturaCancelada, ErrorHardware, estado_captura
 from centrado import resolver_con_astap, CentradoCancelado
 import coordenadas
 
@@ -244,7 +244,8 @@ class TrabajoAlineacion:
             ra_m, dec_m = montura.ejecutar(lambda t: (t.RightAscension, t.Declination), timeout=10)
             frame, px, py = camara.ejecutar(
                 lambda cam: capturar_frame_con_pixel(cam, conf["exposicion"], conf["binning"],
-                                                     descripcion=f"Alineación {idx + 1}/{total}"),
+                                                     descripcion=f"Alineación {idx + 1}/{total}",
+                                                     ganancia=ganancia_configurada()),
                 timeout=conf["exposicion"] + 90)
             hdu = fits.PrimaryHDU(np.asarray(frame, dtype=np.uint16))
             hdu.header["BZERO"], hdu.header["BSCALE"] = 32768, 1
