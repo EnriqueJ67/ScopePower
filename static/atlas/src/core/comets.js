@@ -4,7 +4,7 @@ import {
   MakeTime,
   Observer as AstronomyObserver,
   ObserverVector,
-} from "astronomy-engine";
+} from "../../vendor/astronomy-engine-2.1.19.esm.js";
 import cometCatalog from "../../data/comets.js";
 import { normalizeDegrees, validateObserver } from "./coordinates.js";
 

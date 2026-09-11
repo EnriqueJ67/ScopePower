@@ -13,6 +13,11 @@ tienen sus propias licencias (ver THIRD_PARTY_NOTICES.md):
 - `data/comets.js`: elementos de cometas del Minor Planet Center.
 - `vendor/astronomy-engine-2.1.19.esm.js`: efemérides (MIT).
 
+Cambio local: en `src/core/coordinates.js`, `comets.js` y `solar-system.js` el import de
+`astronomy-engine` apunta a `../../vendor/astronomy-engine-2.1.19.esm.js` en vez de al nombre
+del paquete, para no depender de un *import map* (Chrome < 89 no los soporta). Al actualizar
+el motor hay que repetir ese cambio.
+
 No se incluye el suplemento de Stellarium (GPL) ni las teselas DSS: el planetario
 funciona 100 % sin Internet con lo que hay aquí. Para actualizar, copiar de nuevo
 `src/`, `vendor/`, `data/comets.js`, `assets/milky-way.webp`, los tres catálogos y regenerar

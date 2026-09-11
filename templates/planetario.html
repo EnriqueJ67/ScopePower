@@ -10,7 +10,23 @@
 <script src="{{ url_for('static', filename='atlas/hyg-star-catalog.js') }}" defer></script>
 <script src="{{ url_for('static', filename='atlas/western-constellations.js') }}" defer></script>
 <script src="{{ url_for('static', filename='atlas/dso-catalog.js') }}" defer></script>
-<script type="importmap">{"imports":{"astronomy-engine":"{{ url_for('static', filename='atlas/vendor/astronomy-engine-2.1.19.esm.js') }}"}}</script>
+<script>
+    // Navegadores algo antiguos (Chrome < 98): el motor usa structuredClone para copiar objetos simples
+    if (typeof window.structuredClone !== "function") window.structuredClone = function (v) { return JSON.parse(JSON.stringify(v)); };
+    // Si el módulo del planetario no arranca (navegador viejo, fichero que no carga), decirlo en pantalla
+    (function () {
+        function avisar(texto) {
+            var e = document.getElementById("estado");
+            if (e && /Cargando el cielo/.test(e.textContent)) e.innerHTML = "❌ " + texto + "<br><small>Navegador: " + navigator.userAgent.replace(/^.*\((.*?)\).*?(Chrome\/[\d.]+|Safari\/[\d.]+|Firefox\/[\d.]+)?.*$/, "$1 · $2") + "</small>";
+        }
+        window.addEventListener("error", function (ev) {
+            if (ev.target && ev.target !== window && ev.target.src) avisar("No se pudo cargar " + ev.target.src.replace(/^.*\/static\//, "static/"));
+            else if (ev.message) avisar("Error al arrancar el planetario: " + ev.message);
+        }, true);
+        window.addEventListener("unhandledrejection", function (ev) { avisar("Error al arrancar el planetario: " + (ev.reason && ev.reason.message || ev.reason)); });
+        setTimeout(function () { avisar("El planetario no ha arrancado en 20 s. Hace falta Chrome 80 o más reciente (o Safari 15); actualiza el navegador de este dispositivo."); }, 20000);
+    })();
+</script>
 {% endblock %}
 
 {% block content %}
