@@ -1764,6 +1764,8 @@ def vista_planetario():
 # Geometría del sensor (px y tamaño de píxel) para dibujar el encuadre de la
 # cámara sobre el mapa. Se lee una sola vez de la cámara cuando está libre.
 _geometria_camara = {}
+# Última vez que la montura no contestó: hasta cuándo no volver a leerla y por qué
+_montura_sin_respuesta = {"hasta": 0.0, "error": ""}
 
 
 @app.route('/planetario/estado')
@@ -1773,7 +1775,13 @@ def planetario_estado():
     dónde apunta la montura (J2000), el encuadre de la cámara y cómo va el centrado.
     """
     montura_info = {"conectada": False}
-    if montura.esta_conectado():
+    if not montura.esta_conectado():
+        pass
+    elif time.time() < _montura_sin_respuesta["hasta"]:
+        # El driver está conectado pero la montura no contesta (SynScan sin enlace, montura
+        # apagada): no insistir cada 2 s, que cada intento tarda y deja un error en el log.
+        montura_info = {"conectada": False, "error": _montura_sin_respuesta["error"]}
+    else:
         try:
             ra_m, dec_m, slewing = montura.ejecutar(
                 lambda tel: (tel.RightAscension, tel.Declination, bool(tel.Slewing)),
@@ -1781,6 +1789,7 @@ def planetario_estado():
             ra_h, dec_deg = coordenadas.desde_montura(ra_m, dec_m)
             montura_info = {"conectada": True, "ra_h": ra_h, "dec_deg": dec_deg, "slewing": slewing}
         except Exception as e:   # ErrorHardware o driver que no responde: el mapa sigue sin marcador
+            _montura_sin_respuesta.update({"hasta": time.time() + 20, "error": str(e)})
             montura_info = {"conectada": False, "error": str(e)}
     if not _geometria_camara and camara.esta_conectado() and not camara.ocupado:
         try:

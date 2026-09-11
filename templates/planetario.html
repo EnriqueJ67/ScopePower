@@ -191,7 +191,8 @@
         if (gotoEnCurso) return;   // mientras /goto responde se muestra su propio mensaje
         const m = c.montura || {}, cen = c.centrado || {};
         let txt;
-        if (!m.conectada) txt = "Montura no conectada: el mapa funciona, pero no se puede ir a los objetos";
+        if (!m.conectada && m.error) txt = `⚠️ La montura no responde (${m.error}). Comprueba SynScan Pro y que la montura esté encendida`;
+        else if (!m.conectada) txt = "Montura no conectada: el mapa funciona, pero no se puede ir a los objetos";
         else if (cen.en_curso) txt = `🎯 Centrando <b>${cen.objeto || ""}</b> (vuelta ${cen.vuelta}/${cen.max_vueltas}): ${cen.mensaje || ""}`;
         else if (m.slewing) txt = `↗ Montura moviéndose${c.ultimo_goto?.objeto ? " a <b>" + c.ultimo_goto.objeto + "</b>" : ""}…`;
         else txt = `Montura en RA ${horas(m.ra_h * 15)} · Dec ${grados(m.dec_deg)}` +
