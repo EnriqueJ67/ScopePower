@@ -38,6 +38,7 @@
             </div>
         </div>
         <button class="foto-borrar" onclick="eliminarImagen('{{ nombre }}')" title="Eliminar imagen">×</button>
+        <button class="foto-compartir" onclick="compartirImagen('{{ nombre }}', this)" title="Compartir o descargar la foto firmada"><svg class="ico"><use href="#i-compartir"/></svg></button>
     </div>
     {% endfor %}
 </div>
@@ -45,6 +46,7 @@
 <!-- Visor a pantalla completa -->
 <div id="lightbox" class="lightbox">
     <img id="imagen-grande" src="" alt="">
+    <button id="lightbox-compartir" class="btn btn-primary" onclick="event.stopPropagation(); compartirImagen(this.dataset.nombre, this)"><svg><use href="#i-compartir"/></svg>Compartir</button>
     <div class="lightbox-pie" id="lightbox-pie"></div>
 </div>
 
@@ -52,10 +54,43 @@
     function abrirLightbox(src, nombre) {
         document.getElementById('imagen-grande').src = src;
         document.getElementById('lightbox-pie').textContent = (nombre || "") + " · toca para cerrar";
+        document.getElementById('lightbox-compartir').dataset.nombre = decodeURIComponent(src.split("/").pop());
         document.getElementById('lightbox').classList.add("abierto");
     }
     document.getElementById('lightbox').onclick = () => document.getElementById('lightbox').classList.remove("abierto");
     document.addEventListener("keydown", e => { if (e.key === "Escape") document.getElementById('lightbox').classList.remove("abierto"); });
+
+    // Compartir la foto firmada. El menú nativo del móvil (WhatsApp, Fotos...) solo existe
+    // en HTTPS; en HTTP se abre la foto en una pestaña (móvil: mantener pulsado para guardar
+    // o compartir) o se descarga (PC).
+    async function compartirImagen(nombre, boton) {
+        const url = "/galeria/compartir/" + encodeURIComponent(nombre);
+        const objeto = nombre.replace(/\.jpg$/i, "").replace(/_\d{8}_\d{6}$/, "").replace(/_/g, " ");
+        if (navigator.share && navigator.canShare) {
+            if (boton) boton.disabled = true;
+            try {
+                const blob = await (await fetch(url)).blob();
+                const archivo = new File([blob], nombre.replace(/\.jpg$/i, "_ScopePower.jpg"), { type: "image/jpeg" });
+                if (navigator.canShare({ files: [archivo] })) {
+                    await navigator.share({ files: [archivo], title: objeto, text: objeto + " · ScopePower" });
+                    return;
+                }
+            } catch (e) {
+                if (e.name === "AbortError") return;   // el usuario cerró el menú
+                console.warn("Compartir nativo no disponible:", e);
+            } finally {
+                if (boton) boton.disabled = false;
+            }
+        }
+        if (matchMedia("(pointer: coarse)").matches) {
+            window.open(url, "_blank");
+        } else {
+            const a = document.createElement("a");
+            a.href = url + "?descargar=1";
+            a.download = "";
+            document.body.appendChild(a); a.click(); a.remove();
+        }
+    }
 
     function ordenarGaleria(criterio) {
         document.querySelectorAll("#orden-seg button").forEach(b => b.classList.toggle("activo", b.dataset.orden === criterio));

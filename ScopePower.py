@@ -29,6 +29,8 @@ from apilado import iniciar_hilo_apilado
 from apilado import pausar_apilado, reanudar_apilado, esta_pausado
 from apilado import aumentar_saturacion #, subir_imagen_ftp_async
 import apilado
+import firma
+import io
 from AutoStrechSTF import apply_stf_color, debayer_rgb, miniatura_cfa_rgb
 from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
 
@@ -1199,16 +1201,23 @@ def observatorio():
         if not (-90 <= lat <= 90) or not (-180 <= lon <= 180) or not (-500 <= alt <= 9000):
             return jsonify({"ok": False, "error": "Valores fuera de rango"}), 400
         LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO = round(lat, 6), round(lon, 6), int(round(alt))
-        _guardar_en_config("Observatorio", {"latitud_observatorio": LATITUD_OBSERVATORIO,
-                                            "longitud_observatorio": LONGITUD_OBSERVATORIO,
-                                            "altitud_observatorio": ALTITUD_OBSERVATORIO})
+        valores = {"latitud_observatorio": LATITUD_OBSERVATORIO,
+                   "longitud_observatorio": LONGITUD_OBSERVATORIO,
+                   "altitud_observatorio": ALTITUD_OBSERVATORIO}
+        if "autor" in datos:   # autor de las fotos, para la firma
+            valores["autor"] = str(datos["autor"]).strip()[:60]
+        _guardar_en_config("Observatorio", valores)
+        if "firma" in datos:
+            _guardar_en_config("Apilado", {"firma": "true" if datos["firma"] else "false"})
         log.info("Ubicación del observatorio cambiada: %.5f, %.5f, %d m (%s)", lat, lon, ALTITUD_OBSERVATORIO, datos.get("origen", "manual"))
         voz.decir("Ubicación del observatorio actualizada")
         stellarium = _stellarium_poner_ubicacion(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
     else:
         stellarium = None
+    obs = firma.datos_observatorio()
     return jsonify({"ok": True, "latitud": LATITUD_OBSERVATORIO, "longitud": LONGITUD_OBSERVATORIO,
-                    "altitud": ALTITUD_OBSERVATORIO, "hora_utc_ms": int(time.time() * 1000),
+                    "altitud": ALTITUD_OBSERVATORIO, "autor": obs["autor"], "firma": obs["activa"],
+                    "hora_utc_ms": int(time.time() * 1000),
                     "hora_local": datetime.now().strftime("%H:%M:%S"),
                     "zona_horaria": time.strftime("%Z"), "stellarium": stellarium})
 
@@ -3006,10 +3015,19 @@ def guardar_imagen_jpg():
             with fits.open(destinoFits) as hdul:
                 cubo = hdul[0].data.astype(np.float32)
                 n = int(hdul[0].header.get("NSTACK", 1))
+                exp_total = float(hdul[0].header.get("EXPTOT", 0) or 0)
             # Mismo recorte de zoom que la vista previa; el FITS se guarda entero
             cubo, _, _ = procesado.recortar_centro(cubo, procesado.fraccion_campo())
             rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0)
-            cv2.imwrite(destino, cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 92])
+            imagen_bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
+            # Firma (logo, autor, objeto, tiempo, coordenadas). El FITS queda limpio y
+            # el JSON hermano guarda los datos para el botón de compartir.
+            meta = apilado.metadatos_firma(None, destinoFits, n, round(exp_total / n, 3) if n and exp_total else 0)
+            if meta["activa"]:
+                imagen_bgr = firma.firmar(imagen_bgr, meta)
+            cv2.imwrite(destino, imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92])
+            meta["firmada"] = bool(meta["activa"])
+            firma.guardar_meta(destino, meta)
             GUARDADO.update({"ok": True, "mensaje": f"✅ Imagen guardada como {nombre_archivo} (y su FITS)"})
             voz.decir("Imagen guardada en la galería")
         except Exception as e:
@@ -3107,9 +3125,44 @@ def eliminar_imagen():
         else:
             mensajes.append(f"Archivo FITS '{nombre_fits}' no encontrado.")
 
+        # Datos de la firma (JSON hermano), si los hay
+        ruta_json = os.path.join(carpeta_fotos, f"{nombre_base}.json")
+        if os.path.exists(ruta_json):
+            os.remove(ruta_json)
+
         return jsonify({"ok": True, "mensaje": "✅ " + " ".join(mensajes)})
     except Exception as e:
         return jsonify({"error": f"❌ Error al eliminar: {e}"})
+
+
+@app.route("/galeria/compartir/<nombre>")
+def galeria_compartir(nombre):
+    """
+    Devuelve la foto firmada para compartirla o descargarla. Las guardadas con firma
+    se sirven tal cual; las antiguas (sin JSON hermano) se firman al vuelo con lo que
+    se pueda recuperar del nombre del archivo y del FITS. ?descargar=1 fuerza la descarga.
+    """
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    carpeta_fotos = os.path.abspath(os.path.join("static", "fotos"))
+    ruta_jpg = os.path.abspath(os.path.join(carpeta_fotos, nombre))
+    if (nombre != os.path.basename(nombre) or not re.fullmatch(r"[A-Za-z0-9_.\-]+\.jpg", nombre)
+            or os.path.dirname(ruta_jpg) != carpeta_fotos or not os.path.isfile(ruta_jpg)):
+        return "Imagen no encontrada", 404
+    descargar = request.args.get("descargar") == "1"
+    nombre_salida = f"{os.path.splitext(nombre)[0]}_ScopePower.jpg"
+    meta = firma.meta_de_archivo(ruta_jpg)
+    if meta.get("firmada"):
+        return send_file(ruta_jpg, mimetype="image/jpeg", as_attachment=descargar, download_name=nombre_salida)
+    imagen = cv2.imread(ruta_jpg)
+    if imagen is None:
+        return "No se pudo leer la imagen", 500
+    meta.update(firma.datos_observatorio())
+    firmada = firma.firmar(imagen, meta)
+    ok, jpg = cv2.imencode(".jpg", firmada, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    if not ok:
+        return "No se pudo codificar la imagen", 500
+    return send_file(io.BytesIO(jpg.tobytes()), mimetype="image/jpeg", as_attachment=descargar, download_name=nombre_salida)
 
 @app.route("/configuracion")
 def vista_configuracion():

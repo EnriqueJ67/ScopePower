@@ -789,7 +789,16 @@
                     const sondeo = setInterval(() => {
                         fetch("/guardar-imagen-estado").then(r => r.json()).then(g => {
                             estado.textContent = g.mensaje;
-                            if (!g.en_curso) clearInterval(sondeo);
+                            if (!g.en_curso) {
+                                clearInterval(sondeo);
+                                if (g.ok && g.archivo) {   // enlace para compartir la foto recién guardada
+                                    const a = document.createElement("a");
+                                    a.href = "/galeria/compartir/" + encodeURIComponent(g.archivo);
+                                    a.target = "_blank"; a.className = "btn btn-sm btn-secondary"; a.style.marginLeft = "8px";
+                                    a.innerHTML = '<svg><use href="#i-compartir"/></svg>Compartir';
+                                    estado.appendChild(a);
+                                }
+                            }
                         }).catch(() => clearInterval(sondeo));
                     }, 1500);
                 }

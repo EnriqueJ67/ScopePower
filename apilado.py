@@ -19,6 +19,7 @@ from AutoStrechSTF import apply_stf_color, debayer_rgb
 import anotaciones
 import voz
 import procesado
+import firma
 import cv2
 
 import subprocess
@@ -286,6 +287,36 @@ def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relativa)
     return os.path.join(os.path.abspath("."), relativa)
+
+
+def nombre_objeto_goto():
+    """Nombre del objeto del último GOTO (static/info_objeto_goto.txt) o 'Objeto'."""
+    nombre = "Objeto"
+    info_path = ruta_absoluta("static/info_objeto_goto.txt")
+    if os.path.isfile(info_path):
+        with open(info_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if line.lower().startswith("nombre:"):
+                    nombre = line.split(":", 1)[1].strip() or nombre
+                    break
+    return nombre
+
+
+def metadatos_firma(cfg=None, ruta_fits=None, n_fotos=0, exposicion=0):
+    """
+    Datos para firmar el apilado (firma.py): autor, lugar e interruptor del config,
+    objeto del último GOTO, coordenadas de la cabecera del FITS, fotos y exposición.
+    """
+    meta = firma.datos_observatorio(cfg)
+    meta.update({"objeto": nombre_objeto_goto(), "fecha": datetime.now(),
+                 "n_fotos": n_fotos, "exposicion": exposicion})
+    if ruta_fits and os.path.isfile(ruta_fits):
+        try:
+            hdr = fits.getheader(ruta_fits)
+            meta["ra"], meta["dec"] = hdr.get("OBJCTRA"), hdr.get("OBJCTDEC")
+        except Exception as e:
+            print(f"⚠️ Sin coordenadas para la firma ({e})")
+    return meta
 
 
 def subir_imagen_ftp_async(ruta_local, nombre_remoto="ultima.jpg"):
@@ -570,11 +601,12 @@ class ApiladorEnTiempoReal:
 
 
     def generar_preview(self, rgb_cube, num_imagenes_preview, EXPOSICION, ObjetosAnotados=False,
-                        anotar_evolucion=True):
+                        anotar_evolucion=True, ruta_fits=None):
         """
         Del cubo lineal (3, H, W) al JPG de vista previa: recorte de zoom,
         procesado estilo Seestar (procesado.py), texto, miniatura de la tira de
-        evolución y aviso a la web (versión).
+        evolución y aviso a la web (versión). ruta_fits: FITS del que sacar las
+        coordenadas para la firma.
         """
         self._fase("estirando")
         nuevo_config = configparser.ConfigParser()
@@ -605,37 +637,14 @@ class ApiladorEnTiempoReal:
 
         imagen_bgr = cv2.cvtColor(rgb_mtf, cv2.COLOR_RGB2BGR)
 
-        # Marco decorativo con texto (versión de junio, frame_and_text.py): nombre del
-        # objeto, fotos y tiempo. Se omite con recortes extremos. Si falla, texto simple.
-        if fraccion >= 0.2:
-            obj_name = "Objeto"
-            info_path = ruta_absoluta("static/info_objeto_goto.txt")
-            if os.path.isfile(info_path):
-                with open(info_path, "r", encoding="utf-8", errors="replace") as f:
-                    for line in f:
-                        if line.startswith("Nombre:"):
-                            obj_name = line.split(":", 1)[1].strip() or obj_name
-                            break
-            texto_apilado = f"{obj_name}  ·  {num_imagenes_preview} fotos, {num_imagenes_preview * EXPOSICION:.0f} s  ·  {datetime.now().strftime('%d/%m/%Y %H:%M')}"
-            usar_marco = nuevo_config["Apilado"].get("marco_decorativo", "true").lower() == "true" if "Apilado" in nuevo_config else True
-            dibujado = False
-            if usar_marco:
-                try:
-                    from frame_and_text import add_frame_and_text
-                    imagen_bgr = add_frame_and_text(imagen_bgr, texto_apilado)
-                    dibujado = True
-                except Exception as e:
-                    print(f"⚠️ Marco decorativo no disponible ({e}); texto simple")
-            if not dibujado:
-                alto = imagen_bgr.shape[0]
-                font_scale = max(0.4, min(round(alto / 800.0, 2), 1.5))
-                thickness = max(1, int(font_scale * 2.5))
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                (t_width, t_height), _ = cv2.getTextSize(texto_apilado, font, font_scale, thickness)
-                pos_x = (imagen_bgr.shape[1] - t_width) // 2
-                pos_y = imagen_bgr.shape[0] - 10
-                cv2.putText(imagen_bgr, texto_apilado, (pos_x + 1, pos_y + 1), font, font_scale, (0, 0, 0), 2)
-                cv2.putText(imagen_bgr, texto_apilado, (pos_x, pos_y), font, font_scale, (180, 180, 180), thickness)
+        # Firma (firma.py): logo, autor, lugar y fecha a la izquierda; objeto, tiempo
+        # de integración y coordenadas a la derecha. Se desactiva con firma = false.
+        try:
+            meta_firma = metadatos_firma(nuevo_config, ruta_fits, num_imagenes_preview, EXPOSICION)
+            if meta_firma["activa"]:
+                imagen_bgr = firma.firmar(imagen_bgr, meta_firma)
+        except Exception as e:
+            print(f"⚠️ No se pudo firmar la vista previa: {e}")
 
         # Guardar JPG final
         self._fase("guardando")
@@ -890,7 +899,7 @@ class ApiladorEnTiempoReal:
 
 
 
-            self.generar_preview(rgb_cube, num_imagenes_preview, EXPOSICION, ObjetosAnotados)
+            self.generar_preview(rgb_cube, num_imagenes_preview, EXPOSICION, ObjetosAnotados, ruta_fits=ruta_fits)
 
 
 
@@ -1036,7 +1045,7 @@ def reprocesar_preview():
         exposicion = exptot / n if n and exptot else 0.0
         a.procesando = True
         try:
-            a.generar_preview(cubo, n, exposicion, ObjetosAnotados=False, anotar_evolucion=False)
+            a.generar_preview(cubo, n, exposicion, ObjetosAnotados=False, anotar_evolucion=False, ruta_fits=ruta)
         finally:
             a.procesando = False
             a.fase = ""
