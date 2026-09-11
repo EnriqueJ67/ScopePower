@@ -551,6 +551,16 @@ def limpiar_sincronizaciones(tel):
 
 
 def _activar_seguimiento(tel):
+    # El driver SynScanMobile "conecta" con la app SynScan Pro aunque esta no tenga
+    # enlace con la montura (apagada, sin WiFi): la conexión ASCOM tiene éxito y luego
+    # cada orden falla con "Conversation timeout". Se comprueba antes que la montura
+    # contesta; si no, la conexión se da por fallida con un aviso claro.
+    try:
+        tel.RightAscension
+    except Exception as e:
+        from hardware import _mensaje_com
+        raise ErrorHardware(f"la montura no responde ({_mensaje_com(e)}): comprueba que está "
+                            "encendida y que SynScan Pro tiene enlace con ella") from e
     try:
         tel.Tracking = True
     except Exception as e:

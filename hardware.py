@@ -64,7 +64,16 @@ class TrabajadorCOM:
             dispositivo = win32com.client.Dispatch(driver)
             dispositivo.Connected = True
             if self._al_conectar:
-                self._al_conectar(dispositivo)
+                try:
+                    self._al_conectar(dispositivo)
+                except Exception:
+                    # La comprobación tras conectar falló (p. ej. SynScan sin enlace con
+                    # la montura): no dejar el driver conectado a medias
+                    try:
+                        dispositivo.Connected = False
+                    except Exception:
+                        pass
+                    raise
             self._dispositivo = dispositivo
         return self._dispositivo
 
@@ -110,7 +119,10 @@ class TrabajadorCOM:
                 return resultado
             except CapturaCancelada:
                 raise
-            except ErrorHardware:
+            except ErrorHardware as e:
+                # Ya viene con mensaje legible (p. ej. de la comprobación al conectar)
+                self.ultimo_error = f"{self.nombre}: {e}"
+                log.error(self.ultimo_error)
                 raise
             except Exception as e:
                 msg = f"{self.nombre}: {_mensaje_com(e)}"
