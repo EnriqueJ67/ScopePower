@@ -93,11 +93,20 @@
             <button id="boton-cancelar" class="btn btn-sm btn-danger" onclick="cancelarCaptura()" style="display: none;">⏹ Cancelar exposición</button>
         </div>
 
-        <div class="stats">
+        <div class="stats stats-descartes">
             <div class="stat"><div class="etiqueta">Descartadas</div><div class="valor"><span id="descartadas">0</span> <small>sin resolver</small></div></div>
             <div class="stat"><div class="etiqueta">Por calidad</div><div class="valor"><span id="descartadas-calidad">0</span> <small>fotos</small></div></div>
-            <div class="stat stat-ancho"><div class="etiqueta">Calidad</div><div class="valor" id="puntuaciones" style="font-size: 14px; white-space: normal; font-weight: 500; color: var(--text-2);">—</div></div>
         </div>
+        <!-- Puntuación de calidad: la última foto medida (aunque se haya descartado) y
+             el resumen de las que forman el apilado. La última se colorea según quede
+             por encima de la mediana, por debajo, o bajo el umbral de descarte. -->
+        <div class="stats stats-calidad" id="stats-calidad">
+            <div class="stat"><div class="etiqueta">Última foto</div><div class="valor" id="punt-ultima">—</div></div>
+            <div class="stat"><div class="etiqueta">Mejor</div><div class="valor" id="punt-mejor">—</div></div>
+            <div class="stat"><div class="etiqueta">Mediana</div><div class="valor" id="punt-mediana">—</div></div>
+            <div class="stat"><div class="etiqueta">Peor</div><div class="valor" id="punt-peor">—</div></div>
+        </div>
+        <div id="puntuaciones" class="estado texto-3" style="margin-top: -4px;"></div>
         <div id="mensaje-apilado" class="estado texto-3"></div>
         <div id="error-apilado" class="estado err"></div>
 
@@ -136,6 +145,16 @@
                 </div>
             </div>
             <div class="panel-cuerpo">
+                <div class="fila" style="justify-content: space-between;">
+                    <span class="texto-2" style="font-size: 14px;">Fotos del apilado (máximo)</span>
+                    <span class="fila" style="flex-wrap: nowrap; gap: 6px;">
+                        <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarMaximo(-10)" title="10 menos">−10</button>
+                        <input type="number" id="maximo-fotos" class="corto" min="1" max="999" step="1" style="width: 72px;" onchange="cambiarMaximo(0)">
+                        <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarMaximo(10)" title="10 más">+10</button>
+                    </span>
+                </div>
+                <div id="maximo-estado" class="texto-3 mt-1" style="font-size: 13px;">Se puede cambiar con el apilado en marcha: se guardan las N mejores. Si lo bajas, con la siguiente foto se quitan las peores.</div>
+                <hr>
                 <label class="switch"><input type="checkbox" id="checkbox-objetos-anotados"> Objetos anotados en la imagen</label>
                 <div class="fila mt-2">
                     <label class="switch"><input type="checkbox" id="dither-activo" onchange="cambiarDithering()"> Dithering cada</label>
@@ -219,8 +238,14 @@
     .panel-inicio .acciones { flex: 0 0 auto; margin-left: auto; }
     .panel-inicio-cuerpo { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
     .lateral .card + .card { margin-top: 0; }
-    .stat-ancho { grid-column: 1 / -1; }
-    @media (min-width: 560px) { .stats { grid-template-columns: 1fr 1fr 2fr; } .stat-ancho { grid-column: auto; } }
+    .stats-descartes { grid-template-columns: 1fr 1fr; }
+    .stats-calidad { grid-template-columns: 1fr 1fr; }
+    .stats-calidad .valor { font-size: 20px; }
+    .stats-calidad .valor.buena { color: var(--ok); }
+    .stats-calidad .valor.floja { color: var(--warn); }
+    .stats-calidad .valor.mala { color: var(--err); }
+    @media (min-width: 560px) { .stats-calidad { grid-template-columns: repeat(4, 1fr); } }
+    #puntuaciones:empty { display: none; }
     /* Pantalla ancha: la columna lateral se queda fija y hace su propio scroll, así la
        imagen apilada no se pierde de vista al tocar los ajustes de procesado */
     @media (min-width: 760px) {
@@ -623,21 +648,58 @@
                 document.getElementById("mensaje-apilado").textContent = d.mensaje || "";
                 document.getElementById("error-apilado").textContent = d.ultimo_error ? "⚠️ " + d.ultimo_error : "";
 
-                let punt = "";
-                if (d.puntuacion_ultima !== null && d.puntuacion_ultima !== undefined) {
-                    punt = "Puntuación última: " + d.puntuacion_ultima;
-                    if (d.puntuacion_minima !== null && d.puntuacion_minima !== undefined)
-                        punt += " · peor en el apilado: " + d.puntuacion_minima;
-                    if (d.umbral !== null && d.umbral !== undefined)
-                        punt += " · umbral de descarte: " + d.umbral;
-                }
-                document.getElementById("puntuaciones").textContent = punt;
+                pintarPuntuaciones(d);
 
                 mostrarEstadoCaptura(d.captura, d.procesando, d);
                 pintarDithering(d);
                 return d;
             })
             .catch(err => console.warn("⚠️ Error leyendo estado:", err));
+    }
+
+    // ——— Puntuación de calidad: última medida y resumen de las apiladas ———
+    const hayNum = v => v !== null && v !== undefined;
+    const fmtPunt = v => hayNum(v) ? Number(v).toFixed(2) : "—";
+    function pintarPuntuaciones(d) {
+        const ultima = document.getElementById("punt-ultima");
+        ultima.textContent = fmtPunt(d.puntuacion_ultima);
+        document.getElementById("punt-mejor").textContent = fmtPunt(d.puntuacion_maxima);
+        document.getElementById("punt-mediana").textContent = fmtPunt(d.puntuacion_mediana);
+        document.getElementById("punt-peor").textContent = fmtPunt(d.puntuacion_minima);
+        // Color de la última: verde si iguala o supera la mediana, ámbar por debajo, rojo si no pasa el umbral
+        let clase = "";
+        if (hayNum(d.puntuacion_ultima)) {
+            if (hayNum(d.umbral) && d.puntuacion_ultima < d.umbral) clase = "mala";
+            else if (hayNum(d.puntuacion_mediana)) clase = d.puntuacion_ultima >= d.puntuacion_mediana ? "buena" : "floja";
+        }
+        ultima.className = "valor " + clase;
+        let pie = "";
+        if (hayNum(d.umbral)) pie = `Umbral de descarte: ${fmtPunt(d.umbral)} (por debajo, la foto no se apila)`;
+        if (d.metrica) pie += (pie ? " · " : "") + `métrica ${d.metrica}`;
+        document.getElementById("puntuaciones").textContent = pie;
+        // El máximo del apilado, la primera vez que llega (después manda el usuario)
+        if (!maximoInicializado && d.maximo) {
+            document.getElementById("maximo-fotos").value = d.maximo;
+            maximoInicializado = true;
+        }
+    }
+
+    // ——— Máximo de fotos del apilado, cambiable en caliente (config.ini vía /preferencias) ———
+    let maximoInicializado = false;
+    function cambiarMaximo(delta) {
+        const campo = document.getElementById("maximo-fotos");
+        let n = (parseInt(campo.value) || 20) + delta;
+        n = Math.min(999, Math.max(1, n));
+        campo.value = n;
+        maximoInicializado = true;
+        const estado = document.getElementById("maximo-estado");
+        guardarPreferencias({ numero_maximo_imagenes: n }).then(() => {
+            document.getElementById("maximo-apilado").textContent = n;
+            const total = parseInt(document.getElementById("contador-apilado").textContent) || 0;
+            estado.textContent = total > n
+                ? `✅ Máximo: ${n} fotos. Hay ${total} apiladas: con la siguiente foto se quitan las ${total - n} peores.`
+                : `✅ Máximo: ${n} fotos. Se aplica a la siguiente foto.`;
+        });
     }
 
     const NOMBRE_FASE = {

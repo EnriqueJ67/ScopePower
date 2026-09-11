@@ -220,6 +220,17 @@ def calcular_puntuacion_photutils(plano, fwhm_px=2.5, umbral_sigma=4.0):
     return raw * penalizador, int(len(tbl)), float(np.mean(forma))
 
 
+def leer_num_max():
+    """[Dispositivos] numero_maximo_imagenes: se relee en cada foto, así se puede
+    cambiar desde la pantalla de apilado sin parar el bucle."""
+    c = configparser.ConfigParser()
+    c.read("config.ini")
+    try:
+        return max(1, int(c["Dispositivos"].get("numero_maximo_imagenes", 20)))
+    except (KeyError, ValueError):
+        return 20
+
+
 def leer_config_calidad():
     """[Apilado]: métrica de calidad y umbral relativo (portado de FiltroApilado.py)."""
     c = cfg["Apilado"] if "Apilado" in cfg else {}
@@ -564,9 +575,7 @@ class ApiladorEnTiempoReal:
 
     def limpiar_fits_antiguos(self):
         try:
-            nuevo_config = configparser.ConfigParser()
-            nuevo_config.read("config.ini")
-            NUM_MAX = int(nuevo_config["Dispositivos"].get("numero_maximo_imagenes", 10))
+            NUM_MAX = leer_num_max()
 
             archivos_fits = sorted(
                 [f for f in os.listdir(self.carpeta) if f.lower().endswith(".fits")],
@@ -686,7 +695,7 @@ class ApiladorEnTiempoReal:
             nuevo_config = configparser.ConfigParser()
             nuevo_config.read("config.ini")
             EXPOSICION = float(nuevo_config["Dispositivos"].get("exposicion_captura", 20))
-            NUM_MAX = int(nuevo_config["Dispositivos"].get("numero_maximo_imagenes", 20))
+            NUM_MAX = leer_num_max()
             FOCAL_LEN = float(nuevo_config["Dispositivos"]["FOCAL_LEN"])
 
             # Limpiar imágenes FITS antiguas en disco
@@ -832,6 +841,16 @@ class ApiladorEnTiempoReal:
             del r, g, b
 
             with self.lock:
+                # El máximo se puede bajar en caliente desde la web: se quitan las
+                # peores hasta dejar hueco (o hasta el nuevo límite)
+                quitadas = 0
+                while len(self.fotogramas) > NUM_MAX:
+                    idx_peor = min(range(len(self.fotogramas)), key=lambda i: self.fotogramas[i]["puntuacion"])
+                    del self.fotogramas[idx_peor]
+                    quitadas += 1
+                if quitadas:
+                    print(f"✂️ Máximo bajado a {NUM_MAX}: {quitadas} foto(s) peores quitadas del apilado")
+                entra = True
                 if len(self.fotogramas) < NUM_MAX:
                     self.fotogramas.append(fotograma)
                     self.ultimo_mensaje = f"{nombre_fits} añadido ({len(self.fotogramas)}/{NUM_MAX})"
@@ -843,17 +862,23 @@ class ApiladorEnTiempoReal:
                         self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) sustituye a "
                                                f"{peor['nombre']} ({peor['puntuacion']:.2f})")
                     else:
+                        entra = False
                         self.descartadas_calidad += 1
                         self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) no mejora al peor "
                                                f"almacenado ({peor['puntuacion']:.2f}); descartado")
-                        print(f"ℹ️ {self.ultimo_mensaje}")
-                        voz.decir("Foto descartada por calidad")
-                        return
                 self.total = len(self.fotogramas)
                 fotogramas_actuales = list(self.fotogramas)
                 sustituida = "sustituye" in self.ultimo_mensaje
-            print(f"📚 {self.ultimo_mensaje}")
-            voz.decir("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas")
+            if not entra:
+                print(f"ℹ️ {self.ultimo_mensaje}")
+                voz.decir("Foto descartada por calidad")
+                # Sin recorte no cambia nada y no hace falta reapilar; con recorte
+                # sí, para que la vista previa refleje las fotos que quedan
+                if not quitadas:
+                    return
+            else:
+                print(f"📚 {self.ultimo_mensaje}")
+                voz.decir("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas")
 
             # ── Apilado (sigma-clipping por bloques, memoria acotada) ──
             self._fase("apilando")
@@ -1063,13 +1088,14 @@ def obtener_estado_apilado():
                 "descartadas_calidad": 0, "ultimo_error": "", "mensaje": "",
                 "referencia": False, "procesando": False,
                 "puntuacion_ultima": None, "puntuacion_minima": None,
+                "puntuacion_maxima": None, "puntuacion_mediana": None,
                 "version": 0, "evolucion": []}
     with a.lock:
         puntuaciones = [f["puntuacion"] for f in a.fotogramas]
         return {
             "total": a.total,
             "ultima": a.ultima_captura or "Ninguna",
-            "maximo": a.num_max,
+            "maximo": leer_num_max(),
             "descartadas": a.descartadas,
             "descartadas_calidad": a.descartadas_calidad,
             "ultimo_error": a.ultimo_error,
@@ -1079,6 +1105,8 @@ def obtener_estado_apilado():
             "fase": a.fase,
             "puntuacion_ultima": a.ultima_puntuacion,
             "puntuacion_minima": round(min(puntuaciones), 3) if puntuaciones else None,
+            "puntuacion_maxima": round(max(puntuaciones), 3) if puntuaciones else None,
+            "puntuacion_mediana": round(float(np.median(puntuaciones)), 3) if puntuaciones else None,
             "version": a.version_preview,
             "evolucion": list(a.evolucion),
             "desplazamiento_ultimo": a.desplazamientos[-1] if a.desplazamientos else None,

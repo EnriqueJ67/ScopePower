@@ -395,6 +395,7 @@ PREFERENCIAS = {
     "apilado_paneles": ("Interfaz", "apilado_paneles", "json"),
     "opcion_dark": ("Interfaz", "opcion_dark", "texto"),
     "numero_darks": ("Dispositivos", "numero_darks", "entero"),
+    "numero_maximo_imagenes": ("Dispositivos", "numero_maximo_imagenes", "entero"),   # se puede cambiar con el apilado en marcha
     "modo_dia": ("Interfaz", "modo_dia", "texto"),                 # "on"/"off": la Foto de prueba arranca en modo día
     "foto_dia_objetivo": ("Interfaz", "foto_dia_objetivo", "texto"),   # sol | luna | paisaje
     "foto_dia_campo": ("Interfaz", "foto_dia_campo", "entero"),        # % del campo visible en el modo día (100, 75, 50, 35, 25)
