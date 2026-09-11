@@ -1670,7 +1670,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         cv2.imwrite(RUTA_IMAGEN_PNG, imagen_png)
 
         return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
-                "dark": dark_aplicado}
+                "dark": dark_aplicado, "ganancia": ganancia_real}
 
     except Exception as e:
         log.exception("Error al procesar la captura")
