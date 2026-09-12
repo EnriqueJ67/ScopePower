@@ -275,6 +275,73 @@ def apilar_sigma_clip(planos, sigma=2.0, filas_por_bloque=128):
     return salida
 
 
+def esquinas_transformadas(M, ancho, alto):
+    """Esquinas (4×2, px) que ocupa una foto de ancho×alto una vez alineada con la
+    matriz afín M (la misma que usa warpAffine, que mapea foto → referencia)."""
+    esquinas = np.array([[0, 0], [ancho, 0], [ancho, alto], [0, alto]], dtype=np.float64)
+    return esquinas @ M[:, :2].T + M[:, 2]
+
+
+def zona_comun(poligonos, ancho, alto, escala=8, margen=2):
+    """
+    Rectángulo (x0, y0, ancho, alto) cubierto por TODAS las fotos alineadas, para
+    recortar los bordes donde solo hay unas pocas (rotación de campo de la montura
+    altacimutal, deriva del dithering). Se divide el campo en celdas de `escala` px;
+    una celda vale si sus cuatro esquinas caen dentro de todos los polígonos (que
+    son convexos, así que la celda entera está dentro). Luego se encoge el
+    rectángulo por el lado menos cubierto hasta que queda entero dentro. `margen`
+    píxeles más en los lados que no tocan el borde de la imagen, por la
+    interpolación del warpAffine. Devuelve None si no hay nada que recortar.
+    """
+    try:
+        if not poligonos:
+            return None
+        h, w = int(np.ceil(alto / escala)), int(np.ceil(ancho / escala))
+        # Esquinas de las celdas: malla (h+1) × (w+1) de puntos en px
+        ys, xs = np.mgrid[0:h + 1, 0:w + 1]
+        px, py = np.minimum(xs * escala, ancho).astype(np.float64), np.minimum(ys * escala, alto).astype(np.float64)
+        dentro = np.ones((h + 1, w + 1), dtype=bool)
+        for pol in poligonos:
+            pol = np.asarray(pol, dtype=np.float64)
+            signos = []
+            for k in range(len(pol)):
+                (ax, ay), (bx, by) = pol[k], pol[(k + 1) % len(pol)]
+                signos.append((bx - ax) * (py - ay) - (by - ay) * (px - ax))
+            signos = np.stack(signos)
+            dentro &= (signos >= -1e-6).all(axis=0) | (signos <= 1e-6).all(axis=0)
+        mascara = dentro[:-1, :-1] & dentro[:-1, 1:] & dentro[1:, :-1] & dentro[1:, 1:]
+        fil, col = np.nonzero(mascara)
+        if len(fil) == 0:
+            return None
+        y0, y1, x0, x1 = int(fil.min()), int(fil.max()) + 1, int(col.min()), int(col.max()) + 1
+        while y1 - y0 > 2 and x1 - x0 > 2:
+            sub = mascara[y0:y1, x0:x1]
+            if sub.all():
+                break
+            bordes = {"arriba": sub[0].mean(), "abajo": sub[-1].mean(), "izq": sub[:, 0].mean(), "der": sub[:, -1].mean()}
+            peor = min(bordes, key=bordes.get)
+            if bordes[peor] >= 1.0:
+                break   # los cuatro bordes enteros: en una región convexa el interior también
+            if peor == "arriba": y0 += 1
+            elif peor == "abajo": y1 -= 1
+            elif peor == "izq": x0 += 1
+            else: x1 -= 1
+        X0, Y0 = x0 * escala, y0 * escala
+        X1, Y1 = min(ancho, x1 * escala), min(alto, y1 * escala)
+        if X0 > 0: X0 += margen
+        if Y0 > 0: Y0 += margen
+        if X1 < ancho: X1 -= margen
+        if Y1 < alto: Y1 -= margen
+        if X1 - X0 < ancho // 2 or Y1 - Y0 < alto // 2:
+            return None   # algo raro (una foto muy desplazada): mejor no recortar
+        if X0 == 0 and Y0 == 0 and X1 == ancho and Y1 == alto:
+            return None
+        return (int(X0), int(Y0), int(X1 - X0), int(Y1 - Y0))
+    except Exception as e:
+        print(f"⚠️ No se pudo calcular la zona común del apilado: {e}")
+        return None
+
+
 # ─── Flag para activar/desactivar anotación de objetos ─────────
 OBJETOS_ANOTADOS = False
 
@@ -523,6 +590,9 @@ class ApiladorEnTiempoReal:
         # nombre, hora, puntuación, estrellas, nitidez, fondo, desplazamiento y qué pasó con ella
         self.ultima_detalle = None
         self.dimensiones = None   # (ancho, alto) del apilado en píxeles
+        # Zona (x0, y0, ancho, alto) cubierta por todas las fotos alineadas; la vista
+        # previa y el JPG de la galería se recortan a ella (rotación de campo)
+        self.zona_comun = None
         self.procesando = False
         self.fase = ""   # paso actual del procesado (para la barra de progreso de la web)
 
@@ -637,8 +707,10 @@ class ApiladorEnTiempoReal:
         # con el 50 % o menos, a resolución completa: mismo coste que el campo
         # entero a media resolución y el doble de detalle en los objetos pequeños.
         fraccion = procesado.fraccion_campo(nuevo_config)
-        rgb_cube, x0, y0 = procesado.recortar_centro(rgb_cube, fraccion)
-        recorte = (x0, y0, rgb_cube.shape[2], rgb_cube.shape[1]) if fraccion < 0.999 else None
+        with self.lock:
+            zona = self.zona_comun
+        rgb_cube, x0, y0 = procesado.recortar_campo(rgb_cube, fraccion, zona)
+        recorte = (x0, y0, rgb_cube.shape[2], rgb_cube.shape[1]) if (fraccion < 0.999 or zona) else None
         escala = 0.5 if fraccion > 0.5 else 1.0
         rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=escala)
         if ObjetosAnotados:
@@ -848,6 +920,8 @@ class ApiladorEnTiempoReal:
                     if len(self.desplazamientos) > 200:
                         self.desplazamientos.pop(0)
 
+            esquinas = esquinas_transformadas(M, r.shape[1], r.shape[0])
+
             if metodo != "REF":
                 self._fase("alineando")
                 r = self.aplicar_transformacion(r, M, metodo)
@@ -862,6 +936,7 @@ class ApiladorEnTiempoReal:
                 "nitidez": nitidez,
                 "fondo": fondo,
                 "exposicion": EXPOSICION,
+                "esquinas": esquinas,
                 "r": np.clip(r, 0, 65535).astype(np.uint16),
                 "g": np.clip(g, 0, 65535).astype(np.uint16),
                 "b": np.clip(b, 0, 65535).astype(np.uint16),
@@ -921,6 +996,15 @@ class ApiladorEnTiempoReal:
             rgb = np.stack([r, g, b], axis=0)
             num_imagenes_preview = self.total
 
+            # Zona cubierta por todas las fotos: fuera de ella solo hay unas pocas
+            # (rotación de campo, dithering) y se ven bandas en los bordes
+            zona = zona_comun([f["esquinas"] for f in fotogramas_actuales if f.get("esquinas") is not None],
+                              r.shape[1], r.shape[0])
+            with self.lock:
+                self.zona_comun = zona
+            if zona:
+                print(f"✂️ Zona común de las {len(fotogramas_actuales)} fotos: {zona[2]}×{zona[3]} px desde ({zona[0]}, {zona[1]})")
+
 
             # Usar la cabecera del último FITS como base
             with fits.open(ruta_fits) as hdul:
@@ -931,6 +1015,13 @@ class ApiladorEnTiempoReal:
             header_original['EXPTOT'] = (num_imagenes_preview * EXPOSICION, 'Tiempo total de exposicion (s)')
             header_original['DATE'] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
             header_original['CREATOR'] = ('ScopePower', 'Real-time Power for Your Telescope')
+            for clave in ("ZONAX0", "ZONAY0", "ZONAW", "ZONAH"):
+                header_original.pop(clave, None)
+            if zona:
+                header_original['ZONAX0'] = (zona[0], 'Zona cubierta por todas las fotos: x0')
+                header_original['ZONAY0'] = (zona[1], 'Zona cubierta por todas las fotos: y0')
+                header_original['ZONAW'] = (zona[2], 'Zona cubierta por todas las fotos: ancho')
+                header_original['ZONAH'] = (zona[3], 'Zona cubierta por todas las fotos: alto')
 
             # Usamos r (o bien el canal que prefieras), pero como r=g=b
             # ——— 1) Guardar FITS apilado como RGB (3×H×W) ———
@@ -1040,6 +1131,7 @@ def reiniciar_apilado_global():
             apilador_global.ultima_puntuacion = None
             apilador_global.ultima_detalle = None
             apilador_global.dimensiones = None
+            apilador_global.zona_comun = None
             apilador_global.apilados_realizados = 0
             apilador_global.evolucion.clear()
             apilador_global.desplazamientos.clear()
@@ -1103,6 +1195,8 @@ def reprocesar_preview():
         n = int(hdr.get("NSTACK", max(1, a.total)))
         exptot = float(hdr.get("EXPTOT", 0.0))
         exposicion = exptot / n if n and exptot else 0.0
+        with a.lock:
+            a.zona_comun = procesado.leer_zona(hdr)
         a.procesando = True
         try:
             a.generar_preview(cubo, n, exposicion, ObjetosAnotados=False, anotar_evolucion=False, ruta_fits=ruta)
@@ -1156,6 +1250,7 @@ def obtener_estado_apilado():
             "duracion_min": int(duracion.total_seconds() // 60) if a.fotogramas else 0,
             "referencia_nombre": a.imagen_referencia or "",
             "dimensiones": list(a.dimensiones) if a.dimensiones else None,
+            "zona_comun": list(a.zona_comun) if a.zona_comun else None,
             "ultima_detalle": dict(a.ultima_detalle) if a.ultima_detalle else None,
             "version": a.version_preview,
             "evolucion": list(a.evolucion),

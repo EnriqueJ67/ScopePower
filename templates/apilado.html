@@ -750,6 +750,7 @@
                 ["Deriva", std ? `±${std[0]} / ±${std[1]} px (${d.desplazamientos_n} fotos)` : ""],
                 ["Descartadas", desc.length ? desc.join(" · ") : "ninguna", desc.length ? "warn" : ""],
                 ["Tamaño", d.dimensiones ? `${d.dimensiones[0]} × ${d.dimensiones[1]} px` : ""],
+                ["Recorte", d.zona_comun ? `${d.zona_comun[2]} × ${d.zona_comun[3]} px (zona con todas las fotos)` : (d.dimensiones ? "sin recortar" : "")],
                 ["Referencia", d.referencia_nombre || ""],
             ]);
         } else {

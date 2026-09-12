@@ -110,6 +110,35 @@ def recortar_centro(cubo, fraccion):
     return np.ascontiguousarray(rec), x0, y0
 
 
+def recortar_campo(cubo, fraccion, zona=None):
+    """
+    Recorte completo del campo: primero la `zona` (x0, y0, ancho, alto) cubierta
+    por todas las fotos del apilado (con montura altacimutal la rotación de campo
+    deja los bordes con menos fotos) y, dentro de ella, el recorte central de
+    zoom. Devuelve (recorte, x0, y0) con el desplazamiento respecto a la imagen
+    completa, como recortar_centro.
+    """
+    zx, zy = 0, 0
+    if zona:
+        x0, y0, ancho, alto = [int(v) for v in zona]
+        canales_primero = cubo.ndim == 3 and cubo.shape[0] == 3 and cubo.shape[-1] != 3
+        cubo = cubo[:, y0:y0 + alto, x0:x0 + ancho] if canales_primero else cubo[y0:y0 + alto, x0:x0 + ancho]
+        zx, zy = x0, y0
+    rec, x1, y1 = recortar_centro(cubo, fraccion)
+    return np.ascontiguousarray(rec), zx + x1, zy + y1
+
+
+def leer_zona(header):
+    """Zona cubierta por todas las fotos, guardada en la cabecera del FITS apilado
+    (ZONAX0, ZONAY0, ZONAW, ZONAH); None si el FITS no la lleva."""
+    try:
+        if header is None or "ZONAW" not in header:
+            return None
+        return (int(header["ZONAX0"]), int(header["ZONAY0"]), int(header["ZONAW"]), int(header["ZONAH"]))
+    except Exception:
+        return None
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  1. Gradiente de fondo (espacio lineal)
 # ─────────────────────────────────────────────────────────────────────────────

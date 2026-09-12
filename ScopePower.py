@@ -3097,8 +3097,10 @@ def guardar_imagen_jpg():
                 cubo = hdul[0].data.astype(np.float32)
                 n = int(hdul[0].header.get("NSTACK", 1))
                 exp_total = float(hdul[0].header.get("EXPTOT", 0) or 0)
-            # Mismo recorte de zoom que la vista previa; el FITS se guarda entero
-            cubo, _, _ = procesado.recortar_centro(cubo, procesado.fraccion_campo())
+                zona = procesado.leer_zona(hdul[0].header)
+            # Mismo recorte que la vista previa (zona cubierta por todas las fotos
+            # y zoom); el FITS se guarda entero
+            cubo, _, _ = procesado.recortar_campo(cubo, procesado.fraccion_campo(), zona)
             rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0)
             imagen_bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
             # Firma (logo, autor, objeto, tiempo, coordenadas). El FITS queda limpio y
