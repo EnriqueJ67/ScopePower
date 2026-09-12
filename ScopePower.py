@@ -42,7 +42,8 @@ import logging
 from registro import configurar_logging
 log = configurar_logging()   # fichero rotativo logs/scopepower.log + consola; print() también va al log
 from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
-                      capturar_frame, estado_captura, ganancia_configurada, leer_ganancia)
+                      capturar_frame, estado_captura, ganancia_configurada, leer_ganancia,
+                      asentamiento_montura)
 import darks
 import flats
 import secretos
@@ -605,7 +606,7 @@ def _config_dithering():
         "activado": str(d.get("activado", "false")).lower() == "true",
         "cada_n_fotos": int(d.get("cada_n_fotos", 3)),
         "amplitud_px": float(d.get("amplitud_px", 15)),
-        "asentamiento_s": float(d.get("asentamiento_s", 3)),
+        "asentamiento_s": asentamiento_montura("Dithering"),
     }
 
 
@@ -1308,6 +1309,37 @@ def montura_limpiar_sync():
     return jsonify({"ok": ok, "mensaje": msg})
 
 
+@app.route('/montura/asentamiento', methods=["GET", "POST"])
+def montura_asentamiento():
+    """
+    Segundos de asentamiento de la montura ([Montura] asentamiento_s): espera entre el
+    final de un movimiento y la siguiente foto. GET lo devuelve; POST {segundos} lo guarda.
+    """
+    if request.method == "POST":
+        datos = request.get_json(silent=True) or {}
+        try:
+            segundos = float(datos.get("segundos"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "mensaje": "Indica un número de segundos"}), 400
+        if not 0 <= segundos <= 60:
+            return jsonify({"ok": False, "mensaje": "El asentamiento debe estar entre 0 y 60 s"}), 400
+        cfg = configparser.ConfigParser()
+        cfg.read("config.ini")
+        if "Montura" not in cfg:
+            cfg["Montura"] = {}
+        cfg["Montura"]["asentamiento_s"] = f"{segundos:g}"
+        # Las secciones con su propio valor mandarían sobre este: se vacían para que
+        # el ajuste de la web sea el que se aplica en todos los movimientos.
+        for sec in ("Centrado", "Alineacion", "Dithering"):
+            if sec in cfg and cfg[sec].get("asentamiento_s", "").strip():
+                cfg[sec]["asentamiento_s"] = ""
+        with open("config.ini", "w") as f:
+            cfg.write(f)
+        log.info("Asentamiento de la montura: %.1f s", segundos)
+        return jsonify({"ok": True, "segundos": asentamiento_montura(), "mensaje": f"Asentamiento guardado: {segundos:g} s"})
+    return jsonify({"ok": True, "segundos": asentamiento_montura()})
+
+
 @app.route('/reconectar-telescopio')
 def reconectar_telescopio():
     try:
@@ -1985,7 +2017,7 @@ def apuntar_a_punto_de_la_foto(fx, fy):
         montura.ejecutar(_mover, timeout=150)
     except ErrorHardware as e:
         return {"ok": False, "mensaje": f"Error al mover el telescopio: {e}"}
-    time.sleep(2.0)   # asentamiento antes de la siguiente foto
+    time.sleep(asentamiento_montura())   # asentamiento antes de la siguiente foto
     ra_str, dec_str = formatear_ra_dec(ra_obj_h, dec_obj)
     log.info("Apuntado al punto (%.3f, %.3f) de la foto de prueba: RA %s DEC %s (salto %.1f')", fx, fy, ra_str, dec_str, salto)
     voz.decir("Telescopio centrado en el punto elegido")
@@ -2604,7 +2636,7 @@ def goto_objeto():
                 if (bucle.activo and not bucle.pausado) or camara.ocupado or centrado.trabajo_centrado.en_curso:
                     print("ℹ️ Centrado tras GOTO omitido: cámara ocupada o apilado en marcha")
                     return
-                time.sleep(2)   # asentamiento de la montura
+                time.sleep(asentamiento_montura())   # asentamiento de la montura
                 try:
                     centrado.trabajo_centrado.iniciar(
                         camara, montura, ra_obj, dec_obj, objeto=nombre,

@@ -27,7 +27,7 @@ from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
-from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, CapturaCancelada, ErrorHardware, estado_captura
+from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, asentamiento_montura, CapturaCancelada, ErrorHardware, estado_captura
 import coordenadas
 
 log = logging.getLogger("scopepower.centrado")
@@ -52,7 +52,7 @@ def leer_config():
         "exposicion": float(c.get("exposicion_centrado", 5.0)),
         "sync_primera_vuelta": str(c.get("sync_primera_vuelta", "true")).lower() == "true",
         "centrar_tras_goto": str(c.get("centrar_tras_goto", "true")).lower() == "true",
-        "asentamiento_s": float(c.get("asentamiento_s", 2.0)),
+        "asentamiento_s": asentamiento_montura("Centrado"),
         "binning": int(d.get("binning_camara", 1)),
         "focal": float(d.get("focal_len", 250)),
         "ruta_astap": cfg.get("General", "ruta_astap", fallback=""),

@@ -80,6 +80,17 @@
     <!-- ─── Montura: sincronizaciones guardadas en la app SynScan Pro ── -->
         <div class="card">
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-brujula"/></svg>Montura SynScan</h3></div>
+            <div class="dos-campos">
+                <div class="form-group">
+                    <label>Estabilización tras mover (s)</label>
+                    <input type="number" id="montura-asentamiento" class="form-control" min="0" max="60" step="0.5">
+                </div>
+                <div class="form-group">
+                    <button type="button" class="btn btn-primary" style="margin-top: 26px;" onclick="guardarAsentamiento()"><svg><use href="#i-guardar"/></svg>Guardar</button>
+                </div>
+            </div>
+            <small class="ayuda mb-2">Segundos que se espera tras cada movimiento de la montura (GOTO, centrado, dithering, alineación, «Apunta aquí») antes de hacer la siguiente foto, para que deje de vibrar. Súbelo si las primeras fotos tras mover salen con las estrellas movidas.</small>
+            <div id="estado-asentamiento" class="estado mb-2"></div>
             <p class="card-sub">
                 La app SynScan guarda las sincronizaciones y el modelo de apuntado de sesiones anteriores.
                 Se borran solos al conectar (opción <code>limpiar_sync_al_conectar</code> en config.ini); este botón
@@ -222,6 +233,26 @@
             document.getElementById("estado-mpc").textContent = (d.ok ? "✅ " : "⚠️ ") + d.mensaje;
             setTimeout(() => fetch("/cuerpos-menores/estado").then(r => r.json()).then(pintarMPC), 1500);
         }).catch(err => document.getElementById("estado-mpc").textContent = "❌ " + err);
+    }
+
+    function cargarAsentamiento() {
+        fetch("/montura/asentamiento").then(r => r.json())
+            .then(d => document.getElementById("montura-asentamiento").value = d.segundos)
+            .catch(err => document.getElementById("estado-asentamiento").textContent = "❌ " + err);
+    }
+    function guardarAsentamiento() {
+        const est = document.getElementById("estado-asentamiento");
+        const segundos = parseFloat(document.getElementById("montura-asentamiento").value);
+        if (isNaN(segundos)) { est.className = "estado err mb-2"; est.textContent = "❌ Indica los segundos"; return; }
+        est.className = "estado mb-2"; est.textContent = "⏳ Guardando...";
+        fetch("/montura/asentamiento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ segundos }) })
+            .then(r => r.json())
+            .then(d => {
+                est.className = "estado " + (d.ok ? "ok" : "err") + " mb-2";
+                est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
+                if (d.ok) document.getElementById("montura-asentamiento").value = d.segundos;
+            })
+            .catch(err => { est.className = "estado err mb-2"; est.textContent = "❌ " + err; });
     }
 
     function limpiarSync() {
@@ -458,7 +489,7 @@
         }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 60000 });
     }
 
-    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); });
+    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); });
 </script>
 
 {% include '_modal_voz.html' %}

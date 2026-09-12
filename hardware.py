@@ -211,6 +211,30 @@ class EstadoCaptura:
 estado_captura = EstadoCaptura()
 
 
+# ─── Asentamiento de la montura ─────────────────────────────────────────────
+#  [Montura] asentamiento_s en config.ini: segundos de espera entre el final de
+#  un movimiento (GOTO, centrado, dithering, alineación, "Apunta aquí") y la
+#  siguiente foto, para que la montura deje de vibrar. Una sección concreta
+#  (Centrado, Alineacion, Dithering) puede poner su propio asentamiento_s para
+#  mandar sobre el general; si está vacío o no existe, se usa el de [Montura].
+
+ASENTAMIENTO_POR_DEFECTO_S = 5.0
+
+
+def asentamiento_montura(seccion=None):
+    """Segundos de asentamiento: el de `seccion` si lo define, si no el de [Montura]."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    for sec in ([seccion] if seccion else []) + ["Montura"]:
+        v = cfg.get(sec, "asentamiento_s", fallback="").strip() if sec else ""
+        if v:
+            try:
+                return max(0.0, float(v))
+            except ValueError:
+                pass
+    return ASENTAMIENTO_POR_DEFECTO_S
+
+
 # ─── Ganancia ───────────────────────────────────────────────────────────────
 #  [Dispositivos] ganancia_camara en config.ini. Vacío = no tocarla (queda la que
 #  tenga guardada el driver ASCOM). Se fija antes de cada exposición de noche

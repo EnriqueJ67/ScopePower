@@ -31,7 +31,7 @@ from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from astropy.time import Time
 import astropy.units as u
 
-from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, CapturaCancelada, ErrorHardware, estado_captura
+from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, asentamiento_montura, CapturaCancelada, ErrorHardware, estado_captura
 from centrado import resolver_con_astap, CentradoCancelado
 import coordenadas
 
@@ -51,7 +51,7 @@ def leer_config():
         "puntos": int(a.get("puntos", 6)),
         "altura_maxima": float(a.get("altura_maxima", 65)),
         "altura_minima": float(a.get("altura_minima", 35)),
-        "asentamiento_s": float(a.get("asentamiento_s", 5)),
+        "asentamiento_s": asentamiento_montura("Alineacion"),
         "limpiar_antes": str(a.get("limpiar_antes", "true")).lower() == "true",
         "exposicion": float(c.get("exposicion_centrado", 5.0)),
         "binning": int(d.get("binning_camara", 1)),
