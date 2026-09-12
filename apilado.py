@@ -519,6 +519,10 @@ class ApiladorEnTiempoReal:
         self.ultimo_error = ""
         self.ultimo_mensaje = ""
         self.ultima_puntuacion = None
+        # Detalle de la última foto medida (para el panel de estadísticas de la web):
+        # nombre, hora, puntuación, estrellas, nitidez, fondo, desplazamiento y qué pasó con ella
+        self.ultima_detalle = None
+        self.dimensiones = None   # (ancho, alto) del apilado en píxeles
         self.procesando = False
         self.fase = ""   # paso actual del procesado (para la barra de progreso de la web)
 
@@ -541,10 +545,17 @@ class ApiladorEnTiempoReal:
         with self.lock:
             self.fase = nombre
 
+    def _anotar_resultado(self, resultado, motivo=""):
+        """Qué ha pasado con la última foto medida (llamar con self.lock cogido)."""
+        if self.ultima_detalle is not None:
+            self.ultima_detalle["resultado"] = resultado
+            self.ultima_detalle["motivo"] = motivo
+
     def _descartar(self, motivo, aviso="Foto descartada"):
         with self.lock:
             self.descartadas += 1
             self.ultimo_error = motivo
+            self._anotar_resultado("descartada", motivo)
         print(f"⚠️ Fotograma descartado: {motivo}")
         voz.decir(aviso)
         
@@ -748,9 +759,18 @@ class ApiladorEnTiempoReal:
                 puntuacion, n_estrellas, nitidez = calcular_puntuacion_photutils(g, calidad["fwhm_px"])
             else:
                 puntuacion, n_estrellas, nitidez = calcular_puntuacion(g)
+            # Fondo de cielo: mediana del verde (ADU de 16 bits), submuestreado para que sea instantáneo
+            fondo = float(np.median(g[::8, ::8]))
             with self.lock:
                 self.ultima_puntuacion = round(puntuacion, 3)
                 self.ultima_captura = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.ultima_detalle = {
+                    "nombre": nombre_fits, "hora": datetime.now().strftime("%H:%M:%S"),
+                    "puntuacion": round(puntuacion, 3), "estrellas": n_estrellas,
+                    "nitidez": round(nitidez, 3), "fondo": round(fondo),
+                    "exposicion": EXPOSICION, "desplazamiento": None,
+                    "resultado": "midiendo", "motivo": "",
+                }
             print(f"⭐ {nombre_fits}: {n_estrellas} estrellas, nitidez {nitidez:.3f}, puntuación {puntuacion:.3f}")
 
             if n_estrellas == 0:
@@ -770,6 +790,8 @@ class ApiladorEnTiempoReal:
                 self.umbral = calidad["umbral_relativo"] * (sum(self.mejores_puntuaciones) / len(self.mejores_puntuaciones))
                 umbral = self.umbral
             if puntuacion < umbral:
+                with self.lock:
+                    self._anotar_resultado("descartada", f"por debajo del umbral ({umbral:.2f})")
                 with self.lock:
                     self.descartadas_calidad += 1
                     self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) por debajo del umbral "
@@ -821,6 +843,8 @@ class ApiladorEnTiempoReal:
                 dy = float(M[1, 0] * cx + M[1, 1] * cy + M[1, 2] - cy)
                 with self.lock:
                     self.desplazamientos.append((round(dx, 1), round(dy, 1)))
+                    if self.ultima_detalle is not None:
+                        self.ultima_detalle["desplazamiento"] = [round(dx, 1), round(dy, 1)]
                     if len(self.desplazamientos) > 200:
                         self.desplazamientos.pop(0)
 
@@ -834,6 +858,10 @@ class ApiladorEnTiempoReal:
             fotograma = {
                 "nombre": nombre_fits,
                 "puntuacion": puntuacion,
+                "estrellas": n_estrellas,
+                "nitidez": nitidez,
+                "fondo": fondo,
+                "exposicion": EXPOSICION,
                 "r": np.clip(r, 0, 65535).astype(np.uint16),
                 "g": np.clip(g, 0, 65535).astype(np.uint16),
                 "b": np.clip(b, 0, 65535).astype(np.uint16),
@@ -854,6 +882,7 @@ class ApiladorEnTiempoReal:
                 if len(self.fotogramas) < NUM_MAX:
                     self.fotogramas.append(fotograma)
                     self.ultimo_mensaje = f"{nombre_fits} añadido ({len(self.fotogramas)}/{NUM_MAX})"
+                    self._anotar_resultado("apilada")
                 else:
                     idx_peor = min(range(len(self.fotogramas)), key=lambda i: self.fotogramas[i]["puntuacion"])
                     peor = self.fotogramas[idx_peor]
@@ -861,11 +890,13 @@ class ApiladorEnTiempoReal:
                         self.fotogramas[idx_peor] = fotograma
                         self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) sustituye a "
                                                f"{peor['nombre']} ({peor['puntuacion']:.2f})")
+                        self._anotar_resultado("sustituye", f"a {peor['nombre']} ({peor['puntuacion']:.2f})")
                     else:
                         entra = False
                         self.descartadas_calidad += 1
                         self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) no mejora al peor "
                                                f"almacenado ({peor['puntuacion']:.2f}); descartado")
+                        self._anotar_resultado("descartada", f"no mejora a la peor apilada ({peor['puntuacion']:.2f})")
                 self.total = len(self.fotogramas)
                 fotogramas_actuales = list(self.fotogramas)
                 sustituida = "sustituye" in self.ultimo_mensaje
@@ -920,6 +951,8 @@ class ApiladorEnTiempoReal:
 
             hdu = PrimaryHDU(data=rgb_cube, header=hdr_out)
             hdu.writeto("static/resultado_apilado.fits", overwrite=True)
+            with self.lock:
+                self.dimensiones = (int(rgb_cube.shape[2]), int(rgb_cube.shape[1]))
             print("✅ FITS apilado guardado en modo RGB.")
 
 
@@ -1005,6 +1038,8 @@ def reiniciar_apilado_global():
             apilador_global.ultimo_error = ""
             apilador_global.ultimo_mensaje = ""
             apilador_global.ultima_puntuacion = None
+            apilador_global.ultima_detalle = None
+            apilador_global.dimensiones = None
             apilador_global.apilados_realizados = 0
             apilador_global.evolucion.clear()
             apilador_global.desplazamientos.clear()
@@ -1092,6 +1127,9 @@ def obtener_estado_apilado():
                 "version": 0, "evolucion": []}
     with a.lock:
         puntuaciones = [f["puntuacion"] for f in a.fotogramas]
+        media = lambda clave: (round(float(np.mean([f[clave] for f in a.fotogramas])), 3)
+                               if a.fotogramas else None)
+        duracion = datetime.now() - a.inicio_apilado
         return {
             "total": a.total,
             "ultima": a.ultima_captura or "Ninguna",
@@ -1107,6 +1145,18 @@ def obtener_estado_apilado():
             "puntuacion_minima": round(min(puntuaciones), 3) if puntuaciones else None,
             "puntuacion_maxima": round(max(puntuaciones), 3) if puntuaciones else None,
             "puntuacion_mediana": round(float(np.median(puntuaciones)), 3) if puntuaciones else None,
+            "puntuacion_media": round(float(np.mean(puntuaciones)), 3) if puntuaciones else None,
+            "puntuacion_std": round(float(np.std(puntuaciones)), 3) if len(puntuaciones) >= 2 else None,
+            # Medias de las fotos que forman el apilado y datos de la sesión
+            "estrellas_media": media("estrellas"),
+            "nitidez_media": media("nitidez"),
+            "fondo_medio": media("fondo"),
+            "segundos_totales": round(sum(f.get("exposicion", 0) for f in a.fotogramas), 1),
+            "inicio": a.inicio_apilado.strftime("%H:%M:%S") if a.fotogramas else "",
+            "duracion_min": int(duracion.total_seconds() // 60) if a.fotogramas else 0,
+            "referencia_nombre": a.imagen_referencia or "",
+            "dimensiones": list(a.dimensiones) if a.dimensiones else None,
+            "ultima_detalle": dict(a.ultima_detalle) if a.ultima_detalle else None,
             "version": a.version_preview,
             "evolucion": list(a.evolucion),
             "desplazamiento_ultimo": a.desplazamientos[-1] if a.desplazamientos else None,

@@ -97,20 +97,6 @@
             <button id="boton-cancelar" class="btn btn-sm btn-danger" onclick="cancelarCaptura()" style="display: none;">⏹ Cancelar exposición</button>
         </div>
 
-        <div class="stats stats-descartes">
-            <div class="stat"><div class="etiqueta">Descartadas</div><div class="valor"><span id="descartadas">0</span> <small>sin resolver</small></div></div>
-            <div class="stat"><div class="etiqueta">Por calidad</div><div class="valor"><span id="descartadas-calidad">0</span> <small>fotos</small></div></div>
-        </div>
-        <!-- Puntuación de calidad: la última foto medida (aunque se haya descartado) y
-             el resumen de las que forman el apilado. La última se colorea según quede
-             por encima de la mediana, por debajo, o bajo el umbral de descarte. -->
-        <div class="stats stats-calidad" id="stats-calidad">
-            <div class="stat"><div class="etiqueta">Última foto</div><div class="valor" id="punt-ultima">—</div></div>
-            <div class="stat"><div class="etiqueta">Mejor</div><div class="valor" id="punt-mejor">—</div></div>
-            <div class="stat"><div class="etiqueta">Mediana</div><div class="valor" id="punt-mediana">—</div></div>
-            <div class="stat"><div class="etiqueta">Peor</div><div class="valor" id="punt-peor">—</div></div>
-        </div>
-        <div id="puntuaciones" class="estado texto-3" style="margin-top: -4px;"></div>
         <div id="mensaje-apilado" class="estado texto-3"></div>
         <div id="error-apilado" class="estado err"></div>
 
@@ -136,6 +122,40 @@
             </div>
             <div class="panel-cuerpo">
                 <img id="ultima-toma" src="" alt="Última toma" style="width: 100%; border-radius: 10px; background: #000; display: block;">
+            </div>
+        </section>
+
+        <!-- Estadísticas: puntuación de calidad de las fotos que forman el apilado
+             (media, mediana, mejor, peor) y de la última medida (aunque se haya
+             descartado), más los datos de la sesión y de esa última foto. La última se
+             colorea según quede por encima de la media, por debajo, o bajo el umbral. -->
+        <section class="card panel" data-panel="estadisticas">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-info"/></svg>Estadísticas</h3>
+                <span id="estadisticas-sub" class="panel-sub"></span>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo estadisticas">
+                <div class="stats stats-calidad">
+                    <div class="stat destacado"><div class="etiqueta">Última foto</div><div class="valor" id="punt-ultima">—</div></div>
+                    <div class="stat destacado"><div class="etiqueta">Media apilado</div><div class="valor" id="punt-media">—</div></div>
+                </div>
+                <div class="stats stats-calidad tres">
+                    <div class="stat"><div class="etiqueta">Mejor</div><div class="valor" id="punt-mejor">—</div></div>
+                    <div class="stat"><div class="etiqueta">Mediana</div><div class="valor" id="punt-mediana">—</div></div>
+                    <div class="stat"><div class="etiqueta">Peor</div><div class="valor" id="punt-peor">—</div></div>
+                </div>
+                <div id="puntuaciones" class="texto-3 nota"></div>
+
+                <h4 class="estadisticas-titulo">Foto apilada</h4>
+                <dl class="kv" id="datos-apilado"><dd class="texto-3" style="grid-column: 1 / -1;">Todavía no hay fotos apiladas.</dd></dl>
+
+                <h4 class="estadisticas-titulo">Última foto medida</h4>
+                <dl class="kv" id="datos-ultima"><dd class="texto-3" style="grid-column: 1 / -1;">Todavía no se ha medido ninguna foto.</dd></dl>
             </div>
         </section>
 
@@ -242,14 +262,21 @@
     .panel-inicio .acciones { flex: 0 0 auto; margin-left: auto; }
     .panel-inicio-cuerpo { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
     .lateral .card + .card { margin-top: 0; }
-    .stats-descartes { grid-template-columns: 1fr 1fr; }
     .stats-calidad { grid-template-columns: 1fr 1fr; }
-    .stats-calidad .valor { font-size: 20px; }
+    .stats-calidad.tres { grid-template-columns: repeat(3, 1fr); margin-top: 8px; }
+    .stats-calidad .valor { font-size: 18px; }
+    .stats-calidad .destacado .valor { font-size: 24px; }
     .stats-calidad .valor.buena { color: var(--ok); }
     .stats-calidad .valor.floja { color: var(--warn); }
     .stats-calidad .valor.mala { color: var(--err); }
-    @media (min-width: 560px) { .stats-calidad { grid-template-columns: repeat(4, 1fr); } }
+    .estadisticas .nota { font-size: 12.5px; margin-top: 8px; }
     #puntuaciones:empty { display: none; }
+    .estadisticas-titulo { font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); margin: 14px 0 6px; }
+    .estadisticas .kv { font-size: 13.5px; gap: 4px 12px; }
+    .estadisticas .kv dd { font-variant-numeric: tabular-nums; }
+    .estadisticas .kv dd.ok { color: var(--ok); }
+    .estadisticas .kv dd.warn { color: var(--warn); }
+    .estadisticas .kv dd.err { color: var(--err); }
     /* Pantalla ancha: la columna lateral se queda fija y hace su propio scroll, así la
        imagen apilada no se pierde de vista al tocar los ajustes de procesado */
     @media (min-width: 760px) {
@@ -294,7 +321,8 @@
         const cont = document.getElementById("paneles-apilado");
         const paneles = Array.from(cont.querySelectorAll(".panel"));
         const orden = prefPaneles.orden || [];
-        const pos = p => { const i = orden.indexOf(p.dataset.panel); return i < 0 ? 99 : i; };
+        // Un panel que no esté en el orden guardado (añadido después) se coloca justo tras "Última toma"
+        const pos = p => { const i = orden.indexOf(p.dataset.panel); return i < 0 ? orden.indexOf("ultima-toma") + 0.5 : i; };
         paneles.sort((a, b) => pos(a) - pos(b));
         paneles.forEach(p => {
             cont.appendChild(p);
@@ -658,8 +686,6 @@
                 document.getElementById("contador-apilado").textContent = d.total || 0;
                 document.getElementById("maximo-apilado").textContent = d.maximo || "-";
                 document.getElementById("ultima-captura").textContent = d.ultima || "Ninguna";
-                document.getElementById("descartadas").textContent = d.descartadas || 0;
-                document.getElementById("descartadas-calidad").textContent = d.descartadas_calidad || 0;
                 document.getElementById("mensaje-apilado").textContent = d.mensaje || "";
                 document.getElementById("error-apilado").textContent = d.ultimo_error ? "⚠️ " + d.ultimo_error : "";
 
@@ -672,26 +698,86 @@
             .catch(err => console.warn("⚠️ Error leyendo estado:", err));
     }
 
-    // ——— Puntuación de calidad: última medida y resumen de las apiladas ———
+    // ——— Panel de estadísticas: puntuaciones, datos del apilado y de la última foto medida ———
     const hayNum = v => v !== null && v !== undefined;
     const fmtPunt = v => hayNum(v) ? Number(v).toFixed(2) : "—";
+    const fmtMinutos = m => m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+    const fmtMin = seg => seg >= 60 ? fmtMinutos(Math.round(seg / 60)) : `${Math.round(seg)} s`;
+    // Rellena un <dl class="kv"> con pares [etiqueta, valor, claseOpcional]; los valores vacíos se saltan
+    function pintarKV(id, filas) {
+        const dl = document.getElementById(id);
+        const html = filas.filter(f => f[1] !== "" && hayNum(f[1]))
+            .map(f => `<dt>${f[0]}</dt><dd${f[2] ? ` class="${f[2]}"` : ""}>${f[1]}</dd>`).join("");
+        if (html !== dl.dataset.html) { dl.innerHTML = html; dl.dataset.html = html; }
+    }
     function pintarPuntuaciones(d) {
         const ultima = document.getElementById("punt-ultima");
         ultima.textContent = fmtPunt(d.puntuacion_ultima);
+        document.getElementById("punt-media").textContent = fmtPunt(d.puntuacion_media);
         document.getElementById("punt-mejor").textContent = fmtPunt(d.puntuacion_maxima);
         document.getElementById("punt-mediana").textContent = fmtPunt(d.puntuacion_mediana);
         document.getElementById("punt-peor").textContent = fmtPunt(d.puntuacion_minima);
-        // Color de la última: verde si iguala o supera la mediana, ámbar por debajo, rojo si no pasa el umbral
+        // Color de la última: verde si iguala o supera la media, ámbar por debajo, rojo si no pasa el umbral
         let clase = "";
         if (hayNum(d.puntuacion_ultima)) {
             if (hayNum(d.umbral) && d.puntuacion_ultima < d.umbral) clase = "mala";
-            else if (hayNum(d.puntuacion_mediana)) clase = d.puntuacion_ultima >= d.puntuacion_mediana ? "buena" : "floja";
+            else if (hayNum(d.puntuacion_media)) clase = d.puntuacion_ultima >= d.puntuacion_media ? "buena" : "floja";
         }
         ultima.className = "valor " + clase;
         let pie = "";
         if (hayNum(d.umbral)) pie = `Umbral de descarte: ${fmtPunt(d.umbral)} (por debajo, la foto no se apila)`;
         if (d.metrica) pie += (pie ? " · " : "") + `métrica ${d.metrica}`;
         document.getElementById("puntuaciones").textContent = pie;
+
+        // Resumen en la cabecera del panel (como en los demás paneles, se oculta al plegarlo)
+        document.getElementById("estadisticas-sub").textContent = hayNum(d.puntuacion_ultima)
+            ? `última ${fmtPunt(d.puntuacion_ultima)} · media ${fmtPunt(d.puntuacion_media)}` : "";
+
+        // Datos de la foto apilada
+        if (d.total > 0) {
+            const desc = [];
+            if (d.descartadas) desc.push(`${d.descartadas} sin resolver`);
+            if (d.descartadas_calidad) desc.push(`${d.descartadas_calidad} por calidad`);
+            const std = d.desplazamiento_std;
+            pintarKV("datos-apilado", [
+                ["Fotos", `${d.total} de ${d.maximo || "?"}`],
+                ["Integración", d.segundos_totales ? `${fmtMin(d.segundos_totales)} (${d.total} × ${Math.round(d.segundos_totales / d.total)} s)` : ""],
+                ["Sesión", d.inicio ? `desde las ${d.inicio.slice(0, 5)} · ${fmtMinutos(d.duracion_min)}` : ""],
+                ["Puntuación", hayNum(d.puntuacion_std) ? `${fmtPunt(d.puntuacion_media)} ± ${fmtPunt(d.puntuacion_std)}` : fmtPunt(d.puntuacion_media)],
+                ["Estrellas", hayNum(d.estrellas_media) ? `${Math.round(d.estrellas_media)} de media` : ""],
+                ["Nitidez", hayNum(d.nitidez_media) ? `${Number(d.nitidez_media).toFixed(3)} de media` : ""],
+                ["Fondo de cielo", hayNum(d.fondo_medio) ? `${Math.round(d.fondo_medio)} ADU` : ""],
+                ["Deriva", std ? `±${std[0]} / ±${std[1]} px (${d.desplazamientos_n} fotos)` : ""],
+                ["Descartadas", desc.length ? desc.join(" · ") : "ninguna", desc.length ? "warn" : ""],
+                ["Tamaño", d.dimensiones ? `${d.dimensiones[0]} × ${d.dimensiones[1]} px` : ""],
+                ["Referencia", d.referencia_nombre || ""],
+            ]);
+        } else {
+            const dl = document.getElementById("datos-apilado");
+            dl.innerHTML = `<dd class="texto-3" style="grid-column: 1 / -1;">Todavía no hay fotos apiladas.</dd>`;
+            dl.dataset.html = "";
+        }
+
+        // Datos de la última foto medida
+        const u = d.ultima_detalle;
+        if (u) {
+            const RESULTADO = {
+                midiendo: ["Procesando...", ""], apilada: ["✅ Apilada", "ok"],
+                sustituye: ["✅ Apilada, sustituye " + (u.motivo || ""), "ok"],
+                descartada: ["❌ Descartada: " + (u.motivo || ""), "err"],
+            };
+            const res = RESULTADO[u.resultado] || [u.resultado, ""];
+            pintarKV("datos-ultima", [
+                ["Foto", `${u.nombre || ""} · ${u.hora || ""}`],
+                ["Resultado", res[0], res[1]],
+                ["Puntuación", fmtPunt(u.puntuacion) + (d.puntuacion_media > 0 && hayNum(u.puntuacion) ? ` (${u.puntuacion >= d.puntuacion_media ? "+" : ""}${(100 * (u.puntuacion - d.puntuacion_media) / d.puntuacion_media).toFixed(0)} % sobre la media)` : "")],
+                ["Estrellas", hayNum(u.estrellas) ? u.estrellas : ""],
+                ["Nitidez", hayNum(u.nitidez) ? Number(u.nitidez).toFixed(3) : ""],
+                ["Fondo de cielo", hayNum(u.fondo) ? `${u.fondo} ADU` : ""],
+                ["Desplazamiento", u.desplazamiento ? `${u.desplazamiento[0]} / ${u.desplazamiento[1]} px` : ""],
+                ["Exposición", u.exposicion ? `${u.exposicion} s` : ""],
+            ]);
+        }
         // El máximo del apilado, la primera vez que llega (después manda el usuario)
         if (!maximoInicializado && d.maximo) {
             document.getElementById("maximo-fotos").value = d.maximo;
