@@ -42,3 +42,6 @@ datos/mpc/
 
 # Vista previa de la foto del centrado (la genera centrado.py)
 static/centrado_preview.jpg
+
+# Giro de la cámara medido por el plate solving (estado de ejecución)
+datos/rotacion_camara.json

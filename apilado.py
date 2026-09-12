@@ -20,6 +20,7 @@ import anotaciones
 import voz
 import procesado
 import firma
+import rotacion_camara
 import cv2
 
 import subprocess
@@ -105,6 +106,7 @@ def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
         # Si ASTAP no ha resuelto, devolvemos sin más
         if not ini_resuelto(ini):
             return None, "ASTAP no resolvió el fotograma"
+        rotacion_camara.anotar_ini(ini, "apilado")   # el giro de la cámara, para el planetario
 
         # Leemos resultados y calculamos la matriz de transformación
         now = parse_ini_wcs(ini)
@@ -882,6 +884,7 @@ class ApiladorEnTiempoReal:
                     subprocess.run(f'"{ruta_astap}" -f "{ref_mono}" -solve -r 50',
                                    shell=True, capture_output=True, timeout=ASTAP_TIMEOUT)
                     if ini_resuelto(ref_ini):
+                        rotacion_camara.anotar_ini(ref_ini, "apilado")
                         self.ref_info = parse_ini_wcs(ref_ini)
                         self.imagen_referencia = nombre_fits
                         print(f"📌 Referencia de alineado: {nombre_fits}")

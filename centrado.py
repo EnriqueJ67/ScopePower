@@ -29,6 +29,7 @@ import astropy.units as u
 
 from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, asentamiento_montura, CapturaCancelada, ErrorHardware, estado_captura
 import coordenadas
+import rotacion_camara
 
 log = logging.getLogger("scopepower.centrado")
 
@@ -89,6 +90,7 @@ def resolver_con_astap(ruta_fits, ruta_astap, timeout=90):
                 ra = float(linea.split("=", 1)[1])
             elif linea.startswith("CRVAL2="):
                 dec = float(linea.split("=", 1)[1])
+    rotacion_camara.anotar_ini(ini, "centrado")   # el giro de la cámara, para el planetario
     for f in (ini, base + ".wcs"):
         try:
             os.remove(f)

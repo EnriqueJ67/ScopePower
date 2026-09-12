@@ -138,7 +138,7 @@
     const estadoEl = $("estado");
     let cfg = null;               // última respuesta de /planetario/estado
     let viewer = null, observador = null, seleccionado = null;
-    let modo = "horizontal", encuadrePuesto = false, gotoEnCurso = false;
+    let modo = "horizontal", encuadrePuesto = "", gotoEnCurso = false;
 
     // Los catálogos vienen como globales (window.STAR_DATA, HYG_STAR_DATA, DSO_CATALOG_DATA, WESTERN_CONSTELLATIONS).
     // STAR_DATA son las 130 estrellas con nombre propio; HYG las excluye, así que se juntan.
@@ -238,17 +238,30 @@
             viewer.setMountPosition(null);
         }
         $("btn-montura").disabled = !m.conectada;
-        // Encuadre de la cámara (una vez que se conoce el sensor)
-        if (!encuadrePuesto && c.camara?.ancho_px && c.camara?.pixel_um && c.focal_mm) {
-            try {
-                const cam = calculateCameraFieldOfView({ sensorWidthPx: c.camara.ancho_px, sensorHeightPx: c.camara.alto_px,
-                    pixelSizeMicrons: c.camara.pixel_um, focalLengthMm: c.focal_mm });
-                viewer.setFieldOfView({ widthDeg: cam.widthDeg, heightDeg: cam.heightDeg, rotationDeg: 0, rotationConvention: "clockwise-from-celestial-north" });
-                encuadrePuesto = true;
-            } catch (e) { console.warn("encuadre", e); }
-        }
+        ponerEncuadre();
         $("btn-ir-texto").textContent = c.centrar_tras_goto ? "Ir y centrar" : "Ir";
         pintarEstado(c);
+    }
+
+    // Rectángulo de la cámara: tamaño del sensor y focal (cuando se conocen) y el giro de la
+    // cámara en el tubo que midió el último plate solving (CROTA2 del .ini de ASTAP; sin él, 0°).
+    // Se vuelve a poner si cambia el giro o el modo del mapa: en Alt/Az el motor pinta el cielo
+    // como se ve, pero en RA/Dec lo pinta en espejo (este a la derecha) y su rotación del
+    // rectángulo no lo compensa, así que ahí hace falta la convención contraria (comprobado
+    // proyectando el borde de una foto real con su WCS).
+    function ponerEncuadre() {
+        const c = cfg;
+        if (!viewer || !c?.camara?.ancho_px || !c.camara.pixel_um || !c.focal_mm) return;
+        const rot = c.rotacion_camara?.grados, rotDeg = Number.isFinite(rot) ? rot : 0;
+        const clave = `${rotDeg}|${modo}`;
+        if (clave === encuadrePuesto) return;
+        try {
+            const cam = calculateCameraFieldOfView({ sensorWidthPx: c.camara.ancho_px, sensorHeightPx: c.camara.alto_px,
+                pixelSizeMicrons: c.camara.pixel_um, focalLengthMm: c.focal_mm });
+            viewer.setFieldOfView({ widthDeg: cam.widthDeg, heightDeg: cam.heightDeg, rotationDeg: rotDeg,
+                rotationConvention: modo === "horizontal" ? "clockwise-from-celestial-north" : "counterclockwise-from-celestial-north" });
+            encuadrePuesto = clave;
+        } catch (e) { console.warn("encuadre", e); }
     }
 
     function pintarEstado(c) {
@@ -261,7 +274,8 @@
         else if (m.slewing) txt = `↗ Montura moviéndose${c.ultimo_goto?.objeto ? " a <b>" + c.ultimo_goto.objeto + "</b>" : ""}…`;
         else txt = `Montura en RA ${horas(m.ra_h * 15)} · Dec ${grados(m.dec_deg)}` +
             (c.ultimo_goto?.objeto ? ` · último GoTo: <b>${c.ultimo_goto.objeto}</b>` : "") +
-            (cen.terminado && cen.resultado ? ` · centrado: ${cen.resultado}` : "");
+            (cen.terminado && cen.resultado ? ` · centrado: ${cen.resultado}` : "") +
+            (Number.isFinite(c.rotacion_camara?.grados) ? ` · cámara girada ${c.rotacion_camara.grados.toFixed(0)}°` : "");
         estadoEl.innerHTML = txt;
     }
 
@@ -522,6 +536,7 @@
         modo = modo === "horizontal" ? "equatorial" : "horizontal";
         viewer?.setCoordinateMode(modo);
         $("btn-modo").textContent = modo === "horizontal" ? "Alt/Az" : "RA/Dec";
+        ponerEncuadre();   // la convención del giro del rectángulo depende del modo
     };
     $("btn-montura").onclick = () => viewer?.focusMount();
     $("seguir").onchange = e => viewer?.setMountFollow(e.target.checked);

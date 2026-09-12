@@ -30,6 +30,7 @@ from apilado import pausar_apilado, reanudar_apilado, esta_pausado
 from apilado import aumentar_saturacion #, subir_imagen_ftp_async
 import apilado
 import firma
+import rotacion_camara
 import io
 from AutoStrechSTF import apply_stf_color, debayer_rgb, miniatura_cfa_rgb, guardar_jpg_web
 from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
@@ -1890,6 +1891,8 @@ def planetario_estado():
                          "dec_deg": ULTIMO_GOTO.get("dec")} if ULTIMO_GOTO else None),
         "centrar_tras_goto": bool(centrado.leer_config().get("centrar_tras_goto", True)),
         "centrado": centrado.trabajo_centrado.estado(),
+        # Giro de la cámara (CROTA2 del último plate solving), para dibujar el encuadre real
+        "rotacion_camara": rotacion_camara.leer(),
     })
 
 
@@ -2460,6 +2463,7 @@ def extraer_coordenadas_ini(ruta_ini):
     if not solucionado or ra_resuelto is None or dec_resuelto is None:
         return None  # No se resolvió o falta información
 
+    rotacion_camara.anotar_ini(ruta_ini, "foto de prueba")   # el giro de la cámara, para el planetario
     return ra_resuelto, dec_resuelto
 
 import re
