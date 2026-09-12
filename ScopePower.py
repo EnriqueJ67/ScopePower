@@ -2609,12 +2609,13 @@ def goto_objeto():
             if altitud < int(ALTURA_MINIMA):
                 return jsonify({"warning": "El objeto está por debajo de altura mínima. GOTO cancelado."})
 
-            ULTIMO_GOTO.clear()
-            ULTIMO_GOTO.update({"ra": float(ra), "dec": float(dec), "objeto": objeto,
-                                "fuente": fuente_coords, "hora": datetime.now().isoformat(timespec="seconds")})
-            # Nombre para el rótulo del apilado: el de la ficha si la hay; si no, el pedido
-            # con sus mayúsculas y tildes (M31, Vega), salvo que llevara números en letras
+            # Nombre para el rótulo del apilado, los mensajes y la voz: el pedido con sus
+            # mayúsculas y símbolos (M31, Vega, Campo 9h56m +69°22'), salvo que llevara
+            # números en letras; el rótulo prefiere el de la ficha si la hay
             nombre_rotulo = objeto_original if quitar_tildes(objeto_original.lower()) == objeto else objeto
+            ULTIMO_GOTO.clear()
+            ULTIMO_GOTO.update({"ra": float(ra), "dec": float(dec), "objeto": nombre_rotulo,
+                                "fuente": fuente_coords, "hora": datetime.now().isoformat(timespec="seconds")})
             guardar_info_goto((info or {}).get("name") or nombre_rotulo, info, ra, dec, fuente_coords)
 
             def _activar_tracking(tel):
@@ -2642,7 +2643,7 @@ def goto_objeto():
                     time.sleep(0.5)
 
             # Lanzar movimiento en el hilo de la montura sin esperar a que termine
-            voz.decir(f"Moviendo el telescopio a {objeto}")
+            voz.decir(f"Moviendo el telescopio a {nombre_rotulo}")
             futuro = montura.ejecutar_async(_mover_telescopio)
             futuro.add_done_callback(
                 lambda f: print(f"❌ Error al mover el telescopio: {f.exception()}") if f.exception() else None)
@@ -2650,7 +2651,7 @@ def goto_objeto():
             # Al terminar el movimiento (sondeo aparte, sin ocupar el hilo de la
             # montura): avisar por voz y, como un Seestar, centrar automáticamente
             # con plate solving si [Centrado] centrar_tras_goto = true.
-            def _al_llegar(nombre=objeto, ra_obj=float(ra), dec_obj=float(dec)):
+            def _al_llegar(nombre=nombre_rotulo, ra_obj=float(ra), dec_obj=float(dec)):
                 inicio = time.time()
                 time.sleep(3)
                 while time.time() - inicio < 180:
@@ -2680,7 +2681,7 @@ def goto_objeto():
 
             # Responder inmediatamente
             return jsonify({
-                "message": f"✅ Moviendo el telescopio a <b>{objeto}</b><br>📍 RA: <code>{ra_str}</code> | DEC: <code>{dec_str}</code><br><small>🔎 Fuente: <b>{fuente_coords}</b></small>",
+                "message": f"✅ Moviendo el telescopio a <b>{nombre_rotulo}</b><br>📍 RA: <code>{ra_str}</code> | DEC: <code>{dec_str}</code><br><small>🔎 Fuente: <b>{fuente_coords}</b></small>",
                 "extra_info": info
             })
 

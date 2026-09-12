@@ -37,6 +37,7 @@
     </div>
     <button type="button" class="btn" id="btn-modo" title="Cambiar entre horizonte (Alt/Az) y ecuatorial (RA/Dec)">Alt/Az</button>
     <button type="button" class="btn" id="btn-montura" title="Centrar el mapa donde apunta la montura" disabled><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">Montura</span></button>
+    <button type="button" class="btn" id="btn-centro" title="Elegir el centro del mapa (donde está el rectángulo de la cámara) para ir a ese punto aunque no haya ningún objeto"><svg><use href="#i-goto"/></svg><span class="oculto-movil">Centro</span></button>
     <label class="switch" title="El mapa sigue a la montura"><input type="checkbox" id="seguir"> Seguir</label>
     <label class="switch" title="Chinchetas con los objetos recomendados de Esta noche"><input type="checkbox" id="chinchetas" checked> Esta noche</label>
 </div>
@@ -44,6 +45,7 @@
 <div class="atlas-marco">
     <div id="atlas" class="atlas"></div>
     <div id="capa-noche" class="capa-noche" aria-label="Objetos recomendados esta noche"></div>
+    <div id="marca-punto" class="marca-punto" hidden aria-hidden="true"></div>
     <div id="estado" class="estado-atlas"><span class="spinner"></span> Cargando el cielo…</div>
     <div id="panel" class="panel" hidden>
         <div class="panel-cab">
@@ -55,6 +57,7 @@
         </div>
         <div class="panel-acciones">
             <button type="button" class="btn btn-primary" id="btn-ir"><svg><use href="#i-goto"/></svg><span id="btn-ir-texto">Ir</span></button>
+            <button type="button" class="btn" id="btn-centrar-mapa" title="Poner el centro del mapa (y el rectángulo de la cámara) aquí"><svg><use href="#i-planetario"/></svg>Centrar mapa</button>
             <a class="btn" id="btn-info" href="#" target="_blank" rel="noopener" hidden><svg><use href="#i-info"/></svg>Info</a>
         </div>
     </div>
@@ -113,6 +116,13 @@
     .chincheta .etiqueta { font-size: 11.5px; font-weight: 600; text-shadow: 0 0 4px #000, 0 0 2px #000; white-space: nowrap; pointer-events: none; }
     .chincheta.sin-etiqueta .etiqueta { display: none; }
     .chincheta:hover .cuadro, .chincheta:active .cuadro { background: var(--surface-3); }
+    /* Punto del cielo elegido a dedo (sin objeto): círculo con cruz, recolocado como las chinchetas */
+    .marca-punto { position: absolute; left: 0; top: 0; z-index: 4; width: 26px; height: 26px; margin: -13px 0 0 -13px; box-sizing: border-box;
+                   border: 2px solid var(--warn); border-radius: 50%; pointer-events: none; will-change: transform; filter: drop-shadow(0 0 3px #000); }
+    .marca-punto::before, .marca-punto::after { content: ""; position: absolute; background: var(--warn); }
+    .marca-punto::before { left: 50%; top: -9px; bottom: -9px; width: 2px; margin-left: -1px; }
+    .marca-punto::after { top: 50%; left: -9px; right: -9px; height: 2px; margin-top: -1px; }
+    .marca-punto[hidden] { display: none; }
     .ficha-icono { font-size: 22px; line-height: 1; }
     .modal-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
     .credito { font-size: 12px; margin: 8px 2px 0; }
@@ -121,7 +131,7 @@
 
 <script type="module">
     import { createCelestiaAtlasViewer, equatorialToHorizontal, horizontalToEquatorial, calculateCameraFieldOfView,
-             alignViewToHorizon, projectEquatorial }
+             alignViewToHorizon, projectEquatorial, unprojectEquatorial }
         from "{{ url_for('static', filename='atlas/src/index.js') }}";
 
     const $ = id => document.getElementById(id);
@@ -147,7 +157,8 @@
     const tipos = { Star: "Estrella", G: "Galaxia", GPair: "Par de galaxias", GTrpl: "Trío de galaxias", GGroup: "Grupo de galaxias",
         PN: "Nebulosa planetaria", Neb: "Nebulosa", HII: "Región HII", EmN: "Nebulosa de emisión", RfN: "Nebulosa de reflexión",
         DrkN: "Nebulosa oscura", SNR: "Resto de supernova", OCl: "Cúmulo abierto", GCl: "Cúmulo globular", "Cl+N": "Cúmulo con nebulosa",
-        "*Ass": "Asociación estelar", "**": "Estrella doble", "*": "Estrella", Planet: "Planeta", Moon: "Luna", Sun: "Sol", Comet: "Cometa" };
+        "*Ass": "Asociación estelar", "**": "Estrella doble", "*": "Estrella", Planet: "Planeta", Moon: "Luna", Sun: "Sol", Comet: "Cometa",
+        Punto: "Punto del cielo elegido en el mapa (sin objeto)" };
 
     function coordsDe(t) {
         const ra = t?.coordinates?.raDeg ?? t?.raDeg, dec = t?.coordinates?.decDeg ?? t?.decDeg;
@@ -169,7 +180,7 @@
                 container: $("atlas"), catalog, stars, constellations: window.WESTERN_CONSTELLATIONS ?? {},
                 observer: observador, utcMs: cfg.hora_utc_ms,
                 skySurveySource: null,          // sin teselas DSS: todo local
-                onSelect: mostrarPanel,
+                onSelect: t => { tocoObjeto = true; mostrarPanel(t); },
                 onError: e => console.error("atlas", e),
             });
         } catch (e) {
@@ -258,8 +269,11 @@
     function mostrarPanel(t) {
         seleccionado = t || null;
         const p = $("panel");
-        if (!t) { p.hidden = true; return; }
         const c = coordsDe(t);
+        // La marca solo se pinta para puntos elegidos a dedo; los objetos ya los recuadra el motor
+        puntoLibre = t?.libre && c ? c : null;
+        if (!puntoLibre) $("marca-punto").hidden = true;
+        if (!t) { p.hidden = true; return; }
         const nombre = t.displayName || t.name;
         $("p-nombre").textContent = nombre;
         const partes = [tipos[t.typeCode] || tipos[t.type] || t.type || t.typeCode || ""];
@@ -277,15 +291,66 @@
         }
         $("p-datos").innerHTML = html;
         $("btn-ir").disabled = !c;
+        $("btn-centrar-mapa").disabled = !c;
         p.hidden = false;
     }
     $("btn-cerrar").onclick = () => mostrarPanel(null);
+    $("btn-centrar-mapa").onclick = () => {
+        const c = coordsDe(seleccionado);
+        if (c) viewer.setView({ center: { raDeg: c.raDeg, decDeg: c.decDeg, frame: "ICRS" }, fovDeg: viewer.getView().fovDeg });
+    };
+
+    // ——— Puntos del cielo sin objeto (para encuadrar, p. ej. entre M81 y M82) ———
+    // El rectángulo de la cámara se dibuja siempre en el centro del mapa: se arrastra el mapa
+    // hasta que lo que se quiere retratar quede dentro y se va a ese centro. También se puede
+    // tocar cualquier sitio vacío del cielo; el motor solo avisa cuando se toca un objeto, así
+    // que un toque sin selección se convierte aquí en RA/Dec con la proyección inversa.
+    let puntoLibre = null;        // {raDeg, decDeg} del punto elegido a dedo, para la marca
+    const horasCortas = raDeg => { const h = raDeg / 15; return `${Math.floor(h)}h${Math.round((h % 1) * 60).toString().padStart(2, "0")}m`; };
+    const gradosCortos = d => `${d < 0 ? "-" : "+"}${Math.floor(Math.abs(d))}°${Math.round((Math.abs(d) % 1) * 60).toString().padStart(2, "0")}'`;
+    function seleccionarPunto(c) {
+        // Se pasa por viewer.select para que el motor suelte el objeto que tuviera recuadrado;
+        // el motor devuelve el mismo objeto (con "libre") por onSelect → mostrarPanel.
+        const nombre = `Campo ${horasCortas(c.raDeg)} ${gradosCortos(c.decDeg)}`;
+        viewer.select({ id: "punto-libre", name: nombre, displayName: "Punto del cielo", type: "Punto", libre: true,
+                        coordinates: { raDeg: c.raDeg, decDeg: c.decDeg, frame: "ICRS" } });
+    }
+    function vistaProyectada() {
+        const vista = viewer.getView();
+        return modo === "horizontal" ? alignViewToHorizon(vista, observador, viewer.getTime()) : vista;
+    }
+    $("btn-centro").onclick = () => { if (viewer) seleccionarPunto(viewer.getView().center); };
+
+    // Toque en cielo vacío: mismo criterio que el motor (un solo dedo, sin arrastrar). El motor
+    // atiende el pointerup en su canvas antes de que llegue aquí, así que si ha seleccionado
+    // algo (tocoObjeto) no se hace nada.
+    const lienzo = $("atlas");
+    let toque = null, tocoObjeto = false, dedos = 0;
+    lienzo.addEventListener("pointerdown", e => {
+        dedos++;
+        if (dedos === 1) { toque = { x: e.clientX, y: e.clientY, id: e.pointerId, ok: true }; tocoObjeto = false; }
+        else if (toque) toque.ok = false;   // pellizco: no es un toque
+    });
+    lienzo.addEventListener("pointermove", e => { if (toque && e.pointerId === toque.id && Math.hypot(e.clientX - toque.x, e.clientY - toque.y) > 6) toque.ok = false; });
+    const soltar = e => {
+        dedos = Math.max(0, dedos - 1);
+        if (!toque || e.pointerId !== toque.id) return;
+        const t = toque; toque = null;
+        if (!t.ok || tocoObjeto || !viewer || e.type !== "pointerup") return;
+        const r = lienzo.getBoundingClientRect(), w = lienzo.clientWidth, h = lienzo.clientHeight;
+        if (!w || !h) return;
+        try { seleccionarPunto(unprojectEquatorial(e.clientX - r.left, e.clientY - r.top, vistaProyectada(), w, h)); }
+        catch (err) { console.warn("punto del cielo", err); }
+    };
+    lienzo.addEventListener("pointerup", soltar);
+    lienzo.addEventListener("pointercancel", soltar);
 
     // Nombre que se manda a /goto: para el Sistema Solar el nombre en español (el PC calcula
     // la posición); para el cielo profundo la designación de catálogo (M31, NGC 7000), que es
     // lo que entienden el catálogo propio, la voz y las descripciones; para estrellas, su nombre.
     const designacion = /^(M|NGC|IC|C|B|Sh2|LDN|LBN|Abell|Cr|Mel|Tr|Ced|vdB|RCW)\s?\d/i;
     function nombreParaGoto(t) {
+        if (t.libre) return { objeto: t.name, conCoords: true };
         const clave = String(t.name || "").toLowerCase();
         if (sistemaSolar[clave]) return { objeto: sistemaSolar[clave], conCoords: false };
         const id = String(t.id || "");
@@ -358,7 +423,8 @@
     let ultimaRecolocacion = 0;
     function recolocarChinchetas(t) {
         requestAnimationFrame(recolocarChinchetas);
-        if (!viewer || capa.hidden || !chinchetas.length || t - ultimaRecolocacion < 80) return;   // ~12 veces por segundo basta
+        const hayChinchetas = !capa.hidden && chinchetas.length > 0;
+        if (!viewer || (!hayChinchetas && !puntoLibre) || t - ultimaRecolocacion < 80) return;   // ~12 veces por segundo basta
         ultimaRecolocacion = t;
         const w = $("atlas").clientWidth, h = $("atlas").clientHeight;
         if (!w || !h) return;
@@ -367,6 +433,15 @@
             vista = viewer.getView(); ahora = viewer.getTime();
             if (modo === "horizontal") vista = alignViewToHorizon(vista, observador, ahora);
         } catch (e) { return; }
+        if (puntoLibre) {   // la marca del punto elegido a dedo, con la misma proyección
+            const marca = $("marca-punto");
+            let p = null;
+            try { p = projectEquatorial({ ...puntoLibre, frame: "ICRS" }, vista, w, h); } catch (e) {}
+            const visible = p && p.x >= 0 && p.x <= w && p.y >= 0 && p.y <= h;
+            marca.hidden = !visible;
+            if (visible) marca.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
+        }
+        if (!hayChinchetas) return;
         const conEtiqueta = vista.fovDeg <= 100;
         for (const { o, el } of chinchetas) {
             const coords = { raDeg: o.ra_h * 15, decDeg: o.dec_deg, frame: "ICRS" };
