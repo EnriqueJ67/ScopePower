@@ -2205,7 +2205,7 @@ def alineacion_iniciar():
     datos = request.get_json(silent=True) or {}
     conf = alineacion.leer_config()
     if "puntos" in datos:
-        conf["puntos"] = max(1, min(20, int(datos["puntos"])))
+        conf["puntos"] = max(2, min(20, int(datos["puntos"])))
     if "limpiar_antes" in datos:
         conf["limpiar_antes"] = bool(datos["limpiar_antes"])
     if "puntos" in datos or "limpiar_antes" in datos:

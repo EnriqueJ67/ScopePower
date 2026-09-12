@@ -8,9 +8,9 @@
     <div>
         <h1 class="pagina-titulo">Alineación automática</h1>
         <p class="pagina-sub">
-            Borra el modelo de apuntado anterior de la app SynScan, resuelve por plate solving donde apunta el
-            telescopio y sincroniza, y después recorre varias posiciones del cielo sincronizando en cada una.
-            Al terminar, los GoTo de toda la noche salen mucho más centrados. Unos 20 segundos por punto.
+            Borra el modelo de apuntado anterior de la app SynScan y recorre varias posiciones del cielo
+            resolviendo cada una por plate solving y sincronizando la montura. Al terminar, los GoTo de toda
+            la noche salen mucho más centrados. Unos 20 segundos por punto.
         </p>
     </div>
 </div>
@@ -18,14 +18,14 @@
 <div id="panel-alineacion" class="card card-centrada">
     <div id="alineacion-config">
         <div class="fila entre mb-2">
-            <label for="alineacion-puntos" style="margin: 0;">Puntos a recorrer (además del inicial)</label>
-            <input type="number" id="alineacion-puntos" class="corto" min="1" max="20" value="{{ conf.puntos }}">
+            <label for="alineacion-puntos" style="margin: 0;">Puntos a recorrer</label>
+            <input type="number" id="alineacion-puntos" class="corto" min="2" max="20" value="{{ conf.puntos }}">
         </div>
         <label class="switch mb-2"><input type="checkbox" id="alineacion-limpiar" {% if conf.limpiar_antes %}checked{% endif %}> Borrar antes las sincronizaciones anteriores (ClearSyncTo)</label>
         <div class="aviso mt-2">
             <svg class="ico"><use href="#i-info"/></svg>
             <span>Alturas entre {{ conf.altura_minima|int }}° y {{ conf.altura_maxima|int }}° (config.ini, sección [Alineacion]).
-            Antes de empezar: montura encendida en posición de inicio, apuntando a una zona con estrellas, y sin apilado en marcha.</span>
+            Antes de empezar: montura encendida en la posición de inicio (horizontal, al norte) y sin apilado en marcha.</span>
         </div>
         <button type="button" id="btn-alinear" class="btn btn-primary btn-lg btn-block" onclick="lanzarAlineacion()"><svg><use href="#i-brujula"/></svg>Empezar alineación</button>
     </div>

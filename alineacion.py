@@ -5,12 +5,15 @@
 # con SynScan Pro para SharpCap:
 #
 #   1. (opcional) ClearSyncTo: borrar el modelo de apuntado anterior en la app
-#   2. Resolver a ciegas donde apunta el telescopio y SyncToCoordinates
-#      (alineación de una estrella)
-#   3. Recorrer varias posiciones repartidas por el cielo (altura/acimut);
+#   2. Recorrer varias posiciones repartidas por el cielo (altura/acimut);
 #      en cada una: mover, esperar a que el seguimiento se estabilice, foto
 #      corta, resolver, SyncToCoordinates. Cada sync es una "muestra" del
 #      modelo de apuntado de la app.
+#
+# A diferencia del script del fabricante no se intenta resolver la posición
+# de partida: la montura arranca en la posición de inicio (horizontal, al
+# norte) y ahí no hay nada que resolver. El primer punto del recorrido ya
+# hace de alineación de una estrella.
 #
 # Antes de cada sync se mide cuánto se equivocaba la montura en ese punto
 # (posición que decía tener frente a la resuelta). Esa lista de errores es el
@@ -60,12 +63,19 @@ def leer_config():
     }
 
 
-def plan_de_puntos(n, altura_maxima, altura_minima, acimut_inicial=0.0):
+DEC_MAXIMA = 85.0   # más cerca del polo el plate solving y el sync no son fiables
+
+
+def plan_de_puntos(n, altura_maxima, altura_minima, acimut_inicial=0.0, valido=None):
     """
     Reparte `n` puntos en el cielo: capas de altura (1 capa con ≤3 puntos,
     2 capas con ≤6, 3 con más) y acimuts equiespaciados que alternan de
     sentido entre capas para minimizar el recorrido, como en el script del
     fabricante. Devuelve una lista de (altura, acimut) en grados.
+
+    `valido(alt, az) -> bool` permite descartar posiciones (p. ej. las que
+    caen junto al polo): si alguna del reparto no vale, se giran todos los
+    acimuts media separación para alejarse de ella.
     """
     n = max(1, int(n))
     capas = 1 if n <= 3 else (2 if n <= 6 else 3)
@@ -74,12 +84,19 @@ def plan_de_puntos(n, altura_maxima, altura_minima, acimut_inicial=0.0):
     else:
         alturas = list(np.linspace(altura_maxima, altura_minima, capas))
     por_capa = [n // capas + (1 if i < n % capas else 0) for i in range(capas)]
-    puntos = []
-    for i, (alt, k) in enumerate(zip(alturas, por_capa)):
-        acimuts = [(acimut_inicial + 360.0 * j / k) % 360.0 for j in range(k)]
-        if i % 2 == 1:
-            acimuts.reverse()
-        puntos += [(round(alt, 1), round(az, 1)) for az in acimuts]
+
+    def repartir(desfase):
+        puntos = []
+        for i, (alt, k) in enumerate(zip(alturas, por_capa)):
+            acimuts = [(acimut_inicial + desfase + 360.0 * j / k) % 360.0 for j in range(k)]
+            if i % 2 == 1:
+                acimuts.reverse()
+            puntos += [(round(alt, 1), round(az, 1)) for az in acimuts]
+        return puntos
+
+    puntos = repartir(0.0)
+    if valido is not None and not all(valido(alt, az) for alt, az in puntos):
+        puntos = repartir(180.0 / max(por_capa))
     return puntos
 
 
@@ -163,17 +180,19 @@ class TrabajoAlineacion:
                               height=conf["altitud"] * u.m)
         try:
             # ── Plan ─────────────────────────────────────────────────
+            # El recorrido empieza por el acimut al que ya apunta la montura
+            # (en la posición de inicio, el norte) para no dar vueltas de más.
+            ahora = Time.now()
             ra0, dec0 = coordenadas.desde_montura(*montura.ejecutar(lambda t: (t.RightAscension, t.Declination), timeout=10))
             inicial = SkyCoord(ra=ra0 * u.hourangle, dec=dec0 * u.deg)
-            az0 = float(inicial.transform_to(AltAz(obstime=Time.now(), location=lugar)).az.deg)
-            plan = plan_de_puntos(conf["puntos"], conf["altura_maxima"], conf["altura_minima"], az0)
+            az0 = float(inicial.transform_to(AltAz(obstime=ahora, location=lugar)).az.deg)
+            lejos_del_polo = lambda alt, az: abs(self._a_icrs(alt, az, lugar, ahora).dec.deg) <= DEC_MAXIMA
+            plan = plan_de_puntos(conf["puntos"], conf["altura_maxima"], conf["altura_minima"], az0, lejos_del_polo)
             with self._lock:
-                self.puntos = [{"n": 0, "alt": None, "az": None, "estado": "pendiente", "error_arcmin": None,
-                                "nombre": "posición actual"}]
-                self.puntos += [{"n": i + 1, "alt": alt, "az": az, "estado": "pendiente", "error_arcmin": None,
-                                 "nombre": f"alt {alt:.0f}° az {az:.0f}°"} for i, (alt, az) in enumerate(plan)]
+                self.puntos = [{"n": i + 1, "alt": alt, "az": az, "estado": "pendiente", "error_arcmin": None,
+                                "nombre": f"alt {alt:.0f}° az {az:.0f}°"} for i, (alt, az) in enumerate(plan)]
                 self.total_pasos = len(self.puntos)
-            self._decir(voz, f"Alineación automática de {len(plan) + 1} puntos")
+            self._decir(voz, f"Alineación automática de {len(plan)} puntos")
 
             # ── 1. Borrar modelo anterior ─────────────────────────────
             if conf["limpiar_antes"] and limpiar_sync is not None:
@@ -183,13 +202,10 @@ class TrabajoAlineacion:
                     log.warning("ClearSyncTo no disponible: %s", msg)
                 self._comprobar()
 
-            # ── 2. Punto inicial: resolver donde apunta y sincronizar ──
-            self._sincronizar_punto(0, camara, montura, conf, resolver, voz, mover_a=None)
-
-            # ── 3. Recorrido ──────────────────────────────────────────
-            for i, (alt, az) in enumerate(plan, start=1):
+            # ── 2. Recorrido: en cada punto mover, resolver y sincronizar ──
+            for i, (alt, az) in enumerate(plan):
                 self._comprobar()
-                self._sincronizar_punto(i, camara, montura, conf, resolver, voz, mover_a=(alt, az, lugar))
+                self._sincronizar_punto(i, camara, montura, conf, resolver, voz, (alt, az, lugar))
 
             with self._lock:
                 s, f = self.sincronizados, self.fallidos
@@ -219,23 +235,26 @@ class TrabajoAlineacion:
             self.puntos[idx].update(cambios)
             self.paso = idx + 1
 
-    def _sincronizar_punto(self, idx, camara, montura, conf, resolver, voz, mover_a):
+    @staticmethod
+    def _a_icrs(alt, az, lugar, cuando=None):
+        return SkyCoord(alt=alt * u.deg, az=az * u.deg,
+                        frame=AltAz(obstime=cuando or Time.now(), location=lugar)).icrs
+
+    def _sincronizar_punto(self, idx, camara, montura, conf, resolver, voz, destino):
         nombre = self.puntos[idx]["nombre"]
         total = self.total_pasos
         try:
-            if mover_a is not None:
-                alt, az, lugar = mover_a
-                self._marcar(idx, estado="moviendo")
-                self._msg(f"Punto {idx + 1}/{total}: moviendo a {nombre}")
-                self._decir(voz, f"Punto {idx + 1} de {total}")
-                objetivo = SkyCoord(alt=alt * u.deg, az=az * u.deg,
-                                    frame=AltAz(obstime=Time.now(), location=lugar)).icrs
-                if abs(objetivo.dec.deg) > 85:
-                    self._marcar(idx, estado="omitido", detalle="demasiado cerca del polo")
-                    return
-                self._mover(montura, *coordenadas.a_montura(objetivo.ra.hour, objetivo.dec.deg))
-                self._msg(f"Punto {idx + 1}/{total}: estabilizando seguimiento ({conf['asentamiento_s']:.0f} s)")
-                self._esperar(conf["asentamiento_s"])
+            alt, az, lugar = destino
+            self._marcar(idx, estado="moviendo")
+            self._msg(f"Punto {idx + 1}/{total}: moviendo a {nombre}")
+            self._decir(voz, f"Punto {idx + 1} de {total}")
+            objetivo = self._a_icrs(alt, az, lugar)
+            if abs(objetivo.dec.deg) > DEC_MAXIMA:
+                self._marcar(idx, estado="omitido", detalle="demasiado cerca del polo")
+                return
+            self._mover(montura, *coordenadas.a_montura(objetivo.ra.hour, objetivo.dec.deg))
+            self._msg(f"Punto {idx + 1}/{total}: estabilizando seguimiento ({conf['asentamiento_s']:.0f} s)")
+            self._esperar(conf["asentamiento_s"])
 
             self._comprobar()
             self._marcar(idx, estado="exponiendo")
