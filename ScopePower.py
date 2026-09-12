@@ -1901,7 +1901,111 @@ def sincronizar_con_ultima_foto():
 def sincronizar_foto():
     resultado = sincronizar_con_ultima_foto()
     return jsonify(resultado), (200 if resultado["ok"] else 409)
-    
+
+
+def _wcs_ultima_foto():
+    """
+    WCS de la última foto de prueba. Reutiliza la solución de ASTAP si ya se
+    resolvió esta misma foto (p. ej. al sincronizar); si no, la resuelve.
+    Devuelve (wcs, ancho, alto) o un texto con el motivo del fallo.
+    """
+    import anotaciones
+    with fits.open(RUTA_IMAGEN) as hdul:
+        alto, ancho = hdul[0].data.shape[-2:]
+    res = None
+    if os.path.exists(RUTA_INI) and os.path.getmtime(RUTA_INI) >= os.path.getmtime(RUTA_IMAGEN):
+        res = anotaciones.wcs_desde_ini(RUTA_INI)
+    if res is None:
+        ruta_mono = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.fits"
+        generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, ruta_mono)
+        if not ejecutar_astap(ruta_mono):
+            return "ASTAP no respondió a tiempo."
+        res = anotaciones.wcs_desde_ini(RUTA_INI)
+    if res is None:
+        return "ASTAP no ha podido resolver la foto (¿pocas estrellas, desenfoque, nubes?)."
+    return res[0], ancho, alto
+
+
+def apuntar_a_punto_de_la_foto(fx, fy):
+    """
+    Centra el telescopio en el punto (fx, fy) de la última foto de prueba, dado
+    como fracción del ancho y del alto (0,5, 0,5 es el centro). Resuelve la
+    foto con ASTAP, convierte el píxel a RA/DEC, sincroniza la montura con el
+    centro real de la foto y mueve al punto elegido. Devuelve un dict con ok y
+    mensaje (y, si fue bien, las coordenadas y la distancia recorrida).
+    """
+    if not os.path.exists(RUTA_IMAGEN):
+        return {"ok": False, "mensaje": "No hay ninguna foto; haz una foto primero."}
+    if bucle.activo and not bucle.pausado:
+        return {"ok": False, "mensaje": "El apilado está capturando; páusalo antes de mover el telescopio."}
+    if centrado.trabajo_centrado.en_curso:
+        return {"ok": False, "mensaje": "Hay un centrado automático en marcha; espera a que termine."}
+    res = _wcs_ultima_foto()
+    if isinstance(res, str):
+        return {"ok": False, "mensaje": res}
+    wcs, ancho, alto = res
+    # Fracción de la imagen -> píxel (origen 0 en la esquina superior izquierda,
+    # como el JPG de la web, que es la misma imagen reducida sin recortar)
+    px, py = fx * ancho - 0.5, fy * alto - 0.5
+    cx, cy = (ancho - 1) / 2.0, (alto - 1) / 2.0
+    try:
+        ra_obj, dec_obj = (float(v) for v in wcs.all_pix2world([[px, py]], 0)[0])
+        ra_cen, dec_cen = (float(v) for v in wcs.all_pix2world([[cx, cy]], 0)[0])
+    except Exception as e:
+        return {"ok": False, "mensaje": f"No se pudo convertir el punto a coordenadas: {e}"}
+    if not all(np.isfinite([ra_obj, dec_obj, ra_cen, dec_cen])):
+        return {"ok": False, "mensaje": "El punto elegido cae fuera de la proyección de la foto."}
+    ra_obj_h, ra_cen_h = ra_obj / 15.0, ra_cen / 15.0
+    if calcular_altitud(ra_obj_h, dec_obj) < float(ALTURA_MINIMA):
+        return {"ok": False, "mensaje": "El punto elegido está por debajo de la altura mínima; no se mueve el telescopio."}
+    salto = float(SkyCoord(ra=ra_cen * u.deg, dec=dec_cen * u.deg).separation(
+        SkyCoord(ra=ra_obj * u.deg, dec=dec_obj * u.deg)).arcmin)
+
+    # Como en la primera vuelta del centrado automático: Sync con el centro real
+    # de la foto y Slew al punto elegido; así el movimiento es exacto aunque la
+    # montura estuviera desalineada.
+    ra_sync, dec_sync = coordenadas.a_montura(ra_cen_h, dec_cen)
+    ra_dest, dec_dest = coordenadas.a_montura(ra_obj_h, dec_obj)
+
+    def _mover(tel):
+        tel.SyncToCoordinates(ra_sync, dec_sync)
+        tel.Tracking = True
+        if getattr(tel, "CanSlewAsync", False):
+            tel.SlewToCoordinatesAsync(ra_dest, dec_dest)
+        else:
+            tel.SlewToCoordinates(ra_dest, dec_dest)
+        inicio = time.time()
+        time.sleep(0.5)
+        while tel.Slewing:
+            if time.time() - inicio > 120:
+                raise ErrorHardware("La montura no terminó el movimiento en 120 s")
+            time.sleep(0.5)
+
+    try:
+        montura.ejecutar(_mover, timeout=150)
+    except ErrorHardware as e:
+        return {"ok": False, "mensaje": f"Error al mover el telescopio: {e}"}
+    time.sleep(2.0)   # asentamiento antes de la siguiente foto
+    ra_str, dec_str = formatear_ra_dec(ra_obj_h, dec_obj)
+    log.info("Apuntado al punto (%.3f, %.3f) de la foto de prueba: RA %s DEC %s (salto %.1f')", fx, fy, ra_str, dec_str, salto)
+    voz.decir("Telescopio centrado en el punto elegido")
+    return {"ok": True, "mensaje": f"Telescopio centrado en RA {ra_str}, DEC {dec_str} (se ha movido {salto:.1f}′).",
+            "ra": ra_obj_h, "dec": dec_obj, "salto_arcmin": round(salto, 2)}
+
+
+@app.route('/apuntar-foto', methods=['POST'])
+def apuntar_foto():
+    """Centra el telescopio en el punto de la última foto de prueba que marcó el usuario ({x, y} en 0–1)."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        fx, fy = float(datos.get("x")), float(datos.get("y"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "mensaje": "Punto no válido."}), 400
+    if not (0.0 <= fx <= 1.0 and 0.0 <= fy <= 1.0):
+        return jsonify({"ok": False, "mensaje": "El punto tiene que estar dentro de la foto."}), 400
+    resultado = apuntar_a_punto_de_la_foto(fx, fy)
+    return jsonify(resultado), (200 if resultado["ok"] else 409)
+
 # Ruta para resolver plate solve con ASTAP
 @app.route('/platesolve')
 def platesolve():

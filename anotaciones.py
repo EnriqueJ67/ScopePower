@@ -64,6 +64,20 @@ def resolver_wcs(ruta_fits, timeout=TIMEOUT_ASTAP_S):
     except subprocess.TimeoutExpired:
         log.warning("ASTAP no terminó en %s s (anotaciones)", timeout)
         return None
+    res = wcs_desde_ini(ruta_ini)
+    if res is None:
+        return None
+    wcs, escala_arcsec, angulo_cam = res
+    return wcs, escala_arcsec, angulo_cam, ruta_ini
+
+
+def wcs_desde_ini(ruta_ini):
+    """
+    Lee el .ini que deja ASTAP y devuelve (wcs, escala_arcsec_px, angulo_camara_deg)
+    o None si no existe o no resolvió. El WCS está en píxeles de la imagen que
+    resolvió ASTAP, con el origen (0, 0) en la esquina superior izquierda tal como
+    la guarda cv2 (all_pix2world / all_world2pix con origin=0).
+    """
     if not os.path.exists(ruta_ini):
         return None
     valores = {}
@@ -87,7 +101,7 @@ def resolver_wcs(ruta_fits, timeout=TIMEOUT_ASTAP_S):
     det = hdr["CD1_1"] * hdr["CD2_2"] - hdr["CD1_2"] * hdr["CD2_1"]
     escala_arcsec = math.sqrt(abs(det)) * 3600.0
     angulo_cam = math.degrees(math.atan2(hdr["CD1_2"], hdr["CD1_1"]))
-    return wcs, escala_arcsec, angulo_cam, ruta_ini
+    return wcs, escala_arcsec, angulo_cam
 
 
 def objetos_catalogo_en_campo(wcs, ancho, alto, margen=0.02):
