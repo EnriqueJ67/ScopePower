@@ -935,11 +935,63 @@ def apagar_estado():
     return jsonify({"accion": _apagado["accion"] if restante > 0 else None, "restante": round(restante)})
 
 
+RUTA_INFO_GOTO = "static/info_objeto_goto.txt"
+
+
 def eliminar_info_goto():
-    ruta = "static/info_objeto_goto.txt"
-    with open(ruta, "w", encoding="utf-8") as f:
+    with open(RUTA_INFO_GOTO, "w", encoding="utf-8") as f:
         f.write("ℹ️ No hay datos del objeto GOTO disponibles en esta sesión.\n")
     print("📄 info_objeto_goto.txt reiniciado.")
+
+
+def guardar_info_goto(nombre, info=None, ra=None, dec=None, fuente=""):
+    """
+    Escribe static/info_objeto_goto.txt, de donde el apilado saca el nombre del
+    objeto para el rótulo de la firma y el nombre del archivo en la galería.
+    Se llama en TODOS los GoTo (página GoTo, planetario, Esta noche, recorrido),
+    tengan o no ficha de Stellarium; `info` es la ficha (Stellarium o cuerpos
+    menores) y puede faltar.
+    """
+    info = info or {}
+    with open(RUTA_INFO_GOTO, "w", encoding="utf-8") as f:
+        f.write(f"Nombre: {nombre}\n")
+        if info.get("type"):
+            f.write(f"Tipo: {info['type']}\n")
+        constelacion = info.get("constellation") or info.get("iauConstellation")
+        if constelacion:
+            f.write(f"Constelación: {constelacion}\n")
+        mag = info.get("vmag") or info.get("mag") or info.get("vmage")
+        if mag is not None:
+            f.write(f"Magnitud: {mag:.2f}\n")
+        if ra is not None and dec is not None:
+            ra_str, dec_str = formatear_ra_dec(float(ra), float(dec))
+            f.write(f"RA: {ra_str}\nDEC: {dec_str}\n")
+        if info.get("alt") is not None:
+            f.write(f"Altitud: {info['alt']:.2f}°\n")
+        if info.get("az") is not None:
+            f.write(f"Azimut: {info['az']:.2f}°\n")
+        if info.get("distance") is not None:
+            f.write(f"Distancia: {info['distance']:.2f} AU\n")
+        if info.get("phase") is not None:
+            f.write(f"Fase: {info['phase'] * 100:.1f}%\n")
+        if info.get("illumination") is not None:
+            f.write(f"Iluminación: {info['illumination'] * 100:.1f}%\n")
+        if fuente:
+            f.write(f"Fuente: {fuente}\n")
+        f.write(f"\n📅 Fecha y hora UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\n")
+
+
+def cambiar_nombre_objeto_goto(nombre):
+    """Sustituye solo la línea «Nombre:» del fichero (edición manual desde el apilado)."""
+    lineas = []
+    if os.path.isfile(RUTA_INFO_GOTO):
+        with open(RUTA_INFO_GOTO, "r", encoding="utf-8", errors="replace") as f:
+            lineas = [l for l in f if not l.lower().startswith("nombre:")]
+    if not lineas or lineas[0].startswith("ℹ️"):
+        lineas = ["\n", f"📅 Fecha y hora UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\n"]
+    with open(RUTA_INFO_GOTO, "w", encoding="utf-8") as f:
+        f.write(f"Nombre: {nombre}\n")
+        f.writelines(lineas)
 
 def desconectar_telescopio():
     if montura.esta_conectado():
@@ -1133,32 +1185,6 @@ def obtener_coords_desde_stellarium(nombre_objeto):
         }
 
         print(f"✅ Stellarium info: {info}")
-
-        # ✅ Guardar info en TXT
-        with open("static/info_objeto_goto.txt", "w", encoding="utf-8") as f:
-            f.write(f"Nombre: {info.get('name', '')}\n")
-            f.write(f"Tipo: {info.get('type', '')}\n")
-    
-            constelacion = info.get("constellation") or info.get("iauConstellation") or "Desconocida"
-            f.write(f"Constelación: {constelacion}\n")
-    
-            mag = info.get("vmag") or info.get("mag") or info.get("vmage")
-            if mag is not None:
-                f.write(f"Magnitud: {mag:.2f}\n")
-            if info.get("alt") is not None:
-                f.write(f"Altitud: {info.get('alt'):.2f}°\n")
-            if info.get("az") is not None:
-                f.write(f"Azimut: {info.get('az'):.2f}°\n")
-            if info.get("distance") is not None:
-                f.write(f"Distancia: {info.get('distance'):.2f} AU\n")
-            if info.get("phase") is not None:
-                f.write(f"Fase: {info.get('phase') * 100:.1f}%\n")
-            if info.get("illumination") is not None:
-                f.write(f"Iluminación: {info.get('illumination') * 100:.1f}%\n")
-
-            # ⏱️ Ahora añadimos la fecha y hora UTC al final
-            f.write(f"\n📅 Fecha y hora UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\n")
-
         return info
     except Exception as e:
         print(f"❌ Error al consultar Stellarium: {e}")
@@ -2277,6 +2303,7 @@ def iniciar_recorrido():
     ULTIMO_GOTO.clear()
     ULTIMO_GOTO.update({"ra": float(ra), "dec": float(dec), "objeto": nombre, "fuente": "recorrido",
                         "hora": datetime.now().isoformat(timespec="seconds")})
+    guardar_info_goto(nombre, None, ra, dec, "Recorrido por constelación")
     voz.decir(f"Moviendo el telescopio a {nombre}")
 
     def _mover(tel):
@@ -2489,6 +2516,7 @@ def goto_objeto():
         if not objeto:
             return jsonify({"error": "Debe proporcionar un nombre de objeto."})
 
+        objeto_original = objeto          # tal como lo escribió el usuario, para el rótulo
         objeto = reemplazar_numeros_en_texto(objeto)
         nombre_objeto = objeto.lower()
 
@@ -2584,6 +2612,10 @@ def goto_objeto():
             ULTIMO_GOTO.clear()
             ULTIMO_GOTO.update({"ra": float(ra), "dec": float(dec), "objeto": objeto,
                                 "fuente": fuente_coords, "hora": datetime.now().isoformat(timespec="seconds")})
+            # Nombre para el rótulo del apilado: el de la ficha si la hay; si no, el pedido
+            # con sus mayúsculas y tildes (M31, Vega), salvo que llevara números en letras
+            nombre_rotulo = objeto_original if quitar_tildes(objeto_original.lower()) == objeto else objeto
+            guardar_info_goto((info or {}).get("name") or nombre_rotulo, info, ra, dec, fuente_coords)
 
             def _activar_tracking(tel):
                 if not tel.Tracking:
@@ -2996,6 +3028,23 @@ def reiniciar_apilado():
     bucle.detener("Reiniciado")
     reiniciar_apilado_global()
     return redirect(url_for('vista_apilado'))
+
+
+@app.route('/apilado/nombre-objeto', methods=["POST"])
+def apilado_nombre_objeto():
+    """
+    Cambia a mano el nombre del objeto que sale en el rótulo de la firma y en el
+    nombre del archivo de la galería (por si el del GoTo no gusta). Solo toca la
+    línea «Nombre:» de info_objeto_goto.txt; el resto de la ficha se conserva.
+    """
+    datos = request.get_json(silent=True) or {}
+    nombre = " ".join(str(datos.get("nombre", "")).split())[:60]
+    if not nombre:
+        return jsonify({"ok": False, "mensaje": "El nombre no puede estar vacío."}), 400
+    cambiar_nombre_objeto_goto(nombre)
+    if ULTIMO_GOTO:
+        ULTIMO_GOTO["objeto"] = nombre
+    return jsonify({"ok": True, "nombre": nombre})
 
 
 @app.route('/apilado')

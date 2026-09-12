@@ -199,6 +199,16 @@
             </div>
             <div class="panel-cuerpo">
                 <pre id="info-goto"></pre>
+                <!-- Nombre que sale en el rótulo de la firma y en el archivo de la galería; se puede cambiar a mano -->
+                <div class="campo mt-2">
+                    <label for="nombre-objeto">Nombre para el rótulo</label>
+                    <div class="fila" style="flex-wrap: nowrap; gap: 6px;">
+                        <input type="text" id="nombre-objeto" class="form-control" maxlength="60" placeholder="Nombre del objeto" onkeydown="if (event.key === 'Enter') guardarNombreObjeto()">
+                        <button type="button" class="btn btn-secondary" onclick="guardarNombreObjeto()">Cambiar</button>
+                    </div>
+                    <small class="ayuda">Se usa en la firma del apilado y en el nombre del archivo al guardar en la galería. Cada GoTo lo actualiza.</small>
+                    <div id="nombre-objeto-estado" class="texto-3 mt-1" style="font-size: 13px;"></div>
+                </div>
             </div>
         </section>
 
@@ -571,15 +581,45 @@
 
     // ——— Funciones auxiliares ———
 
+    let nombreObjetoCargado = "";
     function cargarInfoGoto() {
-        fetch("/static/info_objeto_goto.txt")
+        fetch(`/static/info_objeto_goto.txt?${Date.now()}`)
             .then(r => r.text())
             .then(txt => {
                 document.getElementById("info-goto").textContent = txt;
+                const m = txt.match(/^nombre:\s*(.*)$/im);
+                const nombre = m ? m[1].trim() : "";
+                // No pisar lo que el usuario esté escribiendo en la casilla
+                const input = document.getElementById("nombre-objeto");
+                if (document.activeElement !== input && (input.value === nombreObjetoCargado || !input.value)) input.value = nombre;
+                nombreObjetoCargado = nombre;
             })
             .catch(() => {
                 document.getElementById("info-goto").textContent = "ℹ️ No se ha realizado GOTO recientemente.";
             });
+    }
+
+    // Cambia a mano el nombre del rótulo; si ya hay apilado, regenera la vista previa para verlo
+    function guardarNombreObjeto() {
+        const input = document.getElementById("nombre-objeto");
+        const estado = document.getElementById("nombre-objeto-estado");
+        const nombre = input.value.trim();
+        if (!nombre) { estado.textContent = "⚠️ Escribe un nombre."; return; }
+        estado.textContent = "⏳ Guardando...";
+        fetch("/apilado/nombre-objeto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { estado.textContent = "⚠️ " + d.mensaje; return; }
+                nombreObjetoCargado = d.nombre;
+                input.value = d.nombre;
+                cargarInfoGoto();
+                estado.textContent = `✅ Rótulo: ${d.nombre}. Regenerando la vista previa...`;
+                return fetch("/apilado/reprocesar", { method: "POST" }).then(r => r.json()).then(r => {
+                    estado.textContent = r.ok ? `✅ Rótulo: ${d.nombre}` : `✅ Rótulo: ${d.nombre} (se verá en el siguiente apilado)`;
+                    if (r.ok) cicloActualizacion();
+                });
+            })
+            .catch(err => estado.textContent = "❌ " + err);
     }
 
     let ESTILOS = {};
@@ -900,6 +940,7 @@
     let versionMostrada = null;      // versión del JPG apilado ya cargada
     let versionTomaMostrada = null;  // versión de la miniatura de la última toma
 
+    let ciclosInfoGoto = 0;
     function cicloActualizacion() {
         actualizarEstadoApilado().then(estado => {
             if (!estado) return;
@@ -928,6 +969,8 @@
                 actualizarUltimaToma(toma);
             }
             pintarEvolucion(estado.evolucion);
+            // Un GoTo desde otra pestaña (planetario, Esta noche...) cambia el objeto del rótulo
+            if (++ciclosInfoGoto % 10 === 0) cargarInfoGoto();
         }).catch(console.error);
     }
 
