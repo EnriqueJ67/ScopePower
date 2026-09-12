@@ -263,6 +263,8 @@
 
 <style>
     .apilado-layout { align-items: start; }
+    /* Aviso de tablet sin conexión con el mini PC: visible incluso donde se oculta el subtítulo */
+    .pagina-sub.sin-conexion { color: var(--warn); font-weight: 600; display: block !important; }
     .panel-inicio { padding: 10px 12px; }
     .panel-inicio-cabecera { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .panel-inicio-toggle { flex: 1 1 200px; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 4px; margin: 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 10px; }
@@ -719,10 +721,22 @@
         tira.scrollLeft = tira.scrollWidth;
     }
 
+    // Fallos seguidos al pedir el estado: en el campo la tablet y el mini PC cuelgan del
+    // wifi del SynScan, y si se cae la página se quedaba congelada sin avisar.
+    let fallosEstado = 0;
+    let sinConexionDesde = null;
+
     function actualizarEstadoApilado() {
-        return fetch("/estado-apilado")
+        const control = new AbortController();
+        const tope = setTimeout(() => control.abort(), 8000);
+        return fetch("/estado-apilado", { signal: control.signal })
             .then(r => r.json())
             .then(d => {
+                fallosEstado = 0;
+                if (sinConexionDesde) {
+                    sinConexionDesde = null;
+                    document.getElementById("estado-carga").classList.remove("sin-conexion");
+                }
                 document.getElementById("contador-apilado").textContent = d.total || 0;
                 document.getElementById("maximo-apilado").textContent = d.maximo || "-";
                 document.getElementById("ultima-captura").textContent = d.ultima || "Ninguna";
@@ -735,7 +749,18 @@
                 pintarDithering(d);
                 return d;
             })
-            .catch(err => console.warn("⚠️ Error leyendo estado:", err));
+            .catch(err => {
+                console.warn("⚠️ Error leyendo estado:", err);
+                fallosEstado++;
+                if (fallosEstado >= 3) {
+                    if (!sinConexionDesde) sinConexionDesde = new Date();
+                    const hora = sinConexionDesde.toTimeString().slice(0, 5);
+                    const carga = document.getElementById("estado-carga");
+                    carga.textContent = `⚠️ Sin conexión con el mini PC desde las ${hora}: comprueba el wifi. Reintentando...`;
+                    carga.classList.add("sin-conexion");
+                }
+            })
+            .finally(() => clearTimeout(tope));
     }
 
     // ——— Panel de estadísticas: puntuaciones, datos del apilado y de la última foto medida ———

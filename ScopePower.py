@@ -594,6 +594,10 @@ camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_c
 # centrado automático como referencia, no "donde la montura cree que está".
 ULTIMO_GOTO = {}
 
+# Última RA/Dec leída de la montura (en su sistema, JNow o J2000) al capturar: si en
+# una toma la montura no contesta, la cabecera del FITS lleva esta en vez de perder la foto.
+_ULTIMA_POSICION_MONTURA = {}
+
 # Miniatura de la última toma individual (static/ultima_captura.jpg) y su
 # versión, para que la web la refresque solo cuando haya una nueva.
 RUTA_ULTIMA_CAPTURA = ruta_absoluta("static/ultima_captura.jpg")
@@ -1613,11 +1617,22 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         voz.decir("Error de cámara")
         return {"ok": False, "mensaje": f"Error: {e}"}
 
+    # RA/Dec solo van a la cabecera del FITS (OBJCTRA/OBJCTDEC). Si la montura no
+    # contesta (SynScan sin enlace, wifi caído) la foto sigue siendo buena: se usa la
+    # última posición conocida y se avisa, en vez de tirar la toma y parar el bucle.
     try:
         ra_actual, dec_actual = montura.ejecutar(
             lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
+        _ULTIMA_POSICION_MONTURA.update({"ra": ra_actual, "dec": dec_actual})
     except ErrorHardware as e:
-        return {"ok": False, "mensaje": f"Error: {e}"}
+        if _ULTIMA_POSICION_MONTURA:
+            ra_actual, dec_actual = _ULTIMA_POSICION_MONTURA["ra"], _ULTIMA_POSICION_MONTURA["dec"]
+            log.warning("Montura sin respuesta al leer RA/Dec (%s): la cabecera lleva la última posición conocida", e)
+        elif ULTIMO_GOTO:
+            ra_actual, dec_actual = coordenadas.a_montura(ULTIMO_GOTO["ra"], ULTIMO_GOTO["dec"])
+            log.warning("Montura sin respuesta al leer RA/Dec (%s): la cabecera lleva el destino del último GoTo", e)
+        else:
+            return {"ok": False, "mensaje": f"Error: {e}"}
 
     try:
         # ───── Aplicar dark maestro ─────
