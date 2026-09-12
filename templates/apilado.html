@@ -78,10 +78,14 @@
             <div class="visor-overlay">
                 <span class="chip"><svg class="ico-sm"><use href="#i-apilado"/></svg><span id="contador-apilado">0</span>&nbsp;/ <span id="maximo-apilado">-</span> fotos</span>
                 <span class="chip" id="chip-ultima">Última: <span id="ultima-captura">Ninguna</span></span>
-            </div>
-            <div class="visor-pie" id="ciclo" style="display: none;">
-                <div id="ciclo-texto"></div>
-                <div class="progress"><div id="ciclo-barra" class="progress-bar ok"></div></div>
+                <!-- Progreso del ciclo: anillo discreto arriba a la derecha que se completa con
+                     la exposición (segundos dentro) o con las fases del procesado. La banda inferior
+                     de la imagen lleva la firma (logo, autor · fecha y objeto) y no hay que
+                     taparla; el texto largo va debajo del botón de guardar (estado-captura-linea). -->
+                <div class="visor-anillo" id="ciclo" style="display: none;">
+                    <svg viewBox="0 0 44 44"><circle class="anillo-fondo" cx="22" cy="22" r="18"/><circle id="anillo-arco" class="anillo-arco" cx="22" cy="22" r="18"/></svg>
+                    <span id="anillo-texto"></span>
+                </div>
             </div>
         </div>
 
@@ -715,41 +719,50 @@
 
     const NOMBRE_FASE = {
         leyendo: "Leyendo la foto", puntuando: "Midiendo la calidad", resolviendo: "Resolviendo con ASTAP",
-        alineando: "Alineando", apilando: "Apilando", estirando: "Preparando la vista previa", guardando: "Guardando"
+        alineando: "Alineando", apilando: "Apilando", estirando: "Preparando la vista previa", anotando: "Anotando objetos", guardando: "Guardando"
     };
 
     function mostrarEstadoCaptura(captura, procesando, estado) {
         const linea = document.getElementById("estado-captura-linea");
         const boton = document.getElementById("boton-cancelar");
         const ciclo = document.getElementById("ciclo");
-        const texto = document.getElementById("ciclo-texto");
-        const barra = document.getElementById("ciclo-barra");
+        const arco = document.getElementById("anillo-arco");
+        const dentro = document.getElementById("anillo-texto");
         const b = (estado && estado.bucle) || {};
         const numFoto = (b.capturas || 0) + 1;
+        const LARGO = 2 * Math.PI * 18;   // perímetro del anillo (r=18 en el viewBox)
 
         boton.style.display = (captura && captura.en_curso) ? "inline-flex" : "none";
-        linea.textContent = "";
+
+        // Sobre la foto solo va el anillo: exponiendo se completa con el tiempo expuesto (segundos
+        // dentro); procesando se completa fase a fase (⚙️); esperando/pausado, anillo entero (⏳/⏸).
+        // El texto completo va debajo del botón de guardar.
+        function pintarAnillo(modo, pct, texto, titulo) {
+            ciclo.className = "visor-anillo " + modo;
+            ciclo.title = titulo;
+            arco.style.strokeDashoffset = (LARGO * (1 - pct / 100)).toFixed(1);
+            dentro.textContent = texto;
+            ciclo.style.display = "flex";
+            linea.textContent = titulo;
+        }
 
         if (captura && captura.en_curso) {
             const hechos = Math.max(0, captura.exposicion - captura.restante);
             const pct = captura.exposicion > 0 ? Math.min(100, 100 * hechos / captura.exposicion) : 0;
-            barra.className = "progress-bar ok";
-            barra.style.width = pct.toFixed(1) + "%";
-            texto.textContent = `📷 ${captura.descripcion === "Apilado" ? "Foto " + numFoto + ": exponiendo" : captura.descripcion || "Exponiendo"} · ${Math.ceil(hechos)} / ${captura.exposicion} s`;
-            ciclo.style.display = "block";
+            const titulo = `📷 ${captura.descripcion === "Apilado" ? "Foto " + numFoto + ": exponiendo" : captura.descripcion || "Exponiendo"} · ${Math.ceil(hechos)} / ${captura.exposicion} s`;
+            pintarAnillo("exponiendo", pct, `${Math.ceil(hechos)} s`, titulo);
         } else if (procesando) {
             const fase = NOMBRE_FASE[estado && estado.fase] || "Procesando";
             const detalle = (estado && estado.fase === "apilando" && estado.total) ? ` ${estado.total} fotos` : "";
-            barra.className = "progress-bar procesando";
-            texto.textContent = `⚙️ ${fase}${detalle}...`;
-            ciclo.style.display = "block";
+            const fases = Object.keys(NOMBRE_FASE);   // en el orden en que las recorre el apilador
+            const paso = Math.max(0, fases.indexOf(estado && estado.fase)) + 1;
+            pintarAnillo("procesando", 100 * paso / fases.length, "⚙️", `⚙️ ${fase}${detalle}...`);
         } else if (b.activo) {
-            barra.className = "progress-bar esperando";
-            barra.style.width = "100%";
-            texto.textContent = b.pausado ? "⏸️ Pausado" : (b.esperando ? "⏳ Esperando: " + b.esperando : "🔄 Preparando la siguiente foto...");
-            ciclo.style.display = "block";
+            const titulo = b.pausado ? "⏸️ Pausado" : (b.esperando ? "⏳ Esperando: " + b.esperando : "🔄 Preparando la siguiente foto...");
+            pintarAnillo("esperando", 100, b.pausado ? "⏸" : "⏳", titulo);
         } else {
             ciclo.style.display = "none";
+            linea.textContent = "";
         }
     }
 

@@ -343,12 +343,20 @@ input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px
 /* ── Visor de imagen (apilado, foto de prueba) ────────────────────────────── */
 .visor { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
 .visor img { display: block; width: 100%; height: auto; }
-.visor-overlay { position: absolute; left: 0; right: 0; top: 0; padding: 10px 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; background: linear-gradient(180deg, rgba(0,0,0,0.65), transparent); pointer-events: none; }
+.visor-overlay { position: absolute; left: 0; right: 0; top: 0; padding: 10px 62px 10px 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; background: linear-gradient(180deg, rgba(0,0,0,0.65), transparent); pointer-events: none; }
 .visor-overlay .chip { background: rgba(0,0,0,0.45); backdrop-filter: blur(6px); border-color: rgba(255,255,255,0.12); color: #fff; }
 .visor-overlay .chip.chip-ok { color: var(--ok); }
 .visor-overlay .chip.chip-warn { color: var(--warn); }
 .visor-pie { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px; background: linear-gradient(0deg, rgba(0,0,0,0.7), transparent); color: #fff; font-size: 13px; pointer-events: none; }
 .visor-pie .progress { background: rgba(255,255,255,0.15); border-color: transparent; margin-top: 6px; }
+/* Anillo de progreso de la exposición sobre la foto (esquina superior derecha, porcentaje dentro) */
+.visor-anillo { position: absolute; top: 8px; right: 10px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgba(0,0,0,0.85); background: rgba(0,0,0,0.45); border-radius: 50%; backdrop-filter: blur(6px); }
+.visor-anillo svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.visor-anillo circle { fill: none; stroke-width: 4; }
+.visor-anillo .anillo-fondo { stroke: rgba(255,255,255,0.18); }
+.visor-anillo .anillo-arco { stroke: var(--ok); stroke-linecap: round; stroke-dasharray: 113.1; stroke-dashoffset: 113.1; transition: stroke-dashoffset .6s linear; }
+.visor-anillo.procesando .anillo-arco { stroke: var(--accent); }
+.visor-anillo.esperando .anillo-arco { stroke: rgba(255,255,255,0.35); }
 .miniaturas { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
 .miniatura { flex: 0 0 auto; text-align: center; cursor: pointer; }
 .miniatura img { width: 110px; border-radius: 10px; border: 2px solid transparent; display: block; }
