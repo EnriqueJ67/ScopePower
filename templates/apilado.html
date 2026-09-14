@@ -223,6 +223,16 @@
             </div>
             <div class="panel-cuerpo">
                 <div class="campo">
+                    <label>Preset</label>
+                    <div class="fila" style="gap: 6px;">
+                        <select id="proc-preset" class="form-control" style="flex: 1; min-width: 0;" onchange="cargarPresetApilado()">
+                            <option value="">— ninguno —</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="guardarPresetApilado()" title="Guardar los ajustes actuales con un nombre">Guardar</button>
+                    </div>
+                    <small class="ayuda">Los presets se crean aquí o en el editor de la galería. Al elegir uno se cargan todos sus ajustes (también brillo y temperatura de color); luego pulsa "Aplicar a la vista previa".</small>
+                </div>
+                <div class="campo">
                     <label>Estilo</label>
                     <select id="proc-estilo" class="form-control" onchange="aplicarEstilo()">
                         <option value="natural">Natural: gradiente y ruido suave</option>
@@ -232,7 +242,7 @@
                 </div>
                 <div class="campo">
                     <div class="rango-titulo"><span>Brillo del fondo de cielo</span><span id="proc-fondo_objetivo-v"></span></div>
-                    <input type="range" id="proc-fondo_objetivo" min="0.05" max="0.30" step="0.01" oninput="document.getElementById('proc-fondo_objetivo-v').textContent = this.value">
+                    <input type="range" id="proc-fondo_objetivo" min="0.02" max="0.30" step="0.01" oninput="document.getElementById('proc-fondo_objetivo-v').textContent = this.value">
                     <small class="ayuda">Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas).</small>
                 </div>
                 <div class="campo">
@@ -668,6 +678,51 @@
         }
         sel.value = mejor.value;
     }
+
+    // ——— Presets (compartidos con el editor de la galería) ———
+    let PRESETS = {};
+    function pintarPresets(presets, seleccionar) {
+        PRESETS = presets || {};
+        const sel = document.getElementById("proc-preset");
+        sel.innerHTML = '<option value="">— ninguno —</option>';
+        for (const n of Object.keys(PRESETS)) {
+            const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o);
+        }
+        sel.value = (seleccionar && PRESETS[seleccionar]) ? seleccionar : "";
+    }
+    // Un preset trae más ajustes de los que tiene este panel (brillo, temperatura,
+    // scnr): se guardan todos en config.ini y el panel muestra los suyos.
+    function cargarPresetApilado() {
+        const n = document.getElementById("proc-preset").value;
+        if (!n || !PRESETS[n]) return;
+        const estado = document.getElementById("estado-mtf");
+        fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(PRESETS[n]) })
+            .then(r => r.json())
+            .then(d => { if (d.ajustes) pintarAjustes(d.ajustes); estado.textContent = `Preset "${n}" cargado · pulsa "Aplicar a la vista previa"`; })
+            .catch(err => estado.textContent = "❌ " + err);
+    }
+    async function guardarPresetApilado() {
+        const actual = document.getElementById("proc-preset").value;
+        const nombre = prompt("Nombre del preset:", actual || "");
+        if (!nombre || !nombre.trim()) return;
+        // Los ajustes del panel más los que solo están en config.ini (brillo, temperatura, scnr)
+        const cfg = await fetch("/config-procesado").then(r => r.json()).catch(() => ({ ajustes: {} }));
+        const ajustes = Object.assign({}, cfg.ajustes || {}, {
+            estilo: document.getElementById("proc-estilo").value,
+            fondo_objetivo: parseFloat(document.getElementById("proc-fondo_objetivo").value),
+            compresion: parseFloat(document.getElementById("proc-compresion").value),
+            ruido: parseFloat(document.getElementById("proc-ruido").value),
+            contraste: parseFloat(document.getElementById("proc-contraste").value),
+            saturacion: parseFloat(document.getElementById("proc-saturacion").value),
+            gradiente: document.getElementById("proc-gradiente").checked,
+            aplanar: document.getElementById("proc-aplanar").checked
+        });
+        const r = await fetch("/presets-procesado", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nombre: nombre.trim(), ajustes }) }).then(r => r.json());
+        if (r.error) { alert(r.error); return; }
+        pintarPresets(r.presets, nombre.trim());
+    }
+    fetch("/presets-procesado").then(r => r.json()).then(d => pintarPresets(d.presets, "")).catch(() => {});
 
     // Al cambiar de estilo, los deslizadores toman los valores del estilo
     function aplicarEstilo() {

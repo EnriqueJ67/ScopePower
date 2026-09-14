@@ -68,7 +68,7 @@
                 <div id="controles-multiescala">
                     <div class="campo mt-2">
                         <div class="rango-titulo"><span>Brillo del fondo de cielo</span><span id="v-fondo_objetivo"></span></div>
-                        <input type="range" id="c-fondo_objetivo" data-clave="fondo_objetivo" min="0.05" max="0.30" step="0.01">
+                        <input type="range" id="c-fondo_objetivo" data-clave="fondo_objetivo" min="0.02" max="0.30" step="0.01">
                     </div>
                     <div class="campo">
                         <div class="rango-titulo"><span>Compresión de lo brillante</span><span id="v-compresion"></span></div>
@@ -84,6 +84,17 @@
                 <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Procesado</h3>
             </div>
             <div class="panel-cuerpo">
+                <div class="campo">
+                    <label>Preset</label>
+                    <div class="fila" style="gap: 6px;">
+                        <select id="c-preset" class="form-control" style="flex: 1; min-width: 0;" onchange="cargarPreset()">
+                            <option value="">— ninguno —</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="guardarPreset()" title="Guardar los ajustes actuales con un nombre, para reutilizarlos aquí y en el apilado en tiempo real">Guardar</button>
+                        <button type="button" class="btn btn-ghost btn-sm" id="btn-borrar-preset" onclick="borrarPreset()" title="Borrar el preset seleccionado" style="display: none;">Borrar</button>
+                    </div>
+                    <small class="ayuda">Un preset guarda el estirado, el brillo, la temperatura y todos los controles de procesado; se puede cargar también en la pantalla de Apilado.</small>
+                </div>
                 <div class="campo">
                     <label>Estilo</label>
                     <select id="c-estilo" class="form-control" onchange="aplicarEstilo()">
@@ -309,6 +320,45 @@
     }
     for (const id of ["c-gradiente", "c-aplanar", "c-zoom", "c-firma"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
     document.getElementById("c-objeto").addEventListener("change", () => { if (document.getElementById("c-firma").checked) programarVistaPrevia(); });
+
+    // ——— Presets (compartidos con la pantalla de Apilado) ———
+    let PRESETS = {};
+    function pintarPresets(presets, seleccionar) {
+        PRESETS = presets || {};
+        const sel = document.getElementById("c-preset");
+        sel.innerHTML = '<option value="">— ninguno —</option>';
+        for (const n of Object.keys(PRESETS)) {
+            const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o);
+        }
+        sel.value = (seleccionar && PRESETS[seleccionar]) ? seleccionar : "";
+        document.getElementById("btn-borrar-preset").style.display = sel.value ? "" : "none";
+    }
+    function cargarPreset() {
+        const n = document.getElementById("c-preset").value;
+        document.getElementById("btn-borrar-preset").style.display = n ? "" : "none";
+        if (!n || !PRESETS[n]) return;
+        const p = PRESETS[n];
+        if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({}, ESTILOS[p.estilo], p));
+        else pintarAjustes(p);
+        programarVistaPrevia();
+    }
+    async function guardarPreset() {
+        const actual = document.getElementById("c-preset").value;
+        const nombre = prompt("Nombre del preset:", actual || "");
+        if (!nombre || !nombre.trim()) return;
+        const r = await fetch("/presets-procesado", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nombre: nombre.trim(), ajustes: leerAjustes() }) }).then(r => r.json());
+        if (r.error) { alert(r.error); return; }
+        pintarPresets(r.presets, nombre.trim());
+    }
+    async function borrarPreset() {
+        const n = document.getElementById("c-preset").value;
+        if (!n || !confirm(`¿Borrar el preset "${n}"?`)) return;
+        const r = await fetch("/presets-procesado/borrar", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nombre: n }) }).then(r => r.json());
+        pintarPresets(r.presets, "");
+    }
+    fetch("/presets-procesado").then(r => r.json()).then(d => pintarPresets(d.presets, "")).catch(() => {});
 
     pintarAjustes(AJUSTES_INICIALES);
     pedirVistaPrevia(false);

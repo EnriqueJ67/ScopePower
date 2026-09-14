@@ -19,6 +19,8 @@
 
 import logging
 import configparser
+import json
+import threading
 
 import numpy as np
 import cv2
@@ -64,6 +66,67 @@ def leer_config():
     if str(p.get("curva", "")).strip() != "":
         ajustes["curva"] = str(p.get("curva")).strip().lower()
     return ajustes
+
+
+# Presets: conjuntos de ajustes con nombre, guardados en presets_procesado.json
+# (propio de cada PC; copiar_a_campo.bat no lo copia). Se crean desde el editor
+# de la galería o desde el apilado y se cargan en cualquiera de los dos.
+PRESETS_RUTA = "presets_procesado.json"
+CLAVES_PRESET = ("estilo", "estirado", "curva", "fondo_objetivo", "compresion", "brillo", "temperatura",
+                 "ruido", "contraste", "saturacion", "scnr", "gradiente", "aplanar")
+_lock_presets = threading.Lock()
+
+
+def leer_presets():
+    """{nombre: ajustes} ordenado por nombre; {} si no hay fichero o está roto."""
+    try:
+        with open(PRESETS_RUTA, "r", encoding="utf-8") as f:
+            datos = json.load(f)
+        if not isinstance(datos, dict):
+            return {}
+        return {str(k): v for k, v in sorted(datos.items(), key=lambda kv: kv[0].lower()) if isinstance(v, dict)}
+    except (OSError, ValueError):
+        return {}
+
+
+def _filtrar_preset(ajustes):
+    limpio = {}
+    for k in CLAVES_PRESET:
+        if k not in ajustes or ajustes[k] is None or str(ajustes[k]).strip() == "":
+            continue
+        v = ajustes[k]
+        if k in ("gradiente", "aplanar"):
+            limpio[k] = (str(v).lower() == "true") if not isinstance(v, bool) else v
+        elif k in ("estilo", "estirado", "curva"):
+            limpio[k] = str(v).lower()
+        else:
+            try:
+                limpio[k] = float(v)
+            except (TypeError, ValueError):
+                pass
+    return limpio
+
+
+def guardar_preset(nombre, ajustes):
+    """Crea o sustituye un preset. Devuelve el diccionario completo de presets."""
+    nombre = " ".join(str(nombre or "").split())[:40]
+    if not nombre:
+        raise ValueError("El preset necesita un nombre")
+    with _lock_presets:
+        presets = leer_presets()
+        presets[nombre] = _filtrar_preset(ajustes or {})
+        with open(PRESETS_RUTA, "w", encoding="utf-8") as f:
+            json.dump(presets, f, ensure_ascii=False, indent=1)
+    return leer_presets()
+
+
+def borrar_preset(nombre):
+    with _lock_presets:
+        presets = leer_presets()
+        presets.pop(str(nombre), None)
+        with open(PRESETS_RUTA, "w", encoding="utf-8") as f:
+            json.dump(presets, f, ensure_ascii=False, indent=1)
+    return leer_presets()
 
 
 def guardar_config(cambios):
@@ -143,7 +206,7 @@ def recortar_campo(cubo, fraccion, zona=None):
     return np.ascontiguousarray(rec), zx + x1, zy + y1
 
 
-def zona_automatica(cubo, margen=6):
+def zona_automatica(cubo, margen=12):
     """
     Zona útil de un apilado que no trae ZONA* en la cabecera (guardado antes de
     que existiera): se quitan las filas y columnas de los bordes que quedan casi
@@ -157,7 +220,7 @@ def zona_automatica(cubo, margen=6):
     h, w = lum.shape
     f = max(1, min(h, w) // 256)
     peq = cv2.resize(np.asarray(lum, dtype=np.float32), (w // f, h // f), interpolation=cv2.INTER_AREA)
-    umbral = 0.5 * float(np.median(peq))
+    umbral = 0.8 * float(np.median(peq))
     filas = np.median(peq, axis=1) > umbral
     cols = np.median(peq, axis=0) > umbral
     if not filas.any() or not cols.any():
@@ -188,14 +251,36 @@ def leer_zona(header):
 #  1. Gradiente de fondo (espacio lineal)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _base_polinomio(x, y):
-    return np.stack([np.ones_like(x), x, y, x * x, x * y, y * y], axis=1)
+def _rellenar_huecos(malla):
+    """Rellena los NaN de una malla (n, m, 3) con la media de sus vecinos válidos, por oleadas."""
+    malla = malla.copy()
+    for _ in range(malla.shape[0] + malla.shape[1]):
+        nan = np.isnan(malla[..., 0])
+        if not nan.any():
+            break
+        ok = (~nan).astype(np.float32)
+        suma = cv2.blur(np.where(nan[..., None], 0, malla).astype(np.float32), (3, 3), borderType=cv2.BORDER_CONSTANT)
+        cuenta = cv2.blur(ok, (3, 3), borderType=cv2.BORDER_CONSTANT)
+        nuevos = nan & (cuenta > 0)
+        malla[nuevos] = (suma / np.maximum(cuenta, 1e-6)[..., None])[nuevos]
+    if np.isnan(malla).any():
+        malla[np.isnan(malla)] = np.nanmean(malla)
+    return malla
 
 
 def quitar_gradiente(rgb, rejilla=12):
     """
     rgb: (H, W, 3) float lineal. Devuelve la imagen con el gradiente de fondo
     restado (se conserva el nivel medio del fondo para no dejar negativos).
+
+    Modelo de fondo: la mediana de cada celda de una rejilla (sin estrellas ni
+    bordes negros) suavizada e interpolada, no un polinomio: un polinomio de 2º
+    grado no puede seguir un cielo plano por arriba que baja por abajo (viñeteo
+    o gradiente asimétrico) y "rebota" dejando una franja clara en un borde.
+    Las celdas con objeto se detectan como envolvente inferior (residuo positivo
+    frente al modelo, con la dispersión medida solo en los residuos negativos)
+    y se rellenan con sus vecinas, así el halo de una galaxia grande no entra
+    en el fondo.
     """
     rgb = np.asarray(rgb, dtype=np.float32)
     h, w = rgb.shape[:2]
@@ -208,43 +293,35 @@ def quitar_gradiente(rgb, rejilla=12):
     # excluir estrellas y objeto, y también los bordes negros que deja el alineado
     fondo_ok = (lum < med + 2.5 * mad) & (lum > 0.3 * med)
     ch = peq.shape[0] // rejilla
-    xs, ys, vals = [], [], []
+    malla = np.full((rejilla, rejilla, 3), np.nan, dtype=np.float32)
     for j in range(rejilla):
         for i in range(rejilla):
             celda = peq[j * ch:(j + 1) * ch, i * ch:(i + 1) * ch]
             mask = fondo_ok[j * ch:(j + 1) * ch, i * ch:(i + 1) * ch]
             if mask.sum() < 0.3 * mask.size:
                 continue                       # celda dominada por el objeto
-            xs.append((i + 0.5) / rejilla); ys.append((j + 0.5) / rejilla)
-            vals.append(np.median(celda[mask], axis=0))
-    if len(vals) < 10:
+            malla[j, i] = np.median(celda[mask], axis=0)
+    if np.count_nonzero(~np.isnan(malla[..., 0])) < 10:
         return rgb
-    xs, ys, vals = np.array(xs), np.array(ys), np.array(vals)   # vals: (n, 3)
 
-    # Ajuste robusto y ASIMÉTRICO: lo que no es fondo (halo de una galaxia,
-    # nebulosidad) siempre queda por encima del modelo, así que se descartan las
-    # celdas con residuo positivo aunque sea pequeño y se toleran las negativas.
-    # Con un halo que ocupa media imagen (Andrómeda) el ajuste simétrico se
-    # abombaba en el centro y dejaba los bordes de arriba y abajo más claros.
-    # La dispersión del cielo se estima solo con los residuos negativos (los
-    # positivos llevan mezclado el objeto), como una envolvente inferior.
-    A = _base_polinomio(xs, ys)
-    usar = np.ones(len(xs), dtype=bool)
-    coef = None
-    for _ in range(8):
-        coef, *_ = np.linalg.lstsq(A[usar], vals[usar], rcond=None)   # (6, 3)
-        resid = (vals - A @ coef).mean(axis=1)                         # + = más brillante que el modelo
+    def modelo_de(m):
+        return cv2.GaussianBlur(_rellenar_huecos(m), (0, 0), 1.0, borderType=cv2.BORDER_REPLICATE)
+
+    usar = ~np.isnan(malla[..., 0])
+    modelo = None
+    for _ in range(6):
+        modelo = modelo_de(np.where(usar[..., None], malla, np.nan))
+        resid = (malla - modelo).mean(axis=2)                          # + = más brillante que el modelo
         negativos = np.abs(resid[usar & (resid < 0)])
         sigma = (np.median(negativos) * 1.4826 if negativos.size >= 5
-                 else np.median(np.abs(resid[usar])) * 1.4826) + 1e-6
-        nuevo = (resid <= 2.0 * sigma) & (resid >= -4.0 * sigma)
+                 else np.nanmedian(np.abs(resid[usar])) * 1.4826) + 1e-6
+        nuevo = usar & ~np.isnan(resid) & (resid <= 2.0 * sigma)
         if nuevo.sum() < 10 or np.array_equal(nuevo, usar):
             break
         usar = nuevo
 
-    # Superficie a resolución completa
-    gx, gy = np.meshgrid((np.arange(w) + 0.5) / w, (np.arange(h) + 0.5) / h)
-    superficie = (_base_polinomio(gx.ravel(), gy.ravel()) @ coef).reshape(h, w, 3).astype(np.float32)
+    # Superficie a resolución completa (los centros de celda quedan en su sitio)
+    superficie = cv2.resize(modelo, (w, h), interpolation=cv2.INTER_CUBIC)
     nivel = superficie.reshape(-1, 3).mean(axis=0)   # nivel medio que se conserva
     return rgb - superficie + nivel
 

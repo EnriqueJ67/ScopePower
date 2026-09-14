@@ -48,3 +48,6 @@ datos/rotacion_camara.json
 
 # Salida de herramientas/comparar_estirado.py
 comparaciones/
+
+# Presets de procesado del usuario (propios de cada PC)
+presets_procesado.json

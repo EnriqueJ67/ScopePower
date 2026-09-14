@@ -3372,6 +3372,31 @@ def guardar_config_procesado():
 REPROCESADO = {"en_curso": False, "mensaje": "", "ok": None}
 
 
+@app.route('/presets-procesado')
+def presets_procesado():
+    import procesado
+    return jsonify({"presets": procesado.leer_presets()})
+
+
+@app.route('/presets-procesado', methods=['POST'])
+def presets_procesado_guardar():
+    """Crea o sustituye un preset: {"nombre": ..., "ajustes": {...}}."""
+    import procesado
+    datos = request.get_json(silent=True) or {}
+    try:
+        presets = procesado.guardar_preset(datos.get("nombre", ""), datos.get("ajustes") or {})
+    except (ValueError, OSError) as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify({"presets": presets})
+
+
+@app.route('/presets-procesado/borrar', methods=['POST'])
+def presets_procesado_borrar():
+    import procesado
+    datos = request.get_json(silent=True) or {}
+    return jsonify({"presets": procesado.borrar_preset(datos.get("nombre", ""))})
+
+
 @app.route('/apilado/reprocesar', methods=['POST'])
 def apilado_reprocesar():
     """Lanza la regeneración de la vista previa con los ajustes actuales, sin capturar nada."""
