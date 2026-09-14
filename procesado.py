@@ -10,8 +10,9 @@
 #   3. Reducción de ruido: fuerte en color, suave en luminancia, con máscara
 #      de estrellas para no ablandarlas. La fuerza baja con el nº de fotos.
 #   4. Contraste local (CLAHE en luminancia) + curva en S suave.
-#   5. Color: reneutralizar el fondo, SCNR (quitar dominante verde, sin tocar
-#      las estrellas) y saturación, ya con el ruido reducido.
+#   5. Color: reneutralizar el fondo, temperatura de color y brillo general
+#      (deslizadores del editor), SCNR (quitar dominante verde, sin tocar las
+#      estrellas) y saturación, ya con el ruido reducido.
 #
 # Tres estilos: natural, seestar (por defecto) y agresivo, con ajustes finos
 # (ruido, contraste, saturación) en la sección [Procesado] de config.ini.
@@ -50,8 +51,8 @@ def leer_config():
         estilo = "seestar"
     ajustes = dict(ESTILOS[estilo])
     ajustes["estilo"] = estilo
-    for clave in ("ruido", "contraste", "saturacion", "scnr",
-                  "fondo_objetivo", "agresividad", "compresion", "recuperacion", "escala", "curva"):
+    for clave in ("ruido", "contraste", "saturacion", "scnr", "brillo", "temperatura",
+                  "fondo_objetivo", "agresividad", "compresion", "recuperacion", "escala"):
         v = p.get(clave, "")
         if str(v).strip() != "":
             ajustes[clave] = float(v)
@@ -72,7 +73,8 @@ def guardar_config(cambios):
         cfg["Procesado"] = {}
     for k, v in cambios.items():
         if k in ("estilo", "ruido", "contraste", "saturacion", "scnr", "gradiente", "aplanar", "escala_aplanado",
-                 "fondo_objetivo", "agresividad", "compresion", "recuperacion", "escala"):
+                 "fondo_objetivo", "agresividad", "compresion", "recuperacion", "escala", "curva",
+                 "brillo", "temperatura"):
             cfg["Procesado"][k] = str(v).lower() if isinstance(v, bool) else str(v)
     with open("config.ini", "w") as f:
         cfg.write(f)
@@ -130,6 +132,8 @@ def recortar_campo(cubo, fraccion, zona=None):
     completa, como recortar_centro.
     """
     zx, zy = 0, 0
+    if not zona:
+        zona = zona_automatica(cubo)
     if zona:
         x0, y0, ancho, alto = [int(v) for v in zona]
         canales_primero = cubo.ndim == 3 and cubo.shape[0] == 3 and cubo.shape[-1] != 3
@@ -137,6 +141,36 @@ def recortar_campo(cubo, fraccion, zona=None):
         zx, zy = x0, y0
     rec, x1, y1 = recortar_centro(cubo, fraccion)
     return np.ascontiguousarray(rec), zx + x1, zy + y1
+
+
+def zona_automatica(cubo, margen=6):
+    """
+    Zona útil de un apilado que no trae ZONA* en la cabecera (guardado antes de
+    que existiera): se quitan las filas y columnas de los bordes que quedan casi
+    negras porque no todas las fotos alineadas las cubren. Si no se quita nada,
+    el contraste local (CLAHE) las mete en sus mosaicos del borde y aparecen
+    franjas claras y oscuras junto a los bordes. Devuelve (x0, y0, ancho, alto)
+    o None si no hay borde negro.
+    """
+    canales_primero = cubo.ndim == 3 and cubo.shape[0] == 3 and cubo.shape[-1] != 3
+    lum = cubo.mean(axis=0) if canales_primero else (cubo.mean(axis=2) if cubo.ndim == 3 else cubo)
+    h, w = lum.shape
+    f = max(1, min(h, w) // 256)
+    peq = cv2.resize(np.asarray(lum, dtype=np.float32), (w // f, h // f), interpolation=cv2.INTER_AREA)
+    umbral = 0.5 * float(np.median(peq))
+    filas = np.median(peq, axis=1) > umbral
+    cols = np.median(peq, axis=0) > umbral
+    if not filas.any() or not cols.any():
+        return None
+    y0, y1 = int(np.argmax(filas)), int(len(filas) - np.argmax(filas[::-1]))
+    x0, x1 = int(np.argmax(cols)), int(len(cols) - np.argmax(cols[::-1]))
+    if (y0, x0, y1, x1) == (0, 0, len(filas), len(cols)):
+        return None
+    y0, y1 = min(h, y0 * f + margen), max(0, y1 * f - margen)
+    x0, x1 = min(w, x0 * f + margen), max(0, x1 * f - margen)
+    if y1 - y0 < h // 2 or x1 - x0 < w // 2:
+        return None
+    return (x0, y0, x1 - x0, y1 - y0)
 
 
 def leer_zona(header):
@@ -187,17 +221,26 @@ def quitar_gradiente(rgb, rejilla=12):
         return rgb
     xs, ys, vals = np.array(xs), np.array(ys), np.array(vals)   # vals: (n, 3)
 
-    # Ajuste robusto: dos pasadas descartando celdas que se alejan del modelo
+    # Ajuste robusto y ASIMÉTRICO: lo que no es fondo (halo de una galaxia,
+    # nebulosidad) siempre queda por encima del modelo, así que se descartan las
+    # celdas con residuo positivo aunque sea pequeño y se toleran las negativas.
+    # Con un halo que ocupa media imagen (Andrómeda) el ajuste simétrico se
+    # abombaba en el centro y dejaba los bordes de arriba y abajo más claros.
+    # La dispersión del cielo se estima solo con los residuos negativos (los
+    # positivos llevan mezclado el objeto), como una envolvente inferior.
     A = _base_polinomio(xs, ys)
     usar = np.ones(len(xs), dtype=bool)
     coef = None
-    for _ in range(2):
+    for _ in range(8):
         coef, *_ = np.linalg.lstsq(A[usar], vals[usar], rcond=None)   # (6, 3)
-        resid = np.abs(A @ coef - vals).mean(axis=1)
-        umbral = np.median(resid[usar]) * 3 + 1e-6
-        usar = resid <= umbral
-        if usar.sum() < 10:
+        resid = (vals - A @ coef).mean(axis=1)                         # + = más brillante que el modelo
+        negativos = np.abs(resid[usar & (resid < 0)])
+        sigma = (np.median(negativos) * 1.4826 if negativos.size >= 5
+                 else np.median(np.abs(resid[usar])) * 1.4826) + 1e-6
+        nuevo = (resid <= 2.0 * sigma) & (resid >= -4.0 * sigma)
+        if nuevo.sum() < 10 or np.array_equal(nuevo, usar):
             break
+        usar = nuevo
 
     # Superficie a resolución completa
     gx, gy = np.meshgrid((np.arange(w) + 0.5) / w, (np.arange(h) + 0.5) / h)
@@ -574,6 +617,12 @@ def contraste_local(rgb8, cantidad):
     clahe = cv2.createCLAHE(clipLimit=1.0 + 2.0 * cantidad, tileGridSize=(6, 6))
     L_c = clahe.apply(L_sin).astype(np.float32)
     delta = cv2.GaussianBlur(L_c - L_sin.astype(np.float32), (0, 0), 2.0)
+    # Solo el contraste local: CLAHE también desplaza el nivel medio de cada
+    # mosaico según su histograma y en cielo plano eso se ve como bandas del
+    # tamaño del mosaico (sobre todo junto a los bordes). Se le resta al ajuste
+    # su componente de gran escala (medio mosaico) y el fondo conserva su nivel.
+    lado = max(L.shape) / 6.0
+    delta -= cv2.GaussianBlur(delta, (0, 0), lado / 2.0, borderType=cv2.BORDER_REPLICATE)
     L_m = L.astype(np.float32) + cantidad * delta
 
     # Curva en S suave alrededor del gris medio (mezcla máxima 35 %)
@@ -641,11 +690,41 @@ def saturar(rgbf, factor):
     return np.clip(cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB), 0, 1).astype(np.float32)
 
 
+def temperatura_color(rgbf, temperatura):
+    """
+    Desplaza la tonalidad de lo que está por encima del fondo: temperatura > 0
+    hacia el cálido (más rojo, menos azul), < 0 hacia el frío. Se aplica sobre la
+    señal respecto al nivel del fondo, así el cielo (ya neutralizado) no se tiñe
+    y solo cambian objetos y estrellas. Rango útil -1..1 (±30 % en R y B).
+    """
+    t = float(np.clip(temperatura, -1, 1))
+    if abs(t) < 1e-3:
+        return rgbf
+    L = rgbf.mean(axis=2)
+    m = float(np.median(L))
+    mad = float(np.median(np.abs(L - m))) * 1.4826 + 1e-4
+    cielo = L < m + 2.0 * mad
+    fondo = np.median(rgbf[cielo], axis=0) if cielo.sum() > 1000 else np.array([m, m, m], dtype=np.float32)
+    fondo = fondo.reshape(1, 1, 3).astype(np.float32)
+    ganancia = np.array([1.0 + 0.3 * t, 1.0, 1.0 - 0.3 * t], dtype=np.float32).reshape(1, 1, 3)
+    return np.clip(fondo + (rgbf - fondo) * ganancia, 0, 1).astype(np.float32)
+
+
+def brillo_general(rgbf, brillo):
+    """Curva de medios sobre los tres canales: brillo 1 = raíz cuadrada (mucho más claro), -1 = cuadrado."""
+    b = float(np.clip(brillo, -1, 1))
+    if abs(b) < 1e-3:
+        return rgbf
+    return np.power(np.clip(rgbf, 0, 1), 2.0 ** (-b)).astype(np.float32)
+
+
 def color(rgb8, ajustes):
     """Etapa de color completa sobre la imagen de 8 bits: devuelve uint8."""
     f = rgb8.astype(np.float32) / 255.0
     estrellas = mascara_estrellas(cv2.cvtColor(rgb8, cv2.COLOR_RGB2GRAY), dilatar=2)
     f = neutralizar_fondo_final(f)
+    f = temperatura_color(f, ajustes.get("temperatura", 0.0))
+    f = brillo_general(f, ajustes.get("brillo", 0.0))
     f = scnr_verde(f, ajustes.get("scnr", 0.8), estrellas)
     f = saturar(f, ajustes.get("saturacion", 1.5))
     return np.clip(f * 255.0 + 0.5, 0, 255).astype(np.uint8)

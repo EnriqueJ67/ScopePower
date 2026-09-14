@@ -93,6 +93,16 @@
                     </select>
                 </div>
                 <div class="campo">
+                    <div class="rango-titulo"><span>Brillo general</span><span id="v-brillo"></span></div>
+                    <input type="range" id="c-brillo" data-clave="brillo" min="-1" max="1" step="0.05">
+                    <small class="ayuda">0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro.</small>
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Temperatura de color</span><span id="v-temperatura"></span></div>
+                    <input type="range" id="c-temperatura" data-clave="temperatura" min="-1" max="1" step="0.05">
+                    <small class="ayuda">Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro.</small>
+                </div>
+                <div class="campo">
                     <div class="rango-titulo"><span>Reducción de ruido</span><span id="v-ruido"></span></div>
                     <input type="range" id="c-ruido" data-clave="ruido" min="0" max="1" step="0.05">
                 </div>
@@ -143,7 +153,7 @@
     const NOMBRE = {{ info.nombre|tojson }};
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
-    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "ruido", "contraste", "saturacion", "scnr"];
+    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "contraste", "saturacion", "scnr"];
     let urlNueva = null;           // objectURL de la última vista previa
     let hayNueva = false;
     let preparando = false, pendiente = false;
@@ -154,6 +164,7 @@
         for (const k of CLAVES_RANGO) {
             const c = document.getElementById("c-" + k);
             if (a[k] !== undefined && a[k] !== null) c.value = a[k];
+            else if (k === "brillo" || k === "temperatura") c.value = 0;
             document.getElementById("v-" + k).textContent = c.value;
         }
         document.getElementById("c-gradiente").checked = !!a.gradiente;
