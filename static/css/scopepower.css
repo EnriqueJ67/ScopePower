@@ -334,6 +334,10 @@ input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px
 .foto-compartir .ico { width: 16px; height: 16px; }
 .foto-compartir:hover { background: var(--primary); opacity: 1; }
 .foto-compartir:disabled { opacity: 0.4; cursor: wait; }
+.proc-mas-titulo { cursor: pointer; color: var(--accent-2); font-size: 14px; font-weight: 600; padding: 6px 0; list-style: none; user-select: none; }
+.proc-mas-titulo::-webkit-details-marker { display: none; }
+.proc-mas-titulo::before { content: "▸ "; }
+details[open] > .proc-mas-titulo::before { content: "▾ "; }
 .foto-editar { position: absolute; top: 8px; right: 80px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; opacity: 0.85; backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; text-decoration: none; }
 .foto-editar .ico { width: 16px; height: 16px; }
 .foto-editar:hover { background: var(--accent-2); opacity: 1; }
