@@ -37,7 +37,6 @@ from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
 
 from datetime import datetime
 import cv2
-from apilado import aplicar_estirado_mtf
 import winreg
 import logging
 from registro import configurar_logging
@@ -55,6 +54,7 @@ import voz
 import esta_noche
 import cuerpos_menores
 import catalogo_offline
+import editor_fotos
 import anuncio_ip
 import coordenadas
 import recorridos
@@ -3216,33 +3216,6 @@ def procesar_dark():
     return render_template("dark.html", mostrar_volver=True)
 
 
-@app.route("/config-mtf")
-def obtener_config_mtf():
-    try:
-        nuevo_config = configparser.ConfigParser()
-        nuevo_config.read("config.ini")
-        shadows = float(nuevo_config["Dispositivos"].get("MTF_SHADOWS", 0.02))
-        highlights = float(nuevo_config["Dispositivos"].get("MTF_HIGHLIGHTS", 0.98))
-        midtone = float(nuevo_config["Dispositivos"].get("MTF_MIDTONE", 0.4))
-        return jsonify({"shadows": shadows, "highlights": highlights, "midtone": midtone})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/guardar-config-mtf", methods=["POST"])
-def guardar_config_mtf():
-    try:
-        data = request.get_json()
-        config.read("config.ini")
-        config["Dispositivos"]["MTF_SHADOWS"] = str(data["shadows"])
-        config["Dispositivos"]["MTF_HIGHLIGHTS"] = str(data["highlights"])
-        config["Dispositivos"]["MTF_MIDTONE"] = str(data["midtone"])
-        with open("config.ini", "w") as configfile:
-            config.write(configfile)
-        return "✅ Parámetros guardados correctamente"
-    except Exception as e:
-        return f"❌ Error al guardar: {e}", 500
-
 @app.route("/config-zoom")
 def obtener_config_zoom():
     config.read("config.ini")
@@ -3317,7 +3290,8 @@ def guardar_imagen_jpg():
                 if linea.lower().startswith("nombre:"):
                     nombre_objeto = linea.split(":", 1)[1].strip()
                     break
-    nombre_objeto = re.sub(r'[^\w\-]', '_', nombre_objeto)
+    # Solo ASCII: las rutas de la galería (compartir, editar) no admiten tildes ni eñes
+    nombre_objeto = re.sub(r'[^A-Za-z0-9\-]', '_', unidecode(nombre_objeto)).strip('_') or "Objeto"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     nombre_archivo = f"{nombre_objeto}_{timestamp}.jpg"
     nombre_archivo_fits = f"{nombre_objeto}_{timestamp}.fits"
@@ -3391,11 +3365,40 @@ def guardar_config_procesado():
     return jsonify({"ajustes": procesado.leer_config()})
 
 
+# Reprocesado de la vista previa en segundo plano: el procesado completo tarda
+# varios segundos en el mini PC y la petición no debe quedarse colgada. La web
+# sigue el progreso por /estado-apilado (procesando, fase, eta_segundos) y
+# recarga la imagen cuando sube la versión; aquí solo queda el resultado.
+REPROCESADO = {"en_curso": False, "mensaje": "", "ok": None}
+
+
 @app.route('/apilado/reprocesar', methods=['POST'])
 def apilado_reprocesar():
-    """Regenera la vista previa con los ajustes actuales sin capturar nada."""
-    ok, msg = apilado.reprocesar_preview()
-    return jsonify({"ok": ok, "mensaje": msg}), (200 if ok else 409)
+    """Lanza la regeneración de la vista previa con los ajustes actuales, sin capturar nada."""
+    a = apilado.apilador_global
+    if REPROCESADO["en_curso"] or (a is not None and a.procesando):
+        return jsonify({"ok": False, "mensaje": "El apilador está ocupado; espera a que termine", "en_curso": True}), 409
+    if a is None or not os.path.exists("static/resultado_apilado.fits"):
+        return jsonify({"ok": False, "mensaje": "No hay ningún apilado que reprocesar", "en_curso": False}), 409
+    REPROCESADO.update({"en_curso": True, "mensaje": "Regenerando la vista previa...", "ok": None})
+
+    def _reprocesar():
+        try:
+            ok, msg = apilado.reprocesar_preview()
+            REPROCESADO.update({"ok": ok, "mensaje": msg})
+        except Exception as e:
+            log.exception("Error reprocesando la vista previa")
+            REPROCESADO.update({"ok": False, "mensaje": f"Error: {e}"})
+        finally:
+            REPROCESADO["en_curso"] = False
+
+    threading.Thread(target=_reprocesar, name="reprocesar-preview", daemon=True).start()
+    return jsonify({"ok": True, "mensaje": REPROCESADO["mensaje"], "en_curso": True})
+
+
+@app.route('/apilado/reprocesar-estado')
+def apilado_reprocesar_estado():
+    return jsonify(REPROCESADO)
 
 @app.route('/galeria')
 
@@ -3408,7 +3411,9 @@ def galeria():
         os.makedirs(carpeta)
 
     imagenes = sorted([f for f in os.listdir(carpeta) if f.lower().endswith(".jpg")])
-    return render_template("galeria.html", imagenes=imagenes)
+    # Solo las fotos con su FITS apilado al lado se pueden reprocesar en el editor
+    con_fits = {f for f in imagenes if os.path.isfile(os.path.join(carpeta, os.path.splitext(f)[0] + ".fits"))}
+    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits)
 
 @app.route("/eliminar-imagen", methods=["POST"])
 def eliminar_imagen():
@@ -3453,6 +3458,8 @@ def eliminar_imagen():
         ruta_json = os.path.join(carpeta_fotos, f"{nombre_base}.json")
         if os.path.exists(ruta_json):
             os.remove(ruta_json)
+        # Original apartado por el editor (static/fotos/originales), si lo hay
+        editor_fotos.borrar_original(os.path.join(carpeta_fotos, nombre_base))
 
         return jsonify({"ok": True, "mensaje": "✅ " + " ".join(mensajes)})
     except Exception as e:
@@ -3487,6 +3494,74 @@ def galeria_compartir(nombre):
     if not ok:
         return "No se pudo codificar la imagen", 500
     return send_file(io.BytesIO(jpg.tobytes()), mimetype="image/jpeg", as_attachment=descargar, download_name=nombre_salida)
+
+# ─── Editor de fotos de la galería (editor_fotos.py) ─────────────────────────
+# Reprocesa el FITS guardado junto al JPG con los controles del apilado, el
+# estirado nuevo o el clásico, la firma y el nombre del objeto.
+
+@app.route("/galeria/editar/<nombre>")
+def galeria_editar(nombre):
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    try:
+        info = editor_fotos.info_foto(nombre)
+    except editor_fotos.ErrorEditor as e:
+        return str(e), 404
+    return render_template("editar_foto.html", info=info, mostrar_volver=True)
+
+
+@app.route("/galeria/editar/<nombre>/original")
+def galeria_editar_original(nombre):
+    """El JPG con el que se compara: el original apartado si ya se guardó alguna vez, si no el actual."""
+    try:
+        ruta = editor_fotos.jpg_original(nombre)
+    except editor_fotos.ErrorEditor as e:
+        return str(e), 404
+    if not os.path.isfile(ruta):
+        return "Imagen no encontrada", 404
+    r = send_file(ruta, mimetype="image/jpeg")
+    r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return r
+
+
+@app.route("/galeria/editar/<nombre>/vista", methods=["POST"])
+def galeria_editar_vista(nombre):
+    """Vista previa (JPEG) del FITS reprocesado con los ajustes que manda la web."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        jpg = editor_fotos.vista_previa(nombre, datos)
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"error": str(e)}), 409
+    except Exception as e:
+        log.exception("Error en la vista previa del editor")
+        return jsonify({"error": f"No se pudo procesar: {e}"}), 500
+    r = send_file(io.BytesIO(jpg), mimetype="image/jpeg")
+    r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return r
+
+
+@app.route("/galeria/editar/<nombre>/guardar", methods=["POST"])
+def galeria_editar_guardar(nombre):
+    datos = request.get_json(silent=True) or {}
+    try:
+        return jsonify(editor_fotos.guardar(nombre, datos))
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+
+
+@app.route("/galeria/editar-estado")
+def galeria_editar_estado():
+    return jsonify(editor_fotos.EDICION)
+
+
+@app.route("/galeria/editar/<nombre>/restaurar", methods=["POST"])
+def galeria_editar_restaurar(nombre):
+    try:
+        editor_fotos.restaurar(nombre)
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    return jsonify({"ok": True, "mensaje": "Foto restaurada a su original"})
+
 
 @app.route("/configuracion")
 def vista_configuracion():

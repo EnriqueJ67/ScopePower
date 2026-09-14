@@ -39,6 +39,9 @@
         </div>
         <button class="foto-borrar" onclick="eliminarImagen('{{ nombre }}')" title="Eliminar imagen">×</button>
         <button class="foto-compartir" onclick="compartirImagen('{{ nombre }}', this)" title="Compartir o descargar la foto firmada"><svg class="ico"><use href="#i-compartir"/></svg></button>
+        {% if nombre in con_fits %}
+        <a class="foto-editar" href="/galeria/editar/{{ nombre }}" title="Editar: reprocesar el FITS apilado con otros ajustes, firma y nombre"><svg class="ico"><use href="#i-ajustes"/></svg></a>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
@@ -47,14 +50,20 @@
 <div id="lightbox" class="lightbox">
     <img id="imagen-grande" src="" alt="">
     <button id="lightbox-compartir" class="btn btn-primary" onclick="event.stopPropagation(); compartirImagen(this.dataset.nombre, this)"><svg><use href="#i-compartir"/></svg>Compartir</button>
+    <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>Editar</a>
     <div class="lightbox-pie" id="lightbox-pie"></div>
 </div>
 
 <script>
+    const CON_FITS = {{ con_fits|list|tojson }};
     function abrirLightbox(src, nombre) {
         document.getElementById('imagen-grande').src = src;
         document.getElementById('lightbox-pie').textContent = (nombre || "") + " · toca para cerrar";
-        document.getElementById('lightbox-compartir').dataset.nombre = decodeURIComponent(src.split("/").pop());
+        const nombre_archivo = decodeURIComponent(src.split("/").pop());
+        document.getElementById('lightbox-compartir').dataset.nombre = nombre_archivo;
+        const editar = document.getElementById('lightbox-editar');
+        editar.href = "/galeria/editar/" + encodeURIComponent(nombre_archivo);
+        editar.style.display = CON_FITS.includes(nombre_archivo) ? "" : "none";
         document.getElementById('lightbox').classList.add("abierto");
     }
     document.getElementById('lightbox').onclick = () => document.getElementById('lightbox').classList.remove("abierto");

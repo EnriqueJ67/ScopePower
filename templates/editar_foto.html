@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Editar · {{ info.objeto }}{% endblock %}
+
+{% block content %}
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">Editar foto</h1>
+        <p class="pagina-sub">
+            {{ info.objeto }}{% if info.fecha %} · {{ info.fecha }}{% endif %}
+            {% if info.n_fotos %} · {{ info.n_fotos }} fotos{% if info.exposicion %} × {{ info.exposicion|round(0)|int }} s{% endif %}{% endif %}
+            {% if info.fits.ancho %} · FITS {{ info.fits.ancho }}×{{ info.fits.alto }}{% endif %}
+        </p>
+    </div>
+    <div class="pagina-acciones">
+        <a href="/galeria" class="btn btn-secondary"><svg><use href="#i-galeria"/></svg>Galería</a>
+    </div>
+</div>
+
+{% if not info.hay_fits %}
+<div class="card centro">
+    <svg class="ico" style="width: 40px; height: 40px; color: var(--text-3);"><use href="#i-info"/></svg>
+    <p class="card-sub mt-2">Esta foto no tiene el FITS apilado guardado a su lado, así que no se puede reprocesar. Solo las fotos guardadas desde el apilado con su FITS se pueden editar.</p>
+    <a href="/galeria" class="btn btn-primary">Volver a la galería</a>
+</div>
+{% else %}
+
+<div class="grid-2 ancha apilado-layout">
+    <!-- ─── Columna principal: la imagen, con el conmutador original / reprocesada ─── -->
+    <div class="columna">
+        <div class="visor">
+            <img id="imagen" src="/galeria/editar/{{ info.nombre }}/original" alt="{{ info.objeto }}">
+            <div class="visor-overlay">
+                <span class="chip" id="chip-vista">Original</span>
+                <span class="chip" id="chip-tiempo" style="display: none;"></span>
+            </div>
+        </div>
+
+        <div class="fila entre" style="gap: 8px; flex-wrap: wrap;">
+            <div class="segmentado" id="vista-seg">
+                <button type="button" class="activo" data-vista="original" onclick="mostrarVista('original')">Original</button>
+                <button type="button" data-vista="nueva" onclick="mostrarVista('nueva')" id="btn-vista-nueva" disabled>Reprocesada</button>
+            </div>
+            <button class="btn btn-primary" id="btn-preview" onclick="pedirVistaPrevia(true)"><svg><use href="#i-refrescar"/></svg>Vista previa</button>
+        </div>
+        <div id="estado-preview" class="estado"></div>
+
+        <button class="btn btn-success btn-lg btn-block" id="btn-guardar" onclick="guardarFoto()" title="Procesa el FITS a resolución completa con estos ajustes y sustituye el JPG de la galería (el original se conserva)"><svg><use href="#i-guardar"/></svg>Guardar en la galería</button>
+        <div id="estado-guardar" class="estado centro" style="margin-top: -4px;"></div>
+        {% if info.hay_original %}
+        <button class="btn btn-outline-warning btn-block" id="btn-restaurar" onclick="restaurarFoto()">Restaurar la foto original</button>
+        {% endif %}
+        <small class="ayuda">La vista previa se calcula a media resolución en el mini PC (unos segundos). Al guardar se procesa todo el FITS y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos.</small>
+    </div>
+
+    <!-- ─── Columna lateral: controles ─── -->
+    <div class="columna lateral">
+        <section class="card panel">
+            <div class="panel-header">
+                <h3 class="card-title"><svg class="ico"><use href="#i-foto"/></svg>Estirado</h3>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="segmentado" id="estirado-seg" style="width: 100%;">
+                    <button type="button" data-estirado="multiescala" onclick="elegirEstirado('multiescala')" style="flex: 1;">Multiescala (nuevo)</button>
+                    <button type="button" data-estirado="stf" onclick="elegirEstirado('stf')" style="flex: 1;">STF clásico</button>
+                </div>
+                <small class="ayuda">El multiescala levanta el fondo con una ganancia local: las estrellas y los núcleos de las galaxias conservan el perfil y el color. El STF es la curva global de siempre, para comparar.</small>
+                <div id="controles-multiescala">
+                    <div class="campo mt-2">
+                        <div class="rango-titulo"><span>Brillo del fondo de cielo</span><span id="v-fondo_objetivo"></span></div>
+                        <input type="range" id="c-fondo_objetivo" data-clave="fondo_objetivo" min="0.05" max="0.30" step="0.01">
+                    </div>
+                    <div class="campo">
+                        <div class="rango-titulo"><span>Compresión de lo brillante</span><span id="v-compresion"></span></div>
+                        <input type="range" id="c-compresion" data-clave="compresion" min="0" max="1" step="0.05">
+                        <small class="ayuda">A más valor, menos se queman estrellas y núcleos (0 = saturan como con una curva clásica).</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card panel">
+            <div class="panel-header">
+                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Procesado</h3>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="campo">
+                    <label>Estilo</label>
+                    <select id="c-estilo" class="form-control" onchange="aplicarEstilo()">
+                        <option value="natural">Natural: gradiente y ruido suave</option>
+                        <option value="seestar">Seestar: todo activado, valores medios</option>
+                        <option value="agresivo">Agresivo: máximo ruido y contraste</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Reducción de ruido</span><span id="v-ruido"></span></div>
+                    <input type="range" id="c-ruido" data-clave="ruido" min="0" max="1" step="0.05">
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Contraste local</span><span id="v-contraste"></span></div>
+                    <input type="range" id="c-contraste" data-clave="contraste" min="0" max="1" step="0.05">
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Saturación</span><span id="v-saturacion"></span></div>
+                    <input type="range" id="c-saturacion" data-clave="saturacion" min="0.5" max="3" step="0.1">
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Quitar dominante verde (SCNR)</span><span id="v-scnr"></span></div>
+                    <input type="range" id="c-scnr" data-clave="scnr" min="0" max="1" step="0.05">
+                </div>
+                <label class="fila-check"><input type="checkbox" id="c-gradiente"> Quitar gradiente de contaminación lumínica</label>
+                <label class="fila-check"><input type="checkbox" id="c-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
+                <div class="campo mt-2">
+                    <label>Campo visible (zoom)</label>
+                    <select id="c-zoom" class="form-control">
+                        <option value="0">100 % (campo completo)</option>
+                        <option value="25">75 %</option>
+                        <option value="50">50 %</option>
+                        <option value="75">25 % (objetos pequeños)</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="card panel">
+            <div class="panel-header">
+                <h3 class="card-title"><svg class="ico"><use href="#i-guardar"/></svg>Firma y nombre</h3>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="campo">
+                    <label for="c-objeto">Nombre del objeto</label>
+                    <input type="text" id="c-objeto" class="form-control" maxlength="60" value="{{ info.objeto }}" placeholder="p. ej. Galaxia de Andrómeda">
+                    <small class="ayuda">Va en el rótulo de la firma y, al guardar, en el nombre del archivo.</small>
+                </div>
+                <label class="fila-check"><input type="checkbox" id="c-firma"> Firma: logo, autor, lugar, fecha, objeto, integración y coordenadas</label>
+                {% if info.ra and info.dec %}<small class="ayuda">Coordenadas del FITS: AR {{ info.ra }} · Dec {{ info.dec }}</small>{% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+    const NOMBRE = {{ info.nombre|tojson }};
+    const ESTILOS = {{ info.estilos|tojson }};
+    const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
+    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "ruido", "contraste", "saturacion", "scnr"];
+    let urlNueva = null;           // objectURL de la última vista previa
+    let hayNueva = false;
+    let preparando = false, pendiente = false;
+    let ultimaDuracion = 0;        // segundos que tardó la última vista previa (para la cuenta atrás)
+    let temporizadorAuto = null;
+
+    function pintarAjustes(a) {
+        for (const k of CLAVES_RANGO) {
+            const c = document.getElementById("c-" + k);
+            if (a[k] !== undefined && a[k] !== null) c.value = a[k];
+            document.getElementById("v-" + k).textContent = c.value;
+        }
+        document.getElementById("c-gradiente").checked = !!a.gradiente;
+        document.getElementById("c-aplanar").checked = !!a.aplanar;
+        if (a.estilo) document.getElementById("c-estilo").value = a.estilo;
+        if (a.zoom !== undefined) document.getElementById("c-zoom").value = String(a.zoom);
+        if (a.firma !== undefined) document.getElementById("c-firma").checked = !!a.firma;
+        if (a.estirado) elegirEstirado(a.estirado, false);
+    }
+
+    function aplicarEstilo() {
+        const e = ESTILOS[document.getElementById("c-estilo").value];
+        if (e) { pintarAjustes(e); programarVistaPrevia(); }
+    }
+
+    function elegirEstirado(tipo, refrescar = true) {
+        document.querySelectorAll("#estirado-seg button").forEach(b => b.classList.toggle("activo", b.dataset.estirado === tipo));
+        document.getElementById("controles-multiescala").style.display = tipo === "stf" ? "none" : "";
+        if (refrescar) programarVistaPrevia();
+    }
+
+    function leerAjustes() {
+        const a = {
+            estirado: (document.querySelector("#estirado-seg button.activo") || {}).dataset?.estirado || "multiescala",
+            estilo: document.getElementById("c-estilo").value,
+            gradiente: document.getElementById("c-gradiente").checked,
+            aplanar: document.getElementById("c-aplanar").checked,
+            zoom: parseInt(document.getElementById("c-zoom").value) || 0,
+            firma: document.getElementById("c-firma").checked,
+            objeto: document.getElementById("c-objeto").value.trim()
+        };
+        for (const k of CLAVES_RANGO) a[k] = parseFloat(document.getElementById("c-" + k).value);
+        return a;
+    }
+
+    function mostrarVista(cual) {
+        const img = document.getElementById("imagen");
+        if (cual === "nueva" && !hayNueva) return;
+        document.querySelectorAll("#vista-seg button").forEach(b => b.classList.toggle("activo", b.dataset.vista === cual));
+        img.src = cual === "nueva" ? urlNueva : `/galeria/editar/${encodeURIComponent(NOMBRE)}/original?${Date.now()}`;
+        document.getElementById("chip-vista").textContent = cual === "nueva" ? "Reprocesada (vista previa)" : "Original";
+    }
+
+    // Los cambios en los controles piden una vista previa nueva (con un pequeño retardo para
+    // agrupar varios toques seguidos). Si ya hay una en marcha, se hace otra al terminar.
+    function programarVistaPrevia() {
+        clearTimeout(temporizadorAuto);
+        temporizadorAuto = setTimeout(() => pedirVistaPrevia(false), 500);
+    }
+
+    async function pedirVistaPrevia(manual) {
+        if (preparando) { pendiente = true; return; }
+        preparando = true; pendiente = false;
+        const estado = document.getElementById("estado-preview");
+        const chip = document.getElementById("chip-tiempo");
+        const boton = document.getElementById("btn-preview");
+        boton.disabled = true;
+        const inicio = Date.now();
+        const cuenta = setInterval(() => {
+            const t = (Date.now() - inicio) / 1000;
+            const restante = ultimaDuracion ? Math.max(0, ultimaDuracion - t) : null;
+            estado.textContent = "⚙️ Procesando la vista previa" + (restante !== null ? ` · ≈ ${Math.ceil(restante)} s` : ` · ${Math.floor(t)} s`) + "...";
+            chip.textContent = restante !== null ? `≈ ${Math.ceil(restante)} s` : `${Math.floor(t)} s`;
+            chip.style.display = "";
+        }, 250);
+        try {
+            const r = await fetch(`/galeria/editar/${encodeURIComponent(NOMBRE)}/vista`, {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(leerAjustes())
+            });
+            if (!r.ok) {
+                const d = await r.json().catch(() => ({}));
+                throw new Error(d.error || `Error ${r.status}`);
+            }
+            const blob = await r.blob();
+            if (urlNueva) URL.revokeObjectURL(urlNueva);
+            urlNueva = URL.createObjectURL(blob);
+            hayNueva = true;
+            document.getElementById("btn-vista-nueva").disabled = false;
+            ultimaDuracion = (Date.now() - inicio) / 1000;
+            mostrarVista("nueva");
+            estado.textContent = `✅ Vista previa lista en ${ultimaDuracion.toFixed(1)} s · toca "Original" para comparar`;
+        } catch (e) {
+            estado.textContent = "❌ " + e.message;
+        } finally {
+            clearInterval(cuenta);
+            chip.style.display = "none";
+            boton.disabled = false;
+            preparando = false;
+            if (pendiente) pedirVistaPrevia(false);
+        }
+    }
+
+    async function guardarFoto() {
+        const estado = document.getElementById("estado-guardar");
+        const boton = document.getElementById("btn-guardar");
+        boton.disabled = true;
+        estado.textContent = "⏳ Guardando...";
+        try {
+            const r = await fetch(`/galeria/editar/${encodeURIComponent(NOMBRE)}/guardar`, {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(leerAjustes())
+            });
+            const d = await r.json();
+            if (!r.ok || d.ok === false) { estado.textContent = "⚠️ " + (d.mensaje || "No se pudo guardar"); boton.disabled = false; return; }
+            const sondeo = setInterval(async () => {
+                const e = await fetch("/galeria/editar-estado").then(r => r.json()).catch(() => null);
+                if (!e) return;
+                estado.textContent = (e.en_curso ? "⏳ " : (e.ok ? "✅ " : "❌ ")) + e.mensaje;
+                if (e.en_curso) return;
+                clearInterval(sondeo);
+                boton.disabled = false;
+                if (e.ok) {
+                    if (e.nombre_nuevo && e.nombre_nuevo !== NOMBRE) {
+                        // Renombrada: la página nueva ya sabe su nombre
+                        setTimeout(() => location.href = "/galeria/editar/" + encodeURIComponent(e.nombre_nuevo), 800);
+                    } else {
+                        // La "original" pasa a ser la apartada y el JPG de la galería es el nuevo
+                        hayNueva = false;
+                        document.getElementById("btn-vista-nueva").disabled = true;
+                        mostrarVista("original");
+                        setTimeout(() => location.reload(), 800);
+                    }
+                }
+            }, 1500);
+        } catch (e) {
+            estado.textContent = "❌ " + e; boton.disabled = false;
+        }
+    }
+
+    async function restaurarFoto() {
+        if (!confirm("¿Volver a la foto original tal como se guardó desde el apilado?")) return;
+        const r = await fetch(`/galeria/editar/${encodeURIComponent(NOMBRE)}/restaurar`, { method: "POST" });
+        const d = await r.json();
+        document.getElementById("estado-guardar").textContent = (d.ok ? "✅ " : "⚠️ ") + d.mensaje;
+        if (d.ok) setTimeout(() => location.reload(), 800);
+    }
+
+    // Controles → vista previa automática
+    for (const k of CLAVES_RANGO) {
+        const c = document.getElementById("c-" + k);
+        c.addEventListener("input", () => document.getElementById("v-" + k).textContent = c.value);
+        c.addEventListener("change", programarVistaPrevia);
+    }
+    for (const id of ["c-gradiente", "c-aplanar", "c-zoom", "c-firma"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
+    document.getElementById("c-objeto").addEventListener("change", () => { if (document.getElementById("c-firma").checked) programarVistaPrevia(); });
+
+    pintarAjustes(AJUSTES_INICIALES);
+    pedirVistaPrevia(false);
+</script>
+{% endif %}
+{% endblock %}

@@ -11,11 +11,12 @@ from watchdog.events import FileSystemEventHandler
 from astropy.io import fits
 import cv2
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import configparser
 from datetime import datetime
 import shutil
 from collections import deque
-from AutoStrechSTF import apply_stf_color, debayer_rgb
+from AutoStrechSTF import debayer_rgb
 import anotaciones
 import voz
 import procesado
@@ -439,78 +440,6 @@ def subir_imagen_ftp_async(ruta_local, nombre_remoto="ultima.jpg"):
     # Lanzar en hilo separado, no bloquea apilado
     threading.Thread(target=subir, daemon=True).start()
 
-def linear_fit_rgb(rgb, referencia='verde'):
-    """
-    Ajusta R y B para igualar la media al canal de referencia.
-    Entrada y salida: imagen RGB (3, H, W) en float32.
-    
-    Parámetros:
-    - referencia: 'rojo', 'verde', 'azul' o 'promedio'
-    """
-    r, g, b = rgb
-
-    medias = {
-        'rojo': np.mean(r),
-        'verde': np.mean(g),
-        'azul': np.mean(b),
-        'promedio': np.mean([r, g, b])
-    }
-
-    ref = referencia.lower()
-    if ref not in medias:
-        print(f"⚠️ Canal de referencia '{referencia}' no válido. Usando 'verde'.")
-        ref = 'verde'
-    else:
-        print(f"🎯 Usando LinearFit con canal de referencia: '{ref}'")
-
-    media_ref = medias[ref]
-
-    # Escalar R y B al canal de referencia (G si no se indica lo contrario)
-    if medias['rojo'] > 0:
-        r = r * (media_ref / medias['rojo'])
-    if medias['azul'] > 0:
-        b = b * (media_ref / medias['azul'])
-
-    return np.stack([r, g, b], axis=0)
-
-
-def aplicar_estirado_mtf(imagen, shadows=None, highlights=None, midtone=None):
-    """
-    Estirado MTF basado en PixInsight (más preciso y configurable).
-    `imagen` debe estar normalizada entre 0 y 1.
-    """
-
-    # Si no se pasan valores, se leen del config.ini
-    if shadows is None or highlights is None or midtone is None:
-        try:
-            nuevo_config = configparser.ConfigParser()
-            nuevo_config.read("config.ini")
-            shadows = float(nuevo_config["Dispositivos"].get("MTF_SHADOWS", 0.02))
-            highlights = float(nuevo_config["Dispositivos"].get("MTF_HIGHLIGHTS", 0.98))
-            midtone = float(nuevo_config["Dispositivos"].get("MTF_MIDTONE", 0.4))
-
-            print(f"Usando estirado MTF shadows en factor: '{shadows}'")
-            print(f"Usando estirado MTF highlights en factor: '{highlights}'")
-            print(f"Usando estirado MTF midtone en factor: '{midtone}'")
-
-        except Exception as e:
-            print(f"⚠️ Error leyendo parámetros MTF del config.ini: {e}")
-            shadows, highlights, midtone = 0.02, 0.98, 0.4
-
-    xp = (imagen - shadows) / (highlights - shadows)
-    xp = np.clip(xp, 0, 1)
-
-    numerador = (midtone - 1) * xp
-    denominador = ((2 * midtone - 1) * xp) - midtone
-
-    with np.errstate(divide='ignore', invalid='ignore'):
-        resultado = np.true_divide(numerador, denominador)
-        resultado[~np.isfinite(resultado)] = 0
-
-    return np.clip(resultado, 0, 1)
-
-import matplotlib.colors as mcolors
-
 def aumentar_saturacion(rgb, factor=1.0):
     """
     Aumenta la saturación de una imagen RGB.
@@ -542,22 +471,12 @@ def aumentar_saturacion(rgb, factor=1.0):
     return np.moveaxis(rgb_mod, -1, 0) if canales_primero else rgb_mod
 
 
-def aplicar_scnr_verde(rgb, factor=1.0):
-    """
-    Aplica una reducción de dominancia verde estilo PixInsight SCNR.
-    rgb: imagen en formato (3, H, W)
-    factor: intensidad de la reducción (1.0 = máxima eliminación)
-    """
-    if rgb.shape[0] != 3:
-        print("ℹ️ SCNR no aplicado: imagen no tiene 3 canales.")
-        return rgb
-
-    print(f"🎯 Usando SCNR al Verde en factor: '{factor}'")
-    r, g, b = rgb
-    exceso_verde = g - (r + b) / 2
-    g_corregido = g - factor * exceso_verde
-    g_corregido = np.clip(g_corregido, 0, 65535)
-    return np.stack([r, g_corregido, b], axis=0)
+# Fases del procesado de cada foto, en el orden en que las recorre el apilador,
+# y una duración orientativa de cada una (segundos en el mini PC de campo) para
+# la cuenta atrás de la web mientras no hay historial de la sesión.
+FASES = ("leyendo", "puntuando", "resolviendo", "alineando", "apilando", "estirando", "anotando", "guardando")
+DURACION_SEMILLA = {"leyendo": 1.0, "puntuando": 1.0, "resolviendo": 10.0, "alineando": 2.0,
+                    "apilando": 3.0, "estirando": 8.0, "anotando": 3.0, "guardando": 1.0}
 
 
 class ApiladorEnTiempoReal:
@@ -597,6 +516,16 @@ class ApiladorEnTiempoReal:
         self.zona_comun = None
         self.procesando = False
         self.fase = ""   # paso actual del procesado (para la barra de progreso de la web)
+        # Progreso fino y tiempo restante: sub-fase dentro de la fase (p. ej.
+        # "ruido" dentro de "estirando"), fracción 0..1 de la fase, instante en
+        # que empezó la fase y la foto, y las últimas duraciones de cada fase
+        # para estimar cuánto queda (la primera foto usa DURACION_SEMILLA).
+        self.subfase = ""
+        self.progreso_fase = 0.0
+        self.fase_inicio = None
+        self.foto_inicio = None
+        self.duraciones = {f: deque(maxlen=5) for f in FASES}
+        self.duracion_ultima_foto = None
 
         # Versión del JPG de vista previa: sube SOLO cuando el fichero ya está
         # escrito, para que la web no pida la imagen antes de tiempo.
@@ -614,8 +543,68 @@ class ApiladorEnTiempoReal:
         self.ref_info = None
 
     def _fase(self, nombre):
+        ahora = time.time()
         with self.lock:
+            self._cerrar_fase(ahora)
+            if not self.fase:
+                self.foto_inicio = ahora
             self.fase = nombre
+            self.fase_inicio = ahora
+            self.subfase = ""
+            self.progreso_fase = 0.0
+
+    def _cerrar_fase(self, ahora):
+        """Apunta la duración de la fase en curso (llamar con self.lock cogido)."""
+        if self.fase and self.fase_inicio is not None and self.fase in self.duraciones:
+            self.duraciones[self.fase].append(ahora - self.fase_inicio)
+
+    def terminar_fases(self):
+        """Fin del procesado de una foto (la web deja de ver fase y cuenta atrás)."""
+        ahora = time.time()
+        with self.lock:
+            self._cerrar_fase(ahora)
+            if self.foto_inicio is not None:
+                self.duracion_ultima_foto = ahora - self.foto_inicio
+            self.fase = ""
+            self.subfase = ""
+            self.progreso_fase = 0.0
+            self.fase_inicio = None
+            self.foto_inicio = None
+
+    def _subfase(self, nombre, fraccion):
+        with self.lock:
+            self.subfase = nombre
+            self.progreso_fase = float(min(max(fraccion, 0.0), 1.0))
+
+    def _duracion_tipica(self, fase):
+        """Mediana de las últimas duraciones de la fase, o la semilla si aún no hay."""
+        d = self.duraciones.get(fase)
+        if d:
+            return float(np.median(d))
+        return DURACION_SEMILLA.get(fase, 0.0)
+
+    def _eta(self, ahora):
+        """
+        Segundos que faltan para ver la foto en la web (llamar con self.lock
+        cogido): lo que queda de la fase actual más las fases que vienen detrás.
+        None si no se está procesando.
+        """
+        if not self.procesando or not self.fase or self.fase_inicio is None:
+            return None
+        transcurrido = ahora - self.fase_inicio
+        tipica = self._duracion_tipica(self.fase)
+        if self.progreso_fase > 0.05:
+            # Dentro de la fase se sabe la fracción hecha: la proyección con el
+            # ritmo real es mejor que la mediana histórica
+            proyeccion = transcurrido / self.progreso_fase
+            tipica = min(tipica, proyeccion) if tipica else proyeccion
+        restante = max(0.0, tipica - transcurrido)
+        if self.fase in FASES:
+            for f in FASES[FASES.index(self.fase) + 1:]:
+                if f == "anotando" and not self.duraciones["anotando"]:
+                    continue    # fase opcional: solo cuenta si ya se ha hecho alguna vez
+                restante += self._duracion_tipica(f)
+        return restante
 
     def _anotar_resultado(self, resultado, motivo=""):
         """Qué ha pasado con la última foto medida (llamar con self.lock cogido)."""
@@ -714,7 +703,8 @@ class ApiladorEnTiempoReal:
         rgb_cube, x0, y0 = procesado.recortar_campo(rgb_cube, fraccion, zona)
         recorte = (x0, y0, rgb_cube.shape[2], rgb_cube.shape[1]) if (fraccion < 0.999 or zona) else None
         escala = 0.5 if fraccion > 0.5 else 1.0
-        rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=escala)
+        rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=escala,
+                                     progreso=self._subfase)
         if ObjetosAnotados:
             # Objetos del campo dibujados SOBRE la imagen procesada (anotaciones.py):
             # catálogo local sin Internet, SIMBAD si hay red, letra proporcional
@@ -1101,7 +1091,7 @@ class VigilanteCapturas(FileSystemEventHandler):
                 self.apilador.procesar_imagen_fits(event.src_path, ObjetosAnotados=OBJETOS_ANOTADOS)
             finally:
                 self.apilador.procesando = False
-                self.apilador.fase = ""
+                self.apilador.terminar_fases()
 
 
 def iniciar_hilo_apilado(carpeta="capturas", alinear=True):
@@ -1205,7 +1195,7 @@ def reprocesar_preview():
             a.generar_preview(cubo, n, exposicion, ObjetosAnotados=False, anotar_evolucion=False, ruta_fits=ruta)
         finally:
             a.procesando = False
-            a.fase = ""
+            a.terminar_fases()
         return True, "Vista previa regenerada"
     except Exception as e:
         print(f"❌ Error reprocesando la vista previa: {e}")
@@ -1227,6 +1217,8 @@ def obtener_estado_apilado():
         media = lambda clave: (round(float(np.mean([f[clave] for f in a.fotogramas])), 3)
                                if a.fotogramas else None)
         duracion = datetime.now() - a.inicio_apilado
+        ahora = time.time()
+        eta = a._eta(ahora)
         return {
             "total": a.total,
             "ultima": a.ultima_captura or "Ninguna",
@@ -1238,6 +1230,11 @@ def obtener_estado_apilado():
             "referencia": a.ref_info is not None,
             "procesando": a.procesando,
             "fase": a.fase,
+            "subfase": a.subfase,
+            "progreso_fase": round(a.progreso_fase, 3),
+            "fase_transcurrido": round(ahora - a.fase_inicio, 1) if (a.procesando and a.fase_inicio) else None,
+            "eta_segundos": (round(eta, 1) if eta is not None else None),
+            "duracion_ultima_foto": round(a.duracion_ultima_foto, 1) if a.duracion_ultima_foto else None,
             "puntuacion_ultima": a.ultima_puntuacion,
             "puntuacion_minima": round(min(puntuaciones), 3) if puntuaciones else None,
             "puntuacion_maxima": round(max(puntuaciones), 3) if puntuaciones else None,

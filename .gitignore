@@ -45,3 +45,6 @@ static/centrado_preview.jpg
 
 # Giro de la cámara medido por el plate solving (estado de ejecución)
 datos/rotacion_camara.json
+
+# Salida de herramientas/comparar_estirado.py
+comparaciones/

@@ -231,6 +231,16 @@
                     </select>
                 </div>
                 <div class="campo">
+                    <div class="rango-titulo"><span>Brillo del fondo de cielo</span><span id="proc-fondo_objetivo-v"></span></div>
+                    <input type="range" id="proc-fondo_objetivo" min="0.05" max="0.30" step="0.01" oninput="document.getElementById('proc-fondo_objetivo-v').textContent = this.value">
+                    <small class="ayuda">Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas).</small>
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Compresión de lo brillante</span><span id="proc-compresion-v"></span></div>
+                    <input type="range" id="proc-compresion" min="0" max="1" step="0.05" oninput="document.getElementById('proc-compresion-v').textContent = this.value">
+                    <small class="ayuda">Protege estrellas y núcleos de galaxias: a más valor, menos se queman y más color conservan (0 = se saturan como con una curva clásica).</small>
+                </div>
+                <div class="campo">
                     <div class="rango-titulo"><span>Reducción de ruido</span><span id="proc-ruido-v"></span></div>
                     <input type="range" id="proc-ruido" min="0" max="1" step="0.05" oninput="document.getElementById('proc-ruido-v').textContent = this.value">
                 </div>
@@ -616,9 +626,8 @@
                 input.value = d.nombre;
                 cargarInfoGoto();
                 estado.textContent = `✅ Rótulo: ${d.nombre}. Regenerando la vista previa...`;
-                return fetch("/apilado/reprocesar", { method: "POST" }).then(r => r.json()).then(r => {
+                return reprocesarVistaPrevia(estado).then(r => {
                     estado.textContent = r.ok ? `✅ Rótulo: ${d.nombre}` : `✅ Rótulo: ${d.nombre} (se verá en el siguiente apilado)`;
-                    if (r.ok) cicloActualizacion();
                 });
             })
             .catch(err => estado.textContent = "❌ " + err);
@@ -628,7 +637,7 @@
 
     function pintarAjustes(a) {
         document.getElementById("proc-estilo").value = a.estilo;
-        for (const k of ["ruido", "contraste", "saturacion"]) {
+        for (const k of ["fondo_objetivo", "compresion", "ruido", "contraste", "saturacion"]) {
             document.getElementById("proc-" + k).value = a[k];
             document.getElementById("proc-" + k + "-v").textContent = a[k];
         }
@@ -671,6 +680,8 @@
         const zoom = parseInt(document.getElementById("input-zoom").value) || 0;
         const ajustes = {
             estilo: document.getElementById("proc-estilo").value,
+            fondo_objetivo: parseFloat(document.getElementById("proc-fondo_objetivo").value),
+            compresion: parseFloat(document.getElementById("proc-compresion").value),
             ruido: parseFloat(document.getElementById("proc-ruido").value),
             contraste: parseFloat(document.getElementById("proc-contraste").value),
             saturacion: parseFloat(document.getElementById("proc-saturacion").value),
@@ -680,10 +691,30 @@
         estado.textContent = "⏳ Aplicando y regenerando la vista previa...";
         fetch("/guardar-config-zoom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zoom }) })
             .then(() => fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ajustes) }))
-            .then(() => fetch("/apilado/reprocesar", { method: "POST" }))
-            .then(r => r.json())
-            .then(d => { estado.textContent = (d.ok ? "✅ " : "⚠️ ") + d.mensaje; if (d.ok) cicloActualizacion(); })
+            .then(() => reprocesarVistaPrevia(estado))
             .catch(err => estado.textContent = "❌ " + err);
+    }
+
+    // Lanza el reprocesado (el servidor lo hace en segundo plano) y espera a que
+    // termine: el progreso y la cuenta atrás se ven en el anillo sobre la foto,
+    // porque el apilador pasa por las mismas fases que con una foto nueva.
+    function reprocesarVistaPrevia(estado) {
+        return fetch("/apilado/reprocesar", { method: "POST" }).then(r => r.json()).then(d => {
+            if (!d.ok) { estado.textContent = "⚠️ " + d.mensaje; return d; }
+            estado.textContent = "⚙️ " + d.mensaje;
+            return new Promise(resolver => {
+                const t = setInterval(() => {
+                    cicloActualizacion();
+                    fetch("/apilado/reprocesar-estado").then(r => r.json()).then(e => {
+                        if (e.en_curso) return;
+                        clearInterval(t);
+                        estado.textContent = (e.ok ? "✅ " : "⚠️ ") + e.mensaje;
+                        cicloActualizacion();
+                        resolver({ ok: e.ok, mensaje: e.mensaje });
+                    }).catch(() => {});
+                }, 1500);
+            });
+        });
     }
 
     function actualizarImagen() {
@@ -873,6 +904,22 @@
         leyendo: "Leyendo la foto", puntuando: "Midiendo la calidad", resolviendo: "Resolviendo con ASTAP",
         alineando: "Alineando", apilando: "Apilando", estirando: "Preparando la vista previa", anotando: "Anotando objetos", guardando: "Guardando"
     };
+    // Pasos dentro de "Preparando la vista previa" (procesado.py)
+    const NOMBRE_SUBFASE = {
+        gradiente: "quitando el gradiente", estirando: "estirando", ruido: "reduciendo el ruido",
+        contraste: "contraste local", color: "color"
+    };
+
+    // Cuenta atrás entre sondeos: el servidor manda eta_segundos cada 2 s (o
+    // más, con el wifi del campo); entre medias se descuenta el tiempo local.
+    let etaRecibida = null, etaInstante = 0;
+    function segundosRestantes(estado) {
+        if (estado && estado.eta_segundos !== null && estado.eta_segundos !== undefined) {
+            etaRecibida = estado.eta_segundos; etaInstante = Date.now();
+        }
+        if (etaRecibida === null) return null;
+        return Math.max(0, etaRecibida - (Date.now() - etaInstante) / 1000);
+    }
 
     function mostrarEstadoCaptura(captura, procesando, estado) {
         const linea = document.getElementById("estado-captura-linea");
@@ -905,11 +952,20 @@
             pintarAnillo("exponiendo", pct, `${Math.ceil(hechos)} s`, titulo);
         } else if (procesando) {
             const fase = NOMBRE_FASE[estado && estado.fase] || "Procesando";
-            const detalle = (estado && estado.fase === "apilando" && estado.total) ? ` ${estado.total} fotos` : "";
-            const fases = Object.keys(NOMBRE_FASE);   // en el orden en que las recorre el apilador
-            const paso = Math.max(0, fases.indexOf(estado && estado.fase)) + 1;
-            pintarAnillo("procesando", 100 * paso / fases.length, "⚙️", `⚙️ ${fase}${detalle}...`);
+            let detalle = (estado && estado.fase === "apilando" && estado.total) ? ` ${estado.total} fotos` : "";
+            if (estado && estado.subfase && NOMBRE_SUBFASE[estado.subfase]) detalle += `: ${NOMBRE_SUBFASE[estado.subfase]}`;
+            // El anillo se llena por TIEMPO (lo hecho de esta foto frente a lo que queda),
+            // no por número de fase: ASTAP o el apilado duran mucho más que leer la foto.
+            const restante = segundosRestantes(estado);
+            const hecho = (estado && estado.fase_transcurrido) || 0;
+            const fases = Object.keys(NOMBRE_FASE);
+            let pct = 100 * (Math.max(0, fases.indexOf(estado && estado.fase)) + 1) / fases.length;
+            if (restante !== null && hecho + restante > 0) pct = 100 * hecho / (hecho + restante);
+            const texto = restante !== null ? `${Math.ceil(restante)} s` : "⚙️";
+            const cuenta = restante !== null ? ` · ≈ ${Math.ceil(restante)} s` : "";
+            pintarAnillo("procesando", pct, texto, `⚙️ ${fase}${detalle}...${cuenta}`);
         } else if (b.activo) {
+            etaRecibida = null;
             const titulo = b.pausado ? "⏸️ Pausado" : (b.esperando ? "⏳ Esperando: " + b.esperando : "🔄 Preparando la siguiente foto...");
             pintarAnillo("esperando", 100, b.pausado ? "⏸" : "⏳", titulo);
         } else {
