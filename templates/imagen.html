@@ -220,8 +220,8 @@
         document.querySelectorAll("#dia-objetivo button").forEach(b => b.classList.toggle("activo", b.dataset.v === objetivoDia));
         document.getElementById("dia-aviso-sol").hidden = !(modoDia && objetivoDia === "sol");
         pintarBotonFoto();
-        document.getElementById("fila-continuo").hidden = modoDia;  // de día ya está el timelapse
-        document.getElementById("continuo-panel").hidden = modoDia || !modoContinuo;
+        document.getElementById("continuo-panel").hidden = !modoContinuo;
+        document.getElementById("continuo-ayuda").textContent = ayudaGuardar();
         document.getElementById("btn-sync").hidden = modoDia;     // de día no hay plate solving
         document.getElementById("btn-puntero").hidden = modoDia;
         if (modoDia && punteroActivo) { punteroActivo = false; pintarModoPuntero(); }
@@ -435,21 +435,28 @@
     // ——— Modo continuo ———
     let modoContinuo = false, guardarContinuo = "no", sondeoContinuo = null, ultimaVersionContinuo = -1, continuoActivo = false;
     const AYUDA_GUARDAR = {
-        no: "Solo se ve en pantalla; no se guarda nada. Cada foto tarda la exposición de Configuración más unos segundos de descarga y revelado.",
+        no: "Solo se ve en pantalla; no se guarda nada.",
         jpg: "Cada foto se guarda revelada a resolución completa (unos 2–4 MB) en static/continuo/. Para tener la serie sin llenar el disco.",
         fits: "Cada foto se guarda en bruto, 16 bits (unos 18 MB con la Saturn-C), en static/continuo/. Solo si luego vas a apilarlas o medirlas: el disco se llena deprisa.",
     };
+    function ayudaGuardar() {
+        const ritmo = modoDia
+            ? " De día la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado."
+            : " Cada foto tarda la exposición de Configuración más unos segundos de descarga y revelado.";
+        return (AYUDA_GUARDAR[guardarContinuo] || "") + ritmo;
+    }
     function pintarBotonFoto() {
         const btn = document.getElementById("btn-foto");
-        if (modoDia) btn.innerHTML = `<svg><use href="#i-sol"/></svg>Foto de día: ${NOMBRE_OBJETIVO[objetivoDia]}`;
+        if (modoDia && modoContinuo) btn.innerHTML = `<svg><use href="#i-play"/></svg>Continuo de día: ${NOMBRE_OBJETIVO[objetivoDia]}`;
+        else if (modoDia) btn.innerHTML = `<svg><use href="#i-sol"/></svg>Foto de día: ${NOMBRE_OBJETIVO[objetivoDia]}`;
         else if (modoContinuo) btn.innerHTML = `<svg><use href="#i-play"/></svg>Empezar modo continuo`;
         else btn.innerHTML = `<svg><use href="#i-foto"/></svg>Hacer foto`;
     }
     function pintarModoContinuo() {
         document.getElementById("modo-continuo").checked = modoContinuo;
-        document.getElementById("continuo-panel").hidden = modoDia || !modoContinuo;
+        document.getElementById("continuo-panel").hidden = !modoContinuo;
         document.querySelectorAll("#continuo-guardar button").forEach(b => b.classList.toggle("activo", b.dataset.v === guardarContinuo));
-        document.getElementById("continuo-ayuda").textContent = AYUDA_GUARDAR[guardarContinuo] || "";
+        document.getElementById("continuo-ayuda").textContent = ayudaGuardar();
         pintarBotonFoto();
     }
     function cambiarModoContinuo() {
@@ -470,13 +477,21 @@
     }
     function empezarContinuo() {
         const est = document.getElementById("estado-foto");
+        if (modoDia && objetivoDia === "sol" && !solConfirmado) {
+            if (!confirm("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio.")) return;
+            solConfirmado = true;
+        }
         est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Empezando el modo continuo...';
         document.getElementById("estado-sync").textContent = "";
+        document.getElementById("dia-intentos").textContent = "";
         const g = document.getElementById("ganancia-prueba").value.trim();
-        fetch("/continuo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guardar: guardarContinuo, ganancia: g }) })
+        const cuerpo = modoDia ? { guardar: guardarContinuo, modo: "dia", objetivo: objetivoDia, campo: campoDia() }
+                               : { guardar: guardarContinuo, modo: "noche", ganancia: g };
+        fetch("/continuo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
+                if (d.seguimiento) seguimientoCambiado = true;
                 if (!sondeoContinuo) sondeoContinuo = setInterval(sondearContinuo, 1000);
                 sondearContinuo();
             })
@@ -496,7 +511,9 @@
         document.getElementById("modo-continuo").disabled = activo;
         document.getElementById("modo-dia").disabled = activo;
         document.getElementById("ganancia-prueba").disabled = activo;
-        document.querySelectorAll("#continuo-guardar button").forEach(b => b.disabled = activo);
+        document.querySelectorAll("#continuo-guardar button, #dia-objetivo button").forEach(b => b.disabled = activo);
+        document.getElementById("dia-campo").disabled = activo;
+        document.getElementById("btn-tl").disabled = activo;
         // Mientras dura, la foto cambia cada pocos segundos: sincronizar y "Apunta aquí" esperan a que pare
         document.getElementById("btn-sync").disabled = activo || !hayFotoNueva;
         document.getElementById("btn-puntero").disabled = activo || !hayFotoNueva;
@@ -518,6 +535,7 @@
             est.className = "estado mt-2";
             est.innerHTML = u
                 ? `<span class="spinner"></span>Continuo · foto ${u.n} a las ${u.hora}` + (u.exposicion ? ` · ${formatearExp(u.exposicion)}` : "")
+                  + (u.nivel !== null && u.nivel !== undefined ? ` · nivel ${Math.round(100 * u.nivel)} %` : "")
                   + (u.dark ? " (dark restado)" : "") + (u.ganancia !== null && u.ganancia !== undefined ? ` · ganancia ${u.ganancia}` : "")
                 : `<span class="spinner"></span>${e.mensaje || "Empezando..."}`;
         } else if (e.terminado) {
@@ -545,8 +563,8 @@
     fetch("/continuo/estado").then(r => r.json()).then(e => { if (e.en_curso && pintarContinuo(e) && !sondeoContinuo) sondeoContinuo = setInterval(sondearContinuo, 1000); }).catch(() => {});
 
     function hacerFoto() {
+        if (modoContinuo) { empezarContinuo(); return; }     // de día o de noche
         if (modoDia) { hacerFotoDia(); return; }
-        if (modoContinuo) { empezarContinuo(); return; }
         const btn = document.getElementById("btn-foto");
         btn.disabled = true;
         document.getElementById("btn-cancelar").style.display = "inline-flex";

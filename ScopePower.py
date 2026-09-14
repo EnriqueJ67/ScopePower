@@ -3079,16 +3079,80 @@ def timelapse_video():
 
 
 # ───────────────────────── Modo continuo de la Foto de prueba ─────────────────────────
+def _capturador_dia_continuo(objetivo, campo, binning):
+    """
+    Captura de día para el modo continuo: ganancia al mínimo y exposición automática
+    (como la foto de día suelta), pero la cámara se prepara una sola vez y cada foto
+    parte de la exposición de la anterior con como mucho tres correcciones, para no
+    perder ritmo. Devuelve (capturar, al_terminar) para TrabajoContinuo.
+    """
+    conf = foto_dia.OBJETIVOS[objetivo]
+    memoria = {"prep": None, "exposicion": _config_foto_dia().get(objetivo) or conf["inicial"], "n": 0}
+
+    def capturar(copia):
+        def _sesion(cam):
+            if memoria["prep"] is None:
+                memoria["prep"] = foto_dia.preparar_camara(cam, conf)
+            prep = memoria["prep"]
+            max_intentos = foto_dia.MAX_INTENTOS if memoria["n"] == 0 else 3
+            frame, exposicion, nivel, saturada, _ = foto_dia.capturar_ajustando(
+                cam, conf, binning, prep, memoria["exposicion"], max_intentos,
+                descripcion=f"Continuo {memoria['n'] + 1}", campo=campo)
+            return frame, exposicion, nivel, saturada, prep
+        try:
+            frame, exposicion, nivel, saturada, prep = camara.ejecutar(_sesion, timeout=180)
+        except CapturaCancelada:
+            return {"ok": False, "mensaje": "⏹️ Captura cancelada", "cancelada": True}
+        except ErrorHardware as e:
+            return {"ok": False, "mensaje": f"Error de cámara: {e}"}
+        memoria["exposicion"], memoria["n"] = exposicion, memoria["n"] + 1
+        try:
+            imagen = foto_dia.frame_a_imagen8(foto_dia.recortar_centro(frame, campo), prep["sensor_type"])
+            guardar_jpg_web(RUTA_IMAGEN_WEB, imagen)
+            archivo = None
+            if copia and copia.get("formato") == "fits":
+                archivo = os.path.join(copia["carpeta"], copia["nombre"] + ".fits")
+                foto_dia.guardar_fits(frame, exposicion, prep, binning, archivo)     # campo completo, como la foto suelta
+            elif copia and copia.get("formato") == "jpg":
+                os.makedirs(copia["carpeta"], exist_ok=True)
+                archivo = os.path.join(copia["carpeta"], copia["nombre"] + ".jpg")
+                cv2.imwrite(archivo, imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
+        except Exception as e:
+            log.exception("Error al guardar la foto de día del modo continuo")
+            return {"ok": False, "mensaje": f"Error al guardar: {e}"}
+        return {"ok": True, "mensaje": f"Foto de día: {foto_dia.formatear_exposicion(exposicion)}, nivel {100 * nivel:.0f} %"
+                                       + (" (saturada)" if saturada else ""),
+                "exposicion": exposicion, "nivel": round(nivel, 3), "ganancia": prep["ganancia"], "dark": False, "archivo": archivo}
+
+    def al_terminar(estado):
+        if memoria["prep"] is not None:
+            try:
+                camara.ejecutar(lambda cam: foto_dia.restaurar_camara(cam, memoria["prep"]), timeout=30)
+            except Exception:
+                pass
+        # La última exposición buena se recuerda para la próxima foto de día (como hace el timelapse)
+        u = estado.get("ultima") or {}
+        if memoria["n"] and u.get("exposicion") and u.get("nivel") is not None and u["nivel"] >= 0.5 * conf["nivel"]:
+            _guardar_en_config("FotoDia", {f"exposicion_{objetivo}": f"{u['exposicion']:.6f}"})
+
+    return capturar, al_terminar
+
+
 @app.route('/continuo/iniciar', methods=["POST"])
 def continuo_iniciar():
     """
     Foto de prueba tras foto de prueba hasta que se pare (ver foto_continua.py).
-    JSON: {"guardar": "no" | "jpg" | "fits", "ganancia": entero opcional}
+    JSON: {"guardar": "no" | "jpg" | "fits", "ganancia": entero opcional,
+           "modo": "noche" | "dia", y de día "objetivo" (sol | luna | paisaje) y "campo" (%)}
     """
     datos = request.get_json(silent=True) or {}
     guardar = str(datos.get("guardar", "no")).lower().strip()
     if guardar not in foto_continua.FORMATOS:
         return jsonify({"ok": False, "error": "Formato desconocido (no, jpg o fits)"}), 400
+    modo = "dia" if str(datos.get("modo", "noche")) == "dia" else "noche"
+    objetivo = str(datos.get("objetivo", "paisaje"))
+    if modo == "dia" and objetivo not in foto_dia.OBJETIVOS:
+        return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
     try:
         ganancia = int(datos["ganancia"]) if str(datos.get("ganancia", "")).strip() != "" else None
     except (TypeError, ValueError):
@@ -3100,14 +3164,24 @@ def continuo_iniciar():
                             ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    seguimiento = None
+    if modo == "dia":
+        conf = foto_dia.OBJETIVOS[objetivo]
+        # Seguimiento solar/lunar como en la foto de día suelta; la web lo devuelve a sidéreo al salir del modo día
+        if conf["seguimiento"] and montura.esta_conectado() and foto_dia.poner_seguimiento(montura, conf["seguimiento"]):
+            seguimiento = conf["seguimiento"]
+        capturar, al_terminar = _capturador_dia_continuo(objetivo, _campo_foto_dia(datos), _dispositivos()["binning"])
+        ganancia = None
+    else:
+        capturar = lambda copia: capturar_y_guardar(descripcion="Continuo", ganancia=ganancia, copia=copia)
+        al_terminar = None
     try:
         foto_continua.trabajo_continuo.iniciar(
-            capturar=lambda copia: capturar_y_guardar(descripcion="Continuo", ganancia=ganancia, copia=copia),
-            camara=camara, guardar=guardar, ganancia=ganancia,
-            raiz=ruta_absoluta(foto_continua.CARPETA_CONTINUO), voz=voz)
+            capturar=capturar, camara=camara, guardar=guardar, ganancia=ganancia,
+            raiz=ruta_absoluta(foto_continua.CARPETA_CONTINUO), voz=voz, al_terminar=al_terminar, modo=modo)
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
-    return jsonify({"ok": True, "estado": foto_continua.trabajo_continuo.estado()})
+    return jsonify({"ok": True, "seguimiento": seguimiento, "estado": foto_continua.trabajo_continuo.estado()})
 
 
 @app.route('/continuo/estado')

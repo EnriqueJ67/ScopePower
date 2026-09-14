@@ -66,15 +66,16 @@ class TrabajoContinuo:
         self.libre = None
         self.mensaje = ""
         self.error = ""
-        self.ultima = None        # {"n", "hora", "exposicion", "dark", "ganancia", "archivo"}
+        self.ultima = None        # {"n", "hora", "exposicion", "nivel", "dark", "ganancia", "archivo"}
         self.inicio = ""
+        self.modo = "noche"
 
     def estado(self):
         with self._lock:
             return {
                 "en_curso": self.en_curso, "terminado": self.terminado,
                 "hechas": self.hechas, "errores": self.errores,
-                "guardar": self.guardar, "ganancia": self.ganancia,
+                "guardar": self.guardar, "ganancia": self.ganancia, "modo": self.modo,
                 "carpeta": os.path.basename(self.carpeta) if self.carpeta else "",
                 "bytes": self.bytes, "libre": self.libre,
                 "mensaje": self.mensaje, "error": self.error,
@@ -89,13 +90,15 @@ class TrabajoContinuo:
         log.info(texto)
 
     # ── Control ───────────────────────────────────────────────────────
-    def iniciar(self, capturar, camara, guardar="no", ganancia=None, raiz=None, voz=None):
+    def iniciar(self, capturar, camara, guardar="no", ganancia=None, raiz=None, voz=None, al_terminar=None, modo="noche"):
         """
-        capturar(copia) -> dict de capturar_y_guardar ({"ok", "mensaje", "dark", "ganancia",
-                           "archivo"...}); `copia` es None o {"carpeta", "formato", "nombre"}
-                           para guardar además esta foto en la carpeta de la serie.
+        capturar(copia) -> dict como el de capturar_y_guardar ({"ok", "mensaje", "dark", "ganancia",
+                           "exposicion", "nivel", "archivo"...}); `copia` es None o {"carpeta",
+                           "formato", "nombre"} para guardar además esta foto en la carpeta de la serie.
         camara           : TrabajadorCOM de la cámara (para .ocupado)
         guardar          : "no" | "jpg" | "fits"
+        al_terminar(estado): se llama al acabar el bucle (p. ej. para dejar la cámara como estaba).
+        modo             : "noche" (exposición de Configuración) | "dia" (exposición automática)
         """
         if guardar not in FORMATOS:
             raise ValueError(f"Formato desconocido: {guardar}")
@@ -109,13 +112,14 @@ class TrabajoContinuo:
             self.en_curso = True
             self.guardar = guardar
             self.ganancia = ganancia
+            self.modo = modo
             self.inicio = datetime.now().strftime("%Y%m%d_%H%M%S")
             if guardar != "no":
                 self.carpeta = os.path.join(raiz or CARPETA_CONTINUO, self.inicio)
                 self.libre = espacio_libre(self.carpeta)
             self.mensaje = "Empezando el modo continuo..."
         self._hilo = threading.Thread(target=self._ejecutar, name="foto-continua", daemon=True,
-                                      args=(capturar, voz))
+                                      args=(capturar, voz, al_terminar))
         self._hilo.start()
         log.info("Modo continuo iniciado (guardar=%s, ganancia=%s)", guardar, ganancia)
         return self._hilo
@@ -126,7 +130,7 @@ class TrabajoContinuo:
         estado_captura.cancelar.set()
 
     # ── Hilo ──────────────────────────────────────────────────────────
-    def _ejecutar(self, capturar, voz):
+    def _ejecutar(self, capturar, voz, al_terminar=None):
         error = ""
         if voz:
             voz.decir("Modo continuo", categoria="capturas")
@@ -162,6 +166,7 @@ class TrabajoContinuo:
                         self.errores_seguidos = 0
                         self.bytes += tamano
                         self.ultima = {"n": n, "hora": hora, "exposicion": resultado.get("exposicion"),
+                                       "nivel": resultado.get("nivel"),
                                        "dark": bool(resultado.get("dark")), "ganancia": resultado.get("ganancia"),
                                        "archivo": os.path.basename(archivo) if archivo else ""}
                         self.version += 1
@@ -194,6 +199,11 @@ class TrabajoContinuo:
                 else:
                     self.mensaje = f"Modo continuo parado tras {self.hechas} fotos"
             log.info(self.mensaje)
+            if al_terminar:
+                try:
+                    al_terminar(self.estado())
+                except Exception:
+                    log.exception("Error en al_terminar del modo continuo")
             if voz:
                 try:
                     voz.decir("Modo continuo parado", categoria="capturas")
