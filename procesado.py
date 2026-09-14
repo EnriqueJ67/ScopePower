@@ -32,11 +32,11 @@ log = logging.getLogger("scopepower.procesado")
 ESTILOS = {
     #            gradiente ruido  contraste saturacion scnr  + estirado (fondo_objetivo, agresividad, compresion, recuperacion)
     "natural":  {"gradiente": True, "aplanar": False, "ruido": 0.30, "contraste": 0.25, "saturacion": 1.3, "scnr": 0.5,
-                 "fondo_objetivo": 0.10, "agresividad": 0.6, "compresion": 0.7, "recuperacion": 1.0},
+                 "fondo_objetivo": 0.10, "agresividad": 0.6, "compresion": 0.3, "recuperacion": 1.0},
     "seestar":  {"gradiente": True, "aplanar": False, "ruido": 0.55, "contraste": 0.50, "saturacion": 1.7, "scnr": 0.8,
-                 "fondo_objetivo": 0.13, "agresividad": 0.7, "compresion": 0.6, "recuperacion": 1.0},
+                 "fondo_objetivo": 0.13, "agresividad": 0.7, "compresion": 0.3, "recuperacion": 1.0},
     "agresivo": {"gradiente": True, "aplanar": False, "ruido": 0.80, "contraste": 0.80, "saturacion": 2.1, "scnr": 1.0,
-                 "fondo_objetivo": 0.16, "agresividad": 0.8, "compresion": 0.45, "recuperacion": 1.2},
+                 "fondo_objetivo": 0.16, "agresividad": 0.8, "compresion": 0.2, "recuperacion": 1.1},
     # "aplanar" (fondo local a gran escala) queda como opción manual: no elimina
     # las sombras de polvo del sensor, que tienen el tamaño de una galaxia
     # (eso solo lo arreglan los flats), y puede comerse nebulosas extensas.
@@ -386,25 +386,28 @@ def aplanar_fondo(rgb, escala=0.16):
 #      brillo difuso de los objetos; sin estrellas ni estructuras pequeñas).
 #   2. S(B) = B estirado con una curva (gamma por defecto; asinh o la MTF de
 #      PixInsight como opción) con sombras y medios calculados de la
-#      estadística robusta del fondo (mediana y MAD), como la AutoSTF, pero con
-#      el punto blanco fijo en 1.0: nada se recorta por arriba.
-#   3. g = S'(B), la pendiente de la curva en el fondo local, es la ganancia
-#      del detalle: alta en el cielo, baja donde B ya es alto (núcleos,
-#      cúmulos). El detalle fino D = L - B se amplifica con esa ganancia y se le
-#      aplica una rodilla asinh (compresión de rango dinámico) para que las
-#      estrellas conserven el perfil y el color en vez de aplanarse en blanco:
-#          L' = S(B) + C(recuperacion * g * D)
-#      con compresion = 0 no hay rodilla: el detalle se estira como lo haría la
-#      curva global, es decir, las estrellas saturan igual que con una MTF.
-#   4. RGB' = RGB * (L' / L): los tres canales se escalan igual, el color de
-#      estrellas y núcleos se mantiene; lo que rebasa 1.0 se desatura hacia L'
-#      en vez de recortarse canal a canal.
+#      estadística robusta del fondo (mediana y MAD) y el blanco en el
+#      percentil 99,8 %, como el STF clásico: así lo extenso (nebulosas) tiene
+#      la misma pegada que con él.
+#   3. El detalle fino (L - B) se estira con la misma familia de curva pero con
+#      el blanco desplazado hacia 1.0 según `compresion`:
+#          L' = S(B) + recuperacion * (S_d(L) - S_d(B))
+#      compresion = 0: S_d = S, es decir, el STF clásico sobre la luminancia
+#      (las estrellas saturan igual); compresion = 1: el blanco del detalle es
+#      el máximo real y nada se recorta (perfil y color de las estrellas
+#      intactos). Como la curva es cóncava, donde B ya es alto (núcleos,
+#      cúmulos) el detalle recibe menos ganancia: esa es la parte "local".
+#   4. Color: cada canal recibe la misma ganancia que la luminancia sobre lo
+#      que tiene por encima del cielo, RGB' = S(m) + (RGB - m) * (L' - S(m)) /
+#      (L - m), como hace el STF canal a canal; lo que rebasa 1.0 se desatura
+#      hacia L' en vez de recortarse canal a canal.
 #
 # Parámetros ([Procesado] de config.ini, con defectos por estilo):
 #   fondo_objetivo  brillo del fondo de cielo en la imagen final (0.10-0.20)
 #   agresividad     0..1: cuánto se acerca el punto negro al pico del fondo
-#   compresion      0..1: fuerza de la rodilla en lo brillante (0 = sin rodilla)
-#   recuperacion    peso del detalle fino reinyectado (1 = contraste de una MTF)
+#   compresion      0..1: protección de lo brillante (0 = como el STF clásico,
+#                   1 = nada se recorta)
+#   recuperacion    peso del detalle fino reinyectado (1 = contraste del STF)
 #   escala          tamaño en px (a resolución completa) por encima del cual una
 #                   estructura se considera fondo (1024 por defecto, como MAS)
 #   curva           gamma (por defecto), asinh o mtf: familia de la curva del fondo
@@ -441,11 +444,17 @@ class CurvaFondo:
       mtf:  la MTF de PixInsight; la más brusca (con un fondo limpio, mt ~ 0.001).
     """
 
-    def __init__(self, m, sigma, fondo_objetivo=0.13, agresividad=0.7, tipo="gamma"):
+    def __init__(self, m, sigma, fondo_objetivo=0.13, agresividad=0.7, tipo="gamma", blanco=1.0):
         k = 4.0 - 2.5 * float(np.clip(agresividad, 0, 1))     # 0 -> 4 sigma, 1 -> 1.5 sigma
         self.c0 = max(0.0, m - k * sigma)
+        # Punto blanco: con 1.0 la gamma sale muy baja (~0.2) y aplasta todo lo
+        # extenso (una nebulosa a 10x el cielo se queda en 0.4). El STF clásico
+        # lo ponía en el percentil 99.8 % de la imagen (gamma ~0.35) y por eso
+        # las nebulosas tenían más pegada; aquí se recibe ese blanco y lo que
+        # queda por encima lo comprime la rodilla del detalle, no la curva.
+        self.blanco = float(min(1.0, max(blanco, m + 20.0 * sigma, self.c0 + 1e-4)))
         self.tipo = tipo if tipo in ("gamma", "asinh", "mtf") else "gamma"
-        x_med = min(max((m - self.c0) / (1.0 - self.c0), 1e-6), 1 - 1e-6)
+        x_med = min(max((m - self.c0) / (self.blanco - self.c0), 1e-6), 1 - 1e-6)
         objetivo = float(np.clip(fondo_objetivo, 0.02, 0.6))
         if self.tipo == "gamma":
             self.param = float(np.log(objetivo) / np.log(x_med))
@@ -464,14 +473,14 @@ class CurvaFondo:
             self.param = float(np.exp(0.5 * (lo + hi)))
 
     def __call__(self, v):
-        x = (np.asarray(v, dtype=np.float32) - self.c0) / (1.0 - self.c0)
+        x = (np.asarray(v, dtype=np.float32) - self.c0) / (self.blanco - self.c0)
         if self.tipo == "gamma":
             return np.power(np.clip(x, 0, 1), self.param).astype(np.float32)
         return mtf(x, self.param) if self.tipo == "mtf" else asinh_norm(x, self.param)
 
     def derivada(self, v):
         """Pendiente dS/dv (ganancia local de la curva) en el valor lineal v."""
-        x = np.clip((np.asarray(v, dtype=np.float32) - self.c0) / (1.0 - self.c0), 1e-9, 1)
+        x = np.clip((np.asarray(v, dtype=np.float32) - self.c0) / (self.blanco - self.c0), 1e-9, 1)
         if self.tipo == "gamma":
             d = self.param * np.power(x, self.param - 1.0)
         elif self.tipo == "mtf":
@@ -480,7 +489,7 @@ class CurvaFondo:
         else:
             a = self.param
             d = 1.0 / (np.arcsinh(1.0 / a) * np.sqrt(x * x + a * a))
-        return (d / (1.0 - self.c0)).astype(np.float32)
+        return (d / (self.blanco - self.c0)).astype(np.float32)
 
 
 def estadistica_fondo(L):
@@ -523,24 +532,6 @@ def fondo_gran_escala(L, m, sigma, escala_px, factor=8):
     return np.maximum(B, 1e-6).astype(np.float32)
 
 
-def rodilla(y, compresion):
-    """
-    Compresión de rango dinámico del detalle fino: A*asinh(y/A) para y > 0
-    (lineal hasta ~A, logarítmica después), identidad si compresion = 0.
-    A = 0.06/compresion: con 0.6, una estrella entra en el tramo logarítmico a
-    partir de ~0.1 sobre el fondo, así conserva el perfil y el color en vez de
-    aplanarse en blanco; solo las saturadas en lineal llegan al blanco.
-    """
-    c = float(np.clip(compresion, 0, 1))
-    if c <= 0:
-        return y
-    A = 0.06 / c
-    pos = y > 0
-    out = y.copy()
-    out[pos] = A * np.arcsinh(y[pos] / A)
-    return out
-
-
 def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None):
     """
     rgb: (H, W, 3) float lineal en ADU (0..65535), ya sin gradiente.
@@ -551,7 +542,7 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None):
     aj = ajustes or {}
     fondo_objetivo = float(aj.get("fondo_objetivo", 0.13))
     agresividad = float(aj.get("agresividad", 0.7))
-    compresion = float(aj.get("compresion", 0.6))
+    compresion = float(aj.get("compresion", 0.3))
     recuperacion = float(aj.get("recuperacion", 1.0))
     curva = str(aj.get("curva", "gamma")).lower()
     escala_px = float(aj.get("escala", ESCALA_FONDO_PX)) * float(escala_imagen)
@@ -567,29 +558,43 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None):
     rgb = np.clip(rgb / 65535.0, 0, None)
     L = rgb.mean(axis=2)
     m, sigma = estadistica_fondo(L)
-    S_curva = CurvaFondo(m, sigma, fondo_objetivo, agresividad, curva)
+    blanco = float(np.percentile(L[::4, ::4], 99.82))        # el mismo blanco que el STF clásico
+    S_curva = CurvaFondo(m, sigma, fondo_objetivo, agresividad, curva, blanco=blanco)
     avisar(0.2)
 
     B = fondo_gran_escala(L, m, sigma, escala_px)
     avisar(0.5)
 
-    # Fondo estirado y ganancia local del detalle: la pendiente de la curva en
-    # el fondo de cada píxel (así una estructura recibe el mismo contraste esté
-    # justo por encima o por debajo de la escala de separación), con tope en la
-    # pendiente del cielo para no disparar el ruido en los rincones oscuros.
+    # Fondo estirado con la curva (blanco del STF) y detalle fino con la MISMA
+    # familia de curva pero con el blanco desplazado hacia 1.0 según
+    # `compresion`: con 0 es exactamente el STF clásico sobre la luminancia
+    # (las estrellas saturan igual); con 1 el blanco del detalle es el máximo
+    # real y nada se recorta (perfil y color de las estrellas intactos). Al ser
+    # una curva cóncava, el detalle se frena desde el principio como en el STF
+    # (una ganancia lineal con rodilla subía demasiado lo de brillo medio).
+    # Donde el fondo B es alto (núcleos, cúmulos) la curva ya da menos a lo que
+    # va por encima: esa es la ganancia local.
     S = S_curva(B)
-    g_cielo = float(S_curva.derivada(np.float32(m)))
-    g = np.minimum(S_curva.derivada(B), g_cielo) * recuperacion
-
-    # Detalle fino con la ganancia local y rodilla en lo brillante
-    D = L - B
-    L2 = S + rodilla(g * D, compresion)
+    c = float(np.clip(compresion, 0, 1))
+    blanco_detalle = float(S_curva.blanco ** (1.0 - c))          # entre el blanco del STF y 1.0
+    S_detalle = CurvaFondo(m, sigma, fondo_objetivo, agresividad, curva, blanco=blanco_detalle)
+    L2 = S + recuperacion * (S_detalle(L) - S_detalle(B))
     np.clip(L2, 0, 1, out=L2)
     avisar(0.8)
 
-    # Color en proporción; lo que rebasa 1.0 se desatura hacia L'
-    Ls = np.maximum(L, 1e-6)
-    out = rgb * (L2 / Ls)[..., None]
+    # Color: a cada canal se le aplica la ganancia que ha recibido la luminancia,
+    # pero sobre lo que tiene POR ENCIMA del fondo de cielo (no sobre el total).
+    # Es lo que hace el STF clásico al estirar canal a canal con el negro justo
+    # bajo el cielo: en una nebulosa débil la relación (R-cielo)/(G-cielo) es
+    # mucho mayor que R/G, y con la de los totales la nebulosa salía gris. El
+    # fondo (medianas iguales tras neutralizar) queda en S(m) en los tres.
+    S_cielo = float(S_curva(np.float32(m)))
+    dL = L - m
+    pendiente_cielo = float(S_detalle.derivada(np.float32(m)))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        k = np.where(np.abs(dL) > 0.1 * sigma, (L2 - S_cielo) / dL, pendiente_cielo).astype(np.float32)
+    k = np.clip(k, 0, 4.0 * pendiente_cielo)
+    out = S_cielo + (rgb - m) * k[..., None]
     mx = out.max(axis=2)
     exceso = mx > 1.0
     if exceso.any():
@@ -598,8 +603,8 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None):
         out[exceso] = L2e[..., None] + (out[exceso] - L2e[..., None]) * f
     out = np.clip(out, 0, 1).astype(np.float32)
     avisar(1.0)
-    log.debug("estirado %s: mediana %.5f sigma %.5f c0 %.5f param %.3g g_cielo %.1f",
-              S_curva.tipo, m, sigma, S_curva.c0, S_curva.param, g_cielo)
+    log.debug("estirado %s: mediana %.5f sigma %.5f c0 %.5f blanco %.4f (detalle %.4f) param %.3g",
+              S_curva.tipo, m, sigma, S_curva.c0, S_curva.blanco, blanco_detalle, S_curva.param)
     return out
 
 

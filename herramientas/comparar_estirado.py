@@ -105,8 +105,11 @@ def main():
     print("Estirado multiescala:")
     L = procesado.neutralizar_fondo(rgb).mean(axis=2) / 65535.0
     m, sigma = cronometro("  estadistica_fondo", procesado.estadistica_fondo, L)
+    blanco = float(np.percentile(L[::4, ::4], 99.82))
     S = cronometro("  CurvaFondo", procesado.CurvaFondo, m, sigma, ajustes["fondo_objetivo"], ajustes["agresividad"],
-                   ajustes.get("curva", "gamma"))
+                   ajustes.get("curva", "gamma"), blanco)
+    Sd = procesado.CurvaFondo(m, sigma, ajustes["fondo_objetivo"], ajustes["agresividad"], ajustes.get("curva", "gamma"),
+                              blanco ** (1.0 - float(ajustes["compresion"])))
     print(f"    mediana {m:.5f}  sigma {sigma:.5f}  c0 {S.c0:.5f}  {S.tipo} param {S.param:.3g}"
           f"  -> cielo {float(S(np.float32(m))):.3f}, 2x cielo {float(S(np.float32(2 * m))):.3f}, 10x cielo {float(S(np.float32(10 * m))):.3f}")
     cronometro("  fondo_gran_escala", procesado.fondo_gran_escala, L, m, sigma,
@@ -114,12 +117,11 @@ def main():
     # Curva efectiva para una fuente puntual sobre el cielo (D ADU por encima del fondo)
     from AutoStrechSTF import calcular_parametros_stf, aplicar_parametros_stf
     bk, wh, gm = calcular_parametros_stf(L * 65535.0, clipping=0.0018, target_median=0.10)
-    g = float(S.derivada(np.float32(m))) * ajustes["recuperacion"]
-    print(f"    ganancia del detalle en el cielo: {g:.0f}x (STF viejo: gamma {gm:.3f}, blanco {wh:.0f} ADU)")
+    print(f"    blanco {blanco*65535:.0f} ADU, blanco del detalle {Sd.blanco*65535:.0f} ADU (STF viejo: gamma {gm:.3f}, blanco {wh:.0f} ADU)")
     print("    D sobre el cielo:   " + "".join(f"{t:>9s}" for t in ("+3sig", "+100", "+500", "+2000", "+7300", "+20000", "sat.")))
     Ds = [3 * sigma * 65535, 100, 500, 2000, 7300, 20000, 65535 - m * 65535]
     viejo = [float(aplicar_parametros_stf(np.float32(m * 65535 + d), bk, wh, gm)) for d in Ds]
-    nuevo = [float(S(np.float32(m))) + float(procesado.rodilla(np.float32([g * d / 65535.0]), ajustes["compresion"])[0]) for d in Ds]
+    nuevo = [float(S(np.float32(m))) + ajustes["recuperacion"] * (float(Sd(np.float32(m + d / 65535.0))) - float(Sd(np.float32(m)))) for d in Ds]
     print("    STF viejo:          " + "".join(f"{min(v, 1):9.3f}" for v in viejo))
     print("    multiescala:        " + "".join(f"{min(v, 1):9.3f}" for v in nuevo))
     mas = cronometro("estirar_multiescala (total)", procesado.estirar_multiescala, rgb, ajustes, args.escala)
