@@ -132,6 +132,11 @@
                 <label class="fila-check"><input type="checkbox" id="c-gradiente"> Quitar gradiente de contaminación lumínica</label>
                 <label class="fila-check"><input type="checkbox" id="c-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
                 <div class="campo mt-2">
+                    <div class="rango-titulo"><span>Recorte de bordes</span><span id="v-bordes"></span></div>
+                    <input type="range" id="c-bordes" data-clave="bordes" min="0" max="20" step="1">
+                    <small class="ayuda">% que se quita por cada lado antes de procesar (ni el fondo ni nada se calcula con lo recortado). Los bordes negros de la rotación de campo se detectan y se quitan solos; esto es para apurar más.</small>
+                </div>
+                <div class="campo mt-2">
                     <label>Campo visible (zoom)</label>
                     <select id="c-zoom" class="form-control">
                         <option value="0">100 % (campo completo)</option>
@@ -164,18 +169,18 @@
     const NOMBRE = {{ info.nombre|tojson }};
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
-    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "contraste", "saturacion", "scnr"];
+    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "contraste", "saturacion", "scnr", "bordes"];
     let urlNueva = null;           // objectURL de la última vista previa
     let hayNueva = false;
     let preparando = false, pendiente = false;
     let ultimaDuracion = 0;        // segundos que tardó la última vista previa (para la cuenta atrás)
     let temporizadorAuto = null;
 
-    function pintarAjustes(a) {
+    function pintarAjustes(a, inicial = false) {
         for (const k of CLAVES_RANGO) {
             const c = document.getElementById("c-" + k);
             if (a[k] !== undefined && a[k] !== null) c.value = a[k];
-            else if (k === "brillo" || k === "temperatura") c.value = 0;
+            else if (inicial && (k === "brillo" || k === "temperatura" || k === "bordes")) c.value = 0;
             document.getElementById("v-" + k).textContent = c.value;
         }
         document.getElementById("c-gradiente").checked = !!a.gradiente;
@@ -208,6 +213,7 @@
             objeto: document.getElementById("c-objeto").value.trim()
         };
         for (const k of CLAVES_RANGO) a[k] = parseFloat(document.getElementById("c-" + k).value);
+        a.bordes = parseInt(document.getElementById("c-bordes").value) || 0;
         return a;
     }
 
@@ -360,7 +366,7 @@
     }
     fetch("/presets-procesado").then(r => r.json()).then(d => pintarPresets(d.presets, "")).catch(() => {});
 
-    pintarAjustes(AJUSTES_INICIALES);
+    pintarAjustes(AJUSTES_INICIALES, true);
     pedirVistaPrevia(false);
 </script>
 {% endif %}

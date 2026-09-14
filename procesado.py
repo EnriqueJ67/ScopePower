@@ -186,22 +186,30 @@ def recortar_centro(cubo, fraccion):
     return np.ascontiguousarray(rec), x0, y0
 
 
-def recortar_campo(cubo, fraccion, zona=None):
+def recortar_campo(cubo, fraccion, zona=None, margen=0.0):
     """
     Recorte completo del campo: primero la `zona` (x0, y0, ancho, alto) cubierta
     por todas las fotos del apilado (con montura altacimutal la rotación de campo
-    deja los bordes con menos fotos) y, dentro de ella, el recorte central de
-    zoom. Devuelve (recorte, x0, y0) con el desplazamiento respecto a la imagen
+    deja los bordes con menos fotos; si no viene, se detecta en la imagen),
+    después un `margen` extra por cada lado (fracción del lado, 0..0.3; el
+    "Recorte de bordes" del editor) y, dentro, el recorte central de zoom.
+    Devuelve (recorte, x0, y0) con el desplazamiento respecto a la imagen
     completa, como recortar_centro.
     """
     zx, zy = 0, 0
+    canales_primero = cubo.ndim == 3 and cubo.shape[0] == 3 and cubo.shape[-1] != 3
     if not zona:
         zona = zona_automatica(cubo)
     if zona:
         x0, y0, ancho, alto = [int(v) for v in zona]
-        canales_primero = cubo.ndim == 3 and cubo.shape[0] == 3 and cubo.shape[-1] != 3
         cubo = cubo[:, y0:y0 + alto, x0:x0 + ancho] if canales_primero else cubo[y0:y0 + alto, x0:x0 + ancho]
         zx, zy = x0, y0
+    margen = float(min(max(margen, 0.0), 0.3))
+    if margen > 0:
+        h, w = (cubo.shape[1], cubo.shape[2]) if canales_primero else cubo.shape[:2]
+        mx, my = int(w * margen), int(h * margen)
+        cubo = cubo[:, my:h - my, mx:w - mx] if canales_primero else cubo[my:h - my, mx:w - mx]
+        zx, zy = zx + mx, zy + my
     rec, x1, y1 = recortar_centro(cubo, fraccion)
     return np.ascontiguousarray(rec), zx + x1, zy + y1
 
@@ -209,31 +217,47 @@ def recortar_campo(cubo, fraccion, zona=None):
 def zona_automatica(cubo, margen=12):
     """
     Zona útil de un apilado que no trae ZONA* en la cabecera (guardado antes de
-    que existiera): se quitan las filas y columnas de los bordes que quedan casi
-    negras porque no todas las fotos alineadas las cubren. Si no se quita nada,
-    el contraste local (CLAHE) las mete en sus mosaicos del borde y aparecen
-    franjas claras y oscuras junto a los bordes. Devuelve (x0, y0, ancho, alto)
-    o None si no hay borde negro.
+    que existiera): el mayor rectángulo sin bordes negros de la alineación. La
+    rotación de campo deja cuñas diagonales en las esquinas, así que no basta
+    con quitar filas y columnas enteras: se parte de una máscara de "hay
+    imagen" (a 1/8 de resolución, > 0.8 del cielo) y se encoge el rectángulo por
+    el lado menos cubierto hasta que queda entero dentro, como zona_comun del
+    apilado. Devuelve (x0, y0, ancho, alto) o None si no hay nada que recortar.
     """
     canales_primero = cubo.ndim == 3 and cubo.shape[0] == 3 and cubo.shape[-1] != 3
     lum = cubo.mean(axis=0) if canales_primero else (cubo.mean(axis=2) if cubo.ndim == 3 else cubo)
     h, w = lum.shape
-    f = max(1, min(h, w) // 256)
-    peq = cv2.resize(np.asarray(lum, dtype=np.float32), (w // f, h // f), interpolation=cv2.INTER_AREA)
-    umbral = 0.8 * float(np.median(peq))
-    filas = np.median(peq, axis=1) > umbral
-    cols = np.median(peq, axis=0) > umbral
-    if not filas.any() or not cols.any():
+    f = max(1, min(h, w) // 376)
+    peq = cv2.resize(np.asarray(lum, dtype=np.float32), (max(8, w // f), max(8, h // f)), interpolation=cv2.INTER_AREA)
+    peq = cv2.medianBlur(peq, 5)                      # sin estrellas ni ruido
+    valido = peq > 0.8 * float(np.median(peq))
+    if valido.all():
         return None
-    y0, y1 = int(np.argmax(filas)), int(len(filas) - np.argmax(filas[::-1]))
-    x0, x1 = int(np.argmax(cols)), int(len(cols) - np.argmax(cols[::-1]))
-    if (y0, x0, y1, x1) == (0, 0, len(filas), len(cols)):
+    fil, col = np.nonzero(valido)
+    if len(fil) == 0:
         return None
-    y0, y1 = min(h, y0 * f + margen), max(0, y1 * f - margen)
-    x0, x1 = min(w, x0 * f + margen), max(0, x1 * f - margen)
-    if y1 - y0 < h // 2 or x1 - x0 < w // 2:
+    y0, y1, x0, x1 = int(fil.min()), int(fil.max()) + 1, int(col.min()), int(col.max()) + 1
+    while y1 - y0 > 2 and x1 - x0 > 2:
+        sub = valido[y0:y1, x0:x1]
+        if sub.all():
+            break
+        bordes = {"arriba": sub[0].mean(), "abajo": sub[-1].mean(), "izq": sub[:, 0].mean(), "der": sub[:, -1].mean()}
+        peor = min(bordes, key=bordes.get)
+        if peor == "arriba": y0 += 1
+        elif peor == "abajo": y1 -= 1
+        elif peor == "izq": x0 += 1
+        else: x1 -= 1
+    X0, Y0 = x0 * f, y0 * f
+    X1, Y1 = min(w, x1 * f), min(h, y1 * f)
+    if X0 > 0: X0 += margen
+    if Y0 > 0: Y0 += margen
+    if X1 < w: X1 -= margen
+    if Y1 < h: Y1 -= margen
+    if X1 - X0 < w // 2 or Y1 - Y0 < h // 2:
         return None
-    return (x0, y0, x1 - x0, y1 - y0)
+    if (X0, Y0, X1, Y1) == (0, 0, w, h):
+        return None
+    return (int(X0), int(Y0), int(X1 - X0), int(Y1 - Y0))
 
 
 def leer_zona(header):

@@ -173,6 +173,10 @@ def ajustes_desde(datos):
     except (TypeError, ValueError):
         zoom = 0
     aj["zoom"] = min(ZOOMS, key=lambda z: abs(z - zoom))
+    try:
+        aj["bordes"] = int(min(max(float(datos.get("bordes", 0) or 0), 0), 20))   # % recortado por cada lado
+    except (TypeError, ValueError):
+        aj["bordes"] = 0
     v = datos.get("firma", True)
     aj["firma"] = (str(v).lower() == "true") if not isinstance(v, bool) else v
     return aj
@@ -180,7 +184,8 @@ def ajustes_desde(datos):
 
 def _ajustes_para_json(aj):
     """Solo lo que tiene sentido guardar en el JSON hermano (sin los valores del estilo que no se tocan)."""
-    guardar = {"estilo": aj["estilo"], "estirado": aj["estirado"], "zoom": aj["zoom"], "firma": bool(aj["firma"])}
+    guardar = {"estilo": aj["estilo"], "estirado": aj["estirado"], "zoom": aj["zoom"], "bordes": aj.get("bordes", 0),
+               "firma": bool(aj["firma"])}
     for k in CLAVES_FLOAT:
         guardar[k] = aj.get(k)
     for k in CLAVES_BOOL:
@@ -250,7 +255,7 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
     objeto = " ".join(str(opciones.get("objeto", "")).split())[:60] or partes_nombre(nombre)[0].replace("_", " ")
     cubo, n, exposicion, zona = cargar_cubo(ruta_fits)
     fraccion = (100 - aj["zoom"]) / 100.0
-    recorte, _, _ = procesado.recortar_campo(cubo, fraccion, zona)
+    recorte, _, _ = procesado.recortar_campo(cubo, fraccion, zona, margen=aj.get("bordes", 0) / 100.0)
     escala = 1.0 if completa or fraccion <= 0.5 else 0.5
     rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso)
     imagen = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
