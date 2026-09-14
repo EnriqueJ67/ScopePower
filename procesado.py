@@ -542,7 +542,7 @@ def fondo_gran_escala(L, m, sigma, escala_px, factor=8):
     hi = m + max(10.0 * sigma, 2.0 * m)
     u8 = np.clip((peq - lo) / (hi - lo) * 255.0, 0, 255).astype(np.uint8)
     k = int(max(3, round(escala_px / factor)))
-    k = min(k | 1, 2 * min(pw, ph) // 2 - 1)     # impar y no mayor que la imagen reducida
+    k = min(k, 2 * min(pw, ph) - 1) | 1          # impar (lo exige medianBlur) y acotado a la imagen reducida
     # Bordes por reflexión: la mediana de OpenCV rellena con ceros lo que queda
     # fuera de la imagen y, con una ventana tan grande, el fondo se hundía en las
     # esquinas (un arco oscuro de un cuarto de círculo tras el desenfoque).
