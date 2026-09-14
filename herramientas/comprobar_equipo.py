@@ -71,7 +71,7 @@ else:
 if ruta_stellarium and os.path.exists(ruta_stellarium):
     linea(OK, "Stellarium")
 else:
-    linea(AVISO, "Stellarium no encontrado (opcional; el GOTO usa internet/SIMBAD si falta)")
+    linea(OK, "Stellarium no instalado (no hace falta: el GoTo usa el catálogo local)")
 for ruta in (r"C:\SynScanPro\SynScanPro\SynScanPro.exe", r"C:\SynScanPro\SynScanPro.exe"):
     if os.path.exists(ruta):
         linea(OK, f"SynScan Pro ({ruta})")

@@ -36,7 +36,7 @@ con internet:
 | App SynScan Pro (Windows) | La montura se controla a través de la app | https://skywatcher.com/download/software/synscan-app/ (en `C:\SynScanPro`) |
 | Driver ASCOM PlayerOne | Cámara | https://player-one-astronomy.com/service/software/ |
 | ASTAP + base de datos D50 | Plate solving y alineado del apilado | https://www.hnsky.org/astap.htm (en `C:\Program Files\Astap`) |
-| Stellarium (opcional) | Coordenadas de objetos sin internet | https://stellarium.org |
+| Stellarium (ya no hace falta) | El GoTo resuelve los nombres con el catálogo local (`static/atlas` + `alias_objetos.csv`). Solo si `lanzar_stellarium_al_arrancar = true` | https://stellarium.org |
 | Voz en español | Avisos hablados | Configuración de Windows > Hora e idioma > Voz > Añadir voces > Español |
 
 ## 4. Arrancar

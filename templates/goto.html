@@ -11,7 +11,7 @@
         <p class="pagina-sub">Escribe o di el nombre. Tras el movimiento, el centrado por plate solving lo deja en el centro del sensor.</p>
     </div>
     <div class="pagina-acciones">
-        <span class="chip" id="estado_stellarium"><span class="dot"></span>Stellarium</span>
+        <span class="chip" id="estado_stellarium" title="Fuentes de coordenadas: catálogo local (OpenNGC y estrellas) y, si está abierto, Stellarium"><span class="dot"></span>Catálogo local</span>
     </div>
 </div>
 {% include '_modal_voz.html' %}
@@ -126,7 +126,7 @@
             fetch("/buscar-objetos?q=" + encodeURIComponent(q)).then(r => r.json()).then(d => {
                 caja.innerHTML = "";
                 if (!d.resultados.length) {
-                    caja.innerHTML = '<div class="nada">Sin coincidencias en el catálogo local. GoTo lo intentará con Stellarium o Internet.</div>';
+                    caja.innerHTML = '<div class="nada">Sin coincidencias en los catálogos locales. GoTo lo intentará con Stellarium (si está abierto) o por Internet.</div>';
                 } else {
                     for (const r of d.resultados) {
                         const div = document.createElement("div");
@@ -492,14 +492,18 @@
             .then(response => response.json())
             .then(data => {
                 const div = document.getElementById("estado_stellarium");
-                if (data.disponible) {
-                    div.className = "chip chip-ok"; div.innerHTML = '<span class="dot"></span>Stellarium';
+                const n = data.catalogo ? data.catalogo.objetos : 0;
+                if (n > 0) {
+                    div.className = "chip chip-ok";
+                    div.innerHTML = '<span class="dot"></span>Catálogo local · ' + n.toLocaleString("es-ES") + ' objetos' + (data.disponible ? ' + Stellarium' : '');
+                } else if (data.disponible) {
+                    div.className = "chip chip-warn"; div.innerHTML = '<span class="dot"></span>Stellarium (catálogo local no cargado)';
                 } else {
-                    div.className = "chip chip-err"; div.innerHTML = '<span class="dot"></span>Stellarium no detectado';
+                    div.className = "chip chip-err"; div.innerHTML = '<span class="dot"></span>Catálogo local no cargado';
                 }
             })
             .catch(error => {
-                document.getElementById("estado_stellarium").className = "chip chip-warn"; document.getElementById("estado_stellarium").innerHTML = '<span class="dot"></span>Stellarium: error';
+                document.getElementById("estado_stellarium").className = "chip chip-warn"; document.getElementById("estado_stellarium").innerHTML = '<span class="dot"></span>Catálogo: sin respuesta';
             });
     }
 

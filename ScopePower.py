@@ -54,6 +54,7 @@ import alineacion
 import voz
 import esta_noche
 import cuerpos_menores
+import catalogo_offline
 import anuncio_ip
 import coordenadas
 import recorridos
@@ -722,10 +723,11 @@ _conexion_auto = {"en_curso": False, "lock": threading.Lock()}
 def _conectar_equipo_completo():
     """Stellarium + montura + cámara. Devuelve el mismo dict que /conectar-equipo."""
     resultado = {"montura": False, "camara": False, "errores": []}
-    try:
-        lanzar_stellarium_si_no_esta_activo()
-    except Exception as e:
-        resultado["errores"].append(f"Stellarium: {e}")
+    if usar_stellarium():
+        try:
+            lanzar_stellarium_si_no_esta_activo()
+        except Exception as e:
+            resultado["errores"].append(f"Stellarium: {e}")
     try:
         if montura.esta_conectado():
             montura.reconectar(timeout=30)
@@ -1121,6 +1123,18 @@ import requests
 _estado_stellarium_previo = {"ok": None}
 
 
+def usar_stellarium():
+    """
+    [General] lanzar_stellarium_al_arrancar. Desde sep-2026 el GoTo resuelve los
+    nombres con el catálogo local (catalogo_offline.py, los mismos datos que el
+    planetario), así que Stellarium ya no hace falta y por defecto no se lanza:
+    en un mini PC sin ventilador su renderizado continuo era el mayor consumo de
+    la noche. Si está abierto (a mano o por esta opción) se sigue usando como
+    fuente adicional de coordenadas.
+    """
+    return config["General"].get("lanzar_stellarium_al_arrancar", "false").strip().lower() == "true"
+
+
 def estado_stellarium():
     try:
         url = "http://localhost:8090/api/objects/info?name=Polaris&format=json"
@@ -1133,13 +1147,10 @@ def estado_stellarium():
     if ok != _estado_stellarium_previo.get("ok"):
         log.info("Stellarium %s", "responde" if ok else "no responde")
         _estado_stellarium_previo["ok"] = ok
-    if ok:
-        return True
-    # No responde: intentar lanzarlo (si ya está arrancando, no hace nada) y
-    # darle unos segundos antes de la siguiente comprobación
-    lanzar_stellarium_si_no_esta_activo()
-    time.sleep(3)
-    return False
+    # No se lanza desde aquí: la pantalla GoTo pregunta cada 10 s y relanzarlo en
+    # cada consulta lo mantenía siempre abierto. Solo arranca al iniciar la app o al
+    # conectar el equipo, y solo si [General] lanzar_stellarium_al_arrancar = true.
+    return ok
 
 def lanzar_stellarium_si_no_esta_activo():
     try:
@@ -1824,7 +1835,21 @@ def buscar_objetos():
                                "tipo": c["tipo"], "mag": mag, "_orden": 0})
     except Exception as e:
         log.warning("Búsqueda en cuerpos menores: %s", e)
-    # Primero los que encajan por su nombre, luego por el alternativo; dentro, los más brillantes
+    # Después, el catálogo completo del planetario (OpenNGC y estrellas): lo que no
+    # está en Esta noche, p. ej. "ngc 7331" o "albireo"
+    try:
+        ya = [o["id"] for o in esta_noche.cargar_catalogo()]
+        for f in catalogo_offline.buscar_patron(q, maximo=15, excluir_ids=ya):
+            detalle = f["id"]
+            if f["name_catalogo"] not in (f["id"], f["name"]):
+                detalle += f" · {f['name_catalogo']}"
+            detalle += f" · {f['type']}" + (f" · mag {f['mag']}" if f["mag"] is not None else "")
+            resultados.append({"nombre": f["name"], "detalle": detalle, "tipo": f["type"], "mag": f["mag"],
+                               "ra": f["ra"], "dec": f["dec"], "_orden": 2})
+    except Exception as e:
+        log.warning("Búsqueda en el catálogo local: %s", e)
+    # Primero los de Esta noche (por nombre, luego por el alternativo), después cometas y
+    # asteroides, y al final el catálogo completo; dentro de cada grupo, los más brillantes
     resultados.sort(key=lambda r: (r.pop("_orden", 0), r["mag"] is None, r["mag"] if r["mag"] is not None else 99))
     return jsonify({"resultados": resultados[:40]})
 
@@ -2553,20 +2578,30 @@ def goto_objeto():
                     fuente_coords = "Catálogo de ScopePower"
                 except ValueError:
                     return jsonify({"error": "Coordenadas no válidas."})
-            # Primero intentar con Stellarium
-            if coords is None and estado_stellarium():
+            # Orden de las fuentes: planetas y Luna (efemérides), catálogo local
+            # (OpenNGC + estrellas HYG, sin Internet), cometas y asteroides del MPC,
+            # Stellarium si está abierto, y por último Internet (JPL Horizons, SIMBAD).
+            if coords is None and nombre_objeto not in CUERPOS_SISTEMA_SOLAR:
+                ficha = catalogo_offline.buscar(objeto)
+                if ficha:
+                    ra, dec = ficha["ra"], ficha["dec"]
+                    coords = (ra, dec)
+                    info = ficha
+                    fuente_coords = ficha["fuente"]
+
+            if coords is None and cuerpos_menores.buscar(objeto) is None and estado_stellarium():
                 info = obtener_coords_desde_stellarium(objeto)
                 if info and "ra" in info and "dec" in info:
                     ra = info["ra"]
                     dec = info["dec"]
                     alt = info.get("alt", None)
                     altitud = alt
-                    fuente_coords = "Stellarium (prioritario)"
+                    fuente_coords = "Stellarium"
                     coords = (ra, dec)
                 else:
                     info = None  # ← Así forzamos fallback a métodos alternativos
-            
-            # Si Stellarium no está disponible o no encontró el objeto
+
+            # Si el catálogo local y Stellarium no lo tienen
             if coords is None:
                 if nombre_objeto in {
                     "sol", "luna", "mercurio", "venus", "marte",
@@ -2821,8 +2856,9 @@ def reemplazar_numeros_en_texto(texto):
 
 @app.route("/estado_stellarium")
 def verificar_estado_stellarium():
+    """Fuentes de coordenadas del GoTo: catálogo local (siempre) y Stellarium (si está abierto)."""
     disponible = estado_stellarium()
-    return jsonify({"disponible": disponible})
+    return jsonify({"disponible": disponible, "catalogo": catalogo_offline.resumen()})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -3629,7 +3665,8 @@ if __name__ == '__main__':
     # cuando el usuario entre (config: [General] lanzar_stellarium_al_arrancar)
     # Elementos orbitales de cometas y asteroides (MPC): renovar si hay red, en un hilo
     cuerpos_menores.actualizar_en_segundo_plano()
-    if config["General"].get("lanzar_stellarium_al_arrancar", "true").strip().lower() == "true":
+    catalogo_offline.precargar()
+    if usar_stellarium():
         threading.Thread(target=lanzar_stellarium_si_no_esta_activo, name="stellarium-arranque", daemon=True).start()
     if _config_anuncio_ip()["anunciar_ip"]:
         # Dicta IP y puerto cada 30 s hasta la primera conexión desde el móvil

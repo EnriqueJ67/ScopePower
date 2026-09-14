@@ -1,0 +1,119 @@
+# Nombres en español (u otras formas de decirlos) que no están en los catálogos de
+# static/atlas ni en catalogo_objetos.csv, para el GoTo por nombre o por voz.
+# Formato: nombre;id   (id tal como está en los catálogos: M31, NGC 7000, IC 5070,
+# C9, B033, Sirius, HIP 91262...). Se busca sin tildes ni espacios: "Nebulosa del Velo"
+# y "nebulosa del velo" son lo mismo. Los nombres de catalogo_objetos.csv ya valen.
+nombre;id
+# ── Estrellas ──
+Sirio;Sirius
+Arturo;Arcturus
+Espiga;Spica
+Polux;Pollux
+Castor;Castor
+Regulo;Regulus
+Estrella Polar;Polaris
+Polar;Polaris
+Procion;Procyon
+Denebola;Denebola
+Aldebaran;Aldebaran
+Rigel;Rigel
+Altair;Altair
+Capela;Capella
+Alfa Centauri;Rigil Kentaurus
+Alfa Centauro;Rigil Kentaurus
+Mizar;Mizar
+Albireo;Albireo
+Algol;Algol
+Betelgeuse;Betelgeuse
+Fomalhaut;Fomalhaut
+Achernar;Achernar
+Canopus;Canopus
+# ── Cielo profundo ──
+Nebulosa del Velo;NGC 6992
+Velo Este;NGC 6992
+Velo Oeste;NGC 6960
+Escoba de la Bruja;NGC 6960
+Galaxia del Remolino;M51
+Nebulosa de Norteamerica;NGC 7000
+Nebulosa de America del Norte;NGC 7000
+Nebulosa del Pelicano;IC 5070
+Nebulosa de la Laguna;M8
+Nebulosa del Cangrejo;M1
+Nebulosa de la Roseta;NGC 2237
+Roseta;NGC 2237
+Nebulosa del Corazon;IC 1805
+Nebulosa del Alma;IC 1848
+Galaxia del Cigarro;M82
+Galaxia de Bode;M81
+Nebulosa de la Burbuja;NGC 7635
+Casco de Thor;NGC 2359
+Nebulosa de la Helice;NGC 7293
+Nebulosa del Ojo de Gato;NGC 6543
+Nebulosa Esquimal;NGC 2392
+Nebulosa del Anillo;M57
+Nebulosa de la Haltera;M27
+Nebulosa de la Pesa;M27
+Nebulosa del Buho;M97
+Galaxia del Sombrero;M104
+Galaxia del Molinete;M101
+Galaxia del Triangulo;M33
+Cumulo de Hercules;M13
+Pleyades;M45
+Las Pleyades;M45
+Hiades;C41
+Doble Cumulo;C14
+Doble Cumulo de Perseo;C14
+Nebulosa de Orion;M42
+Gran Nebulosa de Orion;M42
+Cabeza de Caballo;B033
+Nebulosa de la Flama;NGC 2024
+Nebulosa de la Llama;NGC 2024
+Nebulosa de California;NGC 1499
+Nebulosa Iris;NGC 7023
+Nebulosa de la Medusa;IC 443
+Nebulosa del Mago;NGC 7380
+Galaxia del Girasol;M63
+Galaxia del Ojo Negro;M64
+Galaxia de la Aguja;NGC 4565
+Trio de Leo;M66
+Cumulo del Pato Salvaje;M11
+Cumulo de la Mariposa;M6
+Cumulo de Ptolomeo;M7
+Nebulosa Trifida;M20
+Nebulosa Omega;M17
+Nebulosa del Cisne;M17
+Nebulosa del Aguila;M16
+Nebulosa del Cono;NGC 2264
+Arbol de Navidad;NGC 2264
+Nebulosa Creciente;NGC 6888
+Nebulosa Medialuna;NGC 6888
+Galaxia del Escultor;NGC 253
+Galaxia de Centauro;NGC 5128
+Centauro A;NGC 5128
+Nebulosa de Carina;NGC 3372
+Nebulosa de la Quilla;NGC 3372
+Galaxia del Fuego Artificial;NGC 6946
+Galaxia de los Fuegos Artificiales;NGC 6946
+Galaxias Antena;NGC 4038
+Galaxia de la Ballena;NGC 4631
+Cumulo del Buho;NGC 457
+Cumulo ET;NGC 457
+Nebulosa Pacman;NGC 281
+Nebulosa de la Estrella Flameante;IC 405
+Nebulosa del Renacuajo;IC 410
+Nebulosa de la Trompa de Elefante;IC 1396
+Nebulosa Fantasma de Casiopea;IC 63
+Nebulosa del Hombre Corriendo;NGC 1977
+Nebulosa de la Cabeza de Mono;NGC 2174
+Nebulosa de la Tarantula;NGC 2070
+Joyero;NGC 4755
+Omega Centauri;NGC 5139
+47 Tucanae;NGC 104
+Nebulosa de Saturno;NGC 7009
+Nebulosa Parpadeante;NGC 6826
+Nebulosa de la Cueva;C9
+Nebulosa del Saco de Carbon;C99
+Gran Nube de Magallanes;ESO056-115
+Galaxia de Andromeda;M31
+Galaxia Andromeda;M31
+Andromeda;M31
