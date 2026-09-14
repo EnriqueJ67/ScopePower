@@ -31,6 +31,24 @@ OBJETIVOS = {
     "paisaje": {"nombre": "paisaje", "nivel": 0.75, "inicial": 0.005, "minima": 0.0001,  "maxima": 5.0,  "seguimiento": None},
 }
 MAX_INTENTOS = 6
+# Compensación de exposición del usuario, en EV (pasos de cámara): +1 EV = zona más
+# brillante al doble de nivel. Se aplica al nivel objetivo, no a la exposición, así la
+# búsqueda sigue convergiendo sola; el tope alto deja margen antes del blanco.
+COMPENSACION_MAX_EV = 3.0
+NIVEL_MINIMO, NIVEL_MAXIMO = 0.03, 0.92
+
+
+def con_compensacion(conf, ev):
+    """Copia de `conf` con el nivel objetivo corregido `ev` pasos (2^ev); ev puede ser un número o una función que lo devuelve."""
+    try:
+        ev = float(ev() if callable(ev) else (ev or 0.0))
+    except (TypeError, ValueError):
+        ev = 0.0
+    ev = max(-COMPENSACION_MAX_EV, min(COMPENSACION_MAX_EV, ev))
+    nuevo = dict(conf)
+    nuevo["nivel"] = max(NIVEL_MINIMO, min(NIVEL_MAXIMO, conf["nivel"] * 2.0 ** ev))
+    nuevo["ev"] = ev
+    return nuevo
 # ASCOM DriveRates: 0 sidéreo, 1 lunar, 2 solar, 3 rey
 VELOCIDADES = {"sidereo": 0, "lunar": 1, "solar": 2}
 CARPETA_TIMELAPSE = os.path.join("static", "timelapse")
@@ -257,7 +275,8 @@ class TrabajoFotoDia:
         log.info(texto)
 
     def iniciar(self, camara, objetivo, binning, exposicion_inicial=None, montura=None,
-                ruta_fits=None, ruta_web=None, al_terminar=None, voz=None, campo=1.0):
+                ruta_fits=None, ruta_web=None, al_terminar=None, voz=None, campo=1.0, compensacion=None):
+        """`compensacion`: EV (número o función que lo devuelve) que corrige el nivel objetivo, ver con_compensacion()."""
         if objetivo not in OBJETIVOS:
             raise ValueError(f"Objetivo desconocido: {objetivo}")
         with self._lock:
@@ -271,12 +290,12 @@ class TrabajoFotoDia:
             self.mensaje = "Preparando la cámara..."
             self.fase = "ajustando"
         hilo = threading.Thread(target=self._ejecutar, name="foto-dia", daemon=True,
-                                args=(camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_web, al_terminar, voz, campo))
+                                args=(camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_web, al_terminar, voz, campo, compensacion))
         hilo.start()
         return hilo
 
-    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_web, al_terminar, voz, campo=1.0):
-        conf = OBJETIVOS[objetivo]
+    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_web, al_terminar, voz, campo=1.0, compensacion=None):
+        conf = con_compensacion(OBJETIVOS[objetivo], compensacion)
         error = ""
         try:
             if montura is not None and conf["seguimiento"] and montura.esta_conectado():
@@ -310,6 +329,8 @@ class TrabajoFotoDia:
                 self.ruta_fits = ruta_fits or ""
                 self.exposicion, self.nivel, self.saturada = exposicion, round(nivel, 3), saturada
             texto = f"Foto de día: {formatear_exposicion(exposicion)}, nivel {100 * nivel:.0f} %"
+            if conf["ev"]:
+                texto += f" ({conf['ev']:+.1f} EV)"
             if saturada:
                 texto += " (sigue saturada con la exposición mínima: hace falta filtro o menos luz)"
             self._msg(texto, fase="final")
@@ -396,7 +417,8 @@ class TrabajoTimelapse:
         estado_captura.cancelar.set()
 
     def iniciar(self, camara, objetivo, binning, total, intervalo, exposicion_inicial=None,
-                montura=None, al_terminar=None, voz=None, raiz=None, campo=1.0):
+                montura=None, al_terminar=None, voz=None, raiz=None, campo=1.0, compensacion=None):
+        """`compensacion`: EV (número o función) que corrige el nivel objetivo; si es función se relee en cada foto."""
         if objetivo not in OBJETIVOS:
             raise ValueError(f"Objetivo desconocido: {objetivo}")
         total, intervalo = int(total), float(intervalo)
@@ -417,11 +439,11 @@ class TrabajoTimelapse:
             self.carpeta = os.path.join(raiz or CARPETA_TIMELAPSE, f"{self.inicio}_{objetivo}")
             self.mensaje = "Preparando el timelapse..."
         hilo = threading.Thread(target=self._ejecutar, name="timelapse", daemon=True,
-                                args=(camara, objetivo, binning, exposicion_inicial, montura, al_terminar, voz, campo))
+                                args=(camara, objetivo, binning, exposicion_inicial, montura, al_terminar, voz, campo, compensacion))
         hilo.start()
         return hilo
 
-    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, al_terminar, voz, campo=1.0):
+    def _ejecutar(self, camara, objetivo, binning, exposicion_inicial, montura, al_terminar, voz, campo=1.0, compensacion=None):
         import cv2
         conf = OBJETIVOS[objetivo]
         error = ""
@@ -451,8 +473,9 @@ class TrabajoTimelapse:
                     # Primera toma: búsqueda completa. Siguientes: la exposición anterior y como
                     # mucho dos correcciones, para no perder la cadencia
                     max_intentos = MAX_INTENTOS if n == 1 else 3
+                    conf_n = con_compensacion(conf, compensacion)     # la compensación vale desde la siguiente foto
                     frame, exposicion, nivel, saturada, _ = camara.ejecutar(
-                        lambda cam: capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos,
+                        lambda cam: capturar_ajustando(cam, conf_n, binning, prep, exposicion, max_intentos,
                                                        informar=lambda t, i=None: self._msg(f"Foto {n}/{self.total} · {t}"),
                                                        descripcion=f"Timelapse {n}", campo=campo),
                         timeout=180)

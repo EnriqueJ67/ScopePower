@@ -106,6 +106,14 @@
                     </select>
                     <small class="ayuda">Recorta por los bordes la foto, las tomas del timelapse y el vídeo, y mide la exposición solo en esa zona. El FITS sigue a campo completo. Con 260 mm de focal, el Sol y la Luna ocupan un 20 % del ancho del sensor.</small>
                 </div>
+                <!-- Compensación de la exposición automática, como el dial ±EV de una cámara. Se guarda en
+                     config.ini y el servidor la relee en cada foto: se puede mover con el continuo o el timelapse en marcha. -->
+                <div class="campo mt-2">
+                    <div class="rango-titulo"><span>Compensación de la exposición automática</span>
+                        <span><b id="dia-comp-v"></b> <button type="button" id="dia-comp-cero" class="btn btn-sm btn-ghost" onclick="cambiarCompensacionDia(0)" hidden>Normal</button></span></div>
+                    <input type="range" id="dia-comp" min="-9" max="9" step="1" value="0" oninput="cambiarCompensacionDia(this.value)">
+                    <small class="ayuda" id="dia-comp-ayuda"></small>
+                </div>
                 <div id="dia-info" class="texto-3 mt-2" style="font-size: 13px;"></div>
                 <div id="dia-intentos" class="texto-3 mt-1" style="font-size: 13px;"></div>
 
@@ -242,11 +250,35 @@
         }
     }
     function campoDia() { return parseInt(document.getElementById("dia-campo").value) || 100; }
+
+    // ——— Compensación ±EV de la exposición de día (slider en tercios de paso) ———
+    const NIVEL_OBJETIVO = {{ niveles_dia | tojson }};      // nivel normal de la zona más brillante, por objetivo
+    let compDia = 0, guardarCompTimer = null;               // tercios de EV: −9..+9
+    function evDia() { return compDia / 3; }
+    function nivelObjetivoDia() { return Math.min(0.92, Math.max(0.03, (NIVEL_OBJETIVO[objetivoDia] || 0.65) * Math.pow(2, evDia()))); }
+    function textoEv(ev) { return ev === 0 ? "0 EV" : (ev > 0 ? "+" : "−") + Math.abs(ev).toFixed(1).replace(".0", "").replace(".", ",") + " EV"; }
+    function pintarCompensacionDia() {
+        const ev = evDia(), s = document.getElementById("dia-comp");
+        if (parseInt(s.value) !== compDia) s.value = compDia;
+        document.getElementById("dia-comp-v").textContent = textoEv(ev) + (ev === 0 ? "" : ev > 0 ? " · más clara" : " · más oscura");
+        document.getElementById("dia-comp-cero").hidden = ev === 0;
+        const normal = Math.round(100 * (NIVEL_OBJETIVO[objetivoDia] || 0.65));
+        document.getElementById("dia-comp-ayuda").textContent = ev === 0
+            ? `La zona más brillante de la foto se lleva al ${normal} % del blanco (lo normal para ${NOMBRE_OBJETIVO[objetivoDia]}). Baja si ves zonas quemadas; sube si sale oscura.`
+            : `La zona más brillante irá al ${Math.round(100 * nivelObjetivoDia())} % del blanco en vez del ${normal} %. Vale desde la siguiente foto, también con el continuo o el timelapse en marcha.`;
+    }
+    function cambiarCompensacionDia(v) {
+        compDia = Math.max(-9, Math.min(9, parseInt(v) || 0));
+        pintarCompensacionDia();
+        clearTimeout(guardarCompTimer);
+        guardarCompTimer = setTimeout(() => guardarPreferencias({ foto_dia_compensacion: evDia() }), 250);
+    }
     function cambiarCampoDia() { guardarPreferencias({ foto_dia_campo: campoDia() }); }
     function elegirObjetivoDia(v) {
         objetivoDia = v;
         pintarModoDia();
         pintarUltimasDia();
+        pintarCompensacionDia();
         guardarPreferencias({ foto_dia_objetivo: v });
     }
     function guardarPreferencias(datos) {
@@ -422,6 +454,8 @@
     fetch("/preferencias").then(r => r.json()).then(p => {
         if (p.foto_dia_objetivo && NOMBRE_OBJETIVO[p.foto_dia_objetivo]) objetivoDia = p.foto_dia_objetivo;
         if (p.foto_dia_campo) document.getElementById("dia-campo").value = String(p.foto_dia_campo);
+        if (p.foto_dia_compensacion !== undefined) compDia = Math.max(-9, Math.min(9, Math.round(p.foto_dia_compensacion * 3)));
+        pintarCompensacionDia();
         if (p.foto_continua_guardar && AYUDA_GUARDAR[p.foto_continua_guardar]) guardarContinuo = p.foto_continua_guardar;
         modoDia = p.modo_dia === "on";
         pintarModoDia();
@@ -536,6 +570,7 @@
             est.innerHTML = u
                 ? `<span class="spinner"></span>Continuo · foto ${u.n} a las ${u.hora}` + (u.exposicion ? ` · ${formatearExp(u.exposicion)}` : "")
                   + (u.nivel !== null && u.nivel !== undefined ? ` · nivel ${Math.round(100 * u.nivel)} %` : "")
+                  + (u.ev ? ` (${textoEv(u.ev)})` : "")
                   + (u.dark ? " (dark restado)" : "") + (u.ganancia !== null && u.ganancia !== undefined ? ` · ganancia ${u.ganancia}` : "")
                 : `<span class="spinner"></span>${e.mensaje || "Empezando..."}`;
         } else if (e.terminado) {

@@ -405,6 +405,7 @@ PREFERENCIAS = {
     "modo_dia": ("Interfaz", "modo_dia", "texto"),                 # "on"/"off": la Foto de prueba arranca en modo día
     "foto_dia_objetivo": ("Interfaz", "foto_dia_objetivo", "texto"),   # sol | luna | paisaje
     "foto_dia_campo": ("Interfaz", "foto_dia_campo", "entero"),        # % del campo visible en el modo día (100, 75, 50, 35, 25)
+    "foto_dia_compensacion": ("Interfaz", "foto_dia_compensacion", "decimal"),   # EV (−3..+3) sobre la exposición automática de día
     "foto_continua_guardar": ("Interfaz", "foto_continua_guardar", "texto"),   # no | jpg | fits: qué guardar en el modo continuo
 }
 
@@ -439,6 +440,8 @@ def _leer_preferencias():
                 salida[clave] = json.loads(bruto)
             elif tipo == "entero":
                 salida[clave] = int(bruto)
+            elif tipo == "decimal":
+                salida[clave] = float(bruto)
             else:
                 salida[clave] = bruto
         except (ValueError, TypeError):
@@ -459,6 +462,8 @@ def preferencias():
                 valor = json.dumps(valor, ensure_ascii=False)
             elif tipo == "entero":
                 valor = int(valor)
+            elif tipo == "decimal":
+                valor = round(float(valor), 3)
             else:
                 valor = str(valor)[:200]
             _guardar_en_config(seccion, {clave_ini: valor})
@@ -1968,7 +1973,8 @@ def esta_noche_objetos():
 @app.route('/foto-prueba')
 def foto_prueba():
     """Página de foto de prueba: no dispara nada al abrirse; el botón de dentro captura."""
-    return render_template('imagen.html', mostrar_volver=True, hay_foto=os.path.exists(RUTA_IMAGEN_WEB))
+    return render_template('imagen.html', mostrar_volver=True, hay_foto=os.path.exists(RUTA_IMAGEN_WEB),
+                           niveles_dia={k: v["nivel"] for k, v in foto_dia.OBJETIVOS.items()})
 
 
 def sincronizar_con_ultima_foto():
@@ -2962,6 +2968,15 @@ def _campo_foto_dia(datos):
         return 1.0
 
 
+def _compensacion_foto_dia():
+    """EV de compensación de la exposición automática de día (slider de la web), releído en cada foto."""
+    try:
+        ev = float(_leer_preferencias().get("foto_dia_compensacion", 0.0))
+    except (TypeError, ValueError):
+        ev = 0.0
+    return max(-foto_dia.COMPENSACION_MAX_EV, min(foto_dia.COMPENSACION_MAX_EV, ev))
+
+
 def _config_foto_dia():
     """Última exposición que funcionó para cada objetivo ([FotoDia] en config.ini)."""
     cfg = configparser.ConfigParser()
@@ -3000,7 +3015,8 @@ def foto_dia_iniciar():
         foto_dia.trabajo_foto_dia.iniciar(camara, objetivo, _dispositivos()["binning"],
                                           exposicion_inicial=ultimas.get(objetivo), montura=montura,
                                           ruta_fits=RUTA_IMAGEN, ruta_web=RUTA_IMAGEN_WEB,
-                                          al_terminar=_al_terminar, voz=voz, campo=_campo_foto_dia(datos))
+                                          al_terminar=_al_terminar, voz=voz, campo=_campo_foto_dia(datos),
+                                          compensacion=_compensacion_foto_dia)
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     voz.decir(f"Foto de día de {foto_dia.OBJETIVOS[objetivo]['nombre']}", categoria="capturas")
@@ -3039,7 +3055,8 @@ def timelapse_iniciar():
                                            total=datos.get("fotos", 100), intervalo=datos.get("intervalo", 10),
                                            exposicion_inicial=ultimas.get(objetivo), montura=montura,
                                            al_terminar=_al_terminar, voz=voz,
-                                           raiz=ruta_absoluta(foto_dia.CARPETA_TIMELAPSE), campo=_campo_foto_dia(datos))
+                                           raiz=ruta_absoluta(foto_dia.CARPETA_TIMELAPSE), campo=_campo_foto_dia(datos),
+                                           compensacion=_compensacion_foto_dia)
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     return jsonify({"ok": True, "carpeta": os.path.basename(foto_dia.trabajo_timelapse.carpeta)})
@@ -3095,12 +3112,13 @@ def _capturador_dia_continuo(objetivo, campo, binning):
                 memoria["prep"] = foto_dia.preparar_camara(cam, conf)
             prep = memoria["prep"]
             max_intentos = foto_dia.MAX_INTENTOS if memoria["n"] == 0 else 3
+            conf_n = foto_dia.con_compensacion(conf, _compensacion_foto_dia())   # el slider vale desde la siguiente foto
             frame, exposicion, nivel, saturada, _ = foto_dia.capturar_ajustando(
-                cam, conf, binning, prep, memoria["exposicion"], max_intentos,
+                cam, conf_n, binning, prep, memoria["exposicion"], max_intentos,
                 descripcion=f"Continuo {memoria['n'] + 1}", campo=campo)
-            return frame, exposicion, nivel, saturada, prep
+            return frame, exposicion, nivel, saturada, prep, conf_n["ev"]
         try:
-            frame, exposicion, nivel, saturada, prep = camara.ejecutar(_sesion, timeout=180)
+            frame, exposicion, nivel, saturada, prep, ev = camara.ejecutar(_sesion, timeout=180)
         except CapturaCancelada:
             return {"ok": False, "mensaje": "⏹️ Captura cancelada", "cancelada": True}
         except ErrorHardware as e:
@@ -3122,7 +3140,8 @@ def _capturador_dia_continuo(objetivo, campo, binning):
             return {"ok": False, "mensaje": f"Error al guardar: {e}"}
         return {"ok": True, "mensaje": f"Foto de día: {foto_dia.formatear_exposicion(exposicion)}, nivel {100 * nivel:.0f} %"
                                        + (" (saturada)" if saturada else ""),
-                "exposicion": exposicion, "nivel": round(nivel, 3), "ganancia": prep["ganancia"], "dark": False, "archivo": archivo}
+                "exposicion": exposicion, "nivel": round(nivel, 3), "ganancia": prep["ganancia"], "dark": False,
+                "archivo": archivo, "ev": ev}
 
     def al_terminar(estado):
         if memoria["prep"] is not None:

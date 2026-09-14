@@ -166,7 +166,7 @@ class TrabajoContinuo:
                         self.errores_seguidos = 0
                         self.bytes += tamano
                         self.ultima = {"n": n, "hora": hora, "exposicion": resultado.get("exposicion"),
-                                       "nivel": resultado.get("nivel"),
+                                       "nivel": resultado.get("nivel"), "ev": resultado.get("ev"),
                                        "dark": bool(resultado.get("dark")), "ganancia": resultado.get("ganancia"),
                                        "archivo": os.path.basename(archivo) if archivo else ""}
                         self.version += 1
