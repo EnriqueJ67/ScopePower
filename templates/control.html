@@ -7,38 +7,7 @@
 <!-- Vertical: velocidad, pad, flechas. Apaisado: pad a la izquierda y velocidad + flechas a la derecha.
      Aquí no va ningún otro botón: se maneja sin mirar y acabaría pulsado por error. -->
 <div class="control-layout">
-    <div class="control-velocidad">
-        <div class="seccion-titulo" style="margin-top: 0;">Velocidad máxima</div>
-        <!-- El select lo lee el script (id="speed"); el grupo de botones solo lo cambia -->
-        <select id="speed" hidden>
-            <option value="0.1">Lenta (0,1°/s)</option>
-            <option value="0.5" selected>Media (0,5°/s)</option>
-            <option value="1.0">Rápida (1°/s)</option>
-            <option value="3.0">Muy rápida (3°/s)</option>
-        </select>
-        <div class="segmentado" id="speed-seg">
-            <button type="button" data-v="0.1">0,1°/s</button>
-            <button type="button" data-v="0.5">0,5°/s</button>
-            <button type="button" data-v="1.0">1°/s</button>
-            <button type="button" data-v="3.0">3°/s</button>
-        </div>
-        <div class="invertir">
-            <label class="switch"><input type="checkbox" id="inv-x"> Invertir izq./der.</label>
-            <label class="switch"><input type="checkbox" id="inv-y"> Invertir arriba/abajo</label>
-        </div>
-        <div id="pad-estado" class="pad-estado">Arrastra el dedo por el pad</div>
-    </div>
-
-    <div class="control-pad">
-        <div id="pad" class="pad">
-            <div class="pad-anillo"></div>
-            <div class="pad-cruz h"></div>
-            <div class="pad-cruz v"></div>
-            <span class="pad-letra n">N</span><span class="pad-letra s">S</span><span class="pad-letra e">E</span><span class="pad-letra w">W</span>
-            <svg id="pad-linea" class="pad-linea"><line x1="50%" y1="50%" x2="50%" y2="50%"/></svg>
-            <div id="pad-mando" class="pad-mando"></div>
-        </div>
-    </div>
+    {% include '_pad.html' %}
 
     <div class="control-flechas">
         <div class="telescope-grid">
@@ -66,50 +35,9 @@
         align-items: center;
         justify-items: center;
     }
-    .control-velocidad { grid-area: velocidad; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .control-pad { grid-area: pad; width: 100%; display: flex; justify-content: center; }
+    .control-velocidad { grid-area: velocidad; }
+    .control-pad { grid-area: pad; }
     .control-flechas { grid-area: flechas; margin-top: 4px; }
-
-    .invertir { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-size: 13.5px; }
-    .pad-estado { font-size: 14px; color: var(--text-2); min-height: 1.4em; font-variant-numeric: tabular-nums; }
-
-    /* ── Pad ── */
-    .pad {
-        position: relative;
-        width: min(80vw, 58vh, 420px);
-        height: min(80vw, 58vh, 420px);
-        border-radius: 50%;
-        background: radial-gradient(circle at 50% 45%, var(--surface-3) 0%, var(--surface) 55%, var(--bg-2) 100%);
-        border: 2px solid var(--border-2);
-        box-shadow: inset 0 0 40px rgba(0,0,0,0.45), var(--shadow);
-        touch-action: none;                 /* el navegador no hace scroll ni zoom con el dedo aquí */
-        user-select: none; -webkit-user-select: none;
-        -webkit-tap-highlight-color: transparent;
-        overflow: hidden;
-        transition: border-color .15s, box-shadow .15s;
-    }
-    .pad.activo { border-color: var(--accent-2); box-shadow: inset 0 0 40px rgba(0,0,0,0.45), 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-glow); }
-    .pad-anillo {                            /* zona muerta central */
-        position: absolute; left: 50%; top: 50%; width: 14%; height: 14%;
-        transform: translate(-50%, -50%); border-radius: 50%; border: 1.5px dashed var(--border-2);
-    }
-    .pad-cruz { position: absolute; background: var(--border-2); opacity: 0.7; }
-    .pad-cruz.h { left: 8%; right: 8%; top: 50%; height: 1px; }
-    .pad-cruz.v { top: 8%; bottom: 8%; left: 50%; width: 1px; }
-    .pad-letra { position: absolute; font-size: 12px; font-weight: 700; color: var(--text-3); letter-spacing: 0.05em; }
-    .pad-letra.n { top: 7%; left: 50%; transform: translateX(-50%); }
-    .pad-letra.s { bottom: 7%; left: 50%; transform: translateX(-50%); }
-    .pad-letra.e { right: 7%; top: 50%; transform: translateY(-50%); }
-    .pad-letra.w { left: 7%; top: 50%; transform: translateY(-50%); }
-    .pad-linea { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-    .pad-linea line { stroke: var(--accent-2); stroke-width: 3; stroke-linecap: round; opacity: 0.8; }
-    .pad-mando {
-        position: absolute; left: 50%; top: 50%; width: 22%; height: 22%;
-        transform: translate(-50%, -50%); border-radius: 50%;
-        background: linear-gradient(160deg, var(--accent-2), var(--accent)); border: 3px solid rgba(255,255,255,0.85);
-        box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 18px var(--accent-glow);
-        pointer-events: none;
-    }
 
     /* ── Flechas (secundarias, más pequeñas) ── */
     .telescope-grid {
@@ -162,26 +90,8 @@
 </style>
 
 <script>
+    // El pad, la velocidad y vibrar() están en static/js/pad.js (cargado por _pad.html)
     const sonidoClick = new Audio("/static/click.wav");
-
-    function vibrar(ms) {
-        if (navigator.vibrate) {
-            navigator.vibrate(ms);
-        }
-    }
-
-    // ── Velocidad: grupo de botones que escribe en el <select id="speed"> ──
-    function pintarVelocidad() {
-        const v = document.getElementById("speed").value;
-        document.querySelectorAll("#speed-seg button").forEach(b => b.classList.toggle("activo", b.dataset.v === v));
-    }
-    document.querySelectorAll("#speed-seg button").forEach(b => b.addEventListener("click", () => {
-        const sel = document.getElementById("speed");
-        sel.value = b.dataset.v;
-        sel.dispatchEvent(new Event("change"));
-        pintarVelocidad();
-        vibrar(15);
-    }));
 
     // ── Flechas (como siempre: velocidad fija mientras se mantiene pulsado) ──
     function move(direction) {
@@ -196,109 +106,5 @@
         sonidoClick.play();
         vibrar(20);
     }
-
-    // ── Pad: velocidad proporcional a la distancia del dedo al centro ──
-    //   · zona muerta del 14 % para que un dedo quieto no mueva nada
-    //   · curva exponente 1.7: precisión fina cerca del centro, rapidez en el borde
-    //   · se envía como mucho cada 150 ms y solo si la velocidad cambia; al soltar, parada inmediata
-    //   · el servidor para solo los ejes si deja de recibir órdenes (1,2 s)
-    const ZONA_MUERTA = 0.14, EXPONENTE = 1.7, INTERVALO_MS = 150;
-    const pad = document.getElementById("pad");
-    const mando = document.getElementById("pad-mando");
-    const linea = document.querySelector("#pad-linea line");
-    const estado = document.getElementById("pad-estado");
-    const invX = document.getElementById("inv-x"), invY = document.getElementById("inv-y");
-    let puntero = null, ultimoEnvio = 0, ultimoVx = 0, ultimoVy = 0, temporizador = null, maxDriver = [null, null];
-
-    try {
-        invX.checked = localStorage.getItem("pad_inv_x") === "1";
-        invY.checked = localStorage.getItem("pad_inv_y") === "1";
-        const v = localStorage.getItem("pad_velocidad"); if (v) document.getElementById("speed").value = v;
-    } catch (e) {}
-    pintarVelocidad();
-    invX.addEventListener("change", () => { try { localStorage.setItem("pad_inv_x", invX.checked ? "1" : "0"); } catch (e) {} });
-    invY.addEventListener("change", () => { try { localStorage.setItem("pad_inv_y", invY.checked ? "1" : "0"); } catch (e) {} });
-    document.getElementById("speed").addEventListener("change", ev => { try { localStorage.setItem("pad_velocidad", ev.target.value); } catch (e) {} });
-
-    fetch("/montura/velocidades").then(r => r.json()).then(d => { maxDriver = [d.max_eje0, d.max_eje1]; }).catch(() => {});
-
-    function curva(x) {
-        const a = Math.abs(x);
-        if (a < ZONA_MUERTA) return 0;
-        return Math.sign(x) * Math.pow((a - ZONA_MUERTA) / (1 - ZONA_MUERTA), EXPONENTE);
-    }
-
-    function pintar(nx, ny) {
-        mando.style.left = (50 + nx * 50) + "%";
-        mando.style.top = (50 + ny * 50) + "%";
-        linea.setAttribute("x2", (50 + nx * 50) + "%");
-        linea.setAttribute("y2", (50 + ny * 50) + "%");
-    }
-
-    function enviar(vx, vy, forzar) {
-        const ahora = Date.now();
-        const cambio = Math.abs(vx - ultimoVx) + Math.abs(vy - ultimoVy);
-        if (!forzar && (ahora - ultimoEnvio < INTERVALO_MS || cambio < 0.01)) return;
-        ultimoEnvio = ahora; ultimoVx = vx; ultimoVy = vy;
-        fetch("/pad/mover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vx, vy }) })
-            .then(r => r.json())
-            .then(d => { if (!d.ok) { estado.textContent = "❌ " + (d.mensaje || "Error"); soltar(); } })
-            .catch(() => { estado.textContent = "❌ Sin respuesta del servidor"; });
-    }
-
-    function parar(porBeacon) {
-        ultimoVx = ultimoVy = 0; ultimoEnvio = 0;
-        if (porBeacon && navigator.sendBeacon) { navigator.sendBeacon("/pad/parar"); return; }
-        fetch("/pad/parar", { method: "POST", keepalive: true }).catch(() => {});
-    }
-
-    function procesar(ev) {
-        const rect = pad.getBoundingClientRect();
-        const r = rect.width / 2;
-        let nx = (ev.clientX - rect.left - r) / r;
-        let ny = (ev.clientY - rect.top - r) / r;
-        const d = Math.hypot(nx, ny);
-        if (d > 1) { nx /= d; ny /= d; }               // el mando no sale del círculo
-        pintar(nx, ny);
-        const vmax = parseFloat(document.getElementById("speed").value);
-        let vx = curva(nx) * vmax * (invX.checked ? -1 : 1);
-        let vy = -curva(ny) * vmax * (invY.checked ? -1 : 1);   // arriba en pantalla = eje 1 positivo (N)
-        if (maxDriver[0]) vx = Math.max(-maxDriver[0], Math.min(maxDriver[0], vx));
-        if (maxDriver[1]) vy = Math.max(-maxDriver[1], Math.min(maxDriver[1], vy));
-        vx = Math.round(vx * 1000) / 1000; vy = Math.round(vy * 1000) / 1000;
-        estado.textContent = (vx === 0 && vy === 0) ? "● Centro: parado" :
-            `↔ ${vx >= 0 ? "E" : "W"} ${Math.abs(vx).toFixed(2)}°/s   ↕ ${vy >= 0 ? "N" : "S"} ${Math.abs(vy).toFixed(2)}°/s`;
-        enviar(vx, vy, false);
-    }
-
-    function soltar() {
-        if (puntero === null) return;
-        try { pad.releasePointerCapture(puntero); } catch (e) {}
-        puntero = null;
-        clearInterval(temporizador); temporizador = null;
-        pad.classList.remove("activo");
-        pintar(0, 0);
-        parar(false);
-        estado.textContent = "● Parado";
-        vibrar(20);
-    }
-
-    pad.addEventListener("pointerdown", ev => {
-        if (puntero !== null) return;                   // un solo dedo
-        puntero = ev.pointerId;
-        pad.setPointerCapture(puntero);
-        pad.classList.add("activo");
-        vibrar(30);
-        procesar(ev);
-        // Reenvío periódico aunque el dedo esté quieto: mantiene vivo el vigilante del servidor
-        temporizador = setInterval(() => { if (puntero !== null) enviar(ultimoVx, ultimoVy, true); }, 500);
-        ev.preventDefault();
-    });
-    pad.addEventListener("pointermove", ev => { if (ev.pointerId === puntero) { procesar(ev); ev.preventDefault(); } });
-    ["pointerup", "pointercancel", "lostpointercapture"].forEach(t => pad.addEventListener(t, ev => { if (ev.pointerId === puntero) soltar(); }));
-
-    // Si la página se oculta o se cierra con el dedo puesto, parar la montura
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") { if (puntero !== null) soltar(); parar(true); } });
-    window.addEventListener("pagehide", () => parar(true));
 </script>
 {% endblock %}

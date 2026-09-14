@@ -27,8 +27,19 @@
         </div>
     </div>
 
-    <div class="foto-controles">
-        <div class="card">
+    <!-- Paneles plegables, en el orden que elija el usuario (se guarda en config.ini vía /preferencias, como en Apilado) -->
+    <div class="foto-controles" id="paneles-foto">
+        <section class="card panel" data-panel="captura">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-foto"/></svg>Captura</h3>
+                <span id="captura-sub" class="panel-sub"></span>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
             <div class="acciones-grid">
                 <button id="btn-foto" class="btn btn-primary btn-lg" onclick="hacerFoto()"><svg><use href="#i-foto"/></svg>Hacer foto</button>
                 <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;"><svg><use href="#i-stop"/></svg>Cancelar</button>
@@ -75,15 +86,22 @@
             </div>
             <div id="estado-foto" class="estado mt-2"></div>
             <div id="estado-sync" class="estado"></div>
-        </div>
+            </div>
+        </section>
 
         <!-- ─── Modo día: exposición automática para Sol (con filtro), Luna y paisaje ─── -->
-        <div class="card" id="card-dia">
-            <div class="card-header">
+        <section class="card panel" data-panel="dia" id="card-dia">
+            <div class="panel-header" onclick="alternarPanel(this)">
                 <h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>Modo día</h3>
-                <label class="switch"><input type="checkbox" id="modo-dia" onchange="cambiarModoDia()"> Activado</label>
+                <!-- El interruptor va en la cabecera para poder activarlo con el panel plegado -->
+                <label class="switch" style="flex: none;" onclick="event.stopPropagation()"><input type="checkbox" id="modo-dia" onchange="cambiarModoDia()"> Activado</label>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
             </div>
-            <div id="dia-cuerpo" hidden>
+            <div id="dia-cuerpo" class="panel-cuerpo" hidden>
                 <p class="card-sub">La app busca sola la exposición, de microsegundos a segundos, con la ganancia al mínimo y sin darks. Elige qué vas a fotografiar:</p>
                 <div class="segmentado" id="dia-objetivo">
                     <button type="button" data-v="sol" onclick="elegirObjetivoDia('sol')">☀️ Sol</button>
@@ -149,19 +167,45 @@
                 </div>
                 <div id="tl-anteriores" class="mt-2"></div>
             </div>
-        </div>
+        </section>
 
-        <div class="card">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Vista previa</h3></div>
-            <div class="campo">
-                <label for="input-color">Intensidad del color</label>
-                <input type="number" id="input-color" class="form-control" min="0" max="3" step="0.1">
+        <!-- ─── Pad para mover la montura: centrar a mano el Sol o la Luna mirando la foto
+             (el mismo de Control manual: templates/_pad.html y static/js/pad.js) ─── -->
+        <section class="card panel" data-panel="pad">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-control"/></svg>Mover el telescopio</h3>
+                <span class="panel-sub">Sol o Luna a mano</span>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
             </div>
-            <div class="fila entre">
-                <button class="btn btn-secondary" onclick="guardarParametrosMTF()"><svg><use href="#i-guardar"/></svg>Guardar</button>
-                <div id="estado-mtf" class="estado"></div>
+            <div class="panel-cuerpo pad-cuerpo">
+                {% include '_pad.html' %}
             </div>
-        </div>
+        </section>
+
+        <section class="card panel" data-panel="vista-previa">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Vista previa</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="campo">
+                    <label for="input-color">Intensidad del color</label>
+                    <input type="number" id="input-color" class="form-control" min="0" max="3" step="0.1">
+                </div>
+                <div class="fila entre">
+                    <button class="btn btn-secondary" onclick="guardarParametrosMTF()"><svg><use href="#i-guardar"/></svg>Guardar</button>
+                    <div id="estado-mtf" class="estado"></div>
+                </div>
+            </div>
+        </section>
 
         <a href="{{ url_for('vista_calibracion') }}" class="btn btn-ghost btn-block"><svg><use href="#i-calibracion"/></svg>Calibración: darks y flats</a>
     </div>
@@ -176,6 +220,9 @@
     .tl-lista .nombre { flex: 1; min-width: 0; }
     .tl-lista .nombre small { display: block; color: var(--text-3); }
     .foto-controles .card + .card { margin-top: 0; }
+    /* Pad dentro del panel: más pequeño que en Control manual, del ancho de la columna como mucho */
+    .pad-cuerpo { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 4px; }
+    .pad-cuerpo .pad { width: min(100%, 300px); height: auto; aspect-ratio: 1 / 1; }
     /* Puntero de "Apunta aquí": capa del tamaño de la foto; el puntero es una diana con cruz */
     .puntero-capa { position: absolute; left: 0; top: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; }
     .puntero { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; pointer-events: none;
@@ -198,6 +245,56 @@
 <script>
     let sondeo = null;
     let hayFotoNueva = false;
+
+    // ——— Paneles de la columna de controles: orden y plegado, guardados en config.ini (foto_paneles) ———
+    //     Mismo esquema que la columna lateral de Apilado. El pad empieza plegado: se usa de tarde en tarde.
+    let prefPaneles = { orden: [], plegados: ["pad"] };
+    function aplicarPaneles() {
+        const cont = document.getElementById("paneles-foto");
+        const paneles = Array.from(cont.querySelectorAll(".panel"));
+        const orden = prefPaneles.orden || [];
+        // Un panel que no esté en el orden guardado (añadido después) se coloca justo tras "Captura"
+        const pos = p => { const i = orden.indexOf(p.dataset.panel); return i < 0 ? orden.indexOf("captura") + 0.5 : i; };
+        paneles.sort((a, b) => pos(a) - pos(b));
+        const enlace = cont.querySelector("a.btn-block");         // el enlace a Calibración se queda al final
+        paneles.forEach(p => {
+            cont.insertBefore(p, enlace);
+            p.classList.toggle("plegado", (prefPaneles.plegados || []).includes(p.dataset.panel));
+        });
+        paneles.forEach((p, i) => {
+            p.querySelector(".panel-subir").disabled = i === 0;
+            p.querySelector(".panel-bajar").disabled = i === paneles.length - 1;
+        });
+    }
+    // Se guarda con un pequeño retardo: varios toques seguidos hacen una sola escritura
+    let guardadoPaneles = null;
+    function guardarPaneles() {
+        const paneles = Array.from(document.querySelectorAll("#paneles-foto .panel"));
+        prefPaneles = {
+            orden: paneles.map(p => p.dataset.panel),
+            plegados: paneles.filter(p => p.classList.contains("plegado")).map(p => p.dataset.panel)
+        };
+        clearTimeout(guardadoPaneles);
+        guardadoPaneles = setTimeout(() => guardarPreferencias({ foto_paneles: prefPaneles }), 400);
+    }
+    function moverPanel(boton, delta) {
+        const panel = boton.closest(".panel");
+        const paneles = Array.from(document.querySelectorAll("#paneles-foto .panel"));
+        const i = paneles.indexOf(panel), j = i + delta;
+        if (j < 0 || j >= paneles.length) return;
+        [paneles[i], paneles[j]] = [paneles[j], paneles[i]];
+        prefPaneles.orden = paneles.map(p => p.dataset.panel);
+        aplicarPaneles();
+        guardarPaneles();
+    }
+    function alternarPanel(el) {
+        el.closest(".panel").classList.toggle("plegado");
+        guardarPaneles();
+    }
+    function desplegarPanel(nombre) {
+        const p = document.querySelector(`#paneles-foto .panel[data-panel="${nombre}"]`);
+        if (p && p.classList.contains("plegado")) { p.classList.remove("plegado"); guardarPaneles(); }
+    }
 
     function pintarProgreso(c) {
         const bloque = document.getElementById("barra-bloque");
@@ -242,6 +339,7 @@
     function cambiarModoDia() {
         modoDia = document.getElementById("modo-dia").checked;
         pintarModoDia();
+        if (modoDia) desplegarPanel("dia");
         guardarPreferencias({ modo_dia: modoDia ? "on" : "off" });
         if (!modoDia && seguimientoCambiado) {
             seguimientoCambiado = false;
@@ -452,6 +550,8 @@
 
     // Preferencias guardadas (modo día activado y objetivo) y últimas exposiciones
     fetch("/preferencias").then(r => r.json()).then(p => {
+        if (p.foto_paneles && Array.isArray(p.foto_paneles.orden)) prefPaneles = p.foto_paneles;
+        aplicarPaneles();
         if (p.foto_dia_objetivo && NOMBRE_OBJETIVO[p.foto_dia_objetivo]) objetivoDia = p.foto_dia_objetivo;
         if (p.foto_dia_campo) document.getElementById("dia-campo").value = String(p.foto_dia_campo);
         if (p.foto_dia_compensacion !== undefined) compDia = Math.max(-9, Math.min(9, Math.round(p.foto_dia_compensacion * 3)));
@@ -460,7 +560,7 @@
         modoDia = p.modo_dia === "on";
         pintarModoDia();
         pintarModoContinuo();
-    }).catch(() => { pintarModoDia(); pintarModoContinuo(); });
+    }).catch(() => { aplicarPaneles(); pintarModoDia(); pintarModoContinuo(); });
     fetch("/foto-dia/estado").then(r => r.json()).then(e => {
         ultimasDia = e.ultimas || {}; pintarUltimasDia();
         if (e.en_curso && !sondeoDia) { document.getElementById("btn-foto").disabled = true; sondeoDia = setInterval(sondearFotoDia, 700); }
@@ -480,6 +580,8 @@
         return (AYUDA_GUARDAR[guardarContinuo] || "") + ritmo;
     }
     function pintarBotonFoto() {
+        document.getElementById("captura-sub").textContent =
+            (modoDia ? `día · ${NOMBRE_OBJETIVO[objetivoDia]}` : "noche") + (modoContinuo ? " · continuo" : "");
         const btn = document.getElementById("btn-foto");
         if (modoDia && modoContinuo) btn.innerHTML = `<svg><use href="#i-play"/></svg>Continuo de día: ${NOMBRE_OBJETIVO[objetivoDia]}`;
         else if (modoDia) btn.innerHTML = `<svg><use href="#i-sol"/></svg>Foto de día: ${NOMBRE_OBJETIVO[objetivoDia]}`;

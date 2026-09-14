@@ -424,7 +424,8 @@ nav.barra a.encendido { color: var(--ok); }
 /* El título no se encoge; el subtítulo ocupa lo que sobra y se recorta con puntos suspensivos
    (si el título pudiera encogerse, se partía en dos líneas y el subtítulo se le montaba encima) */
 .panel-header .card-title { flex: none; min-width: 0; margin-right: auto; }
-.panel-sub { flex: 1 1 0; min-width: 0; font-size: 12.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+/* contain: inline-size → el subtítulo no cuenta como ancho mínimo de la columna (en móvil, un subtítulo largo ensanchaba la página) */
+.panel-sub { flex: 1 1 0; min-width: 0; contain: inline-size; font-size: 12.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
 .panel-botones { display: flex; gap: 2px; flex: none; }
 .panel-btn { width: 34px; height: 34px; border-radius: 9px; border: 0; background: transparent; color: var(--text-3); display: grid; place-items: center; cursor: pointer; padding: 0; }
 .panel-btn svg { width: 18px; height: 18px; }
@@ -435,6 +436,49 @@ nav.barra a.encendido { color: var(--ok); }
 .panel-cuerpo { padding: 0 16px 16px; }
 .panel.plegado .panel-cuerpo { display: none; }
 .panel.plegado .panel-sub { display: none; }
+
+/* ── Pad táctil para mover la montura (templates/_pad.html, static/js/pad.js) ──
+   Lo usan el control manual y el panel "Mover el telescopio" de la Foto de prueba */
+.control-velocidad { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.control-pad { width: 100%; display: flex; justify-content: center; }
+.invertir { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-size: 13.5px; }
+.pad-estado { font-size: 14px; color: var(--text-2); min-height: 1.4em; font-variant-numeric: tabular-nums; }
+.pad {
+    position: relative;
+    width: min(80vw, 58vh, 420px);
+    height: min(80vw, 58vh, 420px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, var(--surface-3) 0%, var(--surface) 55%, var(--bg-2) 100%);
+    border: 2px solid var(--border-2);
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.45), var(--shadow);
+    touch-action: none;                 /* el navegador no hace scroll ni zoom con el dedo aquí */
+    user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+    transition: border-color .15s, box-shadow .15s;
+}
+.pad.activo { border-color: var(--accent-2); box-shadow: inset 0 0 40px rgba(0,0,0,0.45), 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-glow); }
+.pad-anillo {                            /* zona muerta central */
+    position: absolute; left: 50%; top: 50%; width: 14%; height: 14%;
+    transform: translate(-50%, -50%); border-radius: 50%; border: 1.5px dashed var(--border-2);
+}
+.pad-cruz { position: absolute; background: var(--border-2); opacity: 0.7; }
+.pad-cruz.h { left: 8%; right: 8%; top: 50%; height: 1px; }
+.pad-cruz.v { top: 8%; bottom: 8%; left: 50%; width: 1px; }
+.pad-letra { position: absolute; font-size: 12px; font-weight: 700; color: var(--text-3); letter-spacing: 0.05em; }
+.pad-letra.n { top: 7%; left: 50%; transform: translateX(-50%); }
+.pad-letra.s { bottom: 7%; left: 50%; transform: translateX(-50%); }
+.pad-letra.e { right: 7%; top: 50%; transform: translateY(-50%); }
+.pad-letra.w { left: 7%; top: 50%; transform: translateY(-50%); }
+.pad-linea { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.pad-linea line { stroke: var(--accent-2); stroke-width: 3; stroke-linecap: round; opacity: 0.8; }
+.pad-mando {
+    position: absolute; left: 50%; top: 50%; width: 22%; height: 22%;
+    transform: translate(-50%, -50%); border-radius: 50%;
+    background: linear-gradient(160deg, var(--accent-2), var(--accent)); border: 3px solid rgba(255,255,255,0.85);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 18px var(--accent-glow);
+    pointer-events: none;
+}
 
 /* Foto del centrado y botones de siguiente paso (static/centrado.js) */
 .centrado-foto { margin-top: 12px; }

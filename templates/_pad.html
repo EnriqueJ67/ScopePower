@@ -1,0 +1,36 @@
+<!-- templates/_pad.html: pad táctil para mover la montura, con su selector de velocidad.
+     Lo incluyen el control manual (control.html) y el panel "Mover el telescopio" de la
+     Foto de prueba (imagen.html). La lógica está en static/js/pad.js; los estilos, en scopepower.css. -->
+<div class="control-velocidad">
+    <div class="seccion-titulo" style="margin-top: 0;">Velocidad máxima</div>
+    <!-- El select lo lee el script (id="speed"); el grupo de botones solo lo cambia -->
+    <select id="speed" hidden>
+        <option value="0.1">Lenta (0,1°/s)</option>
+        <option value="0.5" selected>Media (0,5°/s)</option>
+        <option value="1.0">Rápida (1°/s)</option>
+        <option value="3.0">Muy rápida (3°/s)</option>
+    </select>
+    <div class="segmentado" id="speed-seg">
+        <button type="button" data-v="0.1">0,1°/s</button>
+        <button type="button" data-v="0.5">0,5°/s</button>
+        <button type="button" data-v="1.0">1°/s</button>
+        <button type="button" data-v="3.0">3°/s</button>
+    </div>
+    <div class="invertir">
+        <label class="switch"><input type="checkbox" id="inv-x"> Invertir izq./der.</label>
+        <label class="switch"><input type="checkbox" id="inv-y"> Invertir arriba/abajo</label>
+    </div>
+    <div id="pad-estado" class="pad-estado">Arrastra el dedo por el pad</div>
+</div>
+
+<div class="control-pad">
+    <div id="pad" class="pad">
+        <div class="pad-anillo"></div>
+        <div class="pad-cruz h"></div>
+        <div class="pad-cruz v"></div>
+        <span class="pad-letra n">N</span><span class="pad-letra s">S</span><span class="pad-letra e">E</span><span class="pad-letra w">W</span>
+        <svg id="pad-linea" class="pad-linea"><line x1="50%" y1="50%" x2="50%" y2="50%"/></svg>
+        <div id="pad-mando" class="pad-mando"></div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/pad.js') }}?v=1"></script>

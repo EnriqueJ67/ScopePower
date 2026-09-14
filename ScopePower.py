@@ -399,6 +399,7 @@ def toggle_objetos_anotados():
 PREFERENCIAS = {
     # clave web: (sección, clave en config.ini, tipo)
     "apilado_paneles": ("Interfaz", "apilado_paneles", "json"),
+    "foto_paneles": ("Interfaz", "foto_paneles", "json"),         # orden y plegado de los paneles de la Foto de prueba
     "opcion_dark": ("Interfaz", "opcion_dark", "texto"),
     "numero_darks": ("Dispositivos", "numero_darks", "entero"),
     "numero_maximo_imagenes": ("Dispositivos", "numero_maximo_imagenes", "entero"),   # se puede cambiar con el apilado en marcha
