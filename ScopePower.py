@@ -49,6 +49,7 @@ import flats
 import secretos
 import centrado
 import foto_dia
+import foto_continua
 import alineacion
 import voz
 import esta_noche
@@ -404,6 +405,7 @@ PREFERENCIAS = {
     "modo_dia": ("Interfaz", "modo_dia", "texto"),                 # "on"/"off": la Foto de prueba arranca en modo día
     "foto_dia_objetivo": ("Interfaz", "foto_dia_objetivo", "texto"),   # sol | luna | paisaje
     "foto_dia_campo": ("Interfaz", "foto_dia_campo", "entero"),        # % del campo visible en el modo día (100, 75, 50, 35, 25)
+    "foto_continua_guardar": ("Interfaz", "foto_continua_guardar", "texto"),   # no | jpg | fits: qué guardar en el modo continuo
 }
 
 
@@ -488,7 +490,8 @@ def apilado_iniciar():
     datos = request.get_json(silent=True) or {}
     nuevo = bool(datos.get("nuevo", True))
     usar_dark = bool(datos.get("usar_dark", True))
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado)):
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
+                            ("foto continua", foto_continua.trabajo_continuo)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     if nuevo:
@@ -664,7 +667,7 @@ bucle = BucleCaptura(
     capturar=lambda usar_dark: capturar_y_guardar(apilar=True, usar_dark=usar_dark,
                                                   generar_preview=False, descripcion="Apilado"),
     camara=camara,
-    otros_trabajos=(darks.trabajo_darks, centrado.trabajo_centrado),
+    otros_trabajos=(darks.trabajo_darks, centrado.trabajo_centrado, foto_continua.trabajo_continuo),
     dither=hacer_dither,
 )
 _cfg_dither = _config_dithering()
@@ -1588,7 +1591,7 @@ def montura_velocidades():
 import numpy as np
 from astropy.io import fits
 
-def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura", ganancia=None):
+def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura", ganancia=None, copia=None):
     """
     Expone, calibra (dark/flat), escribe static/captura.fits y, si `apilar`,
     una copia en capturas/ que recoge el apilador. Devuelve un dict:
@@ -1596,6 +1599,9 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
       {"ok": False, "mensaje": ..., "cancelada": bool}
     No usa `request`: sirve tanto para la ruta web como para el bucle del servidor.
     `ganancia`: solo para esta captura (Foto de prueba); si es None, la de config.ini.
+    `copia`: None o {"carpeta", "formato" ("fits" | "jpg"), "nombre"} para guardar además
+    esta foto en una carpeta (modo continuo). El FITS es el mismo que static/captura.fits;
+    el JPG es la foto revelada a resolución completa. Su ruta vuelve en "archivo".
     """
     # Si la cámara ya está exponiendo, no encolar otra captura detrás
     if camara.ocupado:
@@ -1702,6 +1708,13 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         hdu.writeto(RUTA_IMAGEN, overwrite=True)
         ruta_guardada = RUTA_IMAGEN
 
+        # ───── Copia de esta foto en la carpeta de la serie (modo continuo) ─────
+        archivo_copia = None
+        if copia and copia.get("formato") == "fits":
+            os.makedirs(copia["carpeta"], exist_ok=True)
+            archivo_copia = os.path.join(copia["carpeta"], copia["nombre"] + ".fits")
+            hdu.writeto(archivo_copia, overwrite=True)
+
         # ───── Guardar para apilado si se solicita ─────
         if apilar:
             os.makedirs("capturas", exist_ok=True)
@@ -1725,7 +1738,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
 
         if not generar_preview:
             return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
-                    "dark": dark_aplicado, "ganancia": ganancia_real}
+                    "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia}
 
         # ───   Debayer para preview en RGB   ───
         # imagen_fits aquí es un array 2D (raw CFA de la cámara, uint16).
@@ -1754,9 +1767,14 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         else:
             imagen_web = imagen_mtf
         guardar_jpg_web(RUTA_IMAGEN_WEB, imagen_web)
+        if copia and copia.get("formato") == "jpg":
+            # La foto revelada entera (no la reducida de la web), para tener la serie sin el peso del FITS
+            os.makedirs(copia["carpeta"], exist_ok=True)
+            archivo_copia = os.path.join(copia["carpeta"], copia["nombre"] + ".jpg")
+            cv2.imwrite(archivo_copia, imagen_web, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
         return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
-                "dark": dark_aplicado, "ganancia": ganancia_real}
+                "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia}
 
     except Exception as e:
         log.exception("Error al procesar la captura")
@@ -2405,7 +2423,8 @@ def alineacion_iniciar():
     """Alineación automática de varios puntos por plate solving (ver alineacion.py)."""
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de alinear"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado)):
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
+                            ("foto continua", foto_continua.trabajo_continuo)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     datos = request.get_json(silent=True) or {}
@@ -2966,7 +2985,8 @@ def foto_dia_iniciar():
         return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado)):
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
+                            ("foto continua", foto_continua.trabajo_continuo)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     ultimas = _config_foto_dia()
@@ -3004,7 +3024,8 @@ def timelapse_iniciar():
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
-                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia)):
+                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
+                            ("foto continua", foto_continua.trabajo_continuo)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     ultimas = _config_foto_dia()
@@ -3055,6 +3076,49 @@ def timelapse_video():
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     return jsonify({"ok": True})
+
+
+# ───────────────────────── Modo continuo de la Foto de prueba ─────────────────────────
+@app.route('/continuo/iniciar', methods=["POST"])
+def continuo_iniciar():
+    """
+    Foto de prueba tras foto de prueba hasta que se pare (ver foto_continua.py).
+    JSON: {"guardar": "no" | "jpg" | "fits", "ganancia": entero opcional}
+    """
+    datos = request.get_json(silent=True) or {}
+    guardar = str(datos.get("guardar", "no")).lower().strip()
+    if guardar not in foto_continua.FORMATOS:
+        return jsonify({"ok": False, "error": "Formato desconocido (no, jpg o fits)"}), 400
+    try:
+        ganancia = int(datos["ganancia"]) if str(datos.get("ganancia", "")).strip() != "" else None
+    except (TypeError, ValueError):
+        ganancia = None
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
+                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
+                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    try:
+        foto_continua.trabajo_continuo.iniciar(
+            capturar=lambda copia: capturar_y_guardar(descripcion="Continuo", ganancia=ganancia, copia=copia),
+            camara=camara, guardar=guardar, ganancia=ganancia,
+            raiz=ruta_absoluta(foto_continua.CARPETA_CONTINUO), voz=voz)
+    except (RuntimeError, ValueError) as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True, "estado": foto_continua.trabajo_continuo.estado()})
+
+
+@app.route('/continuo/estado')
+def continuo_estado():
+    return jsonify(foto_continua.trabajo_continuo.estado())
+
+
+@app.route('/continuo/parar', methods=["POST"])
+def continuo_parar():
+    foto_continua.trabajo_continuo.parar()
+    return jsonify({"mensaje": "⏹️ Parando el modo continuo..."})
 
 
 @app.route('/foto-dia/seguimiento', methods=["POST"])
@@ -3147,6 +3211,8 @@ def darks_generar():
     n = int(datos.get("n", conf["numero_darks"]))
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de generar darks"}), 409
+    if foto_continua.trabajo_continuo.en_curso:
+        return jsonify({"ok": False, "error": "El modo continuo de la Foto de prueba está en marcha; páralo antes"}), 409
     if n != conf["numero_darks"]:
         _guardar_en_config("Dispositivos", {"numero_darks": n})   # se recuerda para la próxima vez
     try:
@@ -3178,7 +3244,7 @@ def flats_iniciar():
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
-                            ("alineación", alineacion.trabajo_alineacion)):
+                            ("alineación", alineacion.trabajo_alineacion), ("foto continua", foto_continua.trabajo_continuo)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     datos = request.get_json(silent=True) or {}

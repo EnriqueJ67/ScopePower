@@ -82,7 +82,7 @@ if not exist "%DESTINO%\secretos.ini" (
 )
 
 echo  [6/7] Carpetas de datos del PC de campo (se crean vacias si faltan)
-for %%D in (capturas calibraciones logs static\fotos static\timelapse) do (
+for %%D in (capturas calibraciones logs static\fotos static\timelapse static\continuo) do (
     if not exist "%DESTINO%\%%D\" mkdir "%DESTINO%\%%D"
 )
 

@@ -32,6 +32,7 @@
             <div class="acciones-grid">
                 <button id="btn-foto" class="btn btn-primary btn-lg" onclick="hacerFoto()"><svg><use href="#i-foto"/></svg>Hacer foto</button>
                 <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;"><svg><use href="#i-stop"/></svg>Cancelar</button>
+                <button id="btn-continuo-parar" class="btn btn-danger btn-lg" onclick="pararContinuo()" hidden><svg><use href="#i-stop"/></svg>Parar</button>
                 <button id="btn-sync" class="btn btn-secondary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-sync"/></svg>Sincronizar telescopio con la foto</button>
                 <button id="btn-puntero" class="btn btn-secondary" onclick="alternarPuntero()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-goto"/></svg>Apunta aquí</button>
             </div>
@@ -54,6 +55,24 @@
                 </span>
             </div>
             <div id="ganancia-ayuda" class="texto-3" style="font-size: 12.5px;"></div>
+            <!-- Modo continuo: una foto tras otra en el servidor hasta que se pare (ver foto_continua.py).
+                 Cada foto puede guardarse en JPG (revelada, pocos MB) o FITS (en bruto, 18 MB) para no llenar el disco sin querer. -->
+            <div id="fila-continuo" class="fila mt-2" style="justify-content: space-between;">
+                <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-continuo" onchange="cambiarModoContinuo()"> Modo continuo</label>
+                <span class="texto-3" style="font-size: 12.5px;">una foto tras otra hasta que pares</span>
+            </div>
+            <div id="continuo-panel" hidden>
+                <div class="fila mt-1" style="justify-content: space-between;">
+                    <span class="texto-2" style="font-size: 14px;">Guardar cada foto</span>
+                    <div class="segmentado" id="continuo-guardar">
+                        <button type="button" data-v="no" onclick="elegirGuardarContinuo('no')">No</button>
+                        <button type="button" data-v="jpg" onclick="elegirGuardarContinuo('jpg')">JPG</button>
+                        <button type="button" data-v="fits" onclick="elegirGuardarContinuo('fits')">FITS</button>
+                    </div>
+                </div>
+                <div id="continuo-ayuda" class="texto-3" style="font-size: 12.5px;"></div>
+                <div id="continuo-info" class="texto-3 mt-1" style="font-size: 13px;"></div>
+            </div>
             <div id="estado-foto" class="estado mt-2"></div>
             <div id="estado-sync" class="estado"></div>
         </div>
@@ -200,9 +219,9 @@
         document.getElementById("card-dia").classList.toggle("card-acento", modoDia);
         document.querySelectorAll("#dia-objetivo button").forEach(b => b.classList.toggle("activo", b.dataset.v === objetivoDia));
         document.getElementById("dia-aviso-sol").hidden = !(modoDia && objetivoDia === "sol");
-        document.getElementById("btn-foto").innerHTML = modoDia
-            ? `<svg><use href="#i-sol"/></svg>Foto de día: ${NOMBRE_OBJETIVO[objetivoDia]}`
-            : `<svg><use href="#i-foto"/></svg>Hacer foto`;
+        pintarBotonFoto();
+        document.getElementById("fila-continuo").hidden = modoDia;  // de día ya está el timelapse
+        document.getElementById("continuo-panel").hidden = modoDia || !modoContinuo;
         document.getElementById("btn-sync").hidden = modoDia;     // de día no hay plate solving
         document.getElementById("btn-puntero").hidden = modoDia;
         if (modoDia && punteroActivo) { punteroActivo = false; pintarModoPuntero(); }
@@ -403,16 +422,131 @@
     fetch("/preferencias").then(r => r.json()).then(p => {
         if (p.foto_dia_objetivo && NOMBRE_OBJETIVO[p.foto_dia_objetivo]) objetivoDia = p.foto_dia_objetivo;
         if (p.foto_dia_campo) document.getElementById("dia-campo").value = String(p.foto_dia_campo);
+        if (p.foto_continua_guardar && AYUDA_GUARDAR[p.foto_continua_guardar]) guardarContinuo = p.foto_continua_guardar;
         modoDia = p.modo_dia === "on";
         pintarModoDia();
-    }).catch(() => pintarModoDia());
+        pintarModoContinuo();
+    }).catch(() => { pintarModoDia(); pintarModoContinuo(); });
     fetch("/foto-dia/estado").then(r => r.json()).then(e => {
         ultimasDia = e.ultimas || {}; pintarUltimasDia();
         if (e.en_curso && !sondeoDia) { document.getElementById("btn-foto").disabled = true; sondeoDia = setInterval(sondearFotoDia, 700); }
     }).catch(() => {});
 
+    // ——— Modo continuo ———
+    let modoContinuo = false, guardarContinuo = "no", sondeoContinuo = null, ultimaVersionContinuo = -1, continuoActivo = false;
+    const AYUDA_GUARDAR = {
+        no: "Solo se ve en pantalla; no se guarda nada. Cada foto tarda la exposición de Configuración más unos segundos de descarga y revelado.",
+        jpg: "Cada foto se guarda revelada a resolución completa (unos 2–4 MB) en static/continuo/. Para tener la serie sin llenar el disco.",
+        fits: "Cada foto se guarda en bruto, 16 bits (unos 18 MB con la Saturn-C), en static/continuo/. Solo si luego vas a apilarlas o medirlas: el disco se llena deprisa.",
+    };
+    function pintarBotonFoto() {
+        const btn = document.getElementById("btn-foto");
+        if (modoDia) btn.innerHTML = `<svg><use href="#i-sol"/></svg>Foto de día: ${NOMBRE_OBJETIVO[objetivoDia]}`;
+        else if (modoContinuo) btn.innerHTML = `<svg><use href="#i-play"/></svg>Empezar modo continuo`;
+        else btn.innerHTML = `<svg><use href="#i-foto"/></svg>Hacer foto`;
+    }
+    function pintarModoContinuo() {
+        document.getElementById("modo-continuo").checked = modoContinuo;
+        document.getElementById("continuo-panel").hidden = modoDia || !modoContinuo;
+        document.querySelectorAll("#continuo-guardar button").forEach(b => b.classList.toggle("activo", b.dataset.v === guardarContinuo));
+        document.getElementById("continuo-ayuda").textContent = AYUDA_GUARDAR[guardarContinuo] || "";
+        pintarBotonFoto();
+    }
+    function cambiarModoContinuo() {
+        modoContinuo = document.getElementById("modo-continuo").checked;
+        pintarModoContinuo();
+    }
+    function elegirGuardarContinuo(v) {
+        if (continuoActivo) return;      // se elige antes de empezar
+        guardarContinuo = v;
+        pintarModoContinuo();
+        guardarPreferencias({ foto_continua_guardar: v });
+    }
+    function tamanoLegible(b) {
+        if (!b) return "0 MB";
+        if (b >= 1024 ** 3) return (b / 1024 ** 3).toFixed(1) + " GB";
+        const mb = b / 1024 ** 2;
+        return (mb < 10 ? mb.toFixed(1) : Math.round(mb)) + " MB";
+    }
+    function empezarContinuo() {
+        const est = document.getElementById("estado-foto");
+        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Empezando el modo continuo...';
+        document.getElementById("estado-sync").textContent = "";
+        const g = document.getElementById("ganancia-prueba").value.trim();
+        fetch("/continuo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guardar: guardarContinuo, ganancia: g }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
+                if (!sondeoContinuo) sondeoContinuo = setInterval(sondearContinuo, 1000);
+                sondearContinuo();
+            })
+            .catch(err => { est.className = "estado err mt-2"; est.textContent = "❌ " + err; });
+    }
+    function pararContinuo() {
+        document.getElementById("btn-continuo-parar").disabled = true;
+        fetch("/continuo/parar", { method: "POST" }).catch(() => {});
+    }
+    function pintarContinuo(e) {
+        const activo = !!e.en_curso;
+        continuoActivo = activo;
+        document.getElementById("btn-foto").hidden = activo;
+        const parar = document.getElementById("btn-continuo-parar");
+        parar.hidden = !activo;
+        if (activo) parar.disabled = false;
+        document.getElementById("modo-continuo").disabled = activo;
+        document.getElementById("modo-dia").disabled = activo;
+        document.getElementById("ganancia-prueba").disabled = activo;
+        document.querySelectorAll("#continuo-guardar button").forEach(b => b.disabled = activo);
+        // Mientras dura, la foto cambia cada pocos segundos: sincronizar y "Apunta aquí" esperan a que pare
+        document.getElementById("btn-sync").disabled = activo || !hayFotoNueva;
+        document.getElementById("btn-puntero").disabled = activo || !hayFotoNueva;
+        if (activo && punteroActivo) { punteroActivo = false; pintarModoPuntero(); }
+        if (activo) {
+            modoContinuo = true;
+            guardarContinuo = e.guardar || guardarContinuo;
+            pintarModoContinuo();
+            pintarProgreso(e.captura);
+        }
+        const est = document.getElementById("estado-foto");
+        if (e.ultima && e.version !== ultimaVersionContinuo) {
+            ultimaVersionContinuo = e.version;
+            document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
+            hayFotoNueva = true;
+        }
+        if (activo) {
+            const u = e.ultima;
+            est.className = "estado mt-2";
+            est.innerHTML = u
+                ? `<span class="spinner"></span>Continuo · foto ${u.n} a las ${u.hora}` + (u.exposicion ? ` · ${formatearExp(u.exposicion)}` : "")
+                  + (u.dark ? " (dark restado)" : "") + (u.ganancia !== null && u.ganancia !== undefined ? ` · ganancia ${u.ganancia}` : "")
+                : `<span class="spinner"></span>${e.mensaje || "Empezando..."}`;
+        } else if (e.terminado) {
+            pintarProgreso(null);
+            est.className = "estado " + (e.error ? "warn" : "ok") + " mt-2";
+            est.textContent = (e.error ? "⚠️ " : "✅ ") + e.mensaje;
+            document.getElementById("btn-sync").disabled = !hayFotoNueva;
+            document.getElementById("btn-puntero").disabled = !hayFotoNueva;
+        }
+        const info = document.getElementById("continuo-info");
+        if ((activo || e.terminado) && e.guardar && e.guardar !== "no" && e.carpeta) {
+            info.textContent = `${e.hechas} ${e.hechas === 1 ? "foto guardada" : "fotos guardadas"} · ${tamanoLegible(e.bytes)} en static/continuo/${e.carpeta}`
+                + (e.libre !== null && e.libre !== undefined ? ` · libres ${tamanoLegible(e.libre)}` : "");
+        } else if (activo || e.terminado) {
+            info.textContent = `${e.hechas} ${e.hechas === 1 ? "foto" : "fotos"} sin guardar`;
+        }
+        return activo;
+    }
+    function sondearContinuo() {
+        fetch("/continuo/estado").then(r => r.json()).then(e => {
+            if (!pintarContinuo(e) && sondeoContinuo) { clearInterval(sondeoContinuo); sondeoContinuo = null; }
+        }).catch(() => {});
+    }
+    // Al abrir la página: engancharse a un modo continuo en marcha (p. ej. desde otra pestaña)
+    fetch("/continuo/estado").then(r => r.json()).then(e => { if (e.en_curso && pintarContinuo(e) && !sondeoContinuo) sondeoContinuo = setInterval(sondearContinuo, 1000); }).catch(() => {});
+
     function hacerFoto() {
         if (modoDia) { hacerFotoDia(); return; }
+        if (modoContinuo) { empezarContinuo(); return; }
         const btn = document.getElementById("btn-foto");
         btn.disabled = true;
         document.getElementById("btn-cancelar").style.display = "inline-flex";

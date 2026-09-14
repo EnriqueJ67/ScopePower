@@ -32,6 +32,7 @@ secretos.ini
 logs/
 static/evolucion/
 static/timelapse/
+static/continuo/
 static/ultima_captura*
 
 # Configuración local de Claude Code
