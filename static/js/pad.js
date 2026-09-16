@@ -1,10 +1,13 @@
 // static/js/pad.js — pad táctil para mover la montura (templates/_pad.html).
 // Lo usan el control manual y el panel "Mover el telescopio" de la Foto de prueba.
-//   · velocidad proporcional a la distancia del dedo al centro
+//   · velocidades por escalones: las mismas de los botones (0,1 / 0,5 / 1 / 3 °/s), que la
+//     montura acepta seguro; la distancia del dedo al centro elige el escalón y la
+//     "Velocidad máxima" cuántos escalones hay (con 0,5°/s solo 0,1 y 0,5)
+//   · dirección en 8 sectores (N, NE, E…): en diagonal los dos ejes van a la misma velocidad
 //   · zona muerta del 14 % para que un dedo quieto no mueva nada
-//   · curva exponente 1.7: precisión fina cerca del centro, rapidez en el borde
-//   · se envía como mucho cada 150 ms y solo si la velocidad cambia; al soltar, parada inmediata
-//   · el servidor para solo los ejes si deja de recibir órdenes (1,2 s)
+//   · solo se manda una orden cuando cambia el escalón o el sector; cada 500 ms se repite la
+//     misma para mantener vivo el vigilante del servidor (que para los ejes si hay silencio 1,2 s)
+//   · al soltar, parada inmediata
 // Define vibrar() y pintarVelocidad() como globales por si la página tiene más botones (flechas del control manual).
 
 function vibrar(ms) {
@@ -20,15 +23,18 @@ function pintarVelocidad() {
 }
 
 (function () {
-    const ZONA_MUERTA = 0.14, EXPONENTE = 1.7, INTERVALO_MS = 150;
+    const ZONA_MUERTA = 0.14, LATIDO_MS = 500;
     const pad = document.getElementById("pad");
     if (!pad) return;
     const mando = document.getElementById("pad-mando");
-    const linea = document.querySelector("#pad-linea line");
+    const svg = document.getElementById("pad-linea");
+    const linea = svg.querySelector("line");
     const estado = document.getElementById("pad-estado");
     const invX = document.getElementById("inv-x"), invY = document.getElementById("inv-y");
     const speed = document.getElementById("speed");
-    let puntero = null, ultimoEnvio = 0, ultimoVx = 0, ultimoVy = 0, temporizador = null, maxDriver = [null, null];
+    // Escalones de velocidad: las opciones del select, de menor a mayor (una sola fuente con los botones)
+    const ESCALONES = Array.from(speed.options).map(o => parseFloat(o.value)).sort((a, b) => a - b);
+    let puntero = null, ultimoVx = 0, ultimoVy = 0, temporizador = null;
 
     document.querySelectorAll("#speed-seg button").forEach(b => b.addEventListener("click", () => {
         speed.value = b.dataset.v;
@@ -46,15 +52,47 @@ function pintarVelocidad() {
     pintarVelocidad();
     invX.addEventListener("change", () => { try { localStorage.setItem("pad_inv_x", invX.checked ? "1" : "0"); } catch (e) {} });
     invY.addEventListener("change", () => { try { localStorage.setItem("pad_inv_y", invY.checked ? "1" : "0"); } catch (e) {} });
-    speed.addEventListener("change", ev => { try { localStorage.setItem("pad_velocidad", ev.target.value); } catch (e) {} });
+    speed.addEventListener("change", ev => {
+        try { localStorage.setItem("pad_velocidad", ev.target.value); } catch (e) {}
+        pintarAnillos();
+    });
 
-    fetch("/montura/velocidades").then(r => r.json()).then(d => { maxDriver = [d.max_eje0, d.max_eje1]; }).catch(() => {});
+    function formatear(v) { return String(v).replace(".", ","); }
 
-    function curva(x) {
-        const a = Math.abs(x);
-        if (a < ZONA_MUERTA) return 0;
-        return Math.sign(x) * Math.pow((a - ZONA_MUERTA) / (1 - ZONA_MUERTA), EXPONENTE);
+    // Escalones disponibles con la velocidad máxima elegida
+    function escalones() {
+        const vmax = parseFloat(speed.value);
+        const lista = ESCALONES.filter(v => v <= vmax + 1e-9);
+        return lista.length ? lista : [vmax];
     }
+
+    // Radio (0..1) donde termina el anillo k (el último llega al borde)
+    function radioAnillo(k, n) { return ZONA_MUERTA + (k + 1) * (1 - ZONA_MUERTA) / n; }
+
+    // Anillos y sus velocidades dibujados en el SVG, uno por escalón
+    function pintarAnillos() {
+        svg.querySelectorAll(".pad-anillo-svg, .pad-anillo-texto").forEach(e => e.remove());
+        const lista = escalones(), n = lista.length;
+        for (let k = 0; k < n; k++) {
+            const rFin = radioAnillo(k, n);
+            if (k < n - 1) {
+                const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                c.setAttribute("class", "pad-anillo-svg");
+                c.setAttribute("cx", "50%"); c.setAttribute("cy", "50%");
+                c.setAttribute("r", (rFin * 50) + "%");
+                svg.insertBefore(c, linea);
+            }
+            // Etiqueta en la diagonal NE, a media altura del anillo
+            const rMedio = (k === 0 ? ZONA_MUERTA : radioAnillo(k - 1, n)) * 0.5 + rFin * 0.5;
+            const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            t.setAttribute("class", "pad-anillo-texto");
+            t.setAttribute("x", (50 + rMedio * 50 * Math.SQRT1_2) + "%");
+            t.setAttribute("y", (50 - rMedio * 50 * Math.SQRT1_2) + "%");
+            t.textContent = formatear(lista[k]);
+            svg.insertBefore(t, linea);
+        }
+    }
+    pintarAnillos();
 
     function pintar(nx, ny) {
         mando.style.left = (50 + nx * 50) + "%";
@@ -64,10 +102,8 @@ function pintarVelocidad() {
     }
 
     function enviar(vx, vy, forzar) {
-        const ahora = Date.now();
-        const cambio = Math.abs(vx - ultimoVx) + Math.abs(vy - ultimoVy);
-        if (!forzar && (ahora - ultimoEnvio < INTERVALO_MS || cambio < 0.01)) return;
-        ultimoEnvio = ahora; ultimoVx = vx; ultimoVy = vy;
+        if (!forzar && vx === ultimoVx && vy === ultimoVy) return;
+        ultimoVx = vx; ultimoVy = vy;
         fetch("/pad/mover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vx, vy }) })
             .then(r => r.json())
             .then(d => { if (!d.ok) { estado.textContent = "❌ " + (d.mensaje || "Error"); soltar(); } })
@@ -75,7 +111,7 @@ function pintarVelocidad() {
     }
 
     function parar(porBeacon) {
-        ultimoVx = ultimoVy = 0; ultimoEnvio = 0;
+        ultimoVx = ultimoVy = 0;
         if (porBeacon && navigator.sendBeacon) { navigator.sendBeacon("/pad/parar"); return; }
         fetch("/pad/parar", { method: "POST", keepalive: true }).catch(() => {});
     }
@@ -85,17 +121,29 @@ function pintarVelocidad() {
         const r = rect.width / 2;
         let nx = (ev.clientX - rect.left - r) / r;
         let ny = (ev.clientY - rect.top - r) / r;
-        const d = Math.hypot(nx, ny);
-        if (d > 1) { nx /= d; ny /= d; }               // el mando no sale del círculo
+        let d = Math.hypot(nx, ny);
+        if (d > 1) { nx /= d; ny /= d; d = 1; }        // el mando no sale del círculo
         pintar(nx, ny);
-        const vmax = parseFloat(speed.value);
-        let vx = curva(nx) * vmax * (invX.checked ? -1 : 1);
-        let vy = -curva(ny) * vmax * (invY.checked ? -1 : 1);   // arriba en pantalla = eje 1 positivo (N)
-        if (maxDriver[0]) vx = Math.max(-maxDriver[0], Math.min(maxDriver[0], vx));
-        if (maxDriver[1]) vy = Math.max(-maxDriver[1], Math.min(maxDriver[1], vy));
-        vx = Math.round(vx * 1000) / 1000; vy = Math.round(vy * 1000) / 1000;
-        estado.textContent = (vx === 0 && vy === 0) ? "● Centro: parado" :
-            `↔ ${vx >= 0 ? "E" : "W"} ${Math.abs(vx).toFixed(2)}°/s   ↕ ${vy >= 0 ? "N" : "S"} ${Math.abs(vy).toFixed(2)}°/s`;
+
+        // Escalón por la distancia al centro
+        const lista = escalones(), n = lista.length;
+        let v = 0;
+        if (d >= ZONA_MUERTA) {
+            const k = Math.min(n - 1, Math.floor((d - ZONA_MUERTA) / (1 - ZONA_MUERTA) * n));
+            v = lista[k];
+        }
+        // Sector de 45° por el ángulo (arriba en pantalla = eje 1 positivo = N)
+        let dx = 0, dy = 0;
+        if (v > 0) {
+            const sector = Math.round(Math.atan2(-ny, nx) / (Math.PI / 4));
+            dx = Math.round(Math.cos(sector * Math.PI / 4));
+            dy = Math.round(Math.sin(sector * Math.PI / 4));
+        }
+        const vx = dx * v * (invX.checked ? -1 : 1);
+        const vy = dy * v * (invY.checked ? -1 : 1);
+        svg.querySelectorAll(".pad-anillo-texto").forEach((t, i) => t.classList.toggle("activo", v > 0 && lista.indexOf(v) === i));
+        estado.textContent = (v === 0) ? "● Centro: parado" :
+            [vx ? `↔ ${vx > 0 ? "E" : "W"}` : "", vy ? `↕ ${vy > 0 ? "N" : "S"}` : ""].filter(Boolean).join("   ") + `   ${formatear(v)}°/s`;
         enviar(vx, vy, false);
     }
 
@@ -105,6 +153,7 @@ function pintarVelocidad() {
         puntero = null;
         clearInterval(temporizador); temporizador = null;
         pad.classList.remove("activo");
+        svg.querySelectorAll(".pad-anillo-texto").forEach(t => t.classList.remove("activo"));
         pintar(0, 0);
         parar(false);
         estado.textContent = "● Parado";
@@ -114,12 +163,12 @@ function pintarVelocidad() {
     pad.addEventListener("pointerdown", ev => {
         if (puntero !== null) return;                   // un solo dedo
         puntero = ev.pointerId;
-        pad.setPointerCapture(puntero);
+        try { pad.setPointerCapture(puntero); } catch (e) {}
         pad.classList.add("activo");
         vibrar(30);
         procesar(ev);
-        // Reenvío periódico aunque el dedo esté quieto: mantiene vivo el vigilante del servidor
-        temporizador = setInterval(() => { if (puntero !== null) enviar(ultimoVx, ultimoVy, true); }, 500);
+        // Latido aunque el dedo esté quieto: mantiene vivo el vigilante del servidor
+        temporizador = setInterval(() => { if (puntero !== null) enviar(ultimoVx, ultimoVy, true); }, LATIDO_MS);
         ev.preventDefault();
     });
     pad.addEventListener("pointermove", ev => { if (ev.pointerId === puntero) { procesar(ev); ev.preventDefault(); } });

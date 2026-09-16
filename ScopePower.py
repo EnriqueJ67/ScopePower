@@ -1452,10 +1452,12 @@ def stop():
 
 
 # ─── Pad de movimiento (joystick virtual) ─────────────────────────────────
-# El navegador manda cada ~150 ms la velocidad de cada eje en grados/segundo
-# (proporcional a lo que el dedo se separa del centro). Si deja de mandar
-# (se pierde el toque, se cae la red, se cierra la pestaña) un vigilante para
-# los ejes al segundo: un MoveAxis sin su parada dejaría la montura girando.
+# El navegador manda la velocidad de cada eje en grados/segundo cuando cambia
+# (escalones fijos: los mismos de las flechas, 0,1 / 0,5 / 1 / 3 °/s) y la
+# repite cada 500 ms como latido. Si deja de mandar (se pierde el toque, se cae
+# la red, se cierra la pestaña) un vigilante para los ejes al segundo: un
+# MoveAxis sin su parada dejaría la montura girando. Las velocidades se pasan
+# al driver tal cual, igual que hace /move con las flechas.
 _pad = {"activo": False, "ultimo": 0.0, "vx": 0.0, "vy": 0.0, "lock": threading.Lock()}
 PAD_TIMEOUT_S = 1.2
 
@@ -1492,31 +1494,29 @@ def _rangos_axisrates(tel, eje):
     return rangos
 
 
-def _ajustar_a_rates(tel, eje, v):
-    """Lleva |v| (°/s) al rango de velocidades que admite el driver para ese eje."""
-    if v == 0:
-        return 0.0
-    rangos = _rangos_axisrates(tel, eje)
-    if not rangos:
-        return v
-    mag = abs(v)
-    for lo, hi in rangos:
-        if lo <= mag <= hi:
-            return v
-    # Fuera de todos los rangos: el límite más cercano (los drivers con
-    # velocidades discretas dan rangos de un solo valor)
-    limites = [x for lo, hi in rangos for x in (lo, hi)]
-    cercano = min(limites, key=lambda x: abs(x - mag))
-    return cercano if v > 0 else -cercano
+_pad_rates_anotados = False
+
+
+def _anotar_axisrates(tel):
+    """Deja en el log, una vez, las velocidades que anuncia el driver (para saber qué acepta la montura)."""
+    global _pad_rates_anotados
+    if _pad_rates_anotados:
+        return
+    _pad_rates_anotados = True
+    for eje in (0, 1):
+        rangos = _rangos_axisrates(tel, eje)
+        log.info("Pad: AxisRates eje %d: %s °/s", eje,
+                 ", ".join(f"{lo:g}–{hi:g}" if lo != hi else f"{lo:g}" for lo, hi in rangos) or "no lo dice")
 
 
 def _pad_aplicar(vx, vy):
     def _mover(tel):
+        _anotar_axisrates(tel)
         estaba_tracking = tel.Tracking
         if tel.CanMoveAxis(0):
-            tel.MoveAxis(0, _ajustar_a_rates(tel, 0, vx))
+            tel.MoveAxis(0, vx)
         if tel.CanMoveAxis(1):
-            tel.MoveAxis(1, _ajustar_a_rates(tel, 1, vy))
+            tel.MoveAxis(1, vy)
         if vx == 0 and vy == 0 and estaba_tracking and not tel.Tracking:
             tel.Tracking = True
         return "ok"
@@ -1562,7 +1562,11 @@ def pad_mover():
         _pad_parar()
         return jsonify({"ok": True, "parado": True})
     with _pad["lock"]:
+        # Latido con la misma velocidad: basta refrescar el vigilante, sin molestar a la montura
+        repetido = _pad["activo"] and _pad["vx"] == vx and _pad["vy"] == vy
         _pad.update(activo=True, ultimo=time.time(), vx=vx, vy=vy)
+    if repetido:
+        return jsonify({"ok": True, "repetido": True})
     try:
         _pad_aplicar(vx, vy)
         return jsonify({"ok": True})
@@ -1575,22 +1579,6 @@ def pad_mover():
 def pad_parar():
     _pad_parar()
     return jsonify({"ok": True})
-
-
-@app.route('/montura/velocidades')
-def montura_velocidades():
-    """Velocidad máxima (°/s) que admite cada eje según AxisRates, para el tope del pad."""
-    def _leer(tel):
-        maximos = []
-        for eje in (0, 1):
-            rangos = _rangos_axisrates(tel, eje)
-            maximos.append(max(hi for lo, hi in rangos) if rangos else None)
-        return maximos
-    try:
-        mx, my = montura.ejecutar(_leer, timeout=10, conectar=False) if montura.esta_conectado() else (None, None)
-    except ErrorHardware:
-        mx, my = None, None
-    return jsonify({"max_eje0": mx, "max_eje1": my})
 
 
 # Ruta para capturar una imagen con la cámara ASCOM
