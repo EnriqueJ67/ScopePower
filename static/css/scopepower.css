@@ -399,11 +399,16 @@ nav.barra a {
     position: relative; border-radius: 12px; margin: 6px 2px; -webkit-tap-highlight-color: transparent;
     transition: color .15s, background .15s;
 }
-nav.barra a svg { width: 24px; height: 24px; }
+/* Iconos con el mismo estilo que las baldosas de inicio (.tile-ico): caja redondeada de color suave */
+nav.barra a .nav-ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-2); transition: background .15s, color .15s, box-shadow .15s; }
+nav.barra a .nav-ico svg { width: 20px; height: 20px; }
+nav.barra a .nav-ico.neutro { background: var(--surface-3); color: var(--text-2); }
 nav.barra a:hover { color: var(--text-2); text-decoration: none; }
 nav.barra a.activo { color: var(--accent-2); }
+nav.barra a.activo .nav-ico { background: linear-gradient(145deg, var(--accent-2), var(--accent)); color: #fff; box-shadow: 0 4px 12px var(--accent-glow); }
 nav.barra a.activo::before { content: ""; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
 nav.barra a.encendido { color: var(--ok); }
+nav.barra a.encendido .nav-ico { background: var(--ok-soft); color: var(--ok); }
 
 /* Aviso de pantalla encendida (static/js/pantalla.js) */
 .pantalla-pill {
@@ -553,5 +558,6 @@ nav.barra a.encendido { color: var(--ok); }
     .pagina-titulo { font-size: 19px; }
     .pagina-sub { display: none; }
     nav.barra a { font-size: 10px; gap: 1px; margin: 3px 2px; }
-    nav.barra a svg { width: 20px; height: 20px; }
+    nav.barra a .nav-ico { width: 26px; height: 26px; border-radius: 8px; }
+    nav.barra a .nav-ico svg { width: 17px; height: 17px; }
 }

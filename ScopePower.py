@@ -1585,14 +1585,16 @@ def pad_parar():
 import numpy as np
 from astropy.io import fits
 
-def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura", ganancia=None, copia=None):
+def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura", ganancia=None, copia=None,
+                       exposicion=None):
     """
     Expone, calibra (dark/flat), escribe static/captura.fits y, si `apilar`,
     una copia en capturas/ que recoge el apilador. Devuelve un dict:
       {"ok": True, "mensaje": ..., "ruta": ...}  o
       {"ok": False, "mensaje": ..., "cancelada": bool}
     No usa `request`: sirve tanto para la ruta web como para el bucle del servidor.
-    `ganancia`: solo para esta captura (Foto de prueba); si es None, la de config.ini.
+    `ganancia`, `exposicion`: solo para esta captura (Cámara); si son None, las de config.ini.
+    Con una exposición distinta se resta el dark de esa exposición, si lo hay.
     `copia`: None o {"carpeta", "formato" ("fits" | "jpg"), "nombre"} para guardar además
     esta foto en una carpeta (modo continuo). El FITS es el mismo que static/captura.fits;
     el JPG es la foto revelada a resolución completa. Su ruta vuelve en "archivo".
@@ -1601,11 +1603,11 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     if camara.ocupado:
         return {"ok": False, "mensaje": "⏳ Ya hay una captura en curso", "ocupada": True}
     if foto_dia.trabajo_timelapse.en_curso:
-        return {"ok": False, "mensaje": "⏳ Hay un timelapse en marcha; párala antes desde Foto de prueba", "ocupada": True}
+        return {"ok": False, "mensaje": "⏳ Hay un timelapse en marcha; párala antes desde Cámara", "ocupada": True}
 
     nuevo_config = configparser.ConfigParser()
     nuevo_config.read("config.ini")
-    EXPOSICION = float(nuevo_config["Dispositivos"].get("exposicion_captura", 10))
+    EXPOSICION = float(nuevo_config["Dispositivos"].get("exposicion_captura", 10)) if exposicion is None else float(exposicion)
     disp = _dispositivos()
     BINNING, FOCAL_LEN = disp["binning"], disp["focal"]     # valores en vivo, no los de arranque
     GANANCIA = disp["ganancia"] if ganancia is None else int(ganancia)
@@ -1775,6 +1777,15 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         return {"ok": False, "mensaje": f"❌ Error al capturar la imagen: {e}"}
 
 
+def _exposicion_pedida(valor):
+    """Exposición opcional de una foto de Cámara (segundos, 0.001–3600); None = la de config.ini."""
+    try:
+        exposicion = float(str(valor if valor is not None else "").strip().replace(",", "."))
+    except ValueError:
+        return None
+    return exposicion if 0.001 <= exposicion <= 3600 else None
+
+
 # Función para capturar imagen y mostrarla en la web
 @app.route('/capturar-imagen')
 def capturar_imagen():
@@ -1785,7 +1796,8 @@ def capturar_imagen():
         ganancia = int(request.args["ganancia"]) if request.args.get("ganancia", "").strip() else None
     except ValueError:
         ganancia = None
-    resultado = capturar_y_guardar(apilar=apilar, usar_dark=usar_dark, ganancia=ganancia)
+    exposicion = _exposicion_pedida(request.args.get("exposicion"))
+    resultado = capturar_y_guardar(apilar=apilar, usar_dark=usar_dark, ganancia=ganancia, exposicion=exposicion)
     if quiere_json:
         codigo = 200 if resultado["ok"] else (409 if resultado.get("ocupada") else 500)
         return jsonify(resultado), codigo
@@ -3150,7 +3162,7 @@ def _capturador_dia_continuo(objetivo, campo, binning):
 def continuo_iniciar():
     """
     Foto de prueba tras foto de prueba hasta que se pare (ver foto_continua.py).
-    JSON: {"guardar": "no" | "jpg" | "fits", "ganancia": entero opcional,
+    JSON: {"guardar": "no" | "jpg" | "fits", "ganancia": entero opcional, "exposicion": segundos opcional,
            "modo": "noche" | "dia", y de día "objetivo" (sol | luna | paisaje) y "campo" (%)}
     """
     datos = request.get_json(silent=True) or {}
@@ -3165,6 +3177,7 @@ def continuo_iniciar():
         ganancia = int(datos["ganancia"]) if str(datos.get("ganancia", "")).strip() != "" else None
     except (TypeError, ValueError):
         ganancia = None
+    exposicion = _exposicion_pedida(datos.get("exposicion"))
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
@@ -3181,7 +3194,7 @@ def continuo_iniciar():
         capturar, al_terminar = _capturador_dia_continuo(objetivo, _campo_foto_dia(datos), _dispositivos()["binning"])
         ganancia = None
     else:
-        capturar = lambda copia: capturar_y_guardar(descripcion="Continuo", ganancia=ganancia, copia=copia)
+        capturar = lambda copia: capturar_y_guardar(descripcion="Continuo", ganancia=ganancia, exposicion=exposicion, copia=copia)
         al_terminar = None
     try:
         foto_continua.trabajo_continuo.iniciar(
@@ -3294,7 +3307,7 @@ def darks_generar():
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de generar darks"}), 409
     if foto_continua.trabajo_continuo.en_curso:
-        return jsonify({"ok": False, "error": "El modo continuo de la Foto de prueba está en marcha; páralo antes"}), 409
+        return jsonify({"ok": False, "error": "El modo continuo de Cámara está en marcha; páralo antes"}), 409
     if n != conf["numero_darks"]:
         _guardar_en_config("Dispositivos", {"numero_darks": n})   # se recuerda para la próxima vez
     try:

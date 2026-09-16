@@ -1,13 +1,13 @@
 <!-- templates/imagen.html -->
 {% extends "base.html" %}
 
-{% block title %}Foto de prueba{% endblock %}
+{% block title %}Cámara{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Foto de prueba</h1>
-        <p class="pagina-sub" id="sub-foto">Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.</p>
+        <h1 class="pagina-titulo">Cámara</h1>
+        <p class="pagina-sub" id="sub-foto">Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.</p>
     </div>
 </div>
 
@@ -66,6 +66,18 @@
                 </span>
             </div>
             <div id="ganancia-ayuda" class="texto-3" style="font-size: 12.5px;"></div>
+            <!-- Exposición solo para las fotos de esta pantalla (encuadrar en segundos, no en la
+                 exposición larga de la sesión). Tampoco se guarda; si hay dark de esa exposición se resta. -->
+            <div class="fila mt-2" id="fila-exposicion" style="justify-content: space-between;">
+                <label for="exposicion-prueba" class="texto-2" style="margin: 0; font-size: 14px;">Exposición para esta foto</label>
+                <span class="fila" style="flex-wrap: nowrap; gap: 6px;">
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarExposicionPrueba(0.5)" title="La mitad">½</button>
+                    <input type="number" id="exposicion-prueba" class="corto" min="0.001" max="3600" step="any" style="width: 78px;" placeholder="config" inputmode="decimal">
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarExposicionPrueba(2)" title="El doble">×2</button>
+                    <span class="texto-3" style="font-size: 13px;">s</span>
+                </span>
+            </div>
+            <div id="exposicion-ayuda" class="texto-3" style="font-size: 12.5px;"></div>
             <!-- Modo continuo: una foto tras otra en el servidor hasta que se pare (ver foto_continua.py).
                  Cada foto puede guardarse en JPG (revelada, pocos MB) o FITS (en bruto, 18 MB) para no llenar el disco sin querer. -->
             <div id="fila-continuo" class="fila mt-2" style="justify-content: space-between;">
@@ -332,9 +344,11 @@
         if (modoDia && punteroActivo) { punteroActivo = false; pintarModoPuntero(); }
         document.getElementById("fila-ganancia").hidden = modoDia;  // de día la ganancia va al mínimo sola
         document.getElementById("ganancia-ayuda").hidden = modoDia;
+        document.getElementById("fila-exposicion").hidden = modoDia; // y la exposición la busca la app
+        document.getElementById("exposicion-ayuda").hidden = modoDia;
         document.getElementById("sub-foto").textContent = modoDia
             ? "Modo día: la exposición se ajusta sola. Apunta con GoTo (Sol, Luna) y afina con el control manual."
-            : "Para enfocar y comprobar el encuadre. Usa la exposición de Configuración y resta el dark si lo hay.";
+            : "Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.";
     }
     function cambiarModoDia() {
         modoDia = document.getElementById("modo-dia").checked;
@@ -576,7 +590,7 @@
     function ayudaGuardar() {
         const ritmo = modoDia
             ? " De día la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado."
-            : " Cada foto tarda la exposición de Configuración más unos segundos de descarga y revelado.";
+            : " Cada foto tarda la exposición elegida arriba (o la de Configuración) más unos segundos de descarga y revelado.";
         return (AYUDA_GUARDAR[guardarContinuo] || "") + ritmo;
     }
     function pintarBotonFoto() {
@@ -622,7 +636,7 @@
         document.getElementById("dia-intentos").textContent = "";
         const g = document.getElementById("ganancia-prueba").value.trim();
         const cuerpo = modoDia ? { guardar: guardarContinuo, modo: "dia", objetivo: objetivoDia, campo: campoDia() }
-                               : { guardar: guardarContinuo, modo: "noche", ganancia: g };
+                               : { guardar: guardarContinuo, modo: "noche", ganancia: g, exposicion: exposicionPrueba() };
         fetch("/continuo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
             .then(r => r.json())
             .then(d => {
@@ -647,6 +661,8 @@
         document.getElementById("modo-continuo").disabled = activo;
         document.getElementById("modo-dia").disabled = activo;
         document.getElementById("ganancia-prueba").disabled = activo;
+        document.getElementById("exposicion-prueba").disabled = activo;
+        document.querySelectorAll("#fila-exposicion button, #fila-ganancia button").forEach(b => b.disabled = activo);
         document.querySelectorAll("#continuo-guardar button, #dia-objetivo button").forEach(b => b.disabled = activo);
         document.getElementById("dia-campo").disabled = activo;
         document.getElementById("btn-tl").disabled = activo;
@@ -709,7 +725,9 @@
         document.getElementById("estado-sync").textContent = "";
         if (!sondeo) sondeo = setInterval(sondearCaptura, 1000);
         const g = document.getElementById("ganancia-prueba").value.trim();
-        fetch("/capturar-imagen?apilar=0&json=1" + (g !== "" ? "&ganancia=" + encodeURIComponent(g) : ""))
+        const ex = exposicionPrueba();
+        fetch("/capturar-imagen?apilar=0&json=1" + (g !== "" ? "&ganancia=" + encodeURIComponent(g) : "")
+              + (ex !== "" ? "&exposicion=" + encodeURIComponent(ex) : ""))
             .then(r => r.json())
             .then(d => {
                 clearInterval(sondeo); sondeo = null; pintarProgreso(null);
@@ -753,6 +771,29 @@
         if (g.conectada && g.soportada && g.minima !== null) s += `Rango ${g.minima}–${g.maxima}. `;
         s += "Sube la ganancia para enfocar con exposiciones cortas; aquí no se guarda.";
         ayuda.textContent = s;
+    }).catch(() => {});
+
+    // ——— Exposición de las fotos de prueba: parte de la de Configuración; ½ y ×2 para encuadrar rápido ———
+    let exposicionConfig = null;
+    function exposicionPrueba() {
+        // Valor a enviar: "" = la de Configuración (campo vacío o sin sentido)
+        const v = parseFloat(document.getElementById("exposicion-prueba").value.replace(",", "."));
+        return isFinite(v) && v > 0 ? String(v) : "";
+    }
+    function cambiarExposicionPrueba(factor) {
+        const campo = document.getElementById("exposicion-prueba");
+        const actual = parseFloat(campo.value.replace(",", "."));
+        let n = (isFinite(actual) && actual > 0 ? actual : (exposicionConfig || 1)) * factor;
+        n = Math.min(3600, Math.max(0.001, n));
+        campo.value = +n.toPrecision(3);
+    }
+    fetch("/config-datos").then(r => r.json()).then(c => {
+        exposicionConfig = c.exposicion;
+        const campo = document.getElementById("exposicion-prueba");
+        if (exposicionConfig) campo.value = +exposicionConfig.toPrecision(3);
+        document.getElementById("exposicion-ayuda").textContent =
+            (exposicionConfig ? `De noche se usa ${formatearExp(exposicionConfig)} (Configuración). ` : "")
+            + "Baja la exposición para encuadrar y enfocar sin esperar; aquí no se guarda. Si hay un dark de esa exposición, se resta.";
     }).catch(() => {});
 
     function sincronizar() {

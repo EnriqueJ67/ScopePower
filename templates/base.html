@@ -167,12 +167,12 @@
 {% if session.get('usuario') and request.path != '/salir' %}
 {% set actual = request.path %}
 <nav class="barra" aria-label="Navegación principal">
-    <a href="{{ url_for('home') }}" class="{{ 'activo' if actual == '/' else '' }}"><svg><use href="#i-home"/></svg>Inicio</a>
-    <a href="{{ url_for('goto_objeto') }}" class="{{ 'activo' if actual.startswith('/goto') else '' }}"><svg><use href="#i-goto"/></svg>GoTo</a>
-    <a href="{{ url_for('control_telescopio') }}" class="{{ 'activo' if actual.startswith('/control') else '' }}"><svg><use href="#i-control"/></svg>Control</a>
-    <a href="{{ url_for('vista_apilado') }}" class="{{ 'activo' if actual.startswith('/apilado') else '' }}"><svg><use href="#i-apilado"/></svg>Apilado</a>
-    <a href="{{ url_for('galeria') }}" class="{{ 'activo' if actual.startswith('/galeria') else '' }}"><svg><use href="#i-galeria"/></svg>Galería</a>
-    <a href="#" id="nav-voz" onclick="alternarVoz(event)" title="Avisos por voz del PC"><svg><use id="nav-voz-icono" href="#i-voz-off"/></svg><span id="nav-voz-texto">Voz</span></a>
+    <a href="{{ url_for('home') }}" class="{{ 'activo' if actual == '/' else '' }}"><span class="nav-ico"><svg><use href="#i-home"/></svg></span>Inicio</a>
+    <a href="{{ url_for('goto_objeto') }}" class="{{ 'activo' if actual.startswith('/goto') else '' }}"><span class="nav-ico"><svg><use href="#i-goto"/></svg></span>GoTo</a>
+    <a href="{{ url_for('foto_prueba') }}" class="{{ 'activo' if actual.startswith('/foto-prueba') else '' }}"><span class="nav-ico neutro"><svg><use href="#i-foto"/></svg></span>Cámara</a>
+    <a href="{{ url_for('vista_apilado') }}" class="{{ 'activo' if actual.startswith('/apilado') else '' }}"><span class="nav-ico"><svg><use href="#i-apilado"/></svg></span>Apilado</a>
+    <a href="{{ url_for('galeria') }}" class="{{ 'activo' if actual.startswith('/galeria') else '' }}"><span class="nav-ico"><svg><use href="#i-galeria"/></svg></span>Galería</a>
+    <a href="#" id="nav-voz" onclick="alternarVoz(event)" title="Avisos por voz del PC"><span class="nav-ico neutro"><svg><use id="nav-voz-icono" href="#i-voz-off"/></svg></span><span id="nav-voz-texto">Voz</span></a>
 </nav>
 <!-- Mantener la pantalla del móvil encendida (se activa con el primer toque) -->
 <script src="{{ url_for('static', filename='js/NoSleep.js') }}"></script>

@@ -31,7 +31,7 @@
         if (!opciones.siguientePaso) return "";
         return `<div class="centrado-siguiente"><div class="seccion-titulo">Siguiente paso</div><div class="acciones">` +
             `<a class="btn btn-primary" href="/apilado"><svg><use href="#i-apilado"/></svg>Empezar apilado</a>` +
-            `<a class="btn btn-secondary" href="/foto-prueba"><svg><use href="#i-foto"/></svg>Foto de prueba</a></div></div>`;
+            `<a class="btn btn-secondary" href="/foto-prueba"><svg><use href="#i-foto"/></svg>Cámara</a></div></div>`;
     }
 
     function pintarProgreso(el, e) {
