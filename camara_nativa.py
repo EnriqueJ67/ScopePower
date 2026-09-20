@@ -305,7 +305,7 @@ class CamaraNativa:
         return int(v.intValue)
 
     def configurar(self, roi_px=1024, binning=2, formato="RAW8", exposicion_ms=5.0, ganancia=None,
-                   offset=None, usb_limite=100):
+                   offset=None, usb_limite=100, fps_max=None):
         """
         ROI cuadrado de `roi_px` píxeles del sensor (antes del binning), centrado, con
         `binning` y formato de imagen. Para el vídeo en curso si lo había.
@@ -333,6 +333,10 @@ class CamaraNativa:
                 self.poner("Gain", ganancia)
             if offset is not None:
                 self.poner("Offset", offset)
+            if "FrameLimit" in self.config_ids:
+                # Cadencia máxima en la propia cámara: leer más despacio de lo que produce
+                # acumularía fotogramas viejos en el búfer del SDK (latencia)
+                self.poner("FrameLimit", int(round(fps_max)) if fps_max else 0)
             # Búfer único para los fotogramas
             if formato == "RAW16":
                 self._buffer = np.empty((lado, lado), dtype=np.uint16)

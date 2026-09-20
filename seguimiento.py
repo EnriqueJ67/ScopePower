@@ -1,0 +1,752 @@
+# seguimiento.py
+#
+# Seguimiento experimental de objetos en movimiento (aviones, satélites, la
+# ISS) con la cámara como "visión": fotogramas rápidos por el SDK nativo
+# (camara_nativa.py), detección de la mancha brillante, y corrección continua
+# de la velocidad de los ejes de la montura (montura_ejes.py).
+#
+# Cómo funciona el bucle (varias veces por segundo):
+#   1. leer un fotograma del ROI (bin 2, RAW8, exposición de milisegundos),
+#   2. detectar las manchas (umbral mediana + k·MAD y componentes conexas con
+#      centroides; lo mismo que apilado.calcular_puntuacion pero devolviendo
+#      dónde está cada mancha),
+#   3. elegir el objetivo (la más cercana a la posición anterior, o la más
+#      brillante / la que el usuario ha pulsado en la vista previa),
+#   4. error en píxeles respecto al centro → error en grados de eje con la
+#      matriz de calibración → controlador PI → velocidades de eje.
+#
+# La calibración píxel → ejes tiene dos vías que se contrastan:
+#   - analítica: de una foto resuelta por ASTAP salen la escala y la
+#     orientación del sensor respecto al norte (matriz CD, con espejo). En una
+#     montura altacimutal el ángulo cámara↔ejes es mecánicamente fijo: basta
+#     restar el ángulo paraláctico de ese apuntado y guardarlo. Vale de día.
+#   - empírica: mover cada eje a velocidad conocida y medir el desplazamiento
+#     de la imagen (matriz 2×2 en px/s por °/s). Comprueba signos y espejo.
+#
+# El controlador es PI sobre velocidad de eje: el término integral converge a
+# la velocidad angular del objeto. Como a 1 °/s el objeto cruza un ROI de 1,7°
+# en menos de 2 s, antes de mover se mide su velocidad aparente en 2–3
+# fotogramas y se arranca la integral con ella (bootstrap); el PI solo corrige
+# el residuo.
+#
+# Todo el trabajo corre en un hilo (TrabajoSeguimiento, patrón de
+# foto_continua.TrabajoContinuo) y la web sondea estado() y recarga una vista
+# previa JPG pequeña. Mientras dura, la cámara ASCOM de la app se desconecta
+# (el driver Player One solo admite una conexión) y se reconecta al acabar.
+
+import os
+import json
+import math
+import time
+import logging
+import threading
+from datetime import datetime
+
+import numpy as np
+import cv2
+
+log = logging.getLogger("scopepower.seguimiento")
+
+RUTA_CALIBRACION = os.path.join("datos", "calibracion_seguimiento.json")
+CARPETA_VISTA = os.path.join("static", "seguimiento")
+RUTA_VISTA = os.path.join(CARPETA_VISTA, "vista.jpg")
+
+CONF_POR_DEFECTO = {
+    "backend": "ascom", "simulador": False, "udp_host": "192.168.4.1", "udp_puerto": 11880,
+    "roi_px": 1024, "binning": 2, "formato": "RAW8", "exposicion_ms": 5.0, "ganancia": 300,
+    "fps_camara": 15.0, "ventana_v_s": 0.4, "frecuencia_hz": 4.0, "kp": 0.6, "ki": 0.3, "v_max": 4.0, "perdida_s": 3.0,
+    "intervalo_ascom_s": 0.4, "banda_muerta": 0.02, "redondeo_ascom": None,
+    "vista_previa_px": 400, "vista_previa_hz": 1.0, "calibracion": "analitica",
+    "k_mad": 6.0, "area_min": 3, "area_max": 20000, "radio_px": 80, "frames_bootstrap": 3, "v_min_px_s": 3.0,
+    "altura_minima": 5.0, "focal_mm": 260.0, "pixel_um": 3.76,
+}
+
+
+def leer_conf(config, altura_minima=None, focal_mm=None, pixel_um=None):
+    """Sección [Seguimiento] de un ConfigParser (o dict) sobre los valores por defecto."""
+    conf = dict(CONF_POR_DEFECTO)
+    try:
+        if hasattr(config, "has_section") and config.has_section("Seguimiento"):
+            for k, v in config.items("Seguimiento"):
+                conf[k] = v
+        elif isinstance(config, dict):
+            conf.update(config)
+    except Exception as e:
+        log.warning("No se pudo leer [Seguimiento]: %s", e)
+    for k in ("roi_px", "binning", "ganancia", "area_min", "area_max", "radio_px", "frames_bootstrap", "udp_puerto",
+              "vista_previa_px"):
+        conf[k] = int(float(conf[k]))
+    for k in ("exposicion_ms", "fps_camara", "ventana_v_s", "frecuencia_hz", "kp", "ki", "v_max", "perdida_s", "intervalo_ascom_s", "banda_muerta",
+              "vista_previa_hz", "k_mad", "altura_minima", "focal_mm", "pixel_um", "v_min_px_s"):
+        conf[k] = float(conf[k])
+    conf["simulador"] = str(conf["simulador"]).lower() in ("1", "true", "si", "sí", "yes")
+    if conf["redondeo_ascom"] in ("", "0", "None", "none"):
+        conf["redondeo_ascom"] = None
+    if altura_minima is not None:
+        conf["altura_minima"] = float(altura_minima)
+    if focal_mm is not None:
+        conf["focal_mm"] = float(focal_mm)
+    if pixel_um is not None:
+        conf["pixel_um"] = float(pixel_um)
+    return conf
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Detección
+# ═════════════════════════════════════════════════════════════════════════════
+def detectar_manchas(plano, k_mad=6.0, area_min=3, area_max=20000, maximo=20):
+    """
+    Manchas brillantes de un plano uint8/uint16: umbral mediana + k·MAD y
+    componentes conexas. Devuelve una lista (ordenada por flujo, mayor primero)
+    de dicts {x, y, area, pico, flujo, saturada, w, h}, con x/y centroides en
+    píxeles del plano.
+    """
+    img = np.asarray(plano)
+    if img.ndim == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    f = img.astype(np.float32)
+    mediana = float(np.median(f))
+    mad = float(np.median(np.abs(f - mediana))) * 1.4826
+    umbral = mediana + k_mad * max(mad, 1.0)
+    mascara = (f > umbral).astype(np.uint8)
+    n, etiquetas, stats, centroides = cv2.connectedComponentsWithStats(mascara, connectivity=8)
+    if n <= 1:
+        return []
+    tope = 255 if img.dtype == np.uint8 else int(img.max())
+    areas = stats[1:, cv2.CC_STAT_AREA]
+    validas = np.where((areas >= area_min) & (areas <= area_max))[0] + 1
+    if len(validas) == 0:
+        return []
+    resta = (f - mediana).ravel()
+    ids = etiquetas.ravel()
+    flujo = np.bincount(ids, weights=resta, minlength=n)
+    pico = np.zeros(n, dtype=np.float32)
+    np.maximum.at(pico, ids, resta.astype(np.float32))
+    manchas = []
+    for i in validas:
+        manchas.append({
+            "x": float(centroides[i][0]), "y": float(centroides[i][1]),
+            "area": int(stats[i, cv2.CC_STAT_AREA]), "w": int(stats[i, cv2.CC_STAT_WIDTH]),
+            "h": int(stats[i, cv2.CC_STAT_HEIGHT]),
+            "pico": float(pico[i] + mediana), "flujo": float(flujo[i]),
+            "saturada": bool(pico[i] + mediana >= tope * 0.98),
+        })
+    manchas.sort(key=lambda m: -m["flujo"])
+    return manchas[:maximo]
+
+
+def elegir_objetivo(manchas, anterior_xy=None, radio_px=80.0):
+    """La mancha más cercana a la posición anterior dentro del radio; sin anterior, la más brillante."""
+    if not manchas:
+        return None
+    if anterior_xy is None:
+        return manchas[0]
+    ax, ay = anterior_xy
+    mejor, d_mejor = None, radio_px
+    for m in manchas:
+        d = math.hypot(m["x"] - ax, m["y"] - ay)
+        if d <= d_mejor:
+            mejor, d_mejor = m, d
+    return mejor
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Calibración píxel → ejes
+# ═════════════════════════════════════════════════════════════════════════════
+def escala_arcsec_px(pixel_um, binning, focal_mm):
+    return 206.265 * float(pixel_um) * int(binning) / max(1.0, float(focal_mm))
+
+
+def angulo_paralactico_deg(ra_deg, dec_deg, lat_deg, lon_deg, t=None):
+    """
+    Ángulo paraláctico q (grados): giro entre el norte celeste y la vertical
+    local en ese apuntado. q = atan2(sin H, tan φ cos δ − sin δ cos H).
+    """
+    from astropy.time import Time
+    import astropy.units as u
+    t = t or Time.now()
+    tsl = t.sidereal_time("apparent", longitude=lon_deg * u.deg).deg
+    H = math.radians((tsl - ra_deg + 540.0) % 360.0 - 180.0)
+    phi, dec = math.radians(lat_deg), math.radians(dec_deg)
+    return math.degrees(math.atan2(math.sin(H), math.tan(phi) * math.cos(dec) - math.sin(dec) * math.cos(H)))
+
+
+class Calibracion:
+    """
+    Relación entre el desplazamiento de la imagen (px/s del plano de detección)
+    y la velocidad de los ejes (°/s). `matriz(alt)` devuelve M (2×2) tal que
+    v_px = M · v_ejes; el controlador usa M⁻¹.
+
+    Analítica: M = (3600/escala)·S·R(θ)·diag(cos alt, 1), con θ el ángulo fijo
+    cámara↔ejes, S el espejo y escala en "/px del plano de detección.
+    Empírica: matriz medida moviendo los ejes (ya incluye cos alt del momento).
+    Los signos de cada eje (signo_az, signo_alt) permiten corregir la
+    convención de MoveAxis/codificador respecto al cielo sin recalcular.
+    """
+
+    def __init__(self, escala=3.0, angulo=0.0, espejo=1, matriz_empirica=None, signo_az=1, signo_alt=1,
+                 alt_empirica=None, origen="", fecha="", backend=""):
+        self.escala = float(escala)             # "/px del plano en que se detecta
+        self.angulo = float(angulo) % 360.0     # θ (grados)
+        self.espejo = 1 if espejo >= 0 else -1
+        self.matriz_empirica = None if matriz_empirica is None else np.asarray(matriz_empirica, dtype=float)
+        self.signo_az, self.signo_alt = int(signo_az), int(signo_alt)
+        self.alt_empirica = alt_empirica
+        self.origen, self.fecha, self.backend = origen, fecha, backend
+
+    # ── construcción ─────────────────────────────────────────────────────
+    @classmethod
+    def analitica(cls, escala, angulo, espejo=1, origen="analitica", **kw):
+        return cls(escala=escala, angulo=angulo, espejo=espejo, origen=origen,
+                   fecha=datetime.now().isoformat(timespec="seconds"), **kw)
+
+    @classmethod
+    def analitica_desde_astap(cls, ruta_ini, ra_deg, dec_deg, lat_deg, lon_deg, factor_escala=1.0, t=None):
+        """
+        De un .ini de ASTAP (foto resuelta): escala, ángulo del sensor y espejo;
+        se resta el ángulo paraláctico del apuntado para obtener el ángulo fijo
+        cámara↔ejes. `factor_escala` pasa de la escala de la foto resuelta a la
+        del plano de detección (p. ej. ×2 si la foto era bin 1 y el seguimiento
+        detecta a bin 2 y media resolución ⇒ ×4).
+        """
+        import anotaciones
+        res = anotaciones.wcs_desde_ini(ruta_ini)
+        if res is None:
+            raise ValueError("La foto no está resuelta (o falta el .ini de ASTAP)")
+        wcs, escala, angulo_cam = res
+        cd = wcs.wcs.cd if wcs.wcs.has_cd() else wcs.pixel_scale_matrix
+        det = float(cd[0][0] * cd[1][1] - cd[0][1] * cd[1][0])
+        espejo = 1 if det < 0 else -1      # det<0 = orientación estándar (este a la izquierda con norte arriba)
+        q = angulo_paralactico_deg(ra_deg, dec_deg, lat_deg, lon_deg, t)
+        theta = (angulo_cam - q) % 360.0
+        cal = cls.analitica(escala=escala * factor_escala, angulo=theta, espejo=espejo, origen="astap")
+        cal.detalle = {"crota_deg": angulo_cam, "paralactico_deg": q, "escala_foto": escala, "det": det}
+        log.info("Calibración analítica: escala %.2f\"/px, ángulo cámara %.1f°, paraláctico %.1f°, θ = %.1f°, espejo %+d",
+                 cal.escala, angulo_cam, q, theta, espejo)
+        return cal
+
+    @classmethod
+    def empirica(cls, medidas, escala=None, alt=None, backend=""):
+        """
+        medidas = [(v_az, v_alt, vx_px, vy_px), ...] → matriz 2×2 por mínimos
+        cuadrados con v_px = M · v_ejes. Con dos medidas (una por eje) es exacta.
+        """
+        A = np.array([[m[0], m[1]] for m in medidas], dtype=float)   # n×2 velocidades de eje
+        B = np.array([[m[2], m[3]] for m in medidas], dtype=float)   # n×2 velocidades en px
+        M_t, *_ = np.linalg.lstsq(A, B, rcond=None)                  # B ≈ A · M_t
+        M = M_t.T
+        if abs(np.linalg.det(M)) < 1e-6:
+            raise ValueError("Las medidas no permiten calibrar (ejes sin desplazamiento apreciable)")
+        esc = escala
+        if esc is None:
+            esc = 3600.0 / math.sqrt(abs(np.linalg.det(M)))     # "/px medio
+        cal = cls(escala=esc, matriz_empirica=M, alt_empirica=alt, origen="empirica",
+                  fecha=datetime.now().isoformat(timespec="seconds"), backend=backend)
+        # Ángulo y espejo aproximados a partir de M (informativo)
+        cal.angulo = math.degrees(math.atan2(M[1][0], M[0][0])) % 360.0
+        cal.espejo = 1 if np.linalg.det(M) > 0 else -1
+        return cal
+
+    # ── uso ──────────────────────────────────────────────────────────────
+    def matriz(self, alt_deg=None, usar_empirica=None):
+        """M (2×2): v_px = M · (v_az, v_alt)."""
+        if usar_empirica is None:
+            usar_empirica = self.matriz_empirica is not None and self.origen == "empirica"
+        if usar_empirica and self.matriz_empirica is not None:
+            M = self.matriz_empirica.copy()
+            if alt_deg is not None and self.alt_empirica is not None:
+                ca, ce = math.cos(math.radians(alt_deg)), math.cos(math.radians(self.alt_empirica))
+                if ce > 0.05:
+                    M[:, 0] *= ca / ce
+            return M
+        th = math.radians(self.angulo)
+        R = np.array([[math.cos(th), -math.sin(th)], [math.sin(th), math.cos(th)]])
+        S = np.array([[1.0, 0.0], [0.0, float(self.espejo)]])
+        cos_alt = math.cos(math.radians(alt_deg)) if alt_deg is not None else 1.0
+        D = np.diag([max(0.05, cos_alt), 1.0])
+        return (3600.0 / self.escala) * S @ R @ D
+
+    def matriz_con_signos(self, alt_deg=None):
+        return self.matriz(alt_deg) @ np.diag([self.signo_az, self.signo_alt])
+
+    def px_a_ejes(self, dx_px, dy_px, alt_deg=None):
+        """Desplazamiento en píxeles → grados de cada eje (aplicando los signos)."""
+        Minv = np.linalg.inv(self.matriz_con_signos(alt_deg))
+        return tuple(float(v) for v in Minv @ np.array([dx_px, dy_px], dtype=float))
+
+    # ── persistencia ─────────────────────────────────────────────────────
+    def como_dict(self):
+        return {"escala": self.escala, "angulo": self.angulo, "espejo": self.espejo,
+                "matriz_empirica": None if self.matriz_empirica is None else self.matriz_empirica.tolist(),
+                "signo_az": self.signo_az, "signo_alt": self.signo_alt, "alt_empirica": self.alt_empirica,
+                "origen": self.origen, "fecha": self.fecha, "backend": self.backend,
+                "detalle": getattr(self, "detalle", None)}
+
+    def guardar(self, ruta=RUTA_CALIBRACION):
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+        with open(ruta, "w", encoding="utf-8") as f:
+            json.dump(self.como_dict(), f, ensure_ascii=False, indent=1)
+        return ruta
+
+    @classmethod
+    def leer(cls, ruta=RUTA_CALIBRACION):
+        try:
+            with open(ruta, encoding="utf-8") as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            return None
+        detalle = d.pop("detalle", None)
+        cal = cls(**{k: v for k, v in d.items() if k in ("escala", "angulo", "espejo", "matriz_empirica",
+                                                       "signo_az", "signo_alt", "alt_empirica", "origen", "fecha", "backend")})
+        if detalle:
+            cal.detalle = detalle
+        return cal
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Controlador
+# ═════════════════════════════════════════════════════════════════════════════
+class ControladorPI:
+    """v = kp·e + I ; I += ki·e·dt, con anti-windup al recortar a ±v_max."""
+
+    def __init__(self, kp=0.4, ki=0.15, v_max=4.0, dt_max=0.6):
+        self.kp, self.ki, self.v_max, self.dt_max = float(kp), float(ki), float(v_max), float(dt_max)
+        self.I = np.zeros(2)
+        self.v = np.zeros(2)
+
+    def arrancar(self, v_inicial=(0.0, 0.0)):
+        self.I = np.array(v_inicial, dtype=float)
+        self.v = self.I.copy()
+
+    def paso(self, error_ejes_deg, dt):
+        e = np.array(error_ejes_deg, dtype=float)
+        dt = min(max(dt, 0.0), self.dt_max)
+        I_nuevo = self.I + self.ki * e * dt
+        v = self.kp * e + I_nuevo
+        recortada = np.clip(v, -self.v_max, self.v_max)
+        # anti-windup: si saturamos y el error empuja hacia fuera, no integrar
+        for i in range(2):
+            if recortada[i] != v[i] and np.sign(e[i]) == np.sign(v[i]):
+                I_nuevo[i] = self.I[i]
+        self.I = I_nuevo
+        self.v = np.clip(self.kp * e + self.I, -self.v_max, self.v_max)
+        return tuple(float(x) for x in self.v)
+
+
+class Predictor:
+    """Hueco para la predicción por elementos orbitales (TLE) de satélites: velocidad esperada en ejes."""
+
+    def velocidad_esperada(self, t):
+        return None
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Trabajo en hilo
+# ═════════════════════════════════════════════════════════════════════════════
+class TrabajoSeguimiento:
+    FASES = ("parado", "preparando", "buscando", "bloqueado", "perdido", "calibrando", "parando")
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._parar = threading.Event()
+        self._hilo = None
+        self.version = 0
+        self._objetivo_pedido = None
+        self._orden_calibrar = None
+        self._reiniciar()
+
+    def _reiniciar(self):
+        self.en_curso = False
+        self.terminado = False
+        self.fase = "parado"
+        self.mensaje = ""
+        self.error = ""
+        self.inicio = ""
+        self.telemetria = {}
+        self.calibracion = None
+
+    # ── estado para la web ───────────────────────────────────────────────
+    def estado(self):
+        with self._lock:
+            return {"en_curso": self.en_curso, "terminado": self.terminado, "fase": self.fase,
+                    "mensaje": self.mensaje, "error": self.error, "inicio": self.inicio, "version": self.version,
+                    "telemetria": dict(self.telemetria),
+                    "calibracion": self.calibracion.como_dict() if self.calibracion else None}
+
+    def _msg(self, texto, nivel=logging.INFO):
+        with self._lock:
+            self.mensaje = texto
+        log.log(nivel, "Seguimiento: %s", texto)
+
+    def _fase(self, fase):
+        with self._lock:
+            self.fase = fase
+
+    # ── control ──────────────────────────────────────────────────────────
+    def iniciar(self, camara_ascom, montura_ascom, conf, fabrica_camara=None, fabrica_montura=None,
+                calibracion=None, voz=None, lat_lon=None):
+        """
+        camara_ascom / montura_ascom: TrabajadorCOM de la app (la cámara se
+        desconecta mientras dura el seguimiento). fabrica_camara() y
+        fabrica_montura() devuelven objetos con la interfaz de CamaraNativa y
+        MonturaEjes (inyección para el simulador).
+        """
+        with self._lock:
+            if self.en_curso:
+                raise RuntimeError("El seguimiento ya está en marcha")
+            if camara_ascom is not None and camara_ascom.ocupado:
+                raise RuntimeError("La cámara está ocupada con otra captura")
+            self._reiniciar()
+            self._parar.clear()
+            self.en_curso = True
+            self.fase = "preparando"
+            self.inicio = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.mensaje = "Preparando cámara y montura..."
+            self.calibracion = calibracion or Calibracion.leer() or Calibracion(
+                escala=escala_arcsec_px(conf["pixel_um"], conf["binning"], conf["focal_mm"]) * 2, origen="por_defecto")
+        self._conf = dict(conf)
+        self._hilo = threading.Thread(target=self._ejecutar, name="seguimiento", daemon=True,
+                                      args=(camara_ascom, montura_ascom, fabrica_camara, fabrica_montura, voz, lat_lon))
+        self._hilo.start()
+        return self._hilo
+
+    def parar(self):
+        self._parar.set()
+
+    def objetivo(self, fx, fy):
+        """El usuario ha pulsado en la vista previa (fracciones 0–1 del ancho/alto)."""
+        self._objetivo_pedido = (float(fx), float(fy))
+
+    def calibrar_empirica(self, v=0.3, duracion=1.0):
+        """Pide al hilo que mida la matriz empírica moviendo cada eje (solo en marcha y sin objetivo bloqueado)."""
+        self._orden_calibrar = (float(v), float(duracion))
+
+    def esperar(self, timeout=None):
+        if self._hilo:
+            self._hilo.join(timeout)
+
+    # ── fábricas por defecto ─────────────────────────────────────────────
+    def _camara_por_defecto(self):
+        from camara_nativa import CamaraNativa
+        cam = CamaraNativa()
+        cam.abrir()
+        return cam
+
+    def _montura_por_defecto(self, montura_ascom):
+        import montura_ejes
+        return montura_ejes.crear(self._conf, trabajador_ascom=montura_ascom)
+
+    # ── hilo ─────────────────────────────────────────────────────────────
+    def _ejecutar(self, camara_ascom, montura_ascom, fabrica_camara, fabrica_montura, voz, lat_lon):
+        conf = self._conf
+        cam = None
+        montura = None
+        error = ""
+        camara_desconectada = False
+        try:
+            if camara_ascom is not None and fabrica_camara is None:
+                camara_ascom.desconectar()
+                camara_desconectada = True
+            cam = fabrica_camara() if fabrica_camara else self._camara_por_defecto()
+            geo = cam.configurar(roi_px=conf["roi_px"], binning=conf["binning"], formato=conf["formato"],
+                                 exposicion_ms=conf["exposicion_ms"], ganancia=conf["ganancia"],
+                                 fps_max=conf["fps_camara"])
+            montura = fabrica_montura() if fabrica_montura else self._montura_por_defecto(montura_ascom)
+            montura.preparar()
+            cam.iniciar_video()
+            if voz:
+                voz.decir("Seguimiento de objetos", categoria="capturas")
+            self._bucle(cam, montura, geo, conf)
+        except Exception as e:
+            error = str(e)
+            log.exception("Seguimiento: error")
+        finally:
+            self._fase("parando")
+            if montura is not None:
+                for fn in (montura.parar, montura.restaurar):
+                    try:
+                        fn()
+                    except Exception as e:
+                        log.warning("Seguimiento: al parar la montura: %s", e)
+            if cam is not None:
+                try:
+                    cam.cerrar()
+                except Exception as e:
+                    log.warning("Seguimiento: al cerrar la cámara: %s", e)
+            if camara_desconectada:
+                self._reconectar_camara(camara_ascom)
+            with self._lock:
+                self.en_curso = False
+                self.terminado = True
+                self.fase = "parado"
+                self.error = error
+                self.mensaje = f"Error: {error}" if error else "Seguimiento terminado"
+                self.version += 1
+
+    def _reconectar_camara(self, camara_ascom):
+        for intento in range(3):
+            try:
+                camara_ascom.ejecutar(lambda c: c.Connected, timeout=30)
+                log.info("Seguimiento: cámara ASCOM reconectada")
+                return True
+            except Exception as e:
+                log.warning("Seguimiento: no se pudo reconectar la cámara ASCOM (%d/3): %s", intento + 1, e)
+                time.sleep(2)
+        self._msg("La cámara ASCOM no se ha podido reconectar; reconéctala desde Configuración", logging.ERROR)
+        return False
+
+    def _bucle(self, cam, montura, geo, conf):
+        """
+        Lee fotogramas a la cadencia de la cámara (fps_camara, limitada en la
+        propia cámara para no acumular fotogramas viejos) y manda velocidades a
+        la montura a frecuencia_hz. La velocidad aparente del objeto se estima
+        sobre los últimos `ventana_v_s` segundos de detecciones.
+        """
+        from camara_nativa import luminancia_rapida
+        periodo_orden = 1.0 / max(0.5, conf["frecuencia_hz"])
+        vista_cada = 1.0 / max(0.1, conf["vista_previa_hz"])
+        ventana_v = conf.get("ventana_v_s", 0.4)
+        lado = geo["lado"]
+        centro = np.array([lado / 4.0, lado / 4.0])      # el plano de detección es media resolución del ROI
+        pi = ControladorPI(conf["kp"], conf["ki"], min(conf["v_max"], min(montura.limites())))
+        objetivo_xy = None
+        historia = []            # (t, x, y) del objetivo
+        t_ultima_vista = 0.0
+        t_ultima_orden = 0.0
+        t_perdido = None
+        fps_t0, fps_n, fps = time.perf_counter(), 0, 0.0
+        v_ejes = (0.0, 0.0)
+        alt = None
+        t_pos = 0.0
+        n_frames = 0
+        m = None
+        error_px = (0.0, 0.0)
+        v_obj = None
+        elegido_por_usuario = False
+        ignorar = []             # (t, x, y) de manchas quietas descartadas en la adquisición automática
+
+        def reiniciar_objetivo(fase, msg):
+            nonlocal objetivo_xy, historia, t_perdido, elegido_por_usuario
+            objetivo_xy, historia, t_perdido, elegido_por_usuario = None, [], None, False
+            pi.arrancar()
+            self._fase(fase)
+            if msg:
+                self._msg(msg)
+
+        def candidata_automatica(manchas, t):
+            """La mancha más brillante que no esté en la lista de descartadas (últimos 5 s)."""
+            vivas = [(x, y) for (tt, x, y) in ignorar if t - tt < 5.0]
+            for cand in manchas:
+                if all(math.hypot(cand["x"] - x, cand["y"] - y) > 15 for x, y in vivas):
+                    return cand
+            return None
+
+        self._fase("buscando")
+        self._msg("Buscando un objeto brillante (o pulsa uno en la vista previa)")
+        while not self._parar.is_set():
+            # Orden de calibración empírica
+            if self._orden_calibrar is not None:
+                v, dur = self._orden_calibrar
+                self._orden_calibrar = None
+                self._calibrar_empirica(cam, montura, conf, v, dur, alt)
+                reiniciar_objetivo("buscando", "")
+                continue
+            try:
+                frame = cam.leer_frame()
+            except Exception as e:
+                self._msg(f"Fotograma perdido: {e}", logging.WARNING)
+                self._parar.wait(0.05)
+                continue
+            t_frame = time.perf_counter()
+            n_frames += 1
+            fps_n += 1
+            if t_frame - fps_t0 >= 1.0:
+                fps, fps_n, fps_t0 = fps_n / (t_frame - fps_t0), 0, t_frame
+            plano = luminancia_rapida(frame)
+            manchas = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"])
+
+            # Objetivo pedido por el usuario (fracción del ROI → píxel del plano)
+            pedido = self._objetivo_pedido
+            if pedido is not None:
+                self._objetivo_pedido = None
+                px, py = pedido[0] * plano.shape[1], pedido[1] * plano.shape[0]
+                m = elegir_objetivo(manchas, (px, py), radio_px=max(conf["radio_px"], plano.shape[0] * 0.1))
+                reiniciar_objetivo("buscando", "Objetivo elegido por el usuario" if m else "")
+                if m:
+                    objetivo_xy = (m["x"], m["y"])
+                    elegido_por_usuario = True
+                else:
+                    self._msg("No hay ninguna mancha cerca del punto pulsado", logging.WARNING)
+
+            m = elegir_objetivo(manchas, objetivo_xy, conf["radio_px"]) if objetivo_xy is not None else None
+            if m is None and objetivo_xy is None and manchas:
+                # Sin objetivo: adquirir automáticamente la más brillante que no se haya descartado por quieta
+                m = candidata_automatica(manchas, t_frame)
+                if m is not None:
+                    self._msg(f"Objeto adquirido en ({m['x']:.0f}, {m['y']:.0f})")
+
+            # Altura para la seguridad y para la matriz (1 Hz)
+            if t_frame - t_pos >= 1.0:
+                t_pos = t_frame
+                try:
+                    pos = montura.posicion()
+                except Exception:
+                    pos = None
+                if pos is not None:
+                    alt = pos[1]
+                    if alt < conf["altura_minima"]:
+                        self._msg(f"Altura {alt:.1f}° por debajo del mínimo: se para el seguimiento", logging.WARNING)
+                        break
+
+            if m is not None:
+                objetivo_xy = (m["x"], m["y"])
+                historia.append((t_frame, m["x"], m["y"]))
+                historia = [h for h in historia if t_frame - h[0] <= ventana_v]
+                if t_perdido is not None:
+                    t_perdido = None
+                    self._fase("bloqueado")
+                    self._msg("Objetivo recuperado")
+                error_px = (m["x"] - centro[0], m["y"] - centro[1])
+                # Velocidad aparente del objeto en px/s sobre la ventana
+                v_obj = None
+                if len(historia) >= 2:
+                    (t1, x1, y1), (t2, x2, y2) = historia[0], historia[-1]
+                    if t2 - t1 >= 0.08:
+                        v_obj = ((x2 - x1) / (t2 - t1), (y2 - y1) / (t2 - t1))
+                if (self.fase == "buscando" and v_obj is not None and len(historia) >= conf["frames_bootstrap"]
+                        and not elegido_por_usuario and math.hypot(*v_obj) < conf["v_min_px_s"]
+                        and historia[-1][0] - historia[0][0] >= ventana_v * 0.8 and v_ejes == (0.0, 0.0)):
+                    # Mancha quieta con la montura parada (una estrella): descartarla y buscar otra
+                    ignorar.append((t_frame, m["x"], m["y"]))
+                    reiniciar_objetivo("buscando", f"Mancha quieta en ({m['x']:.0f}, {m['y']:.0f}) descartada")
+                    m = None
+                elif self.fase == "buscando" and v_obj is not None and len(historia) >= conf["frames_bootstrap"]:
+                    # Bootstrap: la integral arranca con la velocidad angular aparente del objeto
+                    v0 = self.calibracion.px_a_ejes(v_obj[0], v_obj[1], alt)
+                    v0 = (v0[0] + v_ejes[0], v0[1] + v_ejes[1])
+                    pi.arrancar(v0)
+                    self._fase("bloqueado")
+                    self._msg(f"Bloqueado: velocidad inicial az {v0[0]:+.3f} alt {v0[1]:+.3f} °/s")
+                    t_ultima_orden = 0.0
+                if m is not None and self.fase == "bloqueado" and t_frame - t_ultima_orden >= periodo_orden:
+                    dt = periodo_orden if t_ultima_orden == 0.0 else t_frame - t_ultima_orden
+                    t_ultima_orden = t_frame
+                    e_ejes = self.calibracion.px_a_ejes(error_px[0], error_px[1], alt)
+                    v_ejes = pi.paso(e_ejes, dt)
+                    montura.velocidad(*v_ejes)
+            else:
+                error_px = (0.0, 0.0)
+                v_obj = None
+                if objetivo_xy is not None:
+                    if t_perdido is None:
+                        t_perdido = t_frame
+                        self._fase("perdido")
+                        self._msg("Objetivo perdido; se mantiene la última velocidad")
+                    elif t_frame - t_perdido > conf["perdida_s"]:
+                        montura.parar()
+                        v_ejes = (0.0, 0.0)
+                        reiniciar_objetivo("buscando", "Objetivo perdido: ejes parados, buscando de nuevo")
+            if hasattr(montura, "pendiente"):
+                montura.pendiente()
+
+            # Telemetría y vista previa
+            tel_m = montura.telemetria()
+            with self._lock:
+                self.telemetria = {
+                    "fps": round(fps, 1), "frames": n_frames, "manchas": len(manchas),
+                    "objetivo": None if objetivo_xy is None else [round(objetivo_xy[0], 1), round(objetivo_xy[1], 1)],
+                    "error_px": [round(error_px[0], 1), round(error_px[1], 1)],
+                    "v_obj_px_s": None if v_obj is None else [round(v_obj[0], 1), round(v_obj[1], 1)],
+                    "v_az": round(v_ejes[0], 4), "v_alt": round(v_ejes[1], 4),
+                    "integral": [round(float(pi.I[0]), 4), round(float(pi.I[1]), 4)],
+                    "alt_deg": None if alt is None else round(alt, 2), "lado": plano.shape[1],
+                    "saturada": bool(m and m["saturada"]), "descartados": cam.descartados() if hasattr(cam, "descartados") else 0,
+                    "montura": tel_m, "latencia_ms": tel_m.get("latencia_ms"),
+                }
+            if t_frame - t_ultima_vista >= vista_cada:
+                t_ultima_vista = t_frame
+                self._guardar_vista(plano, manchas, objetivo_xy, conf["vista_previa_px"])
+
+    def _guardar_vista(self, plano, manchas, objetivo_xy, ancho):
+        try:
+            os.makedirs(CARPETA_VISTA, exist_ok=True)
+            img = cv2.cvtColor(plano, cv2.COLOR_GRAY2BGR)
+            h, w = plano.shape
+            cv2.drawMarker(img, (w // 2, h // 2), (0, 200, 255), cv2.MARKER_CROSS, 24, 1)
+            for m in manchas[:10]:
+                cv2.circle(img, (int(m["x"]), int(m["y"])), 8, (120, 120, 120), 1)
+            if objetivo_xy is not None:
+                cv2.rectangle(img, (int(objetivo_xy[0]) - 12, int(objetivo_xy[1]) - 12),
+                              (int(objetivo_xy[0]) + 12, int(objetivo_xy[1]) + 12), (0, 255, 0), 1)
+            if w != ancho:
+                img = cv2.resize(img, (ancho, int(h * ancho / w)), interpolation=cv2.INTER_AREA)
+            tmp = RUTA_VISTA + ".tmp.jpg"
+            cv2.imwrite(tmp, img, [cv2.IMWRITE_JPEG_QUALITY, 65])
+            os.replace(tmp, RUTA_VISTA)
+            with self._lock:
+                self.version += 1
+        except Exception as e:
+            log.warning("Seguimiento: no se pudo guardar la vista previa: %s", e)
+
+    def _calibrar_empirica(self, cam, montura, conf, v, duracion, alt):
+        """Mueve cada eje a ±v durante `duracion` s midiendo el desplazamiento de la mancha más brillante."""
+        from camara_nativa import luminancia_rapida
+        self._fase("calibrando")
+        self._msg(f"Calibración empírica: moviendo cada eje a {v:g} °/s")
+
+        def posicion_media(n=3):
+            xs, ys = [], []
+            for _ in range(n):
+                plano = luminancia_rapida(cam.leer_frame())
+                ms = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"])
+                if ms:
+                    xs.append(ms[0]["x"])
+                    ys.append(ms[0]["y"])
+            if not xs:
+                raise RuntimeError("No hay ninguna mancha con la que calibrar")
+            return float(np.mean(xs)), float(np.mean(ys))
+
+        medidas = []
+        try:
+            for eje in (0, 1):
+                x0, y0 = posicion_media()
+                t0 = time.perf_counter()
+                montura.velocidad(v if eje == 0 else 0.0, v if eje == 1 else 0.0)
+                if hasattr(montura, "pendiente"):
+                    montura.pendiente()
+                self._parar.wait(duracion)
+                x1, y1 = posicion_media(2)
+                t1 = time.perf_counter()
+                montura.parar()
+                # Volver
+                montura.velocidad(-v if eje == 0 else 0.0, -v if eje == 1 else 0.0)
+                if hasattr(montura, "pendiente"):
+                    montura.pendiente()
+                self._parar.wait(t1 - t0)
+                montura.parar()
+                dt = t1 - t0
+                medidas.append((v if eje == 0 else 0.0, v if eje == 1 else 0.0, (x1 - x0) / dt, (y1 - y0) / dt))
+                log.info("Calibración empírica eje %d: (%.1f, %.1f) → (%.1f, %.1f) px en %.2f s", eje, x0, y0, x1, y1, dt)
+            cal = Calibracion.empirica(medidas, alt=alt, backend=montura.nombre)
+            # Contraste con la analítica que hubiera
+            previa = self.calibracion
+            if previa is not None and previa.origen in ("astap", "analitica"):
+                Ma = previa.matriz(alt)
+                Me = cal.matriz_empirica
+                diff = float(np.degrees(np.arccos(np.clip((Ma[:, 0] @ Me[:, 0]) /
+                                                          (np.linalg.norm(Ma[:, 0]) * np.linalg.norm(Me[:, 0]) + 1e-9), -1, 1))))
+                cal.detalle = {"angulo_vs_analitica_deg": round(diff, 1)}
+                log.info("Calibración empírica vs analítica: %.1f° de diferencia en el eje de acimut", diff)
+            cal.guardar()
+            with self._lock:
+                self.calibracion = cal
+            self._msg(f"Calibración empírica guardada (escala {cal.escala:.2f}\"/px, ángulo {cal.angulo:.1f}°)")
+        except Exception as e:
+            try:
+                montura.parar()
+            except Exception:
+                pass
+            self._msg(f"Calibración empírica fallida: {e}", logging.ERROR)
+
+
+trabajo_seguimiento = TrabajoSeguimiento()

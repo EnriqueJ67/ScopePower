@@ -38,7 +38,14 @@ from concurrent.futures import Future
 log = logging.getLogger("scopepower.montura_ejes")
 
 SIDEREO_DEG_S = 360.0 / 86164.0905          # 0,0041781 °/s
-UMBRAL_RAPIDO_DEG_S = 128 * SIDEREO_DEG_S   # 0,5348 °/s: por encima el firmware va en modo rápido
+UMBRAL_RAPIDO_DEG_S = 128 * SIDEREO_DEG_S   # 0,5348 °/s: por encima el firmware exige el modo rápido
+# El modo rápido (micropasos × ratio) vale también a velocidades menores, solo es
+# algo menos fino (a 0,05 °/s da ~10 pasos/s y vibra). Como cambiar de modo
+# obliga a parar el eje casi un segundo (y un objeto a 0,8 °/s se escapa del
+# campo mientras tanto), para seguir objetos se va SIEMPRE en rápido (umbral 0);
+# udp_umbral_rapido en config permite subirlo (p. ej. 0,2) para seguir algo lento.
+UMBRAL_RAPIDO_SEGUIMIENTO = 0.0
+BANDA_MUERTA_UDP = 0.01     # °/s: por debajo se para el eje en vez de invertir el sentido por ruido
 PERIODO_MINIMO = 6                           # ticks de reloj mínimos por micropaso (EQMOD/INDI)
 
 
@@ -203,7 +210,7 @@ class MonturaASCOM(MonturaEjes):
         except ErrorHardware as e:
             raise ErrorMontura(str(e)) from e
         self._limites = (float(lim[0]), float(lim[1]))
-        self._pos_t = time.monotonic()
+        self._pos_t = time.perf_counter()
         log.info("Montura ASCOM lista: límites %s °/s, tracking=%s, posición=%s", self._limites,
                  self._tracking_inicial, self._pos)
 
@@ -218,7 +225,7 @@ class MonturaASCOM(MonturaEjes):
     def velocidad(self, v_az, v_alt):
         v_az, v_alt = self.recortar(v_az, v_alt)
         v = (self._cuantizar(v_az), self._cuantizar(v_alt))
-        ahora = time.monotonic()
+        ahora = time.perf_counter()
         # ¿Terminó la orden anterior?
         if self._futuro is not None:
             if not self._futuro.done():
@@ -243,13 +250,13 @@ class MonturaASCOM(MonturaEjes):
     def _enviar(self, v):
         self._enviada = v
         self._pendiente = None
-        self._t_envio = time.monotonic()
+        self._t_envio = time.perf_counter()
         t0 = self._t_envio
         tracking = self._tracking_inicial
 
         def _mover(tel):
             mover_ejes_ascom(tel, v[0], v[1], tracking_tras_parar=tracking)
-            return time.monotonic() - t0
+            return time.perf_counter() - t0
         self._futuro = self._t.ejecutar_async(_mover)
         self.enviadas += 1
 
@@ -286,7 +293,7 @@ class MonturaASCOM(MonturaEjes):
             self._enviada = (0.0, 0.0)
 
     def posicion(self):
-        ahora = time.monotonic()
+        ahora = time.perf_counter()
         if self._pos_futuro is not None and self._pos_futuro.done():
             try:
                 self._pos = self._pos_futuro.result(timeout=0)
@@ -325,7 +332,7 @@ def decodificar_24(texto):
     return int("".join(reversed(pares)), 16)
 
 
-def velocidad_a_periodo(v_deg_s, cpr, freq, ratio, rapido_actual=None, version=0):
+def velocidad_a_periodo(v_deg_s, cpr, freq, ratio, rapido_actual=None, version=0, umbral=UMBRAL_RAPIDO_SEGUIMIENTO):
     """
     Velocidad en °/s → (periodo T para :I, modo rápido) según los parámetros del
     controlador: pasos por vuelta (:a), frecuencia del temporizador (:b) y ratio
@@ -335,12 +342,15 @@ def velocidad_a_periodo(v_deg_s, cpr, freq, ratio, rapido_actual=None, version=0
     pasos_s = abs(float(v_deg_s)) * cpr / 360.0
     if pasos_s <= 0:
         return None
-    umbral = UMBRAL_RAPIDO_DEG_S
+    # Histéresis asimétrica: cambiar de modo obliga a parar el eje, así que una
+    # vez en rápido se sigue en rápido hasta bastante por debajo del umbral.
+    # Por encima del umbral del firmware (128× sidéreo) el modo rápido es obligatorio.
+    umbral = min(umbral, UMBRAL_RAPIDO_DEG_S)
     if rapido_actual is True:
-        umbral *= 0.9
+        umbral *= 0.6
     elif rapido_actual is False:
-        umbral *= 1.1
-    rapido = abs(v_deg_s) > umbral
+        umbral *= 1.05
+    rapido = umbral <= 0 or abs(v_deg_s) > umbral or abs(v_deg_s) > UMBRAL_RAPIDO_DEG_S * 1.05
     T = freq / pasos_s
     if rapido:
         T *= max(1, ratio)
@@ -377,18 +387,20 @@ class MonturaSkyWatcherUDP(MonturaEjes):
     CANALES = ("1", "2")
 
     def __init__(self, host="192.168.4.1", puerto=11880, timeout_s=0.5, reintentos=2,
-                 trabajador_ascom=None, cambio_en_caliente=True):
+                 trabajador_ascom=None, cambio_en_caliente=True, umbral_rapido=UMBRAL_RAPIDO_SEGUIMIENTO):
         self.host, self.puerto = host, int(puerto)
         self.timeout_s, self.reintentos = float(timeout_s), int(reintentos)
         self._t = trabajador_ascom
         self.cambio_en_caliente = cambio_en_caliente
+        self.umbral_rapido = float(umbral_rapido)
         self._sock = None
         self._lock = threading.RLock()
         self.version = {}
         self.cpr = [0, 0]
         self.freq = [0, 0]
         self.ratio = [1, 1]
-        self._eje = [{"v": 0.0, "dir": None, "rapido": None, "marcha": False, "T": None} for _ in (0, 1)]
+        self._eje = [{"v": 0.0, "dir": None, "rapido": None, "marcha": False, "T": None, "espera": None} for _ in (0, 1)]
+        self.cambios_de_modo = 0
         self._pos0 = [None, None]
         self._tracking_inicial = None
         self._pos_ascom = None
@@ -512,9 +524,16 @@ class MonturaSkyWatcherUDP(MonturaEjes):
         return enviado
 
     def _velocidad_eje(self, eje, v):
+        """
+        Consigna de un eje. Si hay que cambiar de sentido o de modo, manda parar
+        y deja la nueva consigna en espera: `pendiente()` (que el bucle llama en
+        cada fotograma) la arranca cuando el eje confirma la parada, sin
+        bloquear la lectura de la cámara mientras tanto.
+        """
         e = self._eje[eje]
         c = self.CANALES[eje]
-        if abs(v) < 0.0005:
+        if abs(v) < BANDA_MUERTA_UDP:
+            e["espera"] = None
             if e["marcha"]:
                 self.enviar("K", c)
                 e.update(marcha=False, v=0.0, T=None)
@@ -522,9 +541,13 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             return False
         res = velocidad_a_periodo(v, self.cpr[eje], self.freq[eje], self.ratio[eje],
                                   rapido_actual=e["rapido"] if e["marcha"] else None,
-                                  version=self.version.get("valor", 0))
+                                  version=self.version.get("valor", 0), umbral=self.umbral_rapido)
         T, rapido = res
         direccion = 0 if v > 0 else 1
+        if e.get("espera"):
+            # Ya estamos parando para cambiar: actualizar la consigna que arrancará
+            e["espera"]["consigna"] = (v, T, direccion, rapido)
+            return self._avanzar_espera(eje)
         if e["marcha"] and e["T"] == T and e["dir"] == direccion and e["rapido"] == rapido:
             return False
         if e["marcha"] and e["dir"] == direccion and e["rapido"] == rapido and self.cambio_en_caliente:
@@ -533,16 +556,48 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             return True
         if e["marcha"]:
             self.enviar("K", c)
-            self._esperar_parada(eje)
+            e.update(marcha=False, v=0.0, T=None)
+            e["espera"] = {"t0": time.perf_counter(), "consigna": (v, T, direccion, rapido)}
+            self.cambios_de_modo += 1
+            return True
+        self._arrancar(eje, v, T, direccion, rapido)
+        return True
+
+    def _arrancar(self, eje, v, T, direccion, rapido):
+        c = self.CANALES[eje]
         self.enviar("G", c, f"{3 if rapido else 1}{direccion}")
         self.enviar("I", c, codificar_24(T))
         self.enviar("J", c)
-        e.update(marcha=True, v=v, T=T, dir=direccion, rapido=rapido)
-        return True
+        self._eje[eje].update(marcha=True, v=v, T=T, dir=direccion, rapido=rapido, espera=None)
+
+    def _avanzar_espera(self, eje, maximo_s=1.5):
+        """Si el eje que estaba parando ya está quieto (o pasó el tope), arranca la consigna en espera."""
+        e = self._eje[eje]
+        esp = e.get("espera")
+        if not esp:
+            return False
+        try:
+            quieto = not self.estado(eje)["en_marcha"]
+        except ErrorMontura:
+            quieto = False
+        if quieto or time.perf_counter() - esp["t0"] > maximo_s:
+            if not quieto:
+                log.warning("Montura UDP: el eje %d no confirmó la parada en %.1f s", eje, maximo_s)
+            self._arrancar(eje, *esp["consigna"])
+            return True
+        return False
+
+    def pendiente(self):
+        """Avanza los cambios de modo/sentido en curso (llamar en cada ciclo)."""
+        enviado = False
+        for eje in (0, 1):
+            if self._eje[eje].get("espera"):
+                enviado |= self._avanzar_espera(eje)
+        return enviado
 
     def _esperar_parada(self, eje, maximo_s=1.5):
-        t0 = time.monotonic()
-        while time.monotonic() - t0 < maximo_s:
+        t0 = time.perf_counter()
+        while time.perf_counter() - t0 < maximo_s:
             try:
                 if not self.estado(eje)["en_marcha"]:
                     return True
@@ -557,7 +612,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             try:
                 self.enviar("K", c)
             finally:
-                self._eje[eje].update(marcha=False, v=0.0, T=None)
+                self._eje[eje].update(marcha=False, v=0.0, T=None, espera=None)
         for eje in (0, 1):
             self._esperar_parada(eje)
 
@@ -572,7 +627,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
     def posicion(self):
         if self._t is None:
             return None
-        ahora = time.monotonic()
+        ahora = time.perf_counter()
         if self._pos_futuro is not None and self._pos_futuro.done():
             try:
                 self._pos_ascom = self._pos_futuro.result(timeout=0)
@@ -597,8 +652,9 @@ class MonturaSkyWatcherUDP(MonturaEjes):
 
     def telemetria(self):
         return {"backend": self.nombre, "latencia_ms": self._latencia_ms, "enviadas": self.enviadas,
-                "errores": self.errores, "version": self.version.get("texto"),
-                "ejes": [{"v": e["v"], "T": e["T"], "rapido": e["rapido"], "marcha": e["marcha"]} for e in self._eje],
+                "errores": self.errores, "version": self.version.get("texto"), "cambios_de_modo": self.cambios_de_modo,
+                "ejes": [{"v": e["v"], "T": e["T"], "rapido": e["rapido"], "marcha": e["marcha"],
+                          "parando": bool(e.get("espera"))} for e in self._eje],
                 "limites": list(self._limites)}
 
 
@@ -612,7 +668,8 @@ def crear(conf, trabajador_ascom=None):
     if backend == "udp":
         return MonturaSkyWatcherUDP(host=conf.get("udp_host", "192.168.4.1"), puerto=int(conf.get("udp_puerto", 11880)),
                                     timeout_s=float(conf.get("udp_timeout_s", 0.5)), trabajador_ascom=trabajador_ascom,
-                                    cambio_en_caliente=str(conf.get("udp_cambio_en_caliente", "true")).lower() != "false")
+                                    cambio_en_caliente=str(conf.get("udp_cambio_en_caliente", "true")).lower() != "false",
+                                    umbral_rapido=float(conf.get("udp_umbral_rapido", UMBRAL_RAPIDO_SEGUIMIENTO)))
     if trabajador_ascom is None:
         raise ErrorMontura("El backend ASCOM necesita el TrabajadorCOM de la montura")
     redondeo = conf.get("redondeo_ascom")
@@ -631,14 +688,23 @@ if __name__ == "__main__":
     assert e["modo_slew"] and e["rapido"] and e["en_marcha"] and e["inicializado"] and not e["sentido_cw"]
     # AZ-GTi típica: cpr 9216000? no; usamos valores redondos de ejemplo
     cpr, freq, ratio = 1_296_000, 64_935, 16
-    T, rapido = velocidad_a_periodo(SIDEREO_DEG_S, cpr, freq, ratio)
+    T, rapido = velocidad_a_periodo(SIDEREO_DEG_S, cpr, freq, ratio, umbral=0.2)
     assert not rapido and abs(periodo_a_velocidad(T, rapido, cpr, freq, ratio) - SIDEREO_DEG_S) / SIDEREO_DEG_S < 0.01
     T, rapido = velocidad_a_periodo(1.0, cpr, freq, ratio)
     assert rapido and abs(periodo_a_velocidad(T, rapido, cpr, freq, ratio) - 1.0) < 0.05
-    # Histéresis: a 0,55 °/s en lento sigue en lento (umbral ×1,1 = 0,588)
-    assert velocidad_a_periodo(0.55, cpr, freq, ratio, rapido_actual=False)[1] is False
-    assert velocidad_a_periodo(0.55, cpr, freq, ratio, rapido_actual=None)[1] is True
-    assert velocidad_a_periodo(0.5, cpr, freq, ratio, rapido_actual=True)[1] is True
+    # Con umbral 0,2 °/s: histéresis asimétrica (×1,05 para subir, ×0,6 para bajar)
+    assert velocidad_a_periodo(0.20, cpr, freq, ratio, rapido_actual=False, umbral=0.2)[1] is False
+    assert velocidad_a_periodo(0.22, cpr, freq, ratio, rapido_actual=False, umbral=0.2)[1] is True
+    assert velocidad_a_periodo(0.21, cpr, freq, ratio, rapido_actual=None, umbral=0.2)[1] is True
+    assert velocidad_a_periodo(0.13, cpr, freq, ratio, rapido_actual=True, umbral=0.2)[1] is True
+    assert velocidad_a_periodo(0.11, cpr, freq, ratio, rapido_actual=True, umbral=0.2)[1] is False
+    # Por defecto (umbral 0) siempre rápido, también a velocidad sidérea
+    assert velocidad_a_periodo(SIDEREO_DEG_S, cpr, freq, ratio)[1] is True
+    T, _ = velocidad_a_periodo(0.05, cpr, freq, ratio)
+    assert abs(periodo_a_velocidad(T, True, cpr, freq, ratio) - 0.05) < 0.001
+    # Por encima del umbral del firmware siempre rápido, aunque se pida otro umbral
+    assert velocidad_a_periodo(0.6, cpr, freq, ratio, rapido_actual=False, umbral=5.0)[1] is True
+    assert velocidad_a_periodo(0.25, cpr, freq, ratio, umbral=5.0)[1] is False
     assert velocidad_a_periodo(0, cpr, freq, ratio) is None
     assert velocidad_a_periodo(50.0, cpr, freq, ratio)[0] == PERIODO_MINIMO
     print("✅ montura_ejes: pruebas del protocolo correctas")
