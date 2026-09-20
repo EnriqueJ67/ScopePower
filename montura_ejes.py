@@ -74,6 +74,10 @@ class MonturaEjes:
         """(azimut, altura) en grados o None si no se sabe. No debe bloquear el bucle."""
         return None
 
+    def posicion_ahora(self):
+        """Como posicion() pero leída en el momento (puede bloquear); para la calibración empírica."""
+        return self.posicion()
+
     def limites(self):
         """(v_max_az, v_max_alt) en °/s."""
         return (4.0, 4.0)
@@ -303,6 +307,14 @@ class MonturaASCOM(MonturaEjes):
         if self._pos_futuro is None and ahora - self._pos_t >= 1.0 and (self._futuro is None or self._futuro.done()):
             self._pos_t = ahora
             self._pos_futuro = self._t.ejecutar_async(lambda tel: (float(tel.Azimuth), float(tel.Altitude)))
+        return self._pos
+
+    def posicion_ahora(self):
+        from hardware import ErrorHardware
+        try:
+            self._pos = self._t.ejecutar(lambda tel: (float(tel.Azimuth), float(tel.Altitude)), timeout=self.timeout)
+        except ErrorHardware as e:
+            raise ErrorMontura(str(e)) from e
         return self._pos
 
     def restaurar(self):
@@ -623,6 +635,10 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             p = self.leer_24("j", c)
             out.append((p - self._pos0[i]) * 360.0 / self.cpr[i] if self._pos0[i] is not None else 0.0)
         return tuple(out)
+
+    def posicion_ahora(self):
+        """Desplazamiento de los codificadores (grados de eje desde preparar): sirve para medir cuánto se movió."""
+        return self.posicion_codificador()
 
     def posicion(self):
         if self._t is None:

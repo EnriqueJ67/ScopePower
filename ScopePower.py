@@ -3236,7 +3236,9 @@ def seguimiento_iniciar():
         if _sim_seguimiento["servidor"] is not None:
             _sim_seguimiento["servidor"].parar()
         conf["udp_host"] = "127.0.0.1"
-        fab_cam, fab_mont, _, _, _, servidor = simulador_seguimiento.fabricas(conf, udp=(conf["backend"] == "udp"))
+        fab_cam, fab_mont, _, _, _, servidor = simulador_seguimiento.fabricas(
+            conf, udp=(conf["backend"] == "udp"), v_obj=conf["sim_v_obj"], rumbo_deg=conf["sim_rumbo"],
+            angulo_deg=conf["sim_angulo"], retardo_montura_s=conf["sim_retardo_s"])
         _sim_seguimiento["servidor"] = servidor
         cam_ascom = mont_ascom = None
     try:

@@ -59,6 +59,8 @@ CONF_POR_DEFECTO = {
     "vista_previa_px": 400, "vista_previa_hz": 1.0, "calibracion": "analitica",
     "k_mad": 6.0, "area_min": 3, "area_max": 20000, "radio_px": 80, "frames_bootstrap": 3, "v_min_px_s": 3.0,
     "altura_minima": 5.0, "focal_mm": 260.0, "pixel_um": 3.76,
+    # Solo con simulador = true: objeto simulado (°/s y rumbo), giro real de la cámara y retardo de la montura
+    "sim_v_obj": 0.8, "sim_rumbo": 20.0, "sim_angulo": 25.0, "sim_retardo_s": 0.5,
 }
 
 
@@ -77,7 +79,8 @@ def leer_conf(config, altura_minima=None, focal_mm=None, pixel_um=None):
               "vista_previa_px"):
         conf[k] = int(float(conf[k]))
     for k in ("exposicion_ms", "fps_camara", "ventana_v_s", "frecuencia_hz", "kp", "ki", "v_max", "perdida_s", "intervalo_ascom_s", "banda_muerta",
-              "vista_previa_hz", "k_mad", "altura_minima", "focal_mm", "pixel_um", "v_min_px_s"):
+              "vista_previa_hz", "k_mad", "altura_minima", "focal_mm", "pixel_um", "v_min_px_s",
+              "sim_v_obj", "sim_rumbo", "sim_angulo", "sim_retardo_s"):
         conf[k] = float(conf[k])
     conf["simulador"] = str(conf["simulador"]).lower() in ("1", "true", "si", "sí", "yes")
     if conf["redondeo_ascom"] in ("", "0", "None", "none"):
@@ -228,8 +231,9 @@ class Calibracion:
     @classmethod
     def empirica(cls, medidas, escala=None, alt=None, backend=""):
         """
-        medidas = [(v_az, v_alt, vx_px, vy_px), ...] → matriz 2×2 por mínimos
-        cuadrados con v_px = M · v_ejes. Con dos medidas (una por eje) es exacta.
+        medidas = [(d_az, d_alt, dx_px, dy_px), ...] (grados de eje mandados y
+        píxeles desplazados, o velocidades) → matriz 2×2 por mínimos cuadrados con
+        d_px = M · d_ejes. Con dos medidas (una por eje) es exacta.
         """
         A = np.array([[m[0], m[1]] for m in medidas], dtype=float)   # n×2 velocidades de eje
         B = np.array([[m[2], m[3]] for m in medidas], dtype=float)   # n×2 velocidades en px
@@ -682,56 +686,90 @@ class TrabajoSeguimiento:
                 img = cv2.resize(img, (ancho, int(h * ancho / w)), interpolation=cv2.INTER_AREA)
             tmp = RUTA_VISTA + ".tmp.jpg"
             cv2.imwrite(tmp, img, [cv2.IMWRITE_JPEG_QUALITY, 65])
-            os.replace(tmp, RUTA_VISTA)
+            # En Windows el reemplazo falla si Flask está sirviendo el fichero en ese
+            # instante: reintentar unas veces y, si no, dejar la vista anterior
+            for intento in range(4):
+                try:
+                    os.replace(tmp, RUTA_VISTA)
+                    break
+                except PermissionError:
+                    if intento == 3:
+                        return
+                    time.sleep(0.02)
             with self._lock:
                 self.version += 1
         except Exception as e:
             log.warning("Seguimiento: no se pudo guardar la vista previa: %s", e)
 
     def _calibrar_empirica(self, cam, montura, conf, v, duracion, alt):
-        """Mueve cada eje a ±v durante `duracion` s midiendo el desplazamiento de la mancha más brillante."""
+        """
+        Mueve cada eje a ±v durante `duracion` s y relaciona el desplazamiento de
+        la mancha más brillante (px) con el ángulo que la montura dice haber
+        recorrido (posicion_ahora antes y después, con la imagen ya quieta). Así
+        no importan el retardo ni la rampa de la montura. La matriz queda en
+        píxeles por grado de eje MANDADO (signo de la orden), de modo que el
+        controlador no necesita signos aparte.
+        """
         from camara_nativa import luminancia_rapida
         self._fase("calibrando")
-        self._msg(f"Calibración empírica: moviendo cada eje a {v:g} °/s")
+        self._msg(f"Calibración empírica: moviendo cada eje a {v:g} °/s durante {duracion:g} s")
 
-        def posicion_media(n=3):
-            xs, ys = [], []
-            for _ in range(n):
-                plano = luminancia_rapida(cam.leer_frame())
-                ms = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"])
-                if ms:
-                    xs.append(ms[0]["x"])
-                    ys.append(ms[0]["y"])
-            if not xs:
+        def mancha():
+            plano = luminancia_rapida(cam.leer_frame())
+            ms = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"])
+            if not ms:
                 raise RuntimeError("No hay ninguna mancha con la que calibrar")
-            return float(np.mean(xs)), float(np.mean(ys))
+            return ms[0]["x"], ms[0]["y"]
+
+        def esperar_quieta(maximo_s=4.0):
+            """Espera a que la mancha deje de moverse (dos lecturas separadas 0,3 s casi iguales)."""
+            t0 = time.perf_counter()
+            x0, y0 = mancha()
+            while time.perf_counter() - t0 < maximo_s:
+                self._parar.wait(0.3)
+                x1, y1 = mancha()
+                if math.hypot(x1 - x0, y1 - y0) < 1.0:
+                    return (x0 + x1) / 2.0, (y0 + y1) / 2.0
+                x0, y0 = x1, y1
+            return x0, y0
+
+        def mover(v_az, v_alt, segundos):
+            montura.velocidad(v_az, v_alt)
+            if hasattr(montura, "pendiente"):
+                montura.pendiente()
+            t0 = time.perf_counter()
+            while time.perf_counter() - t0 < segundos and not self._parar.is_set():
+                self._parar.wait(0.1)
+                if hasattr(montura, "pendiente"):
+                    montura.pendiente()
+            montura.parar()
 
         medidas = []
         try:
             for eje in (0, 1):
-                x0, y0 = posicion_media()
-                t0 = time.perf_counter()
-                montura.velocidad(v if eje == 0 else 0.0, v if eje == 1 else 0.0)
-                if hasattr(montura, "pendiente"):
-                    montura.pendiente()
-                self._parar.wait(duracion)
-                x1, y1 = posicion_media(2)
-                t1 = time.perf_counter()
-                montura.parar()
-                # Volver
-                montura.velocidad(-v if eje == 0 else 0.0, -v if eje == 1 else 0.0)
-                if hasattr(montura, "pendiente"):
-                    montura.pendiente()
-                self._parar.wait(t1 - t0)
-                montura.parar()
-                dt = t1 - t0
-                medidas.append((v if eje == 0 else 0.0, v if eje == 1 else 0.0, (x1 - x0) / dt, (y1 - y0) / dt))
-                log.info("Calibración empírica eje %d: (%.1f, %.1f) → (%.1f, %.1f) px en %.2f s", eje, x0, y0, x1, y1, dt)
+                x0, y0 = esperar_quieta()
+                m0 = montura.posicion_ahora()
+                mover(v if eje == 0 else 0.0, v if eje == 1 else 0.0, duracion)
+                x1, y1 = esperar_quieta()
+                m1 = montura.posicion_ahora()
+                if m0 is None or m1 is None:
+                    raise RuntimeError("La montura no informa de su posición; no se puede medir el ángulo recorrido")
+                d_deg = (m1[eje] - m0[eje] + 180.0) % 360.0 - 180.0
+                if abs(d_deg) < 0.02:
+                    raise RuntimeError(f"El eje {eje} no se ha movido ({d_deg:.3f}°): ¿montura parada o sin posición?")
+                d_cmd = math.copysign(abs(d_deg), v)      # grados en el sentido de la orden
+                # La matriz del controlador relaciona el movimiento RELATIVO del objeto (objeto menos
+                # montura) con la imagen: al mover la montura el objeto se desplaza al revés, de ahí el signo
+                medidas.append((d_cmd if eje == 0 else 0.0, d_cmd if eje == 1 else 0.0, -(x1 - x0), -(y1 - y0)))
+                log.info("Calibración empírica eje %d: %.3f° recorridos (informados %.3f°), mancha (%.1f, %.1f) → (%.1f, %.1f)",
+                         eje, d_cmd, d_deg, x0, y0, x1, y1)
+                # Volver (aproximadamente) al punto de partida
+                mover(-v if eje == 0 else 0.0, -v if eje == 1 else 0.0, duracion)
+                esperar_quieta()
             cal = Calibracion.empirica(medidas, alt=alt, backend=montura.nombre)
-            # Contraste con la analítica que hubiera
             previa = self.calibracion
             if previa is not None and previa.origen in ("astap", "analitica"):
-                Ma = previa.matriz(alt)
+                Ma = previa.matriz_con_signos(alt)
                 Me = cal.matriz_empirica
                 diff = float(np.degrees(np.arccos(np.clip((Ma[:, 0] @ Me[:, 0]) /
                                                           (np.linalg.norm(Ma[:, 0]) * np.linalg.norm(Me[:, 0]) + 1e-9), -1, 1))))
@@ -740,7 +778,7 @@ class TrabajoSeguimiento:
             cal.guardar()
             with self._lock:
                 self.calibracion = cal
-            self._msg(f"Calibración empírica guardada (escala {cal.escala:.2f}\"/px, ángulo {cal.angulo:.1f}°)")
+            self._msg(f"Calibración empírica guardada (escala {cal.escala:.2f}\"/px, ángulo {cal.angulo:.1f}°, espejo {cal.espejo:+d})")
         except Exception as e:
             try:
                 montura.parar()

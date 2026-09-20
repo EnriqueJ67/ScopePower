@@ -42,7 +42,10 @@ class Mundo:
         self.t0 = time.perf_counter()
         self.az0, self.alt0 = float(az0), float(alt0)
         self.v_obj, self.rumbo, self.curva = float(v_obj), float(rumbo_deg), float(curva_deg_s2)
-        if inicio_deg is None:
+        if inicio_deg is None and abs(v_obj) < 1e-6:
+            # Objeto quieto (para calibrar): cerca del centro del campo
+            inicio_deg = (0.08, 0.05)
+        elif inicio_deg is None:
             # El objeto entra por el borde del campo y cruza el centro (así se caza de verdad)
             r = math.radians(rumbo_deg)
             inicio_deg = (-entrada_deg * math.cos(r), -entrada_deg * math.sin(r))
