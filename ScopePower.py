@@ -59,6 +59,7 @@ import editor_fotos
 import anuncio_ip
 import coordenadas
 import recorridos
+import montura_ejes
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -1462,65 +1463,14 @@ _pad = {"activo": False, "ultimo": 0.0, "vx": 0.0, "vy": 0.0, "lock": threading.
 PAD_TIMEOUT_S = 1.2
 
 
-def _rangos_axisrates(tel, eje):
-    """
-    Rangos (min, max) en °/s que admite MoveAxis en ese eje, o [] si el driver
-    no lo dice. La colección AxisRates se recorre por enumeración COM: el
-    índice de Item() es 1-based en unos drivers y 0-based en otros.
-    """
-    try:
-        rates = tel.AxisRates(eje)
-    except Exception:
-        return []
-    rangos = []
-    try:
-        for r in rates:
-            rangos.append((float(r.Minimum), float(r.Maximum)))
-    except Exception:
-        rangos = []
-    if not rangos:
-        try:
-            n = int(rates.Count)
-        except Exception:
-            return []
-        for i in list(range(1, n + 1)) + list(range(0, n)):
-            try:
-                r = rates.Item(i)
-                par = (float(r.Minimum), float(r.Maximum))
-                if par not in rangos:
-                    rangos.append(par)
-            except Exception:
-                continue
-    return rangos
-
-
-_pad_rates_anotados = False
-
-
-def _anotar_axisrates(tel):
-    """Deja en el log, una vez, las velocidades que anuncia el driver (para saber qué acepta la montura)."""
-    global _pad_rates_anotados
-    if _pad_rates_anotados:
-        return
-    _pad_rates_anotados = True
-    for eje in (0, 1):
-        rangos = _rangos_axisrates(tel, eje)
-        log.info("Pad: AxisRates eje %d: %s °/s", eje,
-                 ", ".join(f"{lo:g}–{hi:g}" if lo != hi else f"{lo:g}" for lo, hi in rangos) or "no lo dice")
+# Las velocidades se pasan al driver con montura_ejes.mover_ejes_ascom (la misma
+# lógica que usa el seguimiento de objetos); AxisRates se anota en el log una vez.
+_rangos_axisrates = montura_ejes.rangos_axisrates
+_anotar_axisrates = montura_ejes.anotar_axisrates
 
 
 def _pad_aplicar(vx, vy):
-    def _mover(tel):
-        _anotar_axisrates(tel)
-        estaba_tracking = tel.Tracking
-        if tel.CanMoveAxis(0):
-            tel.MoveAxis(0, vx)
-        if tel.CanMoveAxis(1):
-            tel.MoveAxis(1, vy)
-        if vx == 0 and vy == 0 and estaba_tracking and not tel.Tracking:
-            tel.Tracking = True
-        return "ok"
-    return montura.ejecutar(_mover, timeout=10)
+    return montura.ejecutar(lambda tel: montura_ejes.mover_ejes_ascom(tel, vx, vy), timeout=10)
 
 
 def _pad_parar(motivo=""):
