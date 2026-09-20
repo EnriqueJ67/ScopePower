@@ -60,6 +60,7 @@ import anuncio_ip
 import coordenadas
 import recorridos
 import montura_ejes
+import seguimiento
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -498,7 +499,8 @@ def apilado_iniciar():
     nuevo = bool(datos.get("nuevo", True))
     usar_dark = bool(datos.get("usar_dark", True))
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
-                            ("foto continua", foto_continua.trabajo_continuo)):
+                            ("foto continua", foto_continua.trabajo_continuo),
+                            ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     if nuevo:
@@ -1511,6 +1513,8 @@ def pad_mover():
     if vx == 0 and vy == 0:
         _pad_parar()
         return jsonify({"ok": True, "parado": True})
+    if seguimiento.trabajo_seguimiento.en_curso:
+        return jsonify({"ok": False, "mensaje": "El seguimiento de objetos lleva la montura; páralo antes"}), 409
     with _pad["lock"]:
         # Latido con la misma velocidad: basta refrescar el vigilante, sin molestar a la montura
         repetido = _pad["activo"] and _pad["vx"] == vx and _pad["vy"] == vy
@@ -2381,7 +2385,8 @@ def alineacion_iniciar():
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de alinear"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
-                            ("foto continua", foto_continua.trabajo_continuo)):
+                            ("foto continua", foto_continua.trabajo_continuo),
+                            ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     datos = request.get_json(silent=True) or {}
@@ -2952,7 +2957,8 @@ def foto_dia_iniciar():
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
-                            ("foto continua", foto_continua.trabajo_continuo)):
+                            ("foto continua", foto_continua.trabajo_continuo),
+                            ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     ultimas = _config_foto_dia()
@@ -2992,7 +2998,8 @@ def timelapse_iniciar():
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
                             ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
-                            ("foto continua", foto_continua.trabajo_continuo)):
+                            ("foto continua", foto_continua.trabajo_continuo),
+                            ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     ultimas = _config_foto_dia()
@@ -3132,7 +3139,8 @@ def continuo_iniciar():
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
                             ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
-                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion)):
+                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
+                            ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     seguimiento = None
@@ -3164,6 +3172,182 @@ def continuo_estado():
 def continuo_parar():
     foto_continua.trabajo_continuo.parar()
     return jsonify({"mensaje": "⏹️ Parando el modo continuo..."})
+
+
+# ─── Seguimiento de objetos en movimiento (experimental) ─────────────────
+# Aviones, satélites, la ISS: la cámara hace de "visión" por el SDK nativo y la
+# montura corrige la velocidad de los ejes (ver seguimiento.py). Mientras dura,
+# la cámara ASCOM de la app queda desconectada y el pad no puede mover.
+_sim_seguimiento = {"servidor": None}
+
+
+def _conf_seguimiento():
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini", encoding="utf-8")
+    return seguimiento.leer_conf(cfg, altura_minima=float(ALTURA_MINIMA), focal_mm=_dispositivos()["focal"])
+
+
+@app.route('/seguimiento')
+def vista_seguimiento():
+    conf = _conf_seguimiento()
+    cal = seguimiento.Calibracion.leer()
+    return render_template('seguimiento.html', mostrar_volver=True, conf=conf,
+                           calibracion=cal.como_dict() if cal else None,
+                           estado=seguimiento.trabajo_seguimiento.estado(),
+                           version=seguimiento.trabajo_seguimiento.version)
+
+
+@app.route('/seguimiento/iniciar', methods=["POST"])
+def seguimiento_iniciar():
+    """JSON opcional: backend, exposicion_ms, ganancia, kp, ki, frecuencia_hz, signo_az, signo_alt."""
+    datos = request.get_json(silent=True) or {}
+    conf = _conf_seguimiento()
+    if str(datos.get("backend", "")).lower() in ("ascom", "udp"):
+        conf["backend"] = str(datos["backend"]).lower()
+    for k in ("exposicion_ms", "ganancia", "kp", "ki", "frecuencia_hz"):
+        try:
+            if datos.get(k) not in (None, ""):
+                conf[k] = int(datos[k]) if k == "ganancia" else float(datos[k])
+        except (TypeError, ValueError):
+            pass
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
+                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
+                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
+                            ("foto continua", foto_continua.trabajo_continuo)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    _pad_parar()
+    cal = seguimiento.Calibracion.leer()
+    if cal is None:
+        cal = seguimiento.Calibracion(escala=seguimiento.escala_arcsec_px(conf["pixel_um"], conf["binning"], conf["focal_mm"]) * 2,
+                                      origen="por_defecto")
+    for k in ("signo_az", "signo_alt"):
+        try:
+            if datos.get(k) in (1, -1, "1", "-1"):
+                setattr(cal, k, int(datos[k]))
+        except (TypeError, ValueError):
+            pass
+    fab_cam = fab_mont = None
+    cam_ascom, mont_ascom = camara, montura
+    if conf["simulador"]:
+        import simulador_seguimiento
+        if _sim_seguimiento["servidor"] is not None:
+            _sim_seguimiento["servidor"].parar()
+        conf["udp_host"] = "127.0.0.1"
+        fab_cam, fab_mont, _, _, _, servidor = simulador_seguimiento.fabricas(conf, udp=(conf["backend"] == "udp"))
+        _sim_seguimiento["servidor"] = servidor
+        cam_ascom = mont_ascom = None
+    try:
+        seguimiento.trabajo_seguimiento.iniciar(cam_ascom, mont_ascom, conf, fabrica_camara=fab_cam, fabrica_montura=fab_mont,
+                                                calibracion=cal, voz=voz,
+                                                lat_lon=(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO))
+    except (RuntimeError, ValueError) as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True, "estado": seguimiento.trabajo_seguimiento.estado()})
+
+
+@app.route('/seguimiento/parar', methods=["POST"])
+def seguimiento_parar():
+    seguimiento.trabajo_seguimiento.parar()
+    return jsonify({"ok": True, "mensaje": "⏹️ Parando el seguimiento..."})
+
+
+@app.route('/seguimiento/estado')
+def seguimiento_estado():
+    return jsonify(seguimiento.trabajo_seguimiento.estado())
+
+
+@app.route('/seguimiento/objetivo', methods=["POST"])
+def seguimiento_objetivo():
+    """JSON {fx, fy}: punto pulsado en la vista previa como fracción del ancho y alto."""
+    d = request.get_json(silent=True) or {}
+    try:
+        fx, fy = float(d["fx"]), float(d["fy"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Punto no válido"}), 400
+    if not seguimiento.trabajo_seguimiento.en_curso:
+        return jsonify({"ok": False, "error": "El seguimiento no está en marcha"}), 409
+    seguimiento.trabajo_seguimiento.objetivo(max(0.0, min(1.0, fx)), max(0.0, min(1.0, fy)))
+    return jsonify({"ok": True})
+
+
+@app.route('/seguimiento/signos', methods=["POST"])
+def seguimiento_signos():
+    """JSON {az: ±1, alt: ±1}: convención de signo de cada eje respecto a la imagen."""
+    d = request.get_json(silent=True) or {}
+    cal = seguimiento.trabajo_seguimiento.calibracion or seguimiento.Calibracion.leer()
+    if cal is None:
+        conf = _conf_seguimiento()
+        cal = seguimiento.Calibracion(escala=seguimiento.escala_arcsec_px(conf["pixel_um"], conf["binning"], conf["focal_mm"]) * 2,
+                                      origen="por_defecto")
+    for k, atributo in (("az", "signo_az"), ("alt", "signo_alt")):
+        try:
+            if int(d.get(k, 0)) in (1, -1):
+                setattr(cal, atributo, int(d[k]))
+        except (TypeError, ValueError):
+            pass
+    cal.guardar()
+    return jsonify({"ok": True, "calibracion": cal.como_dict()})
+
+
+@app.route('/seguimiento/vista')
+def seguimiento_vista():
+    if os.path.exists(seguimiento.RUTA_VISTA):
+        respuesta = send_file(ruta_absoluta(seguimiento.RUTA_VISTA), mimetype='image/jpeg')
+    else:
+        ok, buf = cv2.imencode(".jpg", np.zeros((200, 200, 3), dtype=np.uint8))
+        respuesta = app.response_class(buf.tobytes(), mimetype='image/jpeg')
+    respuesta.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return respuesta
+
+
+@app.route('/seguimiento/calibrar/analitica', methods=["POST"])
+def seguimiento_calibrar_analitica():
+    """
+    Calibración cámara ↔ ejes desde la última foto de prueba resuelta por ASTAP:
+    orientación del sensor (con espejo) menos el ángulo paraláctico EN EL
+    MOMENTO DE LA FOTO (hora del fichero), y escala llevada al plano de detección.
+    """
+    if not os.path.exists(RUTA_IMAGEN):
+        return jsonify({"ok": False, "error": "No hay ninguna foto de prueba; haz una desde Cámara"}), 409
+    try:
+        res = _wcs_ultima_foto()
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"No se pudo resolver la foto: {e}"}), 500
+    if isinstance(res, str):
+        return jsonify({"ok": False, "error": res}), 409
+    wcs, ancho, alto = res
+    ra_c, dec_c = wcs.all_pix2world([[(ancho - 1) / 2.0, (alto - 1) / 2.0]], 0)[0]
+    t_foto = Time(datetime.utcfromtimestamp(os.path.getmtime(RUTA_IMAGEN)))
+    conf = _conf_seguimiento()
+    binning_foto = max(1, _dispositivos()["binning"])
+    factor = conf["binning"] * 2.0 / binning_foto       # foto → plano de detección (ROI bin N a media resolución)
+    try:
+        cal = seguimiento.Calibracion.analitica_desde_astap(RUTA_INI, float(ra_c), float(dec_c), LATITUD_OBSERVATORIO,
+                                                            LONGITUD_OBSERVATORIO, factor_escala=factor, t=t_foto)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    previa = seguimiento.Calibracion.leer()
+    if previa is not None:
+        cal.signo_az, cal.signo_alt = previa.signo_az, previa.signo_alt
+    cal.guardar()
+    if seguimiento.trabajo_seguimiento.en_curso:
+        seguimiento.trabajo_seguimiento.calibracion = cal
+    d = getattr(cal, "detalle", {}) or {}
+    return jsonify({"ok": True, "calibracion": cal.como_dict(),
+                    "mensaje": f"Calibrado desde la astrometría: escala {cal.escala:.2f}\"/px, giro del sensor "
+                               f"{d.get('crota_deg', 0):.1f}°, paraláctico {d.get('paralactico_deg', 0):.1f}°, "
+                               f"ángulo cámara↔ejes {cal.angulo:.1f}°, espejo {cal.espejo:+d}"})
+
+
+@app.route('/seguimiento/calibrar/empirica', methods=["POST"])
+def seguimiento_calibrar_empirica():
+    if not seguimiento.trabajo_seguimiento.en_curso:
+        return jsonify({"ok": False, "error": "Inicia el seguimiento primero (con un objeto fijo a la vista)"}), 409
+    seguimiento.trabajo_seguimiento.calibrar_empirica()
+    return jsonify({"ok": True})
 
 
 @app.route('/foto-dia/seguimiento', methods=["POST"])
@@ -3289,7 +3473,8 @@ def flats_iniciar():
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
-                            ("alineación", alineacion.trabajo_alineacion), ("foto continua", foto_continua.trabajo_continuo)):
+                            ("alineación", alineacion.trabajo_alineacion), ("foto continua", foto_continua.trabajo_continuo),
+                            ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     datos = request.get_json(silent=True) or {}

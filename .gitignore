@@ -52,3 +52,7 @@ comparaciones/
 
 # Presets de procesado del usuario (propios de cada PC)
 presets_procesado.json
+
+# Seguimiento de objetos: calibración medida y vista previa (estado de ejecución)
+datos/calibracion_seguimiento.json
+static/seguimiento/

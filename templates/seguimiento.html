@@ -1,0 +1,105 @@
+<!-- templates/seguimiento.html -->
+{% extends "base.html" %}
+
+{% block title %}Seguimiento de objetos{% endblock %}
+
+{% block content %}
+<!-- Página EXPERIMENTAL: la montura sigue un objeto en movimiento (avión, satélite,
+     ISS) viendo por la cámara (SDK nativo, fotogramas rápidos) y corrigiendo la
+     velocidad de los ejes. La vista previa es un JPG pequeño que se recarga solo
+     cuando el servidor tiene uno nuevo (wifi del campo lenta). -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title"><svg class="ico"><use href="#i-goto"/></svg>Seguimiento de objetos <span class="chip chip-warn">EXPERIMENTAL</span></div>
+        <span class="chip" id="chip-fase"><span class="dot"></span><span id="chip-fase-texto">Parado</span></span>
+    </div>
+    <p class="card-sub">Apunta la montura por delante del objeto (con el pad o un GoTo), pulsa <b>Iniciar</b> y, cuando el objeto entre en el campo,
+        el seguimiento lo adquiere solo. Si adquiere otra mancha, toca la buena en la vista previa. La cámara se pasa al SDK nativo mientras dura.</p>
+
+    <div class="seg-layout">
+        <div class="seg-visor">
+            <img id="vista" src="/seguimiento/vista?{{ version }}" alt="Vista previa del seguimiento" onclick="elegirObjetivo(event)">
+            <div class="seg-visor-pie" id="visor-pie">Sin imagen todavía</div>
+        </div>
+        <div class="seg-controles">
+            <div class="fila">
+                <button type="button" class="btn btn-primary" id="btn-iniciar" onclick="iniciar()"><svg><use href="#i-play"/></svg>Iniciar</button>
+                <button type="button" class="btn btn-danger" id="btn-parar" onclick="parar()" hidden><svg><use href="#i-stop"/></svg>Parar</button>
+            </div>
+            <div class="estado mt-2" id="estado">{{ estado.mensaje or "Listo" }}</div>
+
+            <details class="mt-3" id="opciones" open>
+                <summary>Opciones</summary>
+                <div class="fila mt-2">
+                    <label for="backend">Montura por</label>
+                    <select id="backend" class="input">
+                        <option value="ascom" {{ 'selected' if conf.backend == 'ascom' else '' }}>ASCOM (SynScan Pro)</option>
+                        <option value="udp" {{ 'selected' if conf.backend == 'udp' else '' }}>UDP directo al módulo wifi</option>
+                    </select>
+                </div>
+                <div class="fila mt-2">
+                    <label for="exposicion">Exposición (ms)</label>
+                    <input id="exposicion" class="input" type="number" min="0.05" max="1000" step="1" value="{{ conf.exposicion_ms }}" style="width: 90px">
+                    <label for="ganancia">Ganancia</label>
+                    <input id="ganancia" class="input" type="number" min="0" max="600" step="10" value="{{ conf.ganancia }}" style="width: 90px">
+                </div>
+                <div class="fila mt-2">
+                    <label for="kp">kp</label>
+                    <input id="kp" class="input" type="number" min="0" max="5" step="0.05" value="{{ conf.kp }}" style="width: 80px">
+                    <label for="ki">ki</label>
+                    <input id="ki" class="input" type="number" min="0" max="5" step="0.05" value="{{ conf.ki }}" style="width: 80px">
+                    <label for="frecuencia">Órdenes/s</label>
+                    <input id="frecuencia" class="input" type="number" min="0.5" max="20" step="0.5" value="{{ conf.frecuencia_hz }}" style="width: 80px">
+                </div>
+                {% if conf.simulador %}<div class="estado warn mt-2">Modo simulador activado en config.ini: cámara y montura falsas.</div>{% endif %}
+            </details>
+
+            <details class="mt-3">
+                <summary>Calibración cámara ↔ ejes</summary>
+                <div class="estado mt-2" id="calibracion-texto">
+                    {% if calibracion %}
+                        {{ calibracion.origen }} · escala {{ "%.2f"|format(calibracion.escala) }}"/px · ángulo {{ "%.1f"|format(calibracion.angulo) }}° · espejo {{ calibracion.espejo }} · {{ calibracion.fecha }}
+                    {% else %}
+                        Sin calibrar: se usa la escala teórica (focal y píxel de la configuración) con ángulo 0°.
+                    {% endif %}
+                </div>
+                <div class="fila mt-2">
+                    <button type="button" class="btn" onclick="calibrarAnalitica()" title="Desde la última foto resuelta por ASTAP (Cámara → foto de prueba)"><svg><use href="#i-sync"/></svg>Desde la astrometría</button>
+                    <button type="button" class="btn" id="btn-cal-empirica" onclick="calibrarEmpirica()" disabled title="Mueve cada eje 1 s y mide el desplazamiento de la mancha más brillante (solo con el seguimiento en marcha y un objeto fijo a la vista)"><svg><use href="#i-control"/></svg>Moviendo los ejes</button>
+                </div>
+                <div class="fila mt-2">
+                    <label>Signo Az</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('az')" id="signo-az">+</button>
+                    <label>Signo Alt</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('alt')" id="signo-alt">+</button>
+                    <span class="estado" style="font-size: 12px">Si al bloquear el objeto se aleja en vez de acercarse, invierte el signo de ese eje.</span>
+                </div>
+            </details>
+
+            <details class="mt-3" open>
+                <summary>Telemetría</summary>
+                <table class="tabla-telemetria mt-2">
+                    <tr><td>Fase</td><td id="t-fase">—</td><td>fps cámara</td><td id="t-fps">—</td></tr>
+                    <tr><td>Error (px)</td><td id="t-error">—</td><td>Manchas</td><td id="t-manchas">—</td></tr>
+                    <tr><td>Velocidad Az / Alt (°/s)</td><td id="t-v">—</td><td>Integral</td><td id="t-integral">—</td></tr>
+                    <tr><td>Objeto (px/s)</td><td id="t-vobj">—</td><td>Altura</td><td id="t-alt">—</td></tr>
+                    <tr><td>Latencia montura</td><td id="t-lat">—</td><td>Órdenes / errores</td><td id="t-ordenes">—</td></tr>
+                    <tr><td>Saturada</td><td id="t-sat">—</td><td>Fotogramas perdidos</td><td id="t-desc">—</td></tr>
+                </table>
+            </details>
+        </div>
+    </div>
+</div>
+
+<style>
+    .seg-layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 900px) { .seg-layout { grid-template-columns: minmax(280px, 420px) 1fr; } }
+    .seg-visor { position: relative; }
+    .seg-visor img { width: 100%; max-width: 420px; aspect-ratio: 1; background: #000; border-radius: 12px; border: 1px solid var(--border-2); cursor: crosshair; display: block; }
+    .seg-visor-pie { color: var(--text-2); font-size: 12px; margin-top: 6px; }
+    .tabla-telemetria { width: 100%; font-size: 13px; border-collapse: collapse; }
+    .tabla-telemetria td { padding: 4px 6px; border-bottom: 1px solid var(--border-2); }
+    .tabla-telemetria td:nth-child(odd) { color: var(--text-2); }
+    .tabla-telemetria td:nth-child(even) { font-variant-numeric: tabular-nums; }
+    .fila label { color: var(--text-2); font-size: 13px; }
+</style>
+<script src="{{ url_for('static', filename='js/seguimiento.js') }}?v=1"></script>
+{% endblock %}
