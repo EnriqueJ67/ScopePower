@@ -3212,6 +3212,10 @@ def seguimiento_iniciar():
             pass
     if "grabar" in datos:
         conf["grabar"] = bool(datos["grabar"])
+    if "color" in datos:
+        conf["color"] = bool(datos["color"])
+        if conf["color"]:
+            conf["binning"] = 1
     if str(datos.get("formato_video", "")).lower() in ("ser", "mp4", "ambos", "ser,mp4"):
         conf["formato_video"] = str(datos["formato_video"]).lower()
     if str(datos.get("grabar_desde", "")).lower() in ("inicio", "bloqueo"):

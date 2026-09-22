@@ -63,6 +63,9 @@
                         <option value="inicio" {{ 'selected' if conf.grabar_desde == 'inicio' else '' }}>desde el inicio</option>
                     </select>
                 </div>
+                <div class="fila mt-2">
+                    <label title="Pone la cámara a binning 1: con el mismo ROI el campo se queda en la mitad y los ficheros son cuatro veces mayores (~900 MB/min a 15 fps)"><input type="checkbox" id="color" {{ 'checked' if conf.color else '' }}> Vídeo en color (binning 1: mitad de campo, ficheros ×4)</label>
+                </div>
                 {% if conf.simulador %}<div class="estado warn mt-2">Modo simulador activado en config.ini: cámara y montura falsas.</div>{% endif %}
             </details>
 
@@ -114,5 +117,5 @@
     .tabla-telemetria td:nth-child(even) { font-variant-numeric: tabular-nums; }
     .fila label { color: var(--text-2); font-size: 13px; }
 </style>
-<script src="{{ url_for('static', filename='js/seguimiento.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/seguimiento.js') }}?v=3"></script>
 {% endblock %}

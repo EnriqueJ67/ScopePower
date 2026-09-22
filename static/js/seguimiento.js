@@ -24,6 +24,7 @@ function iniciar() {
         kp: parseFloat(el("kp").value), ki: parseFloat(el("ki").value),
         frecuencia_hz: parseFloat(el("frecuencia").value),
         grabar: el("grabar").checked, formato_video: el("formato-video").value, grabar_desde: el("grabar-desde").value,
+        color: el("color").checked,
         signo_az: signos.az, signo_alt: signos.alt,
     };
     fetch("/seguimiento/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
@@ -90,7 +91,7 @@ function pintar(e) {
     el("btn-parar").hidden = !activo;
     if (activo) el("btn-parar").disabled = false;
     el("btn-cal-empirica").disabled = !activo;
-    ["backend", "exposicion", "ganancia", "kp", "ki", "frecuencia", "grabar", "formato-video", "grabar-desde"].forEach(id => el(id).disabled = activo);
+    ["backend", "exposicion", "ganancia", "kp", "ki", "frecuencia", "grabar", "formato-video", "grabar-desde", "color"].forEach(id => el(id).disabled = activo);
     el("chip-fase").className = "chip " + (CLASE_FASE[e.fase] || "");
     el("chip-fase-texto").textContent = NOMBRES_FASE[e.fase] || e.fase;
     const est = el("estado");

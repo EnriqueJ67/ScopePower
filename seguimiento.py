@@ -59,6 +59,9 @@ CONF_POR_DEFECTO = {
     "vista_previa_px": 400, "vista_previa_hz": 1.0, "calibracion": "analitica",
     # Grabación de los fotogramas en el disco del mini PC (grabador_video.py)
     "grabar": False, "formato_video": "ser", "grabar_desde": "bloqueo", "carpeta_video": "videos",
+    # Vídeo en color: obliga a binning 1 (con binning la cámara suma las cuatro celdas Bayer y el
+    # color se pierde). Mismo ROI en píxeles → la mitad de campo y ficheros cuatro veces mayores.
+    "color": False,
     "k_mad": 6.0, "area_min": 3, "area_max": 20000, "radio_px": 80, "frames_bootstrap": 3, "v_min_px_s": 3.0,
     "altura_minima": 5.0, "focal_mm": 260.0, "pixel_um": 3.76,
     # Solo con simulador = true: objeto simulado (°/s y rumbo), giro real de la cámara y retardo de la montura
@@ -86,6 +89,9 @@ def leer_conf(config, altura_minima=None, focal_mm=None, pixel_um=None):
         conf[k] = float(conf[k])
     conf["simulador"] = str(conf["simulador"]).lower() in ("1", "true", "si", "sí", "yes")
     conf["grabar"] = str(conf["grabar"]).lower() in ("1", "true", "si", "sí", "yes")
+    conf["color"] = str(conf["color"]).lower() in ("1", "true", "si", "sí", "yes")
+    if conf["color"]:
+        conf["binning"] = 1
     conf["formato_video"] = str(conf["formato_video"]).lower()
     conf["grabar_desde"] = "inicio" if str(conf["grabar_desde"]).lower() == "inicio" else "bloqueo"
     if conf["redondeo_ascom"] in ("", "0", "None", "none"):
@@ -702,7 +708,7 @@ class TrabajoSeguimiento:
                 carpeta=conf["carpeta_video"], formatos=formatos, ancho=ancho, alto=alto, fps=conf["fps_camara"],
                 bayer=bayer, bits=16 if frame.dtype == np.uint16 else 8,
                 instrumento=getattr(self, "_modelo_camara", ""), telescopio=f"focal {conf['focal_mm']:.0f} mm")
-            self._msg(f"Grabando vídeo en {self.grabacion.nombre} ({', '.join(formatos)})")
+            self._msg(f"Grabando vídeo {'en color' if bayer != 'MONO' else 'monocromo'} en {self.grabacion.nombre} ({', '.join(formatos)})")
         except Exception as e:
             log.error("Seguimiento: no se pudo abrir la grabación de vídeo: %s", e)
             self._msg(f"Sin grabación de vídeo: {e}", logging.ERROR)
