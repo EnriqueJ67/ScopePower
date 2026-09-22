@@ -56,3 +56,6 @@ presets_procesado.json
 # Seguimiento de objetos: calibración medida y vista previa (estado de ejecución)
 datos/calibracion_seguimiento.json
 static/seguimiento/
+
+# Vídeos del seguimiento de objetos (grandes, se quedan en el mini PC)
+videos/

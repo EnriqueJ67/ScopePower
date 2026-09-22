@@ -57,6 +57,8 @@ CONF_POR_DEFECTO = {
     "fps_camara": 15.0, "ventana_v_s": 0.4, "frecuencia_hz": 4.0, "kp": 0.6, "ki": 0.3, "v_max": 4.0, "perdida_s": 3.0,
     "intervalo_ascom_s": 0.4, "banda_muerta": 0.02, "redondeo_ascom": None,
     "vista_previa_px": 400, "vista_previa_hz": 1.0, "calibracion": "analitica",
+    # Grabación de los fotogramas en el disco del mini PC (grabador_video.py)
+    "grabar": False, "formato_video": "ser", "grabar_desde": "bloqueo", "carpeta_video": "videos",
     "k_mad": 6.0, "area_min": 3, "area_max": 20000, "radio_px": 80, "frames_bootstrap": 3, "v_min_px_s": 3.0,
     "altura_minima": 5.0, "focal_mm": 260.0, "pixel_um": 3.76,
     # Solo con simulador = true: objeto simulado (°/s y rumbo), giro real de la cámara y retardo de la montura
@@ -83,6 +85,9 @@ def leer_conf(config, altura_minima=None, focal_mm=None, pixel_um=None):
               "sim_v_obj", "sim_rumbo", "sim_angulo", "sim_retardo_s"):
         conf[k] = float(conf[k])
     conf["simulador"] = str(conf["simulador"]).lower() in ("1", "true", "si", "sí", "yes")
+    conf["grabar"] = str(conf["grabar"]).lower() in ("1", "true", "si", "sí", "yes")
+    conf["formato_video"] = str(conf["formato_video"]).lower()
+    conf["grabar_desde"] = "inicio" if str(conf["grabar_desde"]).lower() == "inicio" else "bloqueo"
     if conf["redondeo_ascom"] in ("", "0", "None", "none"):
         conf["redondeo_ascom"] = None
     if altura_minima is not None:
@@ -368,6 +373,7 @@ class TrabajoSeguimiento:
         self.inicio = ""
         self.telemetria = {}
         self.calibracion = None
+        self.grabacion = None
 
     # ── estado para la web ───────────────────────────────────────────────
     def estado(self):
@@ -375,7 +381,8 @@ class TrabajoSeguimiento:
             return {"en_curso": self.en_curso, "terminado": self.terminado, "fase": self.fase,
                     "mensaje": self.mensaje, "error": self.error, "inicio": self.inicio, "version": self.version,
                     "telemetria": dict(self.telemetria),
-                    "calibracion": self.calibracion.como_dict() if self.calibracion else None}
+                    "calibracion": self.calibracion.como_dict() if self.calibracion else None,
+                    "grabacion": self.grabacion.estado() if self.grabacion else None}
 
     def _msg(self, texto, nivel=logging.INFO):
         with self._lock:
@@ -452,6 +459,9 @@ class TrabajoSeguimiento:
                 camara_ascom.desconectar()
                 camara_desconectada = True
             cam = fabrica_camara() if fabrica_camara else self._camara_por_defecto()
+            props = getattr(cam, "propiedades", None) or {}
+            self._modelo_camara = str(props.get("modelo", ""))
+            self._bayer_camara = str(props.get("bayer", "MONO"))
             geo = cam.configurar(roi_px=conf["roi_px"], binning=conf["binning"], formato=conf["formato"],
                                  exposicion_ms=conf["exposicion_ms"], ganancia=conf["ganancia"],
                                  fps_max=conf["fps_camara"])
@@ -472,6 +482,11 @@ class TrabajoSeguimiento:
                         fn()
                     except Exception as e:
                         log.warning("Seguimiento: al parar la montura: %s", e)
+            if self.grabacion is not None:
+                try:
+                    self.grabacion.cerrar()
+                except Exception as e:
+                    log.warning("Seguimiento: al cerrar la grabación: %s", e)
             if cam is not None:
                 try:
                     cam.cerrar()
@@ -568,6 +583,11 @@ class TrabajoSeguimiento:
                 fps, fps_n, fps_t0 = fps_n / (t_frame - fps_t0), 0, t_frame
             plano = luminancia_rapida(frame)
             manchas = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"])
+            if conf["grabar"] and (conf["grabar_desde"] == "inicio" or self.fase in ("bloqueado", "perdido")):
+                if self.grabacion is None:
+                    self._abrir_grabacion(frame, geo, conf)
+                if self.grabacion is not None and self.grabacion.activa:
+                    self.grabacion.encolar(frame)
 
             # Objetivo pedido por el usuario (fracción del ROI → píxel del plano)
             pedido = self._objetivo_pedido
@@ -670,6 +690,24 @@ class TrabajoSeguimiento:
             if t_frame - t_ultima_vista >= vista_cada:
                 t_ultima_vista = t_frame
                 self._guardar_vista(plano, manchas, objetivo_xy, conf["vista_previa_px"])
+
+    def _abrir_grabacion(self, frame, geo, conf):
+        """Abre la grabación de vídeo con la geometría real del fotograma (una vez por seguimiento)."""
+        try:
+            import grabador_video
+            formatos = tuple(f.strip() for f in conf["formato_video"].replace("ambos", "ser,mp4").split(",") if f.strip())
+            alto, ancho = frame.shape[:2]
+            bayer = "MONO" if geo.get("binning", 1) > 1 or frame.ndim == 3 else getattr(self, "_bayer_camara", "MONO")
+            self.grabacion = grabador_video.Grabacion(
+                carpeta=conf["carpeta_video"], formatos=formatos, ancho=ancho, alto=alto, fps=conf["fps_camara"],
+                bayer=bayer, bits=16 if frame.dtype == np.uint16 else 8,
+                instrumento=getattr(self, "_modelo_camara", ""), telescopio=f"focal {conf['focal_mm']:.0f} mm")
+            self._msg(f"Grabando vídeo en {self.grabacion.nombre} ({', '.join(formatos)})")
+        except Exception as e:
+            log.error("Seguimiento: no se pudo abrir la grabación de vídeo: %s", e)
+            self._msg(f"Sin grabación de vídeo: {e}", logging.ERROR)
+            self.grabacion = None
+            self._conf["grabar"] = False
 
     def _guardar_vista(self, plano, manchas, objetivo_xy, ancho):
         try:

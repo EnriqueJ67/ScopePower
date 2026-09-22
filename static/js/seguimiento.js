@@ -23,6 +23,7 @@ function iniciar() {
         ganancia: parseInt(el("ganancia").value, 10),
         kp: parseFloat(el("kp").value), ki: parseFloat(el("ki").value),
         frecuencia_hz: parseFloat(el("frecuencia").value),
+        grabar: el("grabar").checked, formato_video: el("formato-video").value, grabar_desde: el("grabar-desde").value,
         signo_az: signos.az, signo_alt: signos.alt,
     };
     fetch("/seguimiento/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
@@ -89,7 +90,7 @@ function pintar(e) {
     el("btn-parar").hidden = !activo;
     if (activo) el("btn-parar").disabled = false;
     el("btn-cal-empirica").disabled = !activo;
-    ["backend", "exposicion", "ganancia", "kp", "ki", "frecuencia"].forEach(id => el(id).disabled = activo);
+    ["backend", "exposicion", "ganancia", "kp", "ki", "frecuencia", "grabar", "formato-video", "grabar-desde"].forEach(id => el(id).disabled = activo);
     el("chip-fase").className = "chip " + (CLASE_FASE[e.fase] || "");
     el("chip-fase-texto").textContent = NOMBRES_FASE[e.fase] || e.fase;
     const est = el("estado");
@@ -109,6 +110,10 @@ function pintar(e) {
     el("t-ordenes").textContent = texto(m.enviadas, 0) + " / " + texto(m.errores, 0);
     el("t-sat").textContent = t.saturada ? "sí (baja exposición o ganancia)" : "no";
     el("t-desc").textContent = texto(t.descartados, 0);
+    const g = e.grabacion;
+    el("t-video").textContent = !g ? (activo && el("grabar").checked ? "esperando al bloqueo" : "—")
+        : `${g.nombre} · ${texto(g.frames, 0)} fotogramas · ${texto(g.mb, 1)} MB` + (g.descartados ? ` · ${g.descartados} descartados` : "")
+          + (g.libre_gb !== null && g.libre_gb !== undefined ? ` · ${texto(g.libre_gb, 1)} GB libres` : "") + (g.error ? ` · ⚠️ ${g.error}` : "") + (g.activa ? "" : " · cerrada");
     if (e.calibracion) {
         const c = e.calibracion;
         signos = { az: c.signo_az || 1, alt: c.signo_alt || 1 };

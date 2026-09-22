@@ -51,6 +51,18 @@
                     <label for="frecuencia">Órdenes/s</label>
                     <input id="frecuencia" class="input" type="number" min="0.5" max="20" step="0.5" value="{{ conf.frecuencia_hz }}" style="width: 80px">
                 </div>
+                <div class="fila mt-2">
+                    <label><input type="checkbox" id="grabar" {{ 'checked' if conf.grabar else '' }}> Grabar vídeo en el mini PC</label>
+                    <select id="formato-video" class="input">
+                        <option value="ser" {{ 'selected' if conf.formato_video == 'ser' else '' }}>SER (crudo, para apilar)</option>
+                        <option value="mp4" {{ 'selected' if conf.formato_video == 'mp4' else '' }}>MP4 (para ver)</option>
+                        <option value="ambos" {{ 'selected' if conf.formato_video in ('ambos', 'ser,mp4') else '' }}>SER y MP4</option>
+                    </select>
+                    <select id="grabar-desde" class="input">
+                        <option value="bloqueo" {{ 'selected' if conf.grabar_desde == 'bloqueo' else '' }}>desde que bloquea el objeto</option>
+                        <option value="inicio" {{ 'selected' if conf.grabar_desde == 'inicio' else '' }}>desde el inicio</option>
+                    </select>
+                </div>
                 {% if conf.simulador %}<div class="estado warn mt-2">Modo simulador activado en config.ini: cámara y montura falsas.</div>{% endif %}
             </details>
 
@@ -83,6 +95,7 @@
                     <tr><td>Objeto (px/s)</td><td id="t-vobj">—</td><td>Altura</td><td id="t-alt">—</td></tr>
                     <tr><td>Latencia montura</td><td id="t-lat">—</td><td>Órdenes / errores</td><td id="t-ordenes">—</td></tr>
                     <tr><td>Saturada</td><td id="t-sat">—</td><td>Fotogramas perdidos</td><td id="t-desc">—</td></tr>
+                    <tr><td>Vídeo</td><td id="t-video" colspan="3">—</td></tr>
                 </table>
             </details>
         </div>
@@ -101,5 +114,5 @@
     .tabla-telemetria td:nth-child(even) { font-variant-numeric: tabular-nums; }
     .fila label { color: var(--text-2); font-size: 13px; }
 </style>
-<script src="{{ url_for('static', filename='js/seguimiento.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/seguimiento.js') }}?v=2"></script>
 {% endblock %}

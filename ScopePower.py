@@ -3210,6 +3210,12 @@ def seguimiento_iniciar():
                 conf[k] = int(datos[k]) if k == "ganancia" else float(datos[k])
         except (TypeError, ValueError):
             pass
+    if "grabar" in datos:
+        conf["grabar"] = bool(datos["grabar"])
+    if str(datos.get("formato_video", "")).lower() in ("ser", "mp4", "ambos", "ser,mp4"):
+        conf["formato_video"] = str(datos["formato_video"]).lower()
+    if str(datos.get("grabar_desde", "")).lower() in ("inicio", "bloqueo"):
+        conf["grabar_desde"] = str(datos["grabar_desde"]).lower()
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
