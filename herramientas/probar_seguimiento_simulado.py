@@ -5,16 +5,16 @@
 # sin Flask ni equipo, y dice si converge: tiempo hasta que el error baja de
 # `--tolerancia` px y se mantiene, error máximo después, y si oscila.
 #
-#   python herramientas\probar_seguimiento_simulado.py [--v-obj 0.8] [--rumbo 20]
-#         [--retardo 0.5] [--retardo-camara 0.05] [--aceleracion 2] [--backlash 0.05]
-#         [--cuantizar 0.05] [--kp 0.6] [--ki 0.3] [--frecuencia 4] [--segundos 30]
+#   python herramientas\probar_seguimiento_simulado.py [--v-obj 0.6] [--rumbo 20]
+#         [--retardo 0.3] [--retardo-camara 0.05] [--aceleracion 4] [--backlash 0.03]
+#         [--cuantizar 0] [--kp 0.6] [--ki 0.3] [--frecuencia 4] [--segundos 30]
 #         [--angulo 25] [--error-calibracion 0] [--espejo 1] [--udp] [--curva 0]
 #
-# OJO: los valores por defecto son pesimistas a propósito (retardo 0,5 s,
-# aceleración 2 °/s², holgura 0,05°, velocidades cuantizadas a 0,05 °/s), pero
-# el simulador no es la montura real: que converja aquí solo dice que la lógica
-# está bien. Los retardos y velocidades reales salen de medir_latencia_montura.py
-# y hay que ponerlos aquí antes de fiarse de las ganancias.
+# Los valores por defecto siguen lo medido con la AZ GoTo real el 2026-09-22
+# (arranque 140–230 ms, velocidad exacta, 0,81 °/s de tope en modo lento) con
+# algo de margen, pero el simulador no es la montura: que converja aquí solo
+# dice que la lógica está bien. Con --retardo 0.5 --cuantizar 0.05 se prueba
+# el caso pesimista de antes de medir.
 #
 # Guarda logs/simulacion_seguimiento_<fecha>.csv (una fila por muestra) y sale
 # con código 0 si converge según el criterio y 1 si no.
@@ -39,14 +39,14 @@ import simulador_seguimiento as sim                       # noqa: E402
 
 def main():
     ap = argparse.ArgumentParser(description="Bucle cerrado del seguimiento con cámara y montura simuladas")
-    ap.add_argument("--v-obj", type=float, default=0.8, help="velocidad angular del objeto (°/s)")
+    ap.add_argument("--v-obj", type=float, default=0.6, help="velocidad angular del objeto (°/s)")
     ap.add_argument("--rumbo", type=float, default=20.0, help="rumbo del objeto en el plano de ejes (°)")
     ap.add_argument("--curva", type=float, default=0.0, help="giro del rumbo (°/s²), paso de satélite")
-    ap.add_argument("--retardo", type=float, default=0.5, help="retardo de la montura (s)")
+    ap.add_argument("--retardo", type=float, default=0.3, help="retardo de la montura (s)")
     ap.add_argument("--retardo-camara", type=float, default=0.05)
-    ap.add_argument("--aceleracion", type=float, default=2.0, help="°/s²")
-    ap.add_argument("--backlash", type=float, default=0.05, help="holgura al invertir (°)")
-    ap.add_argument("--cuantizar", type=float, default=0.05, help="paso de velocidad que admite la montura (°/s); 0 = continuo")
+    ap.add_argument("--aceleracion", type=float, default=4.0, help="°/s²")
+    ap.add_argument("--backlash", type=float, default=0.03, help="holgura al invertir (°)")
+    ap.add_argument("--cuantizar", type=float, default=0.0, help="paso de velocidad que admite la montura (°/s); 0 = continuo")
     ap.add_argument("--kp", type=float, default=0.6)
     ap.add_argument("--ki", type=float, default=0.3)
     ap.add_argument("--frecuencia", type=float, default=4.0)

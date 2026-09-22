@@ -81,7 +81,10 @@ class MonturaSimulada(MonturaEjes):
     """
     nombre = "simulada"
 
-    def __init__(self, mundo, retardo_s=0.5, aceleracion=2.0, backlash_deg=0.05, v_max=4.0, cuantizar=0.05,
+    # Valores por defecto según lo medido con la AZ GoTo real el 2026-09-22 (con margen):
+    # arranque a 140–230 ms, velocidad exacta sin cuantización, 0,81 °/s de tope en
+    # modo lento, y unas décimas de holgura al invertir el sentido.
+    def __init__(self, mundo, retardo_s=0.3, aceleracion=4.0, backlash_deg=0.03, v_max=0.8, cuantizar=None,
                  latencia_orden_s=0.0):
         self.mundo = mundo
         self.retardo, self.acel, self.backlash = float(retardo_s), float(aceleracion), float(backlash_deg)
@@ -375,9 +378,9 @@ def fabricas(conf, mundo=None, **kw):
     """
     mundo = mundo or Mundo(v_obj=kw.get("v_obj", 0.8), rumbo_deg=kw.get("rumbo_deg", 20.0),
                            curva_deg_s2=kw.get("curva_deg_s2", 0.0))
-    montura = MonturaSimulada(mundo, retardo_s=kw.get("retardo_montura_s", 0.5), aceleracion=kw.get("aceleracion", 2.0),
-                              backlash_deg=kw.get("backlash_deg", 0.05), v_max=conf.get("v_max", 4.0),
-                              cuantizar=kw.get("cuantizar", 0.05))
+    montura = MonturaSimulada(mundo, retardo_s=kw.get("retardo_montura_s", 0.3), aceleracion=kw.get("aceleracion", 4.0),
+                              backlash_deg=kw.get("backlash_deg", 0.03), v_max=min(conf.get("v_max", 4.0), 0.8),
+                              cuantizar=kw.get("cuantizar"))
     lado = max(64, int(conf.get("roi_px", 1024)) // int(conf.get("binning", 2)))
     escala = kw.get("escala_arcsec_px") or 206.265 * conf.get("pixel_um", 3.76) * conf.get("binning", 2) / conf.get("focal_mm", 260.0) * 2
     camara = CamaraSimulada(mundo, montura, lado=lado, fps=kw.get("fps", 30.0), retardo_s=kw.get("retardo_camara_s", 0.05),

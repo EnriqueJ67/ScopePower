@@ -39,12 +39,17 @@ log = logging.getLogger("scopepower.montura_ejes")
 
 SIDEREO_DEG_S = 360.0 / 86164.0905          # 0,0041781 °/s
 UMBRAL_RAPIDO_DEG_S = 128 * SIDEREO_DEG_S   # 0,5348 °/s: por encima el firmware exige el modo rápido
-# El modo rápido (micropasos × ratio) vale también a velocidades menores, solo es
-# algo menos fino (a 0,05 °/s da ~10 pasos/s y vibra). Como cambiar de modo
-# obliga a parar el eje casi un segundo (y un objeto a 0,8 °/s se escapa del
-# campo mientras tanto), para seguir objetos se va SIEMPRE en rápido (umbral 0);
-# udp_umbral_rapido en config permite subirlo (p. ej. 0,2) para seguir algo lento.
+# Medido el 2026-09-22 con la AZ GoTo real: en modo lento el eje arranca 140 ms
+# después de :J, va exactamente a la velocidad pedida, admite cambiar :I en
+# caliente (0,2 → 0,4 °/s en 164 ms) y llega a freq/(6·pasos_por_grado) = 0,81 °/s.
+# El modo rápido tarda 1,1–1,4 s en arrancar con rampa tipo GoTo y frena en más
+# de un segundo: inútil para seguir objetos. Por eso el seguimiento va SIEMPRE en
+# modo lento y recorta la velocidad a la máxima del modo lento; con
+# udp_permitir_rapido = true se deja pasar a rápido por encima de ese máximo.
+# (Por ASCOM el driver cambia solo de modo a 128× sidéreo, 0,53 °/s: ahí está el
+# techo útil de ese camino.)
 UMBRAL_RAPIDO_SEGUIMIENTO = 0.0
+V_MAX_ASCOM = 0.5
 BANDA_MUERTA_UDP = 0.01     # °/s: por debajo se para el eje en vez de invertir el sentido por ruido
 PERIODO_MINIMO = 6                           # ticks de reloj mínimos por micropaso (EQMOD/INDI)
 
@@ -175,8 +180,10 @@ class MonturaASCOM(MonturaEjes):
     """
     nombre = "ascom"
 
-    def __init__(self, trabajador, intervalo_min_s=0.4, banda_muerta=0.02, redondeo=None, timeout=10):
+    def __init__(self, trabajador, intervalo_min_s=0.4, banda_muerta=0.02, redondeo=None, timeout=10,
+                 v_max=V_MAX_ASCOM):
         self._t = trabajador
+        self.v_max = float(v_max)
         self.intervalo_min_s = float(intervalo_min_s)
         self.banda_muerta = float(banda_muerta)
         self.redondeo = float(redondeo) if redondeo else None
@@ -213,7 +220,7 @@ class MonturaASCOM(MonturaEjes):
             lim, self._tracking_inicial, self._pos = self._t.ejecutar(_leer, timeout=self.timeout)
         except ErrorHardware as e:
             raise ErrorMontura(str(e)) from e
-        self._limites = (float(lim[0]), float(lim[1]))
+        self._limites = (min(float(lim[0]), self.v_max), min(float(lim[1]), self.v_max))
         self._pos_t = time.perf_counter()
         log.info("Montura ASCOM lista: límites %s °/s, tracking=%s, posición=%s", self._limites,
                  self._tracking_inicial, self._pos)
@@ -357,12 +364,15 @@ def velocidad_a_periodo(v_deg_s, cpr, freq, ratio, rapido_actual=None, version=0
     # Histéresis asimétrica: cambiar de modo obliga a parar el eje, así que una
     # vez en rápido se sigue en rápido hasta bastante por debajo del umbral.
     # Por encima del umbral del firmware (128× sidéreo) el modo rápido es obligatorio.
-    umbral = min(umbral, UMBRAL_RAPIDO_DEG_S)
-    if rapido_actual is True:
-        umbral *= 0.6
-    elif rapido_actual is False:
-        umbral *= 1.05
-    rapido = umbral <= 0 or abs(v_deg_s) > umbral or abs(v_deg_s) > UMBRAL_RAPIDO_DEG_S * 1.05
+    if umbral == float("inf"):
+        rapido = False                       # seguimiento: siempre modo lento (T se satura en el mínimo)
+    else:
+        umbral = min(umbral, UMBRAL_RAPIDO_DEG_S)
+        if rapido_actual is True:
+            umbral *= 0.6
+        elif rapido_actual is False:
+            umbral *= 1.05
+        rapido = umbral <= 0 or abs(v_deg_s) > umbral or abs(v_deg_s) > UMBRAL_RAPIDO_DEG_S * 1.05
     T = freq / pasos_s
     if rapido:
         T *= max(1, ratio)
@@ -399,12 +409,14 @@ class MonturaSkyWatcherUDP(MonturaEjes):
     CANALES = ("1", "2")
 
     def __init__(self, host="192.168.4.1", puerto=11880, timeout_s=0.5, reintentos=2,
-                 trabajador_ascom=None, cambio_en_caliente=True, umbral_rapido=UMBRAL_RAPIDO_SEGUIMIENTO):
+                 trabajador_ascom=None, cambio_en_caliente=True, umbral_rapido=UMBRAL_RAPIDO_SEGUIMIENTO,
+                 permitir_rapido=False):
         self.host, self.puerto = host, int(puerto)
         self.timeout_s, self.reintentos = float(timeout_s), int(reintentos)
         self._t = trabajador_ascom
         self.cambio_en_caliente = cambio_en_caliente
         self.umbral_rapido = float(umbral_rapido)
+        self.permitir_rapido = bool(permitir_rapido)
         self._sock = None
         self._lock = threading.RLock()
         self.version = {}
@@ -508,14 +520,18 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             self._pos0[i] = self.leer_24("j", c)
             if self.cpr[i] <= 0 or self.freq[i] <= 0:
                 raise ErrorMontura(f"Parámetros del motor {c} no válidos (a={self.cpr[i]}, b={self.freq[i]})")
+        if not self.permitir_rapido:
+            # Techo del modo lento: T mínimo de PERIODO_MINIMO ticks por micropaso
+            self._limites = tuple(self.freq[i] / PERIODO_MINIMO * 360.0 / self.cpr[i] for i in (0, 1))
         if self._t is not None:
             from hardware import ErrorHardware
             try:
                 self._tracking_inicial, self._pos_ascom = self._t.ejecutar(self._leer_ascom_y_quitar_tracking, timeout=10)
             except ErrorHardware as e:
                 raise ErrorMontura(f"No se pudo desactivar el seguimiento en SynScan Pro: {e}") from e
-        log.info("Montura UDP lista: versión %s, cpr %s, freq %s, ratio %s, tracking inicial %s",
-                 self.version.get("texto"), self.cpr, self.freq, self.ratio, self._tracking_inicial)
+        log.info("Montura UDP lista: versión %s, cpr %s, freq %s, ratio %s, límites %s °/s, tracking inicial %s",
+                 self.version.get("texto"), self.cpr, self.freq, self.ratio,
+                 tuple(round(v, 3) for v in self._limites), self._tracking_inicial)
 
     @staticmethod
     def _leer_ascom_y_quitar_tracking(tel):
@@ -581,7 +597,8 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             return False
         res = velocidad_a_periodo(v, self.cpr[eje], self.freq[eje], self.ratio[eje],
                                   rapido_actual=e["rapido"] if e["marcha"] else None,
-                                  version=self.version.get("valor", 0), umbral=self.umbral_rapido)
+                                  version=self.version.get("valor", 0),
+                                  umbral=self.umbral_rapido if self.permitir_rapido else float("inf"))
         T, rapido = res
         direccion = 0 if v > 0 else 1
         if e.get("espera"):
@@ -733,13 +750,15 @@ def crear(conf, trabajador_ascom=None):
         return MonturaSkyWatcherUDP(host=conf.get("udp_host", "192.168.4.1"), puerto=int(conf.get("udp_puerto", 11880)),
                                     timeout_s=float(conf.get("udp_timeout_s", 0.5)), trabajador_ascom=trabajador_ascom,
                                     cambio_en_caliente=str(conf.get("udp_cambio_en_caliente", "true")).lower() != "false",
-                                    umbral_rapido=float(conf.get("udp_umbral_rapido", UMBRAL_RAPIDO_SEGUIMIENTO)))
+                                    umbral_rapido=float(conf.get("udp_umbral_rapido", UMBRAL_RAPIDO_SEGUIMIENTO)),
+                                    permitir_rapido=str(conf.get("udp_permitir_rapido", "false")).lower() == "true")
     if trabajador_ascom is None:
         raise ErrorMontura("El backend ASCOM necesita el TrabajadorCOM de la montura")
     redondeo = conf.get("redondeo_ascom")
     return MonturaASCOM(trabajador_ascom, intervalo_min_s=float(conf.get("intervalo_ascom_s", 0.4)),
                         banda_muerta=float(conf.get("banda_muerta", 0.02)),
-                        redondeo=float(redondeo) if redondeo not in (None, "", "0") else None)
+                        redondeo=float(redondeo) if redondeo not in (None, "", "0") else None,
+                        v_max=float(conf.get("v_max_ascom", V_MAX_ASCOM)))
 
 
 if __name__ == "__main__":
@@ -766,6 +785,14 @@ if __name__ == "__main__":
     assert velocidad_a_periodo(SIDEREO_DEG_S, cpr, freq, ratio)[1] is True
     T, _ = velocidad_a_periodo(0.05, cpr, freq, ratio)
     assert abs(periodo_a_velocidad(T, True, cpr, freq, ratio) - 0.05) < 0.001
+    # Modo lento forzado (umbral infinito): nunca rápido, y por encima del máximo se satura en T mínimo
+    cpr_az, freq_az = 1_452_951, 19_531          # AZ GoTo real
+    v_max_lento = freq_az / PERIODO_MINIMO * 360.0 / cpr_az
+    assert abs(v_max_lento - 0.807) < 0.01
+    T, rapido = velocidad_a_periodo(0.6, cpr_az, freq_az, 16, umbral=float("inf"))
+    assert rapido is False and abs(periodo_a_velocidad(T, False, cpr_az, freq_az, 16) - 0.6) < 0.03
+    T, rapido = velocidad_a_periodo(2.0, cpr_az, freq_az, 16, umbral=float("inf"))
+    assert rapido is False and T == PERIODO_MINIMO
     # Por encima del umbral del firmware siempre rápido, aunque se pida otro umbral
     assert velocidad_a_periodo(0.6, cpr, freq, ratio, rapido_actual=False, umbral=5.0)[1] is True
     assert velocidad_a_periodo(0.25, cpr, freq, ratio, umbral=5.0)[1] is False

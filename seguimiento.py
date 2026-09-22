@@ -60,7 +60,7 @@ CONF_POR_DEFECTO = {
     "k_mad": 6.0, "area_min": 3, "area_max": 20000, "radio_px": 80, "frames_bootstrap": 3, "v_min_px_s": 3.0,
     "altura_minima": 5.0, "focal_mm": 260.0, "pixel_um": 3.76,
     # Solo con simulador = true: objeto simulado (°/s y rumbo), giro real de la cámara y retardo de la montura
-    "sim_v_obj": 0.8, "sim_rumbo": 20.0, "sim_angulo": 25.0, "sim_retardo_s": 0.5,
+    "sim_v_obj": 0.6, "sim_rumbo": 20.0, "sim_angulo": 25.0, "sim_retardo_s": 0.3,
 }
 
 
