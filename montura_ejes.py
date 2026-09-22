@@ -413,6 +413,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
         self.ratio = [1, 1]
         self._eje = [{"v": 0.0, "dir": None, "rapido": None, "marcha": False, "T": None, "espera": None} for _ in (0, 1)]
         self.cambios_de_modo = 0
+        self.cruzadas = 0
         self._pos0 = [None, None]
         self._tracking_inicial = None
         self._pos_ascom = None
@@ -436,10 +437,19 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             finally:
                 self._sock = None
 
+    # Longitud de la carga que devuelve cada orden ('=' aparte). El módulo wifi nos
+    # reenvía también las respuestas a las consultas de SynScan Pro (medido el
+    # 2026-09-22 con la AZ GoTo real: 15–20 % de respuestas cruzadas), así que
+    # una respuesta de longitud distinta a la esperada se descarta y se sigue
+    # esperando la buena. Sin esto una parada puede darse por confirmada sin serlo.
+    LONGITUDES = {"e": (6,), "a": (6,), "b": (6,), "D": (2, 6), "f": (3,), "j": (6,), "h": (6,), "s": (6,),
+                  "G": (0,), "I": (0,), "J": (0,), "K": (0,), "L": (0,), "F": (0,), "S": (0,), "M": (0,), "H": (0,)}
+
     def enviar(self, cmd, canal="1", datos=""):
         """Manda ':cmd canal datos\\r' y devuelve la carga de la respuesta ('=' quitado)."""
         self.conectar()
         trama = f":{cmd}{canal}{datos}\r".encode("ascii")
+        esperadas = self.LONGITUDES.get(cmd)
         ultimo = None
         with self._lock:
             for intento in range(self.reintentos + 1):
@@ -454,11 +464,19 @@ class MonturaSkyWatcherUDP(MonturaEjes):
                         pass
                     self._sock.settimeout(self.timeout_s)
                     self._sock.sendto(trama, (self.host, self.puerto))
+                    limite = time.perf_counter() + self.timeout_s
                     while True:
+                        resto = limite - time.perf_counter()
+                        if resto <= 0:
+                            raise socket.timeout()
+                        self._sock.settimeout(resto)
                         datos_rx, _ = self._sock.recvfrom(64)
                         r = datos_rx.decode("ascii", errors="replace").strip("\r\n ")
-                        if r.startswith("=") or r.startswith("!"):
+                        if r.startswith("!"):
                             break
+                        if r.startswith("=") and (esperadas is None or len(r) - 1 in esperadas):
+                            break
+                        self.cruzadas += 1          # respuesta a otra consulta: seguir esperando la nuestra
                     self._latencia_ms = (time.perf_counter() - t0) * 1000.0
                     self.enviadas += 1
                     if r.startswith("!"):
@@ -523,6 +541,16 @@ class MonturaSkyWatcherUDP(MonturaEjes):
 
     def estado(self, eje):
         return interpretar_estado(self.enviar("f", self.CANALES[eje]))
+
+    def parado_confirmado(self, eje, lecturas=2):
+        """True solo si `lecturas` consultas seguidas de :f dicen que el eje no está en marcha."""
+        for _ in range(lecturas):
+            try:
+                if self.estado(eje)["en_marcha"]:
+                    return False
+            except ErrorMontura:
+                return False
+        return True
 
     # ── Movimiento ────────────────────────────────────────────────────────
     def limites(self):
@@ -610,23 +638,39 @@ class MonturaSkyWatcherUDP(MonturaEjes):
     def _esperar_parada(self, eje, maximo_s=1.5):
         t0 = time.perf_counter()
         while time.perf_counter() - t0 < maximo_s:
-            try:
-                if not self.estado(eje)["en_marcha"]:
-                    return True
-            except ErrorMontura:
-                pass
+            if self.parado_confirmado(eje, lecturas=1):
+                return True
             time.sleep(0.05)
         log.warning("Montura UDP: el eje %d no confirmó la parada en %.1f s", eje, maximo_s)
         return False
 
-    def parar(self):
-        for eje, c in enumerate(self.CANALES):
-            try:
-                self.enviar("K", c)
-            finally:
-                self._eje[eje].update(marcha=False, v=0.0, T=None, espera=None)
+    def parar(self, maximo_s=6.0):
+        """
+        Para los dos ejes y NO vuelve hasta que cada uno confirma que está quieto.
+        Una orden de parar puede perderse por el wifi (pasó el 2026-09-22: la
+        montura siguió girando un minuto), así que se repite :K y, si sigue en
+        marcha, :L (frenado en seco), hasta `maximo_s`; si aun así no confirma,
+        lanza ErrorMontura para que quien llame avise.
+        """
         for eje in (0, 1):
-            self._esperar_parada(eje)
+            self._eje[eje].update(marcha=False, v=0.0, T=None, espera=None)
+        sin_confirmar = []
+        for eje, c in enumerate(self.CANALES):
+            t0 = time.perf_counter()
+            intentos = 0
+            while time.perf_counter() - t0 < maximo_s:
+                try:
+                    self.enviar("L" if intentos >= 2 else "K", c)
+                except ErrorMontura as e:
+                    log.warning("Montura UDP: parada del eje %d sin respuesta (%s); se reintenta", eje, e)
+                intentos += 1
+                time.sleep(0.15)
+                if self.parado_confirmado(eje):
+                    break
+            else:
+                sin_confirmar.append(eje)
+        if sin_confirmar:
+            raise ErrorMontura(f"La montura no confirma la parada de los ejes {sin_confirmar}: comprobar a mano")
 
     def posicion_codificador(self):
         """Desplazamiento de cada eje en grados desde preparar() (según :j)."""
@@ -658,6 +702,9 @@ class MonturaSkyWatcherUDP(MonturaEjes):
     def restaurar(self):
         try:
             self.parar()
+        except ErrorMontura as e:
+            log.error("Montura UDP: %s", e)
+            raise
         finally:
             if self._t is not None and self._tracking_inicial:
                 try:
@@ -668,7 +715,8 @@ class MonturaSkyWatcherUDP(MonturaEjes):
 
     def telemetria(self):
         return {"backend": self.nombre, "latencia_ms": self._latencia_ms, "enviadas": self.enviadas,
-                "errores": self.errores, "version": self.version.get("texto"), "cambios_de_modo": self.cambios_de_modo,
+                "errores": self.errores, "cruzadas": self.cruzadas, "version": self.version.get("texto"),
+                "cambios_de_modo": self.cambios_de_modo,
                 "ejes": [{"v": e["v"], "T": e["T"], "rapido": e["rapido"], "marcha": e["marcha"],
                           "parando": bool(e.get("espera"))} for e in self._eje],
                 "limites": list(self._limites)}
