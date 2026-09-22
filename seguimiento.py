@@ -62,6 +62,9 @@ CONF_POR_DEFECTO = {
     # Vídeo en color: obliga a binning 1 (con binning la cámara suma las cuatro celdas Bayer y el
     # color se pierde). Mismo ROI en píxeles → la mitad de campo y ficheros cuatro veces mayores.
     "color": False,
+    # Exposición automática guiada por el objeto: el pico de la mancha seguida se mantiene en torno a
+    # pico_objetivo (fracción de la escala) tocando solo la exposición, entre los límites en ms
+    "exposicion_auto": True, "exposicion_min_ms": 0.1, "exposicion_max_ms": 50.0, "pico_objetivo": 0.7,
     "k_mad": 6.0, "area_min": 3, "area_max": 20000, "radio_px": 80, "frames_bootstrap": 3, "v_min_px_s": 3.0,
     "altura_minima": 5.0, "focal_mm": 260.0, "pixel_um": 3.76,
     # Solo con simulador = true: objeto simulado (°/s y rumbo), giro real de la cámara y retardo de la montura
@@ -85,11 +88,13 @@ def leer_conf(config, altura_minima=None, focal_mm=None, pixel_um=None):
         conf[k] = int(float(conf[k]))
     for k in ("exposicion_ms", "fps_camara", "ventana_v_s", "frecuencia_hz", "kp", "ki", "v_max", "perdida_s", "intervalo_ascom_s", "banda_muerta",
               "vista_previa_hz", "k_mad", "altura_minima", "focal_mm", "pixel_um", "v_min_px_s",
+              "exposicion_min_ms", "exposicion_max_ms", "pico_objetivo",
               "sim_v_obj", "sim_rumbo", "sim_angulo", "sim_retardo_s"):
         conf[k] = float(conf[k])
     conf["simulador"] = str(conf["simulador"]).lower() in ("1", "true", "si", "sí", "yes")
     conf["grabar"] = str(conf["grabar"]).lower() in ("1", "true", "si", "sí", "yes")
     conf["color"] = str(conf["color"]).lower() in ("1", "true", "si", "sí", "yes")
+    conf["exposicion_auto"] = str(conf["exposicion_auto"]).lower() in ("1", "true", "si", "sí", "yes")
     if conf["color"]:
         conf["binning"] = 1
     conf["formato_video"] = str(conf["formato_video"]).lower()
@@ -549,6 +554,9 @@ class TrabajoSeguimiento:
         v_obj = None
         elegido_por_usuario = False
         ignorar = []             # (t, x, y) de manchas quietas descartadas en la adquisición automática
+        exposicion_ms = float(conf["exposicion_ms"])
+        t_ultimo_ajuste = 0.0
+        tope_plano = 255.0       # luminancia_rapida devuelve uint8
 
         def reiniciar_objetivo(fase, msg):
             nonlocal objetivo_xy, historia, t_perdido, elegido_por_usuario
@@ -628,6 +636,25 @@ class TrabajoSeguimiento:
                         self._msg(f"Altura {alt:.1f}° por debajo del mínimo: se para el seguimiento", logging.WARNING)
                         break
 
+            if m is not None and conf["exposicion_auto"] and t_frame - t_ultimo_ajuste >= 1.0 and hasattr(cam, "exposicion"):
+                # Exposición automática por el pico del objeto (solo exposición; la ganancia no se toca)
+                pico = m["pico"] / tope_plano
+                nueva = exposicion_ms
+                if m["saturada"] or pico > 0.92:
+                    nueva = exposicion_ms * 0.5
+                elif pico < 0.4:
+                    nueva = exposicion_ms * min(2.5, conf["pico_objetivo"] / max(pico, 0.05))
+                elif pico > 0.85:
+                    nueva = exposicion_ms * 0.8
+                nueva = max(conf["exposicion_min_ms"], min(conf["exposicion_max_ms"], nueva))
+                if abs(nueva - exposicion_ms) / exposicion_ms > 0.05:
+                    try:
+                        cam.exposicion(nueva)
+                        log.info("Seguimiento: exposición %.2f → %.2f ms (pico del objeto %.0f %%)", exposicion_ms, nueva, pico * 100)
+                        exposicion_ms = nueva
+                    except Exception as e:
+                        log.warning("Seguimiento: no se pudo cambiar la exposición: %s", e)
+                t_ultimo_ajuste = t_frame
             if m is not None:
                 objetivo_xy = (m["x"], m["y"])
                 historia.append((t_frame, m["x"], m["y"]))
@@ -691,6 +718,7 @@ class TrabajoSeguimiento:
                     "integral": [round(float(pi.I[0]), 4), round(float(pi.I[1]), 4)],
                     "alt_deg": None if alt is None else round(alt, 2), "lado": plano.shape[1],
                     "saturada": bool(m and m["saturada"]), "descartados": cam.descartados() if hasattr(cam, "descartados") else 0,
+                    "exposicion_ms": round(exposicion_ms, 2), "pico": None if m is None else round(m["pico"] / tope_plano * 100),
                     "montura": tel_m, "latencia_ms": tel_m.get("latencia_ms"),
                 }
             if t_frame - t_ultima_vista >= vista_cada:

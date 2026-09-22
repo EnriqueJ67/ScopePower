@@ -224,6 +224,12 @@ class CamaraSimulada:
     def parar_video(self):
         self._video = False
 
+    def exposicion(self, exposicion_ms):
+        """El brillo del objeto escala con la exposición (para probar la exposición automática)."""
+        actual = self.geometria.get("exposicion_ms", exposicion_ms) or exposicion_ms
+        self.brillo_obj = self.brillo_obj * float(exposicion_ms) / float(actual)
+        self.geometria["exposicion_ms"] = float(exposicion_ms)
+
     def cerrar(self):
         self._video = False
 

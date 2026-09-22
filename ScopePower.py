@@ -3291,6 +3291,8 @@ def seguimiento_iniciar():
             pass
     if "grabar" in datos:
         conf["grabar"] = bool(datos["grabar"])
+    if "exposicion_auto" in datos:
+        conf["exposicion_auto"] = bool(datos["exposicion_auto"])
     if "color" in datos:
         conf["color"] = bool(datos["color"])
         if conf["color"]:

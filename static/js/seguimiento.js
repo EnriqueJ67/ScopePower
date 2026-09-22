@@ -24,7 +24,7 @@ function iniciar() {
         kp: parseFloat(el("kp").value), ki: parseFloat(el("ki").value),
         frecuencia_hz: parseFloat(el("frecuencia").value),
         grabar: el("grabar").checked, formato_video: el("formato-video").value, grabar_desde: el("grabar-desde").value,
-        color: el("color").checked,
+        color: el("color").checked, exposicion_auto: el("exposicion-auto").checked,
         signo_az: signos.az, signo_alt: signos.alt,
     };
     fetch("/seguimiento/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
@@ -91,7 +91,7 @@ function pintar(e) {
     el("btn-parar").hidden = !activo;
     if (activo) el("btn-parar").disabled = false;
     el("btn-cal-empirica").disabled = !activo;
-    ["backend", "exposicion", "ganancia", "kp", "ki", "frecuencia", "grabar", "formato-video", "grabar-desde", "color"].forEach(id => el(id).disabled = activo);
+    ["backend", "exposicion", "ganancia", "kp", "ki", "frecuencia", "grabar", "formato-video", "grabar-desde", "color", "exposicion-auto"].forEach(id => el(id).disabled = activo);
     el("chip-fase").className = "chip " + (CLASE_FASE[e.fase] || "");
     el("chip-fase-texto").textContent = NOMBRES_FASE[e.fase] || e.fase;
     const est = el("estado");
@@ -109,7 +109,8 @@ function pintar(e) {
     const m = t.montura || {};
     el("t-lat").textContent = t.latencia_ms === null || t.latencia_ms === undefined ? "—" : texto(t.latencia_ms, 0) + " ms (" + (m.backend || "") + ")";
     el("t-ordenes").textContent = texto(m.enviadas, 0) + " / " + texto(m.errores, 0);
-    el("t-sat").textContent = t.saturada ? "sí (baja exposición o ganancia)" : "no";
+    el("t-exp").textContent = (t.exposicion_ms === undefined ? "—" : texto(t.exposicion_ms, 2) + " ms")
+        + (t.pico === null || t.pico === undefined ? "" : " · pico " + texto(t.pico, 0) + " %" + (t.saturada ? " (saturado)" : ""));
     el("t-desc").textContent = texto(t.descartados, 0);
     const g = e.grabacion;
     el("t-video").textContent = !g ? (activo && el("grabar").checked ? "esperando al bloqueo" : "—")

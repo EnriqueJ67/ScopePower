@@ -42,6 +42,7 @@
                     <input id="exposicion" class="input" type="number" min="0.05" max="1000" step="1" value="{{ conf.exposicion_ms }}" style="width: 90px">
                     <label for="ganancia">Ganancia</label>
                     <input id="ganancia" class="input" type="number" min="0" max="600" step="10" value="{{ conf.ganancia }}" style="width: 90px">
+                    <label title="Ajusta la exposición (no la ganancia) para que el pico del objeto seguido quede en torno al 70 % de la escala, entre {{ conf.exposicion_min_ms }} y {{ conf.exposicion_max_ms }} ms"><input type="checkbox" id="exposicion-auto" {{ 'checked' if conf.exposicion_auto else '' }}> Exposición automática por el objeto</label>
                 </div>
                 <div class="fila mt-2">
                     <label for="kp">kp</label>
@@ -97,7 +98,7 @@
                     <tr><td>Velocidad Az / Alt (°/s)</td><td id="t-v">—</td><td>Integral</td><td id="t-integral">—</td></tr>
                     <tr><td>Objeto (px/s)</td><td id="t-vobj">—</td><td>Altura</td><td id="t-alt">—</td></tr>
                     <tr><td>Latencia montura</td><td id="t-lat">—</td><td>Órdenes / errores</td><td id="t-ordenes">—</td></tr>
-                    <tr><td>Saturada</td><td id="t-sat">—</td><td>Fotogramas perdidos</td><td id="t-desc">—</td></tr>
+                    <tr><td>Exposición / pico del objeto</td><td id="t-exp">—</td><td>Fotogramas perdidos</td><td id="t-desc">—</td></tr>
                     <tr><td>Vídeo</td><td id="t-video" colspan="3">—</td></tr>
                 </table>
             </details>
@@ -117,5 +118,5 @@
     .tabla-telemetria td:nth-child(even) { font-variant-numeric: tabular-nums; }
     .fila label { color: var(--text-2); font-size: 13px; }
 </style>
-<script src="{{ url_for('static', filename='js/seguimiento.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/seguimiento.js') }}?v=4"></script>
 {% endblock %}
