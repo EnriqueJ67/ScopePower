@@ -105,6 +105,7 @@ class TrabajoCentrado:
     """Estado observable del centrado en curso (uno a la vez)."""
 
     def __init__(self):
+        self.antes_de_foto = None     # callback opcional antes de cada foto (vigilante del seguimiento)
         self._lock = threading.Lock()
         self._cancelar = threading.Event()
         self.imagen_version = 0    # sube con cada vista previa nueva (la web la refresca por ella)
@@ -195,6 +196,11 @@ class TrabajoCentrado:
 
                 # 1) Foto corta
                 self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: exponiendo {conf['exposicion']:.0f} s")
+                if self.antes_de_foto:
+                    try:
+                        self.antes_de_foto()
+                    except Exception as e:
+                        log.warning("Vigilante del seguimiento en el centrado: %s", e)
                 frame, sensor_type = camara.ejecutar(
                     lambda cam: (capturar_frame_con_pixel(cam, conf["exposicion"], conf["binning"],
                                                           descripcion=f"Centrado {vuelta}/{conf['max_vueltas']}",

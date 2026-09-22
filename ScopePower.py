@@ -59,6 +59,7 @@ import editor_fotos
 import anuncio_ip
 import coordenadas
 import recorridos
+import vigilante_seguimiento
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -599,6 +600,17 @@ def _activar_seguimiento(tel):
 # "Reconectar equipo" basta, sin reiniciar la app.
 montura = TrabajadorCOM("montura", lambda: _dispositivos()["driver_telescopio"], al_conectar=_activar_seguimiento)
 camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_conectar=lambda cam: voz.decir("Cámara conectada"))
+
+
+def _asegurar_seguimiento(motivo):
+    """Vigilante del seguimiento sidéreo antes de una foto de noche (ver vigilante_seguimiento.py).
+    No actúa mientras el pad mueve los ejes: MoveAxis apaga el seguimiento a propósito."""
+    return vigilante_seguimiento.vigilante.asegurar(
+        montura, motivo, voz=voz, permitir=lambda: not _pad["activo"])
+
+
+# El centrado hace sus propias fotos (centrado.py): mismo vigilante antes de cada una
+centrado.trabajo_centrado.antes_de_foto = lambda: _asegurar_seguimiento("la foto del centrado")
 
 # Objetivo del último GOTO (ra en horas, dec en grados): es lo que usa el
 # centrado automático como referencia, no "donde la montura cree que está".
@@ -1604,6 +1616,9 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         return {"ok": False, "mensaje": "⏳ Ya hay una captura en curso", "ocupada": True}
     if foto_dia.trabajo_timelapse.en_curso:
         return {"ok": False, "mensaje": "⏳ Hay un timelapse en marcha; párala antes desde Cámara", "ocupada": True}
+
+    # Antes de exponer: que la montura siga el cielo (si algo apagó el seguimiento, se reactiva y queda en el log)
+    _asegurar_seguimiento(descripcion.lower() if descripcion else "la foto")
 
     nuevo_config = configparser.ConfigParser()
     nuevo_config.read("config.ini")
