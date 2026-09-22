@@ -583,6 +583,7 @@ class TrabajoSeguimiento:
         ignorar = []             # (t, x, y) de manchas quietas descartadas en la adquisición automática
         exposicion_ms = float(conf["exposicion_ms"])
         t_ultimo_ajuste = 0.0
+        fondo_plano = ruido_plano = maximo_plano = 0
         tope_plano = 255.0       # luminancia_rapida devuelve uint8
 
         def reiniciar_objetivo(fase, msg):
@@ -623,6 +624,11 @@ class TrabajoSeguimiento:
             if t_frame - fps_t0 >= 1.0:
                 fps, fps_n, fps_t0 = fps_n / (t_frame - fps_t0), 0, t_frame
             plano = luminancia_rapida(frame)
+            if n_frames % 15 == 1:
+                # Niveles del fotograma para la telemetría (diagnóstico: ¿ve algo la cámara?)
+                fondo_plano = np.median(plano)
+                ruido_plano = np.median(np.abs(plano.astype(np.int16) - fondo_plano)) * 1.4826
+                maximo_plano = plano.max()
             manchas = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"],
                                        contraste_min=conf["contraste_min"])
             if conf["grabar"] and (conf["grabar_desde"] == "inicio" or self.fase in ("bloqueado", "perdido")):
@@ -763,6 +769,7 @@ class TrabajoSeguimiento:
                     "alt_deg": None if alt is None else round(alt, 2), "lado": plano.shape[1],
                     "saturada": bool(m and m["saturada"]), "descartados": cam.descartados() if hasattr(cam, "descartados") else 0,
                     "exposicion_ms": round(exposicion_ms, 2), "pico": None if m is None else round(m["pico"] / tope_plano * 100),
+                    "fondo": int(fondo_plano), "ruido": round(float(ruido_plano), 1), "maximo": int(maximo_plano),
                     "montura": tel_m, "latencia_ms": tel_m.get("latencia_ms"),
                 }
             if t_frame - t_ultima_vista >= vista_cada:

@@ -110,7 +110,8 @@ function pintar(e) {
     el("t-lat").textContent = t.latencia_ms === null || t.latencia_ms === undefined ? "—" : texto(t.latencia_ms, 0) + " ms (" + (m.backend || "") + ")";
     el("t-ordenes").textContent = texto(m.enviadas, 0) + " / " + texto(m.errores, 0);
     el("t-exp").textContent = (t.exposicion_ms === undefined ? "—" : texto(t.exposicion_ms, 2) + " ms")
-        + (t.pico === null || t.pico === undefined ? "" : " · pico " + texto(t.pico, 0) + " %" + (t.saturada ? " (saturado)" : ""));
+        + (t.pico === null || t.pico === undefined ? "" : " · pico " + texto(t.pico, 0) + " %" + (t.saturada ? " (saturado)" : ""))
+        + (t.fondo === undefined ? "" : ` · fondo ${texto(t.fondo, 0)} ±${texto(t.ruido, 1)}, máx ${texto(t.maximo, 0)} (de 255)`);
     el("t-desc").textContent = texto(t.descartados, 0);
     const g = e.grabacion;
     el("t-video").textContent = !g ? (activo && el("grabar").checked ? "esperando al bloqueo" : "—")
