@@ -423,6 +423,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
         self.cpr = [0, 0]
         self.freq = [0, 0]
         self.ratio = [1, 1]
+        self.periodo_sidereo = [None, None]
         self._eje = [{"v": 0.0, "dir": None, "rapido": None, "marcha": False, "T": None, "espera": None} for _ in (0, 1)]
         self.cambios_de_modo = 0
         self.cruzadas = 0
@@ -454,7 +455,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
     # 2026-09-22 con la AZ GoTo real: 15–20 % de respuestas cruzadas), así que
     # una respuesta de longitud distinta a la esperada se descarta y se sigue
     # esperando la buena. Sin esto una parada puede darse por confirmada sin serlo.
-    LONGITUDES = {"e": (6,), "a": (6,), "b": (6,), "D": (2, 6), "f": (3,), "j": (6,), "h": (6,), "s": (6,),
+    LONGITUDES = {"e": (6,), "a": (6,), "b": (6,), "D": (2, 6), "g": (2, 6), "f": (3,), "j": (6,), "h": (6,), "s": (6,),
                   "G": (0,), "I": (0,), "J": (0,), "K": (0,), "L": (0,), "F": (0,), "S": (0,), "M": (0,), "H": (0,)}
 
     def enviar(self, cmd, canal="1", datos=""):
@@ -510,10 +511,16 @@ class MonturaSkyWatcherUDP(MonturaEjes):
         for i, c in enumerate(self.CANALES):
             self.cpr[i] = self.leer_24("a", c)
             self.freq[i] = self.leer_24("b", c)
+            # :g = ratio de alta velocidad (32 en la AZ GoTo); :D es el periodo de
+            # seguimiento sidéreo T1 (1158 ticks en la AZ GoTo), no el ratio
             try:
-                self.ratio[i] = self.leer_24("D", c)
+                self.ratio[i] = self.leer_24("g", c)
             except (ErrorMontura, ValueError):
                 self.ratio[i] = 1
+            try:
+                self.periodo_sidereo[i] = self.leer_24("D", c)
+            except (ErrorMontura, ValueError):
+                self.periodo_sidereo[i] = None
             estado = self.estado(i)
             if not estado["inicializado"]:
                 self.enviar("F", c)

@@ -338,8 +338,10 @@ class ServidorUDPFalso:
                 r += codificar_24(self.CPR)
             elif cmd == "b":
                 r += codificar_24(self.FREQ)
+            elif cmd == "g":
+                r += f"{self.RATIO:02X}"
             elif cmd == "D":
-                r += "10"
+                r += codificar_24(int(round(self.FREQ / (montura_ejes.SIDEREO_DEG_S * self.CPR / 360.0))))
             elif cmd == "f":
                 x = (1 if e["mode"] in (1, 3) else 0) | (2 if e["dir"] else 0) | (4 if e["mode"] in (0, 3) else 0)
                 vr = self.montura.velocidad_real()[i]
