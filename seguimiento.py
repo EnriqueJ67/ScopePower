@@ -66,6 +66,9 @@ CONF_POR_DEFECTO = {
     # pico_objetivo (fracción de la escala) tocando solo la exposición, entre los límites en ms
     "exposicion_auto": True, "exposicion_min_ms": 0.1, "exposicion_max_ms": 50.0, "pico_objetivo": 0.7,
     "k_mad": 6.0, "area_min": 3, "area_max": 20000, "radio_px": 80, "frames_bootstrap": 3, "v_min_px_s": 3.0,
+    # Contraste mínimo del pico sobre el fondo (de 255) para que una mancha cuente: el ruido no llega;
+    # un avión, un satélite o una estrella brillante sí
+    "contraste_min": 20.0,
     "altura_minima": 5.0, "focal_mm": 260.0, "pixel_um": 3.76,
     # Solo con simulador = true: objeto simulado (°/s y rumbo), giro real de la cámara y retardo de la montura
     "sim_v_obj": 0.6, "sim_rumbo": 20.0, "sim_angulo": 25.0, "sim_retardo_s": 0.3,
@@ -113,12 +116,14 @@ def leer_conf(config, altura_minima=None, focal_mm=None, pixel_um=None):
 # ═════════════════════════════════════════════════════════════════════════════
 # Detección
 # ═════════════════════════════════════════════════════════════════════════════
-def detectar_manchas(plano, k_mad=6.0, area_min=3, area_max=20000, maximo=20):
+def detectar_manchas(plano, k_mad=6.0, area_min=3, area_max=20000, maximo=20, contraste_min=0.0):
     """
     Manchas brillantes de un plano uint8/uint16: umbral mediana + k·MAD y
     componentes conexas. Devuelve una lista (ordenada por flujo, mayor primero)
     de dicts {x, y, area, pico, flujo, saturada, w, h}, con x/y centroides en
-    píxeles del plano.
+    píxeles del plano. `contraste_min` (unidades del plano) descarta las manchas
+    cuyo pico no supere el fondo al menos en eso: en un fotograma de puro ruido
+    el umbral estadístico deja pasar granos y esto los quita.
     """
     img = np.asarray(plano)
     if img.ndim == 3:
@@ -143,6 +148,8 @@ def detectar_manchas(plano, k_mad=6.0, area_min=3, area_max=20000, maximo=20):
     np.maximum.at(pico, ids, resta.astype(np.float32))
     manchas = []
     for i in validas:
+        if pico[i] < contraste_min:
+            continue
         manchas.append({
             "x": float(centroides[i][0]), "y": float(centroides[i][1]),
             "area": int(stats[i, cv2.CC_STAT_AREA]), "w": int(stats[i, cv2.CC_STAT_WIDTH]),
@@ -152,6 +159,26 @@ def detectar_manchas(plano, k_mad=6.0, area_min=3, area_max=20000, maximo=20):
         })
     manchas.sort(key=lambda m: -m["flujo"])
     return manchas[:maximo]
+
+
+def movimiento_coherente(historia, tolerancia_px=6.0):
+    """
+    True si las posiciones (t, x, y) siguen aproximadamente una recta uniforme:
+    el residuo de cada punto respecto al movimiento rectilíneo entre el primero
+    y el último queda por debajo de `tolerancia_px`. El ruido salta al azar y
+    falla; un objeto real (o una mancha quieta) pasa.
+    """
+    if len(historia) < 3:
+        return True
+    (t0, x0, y0), (t1, x1, y1) = historia[0], historia[-1]
+    if t1 - t0 <= 0:
+        return False
+    vx, vy = (x1 - x0) / (t1 - t0), (y1 - y0) / (t1 - t0)
+    for t, x, y in historia[1:-1]:
+        ex, ey = x0 + vx * (t - t0), y0 + vy * (t - t0)
+        if math.hypot(x - ex, y - ey) > tolerancia_px:
+            return False
+    return True
 
 
 def elegir_objetivo(manchas, anterior_xy=None, radio_px=80.0):
@@ -596,7 +623,8 @@ class TrabajoSeguimiento:
             if t_frame - fps_t0 >= 1.0:
                 fps, fps_n, fps_t0 = fps_n / (t_frame - fps_t0), 0, t_frame
             plano = luminancia_rapida(frame)
-            manchas = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"])
+            manchas = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"],
+                                       contraste_min=conf["contraste_min"])
             if conf["grabar"] and (conf["grabar_desde"] == "inicio" or self.fase in ("bloqueado", "perdido")):
                 if self.grabacion is None:
                     self._abrir_grabacion(frame, geo, conf)
@@ -689,6 +717,10 @@ class TrabajoSeguimiento:
                     ignorar.append((t_frame, m["x"], m["y"]))
                     reiniciar_objetivo("buscando", f"Mancha quieta en ({m['x']:.0f}, {m['y']:.0f}) descartada")
                     m = None
+                elif (self.fase == "buscando" and v_obj is not None and len(historia) >= conf["frames_bootstrap"]
+                        and not movimiento_coherente(historia)):
+                    # Las posiciones no siguen una línea: es ruido o son manchas distintas; no mover la montura
+                    pass
                 elif self.fase == "buscando" and v_obj is not None and len(historia) >= conf["frames_bootstrap"]:
                     # Bootstrap: la integral arranca con la velocidad angular aparente del objeto
                     v0 = self.calibracion.px_a_ejes(v_obj[0], v_obj[1], alt)
@@ -805,7 +837,7 @@ class TrabajoSeguimiento:
 
         def mancha():
             plano = luminancia_rapida(cam.leer_frame())
-            ms = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"])
+            ms = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"], contraste_min=conf["contraste_min"])
             if not ms:
                 raise RuntimeError("No hay ninguna mancha con la que calibrar")
             return ms[0]["x"], ms[0]["y"]
