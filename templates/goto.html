@@ -388,13 +388,14 @@
 
     // Función sendGotoRequest: se encarga de hacer la petición GOTO y guardar el tipo
     let ultimoGotoObjeto = "", ultimoGotoHora = 0;
-    function sendGotoRequest() {
+    // filtroSolar = true: segunda petición, tras confirmar en pantalla que el filtro solar está puesto
+    function sendGotoRequest(filtroSolar = false) {
         const objeto = document.getElementById("objeto").value.trim();
         if (!objeto) {
             document.getElementById("status").innerHTML = "❌ Debe ingresar un objeto celeste.";
             return;
         }
-        if (objeto.toLowerCase() === ultimoGotoObjeto && Date.now() - ultimoGotoHora < 10000) {
+        if (!filtroSolar && objeto.toLowerCase() === ultimoGotoObjeto && Date.now() - ultimoGotoHora < 10000) {
             console.log("GOTO repetido a", objeto, "ignorado");
             return;
         }
@@ -409,13 +410,22 @@
         if (window.coordsDirectas && window.coordsDirectas.objeto === objeto) {
             cuerpo += "&ra=" + window.coordsDirectas.ra + "&dec=" + window.coordsDirectas.dec;
         }
+        if (filtroSolar) cuerpo += "&filtro_solar=si";
         fetch("/goto", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: cuerpo
         })
             .then(response => response.json())
-            .then(data => {
+            .then(async data => {
+                if (data.confirmar_filtro_solar) {
+                    // El PC no ha movido nada: es el Sol (o algo muy cerca). Solo tras el SÍ se repite.
+                    document.getElementById("status").innerHTML = "☀️ Esperando confirmación del filtro solar…";
+                    document.getElementById("btnModoAutomatico").disabled = false;
+                    if (await confirmarFiltroSolar(data.confirmar_filtro_solar)) sendGotoRequest(true);
+                    else document.getElementById("status").innerHTML = "⛔ GoTo cancelado: filtro solar sin confirmar.";
+                    return;
+                }
                 if (data.error) {
                     document.getElementById("status").innerHTML = "❌ " + data.error;
                 } else if (data.warning) {
