@@ -636,6 +636,18 @@ class TrabajoSeguimiento:
                         self._msg(f"Altura {alt:.1f}° por debajo del mínimo: se para el seguimiento", logging.WARNING)
                         break
 
+            if (m is None and not manchas and conf["exposicion_auto"] and t_frame - t_ultimo_ajuste >= 1.0
+                    and hasattr(cam, "exposicion") and exposicion_ms < conf["exposicion_max_ms"]):
+                # Nada a la vista: subir la exposición poco a poco hasta el máximo (huevo y gallina: la
+                # automática por el objeto solo actúa cuando ya hay objeto)
+                nueva = min(conf["exposicion_max_ms"], exposicion_ms * 2.0)
+                try:
+                    cam.exposicion(nueva)
+                    log.info("Seguimiento: sin manchas, exposición %.2f → %.2f ms", exposicion_ms, nueva)
+                    exposicion_ms = nueva
+                except Exception as e:
+                    log.warning("Seguimiento: no se pudo cambiar la exposición: %s", e)
+                t_ultimo_ajuste = t_frame
             if m is not None and conf["exposicion_auto"] and t_frame - t_ultimo_ajuste >= 1.0 and hasattr(cam, "exposicion"):
                 # Exposición automática por el pico del objeto (solo exposición; la ganancia no se toca)
                 pico = m["pico"] / tope_plano
@@ -746,7 +758,12 @@ class TrabajoSeguimiento:
     def _guardar_vista(self, plano, manchas, objetivo_xy, ancho):
         try:
             os.makedirs(CARPETA_VISTA, exist_ok=True)
-            img = cv2.cvtColor(plano, cv2.COLOR_GRAY2BGR)
+            # Estirado solo para mirar (la detección usa el plano crudo): del percentil 1 al 99,9 %
+            bajo, alto_p = np.percentile(plano, (1.0, 99.9))
+            if alto_p - bajo < 8:
+                alto_p = bajo + 8
+            estirado = np.clip((plano.astype(np.float32) - bajo) * (255.0 / (alto_p - bajo)), 0, 255).astype(np.uint8)
+            img = cv2.cvtColor(estirado, cv2.COLOR_GRAY2BGR)
             h, w = plano.shape
             cv2.drawMarker(img, (w // 2, h // 2), (0, 200, 255), cv2.MARKER_CROSS, 24, 1)
             for m in manchas[:10]:
