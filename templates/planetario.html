@@ -374,20 +374,31 @@
 
     // Envía el GoTo por la misma ruta que la página GoTo y "Esta noche". Con ra_h/dec_deg
     // el PC no tiene que resolver el nombre; sin ellas (Sistema Solar) lo calcula él.
-    async function enviarGoto(objeto, ra_h, dec_deg, boton) {
+    async function enviarGoto(objeto, ra_h, dec_deg, boton, filtroSolar = false) {
         let cuerpo = "objeto=" + encodeURIComponent(objeto);
         if (Number.isFinite(ra_h) && Number.isFinite(dec_deg)) cuerpo += `&ra=${ra_h}&dec=${dec_deg}`;
+        if (filtroSolar) cuerpo += "&filtro_solar=si";
         gotoEnCurso = true;
         if (boton) boton.disabled = true;
         estadoEl.innerHTML = `<span class="spinner"></span> Enviando GoTo a <b>${objeto}</b>…`;
         let ok = false;
         try {
             const r = await (await fetch("/goto", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: cuerpo })).json();
-            if (r.error) estadoEl.innerHTML = "❌ " + r.error;
-            else if (r.warning) estadoEl.innerHTML = "⚠️ " + r.warning;
-            else estadoEl.innerHTML = r.message || "✅ GoTo enviado";
-            ok = !r.error && !r.warning;
-            if (ok) { $("seguir").checked = true; viewer.setMountFollow(true); }
+            if (r.confirmar_filtro_solar) {
+                // El Sol (o algo muy cerca): el PC no mueve nada hasta confirmar el filtro solar
+                estadoEl.innerHTML = "☀️ Esperando confirmación del filtro solar…";
+                if (await confirmarFiltroSolar(r.confirmar_filtro_solar)) {
+                    gotoEnCurso = false;
+                    return enviarGoto(objeto, ra_h, dec_deg, boton, true);
+                }
+                estadoEl.innerHTML = "⛔ GoTo cancelado: filtro solar sin confirmar.";
+            } else {
+                if (r.error) estadoEl.innerHTML = "❌ " + r.error;
+                else if (r.warning) estadoEl.innerHTML = "⚠️ " + r.warning;
+                else estadoEl.innerHTML = r.message || "✅ GoTo enviado";
+                ok = !r.error && !r.warning;
+                if (ok) { $("seguir").checked = true; viewer.setMountFollow(true); }
+            }
         } catch (e) {
             estadoEl.innerHTML = "❌ " + e;
         }

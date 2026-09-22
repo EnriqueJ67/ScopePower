@@ -1065,6 +1065,49 @@ def calcular_altitud( ra=None, dec=None):
 
     return coordenadas_altaz.alt.deg
 
+
+# GoTo cerca del Sol: sin filtro solar el Sol quema el sensor de la cámara en segundos.
+# SynScan Pro solo protege su propia pantalla (probado el 22-sep-2026 con la AZ GoTo real:
+# por ASCOM aceptó el GoTo al Sol con "Observe Sun" desactivado), así que la barrera es esta.
+SEPARACION_SOLAR_MINIMA = 10.0   # grados: a menos de esto del Sol se pide confirmar el filtro
+ALTURA_SOL_DE_DIA = -6.0         # grados: con el Sol por encima no hay estrellas para el plate solving
+
+def posicion_del_sol():
+    """(SkyCoord del Sol ahora, altura en grados) desde el observatorio; (None, None) si falla."""
+    try:
+        ubicacion = EarthLocation(lat=LATITUD_OBSERVATORIO * u.deg, lon=LONGITUD_OBSERVATORIO * u.deg,
+                                  height=ALTITUD_OBSERVATORIO * u.m)
+        ahora = Time.now()
+        sol = get_body("sun", ahora, ubicacion)
+        return sol, float(sol.transform_to(AltAz(obstime=ahora, location=ubicacion)).alt.deg)
+    except Exception as e:
+        print(f"⚠️ No se pudo calcular la posición del Sol: {e}")
+        return None, None
+
+def es_de_dia():
+    """True con el Sol por encima de ALTURA_SOL_DE_DIA: el centrado por plate solving no tiene
+    estrellas que resolver (y al Sol o la Luna con filtro, menos aún)."""
+    _, altura_sol = posicion_del_sol()
+    return altura_sol is not None and altura_sol > ALTURA_SOL_DE_DIA
+
+def aviso_solar(nombre_objeto, ra, dec):
+    """Si el GoTo va al Sol, o a un objeto a menos de SEPARACION_SOLAR_MINIMA del Sol con el
+    Sol sobre el horizonte, devuelve los datos del aviso que la interfaz debe confirmar antes
+    de mover la montura; None si no hay peligro."""
+    es_sol = nombre_objeto in ("sol", "sun")
+    sol, altura_sol = posicion_del_sol()
+    if sol is not None:
+        separacion = float(sol.separation(SkyCoord(ra=ra * u.hourangle, dec=dec * u.deg)).deg)
+    else:
+        if not es_sol:
+            return None
+        separacion = 0.0
+    if not es_sol and (altura_sol is None or altura_sol < 0 or separacion > SEPARACION_SOLAR_MINIMA):
+        return None
+    return {"es_sol": es_sol, "separacion_deg": round(separacion, 1),
+            "altura_sol_deg": None if altura_sol is None else round(altura_sol, 1)}
+
+
 def generar_fits_monocromo_para_platesolve(ruta_rgb, ruta_monocromo):
     from astropy.io import fits
     with fits.open(ruta_rgb) as hdul:
@@ -2708,6 +2751,18 @@ def goto_objeto():
             # mayúsculas y símbolos (M31, Vega, Campo 9h56m +69°22'), salvo que llevara
             # números en letras; el rótulo prefiere el de la ficha si la hay
             nombre_rotulo = objeto_original if quitar_tildes(objeto_original.lower()) == objeto else objeto
+
+            # Al Sol (o muy cerca de él) solo se va si el usuario confirma que el filtro solar
+            # está puesto: la interfaz muestra el aviso y repite la petición con filtro_solar=si
+            aviso = aviso_solar(nombre_objeto, float(ra), float(dec))
+            if aviso and request.form.get("filtro_solar") != "si":
+                if aviso["es_sol"]:
+                    texto = "Vas a apuntar el telescopio al Sol."
+                else:
+                    texto = f"{nombre_rotulo} está a solo {aviso['separacion_deg']}° del Sol."
+                voz.decir(f"Atención. {texto} ¿Has puesto el filtro solar?")
+                print(f"☀️ GoTo a {nombre_rotulo} pendiente de confirmar el filtro solar ({aviso})")
+                return jsonify({"confirmar_filtro_solar": dict(aviso, objeto=nombre_rotulo, texto=texto)})
             ULTIMO_GOTO.clear()
             ULTIMO_GOTO.update({"ra": float(ra), "dec": float(dec), "objeto": nombre_rotulo,
                                 "fuente": fuente_coords, "hora": datetime.now().isoformat(timespec="seconds")})
@@ -2746,7 +2801,9 @@ def goto_objeto():
             # Al terminar el movimiento (sondeo aparte, sin ocupar el hilo de la
             # montura): avisar por voz y, como un Seestar, centrar automáticamente
             # con plate solving si [Centrado] centrar_tras_goto = true.
-            def _al_llegar(nombre=nombre_rotulo, ra_obj=float(ra), dec_obj=float(dec)):
+            de_dia = es_de_dia()
+
+            def _al_llegar(nombre=nombre_rotulo, ra_obj=float(ra), dec_obj=float(dec), de_dia=de_dia):
                 inicio = time.time()
                 time.sleep(3)
                 while time.time() - inicio < 180:
@@ -2757,6 +2814,12 @@ def goto_objeto():
                         return
                     time.sleep(1)
                 else:
+                    return
+                if de_dia:
+                    # Al Sol (con filtro), o a lo que sea con el cielo claro: no hay estrellas
+                    # que resolver, así que no se gasta una foto ni se anuncia un fallo
+                    voz.decir(f"Telescopio apuntando a {nombre}. De día no hay centrado automático.")
+                    print(f"ℹ️ Centrado tras el GOTO a {nombre} omitido: es de día, sin estrellas para resolver")
                     return
                 voz.decir(f"Telescopio apuntando a {nombre}")
                 if not centrado.leer_config().get("centrar_tras_goto", True):
@@ -2775,8 +2838,9 @@ def goto_objeto():
             threading.Thread(target=_al_llegar, name="llegada-goto", daemon=True).start()
 
             # Responder inmediatamente
+            nota_dia = "<br><small>☀️ De día no hay centrado automático: sin estrellas no hay plate solving</small>" if de_dia else ""
             return jsonify({
-                "message": f"✅ Moviendo el telescopio a <b>{nombre_rotulo}</b><br>📍 RA: <code>{ra_str}</code> | DEC: <code>{dec_str}</code><br><small>🔎 Fuente: <b>{fuente_coords}</b></small>",
+                "message": f"✅ Moviendo el telescopio a <b>{nombre_rotulo}</b><br>📍 RA: <code>{ra_str}</code> | DEC: <code>{dec_str}</code><br><small>🔎 Fuente: <b>{fuente_coords}</b></small>{nota_dia}",
                 "extra_info": info
             })
 

@@ -22,7 +22,7 @@
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=5">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -177,6 +177,8 @@
 <!-- Mantener la pantalla del móvil encendida (se activa con el primer toque) -->
 <script src="{{ url_for('static', filename='js/NoSleep.js') }}"></script>
 <script src="{{ url_for('static', filename='js/pantalla.js') }}"></script>
+<!-- Aviso a pantalla completa antes de un GoTo al Sol (pide confirmar el filtro solar) -->
+<script src="{{ url_for('static', filename='js/filtro_solar.js') }}?v=1"></script>
 <script>
     // ——— Interruptor de los avisos hablados por el altavoz del PC (SAPI, ver voz.py) ———
     function pintarVoz(e) {

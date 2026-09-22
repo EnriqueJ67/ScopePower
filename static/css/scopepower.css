@@ -511,6 +511,27 @@ nav.barra a.encendido .nav-ico { background: var(--ok-soft); color: var(--ok); }
 .modal-acciones { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
 @media (min-width: 700px) { .modal { align-items: center; padding: 20px; } .modal-caja { border-radius: 20px; } }
 
+/* ── Aviso del filtro solar (GoTo al Sol): a pantalla completa, con el fondo latiendo ── */
+.modal-sol { z-index: 3000; align-items: center; padding: 0; background: rgba(0, 0, 0, 0.85); animation: sol-fondo 1.2s ease-in-out infinite; }
+.modal-sol-caja { max-width: 640px; min-height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 12px; padding: 24px 20px; border: 0; border-radius: 0; color: #fff; background: linear-gradient(180deg, #c8171d 0%, #8f0c11 60%, #3a0508 100%); box-shadow: inset 0 0 0 8px #ffb547, inset 0 0 0 16px #c8171d; }
+.modal-sol-icono { width: 128px; height: 128px; color: #ffd166; filter: drop-shadow(0 0 24px #ffb547); animation: sol-latido 1.2s ease-in-out infinite; }
+.modal-sol-icono svg { width: 100%; height: 100%; }
+.modal-sol-titulo { font-size: 30px; font-weight: 900; line-height: 1.1; letter-spacing: 0.5px; color: #ffd166; text-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+.modal-sol-texto { font-size: 22px; font-weight: 700; margin: 0; }
+.modal-sol-detalle { font-size: 16px; line-height: 1.4; margin: 0; color: #ffe9e9; max-width: 480px; }
+.modal-sol-detalle b { color: #ffd166; }
+.modal-sol-pregunta { font-size: 24px; font-weight: 800; margin-top: 6px; }
+.modal-sol-acciones { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 440px; margin-top: 8px; }
+.modal-sol-acciones .btn { font-size: 18px; font-weight: 800; padding: 18px 16px; border-radius: 14px; border: 0; justify-content: center; white-space: normal; }
+.modal-sol-no { background: #fff; color: #8f0c11; }
+.modal-sol-no:hover, .modal-sol-no:focus-visible { background: #ffe9e9; outline: 3px solid #ffd166; }
+.modal-sol-si { background: #ffb547; color: #3a0508; }
+.modal-sol-si:hover, .modal-sol-si:focus-visible { background: #ffd166; outline: 3px solid #fff; }
+@keyframes sol-fondo { 0%, 100% { background: rgba(0, 0, 0, 0.85); } 50% { background: rgba(200, 23, 29, 0.85); } }
+@keyframes sol-latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@media (min-width: 700px) { .modal-sol { padding: 20px; } .modal-sol-caja { min-height: 0; border-radius: 24px; padding: 36px 32px; } }
+@media (max-height: 640px) { .modal-sol-icono { width: 80px; height: 80px; } .modal-sol-titulo { font-size: 24px; } .modal-sol-detalle { font-size: 14px; } }
+
 /* ── Iconos ───────────────────────────────────────────────────────────────── */
 .ico { width: 20px; height: 20px; flex: none; vertical-align: -4px; }
 .ico-sm { width: 16px; height: 16px; }
