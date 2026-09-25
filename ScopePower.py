@@ -6,6 +6,7 @@ import win32com.client
 import pythoncom
 import subprocess
 import time
+import math
 import threading
 import os
 import re
@@ -49,6 +50,8 @@ import flats
 import secretos
 import centrado
 import foto_dia
+import foto_actual
+import apuntado_teorico
 import foto_continua
 import alineacion
 import voz
@@ -409,6 +412,7 @@ PREFERENCIAS = {
     "foto_dia_campo": ("Interfaz", "foto_dia_campo", "entero"),        # % del campo visible en el modo día (100, 75, 50, 35, 25)
     "foto_dia_compensacion": ("Interfaz", "foto_dia_compensacion", "decimal"),   # EV (−3..+3) sobre la exposición automática de día
     "foto_continua_guardar": ("Interfaz", "foto_continua_guardar", "texto"),   # no | jpg | fits: qué guardar en el modo continuo
+    "foto_pad_flotante": ("Interfaz", "foto_pad_flotante", "texto"),   # "on"/"off": pad de la montura encima de la foto en Cámara
 }
 
 
@@ -1640,6 +1644,27 @@ def pad_parar():
 import numpy as np
 from astropy.io import fits
 
+def revelar_foto_noche(imagen_fits, patron_bayer):
+    """
+    Foto de noche revelada como en la vista de Cámara: debayer a 16 bits con el patrón
+    de la cabecera, auto-stretch STF y la saturación de Configuración. Devuelve BGR/gris uint8.
+    """
+    # imagen_fits es un array 2D (raw CFA de la cámara). Se debayeriza directamente a
+    # 16 bits; nunca reducir a 8 bits antes de este paso.
+    if imagen_fits.ndim == 2 and patron_bayer in ('RGGB', 'BGGR', 'GRBG', 'GBRG'):
+        rgb = debayer_rgb(imagen_fits, patron_bayer)
+    else:
+        # Sensor mono (o patrón no Bayer): mostrar en escala de grises
+        rgb = imagen_fits
+    imagen_mtf = apply_stf_color(rgb)
+    nuevo_config = configparser.ConfigParser()
+    nuevo_config.read("config.ini")
+    intensidad_color = float(nuevo_config["Dispositivos"].get("color_intensity", 1.0))
+    imagen_mtf = aumentar_saturacion(imagen_mtf, factor=intensidad_color)
+    # cv2 espera BGR
+    return cv2.cvtColor(imagen_mtf, cv2.COLOR_RGB2BGR) if imagen_mtf.ndim == 3 else imagen_mtf
+
+
 def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura", ganancia=None, copia=None,
                        exposicion=None):
     """
@@ -1794,33 +1819,12 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
                     "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia}
 
-        # ───   Debayer para preview en RGB   ───
-        # imagen_fits aquí es un array 2D (raw CFA de la cámara, uint16).
-        # Se debayeriza directamente a 16 bits con el patrón escrito en la
-        # cabecera FITS; nunca reducir a 8 bits antes de este paso.
-        if imagen_fits.ndim == 2 and patron_bayer in ('RGGB', 'BGGR', 'GRBG', 'GBRG'):
-            rgb = debayer_rgb(imagen_fits, patron_bayer)
-        else:
-            # Sensor mono (o patrón no Bayer): mostrar en escala de grises
-            rgb = imagen_fits
-
-        # ───   Estirado de histograma y saturación   ───
-        imagen_mtf = apply_stf_color(rgb)
-
-        # Cargar intensidad de saturación
-        nuevo_config = configparser.ConfigParser()
-        nuevo_config.read("config.ini")
-        intensidad_color = float(nuevo_config["Dispositivos"].get("color_intensity", 1.0))
-
-        # Aplicar saturación real
-        imagen_mtf = aumentar_saturacion(imagen_mtf, factor=intensidad_color)
-
-        # Guardar la versión para la web, reducida y en JPG (cv2 espera BGR)
-        if imagen_mtf.ndim == 3:
-            imagen_web = cv2.cvtColor(imagen_mtf, cv2.COLOR_RGB2BGR)
-        else:
-            imagen_web = imagen_mtf
+        # ───   Revelado (debayer, STF, saturación) y versión reducida para la web   ───
+        imagen_web = revelar_foto_noche(imagen_fits, patron_bayer)
         guardar_jpg_web(RUTA_IMAGEN_WEB, imagen_web)
+        # La foto que se ve ahora en Cámara está en static/captura.fits (para "Apunta aquí" y la galería)
+        foto_actual.registrar("noche", imagen_fits.shape[1], imagen_fits.shape[0], BINNING,
+                              exposicion=EXPOSICION, ganancia=ganancia_real)
         if copia and copia.get("formato") == "jpg":
             # La foto revelada entera (no la reducida de la web), para tener la serie sin el peso del FITS
             os.makedirs(copia["carpeta"], exist_ok=True)
@@ -2188,6 +2192,198 @@ def apuntar_foto():
     if not (0.0 <= fx <= 1.0 and 0.0 <= fy <= 1.0):
         return jsonify({"ok": False, "mensaje": "El punto tiene que estar dentro de la foto."}), 400
     resultado = apuntar_a_punto_de_la_foto(fx, fy)
+    return jsonify(resultado), (200 if resultado["ok"] else 409)
+
+
+# ───────────────────────── Apunta aquí sin plate solving (modo día) ─────────────────────────
+def _foto_en_pantalla():
+    """La foto que enseña ahora Cámara (foto_actual.py); tras reiniciar, la de static/captura.fits."""
+    f = foto_actual.actual()
+    if f is None and os.path.exists(RUTA_IMAGEN):
+        f = foto_actual.desde_fits(RUTA_IMAGEN)
+        if f is not None and not f.get("instante"):
+            f["instante"] = os.path.getmtime(RUTA_IMAGEN)
+    return f
+
+
+def apuntar_sin_plate_solving(fx, fy):
+    """
+    Centra el telescopio en el punto (fx, fy) de la foto que se ve (fracciones 0–1)
+    con la orientación y la escala de la cámara del último plate solving, sin
+    resolver la foto (ver apuntado_teorico.py). Devuelve un dict con ok y mensaje.
+    """
+    import orientacion_camara
+    if bucle.activo and not bucle.pausado:
+        return {"ok": False, "mensaje": "El apilado está capturando; páusalo antes de mover el telescopio."}
+    for nombre, trabajo in (("centrado", centrado.trabajo_centrado), ("alineación", alineacion.trabajo_alineacion),
+                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        if trabajo.en_curso:
+            return {"ok": False, "mensaje": f"Hay un trabajo de {nombre} en marcha; espera a que termine."}
+    orientacion = orientacion_camara.ultima()
+    try:
+        du, dv = apuntado_teorico.desplazamiento(fx, fy, _foto_en_pantalla(), orientacion)
+    except apuntado_teorico.SinDatos as e:
+        return {"ok": False, "mensaje": str(e)}
+    salto = math.hypot(du, dv) * 60.0
+    if salto < 0.2:
+        return {"ok": True, "mensaje": "El punto ya está en el centro; no hace falta mover.", "salto_arcmin": 0.0, "movido": False}
+    try:
+        ra_m, dec_m = montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
+    except ErrorHardware as e:
+        return {"ok": False, "mensaje": f"Montura no disponible: {e}"}
+
+    # Desplazamiento en acimut/altura desde donde apunta la montura, y de vuelta a AR/Dec
+    # con la misma hora y lugar: el GoTo resultante es un movimiento relativo
+    ra_i, dec_i = coordenadas.desde_montura(ra_m, dec_m)
+    marco = AltAz(obstime=Time.now(), location=EarthLocation(lat=LATITUD_OBSERVATORIO * u.deg, lon=LONGITUD_OBSERVATORIO * u.deg,
+                                                               height=ALTITUD_OBSERVATORIO * u.m))
+    ahora = SkyCoord(ra=ra_i * u.hourangle, dec=dec_i * u.deg).transform_to(marco)
+    az_d, alt_d = apuntado_teorico.mover_en_horizonte(float(ahora.az.deg), float(ahora.alt.deg), du, dv)
+    destino = SkyCoord(az=az_d * u.deg, alt=alt_d * u.deg, frame=marco).icrs
+    ra_dest, dec_dest = coordenadas.a_montura(float(destino.ra.hour), float(destino.dec.deg))
+
+    def _mover(tel):
+        # ASCOM exige seguimiento para un GoTo en AR/Dec; en paisaje estaba apagado y se vuelve a apagar
+        seguia = bool(tel.Tracking)
+        if not seguia:
+            tel.Tracking = True
+        try:
+            if getattr(tel, "CanSlewAsync", False):
+                tel.SlewToCoordinatesAsync(ra_dest, dec_dest)
+            else:
+                tel.SlewToCoordinates(ra_dest, dec_dest)
+            inicio = time.time()
+            time.sleep(0.5)
+            while tel.Slewing:
+                if time.time() - inicio > 120:
+                    raise ErrorHardware("La montura no terminó el movimiento en 120 s")
+                time.sleep(0.5)
+        finally:
+            if not seguia:
+                tel.Tracking = False
+
+    try:
+        montura.ejecutar(_mover, timeout=150)
+    except ErrorHardware as e:
+        return {"ok": False, "mensaje": f"Error al mover el telescopio: {e}"}
+    time.sleep(asentamiento_montura())
+    log.info("Apuntado sin plate solving al punto (%.3f, %.3f): Δaz·cos(alt) %+.1f', Δalt %+.1f' (alt %.1f°)",
+             fx, fy, du * 60, dv * 60, ahora.alt.deg)
+    voz.decir("Telescopio centrado en el punto elegido")
+    return {"ok": True, "movido": True, "salto_arcmin": round(salto, 2),
+            "mensaje": f"Telescopio movido {salto:.1f}′ ({abs(du) * 60:.1f}′ en acimut, {abs(dv) * 60:.1f}′ en altura) "
+                       f"con la orientación de la cámara, sin plate solving."}
+
+
+@app.route('/apuntar-foto-dia', methods=['POST'])
+def apuntar_foto_dia():
+    """"Apunta aquí" de día: {x, y} en 0–1 sobre la foto que se ve; sin ASTAP."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        fx, fy = float(datos.get("x")), float(datos.get("y"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "mensaje": "Punto no válido."}), 400
+    if not (0.0 <= fx <= 1.0 and 0.0 <= fy <= 1.0):
+        return jsonify({"ok": False, "mensaje": "El punto tiene que estar dentro de la foto."}), 400
+    resultado = apuntar_sin_plate_solving(fx, fy)
+    return jsonify(resultado), (200 if resultado["ok"] else 409)
+
+
+@app.route('/apuntar-foto-dia/info')
+def apuntar_foto_dia_info():
+    """De dónde sale la orientación de la cámara y cuánto cielo abarca la foto que se ve (para el puntero)."""
+    import orientacion_camara
+    orientacion = orientacion_camara.ultima()
+    if not orientacion:
+        return jsonify({"ok": False, "mensaje": "Aún no hay ningún plate solving con esta cámara: haz uno de noche "
+                                                "(centrado, alineación, apilado o sincronizar la foto) y luego funcionará también de día."})
+    salida = {"ok": True, "orientacion": apuntado_teorico.describir_orientacion(orientacion)}
+    vista = _foto_en_pantalla()
+    if vista and vista.get("ancho"):
+        ancho, alto = apuntado_teorico.campo_visible_grados(vista, orientacion)
+        salida.update({"campo_ancho_deg": round(ancho, 4), "campo_alto_deg": round(alto, 4)})
+    return jsonify(salida)
+
+
+# ───────────────────────── Guardar la foto de Cámara en la galería ─────────────────────────
+CARPETA_CRUDOS_GALERIA = os.path.join("static", "fotos", "crudos")
+_lock_guardar_foto = threading.Lock()
+
+
+def guardar_foto_en_galeria():
+    """
+    Guarda en la galería la foto que se ve en Cámara: JPG revelado a resolución
+    completa (con el recorte y el color del modo día) y firmado como los apilados, y
+    su FITS en bruto en static/fotos/crudos/ (aparte, para que el editor no lo tome
+    por un apilado). Devuelve un dict con ok, mensaje y archivo.
+    """
+    f = _foto_en_pantalla()
+    if f is None:
+        return {"ok": False, "mensaje": "No hay ninguna foto que guardar; haz una foto primero."}
+    fecha = datetime.fromtimestamp(f.get("instante") or time.time())
+    if f["modo"] == "dia":
+        objeto = foto_dia.OBJETIVOS.get(f.get("objetivo") or "", {}).get("nombre", "Foto de día")
+        objeto = objeto[:1].upper() + objeto[1:]
+    else:
+        objeto = apilado.nombre_objeto_goto()
+    base = f"{editor_fotos.nombre_archivo_objeto(objeto)}_{fecha:%Y%m%d_%H%M%S}"
+    ruta_jpg = os.path.join("static", "fotos", base + ".jpg")
+    ruta_crudo = os.path.join(CARPETA_CRUDOS_GALERIA, base + ".fits")
+    if os.path.exists(ruta_jpg):
+        return {"ok": True, "mensaje": f"Esta foto ya estaba en la galería ({base}.jpg).", "archivo": base + ".jpg"}
+    os.makedirs(CARPETA_CRUDOS_GALERIA, exist_ok=True)
+
+    exposicion = f.get("exposicion")
+    if f["modo"] == "dia":
+        frame, prep = f.get("frame"), f.get("prep") or {}
+        if frame is None:                      # foto suelta (o tras reiniciar): está en static/captura.fits
+            with fits.open(RUTA_IMAGEN) as hdul:
+                frame = np.asarray(hdul[0].data)
+                patron = str(hdul[0].header.get("BAYERPAT") or "")
+                exposicion = exposicion or hdul[0].header.get("EXPTIME")
+            sensor_type = prep.get("sensor_type", foto_dia.sensor_type_de_patron(patron))
+            import shutil
+            shutil.copy(RUTA_IMAGEN, ruta_crudo)
+        else:
+            sensor_type = prep["sensor_type"]
+            foto_dia.guardar_fits(frame, exposicion or 0, prep, f["binning"], ruta_crudo,
+                                  extra=foto_dia.cabecera_revelado(f.get("objetivo"), f["campo"],
+                                                                   {"negro": f.get("negro") or 0, "balance": f.get("balance")},
+                                                                   f.get("instante")))
+        imagen, _ = foto_dia.revelar(foto_dia.recortar_centro(frame, f["campo"]), sensor_type, f.get("objetivo"),
+                                     balance=f.get("balance"), negro=f.get("negro"), aprender=False)
+    else:
+        with fits.open(RUTA_IMAGEN) as hdul:
+            datos_fits = np.asarray(hdul[0].data)
+            patron = str(hdul[0].header.get("BAYERPAT") or "").strip().upper()
+            exposicion = exposicion or hdul[0].header.get("EXPTIME") or hdul[0].header.get("EXPOSURE")
+        imagen = revelar_foto_noche(datos_fits, patron)
+        import shutil
+        shutil.copy(RUTA_IMAGEN, ruta_crudo)
+
+    meta = apilado.metadatos_firma(None, ruta_crudo, 1, float(exposicion or 0))
+    meta.update({"objeto": objeto, "fecha": fecha})
+    if meta["activa"]:
+        imagen = firma.firmar(imagen, meta)
+    cv2.imwrite(ruta_jpg, imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    meta["firmada"] = bool(meta["activa"])
+    firma.guardar_meta(ruta_jpg, meta)
+    log.info("Foto de Cámara guardada en la galería: %s", base)
+    voz.decir("Foto guardada en la galería")
+    return {"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg", "archivo": base + ".jpg"}
+
+
+@app.route('/foto/guardar-galeria', methods=['POST'])
+def foto_guardar_galeria():
+    if not _lock_guardar_foto.acquire(blocking=False):
+        return jsonify({"ok": False, "mensaje": "Ya se está guardando una foto; espera un momento."}), 409
+    try:
+        resultado = guardar_foto_en_galeria()
+    except Exception as e:
+        log.exception("Error guardando la foto de Cámara en la galería")
+        resultado = {"ok": False, "mensaje": f"Error al guardar: {e}"}
+    finally:
+        _lock_guardar_foto.release()
     return jsonify(resultado), (200 if resultado["ok"] else 409)
 
 # Ruta para resolver plate solve con ASTAP
@@ -3205,12 +3401,15 @@ def _capturador_dia_continuo(objetivo, campo, binning):
             return {"ok": False, "mensaje": f"Error de cámara: {e}"}
         memoria["exposicion"], memoria["n"] = exposicion, memoria["n"] + 1
         try:
-            imagen = foto_dia.frame_a_imagen8(foto_dia.recortar_centro(frame, campo), prep["sensor_type"])
+            instante = time.time()
+            imagen, info = foto_dia.revelar(foto_dia.recortar_centro(frame, campo), prep["sensor_type"], objetivo)
             guardar_jpg_web(RUTA_IMAGEN_WEB, imagen)
+            foto_dia.registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info)
             archivo = None
             if copia and copia.get("formato") == "fits":
                 archivo = os.path.join(copia["carpeta"], copia["nombre"] + ".fits")
-                foto_dia.guardar_fits(frame, exposicion, prep, binning, archivo)     # campo completo, como la foto suelta
+                foto_dia.guardar_fits(frame, exposicion, prep, binning, archivo,     # campo completo, como la foto suelta
+                                      extra=foto_dia.cabecera_revelado(objetivo, campo, info, instante))
             elif copia and copia.get("formato") == "jpg":
                 os.makedirs(copia["carpeta"], exist_ok=True)
                 archivo = os.path.join(copia["carpeta"], copia["nombre"] + ".jpg")
@@ -3718,6 +3917,12 @@ def eliminar_imagen():
             mensajes.append(f"Archivo FITS '{nombre_fits}' eliminado.")
         else:
             mensajes.append(f"Archivo FITS '{nombre_fits}' no encontrado.")
+
+        # FITS en bruto de una foto suelta de Cámara (static/fotos/crudos), si lo hay
+        ruta_crudo = os.path.join(carpeta_fotos, "crudos", nombre_fits)
+        if os.path.exists(ruta_crudo):
+            os.remove(ruta_crudo)
+            mensajes.append("FITS en bruto eliminado.")
 
         # Datos de la firma (JSON hermano), si los hay
         ruta_json = os.path.join(carpeta_fotos, f"{nombre_base}.json")

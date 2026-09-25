@@ -64,6 +64,9 @@ def texto_integracion(n_fotos, exposicion):
         return "", ""
     if exp <= 0:
         return f"{n} foto{'s' if n != 1 else ''}", ""
+    if n == 1 and exp < 1:
+        # Foto suelta de Cámara (de día, milisegundos): solo su exposición
+        return (f"{exp * 1e6:.0f} µs" if exp < 0.001 else f"{exp * 1000:.3g} ms"), ""
     total = n * exp
     if total >= 3600:
         h, m = divmod(round(total / 60), 60)
