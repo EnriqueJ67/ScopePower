@@ -3222,12 +3222,12 @@ def continuo_iniciar():
                             ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
-    seguimiento = None
+    seguimiento_montura = None
     if modo == "dia":
         conf = foto_dia.OBJETIVOS[objetivo]
         # Seguimiento solar/lunar como en la foto de día suelta; la web lo devuelve a sidéreo al salir del modo día
         if conf["seguimiento"] and montura.esta_conectado() and foto_dia.poner_seguimiento(montura, conf["seguimiento"]):
-            seguimiento = conf["seguimiento"]
+            seguimiento_montura = conf["seguimiento"]
         capturar, al_terminar = _capturador_dia_continuo(objetivo, _campo_foto_dia(datos), _dispositivos()["binning"])
         ganancia = None
     else:
@@ -3239,7 +3239,7 @@ def continuo_iniciar():
             raiz=ruta_absoluta(foto_continua.CARPETA_CONTINUO), voz=voz, al_terminar=al_terminar, modo=modo)
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
-    return jsonify({"ok": True, "seguimiento": seguimiento, "estado": foto_continua.trabajo_continuo.estado()})
+    return jsonify({"ok": True, "seguimiento": seguimiento_montura, "estado": foto_continua.trabajo_continuo.estado()})
 
 
 @app.route('/continuo/estado')
