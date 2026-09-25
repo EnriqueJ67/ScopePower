@@ -12,6 +12,7 @@ quemar el disco del Sol o de la Luna, no dejar el fondo a un nivel dado.
 """
 import os
 import csv
+import json
 import time
 import logging
 import threading
@@ -100,21 +101,29 @@ def _patron(sensor_type):
     return {2: "RGGB", 3: "CMYG", 4: "CMYG2", 5: "LRGB"}.get(sensor_type)
 
 
+def sensor_type_de_patron(patron):
+    """BAYERPAT de la cabecera -> SensorType de ASCOM (0 = mono), para revelar un FITS guardado."""
+    return {"RGGB": 2, "CMYG": 3, "CMYG2": 4, "LRGB": 5}.get(str(patron or "").strip().upper(), 0)
+
+
+def zona_recorte(ancho, alto, campo):
+    """(x0, y0, w, h) del recorte central que deja la fracción `campo` del ancho y del alto."""
+    campo = float(campo)
+    if campo >= 0.999:
+        return 0, 0, ancho, alto
+    campo = max(0.1, campo)
+    w = max(16, int(ancho * campo)) & ~1
+    h = max(16, int(alto * campo)) & ~1
+    return ((ancho - w) // 2) & ~1, ((alto - h) // 2) & ~1, w, h
+
+
 def recortar_centro(frame, campo):
     """
     Recorta el centro del fotograma dejando la fracción `campo` del ancho y del alto
     (1.0 = campo completo). Los bordes quedan en coordenadas pares para no romper el
     patrón Bayer del mosaico CFA.
     """
-    campo = float(campo)
-    if campo >= 0.999:
-        return frame
-    campo = max(0.1, campo)
-    alto, ancho = frame.shape[0], frame.shape[1]
-    w = max(16, int(ancho * campo)) & ~1
-    h = max(16, int(alto * campo)) & ~1
-    x0 = ((ancho - w) // 2) & ~1
-    y0 = ((alto - h) // 2) & ~1
+    x0, y0, w, h = zona_recorte(frame.shape[1], frame.shape[0], campo)
     return frame[y0:y0 + h, x0:x0 + w]
 
 
@@ -192,23 +201,182 @@ def capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos, infor
     return frame, exposicion, nivel, mejor is None, intentos
 
 
-def frame_a_imagen8(frame, sensor_type):
-    """Conversión lineal (con una gamma suave), sin auto-stretch: de día no hay nada que estirar. Devuelve BGR/gris uint8."""
+# ─────────────────────────────────────────────────────────────────────────────
+#  Color de las fotos de día
+# ─────────────────────────────────────────────────────────────────────────────
+# El sensor en bruto ve mucho más verde que rojo o azul (dos píxeles verdes de cada
+# cuatro y más sensibilidad en verde): sin balance de blancos la Luna sale verde. Y
+# el negro no puede sacarse de la propia foto: de día lo más oscuro es el cielo, y
+# tomar su canal más débil como negro le quita el rojo y el azul (cielo verde puro).
+# Por eso:
+#   - el negro es el del sensor (la mediana del dark más reciente, que es casi todo
+#     offset), o lo más oscuro de la foto si es menor;
+#   - Luna y Sol se equilibran con su propio disco menos el cielo que lo rodea: el
+#     disco sale gris neutro y el cielo conserva su azul;
+#   - el paisaje usa el balance de luz de día aprendido de la última Luna (la Luna la
+#     ilumina el Sol), o uno típico de los sensores Sony si aún no hay ninguna.
+BALANCE_DEFECTO = {"r": 1.8, "b": 1.5}         # ganancias de R y B respecto a G a luz de día (típicas IMX)
+# La Luna es algo más roja que la luz del Sol (B−V 0,92 frente a 0,65): al pasar del
+# balance que la deja gris al de luz de día, el rojo sube y el azul baja
+LUNA_A_LUZ_DE_DIA = {"r": 1.10, "b": 0.80}
+RUTA_BALANCE = os.path.join("datos", "balance_dia.json")
+_cache_negro = {"clave": None, "valor": None}
+
+
+def _submuestras(frame, patron, maximo=600_000):
+    """Canales (r, g, b) en float32 por superpíxel 2×2, con salto para no pasar de `maximo` superpíxeles."""
+    f = np.asarray(frame)
+    h, w = f.shape[0] & ~1, f.shape[1] & ~1
+    paso = max(1, int(np.sqrt((h // 2) * (w // 2) / maximo)))
+    sub = lambda i, j: f[i:h:2, j:w:2][::paso, ::paso].astype(np.float32)
+    pos = {"RGGB": ((0, 0), (0, 1), (1, 0), (1, 1)), "BGGR": ((1, 1), (0, 1), (1, 0), (0, 0)),
+           "GRBG": ((0, 1), (0, 0), (1, 1), (1, 0)), "GBRG": ((1, 0), (0, 0), (1, 1), (0, 1))}[patron]
+    r, g1, g2, b = (sub(*p) for p in pos)
+    return r, (g1 + g2) * 0.5, b
+
+
+def negro_del_sensor():
+    """Mediana del dark más reciente de calibraciones/ (el offset de la cámara), o None si no hay ninguno."""
+    import glob
+    darks = sorted(glob.glob(os.path.join("calibraciones", "dark_*.fits")), key=os.path.getmtime)
+    if not darks:
+        return None
+    clave = (darks[-1], os.path.getmtime(darks[-1]))
+    if _cache_negro["clave"] != clave:
+        try:
+            from astropy.io import fits
+            datos = fits.getdata(darks[-1])
+            _cache_negro["valor"] = float(np.median(np.asarray(datos)[::4, ::4]))
+        except Exception as e:
+            log.warning("No se pudo leer el nivel de negro de %s: %s", darks[-1], e)
+            _cache_negro["valor"] = None
+        _cache_negro["clave"] = clave
+    return _cache_negro["valor"]
+
+
+def nivel_negro(frame, blanco=65535.0):
+    """Nivel de negro para revelar la foto: el del sensor, o lo más oscuro de la foto si es menor."""
+    muestra = np.asarray(frame)[::3, ::3]
+    minimo = float(np.percentile(muestra, 0.02))
+    sensor = negro_del_sensor()
+    if sensor is None:
+        sensor = 0.0025 * blanco      # sin darks: un offset típico (la Saturn-C con offset 35 da ~144 de 65535)
+    return max(0.0, min(minimo, sensor))
+
+
+def leer_balance_luz_dia():
+    try:
+        with open(RUTA_BALANCE, encoding="utf-8") as f:
+            d = json.load(f)
+        return {"r": float(d["r"]), "b": float(d["b"]), "origen": d.get("origen", "memoria"), "fecha": d.get("fecha", "")}
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def guardar_balance_luz_dia(balance_luna):
+    """Guarda como balance de luz de día el que deja gris la Luna, corregido por su color."""
+    d = {"r": round(balance_luna["r"] * LUNA_A_LUZ_DE_DIA["r"], 4), "b": round(balance_luna["b"] * LUNA_A_LUZ_DE_DIA["b"], 4),
+         "origen": "Luna", "fecha": datetime.now().isoformat(timespec="seconds")}
+    anterior = leer_balance_luz_dia()
+    if anterior and abs(anterior["r"] - d["r"]) < 0.02 * d["r"] and abs(anterior["b"] - d["b"]) < 0.02 * d["b"]:
+        return          # sin cambios apreciables: no reescribir en cada foto del continuo
+    try:
+        os.makedirs(os.path.dirname(RUTA_BALANCE), exist_ok=True)
+        with open(RUTA_BALANCE, "w", encoding="utf-8") as f:
+            json.dump(d, f, ensure_ascii=False, indent=1)
+        log.info("Balance de luz de día aprendido de la Luna: R×%.2f, B×%.2f", d["r"], d["b"])
+    except OSError as e:
+        log.warning("No se pudo guardar el balance de luz de día: %s", e)
+
+
+def balance_luz_dia():
+    b = leer_balance_luz_dia()
+    return b if b else dict(BALANCE_DEFECTO, origen="típico")
+
+
+def medir_balance_disco(frame, patron, negro, blanco=65535.0):
+    """
+    Balance (ganancias de R y B respecto a G) que deja gris el disco del Sol o de la
+    Luna: media del disco menos el cielo de alrededor, en cada canal. None si en la
+    foto no hay un disco claro (nublado, fuera de campo, todo quemado).
+    """
+    r, g, b = (c - negro for c in _submuestras(frame, patron))
+    # Umbrales entre lo más oscuro (el cielo, que de día puede ser ya un 20 % del disco)
+    # y lo más brillante: fijos respecto al tope dejarían el cielo claro en ninguno de los dos
+    tope, bajo = float(np.percentile(g, 99.5)), float(np.percentile(g, 5))
+    rango = tope - bajo
+    if rango <= 0.02 * (blanco - negro):
+        return None
+    no_quemado = np.maximum(np.maximum(r, g), b) < 0.95 * (blanco - negro)
+    disco = (g > bajo + 0.45 * rango) & no_quemado
+    fondo = g < bajo + 0.15 * rango
+    if int(disco.sum()) < 200:
+        return None
+    cielo = [float(np.median(c[fondo])) if int(fondo.sum()) > 200 else 0.0 for c in (r, g, b)]
+    senal = [float(np.mean(c[disco])) - s for c, s in zip((r, g, b), cielo)]
+    # El disco tiene que destacar bien sobre el cielo; si no, la resta sale a ruido
+    if min(senal) <= 0 or senal[1] < 0.25 * float(np.mean(g[disco])):
+        return None
+    gr, gb = senal[1] / senal[0], senal[1] / senal[2]
+    if not (0.3 <= gr <= 6.0 and 0.3 <= gb <= 6.0):
+        return None
+    return {"r": gr, "b": gb}
+
+
+def balance_para(frame, sensor_type, objetivo, negro, blanco=65535.0, aprender=True):
+    """Balance de blancos de una foto de día: {"r", "b", "origen"}; None para sensores sin color."""
+    patron = _patron(sensor_type)
+    if np.asarray(frame).ndim != 2 or patron not in ("RGGB", "BGGR", "GRBG", "GBRG"):
+        return None
+    if objetivo in ("luna", "sol"):
+        medido = medir_balance_disco(frame, patron, negro, blanco)
+        if medido is not None:
+            # El Sol no enseña la luz de día: su color lo pone el filtro solar
+            if objetivo == "luna" and aprender:
+                guardar_balance_luz_dia(medido)
+            return dict(medido, origen=f"disco de {OBJETIVOS[objetivo]['nombre'].lower()}")
+    return balance_luz_dia()
+
+
+def texto_balance(balance):
+    if not balance:
+        return ""
+    return f"color: R×{balance['r']:.2f} B×{balance['b']:.2f} ({balance.get('origen', '')})"
+
+
+def revelar(frame, sensor_type, objetivo=None, balance=None, negro=None, aprender=True):
+    """
+    Foto de día a 8 bits: resta del negro del sensor, balance de blancos (ver arriba)
+    y una gamma suave, sin auto-stretch (de día no hay nada que estirar).
+    Devuelve (imagen BGR/gris uint8, {"negro", "balance"}).
+    """
     import cv2
     datos = np.asarray(frame)
     patron = _patron(sensor_type)
+    if negro is None:
+        negro = nivel_negro(datos)
+    if balance is None:
+        balance = balance_para(datos, sensor_type, objetivo, negro, aprender=aprender)
+    img = datos.astype(np.float32) - float(negro)
     if datos.ndim == 2 and patron in ("RGGB", "BGGR", "GRBG", "GBRG"):
+        if balance:
+            fr, cr = {"RGGB": (0, 0), "BGGR": (1, 1), "GRBG": (0, 1), "GBRG": (1, 0)}[patron]
+            fb, cb = 1 - fr, 1 - cr
+            img[fr::2, cr::2] *= float(balance["r"])
+            img[fb::2, cb::2] *= float(balance["b"])
+        # Blanco: lo más brillante de la foto ya equilibrada (0,1 % se deja quemar, como antes)
+        blanco = max(float(np.percentile(img[::3, ::3], 99.9)), 1.0)
+        cfa16 = np.clip(img * (65535.0 / blanco), 0, 65535).astype(np.uint16)
         from AutoStrechSTF import debayer_rgb
-        img = debayer_rgb(datos, patron).astype(np.float32)
+        img = debayer_rgb(cfa16, patron).astype(np.float32) / 65535.0
     else:
-        img = datos.astype(np.float32)
-    blanco = float(np.percentile(img, 99.9))
-    negro = float(np.percentile(img, 0.1))
-    img = np.clip((img - negro) / max(blanco - negro, 1.0), 0.0, 1.0)
+        blanco = max(float(np.percentile(img[::3, ::3], 99.9)), 1.0)
+        img = img / blanco
+    img = np.clip(img, 0.0, 1.0)
     img = (np.power(img, 1.0 / 1.6) * 255.0).astype(np.uint8)
     if img.ndim == 3:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return img
+    return img, {"negro": float(negro), "balance": balance}
 
 
 def guardar_fits(frame, exposicion, prep, binning, ruta, extra=None):
@@ -223,10 +391,34 @@ def guardar_fits(frame, exposicion, prep, binning, ruta, extra=None):
     if patron:
         hdu.header["BAYERPAT"] = (patron, "Patron Bayer segun ASCOM SensorType")
     hdu.header["MODO"] = ("dia", "Foto de dia con exposicion automatica")
+    if prep.get("ganancia") is not None:
+        hdu.header["GAIN"] = (prep["ganancia"], "Ganancia de la camara")
     for k, v in (extra or {}).items():
         hdu.header[k] = v
     os.makedirs(os.path.dirname(ruta) or ".", exist_ok=True)
     hdu.writeto(ruta, overwrite=True)
+
+
+def cabecera_revelado(objetivo, campo, info, instante=None):
+    """Lo que hace falta para revelar otra vez la foto igual (guardar en la galería tras reiniciar)."""
+    extra = {"OBJETIVO": (objetivo or "", "Sol, luna o paisaje"),
+             "CAMPO": (round(float(campo), 3), "Fraccion del campo que se ve en la web"),
+             "DATE-OBS": datetime.fromtimestamp(instante or time.time()).strftime("%Y%m%d_%H%M%S"),
+             "NEGRO": (round(float(info["negro"]), 1), "Nivel de negro restado al revelar")}
+    b = info.get("balance")
+    if b:
+        extra.update({"WB_R": (round(float(b["r"]), 4), "Balance de blancos: ganancia del rojo"),
+                      "WB_B": (round(float(b["b"]), 4), "Balance de blancos: ganancia del azul"),
+                      "WB_ORIG": (str(b.get("origen", ""))[:60], "De donde sale el balance")})
+    return extra
+
+
+def registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info, en_disco=False):
+    """Anota en foto_actual la foto de día que se acaba de mostrar (el crudo va en memoria si no está en disco)."""
+    import foto_actual
+    foto_actual.registrar("dia", frame.shape[1], frame.shape[0], binning, campo,
+                          frame=None if en_disco else frame, objetivo=objetivo, balance=info.get("balance"),
+                          negro=info.get("negro"), exposicion=exposicion, ganancia=prep.get("ganancia"), prep=prep)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -318,12 +510,15 @@ class TrabajoFotoDia:
             frame, exposicion, nivel, saturada, prep = camara.ejecutar(_sesion, timeout=180)
 
             self._msg("Guardando la foto...", fase="guardando")
+            instante = time.time()
+            imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo)
             if ruta_fits:
-                guardar_fits(frame, exposicion, prep, binning, ruta_fits)
+                guardar_fits(frame, exposicion, prep, binning, ruta_fits, extra=cabecera_revelado(objetivo, campo, info, instante))
             if ruta_web:
                 from AutoStrechSTF import guardar_jpg_web
                 os.makedirs(os.path.dirname(ruta_web) or ".", exist_ok=True)
-                guardar_jpg_web(ruta_web, frame_a_imagen8(recortar_centro(frame, campo), prep["sensor_type"]))
+                guardar_jpg_web(ruta_web, imagen)
+            registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info, en_disco=bool(ruta_fits))
             with self._lock:
                 self.version += 1
                 self.ruta_fits = ruta_fits or ""
@@ -331,6 +526,8 @@ class TrabajoFotoDia:
             texto = f"Foto de día: {formatear_exposicion(exposicion)}, nivel {100 * nivel:.0f} %"
             if conf["ev"]:
                 texto += f" ({conf['ev']:+.1f} EV)"
+            if info.get("balance"):
+                texto += " · " + texto_balance(info["balance"])
             if saturada:
                 texto += " (sigue saturada con la exposición mínima: hace falta filtro o menos luz)"
             self._msg(texto, fase="final")
@@ -462,6 +659,7 @@ class TrabajoTimelapse:
                 voz.decir(f"Timelapse de {self.total} fotos cada {self.intervalo:.0f} segundos")
 
             exposicion = float(exposicion_inicial or conf["inicial"])
+            balance_tl = None
             registro = open(os.path.join(carpeta, "fotos.csv"), "w", encoding="utf-8", newline="")
             escritor = csv.writer(registro, delimiter=";")
             escritor.writerow(["n", "hora", "exposicion_s", "nivel", "archivo"])
@@ -480,7 +678,10 @@ class TrabajoTimelapse:
                                                        descripcion=f"Timelapse {n}", campo=campo),
                         timeout=180)
                     archivo = f"foto_{n:04d}.jpg"
-                    imagen = frame_a_imagen8(recortar_centro(frame, campo), prep["sensor_type"])
+                    # El color se mide en la primera toma y se mantiene: sin parpadeos de una foto a otra
+                    imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo, balance=balance_tl)
+                    balance_tl = info["balance"]
+                    registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info)
                     cv2.imwrite(os.path.join(carpeta, archivo), imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
                     # Miniatura de la última foto para la lista de timelapses de la web
                     from AutoStrechSTF import guardar_jpg_web

@@ -20,6 +20,11 @@
             <div id="puntero-capa" class="puntero-capa" hidden>
                 <div id="puntero" class="puntero"><span></span></div>
             </div>
+            <!-- Pad encima de la foto (opción del panel "Mover el telescopio"): el mismo pad del panel, movido
+                 aquí por JS, para mover el telescopio viendo la foto sin plegar los demás paneles -->
+            <div id="pad-flotante" class="pad-flotante" hidden>
+                <button type="button" class="pad-lado" onclick="cambiarLadoPad()" title="Pasar el pad a la otra esquina">⇆</button>
+            </div>
             <div class="visor-pie" id="barra-bloque" style="display: none;">
                 <div id="estado-foto-pie"></div>
                 <div class="progress"><div id="barra" class="progress-bar ok"></div></div>
@@ -46,10 +51,13 @@
                 <button id="btn-continuo-parar" class="btn btn-danger btn-lg" onclick="pararContinuo()" hidden><svg><use href="#i-stop"/></svg>Parar</button>
                 <button id="btn-sync" class="btn btn-secondary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-sync"/></svg>Sincronizar telescopio con la foto</button>
                 <button id="btn-puntero" class="btn btn-secondary" onclick="alternarPuntero()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-goto"/></svg>Apunta aquí</button>
+                <button id="btn-galeria" class="btn btn-secondary" onclick="guardarEnGaleria()" {% if not hay_foto %}disabled{% endif %} title="Guarda la foto que se ve, a resolución completa, en la galería"><svg><use href="#i-guardar"/></svg>Guardar en la galería</button>
             </div>
             <!-- Panel del puntero: se ve mientras "Apunta aquí" está activado -->
             <div id="puntero-panel" class="mt-2" hidden>
                 <p class="texto-2" style="margin: 0 0 8px; font-size: 13.5px;">Toca o arrastra sobre la foto para poner el puntero donde quieras que apunte el telescopio.<span id="puntero-info" class="texto-3"></span></p>
+                <!-- De día no hay estrellas: se calcula con la orientación y la escala de la cámara del último plate solving -->
+                <p id="puntero-dia" class="texto-3" style="margin: 0 0 8px; font-size: 12.5px;" hidden></p>
                 <div class="acciones">
                     <button id="btn-centrar-puntero" class="btn btn-primary" onclick="centrarEnPuntero()"><svg><use href="#i-centrar"/></svg>Centrar el telescopio aquí</button>
                     <button type="button" class="btn btn-ghost" onclick="ponerPunteroCentro()">Al centro</button>
@@ -98,6 +106,7 @@
             </div>
             <div id="estado-foto" class="estado mt-2"></div>
             <div id="estado-sync" class="estado"></div>
+            <div id="estado-galeria" class="estado"></div>
             </div>
         </section>
 
@@ -194,6 +203,10 @@
                 </div>
             </div>
             <div class="panel-cuerpo pad-cuerpo">
+                <div class="pad-opcion">
+                    <label class="switch" style="margin: 0;"><input type="checkbox" id="pad-sobre-foto" onchange="cambiarPadSobreFoto()"> Pad encima de la foto</label>
+                    <small class="ayuda" id="pad-sobre-foto-ayuda"></small>
+                </div>
                 {% include '_pad.html' %}
             </div>
         </section>
@@ -235,6 +248,24 @@
     /* Pad dentro del panel: más pequeño que en Control manual, del ancho de la columna como mucho */
     .pad-cuerpo { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 4px; }
     .pad-cuerpo .pad { width: min(100%, 300px); height: auto; aspect-ratio: 1 / 1; }
+    .pad-opcion { width: 100%; display: flex; flex-direction: column; gap: 2px; }
+    .pad-opcion .ayuda { margin: 0; }
+    /* Pad encima de la foto: pequeño, en una esquina y semitransparente hasta que se toca */
+    .pad-flotante { position: absolute; right: 10px; bottom: 10px; z-index: 4; width: clamp(112px, 30%, 220px); transition: bottom .2s; }
+    .pad-flotante.izquierda { right: auto; left: 10px; }
+    .visor.exponiendo .pad-flotante { bottom: 52px; }          /* deja ver la barra de la exposición */
+    .pad-flotante .control-pad { display: block; }
+    .pad-flotante .pad { width: 100%; height: auto; aspect-ratio: 1 / 1; opacity: 0.72; border-color: rgba(255,255,255,0.35);
+                         background: radial-gradient(circle at 50% 45%, rgba(60,60,70,0.55) 0%, rgba(12,12,16,0.6) 100%);
+                         backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); transition: opacity .15s, border-color .15s, box-shadow .15s; }
+    .pad-flotante .pad:hover, .pad-flotante .pad.activo { opacity: 0.96; }
+    .pad-flotante .pad-letra { font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000; }
+    .pad-flotante .pad-anillo-texto { fill: #fff; font-size: 10px; }
+    .pad-flotante .pad-anillo-texto.activo { fill: var(--accent-2); font-size: 12px; }
+    .pad-flotante .pad-cruz { background: rgba(255,255,255,0.45); }
+    .pad-lado { position: absolute; left: -8px; top: -8px; z-index: 1; width: 28px; height: 28px; padding: 0; border-radius: 50%;
+                border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.6); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; }
+    .pad-flotante.izquierda .pad-lado { left: auto; right: -8px; }
     /* Puntero de "Apunta aquí": capa del tamaño de la foto; el puntero es una diana con cruz */
     .puntero-capa { position: absolute; left: 0; top: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; }
     .puntero { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; pointer-events: none;
@@ -256,7 +287,21 @@
 
 <script>
     let sondeo = null;
-    let hayFotoNueva = false;
+    let hayFotoNueva = false;                 // foto hecha en esta visita (de noche, ASTAP la resuelve)
+    let hayFoto = {{ 'true' if hay_foto else 'false' }};   // hay alguna foto en pantalla (guardar, apuntar de día)
+
+    // Sincronizar y "Apunta aquí" de noche resuelven static/captura.fits: piden una foto de esta visita y
+    // esperan a que pare el continuo. De día "Apunta aquí" no resuelve nada y vale con el continuo en marcha.
+    function pintarBotonesFoto() {
+        document.getElementById("btn-sync").disabled = continuoActivo || !hayFotoNueva;
+        document.getElementById("btn-puntero").disabled = modoDia ? !hayFoto : (continuoActivo || !hayFotoNueva);
+        document.getElementById("btn-galeria").disabled = !hayFoto;
+    }
+    function fotoMostrada(nueva) {
+        hayFoto = true;
+        if (nueva) hayFotoNueva = true;
+        pintarBotonesFoto();
+    }
 
     // ——— Paneles de la columna de controles: orden y plegado, guardados en config.ini (foto_paneles) ———
     //     Mismo esquema que la columna lateral de Apilado. El pad empieza plegado: se usa de tarde en tarde.
@@ -308,6 +353,36 @@
         if (p && p.classList.contains("plegado")) { p.classList.remove("plegado"); guardarPaneles(); }
     }
 
+    // ——— Pad encima de la foto (preferencia foto_pad_flotante; por defecto sí) ———
+    //     Se mueve el mismo elemento del pad (static/js/pad.js ya le ha puesto sus eventos): así se usa
+    //     viendo la foto y con el panel Captura a la vista, sin plegar ni desplegar paneles.
+    let padSobreFoto = true;
+    function aplicarPadSobreFoto() {
+        const pad = document.querySelector(".control-pad");
+        const flotante = document.getElementById("pad-flotante");
+        if (!pad) return;
+        if (padSobreFoto) flotante.appendChild(pad);
+        else document.querySelector(".pad-cuerpo").appendChild(pad);
+        flotante.hidden = !padSobreFoto;
+        let izquierda = false;
+        try { izquierda = localStorage.getItem("pad_foto_izquierda") === "1"; } catch (e) {}
+        flotante.classList.toggle("izquierda", izquierda);
+        document.getElementById("pad-sobre-foto").checked = padSobreFoto;
+        document.getElementById("pad-sobre-foto-ayuda").textContent = padSobreFoto
+            ? "El pad está en una esquina de la foto (⇆ lo cambia de esquina). Aquí quedan la velocidad y el sentido."
+            : "El pad está aquí abajo. Actívalo para tenerlo sobre la foto y no tener que plegar paneles.";
+    }
+    function cambiarPadSobreFoto() {
+        padSobreFoto = document.getElementById("pad-sobre-foto").checked;
+        aplicarPadSobreFoto();
+        guardarPreferencias({ foto_pad_flotante: padSobreFoto ? "on" : "off" });
+    }
+    function cambiarLadoPad() {
+        const flotante = document.getElementById("pad-flotante");
+        flotante.classList.toggle("izquierda");
+        try { localStorage.setItem("pad_foto_izquierda", flotante.classList.contains("izquierda") ? "1" : "0"); } catch (e) {}
+    }
+
     function pintarProgreso(c) {
         const bloque = document.getElementById("barra-bloque");
         if (c && c.en_curso) {
@@ -319,6 +394,7 @@
         } else {
             bloque.style.display = "none";
         }
+        bloque.parentElement.classList.toggle("exponiendo", !!(c && c.en_curso));
     }
 
     function sondearCaptura() {
@@ -340,8 +416,9 @@
         document.getElementById("continuo-panel").hidden = !modoContinuo;
         document.getElementById("continuo-ayuda").textContent = ayudaGuardar();
         document.getElementById("btn-sync").hidden = modoDia;     // de día no hay plate solving
-        document.getElementById("btn-puntero").hidden = modoDia;
-        if (modoDia && punteroActivo) { punteroActivo = false; pintarModoPuntero(); }
+        // "Apunta aquí" cambia de método con el modo: el puntero se quita al cambiar
+        if (punteroActivo && punteroModoDia !== modoDia) { punteroActivo = false; pintarModoPuntero(); }
+        pintarBotonesFoto();
         document.getElementById("fila-ganancia").hidden = modoDia;  // de día la ganancia va al mínimo sola
         document.getElementById("ganancia-ayuda").hidden = modoDia;
         document.getElementById("fila-exposicion").hidden = modoDia; // y la exposición la busca la app
@@ -463,6 +540,7 @@
         if (e.ultima && e.carpeta && e.version !== ultimaVersionTl) {
             ultimaVersionTl = e.version;
             document.getElementById("foto").src = `/static/timelapse/${e.carpeta}/${e.ultima.archivo}?v=${e.version}`;
+            fotoMostrada(false);
             document.getElementById("estado-foto").className = "estado mt-2";
             document.getElementById("estado-foto").textContent = `Timelapse: foto ${e.ultima.n} a las ${e.ultima.hora} · ${formatearExp(e.ultima.exposicion)}`;
         }
@@ -550,6 +628,7 @@
                     est.className = "estado " + (e.saturada ? "warn" : "ok") + " mt-2";
                     est.textContent = (e.saturada ? "⚠️ " : "✅ ") + e.mensaje + (e.ganancia !== null && e.ganancia !== undefined ? ` · ganancia ${e.ganancia}` : "");
                     document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
+                    fotoMostrada(false);
                     if (e.seguimiento) seguimientoCambiado = true;
                 }
                 if (e.ultimas) { ultimasDia = e.ultimas; pintarUltimasDia(); }
@@ -566,6 +645,8 @@
     fetch("/preferencias").then(r => r.json()).then(p => {
         if (p.foto_paneles && Array.isArray(p.foto_paneles.orden)) prefPaneles = p.foto_paneles;
         aplicarPaneles();
+        padSobreFoto = p.foto_pad_flotante !== "off";
+        aplicarPadSobreFoto();
         if (p.foto_dia_objetivo && NOMBRE_OBJETIVO[p.foto_dia_objetivo]) objetivoDia = p.foto_dia_objetivo;
         if (p.foto_dia_campo) document.getElementById("dia-campo").value = String(p.foto_dia_campo);
         if (p.foto_dia_compensacion !== undefined) compDia = Math.max(-9, Math.min(9, Math.round(p.foto_dia_compensacion * 3)));
@@ -574,7 +655,7 @@
         modoDia = p.modo_dia === "on";
         pintarModoDia();
         pintarModoContinuo();
-    }).catch(() => { aplicarPaneles(); pintarModoDia(); pintarModoContinuo(); });
+    }).catch(() => { aplicarPaneles(); aplicarPadSobreFoto(); pintarModoDia(); pintarModoContinuo(); });
     fetch("/foto-dia/estado").then(r => r.json()).then(e => {
         ultimasDia = e.ultimas || {}; pintarUltimasDia();
         if (e.en_curso && !sondeoDia) { document.getElementById("btn-foto").disabled = true; sondeoDia = setInterval(sondearFotoDia, 700); }
@@ -666,10 +747,8 @@
         document.querySelectorAll("#continuo-guardar button, #dia-objetivo button").forEach(b => b.disabled = activo);
         document.getElementById("dia-campo").disabled = activo;
         document.getElementById("btn-tl").disabled = activo;
-        // Mientras dura, la foto cambia cada pocos segundos: sincronizar y "Apunta aquí" esperan a que pare
-        document.getElementById("btn-sync").disabled = activo || !hayFotoNueva;
-        document.getElementById("btn-puntero").disabled = activo || !hayFotoNueva;
-        if (activo && punteroActivo) { punteroActivo = false; pintarModoPuntero(); }
+        // Mientras dura, la foto cambia cada pocos segundos: sincronizar y "Apunta aquí" de noche esperan a que pare
+        if (activo && punteroActivo && !modoDia) { punteroActivo = false; pintarModoPuntero(); }
         if (activo) {
             modoContinuo = true;
             guardarContinuo = e.guardar || guardarContinuo;
@@ -680,8 +759,9 @@
         if (e.ultima && e.version !== ultimaVersionContinuo) {
             ultimaVersionContinuo = e.version;
             document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
-            hayFotoNueva = true;
+            hayFoto = true; if (!modoDia) hayFotoNueva = true;   // el continuo de día no escribe captura.fits
         }
+        pintarBotonesFoto();
         if (activo) {
             const u = e.ultima;
             est.className = "estado mt-2";
@@ -695,8 +775,6 @@
             pintarProgreso(null);
             est.className = "estado " + (e.error ? "warn" : "ok") + " mt-2";
             est.textContent = (e.error ? "⚠️ " : "✅ ") + e.mensaje;
-            document.getElementById("btn-sync").disabled = !hayFotoNueva;
-            document.getElementById("btn-puntero").disabled = !hayFotoNueva;
         }
         const info = document.getElementById("continuo-info");
         if ((activo || e.terminado) && e.guardar && e.guardar !== "no" && e.carpeta) {
@@ -723,6 +801,7 @@
         document.getElementById("btn-cancelar").style.display = "inline-flex";
         document.getElementById("estado-foto").innerHTML = '<span class="spinner"></span>Preparando la cámara...';
         document.getElementById("estado-sync").textContent = "";
+        document.getElementById("estado-galeria").textContent = "";
         if (!sondeo) sondeo = setInterval(sondearCaptura, 1000);
         const g = document.getElementById("ganancia-prueba").value.trim();
         const ex = exposicionPrueba();
@@ -737,9 +816,7 @@
                     est.textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "")
                         + (d.ganancia !== null && d.ganancia !== undefined ? ` · ganancia ${d.ganancia}` : "");
                     document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
-                    hayFotoNueva = true;
-                    document.getElementById("btn-sync").disabled = false;
-                    document.getElementById("btn-puntero").disabled = false;
+                    fotoMostrada(true);
                 } else {
                     est.className = "estado err mt-2";
                     est.textContent = "❌ " + (d.mensaje || "Error al capturar");
@@ -809,13 +886,14 @@
                 est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
             })
             .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; })
-            .finally(() => { btn.disabled = !hayFotoNueva; });
+            .finally(() => { pintarBotonesFoto(); });
     }
 
     // ——— Apunta aquí: puntero sobre la foto y centrado del telescopio en ese punto ———
     // El puntero se guarda como fracción del ancho y del alto de la foto (0,5 / 0,5 = centro),
     // así vale igual para el JPG reducido de la web y para el FITS que resuelve ASTAP.
     let punteroActivo = false, punteroX = 0.5, punteroY = 0.5, arrastrando = false;
+    let punteroModoDia = false, campoGrados = null;     // de día: grados que abarca la foto (ancho, alto)
     const capa = document.getElementById("puntero-capa");
     const foto = document.getElementById("foto");
 
@@ -834,7 +912,12 @@
         const partes = [];
         if (Math.abs(dx) >= 0.003) partes.push(`${Math.round(100 * Math.abs(dx))} % a la ${dx > 0 ? "derecha" : "izquierda"}`);
         if (Math.abs(dy) >= 0.003) partes.push(`${Math.round(100 * Math.abs(dy))} % hacia ${dy > 0 ? "abajo" : "arriba"}`);
-        info.textContent = " Puntero: " + partes.join(" y ") + " del centro.";
+        let lejos = "";
+        if (punteroModoDia && campoGrados) {
+            const arcmin = 60 * Math.hypot(dx * campoGrados[0], dy * campoGrados[1]);
+            lejos = ` (unos ${arcmin < 10 ? arcmin.toFixed(1).replace(".", ",") : Math.round(arcmin)}′)`;
+        }
+        info.textContent = " Puntero: " + partes.join(" y ") + " del centro" + lejos + ".";
     }
     function ponerPunteroCentro() { punteroX = 0.5; punteroY = 0.5; pintarPuntero(); }
     function moverPunteroA(ev) {
@@ -848,7 +931,8 @@
     capa.addEventListener("pointermove", ev => { if (arrastrando) moverPunteroA(ev); });
     ["pointerup", "pointercancel"].forEach(t => capa.addEventListener(t, () => { arrastrando = false; capa.classList.remove("arrastrando"); }));
     window.addEventListener("resize", () => { if (punteroActivo) ajustarCapa(); });
-    foto.addEventListener("load", () => { if (punteroActivo) { ajustarCapa(); ponerPunteroCentro(); } });   // foto nueva: puntero al centro
+    // Foto nueva: puntero al centro, salvo con el continuo en marcha (de día se apunta sobre la imagen en vivo)
+    foto.addEventListener("load", () => { if (punteroActivo) { ajustarCapa(); if (!continuoActivo) ponerPunteroCentro(); } });
 
     function pintarModoPuntero() {
         capa.hidden = !punteroActivo;
@@ -858,29 +942,62 @@
             ? `<svg><use href="#i-cerrar"/></svg>Quitar el puntero`
             : `<svg><use href="#i-goto"/></svg>Apunta aquí`;
         if (punteroActivo) { ajustarCapa(); pintarPuntero(); }
+        const dia = document.getElementById("puntero-dia");
+        dia.hidden = !(punteroActivo && punteroModoDia);
+        if (punteroActivo && punteroModoDia) {
+            dia.textContent = "De día no hay plate solving: el movimiento se calcula con la orientación y la escala de la cámara del último que salió bien…";
+            fetch("/apuntar-foto-dia/info").then(r => r.json()).then(d => {
+                if (!d.ok) { dia.textContent = "⚠️ " + d.mensaje; return; }
+                campoGrados = d.campo_ancho_deg ? [d.campo_ancho_deg, d.campo_alto_deg] : null;
+                dia.textContent = "Sin plate solving: se usa la orientación de la cámara del último que salió bien ("
+                    + d.orientacion + ")." + (campoGrados ? ` La foto abarca ${(60 * campoGrados[0]).toFixed(0)}′ × ${(60 * campoGrados[1]).toFixed(0)}′.` : "");
+                pintarPuntero();
+            }).catch(() => {});
+        }
     }
     function alternarPuntero() {
         punteroActivo = !punteroActivo;
+        punteroModoDia = modoDia;
         if (punteroActivo) ponerPunteroCentro();
         pintarModoPuntero();
     }
     function centrarEnPuntero() {
         const btn = document.getElementById("btn-centrar-puntero");
         const est = document.getElementById("estado-sync");
+        const dia = punteroModoDia;
         btn.disabled = true; document.getElementById("btn-foto").disabled = true;
         est.className = "estado";
-        est.innerHTML = '<span class="spinner"></span>Resolviendo la foto con ASTAP y moviendo el telescopio...';
-        fetch("/apuntar-foto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: punteroX, y: punteroY }) })
+        est.innerHTML = dia ? '<span class="spinner"></span>Moviendo el telescopio (sin plate solving)...'
+                            : '<span class="spinner"></span>Resolviendo la foto con ASTAP y moviendo el telescopio...';
+        fetch(dia ? "/apuntar-foto-dia" : "/apuntar-foto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: punteroX, y: punteroY }) })
             .then(r => r.json())
             .then(d => {
                 btn.disabled = false; document.getElementById("btn-foto").disabled = false;
                 // Foto nueva para ver dónde ha quedado el encuadre; el puntero vuelve al centro al cargarla
-                // (hacerFoto borra estado-sync, por eso el mensaje se escribe después)
-                if (d.ok) hacerFoto();
+                // (hacerFoto borra estado-sync, por eso el mensaje se escribe después). Con el continuo en
+                // marcha la foto llega sola: basta con devolver el puntero al centro.
+                if (d.ok && d.movido !== false) { if (continuoActivo) ponerPunteroCentro(); else hacerFoto(); }
                 est.className = "estado " + (d.ok ? "ok" : "err");
                 est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
             })
             .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; btn.disabled = false; document.getElementById("btn-foto").disabled = false; });
+    }
+
+    function guardarEnGaleria() {
+        const btn = document.getElementById("btn-galeria");
+        const est = document.getElementById("estado-galeria");
+        btn.disabled = true;
+        est.className = "estado";
+        est.innerHTML = '<span class="spinner"></span>Guardando la foto a resolución completa...';
+        fetch("/foto/guardar-galeria", { method: "POST" })
+            .then(r => r.json())
+            .then(d => {
+                est.className = "estado " + (d.ok ? "ok" : "err");
+                est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
+                if (d.ok) est.insertAdjacentHTML("beforeend", ' · <a href="/galeria">Ver la galería</a>');
+            })
+            .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; })
+            .finally(() => { pintarBotonesFoto(); });
     }
 
     function cargarParametros() {
