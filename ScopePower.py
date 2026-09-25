@@ -2215,8 +2215,7 @@ def apuntar_sin_plate_solving(fx, fy):
     import orientacion_camara
     if bucle.activo and not bucle.pausado:
         return {"ok": False, "mensaje": "El apilado está capturando; páusalo antes de mover el telescopio."}
-    for nombre, trabajo in (("centrado", centrado.trabajo_centrado), ("alineación", alineacion.trabajo_alineacion),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+    for nombre, trabajo in (("centrado", centrado.trabajo_centrado), ("alineación", alineacion.trabajo_alineacion)):
         if trabajo.en_curso:
             return {"ok": False, "mensaje": f"Hay un trabajo de {nombre} en marcha; espera a que termine."}
     orientacion = orientacion_camara.ultima()

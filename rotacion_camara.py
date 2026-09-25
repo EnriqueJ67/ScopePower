@@ -60,10 +60,19 @@ def guardar(grados, origen=""):
 
 
 def anotar_ini(ruta_ini, origen=""):
-    """Lee CROTA2 del .ini y lo guarda si la foto se resolvió. Devuelve el ángulo o None."""
+    """
+    Lee CROTA2 del .ini y lo guarda si la foto se resolvió. Devuelve el ángulo o None.
+    Además guarda la orientación de la cámara respecto a los ejes de la montura
+    (orientacion_camara.py), que usa "Apunta aquí" de día sin plate solving.
+    """
     grados = desde_ini(ruta_ini)
     if grados is not None:
         guardar(grados, origen)
+        try:
+            import orientacion_camara
+            orientacion_camara.registrar(ruta_ini, origen)
+        except Exception as e:
+            log.warning("Orientación de la cámara no registrada: %s", e)
     return grados
 
 
