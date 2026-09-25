@@ -13,14 +13,23 @@
         <div class="card-title"><svg class="ico"><use href="#i-goto"/></svg>Seguimiento de objetos <span class="chip chip-warn">EXPERIMENTAL</span></div>
         <span class="chip" id="chip-fase"><span class="dot"></span><span id="chip-fase-texto">Parado</span></span>
     </div>
-    <p class="card-sub">Apunta la montura por delante del objeto (con el pad o un GoTo), pulsa <b>Iniciar</b> y, cuando el objeto entre en el campo,
-        el seguimiento lo adquiere solo. Si adquiere otra mancha, toca la buena en la vista previa. La cámara se pasa al SDK nativo mientras dura.</p>
+    <p class="card-sub">Pulsa <b>Iniciar</b> y usa la vista en directo con el pad de abajo como buscador: mueve el telescopio hasta ver el objeto
+        (o apunta por delante de él) y suelta; cuando entre algo que se mueve, el seguimiento lo adquiere solo. Para una luz fija (una prueba de día),
+        tócala en la vista. La cámara se pasa al SDK nativo mientras dura.</p>
 
     <div class="seg-layout">
         <div class="seg-visor">
             <img id="vista" src="/seguimiento/vista?{{ version }}" alt="Vista previa del seguimiento" onclick="elegirObjetivo(event)">
             <div class="seg-visor-pie" id="visor-pie">Sin imagen todavía</div>
             <div class="seg-visor-pie">La vista se estira para que se vea la escena; con exposición automática, si no encuentra nada sube la exposición hasta el máximo ({{ conf.exposicion_max_ms }} ms).</div>
+            <details class="mt-3" open>
+                <summary>Mover el telescopio (buscador)</summary>
+                <div class="seg-pad mt-2">
+                    {% include '_pad.html' %}
+                </div>
+                <div class="seg-visor-pie">Solo con el seguimiento iniciado: mueve por el mismo camino que el seguimiento y la vista se
+                    refresca mientras tanto. Sin límite de altura{% if conf.altura_minima_seguimiento is not none %} por debajo de {{ conf.altura_minima_seguimiento }}°{% endif %}: vale para luces lejanas.</div>
+            </details>
         </div>
         <div class="seg-controles">
             <div class="fila">
@@ -31,6 +40,14 @@
 
             <details class="mt-3" id="opciones" open>
                 <summary>Opciones</summary>
+                <div class="fila mt-2">
+                    <label for="campo">Campo</label>
+                    <select id="campo" class="input">
+                        <option value="3008" {{ 'selected' if conf.roi_px >= 3008 else '' }}>Amplio (2,5°, sensor entero)</option>
+                        <option value="1504" {{ 'selected' if 1504 <= conf.roi_px < 3008 else '' }}>Medio (1,25°)</option>
+                        <option value="1024" {{ 'selected' if conf.roi_px < 1504 else '' }}>Estrecho (0,85°)</option>
+                    </select>
+                </div>
                 <div class="fila mt-2">
                     <label for="backend">Montura por</label>
                     <select id="backend" class="input">
@@ -66,28 +83,41 @@
                     </select>
                 </div>
                 <div class="fila mt-2">
-                    <label title="Pone la cámara a binning 1: con el mismo ROI el campo se queda en la mitad y los ficheros son cuatro veces mayores (~900 MB/min a 15 fps)"><input type="checkbox" id="color" {{ 'checked' if conf.color else '' }}> Vídeo en color (binning 1: mitad de campo, ficheros ×4)</label>
+                    <label title="Pone la cámara a binning 1: el mismo campo, con fotogramas cuatro veces mayores (el recorte grabado es de {{ conf.video_lado }} px del fotograma)"><input type="checkbox" id="color" {{ 'checked' if conf.color else '' }}> Vídeo en color (binning 1: mismo campo, fotogramas ×4)</label>
                 </div>
                 {% if conf.simulador %}<div class="estado warn mt-2">Modo simulador activado en config.ini: cámara y montura falsas.</div>{% endif %}
             </details>
 
             <details class="mt-3">
                 <summary>Calibración cámara ↔ ejes</summary>
+                <p class="seg-visor-pie mt-2">Con la cámara fija en el tubo, cualquier plate solving de cualquier noche (un GoTo con centrado,
+                    la alineación, el apilado) deja calibrado el seguimiento: la montura es altacimutal y lo único que gira es el cielo.
+                    No hace falta mover nada. Si mueves la cámara en el tubo, basta un plate solving nuevo.</p>
                 <div class="estado mt-2" id="calibracion-texto">
-                    {% if calibracion %}
-                        {{ calibracion.origen }} · escala {{ "%.2f"|format(calibracion.escala) }}"/px · ángulo {{ "%.1f"|format(calibracion.angulo) }}° · espejo {{ calibracion.espejo }} · {{ calibracion.fecha }}
+                    {% if calibracion.origen == 'astrometria' %}
+                        ✅ Por astrometría: resolución del {{ (calibracion.detalle.instante_utc or '')[:16]|replace('T', ' ') }} UTC ({{ calibracion.detalle.resolucion }}),
+                        eje x de la imagen a {{ "%.1f"|format(calibracion.angulo) }}° del acimut, {{ "%.2f"|format(calibracion.escala) }}"/px.
+                    {% elif calibracion.origen == 'empirica' %}
+                        ✅ Moviendo los ejes ({{ calibracion.fecha }}), más reciente que la última astrometría.
+                    {% elif calibracion.origen == 'simulador' %}
+                        Simulador: calibración de la cámara simulada.
                     {% else %}
-                        Sin calibrar: se usa la escala teórica (focal y píxel de la configuración) con ángulo 0°.
+                        ⚠️ Sin calibrar: no hay ninguna foto resuelta todavía. Haz un GoTo con centrado (o cualquier plate solving) y se calibra solo.
                     {% endif %}
                 </div>
-                <div class="fila mt-2">
-                    <button type="button" class="btn" onclick="calibrarAnalitica()" title="Desde la última foto resuelta por ASTAP (Cámara → foto de prueba)"><svg><use href="#i-sync"/></svg>Desde la astrometría</button>
-                    <button type="button" class="btn" id="btn-cal-empirica" onclick="calibrarEmpirica()" disabled title="Mueve cada eje 1 s y mide el desplazamiento de la mancha más brillante (solo con el seguimiento en marcha y un objeto fijo a la vista)"><svg><use href="#i-control"/></svg>Moviendo los ejes</button>
+                <div class="estado mt-2" id="sdk-texto">
+                    Imagen del SDK frente a la de ASCOM: <b>{{ sdk.transformacion }}</b>
+                    {% if sdk.verificada %}(comprobado {{ (sdk.fecha or '')[:10] }}){% else %}(supuesta, sin comprobar){% endif %}
                 </div>
                 <div class="fila mt-2">
-                    <label>Signo Az</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('az')" id="signo-az">+</button>
-                    <label>Signo Alt</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('alt')" id="signo-alt">+</button>
-                    <span class="estado" style="font-size: 12px">Si al bloquear el objeto se aleja en vez de acercarse, invierte el signo de ese eje.</span>
+                    <button type="button" class="btn" onclick="calibrarAstrometria()" title="Relee la resolución más reciente que quede en disco"><svg><use href="#i-sync"/></svg>Releer la última astrometría</button>
+                    <button type="button" class="btn" id="btn-sdk" onclick="comprobarSdk()" title="Una foto ASCOM y otra del SDK de la misma escena (vale una habitación iluminada o el paisaje de día); con el seguimiento parado. Tarda unos segundos"><svg><use href="#i-foto"/></svg>Comprobar orientación del SDK</button>
+                    <button type="button" class="btn" id="btn-cal-empirica" onclick="calibrarEmpirica()" disabled title="Mueve cada eje 1 s y mide el desplazamiento de una luz fija (con el seguimiento en marcha)"><svg><use href="#i-control"/></svg>Comprobar moviendo los ejes</button>
+                </div>
+                <div class="fila mt-2">
+                    <label>Signo Az</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('az')" id="signo-az">{{ '+' if signos.az > 0 else '−' }}</button>
+                    <label>Signo Alt</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('alt')" id="signo-alt">{{ '+' if signos.alt > 0 else '−' }}</button>
+                    <span class="estado" style="font-size: 12px">Solo si, al bloquear un objeto, se aleja en vez de acercarse: invierte el signo de ese eje.</span>
                 </div>
             </details>
 
@@ -118,6 +148,9 @@
     .tabla-telemetria td:nth-child(odd) { color: var(--text-2); }
     .tabla-telemetria td:nth-child(even) { font-variant-numeric: tabular-nums; }
     .fila label { color: var(--text-2); font-size: 13px; }
+    .seg-pad { display: grid; grid-template-columns: 1fr; gap: 12px; justify-items: center; }
+    .seg-pad .control-pad .pad { width: min(300px, 80vw); height: min(300px, 80vw); }
 </style>
-<script src="{{ url_for('static', filename='js/seguimiento.js') }}?v=5"></script>
+<script>window.SIGNOS_INICIALES = {{ signos|tojson }};</script>
+<script src="{{ url_for('static', filename='js/seguimiento.js') }}?v=6"></script>
 {% endblock %}

@@ -59,3 +59,9 @@ static/seguimiento/
 
 # Vídeos del seguimiento de objetos (grandes, se quedan en el mini PC)
 videos/
+
+# Calibración del seguimiento medida en cada equipo (orientación de la cámara, SDK, motores)
+datos/orientacion_camara_altaz.json
+datos/orientacion_sdk.json
+datos/signos_udp.json
+datos/signos_manuales_seguimiento.json

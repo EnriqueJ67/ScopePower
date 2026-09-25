@@ -104,7 +104,7 @@ function pintarVelocidad() {
     function enviar(vx, vy, forzar) {
         if (!forzar && vx === ultimoVx && vy === ultimoVy) return;
         ultimoVx = vx; ultimoVy = vy;
-        fetch("/pad/mover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vx, vy }) })
+        fetch(pad.dataset.urlMover || "/pad/mover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vx, vy }) })
             .then(r => r.json())
             .then(d => { if (!d.ok) { estado.textContent = "❌ " + (d.mensaje || "Error"); soltar(); } })
             .catch(() => { estado.textContent = "❌ Sin respuesta del servidor"; });
@@ -112,8 +112,9 @@ function pintarVelocidad() {
 
     function parar(porBeacon) {
         ultimoVx = ultimoVy = 0;
-        if (porBeacon && navigator.sendBeacon) { navigator.sendBeacon("/pad/parar"); return; }
-        fetch("/pad/parar", { method: "POST", keepalive: true }).catch(() => {});
+        const url = pad.dataset.urlParar || "/pad/parar";
+        if (porBeacon && navigator.sendBeacon) { navigator.sendBeacon(url); return; }
+        fetch(url, { method: "POST", keepalive: true }).catch(() => {});
     }
 
     function procesar(ev) {

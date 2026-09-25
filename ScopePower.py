@@ -3263,17 +3263,20 @@ _sim_seguimiento = {"servidor": None}
 def _conf_seguimiento():
     cfg = configparser.ConfigParser()
     cfg.read("config.ini", encoding="utf-8")
-    return seguimiento.leer_conf(cfg, altura_minima=float(ALTURA_MINIMA), focal_mm=_dispositivos()["focal"])
+    return seguimiento.leer_conf(cfg, focal_mm=_dispositivos()["focal"])
 
 
 @app.route('/seguimiento')
 def vista_seguimiento():
+    import orientacion_camara
     conf = _conf_seguimiento()
-    cal = seguimiento.Calibracion.leer()
+    cal = seguimiento.elegir_calibracion(conf)
     return render_template('seguimiento.html', mostrar_volver=True, conf=conf,
-                           calibracion=cal.como_dict() if cal else None,
+                           calibracion=cal.como_dict(), orientacion=orientacion_camara.ultima(buscar=False),
+                           sdk=orientacion_camara.leer_sdk(), signos=seguimiento.signos_manuales(),
                            estado=seguimiento.trabajo_seguimiento.estado(),
-                           version=seguimiento.trabajo_seguimiento.version)
+                           version=seguimiento.trabajo_seguimiento.version,
+                           pad_url_mover="/seguimiento/mover", pad_url_parar="/seguimiento/soltar")
 
 
 @app.route('/seguimiento/iniciar', methods=["POST"])
@@ -3301,6 +3304,11 @@ def seguimiento_iniciar():
         conf["formato_video"] = str(datos["formato_video"]).lower()
     if str(datos.get("grabar_desde", "")).lower() in ("inicio", "bloqueo"):
         conf["grabar_desde"] = str(datos["grabar_desde"]).lower()
+    try:
+        if int(datos.get("roi_px", 0)) in (1024, 1504, 3008):
+            conf["roi_px"] = int(datos["roi_px"])
+    except (TypeError, ValueError):
+        pass
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
@@ -3310,16 +3318,7 @@ def seguimiento_iniciar():
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     _pad_parar()
-    cal = seguimiento.Calibracion.leer()
-    if cal is None:
-        cal = seguimiento.Calibracion(escala=seguimiento.escala_arcsec_px(conf["pixel_um"], conf["binning"], conf["focal_mm"]) * 2,
-                                      origen="por_defecto")
-    for k in ("signo_az", "signo_alt"):
-        try:
-            if datos.get(k) in (1, -1, "1", "-1"):
-                setattr(cal, k, int(datos[k]))
-        except (TypeError, ValueError):
-            pass
+    cal = None                 # la elige el trabajo: la última astrometría o la empírica, la más reciente
     fab_cam = fab_mont = None
     cam_ascom, mont_ascom = camara, montura
     if conf["simulador"]:
@@ -3327,10 +3326,12 @@ def seguimiento_iniciar():
         if _sim_seguimiento["servidor"] is not None:
             _sim_seguimiento["servidor"].parar()
         conf["udp_host"] = "127.0.0.1"
-        fab_cam, fab_mont, _, _, _, servidor = simulador_seguimiento.fabricas(
+        fab_cam, fab_mont, _, _, cam_sim, servidor = simulador_seguimiento.fabricas(
             conf, udp=(conf["backend"] == "udp"), v_obj=conf["sim_v_obj"], rumbo_deg=conf["sim_rumbo"],
             angulo_deg=conf["sim_angulo"], retardo_montura_s=conf["sim_retardo_s"])
         _sim_seguimiento["servidor"] = servidor
+        # La cámara simulada tiene su propio giro: calibración a juego
+        cal = seguimiento.Calibracion.analitica(escala=cam_sim.escala, angulo=conf["sim_angulo"], origen="simulador")
         cam_ascom = mont_ascom = None
     try:
         seguimiento.trabajo_seguimiento.iniciar(cam_ascom, mont_ascom, conf, fabrica_camara=fab_cam, fabrica_montura=fab_mont,
@@ -3368,21 +3369,37 @@ def seguimiento_objetivo():
 
 @app.route('/seguimiento/signos', methods=["POST"])
 def seguimiento_signos():
-    """JSON {az: ±1, alt: ±1}: convención de signo de cada eje respecto a la imagen."""
+    """JSON {az: ±1, alt: ±1}: inversión manual de cada eje (si al bloquear el objeto se aleja)."""
     d = request.get_json(silent=True) or {}
-    cal = seguimiento.trabajo_seguimiento.calibracion or seguimiento.Calibracion.leer()
-    if cal is None:
-        conf = _conf_seguimiento()
-        cal = seguimiento.Calibracion(escala=seguimiento.escala_arcsec_px(conf["pixel_um"], conf["binning"], conf["focal_mm"]) * 2,
-                                      origen="por_defecto")
-    for k, atributo in (("az", "signo_az"), ("alt", "signo_alt")):
-        try:
-            if int(d.get(k, 0)) in (1, -1):
-                setattr(cal, atributo, int(d[k]))
-        except (TypeError, ValueError):
-            pass
-    cal.guardar()
-    return jsonify({"ok": True, "calibracion": cal.como_dict()})
+    try:
+        az, alt = int(d.get("az", 1)), int(d.get("alt", 1))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Signos no válidos"}), 400
+    seguimiento.guardar_signos_manuales(az, alt)
+    cal = seguimiento.trabajo_seguimiento.calibracion
+    if seguimiento.trabajo_seguimiento.en_curso and cal is not None:
+        cal.signo_az, cal.signo_alt = (-1 if az == -1 else 1), (-1 if alt == -1 else 1)
+    return jsonify({"ok": True, "signos": seguimiento.signos_manuales()})
+
+
+@app.route('/seguimiento/mover', methods=["POST"])
+def seguimiento_mover():
+    """Pad de la página del seguimiento: JSON {vx, vy} en °/s (acimut, altura). Latido cada 0,5 s."""
+    d = request.get_json(silent=True) or {}
+    try:
+        vx, vy = float(d.get("vx", 0)), float(d.get("vy", 0))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "mensaje": "Velocidades no válidas"}), 400
+    if not seguimiento.trabajo_seguimiento.en_curso:
+        return jsonify({"ok": False, "mensaje": "Pulsa Iniciar para mover con la vista en directo"}), 409
+    seguimiento.trabajo_seguimiento.mover_manual(vx, vy)
+    return jsonify({"ok": True})
+
+
+@app.route('/seguimiento/soltar', methods=["POST"])
+def seguimiento_soltar():
+    seguimiento.trabajo_seguimiento.mover_manual(0.0, 0.0)
+    return jsonify({"ok": True})
 
 
 @app.route('/seguimiento/vista')
@@ -3396,43 +3413,59 @@ def seguimiento_vista():
     return respuesta
 
 
-@app.route('/seguimiento/calibrar/analitica', methods=["POST"])
-def seguimiento_calibrar_analitica():
+@app.route('/seguimiento/calibrar/astrometria', methods=["POST"])
+def seguimiento_calibrar_astrometria():
     """
-    Calibración cámara ↔ ejes desde la última foto de prueba resuelta por ASTAP:
-    orientación del sensor (con espejo) menos el ángulo paraláctico EN EL
-    MOMENTO DE LA FOTO (hora del fichero), y escala llevada al plano de detección.
+    Relee la orientación de la cámara de la resolución más reciente que quede en
+    disco (foto de prueba, alineación, centrado). Cada plate solving ya la guarda
+    solo; esto sirve para recuperarla o para comprobar qué hay.
     """
-    if not os.path.exists(RUTA_IMAGEN):
-        return jsonify({"ok": False, "error": "No hay ninguna foto de prueba; haz una desde Cámara"}), 409
-    try:
-        res = _wcs_ultima_foto()
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"No se pudo resolver la foto: {e}"}), 500
-    if isinstance(res, str):
-        return jsonify({"ok": False, "error": res}), 409
-    wcs, ancho, alto = res
-    ra_c, dec_c = wcs.all_pix2world([[(ancho - 1) / 2.0, (alto - 1) / 2.0]], 0)[0]
-    t_foto = Time(datetime.utcfromtimestamp(os.path.getmtime(RUTA_IMAGEN)))
-    conf = _conf_seguimiento()
-    binning_foto = max(1, _dispositivos()["binning"])
-    factor = conf["binning"] * 2.0 / binning_foto       # foto → plano de detección (ROI bin N a media resolución)
-    try:
-        cal = seguimiento.Calibracion.analitica_desde_astap(RUTA_INI, float(ra_c), float(dec_c), LATITUD_OBSERVATORIO,
-                                                            LONGITUD_OBSERVATORIO, factor_escala=factor, t=t_foto)
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-    previa = seguimiento.Calibracion.leer()
-    if previa is not None:
-        cal.signo_az, cal.signo_alt = previa.signo_az, previa.signo_alt
-    cal.guardar()
+    import orientacion_camara
+    guardada = orientacion_camara.leer()
+    candidatos = [r for r in orientacion_camara.INIS_CONOCIDOS if os.path.exists(r)]
+    nueva = None
+    for ruta in sorted(candidatos, key=os.path.getmtime, reverse=True):
+        nueva = orientacion_camara.registrar(ruta, origen=f"resolución guardada ({os.path.basename(ruta)})")
+        if nueva is not None:
+            break
+    o = nueva or guardada
+    if o is None:
+        return jsonify({"ok": False, "error": "No hay ninguna foto resuelta: basta cualquier plate solving (un GoTo con "
+                                              "centrado, la alineación o el apilado) de esta noche o de otra"}), 409
+    return jsonify({"ok": True, "orientacion": o,
+                    "mensaje": f"Orientación de la cámara: eje x de la imagen a {o['angulo_x_deg']:.1f}° del acimut, "
+                               f"{o['escala_arcsec']:.2f}\"/px (resolución del {o['instante_utc'][:16].replace('T', ' ')} UTC, "
+                               f"{o.get('origen', '')}). Se usa al iniciar el seguimiento."})
+
+
+@app.route('/seguimiento/orientacion-sdk', methods=["POST"])
+def seguimiento_orientacion_sdk():
+    """Compara una foto ASCOM y una del SDK de la misma escena (orientación de la imagen del SDK)."""
     if seguimiento.trabajo_seguimiento.en_curso:
-        seguimiento.trabajo_seguimiento.calibracion = cal
-    d = getattr(cal, "detalle", {}) or {}
-    return jsonify({"ok": True, "calibracion": cal.como_dict(),
-                    "mensaje": f"Calibrado desde la astrometría: escala {cal.escala:.2f}\"/px, giro del sensor "
-                               f"{d.get('crota_deg', 0):.1f}°, paraláctico {d.get('paralactico_deg', 0):.1f}°, "
-                               f"ángulo cámara↔ejes {cal.angulo:.1f}°, espejo {cal.espejo:+d}"})
+        return jsonify({"ok": False, "error": "Para el seguimiento antes"}), 409
+    if _conf_seguimiento()["simulador"]:
+        return jsonify({"ok": False, "error": "Con el simulador no hay cámara real que comparar"}), 409
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
+                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
+                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
+                            ("foto continua", foto_continua.trabajo_continuo)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    try:
+        d = seguimiento.comprobar_orientacion_sdk(camara, ganancia=_dispositivos()["ganancia"])
+    except Exception as e:
+        log.exception("Orientación SDK")
+        return jsonify({"ok": False, "error": str(e)}), 500
+    if d["fiable"]:
+        msg = f"Orientación de la imagen del SDK: {d['transformacion']} (correlación {d['correlaciones'][0][1]:.2f})"
+    else:
+        msg = ("No se ha podido decidir (escena con poca estructura): apunta a algo con detalle, "
+               "de día o una habitación iluminada, y repite")
+    if d.get("bayer_en_binning") is not None:
+        msg += " · el binning 2 " + ("conserva" if d["bayer_en_binning"] else "no conserva") + " el color"
+    return jsonify({"ok": True, "resultado": d, "mensaje": msg})
 
 
 @app.route('/seguimiento/calibrar/empirica', methods=["POST"])

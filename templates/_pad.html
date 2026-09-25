@@ -24,7 +24,7 @@
 </div>
 
 <div class="control-pad">
-    <div id="pad" class="pad">
+    <div id="pad" class="pad" data-url-mover="{{ pad_url_mover|default('/pad/mover') }}" data-url-parar="{{ pad_url_parar|default('/pad/parar') }}">
         <div class="pad-anillo"></div>
         <div class="pad-cruz h"></div>
         <div class="pad-cruz v"></div>
@@ -33,4 +33,4 @@
         <div id="pad-mando" class="pad-mando"></div>
     </div>
 </div>
-<script src="{{ url_for('static', filename='js/pad.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/pad.js') }}?v=3"></script>

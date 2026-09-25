@@ -438,7 +438,7 @@ def luminancia_rapida(frame):
     f = frame[:h, :w]
     if f.dtype == np.uint16:
         suma = (f[0::2, 0::2].astype(np.uint32) + f[1::2, 0::2] + f[0::2, 1::2] + f[1::2, 1::2])
-        return (suma >> 8).astype(np.uint8)   # 4 × 16 bits → 8 bits
+        return (suma >> 10).astype(np.uint8)  # 4 × 16 bits (18 bits) → 8 bits
     suma = (f[0::2, 0::2].astype(np.uint16) + f[1::2, 0::2] + f[0::2, 1::2] + f[1::2, 1::2])
     return (suma >> 2).astype(np.uint8)
 

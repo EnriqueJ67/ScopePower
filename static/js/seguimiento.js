@@ -8,7 +8,7 @@
 let sondeo = null;
 let ultimaVersion = -1;
 let cargando = false;
-let signos = { az: 1, alt: 1 };
+let signos = window.SIGNOS_INICIALES || { az: 1, alt: 1 };
 
 function el(id) { return document.getElementById(id); }
 
@@ -25,6 +25,7 @@ function iniciar() {
         frecuencia_hz: parseFloat(el("frecuencia").value),
         grabar: el("grabar").checked, formato_video: el("formato-video").value, grabar_desde: el("grabar-desde").value,
         color: el("color").checked, exposicion_auto: el("exposicion-auto").checked,
+        roi_px: parseInt(el("campo").value, 10),
         signo_az: signos.az, signo_alt: signos.alt,
     };
     fetch("/seguimiento/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
@@ -50,12 +51,21 @@ function elegirObjetivo(ev) {
         .then(r => r.json()).then(d => { if (!d.ok) el("estado").textContent = "❌ " + (d.error || ""); }).catch(() => {});
 }
 
-function calibrarAnalitica() {
+function calibrarAstrometria() {
     const t = el("calibracion-texto");
-    t.textContent = "Calculando desde la última foto resuelta...";
-    fetch("/seguimiento/calibrar/analitica", { method: "POST" }).then(r => r.json()).then(d => {
+    t.textContent = "Releyendo la última foto resuelta...";
+    fetch("/seguimiento/calibrar/astrometria", { method: "POST" }).then(r => r.json()).then(d => {
         t.textContent = d.ok ? "✅ " + d.mensaje : "❌ " + (d.error || "No se pudo calibrar");
     }).catch(e => { t.textContent = "❌ " + e; });
+}
+
+function comprobarSdk() {
+    const t = el("sdk-texto");
+    el("btn-sdk").disabled = true;
+    t.innerHTML = '<span class="spinner"></span>Foto por ASCOM y por el SDK de la misma escena...';
+    fetch("/seguimiento/orientacion-sdk", { method: "POST" }).then(r => r.json()).then(d => {
+        t.textContent = d.ok ? (d.resultado.fiable ? "✅ " : "⚠️ ") + d.mensaje : "❌ " + (d.error || "No se pudo comprobar");
+    }).catch(e => { t.textContent = "❌ " + e; }).finally(() => { el("btn-sdk").disabled = false; });
 }
 
 function calibrarEmpirica() {
@@ -79,9 +89,9 @@ function texto(v, dec) {
     return String(v);
 }
 
-const NOMBRES_FASE = { parado: "Parado", preparando: "Preparando", buscando: "Buscando", bloqueado: "Bloqueado",
+const NOMBRES_FASE = { parado: "Parado", preparando: "Preparando", buscando: "Buscando", manual: "Pad", bloqueado: "Bloqueado",
                        perdido: "Perdido", calibrando: "Calibrando", parando: "Parando" };
-const CLASE_FASE = { parado: "", preparando: "chip-busy", buscando: "chip-warn chip-busy", bloqueado: "chip-ok",
+const CLASE_FASE = { parado: "", preparando: "chip-busy", buscando: "chip-warn chip-busy", manual: "chip-info", bloqueado: "chip-ok",
                      perdido: "chip-err", calibrando: "chip-info chip-busy", parando: "chip-busy" };
 
 function pintar(e) {
@@ -91,7 +101,8 @@ function pintar(e) {
     el("btn-parar").hidden = !activo;
     if (activo) el("btn-parar").disabled = false;
     el("btn-cal-empirica").disabled = !activo;
-    ["backend", "exposicion", "ganancia", "kp", "ki", "frecuencia", "grabar", "formato-video", "grabar-desde", "color", "exposicion-auto"].forEach(id => el(id).disabled = activo);
+    el("btn-sdk").disabled = activo;
+    ["campo", "backend", "exposicion", "ganancia", "kp", "ki", "frecuencia", "grabar", "formato-video", "grabar-desde", "color", "exposicion-auto"].forEach(id => el(id).disabled = activo);
     el("chip-fase").className = "chip " + (CLASE_FASE[e.fase] || "");
     el("chip-fase-texto").textContent = NOMBRES_FASE[e.fase] || e.fase;
     const est = el("estado");

@@ -29,6 +29,8 @@
 # Las funciones del protocolo (codificar_24, decodificar_24, velocidad_a_periodo,
 # interpretar_estado) son puras y se prueban con `python montura_ejes.py`.
 
+import os
+import json
 import time
 import socket
 import logging
@@ -86,6 +88,14 @@ class MonturaEjes:
     def limites(self):
         """(v_max_az, v_max_alt) en °/s."""
         return (4.0, 4.0)
+
+    def signos_cielo(self):
+        """
+        (signo_az, signo_alt): +1 si una velocidad positiva de ese eje hace crecer
+        el acimut / la altura del cielo. La calibración por astrometría trabaja en
+        acimut y altura, y necesita saber hacia dónde gira cada motor.
+        """
+        return (1, 1)
 
     def restaurar(self):
         """Deja la montura como estaba antes de preparar() (seguimiento sidéreo, etc.)."""
@@ -427,6 +437,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
         self._eje = [{"v": 0.0, "dir": None, "rapido": None, "marcha": False, "T": None, "espera": None} for _ in (0, 1)]
         self.cambios_de_modo = 0
         self.cruzadas = 0
+        self._signos = self._leer_signos()
         self._pos0 = [None, None]
         self._tracking_inicial = None
         self._pos_ascom = None
@@ -530,6 +541,8 @@ class MonturaSkyWatcherUDP(MonturaEjes):
         if not self.permitir_rapido:
             # Techo del modo lento: T mínimo de PERIODO_MINIMO ticks por micropaso
             self._limites = tuple(self.freq[i] / PERIODO_MINIMO * 360.0 / self.cpr[i] for i in (0, 1))
+        if self._t is not None and None in self._signos:
+            self._detectar_signos()
         if self._t is not None:
             from hardware import ErrorHardware
             try:
@@ -539,6 +552,62 @@ class MonturaSkyWatcherUDP(MonturaEjes):
         log.info("Montura UDP lista: versión %s, cpr %s, freq %s, ratio %s, límites %s °/s, tracking inicial %s",
                  self.version.get("texto"), self.cpr, self.freq, self.ratio,
                  tuple(round(v, 3) for v in self._limites), self._tracking_inicial)
+
+    # ── Hacia dónde gira cada motor ──────────────────────────────────────
+    RUTA_SIGNOS = os.path.join("datos", "signos_udp.json")
+
+    def _leer_signos(self):
+        try:
+            with open(self.RUTA_SIGNOS, encoding="utf-8") as f:
+                d = json.load(f)
+            return [d.get("az"), d.get("alt")]
+        except (OSError, ValueError):
+            return [None, None]
+
+    def _guardar_signos(self):
+        try:
+            os.makedirs(os.path.dirname(self.RUTA_SIGNOS), exist_ok=True)
+            with open(self.RUTA_SIGNOS, "w", encoding="utf-8") as f:
+                json.dump({"az": self._signos[0], "alt": self._signos[1],
+                           "fecha": time.strftime("%Y-%m-%dT%H:%M:%S")}, f)
+        except OSError as e:
+            log.warning("Montura UDP: no se pudieron guardar los signos de los ejes: %s", e)
+
+    def _detectar_signos(self, espera_s=2.5):
+        """
+        Sin mover nada: mientras SynScan Pro sigue el cielo, compara hacia dónde
+        cambian los codificadores (:j) y el acimut/altura que da el driver ASCOM.
+        Un eje que no se mueve lo bastante (la altura en el meridiano) queda sin
+        saber y se intentará la próxima vez.
+        """
+        def leer():
+            enc = [self.leer_24("j", c) for c in self.CANALES]
+            cielo = self._t.ejecutar(lambda tel: (float(tel.Azimuth), float(tel.Altitude)), timeout=10)
+            return enc, cielo
+        try:
+            e0, c0 = leer()
+            time.sleep(espera_s)
+            e1, c1 = leer()
+        except Exception as e:
+            log.warning("Montura UDP: no se pudo comprobar el sentido de los motores: %s", e)
+            return
+        for i in (0, 1):
+            if self._signos[i] is not None:
+                continue
+            d_enc = (e1[i] - e0[i]) * 360.0 / self.cpr[i]
+            d_cielo = ((c1[i] - c0[i] + 180.0) % 360.0) - 180.0
+            if abs(d_cielo) > 0.003 and abs(d_enc) > 0.003 and 0.3 < abs(d_enc / d_cielo) < 3.0:
+                self._signos[i] = 1 if d_enc * d_cielo > 0 else -1
+                log.info("Montura UDP: el eje %d gira %s respecto al cielo (codificador %+.4f°, cielo %+.4f°)",
+                         i, "igual" if self._signos[i] > 0 else "al revés", d_enc, d_cielo)
+        if None not in self._signos:
+            self._guardar_signos()
+        else:
+            log.warning("Montura UDP: sentido de algún eje sin comprobar (¿seguimiento parado o en el meridiano?): "
+                        "se supone el mismo que el cielo")
+
+    def signos_cielo(self):
+        return tuple(1 if s is None else int(s) for s in self._signos)
 
     @staticmethod
     def _leer_ascom_y_quitar_tracking(tel):
@@ -740,6 +809,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
     def telemetria(self):
         return {"backend": self.nombre, "latencia_ms": self._latencia_ms, "enviadas": self.enviadas,
                 "errores": self.errores, "cruzadas": self.cruzadas, "version": self.version.get("texto"),
+                "signos": list(self._signos),
                 "cambios_de_modo": self.cambios_de_modo,
                 "ejes": [{"v": e["v"], "T": e["T"], "rapido": e["rapido"], "marcha": e["marcha"],
                           "parando": bool(e.get("espera"))} for e in self._eje],
