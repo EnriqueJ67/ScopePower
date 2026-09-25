@@ -916,6 +916,7 @@
             const desc = [];
             if (d.descartadas) desc.push(`${d.descartadas} sin resolver`);
             if (d.descartadas_calidad) desc.push(`${d.descartadas_calidad} por calidad`);
+            if (d.descartadas_rastros) desc.push(`${d.descartadas_rastros} por rastros o luces`);
             const std = d.desplazamiento_std;
             pintarKV("datos-apilado", [
                 ["Fotos", `${d.total} de ${d.maximo || "?"}`],
@@ -949,7 +950,9 @@
             pintarKV("datos-ultima", [
                 ["Foto", `${u.nombre || ""} · ${u.hora || ""}`],
                 ["Resultado", res[0], res[1]],
-                ["Puntuación", fmtPunt(u.puntuacion) + (d.puntuacion_media > 0 && hayNum(u.puntuacion) ? ` (${u.puntuacion >= d.puntuacion_media ? "+" : ""}${(100 * (u.puntuacion - d.puntuacion_media) / d.puntuacion_media).toFixed(0)} % sobre la media)` : "")],
+                ["Puntuación", fmtPunt(u.puntuacion) + (hayNum(u.puntuacion_sin_defecto)
+                    ? ` (${fmtPunt(u.puntuacion_sin_defecto)} sin el defecto)`
+                    : (d.puntuacion_media > 0 && hayNum(u.puntuacion) ? ` (${u.puntuacion >= d.puntuacion_media ? "+" : ""}${(100 * (u.puntuacion - d.puntuacion_media) / d.puntuacion_media).toFixed(0)} % sobre la media)` : ""))],
                 ["Estrellas", hayNum(u.estrellas) ? u.estrellas : ""],
                 ["Nitidez", hayNum(u.nitidez) ? Number(u.nitidez).toFixed(3) : ""],
                 ["Fondo de cielo", hayNum(u.fondo) ? `${u.fondo} ADU` : ""],

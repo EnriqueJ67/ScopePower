@@ -22,6 +22,7 @@ import voz
 import procesado
 import firma
 import rotacion_camara
+import rastros
 import cv2
 
 import subprocess
@@ -245,6 +246,11 @@ def leer_config_calidad():
         "umbral_relativo": float(c.get("umbral_calidad", 0.5)),
         "top_para_umbral": int(c.get("top_para_umbral", 10)),
         "fwhm_px": float(c.get("fwhm_px", 2.5)),
+        # Rastros de satélites/aviones y luces parásitas (rastros.py): la foto
+        # se puntúa × penalizacion_defectos y no entra en el apilado
+        "detectar_rastros": str(c.get("detectar_rastros", "true")).lower() in ("1", "true", "si", "sí", "yes"),
+        "detectar_luces": str(c.get("detectar_luces", "true")).lower() in ("1", "true", "si", "sí", "yes"),
+        "penalizacion_defectos": float(c.get("penalizacion_defectos", 0.1)),
     }
 
 
@@ -504,6 +510,10 @@ class ApiladorEnTiempoReal:
         # Estado visible desde la web
         self.descartadas = 0           # sin resolver / error
         self.descartadas_calidad = 0   # peores que las N guardadas
+        self.descartadas_rastros = 0   # con rastro de satélite/avión o luz parásita
+        # Fondo por zonas de las últimas fotos (para ver si se enciende una luz)
+        self.historial_fondo = []
+        self.exposicion_fondo = None
         self.ultimo_error = ""
         self.ultimo_mensaje = ""
         self.ultima_puntuacion = None
@@ -619,7 +629,35 @@ class ApiladorEnTiempoReal:
             self._anotar_resultado("descartada", motivo)
         print(f"⚠️ Fotograma descartado: {motivo}")
         voz.decir(aviso)
-        
+
+    def _buscar_defectos(self, g, exposicion, calidad):
+        """
+        Rastro de satélite/avión o luz parásita en el plano verde (rastros.py).
+        Devuelve (texto para la web, aviso de voz) o None si la foto está limpia.
+        """
+        try:
+            peq = rastros.media_resolucion(g)
+            if calidad["detectar_luces"]:
+                # El historial se compara a igual exposición: si cambia, se empieza de nuevo
+                if exposicion != self.exposicion_fondo:
+                    self.historial_fondo = []
+                    self.exposicion_fondo = exposicion
+                rejilla = rastros.rejilla_fondo(peq)
+                _, ruido = rastros.mediana_mad(peq)
+                luz = rastros.detectar_luz(rejilla, self.historial_fondo, ruido)
+                self.historial_fondo = (self.historial_fondo + [rejilla])[-rastros.FOTOS_HISTORIAL:]
+                if luz:
+                    return (f"luz parásita (fondo +{luz['subida']:.1f} σ en el {luz['zona']:.0%} de la foto)",
+                            "Foto descartada: luz parásita")
+            if calidad["detectar_rastros"]:
+                rastro = rastros.detectar_rastro(g, peq)
+                if rastro:
+                    return (f"rastro de satélite o avión ({rastro['longitud']} px a {rastro['angulo']:.0f}°)",
+                            "Foto descartada: rastro de satélite o avión")
+        except Exception as e:
+            print(f"⚠️ No se pudieron buscar rastros ni luces: {e}")
+        return None
+
     def obtener_transformacion(self, img, ref, ruta_fits=None):
         """
         Llama a ASTAP para calcular rotación+traslación con respecto a la referencia.
@@ -825,6 +863,13 @@ class ApiladorEnTiempoReal:
                 puntuacion, n_estrellas, nitidez = calcular_puntuacion(g)
             # Fondo de cielo: mediana del verde (ADU de 16 bits), submuestreado para que sea instantáneo
             fondo = float(np.median(g[::8, ::8]))
+            # Un rastro de avión o una linterna no bajan las estrellas ni la
+            # nitidez (el rastro hasta suma "estrellas"), pero se quedan en el
+            # apilado: la puntuación se hunde y la foto no entra
+            defecto = self._buscar_defectos(g, EXPOSICION, calidad)
+            puntuacion_limpia = puntuacion
+            if defecto:
+                puntuacion *= calidad["penalizacion_defectos"]
             with self.lock:
                 self.ultima_puntuacion = round(puntuacion, 3)
                 self.ultima_captura = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -834,12 +879,26 @@ class ApiladorEnTiempoReal:
                     "nitidez": round(nitidez, 3), "fondo": round(fondo),
                     "exposicion": EXPOSICION, "desplazamiento": None,
                     "resultado": "midiendo", "motivo": "",
+                    "defecto": defecto[0] if defecto else "",
+                    "puntuacion_sin_defecto": round(puntuacion_limpia, 3) if defecto else None,
                 }
-            print(f"⭐ {nombre_fits}: {n_estrellas} estrellas, nitidez {nitidez:.3f}, puntuación {puntuacion:.3f}")
+            print(f"⭐ {nombre_fits}: {n_estrellas} estrellas, nitidez {nitidez:.3f}, puntuación {puntuacion:.3f}"
+                  + (f" ({defecto[0]}; sin él {puntuacion_limpia:.3f})" if defecto else ""))
 
             if n_estrellas == 0:
                 self._descartar(f"{nombre_fits}: sin estrellas detectables (¿nubes, tapa, desenfoque?)",
                                 aviso="Foto descartada: no se detectan estrellas")
+                return
+
+            # Antes del umbral relativo: la puntuación hundida no debe entrar en
+            # la media de las mejores, y las primeras fotos (que entran siempre) también se filtran
+            if defecto:
+                with self.lock:
+                    self.descartadas_rastros += 1
+                    self._anotar_resultado("descartada", defecto[0])
+                    self.ultimo_mensaje = f"{nombre_fits} ({puntuacion:.2f}): {defecto[0]}; descartada"
+                print(f"ℹ️ {self.ultimo_mensaje}")
+                voz.decir(defecto[1])
                 return
 
             # ── Umbral relativo (regla de la versión de junio): se guardan las
@@ -1119,6 +1178,9 @@ def reiniciar_apilado_global():
             apilador_global.fotogramas.clear()
             apilador_global.descartadas = 0
             apilador_global.descartadas_calidad = 0
+            apilador_global.descartadas_rastros = 0
+            apilador_global.historial_fondo = []
+            apilador_global.exposicion_fondo = None
             apilador_global.ultimo_error = ""
             apilador_global.ultimo_mensaje = ""
             apilador_global.ultima_puntuacion = None
@@ -1207,7 +1269,7 @@ def obtener_estado_apilado():
     a = apilador_global
     if not a:
         return {"total": 0, "ultima": "Ninguna", "maximo": 0, "descartadas": 0,
-                "descartadas_calidad": 0, "ultimo_error": "", "mensaje": "",
+                "descartadas_calidad": 0, "descartadas_rastros": 0, "ultimo_error": "", "mensaje": "",
                 "referencia": False, "procesando": False,
                 "puntuacion_ultima": None, "puntuacion_minima": None,
                 "puntuacion_maxima": None, "puntuacion_mediana": None,
@@ -1225,6 +1287,7 @@ def obtener_estado_apilado():
             "maximo": leer_num_max(),
             "descartadas": a.descartadas,
             "descartadas_calidad": a.descartadas_calidad,
+            "descartadas_rastros": a.descartadas_rastros,
             "ultimo_error": a.ultimo_error,
             "mensaje": a.ultimo_mensaje,
             "referencia": a.ref_info is not None,
