@@ -471,11 +471,17 @@
     // vigilante propio y cada paso se anota en el log del PC (/observatorio/diagnostico).
     let vigilanteUbicacion = null;
     const ESPERA_AVISO_S = 10, ESPERA_MAXIMA_S = 90;
-    const PASOS_PERMISO = "Toca el icono de la izquierda de la dirección (ⓘ o candado) → Permisos → Ubicación → Permitir. "
+    // Instalada como app (manifest display: fullscreen) no hay barra de direcciones ni su icono ⓘ: el permiso
+    // se cambia abriendo la misma dirección en una pestaña de Chrome (los permisos son de la dirección)
+    const EN_APP = window.matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches;
+    const PASOS_PERMISO = (EN_APP
+        ? `Estás en la app instalada, que no tiene barra de direcciones: abre ${location.origin} en una pestaña de Chrome, `
+          + "toca el icono de la izquierda de la dirección (ⓘ o candado) → Permisos → Ubicación → Permitir, y vuelve a la app. "
+        : "Toca el icono de la izquierda de la dirección (ⓘ o candado) → Permisos → Ubicación → Permitir. ")
         + "Si ahí ya está permitida, mira en Android: Ajustes → Aplicaciones → Chrome → Permisos → Ubicación → Permitir.";
     function anotarUbicacion(evento) {
         fetch("/observatorio/diagnostico", { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ evento, origen: location.origin, segura: window.isSecureContext }) }).catch(() => {});
+            body: JSON.stringify({ evento, origen: location.origin, segura: window.isSecureContext, app: EN_APP }) }).catch(() => {});
     }
     async function permisoUbicacion() {
         try { return (await navigator.permissions.query({ name: "geolocation" })).state; }   // granted | prompt | denied
