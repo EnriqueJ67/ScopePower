@@ -507,7 +507,7 @@ def apilado_iniciar():
     datos = request.get_json(silent=True) or {}
     nuevo = bool(datos.get("nuevo", True))
     usar_dark = bool(datos.get("usar_dark", True))
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("centrado", centrado.trabajo_centrado),
                             ("foto continua", foto_continua.trabajo_continuo),
                             ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
@@ -1752,6 +1752,8 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         hdu.header['XBINNING'] = BINNING
         hdu.header['YBINNING'] = BINNING
         hdu.header['IMAGETYP'] = 'LIGHT'
+        hdu.header['EXPTIME'] = (float(EXPOSICION), 'Exposicion (s)')
+        hdu.header['EXPOSURE'] = (float(EXPOSICION), 'Exposicion (s)')
         if ganancia_real is not None:
             hdu.header['GAIN'] = (ganancia_real, 'Ganancia de la camara')
         hdu.header['DATE-OBS'] = time.strftime("%Y%m%d_%H%M%S")
@@ -1794,7 +1796,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             log.warning("No se pudo generar la miniatura de la captura: %s", e)
 
         if not generar_preview:
-            return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
+            return {"ok": True, "mensaje": f"Captura de {EXPOSICION:g} s guardada", "ruta": ruta_guardada,
                     "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia}
 
         # ───   Revelado (debayer, STF, saturación) y versión reducida para la web   ───
@@ -1809,7 +1811,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             archivo_copia = os.path.join(copia["carpeta"], copia["nombre"] + ".jpg")
             cv2.imwrite(archivo_copia, imagen_web, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
-        return {"ok": True, "mensaje": f"Captura de {EXPOSICION:.0f} s guardada", "ruta": ruta_guardada,
+        return {"ok": True, "mensaje": f"Captura de {EXPOSICION:g} s guardada", "ruta": ruta_guardada,
                 "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia}
 
     except Exception as e:
@@ -1847,7 +1849,7 @@ def capturar_imagen():
         return resultado["mensaje"]
     if apilar:
         return resultado["mensaje"]
-    return render_template('imagen.html', mostrar_volver=True, hay_foto=True)
+    return _pagina_camara(hay_foto=True)
 
 @app.route('/imagen-capturada')
 def imagen_capturada():
@@ -2014,7 +2016,12 @@ def esta_noche_objetos():
 @app.route('/foto-prueba')
 def foto_prueba():
     """Página de foto de prueba: no dispara nada al abrirse; el botón de dentro captura."""
-    return render_template('imagen.html', mostrar_volver=True, hay_foto=os.path.exists(RUTA_IMAGEN_WEB),
+    return _pagina_camara(hay_foto=os.path.exists(RUTA_IMAGEN_WEB))
+
+
+def _pagina_camara(hay_foto):
+    """La página Cámara (imagen.html) con todo lo que necesita su script, venga de la ruta que venga."""
+    return render_template('imagen.html', mostrar_volver=True, hay_foto=hay_foto,
                            niveles_dia={k: v["nivel"] for k, v in foto_dia.OBJETIVOS.items()},
                            camara_sdk=camara_sdk.es_sdk(_dispositivos()["driver_camara"]))
 
@@ -2384,6 +2391,17 @@ def _pad_en_uso():
         return bool(_pad["activo"]) or time.time() - float(_pad.get("ultimo") or 0) < disco.PAUSA_PAD_S
 
 
+def _umbral_guiado_disco():
+    """Minutos de arco que puede apartarse el disco antes de corregir ([FotoDia] guiado_umbral_arcmin; 2′ si no está)."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    try:
+        umbral = float(cfg.get("FotoDia", "guiado_umbral_arcmin", fallback=disco.UMBRAL_DEFECTO_ARCMIN))
+    except ValueError:
+        umbral = disco.UMBRAL_DEFECTO_ARCMIN
+    return max(disco.UMBRAL_MINIMO_ARCMIN, umbral)
+
+
 @app.route('/disco/guiado', methods=['POST'])
 def disco_guiado():
     """{activar: bool}: mantener el disco del Sol o la Luna donde está, corrigiendo la montura."""
@@ -2399,10 +2417,7 @@ def disco_guiado():
     orientacion = orientacion_camara.ultima()
     if orientacion is None:
         return jsonify({"ok": False, "mensaje": "Todavía no se conoce la orientación de la cámara: hace falta un plate solving de noche."}), 409
-    umbral = disco.UMBRAL_MINIMO_ARCMIN
-    if f and f.get("ancho"):
-        ancho_deg, _ = apuntado_teorico.campo_visible_grados(f, orientacion)
-        umbral = max(umbral, disco.FRACCION_CAMPO_UMBRAL * ancho_deg * 60.0)
+    umbral = _umbral_guiado_disco()
 
     def mover(du, dv):
         ocupada = _montura_ocupada()
@@ -2474,7 +2489,7 @@ def guardar_foto_en_galeria():
                                                                    {"negro": f.get("negro") or 0, "balance": f.get("balance")},
                                                                    f.get("instante")))
         imagen, _ = foto_dia.revelar(foto_dia.recortar_centro(frame, f["campo"]), sensor_type, f.get("objetivo"),
-                                     balance=f.get("balance"), negro=f.get("negro"), aprender=False)
+                                     balance=f.get("balance"), negro=f.get("negro"), aprender=False, ev=f.get("ev") or 0.0)
     else:
         with fits.open(RUTA_IMAGEN) as hdul:
             datos_fits = np.asarray(hdul[0].data)
@@ -2807,7 +2822,7 @@ def alineacion_iniciar():
     """Alineación automática de varios puntos por plate solving (ver alineacion.py)."""
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de alinear"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("centrado", centrado.trabajo_centrado),
                             ("foto continua", foto_continua.trabajo_continuo),
                             ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
@@ -3400,7 +3415,7 @@ def foto_dia_iniciar():
         return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
                             ("foto continua", foto_continua.trabajo_continuo),
                             ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
@@ -3445,7 +3460,7 @@ def color_calibrar():
     """Foto de algo blanco al Sol: su gris da el balance de luz de día (foto_dia.TrabajoBalanceBlanco)."""
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
                             ("foto continua", foto_continua.trabajo_continuo), ("foto de día", foto_dia.trabajo_foto_dia),
                             ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
                             ("seguimiento", seguimiento.trabajo_seguimiento)):
@@ -3543,7 +3558,7 @@ def timelapse_iniciar():
         return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("flats", flats.trabajo_flats),
                             ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
                             ("foto continua", foto_continua.trabajo_continuo),
                             ("seguimiento", seguimiento.trabajo_seguimiento)):
@@ -3631,7 +3646,7 @@ def _capturador_dia_continuo(objetivo, campo, binning):
         memoria["exposicion"], memoria["n"] = exposicion, memoria["n"] + 1
         try:
             instante = time.time()
-            imagen, info = foto_dia.revelar(foto_dia.recortar_centro(frame, campo), prep["sensor_type"], objetivo)
+            imagen, info = foto_dia.revelar(foto_dia.recortar_centro(frame, campo), prep["sensor_type"], objetivo, ev=ev)
             guardar_jpg_web(RUTA_IMAGEN_WEB, imagen)
             foto_dia.registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info)
             archivo = None
@@ -3687,7 +3702,7 @@ def continuo_iniciar():
     exposicion = _exposicion_pedida(datos.get("exposicion"))
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("flats", flats.trabajo_flats),
                             ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
                             ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
                             ("seguimiento", seguimiento.trabajo_seguimiento)):
@@ -4039,6 +4054,8 @@ def darks_generar():
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de generar darks"}), 409
     if foto_continua.trabajo_continuo.en_curso:
         return jsonify({"ok": False, "error": "El modo continuo de Cámara está en marcha; páralo antes"}), 409
+    if vivo_dia.trabajo_vivo.en_curso:
+        return jsonify({"ok": False, "error": "El modo en vivo de Cámara tiene la cámara; páralo antes"}), 409
     if n != conf["numero_darks"]:
         _guardar_en_config("Dispositivos", {"numero_darks": n})   # se recuerda para la próxima vez
     try:
@@ -4069,7 +4086,7 @@ def flats_iniciar():
     """Arranca la generación del flat maestro (telescopio con la camiseta y la pantalla)."""
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("centrado", centrado.trabajo_centrado),
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("centrado", centrado.trabajo_centrado),
                             ("alineación", alineacion.trabajo_alineacion), ("foto continua", foto_continua.trabajo_continuo),
                             ("seguimiento", seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:

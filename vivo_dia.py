@@ -93,7 +93,7 @@ def a_orientacion_ascom(img, nombre):
     return np.ascontiguousarray(np.dstack([op(img[..., i]) for i in range(img.shape[2])]))
 
 
-def revelar_vivo(cfa, patron, negro, balance, orientacion, paso=1):
+def revelar_vivo(cfa, patron, negro, balance, orientacion, paso=1, ev=0.0):
     """Fotograma crudo del SDK → BGR uint8 a media resolución (o menos con `paso`), en la orientación de ASCOM."""
     import cv2
     if patron in PATRONES:
@@ -103,7 +103,7 @@ def revelar_vivo(cfa, patron, negro, balance, orientacion, paso=1):
             img[..., 2] *= float(balance["b"])
     else:
         img = np.asarray(cfa, dtype=np.float32)[::2 * paso, ::2 * paso] - float(negro)
-    blanco = max(float(np.percentile(img[::2, ::2], 99.9)), 1.0)
+    blanco = max(float(np.percentile(img[::2, ::2], 99.9)), 1.0) / 2.0 ** float(ev or 0.0)   # ±EV, como foto_dia.revelar
     img = np.clip(img / blanco, 0.0, 1.0)
     img = (np.power(img, 1.0 / 1.6) * 255.0).astype(np.uint8)
     img = a_orientacion_ascom(img, orientacion)
@@ -258,6 +258,7 @@ class TrabajoVivo:
             if reservada:
                 camara_ascom.liberar()
                 self._reconectar(camara_ascom)
+            foto_actual.olvidar("vivo")      # la web vuelve a la última foto de verdad
             with self._nuevo:
                 self._nuevo.notify_all()
                 self.en_curso = False
@@ -346,10 +347,10 @@ class TrabajoVivo:
                 balance = foto_dia.balance_para_patron(cfa, patron, self.objetivo, negro, BLANCO, aprender=False)
                 ultimo_balance = ahora
 
-            imagen = revelar_vivo(cfa, patron, negro, balance, orientacion, paso)
+            imagen = revelar_vivo(cfa, patron, negro, balance, orientacion, paso, ev=conf_n["ev"])
             jpg = jpg_web(imagen)
             foto_actual.registrar("vivo", ancho_ascom, alto_ascom, 1, campo_visto, imagen=imagen,
-                                  objetivo=self.objetivo, exposicion=exposicion)
+                                  objetivo=self.objetivo, exposicion=exposicion, ev=conf_n["ev"])
             n_fps += 1
             with self._nuevo:
                 self._jpg = jpg

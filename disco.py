@@ -37,8 +37,8 @@ log = logging.getLogger("scopepower.disco")
 RADIO_KM = {"sol": 696000.0, "luna": 1737.4}
 NOMBRE = {"sol": "Sol", "luna": "Luna"}
 ANCHO_ANALISIS = 800           # la imagen se analiza a unos 800 px: sobra para centrar al píxel del sensor×4
-UMBRAL_MINIMO_ARCMIN = 1.0     # el guiado no corrige desvíos menores (ni el 3 % del campo)
-FRACCION_CAMPO_UMBRAL = 0.03
+UMBRAL_DEFECTO_ARCMIN = 2.0    # se corrige cuando el disco se aparta más de esto ([FotoDia] guiado_umbral_arcmin)
+UMBRAL_MINIMO_ARCMIN = 0.5     # por debajo se estaría persiguiendo el propio error del GoTo de la montura
 PERDIDAS_MAXIMAS = 6           # fotos seguidas sin disco antes de dejar de guiar
 PAUSA_PAD_S = 3.0
 
@@ -252,7 +252,7 @@ class GuiadoDisco:
         self.correcciones = 0
         self.deriva_arcmin_min = None
         self.perdidas = 0
-        self.umbral_arcmin = UMBRAL_MINIMO_ARCMIN
+        self.umbral_arcmin = UMBRAL_DEFECTO_ARCMIN
         self._nueva_ref_desde = 0.0   # movido a propósito: la referencia será la siguiente foto posterior
 
     def estado(self):

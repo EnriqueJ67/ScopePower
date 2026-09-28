@@ -40,6 +40,18 @@ def actual():
         return dict(_actual) if _actual else None
 
 
+def olvidar(modo):
+    """
+    Borra la foto anotada si es de ese modo. Al parar el modo en vivo la web vuelve a enseñar
+    la última foto de verdad (static/captura.jpg): sin esto, "Apunta aquí", "Sincronizar con
+    el Sol" y "Guardar en la galería" seguirían trabajando con el último fotograma del vivo.
+    """
+    global _actual
+    with _lock:
+        if _actual and _actual.get("modo") == modo:
+            _actual = None
+
+
 def desde_fits(ruta):
     """La foto de static/captura.fits descrita como registrar() (sin el crudo). None si no se puede leer."""
     try:
@@ -56,6 +68,8 @@ def desde_fits(ruta):
         d["balance"] = {"r": float(h["WB_R"]), "b": float(h["WB_B"]), "origen": str(h.get("WB_ORIG") or "")}
     if h.get("NEGRO") is not None:
         d["negro"] = float(h["NEGRO"])
+    if h.get("EV") is not None:
+        d["ev"] = float(h["EV"])
     try:        # DATE-OBS de la app: hora local "AAAAMMDD_HHMMSS"
         from datetime import datetime
         d["instante"] = datetime.strptime(d["fecha_obs"], "%Y%m%d_%H%M%S").timestamp()

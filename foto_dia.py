@@ -568,11 +568,15 @@ def texto_balance(balance):
     return f"color: R×{balance['r']:.2f} B×{balance['b']:.2f} ({balance.get('origen', '')})"
 
 
-def revelar(frame, sensor_type, objetivo=None, balance=None, negro=None, aprender=True):
+def revelar(frame, sensor_type, objetivo=None, balance=None, negro=None, aprender=True, ev=0.0):
     """
     Foto de día a 8 bits: resta del negro del sensor, balance de blancos (ver arriba)
     y una gamma suave, sin auto-stretch (de día no hay nada que estirar).
-    Devuelve (imagen BGR/gris uint8, {"negro", "balance"}).
+    `ev`: compensación de la exposición automática (con_compensacion). El blanco se toma
+    de lo más brillante de la foto, así que sin esto la foto se vería igual con cualquier
+    exposición: con +1 EV se revela el doble de clara (se queman las luces) y con −1, la
+    mitad de clara, como en una cámara de fotos.
+    Devuelve (imagen BGR/gris uint8, {"negro", "balance", "ev"}).
     """
     import cv2
     datos = np.asarray(frame)
@@ -589,18 +593,18 @@ def revelar(frame, sensor_type, objetivo=None, balance=None, negro=None, aprende
             img[fr::2, cr::2] *= float(balance["r"])
             img[fb::2, cb::2] *= float(balance["b"])
         # Blanco: lo más brillante de la foto ya equilibrada (0,1 % se deja quemar, como antes)
-        blanco = max(float(np.percentile(img[::3, ::3], 99.9)), 1.0)
+        blanco = max(float(np.percentile(img[::3, ::3], 99.9)), 1.0) / 2.0 ** float(ev or 0.0)
         cfa16 = np.clip(img * (65535.0 / blanco), 0, 65535).astype(np.uint16)
         from AutoStrechSTF import debayer_rgb
         img = debayer_rgb(cfa16, patron).astype(np.float32) / 65535.0
     else:
-        blanco = max(float(np.percentile(img[::3, ::3], 99.9)), 1.0)
+        blanco = max(float(np.percentile(img[::3, ::3], 99.9)), 1.0) / 2.0 ** float(ev or 0.0)
         img = img / blanco
     img = np.clip(img, 0.0, 1.0)
     img = (np.power(img, 1.0 / 1.6) * 255.0).astype(np.uint8)
     if img.ndim == 3:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return img, {"negro": float(negro), "balance": balance}
+    return img, {"negro": float(negro), "balance": balance, "ev": float(ev or 0.0)}
 
 
 def _ascii_fits(v):
@@ -638,7 +642,8 @@ def cabecera_revelado(objetivo, campo, info, instante=None):
     extra = {"OBJETIVO": (objetivo or "", "Sol, luna o paisaje"),
              "CAMPO": (round(float(campo), 3), "Fraccion del campo que se ve en la web"),
              "DATE-OBS": datetime.fromtimestamp(instante or time.time()).strftime("%Y%m%d_%H%M%S"),
-             "NEGRO": (round(float(info["negro"]), 1), "Nivel de negro restado al revelar")}
+             "NEGRO": (round(float(info["negro"]), 1), "Nivel de negro restado al revelar"),
+             "EV": (round(float(info.get("ev") or 0.0), 2), "Compensacion de exposicion al revelar (EV)")}
     b = info.get("balance")
     if b:
         extra.update({"WB_R": (round(float(b["r"]), 4), "Balance de blancos: ganancia del rojo"),
@@ -652,7 +657,8 @@ def registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info, en_
     import foto_actual
     foto_actual.registrar("dia", frame.shape[1], frame.shape[0], binning, campo,
                           frame=None if en_disco else frame, objetivo=objetivo, balance=info.get("balance"),
-                          negro=info.get("negro"), exposicion=exposicion, ganancia=prep.get("ganancia"), prep=prep)
+                          negro=info.get("negro"), ev=info.get("ev"), exposicion=exposicion, ganancia=prep.get("ganancia"),
+                          prep=prep)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -745,7 +751,7 @@ class TrabajoFotoDia:
 
             self._msg("Guardando la foto...", fase="guardando")
             instante = time.time()
-            imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo)
+            imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo, ev=conf["ev"])
             if ruta_fits:
                 guardar_fits(frame, exposicion, prep, binning, ruta_fits, extra=cabecera_revelado(objetivo, campo, info, instante))
             if ruta_web:
@@ -913,7 +919,8 @@ class TrabajoTimelapse:
                         timeout=180)
                     archivo = f"foto_{n:04d}.jpg"
                     # El color se mide en la primera toma y se mantiene: sin parpadeos de una foto a otra
-                    imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo, balance=balance_tl)
+                    imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo, balance=balance_tl,
+                                           ev=conf_n["ev"])
                     balance_tl = info["balance"]
                     registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info)
                     cv2.imwrite(os.path.join(carpeta, archivo), imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])

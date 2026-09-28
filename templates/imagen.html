@@ -334,8 +334,8 @@
 <script>
     let sondeo = null;
     let hayFotoNueva = false;                 // foto hecha en esta visita (de noche, ASTAP la resuelve)
-    let hayFoto = {{ 'true' if hay_foto else 'false' }};
-    const CAMARA_SDK = {{ 'true' if camara_sdk else 'false' }};   // driver SDK:PlayerOne (Configuración)   // hay alguna foto en pantalla (guardar, apuntar de día)
+    let hayFoto = {{ 'true' if hay_foto else 'false' }};   // hay alguna foto en pantalla (guardar, apuntar de día)
+    const CAMARA_SDK = {{ 'true' if camara_sdk else 'false' }};   // driver SDK:PlayerOne (Configuración)
 
     // Sincronizar y "Apunta aquí" de noche resuelven static/captura.fits: piden una foto de esta visita y
     // esperan a que pare el continuo. De día "Apunta aquí" no resuelve nada y vale con el continuo en marcha.
@@ -358,9 +358,17 @@
         const cont = document.getElementById("paneles-foto");
         const paneles = Array.from(cont.querySelectorAll(".panel"));
         const orden = prefPaneles.orden || [];
-        // Un panel que no esté en el orden guardado (añadido después) se coloca justo tras "Captura"
-        const pos = p => { const i = orden.indexOf(p.dataset.panel); return i < 0 ? orden.indexOf("captura") + 0.5 : i; };
-        paneles.sort((a, b) => pos(a) - pos(b));
+        // Un panel que no esté en el orden guardado (añadido después, como Timelapse) se queda detrás
+        // del que le precede en la página, para que no acabe delante de "Modo día"
+        const posiciones = new Map();
+        let anterior = -0.5;
+        paneles.forEach((p, k) => {
+            const i = orden.indexOf(p.dataset.panel);
+            const pos = i < 0 ? anterior + 0.001 * (k + 1) : i;
+            posiciones.set(p, pos);
+            if (i >= 0) anterior = i;
+        });
+        paneles.sort((a, b) => posiciones.get(a) - posiciones.get(b));
         const enlace = cont.querySelector("a.btn-block");         // el enlace a Calibración se queda al final
         paneles.forEach(p => {
             cont.insertBefore(p, enlace);
@@ -505,7 +513,7 @@
         const normal = Math.round(100 * (NIVEL_OBJETIVO[objetivoDia] || 0.65));
         document.getElementById("dia-comp-ayuda").textContent = ev === 0
             ? `La zona más brillante de la foto se lleva al ${normal} % del blanco (lo normal para ${NOMBRE_OBJETIVO[objetivoDia]}). Baja si ves zonas quemadas; sube si sale oscura.`
-            : `La zona más brillante irá al ${Math.round(100 * nivelObjetivoDia())} % del blanco en vez del ${normal} %. Vale desde la siguiente foto, también con el continuo o el timelapse en marcha.`;
+            : `La zona más brillante irá al ${Math.round(100 * nivelObjetivoDia())} % del blanco en vez del ${normal} %, y la foto se revela ${ev > 0 ? "más clara" : "más oscura"} en la misma medida. Vale desde la siguiente foto, también con el continuo, el vivo o el timelapse en marcha.`;
     }
     function cambiarCompensacionDia(v) {
         compDia = Math.max(-9, Math.min(9, parseInt(v) || 0));
