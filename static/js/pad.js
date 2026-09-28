@@ -35,6 +35,10 @@ function pintarVelocidad() {
     // Escalones de velocidad: las opciones del select, de menor a mayor (una sola fuente con los botones)
     const ESCALONES = Array.from(speed.options).map(o => parseFloat(o.value)).sort((a, b) => a - b);
     let puntero = null, ultimoVx = 0, ultimoVy = 0, temporizador = null;
+    // Centro y radio del pad fijados al poner el dedo: si durante el arrastre la página se mueve
+    // (en Cámara el pad va sobre la foto y el modo continuo la refresca), el mando no debe
+    // interpretar ese desplazamiento como un movimiento del dedo
+    let referencia = null;
 
     document.querySelectorAll("#speed-seg button").forEach(b => b.addEventListener("click", () => {
         speed.value = b.dataset.v;
@@ -118,10 +122,9 @@ function pintarVelocidad() {
     }
 
     function procesar(ev) {
-        const rect = pad.getBoundingClientRect();
-        const r = rect.width / 2;
-        let nx = (ev.clientX - rect.left - r) / r;
-        let ny = (ev.clientY - rect.top - r) / r;
+        const { cx, cy, r } = referencia;
+        let nx = (ev.clientX - cx) / r;
+        let ny = (ev.clientY - cy) / r;
         let d = Math.hypot(nx, ny);
         if (d > 1) { nx /= d; ny /= d; d = 1; }        // el mando no sale del círculo
         pintar(nx, ny);
@@ -164,6 +167,8 @@ function pintarVelocidad() {
     pad.addEventListener("pointerdown", ev => {
         if (puntero !== null) return;                   // un solo dedo
         puntero = ev.pointerId;
+        const rect = pad.getBoundingClientRect();
+        referencia = { cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, r: rect.width / 2 };
         try { pad.setPointerCapture(puntero); } catch (e) {}
         pad.classList.add("activo");
         vibrar(30);
