@@ -51,6 +51,9 @@
                 <button id="btn-foto" class="btn btn-primary btn-lg" onclick="hacerFoto()"><svg><use href="#i-foto"/></svg>Hacer foto</button>
                 <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;"><svg><use href="#i-stop"/></svg>Cancelar</button>
                 <button id="btn-continuo-parar" class="btn btn-danger btn-lg" onclick="pararContinuo()" hidden><svg><use href="#i-stop"/></svg>Parar</button>
+                <!-- Modo en vivo de día (vivo_dia.py): imagen casi continua por el SDK de la cámara, para centrar y enfocar -->
+                <button id="btn-vivo" class="btn btn-secondary" onclick="alternarVivo()" hidden
+                        title="Imagen casi continua por el SDK de la cámara, para centrar y enfocar. Mientras dura, la cámara no está disponible por ASCOM."><svg><use href="#i-play"/></svg>En vivo</button>
                 <button id="btn-sync" class="btn btn-secondary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-sync"/></svg>Sincronizar telescopio con la foto</button>
                 <button id="btn-puntero" class="btn btn-secondary" onclick="alternarPuntero()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-goto"/></svg>Apunta aquí</button>
                 <button id="btn-galeria" class="btn btn-secondary" onclick="guardarEnGaleria()" {% if not hay_foto %}disabled{% endif %} title="Guarda la foto que se ve, a resolución completa, en la galería"><svg><use href="#i-guardar"/></svg>Guardar en la galería</button>
@@ -141,6 +144,20 @@
                     </div>
                 </div>
                 <small class="ayuda" id="dia-color-sol-ayuda" hidden></small>
+                <!-- De día no hay estrellas con que alinear: la montura se sincroniza con el disco (disco.py) -->
+                <div id="dia-disco" class="dia-disco mt-2" hidden>
+                    <div class="acciones">
+                        <button type="button" id="btn-sync-disco" class="btn btn-secondary" onclick="sincronizarDisco(false)"><svg><use href="#i-sync"/></svg><span>Sincronizar con el Sol</span></button>
+                        <button type="button" id="btn-sync-centrar" class="btn btn-secondary" onclick="sincronizarDisco(true)"><svg><use href="#i-centrar"/></svg>Sincronizar y centrar</button>
+                    </div>
+                    <small class="ayuda" id="dia-disco-ayuda"></small>
+                    <div class="fila mt-1" style="justify-content: space-between;">
+                        <label class="switch" style="margin: 0;"><input type="checkbox" id="guiado-disco" onchange="alternarGuiado()"> Mantener el disco centrado</label>
+                    </div>
+                    <small class="ayuda">Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de
+                        donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes.</small>
+                    <div id="estado-disco" class="estado mt-1"></div>
+                </div>
                 <div id="dia-aviso-sol" class="aviso aviso-err mt-2" hidden>
                     <svg class="ico"><use href="#i-info"/></svg>
                     <span><b>Filtro solar obligatorio</b>, delante del objetivo y bien sujeto, y tapa el buscador. Sin filtro, el Sol
@@ -168,9 +185,23 @@
                 <div id="dia-info" class="texto-3 mt-2" style="font-size: 13px;"></div>
                 <div id="dia-intentos" class="texto-3 mt-1" style="font-size: 13px;"></div>
 
-                <hr>
-                <!-- ─── Timelapse ─── -->
-                <div class="seccion-titulo" style="margin-top: 0;">Timelapse</div>
+            </div>
+        </section>
+
+        <!-- ─── Timelapse (antes al final del panel Modo día, donde costaba encontrarlo). Solo de día. ─── -->
+        <section class="card panel" data-panel="timelapse" id="card-timelapse" hidden>
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-reloj"/></svg>Timelapse</h3>
+                <span class="panel-sub">de día</span>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <p class="card-sub">Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse
+                oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día.</p>
                 <div class="dos-campos">
                     <div class="form-group">
                         <label for="tl-fotos">Número de fotos</label>
@@ -251,6 +282,7 @@
 <style>
     .foto-controles { display: flex; flex-direction: column; gap: 12px; }
     .dos-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    .dia-disco { padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
     .tl-lista { list-style: none; padding: 0; margin: 0; }
     .tl-lista li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
     .tl-lista img { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: #000; flex: none; }
@@ -302,11 +334,13 @@
 <script>
     let sondeo = null;
     let hayFotoNueva = false;                 // foto hecha en esta visita (de noche, ASTAP la resuelve)
-    let hayFoto = {{ 'true' if hay_foto else 'false' }};   // hay alguna foto en pantalla (guardar, apuntar de día)
+    let hayFoto = {{ 'true' if hay_foto else 'false' }};
+    const CAMARA_SDK = {{ 'true' if camara_sdk else 'false' }};   // driver SDK:PlayerOne (Configuración)   // hay alguna foto en pantalla (guardar, apuntar de día)
 
     // Sincronizar y "Apunta aquí" de noche resuelven static/captura.fits: piden una foto de esta visita y
     // esperan a que pare el continuo. De día "Apunta aquí" no resuelve nada y vale con el continuo en marcha.
     function pintarBotonesFoto() {
+        document.getElementById("btn-vivo").hidden = !(modoDia && CAMARA_SDK);   // el vivo necesita la cámara por SDK
         document.getElementById("btn-sync").disabled = continuoActivo || !hayFotoNueva;
         document.getElementById("btn-puntero").disabled = modoDia ? !hayFoto : (continuoActivo || !hayFotoNueva);
         document.getElementById("btn-galeria").disabled = !hayFoto;
@@ -427,6 +461,8 @@
         document.querySelectorAll("#dia-objetivo button").forEach(b => b.classList.toggle("activo", b.dataset.v === objetivoDia));
         document.getElementById("dia-aviso-sol").hidden = !(modoDia && objetivoDia === "sol");
         pintarColorSol();
+        pintarDisco();
+        document.getElementById("card-timelapse").hidden = !modoDia;     // el timelapse es de día
         pintarBotonFoto();
         document.getElementById("continuo-panel").hidden = !modoContinuo;
         document.getElementById("continuo-ayuda").textContent = ayudaGuardar();
@@ -477,6 +513,65 @@
         clearTimeout(guardarCompTimer);
         guardarCompTimer = setTimeout(() => guardarPreferencias({ foto_dia_compensacion: evDia() }), 250);
     }
+    // ——— Sol y Luna: sincronizar la montura con el disco y guiado (disco.py) ———
+    let sondeoDisco = null, guiadoActivo = false;
+    function pintarDisco() {
+        const ver = modoDia && (objetivoDia === "sol" || objetivoDia === "luna");
+        document.getElementById("dia-disco").hidden = !ver;
+        const nombre = objetivoDia === "luna" ? "la Luna" : "el Sol";
+        document.querySelector("#btn-sync-disco span").textContent = `Sincronizar con ${nombre}`;
+        document.getElementById("dia-disco-ayuda").textContent = `De día no hay estrellas: con ${nombre} en la foto (entero o casi), `
+            + "la montura aprende dónde apunta y deja de derivar. No hace falta centrarlo antes. Necesita haber hecho alguna vez un plate solving de noche.";
+    }
+    function sincronizarDisco(centrar) {
+        const est = document.getElementById("estado-disco");
+        ["btn-sync-disco", "btn-sync-centrar"].forEach(id => document.getElementById(id).disabled = true);
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>Buscando el disco en la foto y sincronizando...';
+        fetch("/disco/sincronizar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ centrar }) })
+            .then(r => r.json())
+            .then(d => {
+                est.className = "estado mt-1 " + (d.ok ? "ok" : "err");
+                est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
+                // Sin imagen en movimiento, una foto nueva enseña dónde ha quedado el disco
+                if (d.ok && d.movido && !continuoActivo && !vivoActivo) hacerFoto();
+            })
+            .catch(err => { est.className = "estado mt-1 err"; est.textContent = "❌ " + err; })
+            .finally(() => ["btn-sync-disco", "btn-sync-centrar"].forEach(id => document.getElementById(id).disabled = false));
+    }
+    function alternarGuiado() {
+        const activar = document.getElementById("guiado-disco").checked;
+        const est = document.getElementById("estado-disco");
+        fetch("/disco/guiado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activar, objetivo: objetivoDia }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado mt-1 err"; est.textContent = "❌ " + d.mensaje; document.getElementById("guiado-disco").checked = false; return; }
+                pintarGuiado(d.estado);
+                if (activar && !sondeoDisco) sondeoDisco = setInterval(sondearGuiado, 2000);
+            })
+            .catch(err => { est.className = "estado mt-1 err"; est.textContent = "❌ " + err; });
+    }
+    function pintarGuiado(e) {
+        guiadoActivo = !!e.activo;
+        document.getElementById("guiado-disco").checked = guiadoActivo;
+        const est = document.getElementById("estado-disco");
+        if (guiadoActivo) {
+            est.className = "estado mt-1";
+            est.innerHTML = '<span class="spinner"></span>' + e.mensaje
+                + (e.correcciones ? ` · ${e.correcciones} ${e.correcciones === 1 ? "corrección" : "correcciones"}` : "")
+                + (e.deriva_arcmin_min !== null && e.deriva_arcmin_min !== undefined ? ` · deriva ${String(e.deriva_arcmin_min).replace(".", ",")}′/min` : "");
+        } else if (e.mensaje) {
+            est.className = "estado mt-1 " + (e.mensaje.startsWith("Guiado detenido") ? "warn" : "");
+            est.textContent = e.mensaje + (e.correcciones ? ` (${e.correcciones} correcciones)` : "");
+        }
+        return guiadoActivo;
+    }
+    function sondearGuiado() {
+        fetch("/disco/estado").then(r => r.json()).then(e => {
+            if (!pintarGuiado(e) && sondeoDisco) { clearInterval(sondeoDisco); sondeoDisco = null; }
+        }).catch(() => {});
+    }
+    fetch("/disco/estado").then(r => r.json()).then(e => { if (pintarGuiado(e) && !sondeoDisco) sondeoDisco = setInterval(sondearGuiado, 2000); }).catch(() => {});
+
     // ——— Color del Sol (preferencia foto_dia_color_sol): vale desde la siguiente foto ———
     let colorSol = "amarillo";
     const AYUDA_COLOR_SOL = {
@@ -695,6 +790,93 @@
         ultimasDia = e.ultimas || {}; pintarUltimasDia();
         if (e.en_curso && !sondeoDia) { document.getElementById("btn-foto").disabled = true; sondeoDia = setInterval(sondearFotoDia, 700); }
     }).catch(() => {});
+
+    // ——— Modo en vivo de día (SDK nativo, vivo_dia.py) ———
+    //     La foto se pide de nuevo en cuanto termina de cargar la anterior: la cadencia se adapta sola a
+    //     lo que dé la wifi del SynScan. El estado (fps, exposición, color) se sondea aparte cada segundo.
+    let vivoActivo = false, sondeoVivo = null, esperaVivo = null, versionVivo = -1, urlVivo = null, pidiendoVivo = false;
+    function alternarVivo() { if (vivoActivo) pararVivo(); else empezarVivo(); }
+    function empezarVivo() {
+        const est = document.getElementById("estado-foto");
+        if (objetivoDia === "sol" && !solConfirmado) {
+            if (!confirm("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio.")) return;
+            solConfirmado = true;
+        }
+        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Pasando la cámara al modo en vivo...';
+        document.getElementById("btn-vivo").disabled = true;
+        fetch("/vivo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, campo: campoDia() }) })
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById("btn-vivo").disabled = false;
+                if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
+                if (d.seguimiento) seguimientoCambiado = true;
+                pintarVivo({ en_curso: true, fase: "preparando", mensaje: "Pasando la cámara al modo en vivo..." });
+                if (!sondeoVivo) sondeoVivo = setInterval(sondearVivo, 1000);
+                pedirFotoVivo();
+            })
+            .catch(err => { document.getElementById("btn-vivo").disabled = false; est.className = "estado err mt-2"; est.textContent = "❌ " + err; });
+    }
+    function pararVivo() {
+        document.getElementById("btn-vivo").disabled = true;
+        fetch("/vivo/parar", { method: "POST" }).catch(() => {});
+    }
+    // Pide la imagen siguiente a la que ya se tiene (el servidor espera a que exista): ni se repiten
+    // imágenes por la wifi ni se piden más de las que da la cámara. Por fetch para leer su versión.
+    function pedirFotoVivo() {
+        clearTimeout(esperaVivo);
+        if (!vivoActivo || pidiendoVivo) return;
+        pidiendoVivo = true;
+        fetch("/vivo/imagen?despues=" + versionVivo, { cache: "no-store" })
+            .then(r => {
+                if (r.status !== 200) return null;
+                versionVivo = parseInt(r.headers.get("X-Vivo-Version")) || versionVivo;
+                return r.blob();
+            })
+            .then(b => {
+                pidiendoVivo = false;
+                if (!b || !vivoActivo) { esperaVivo = setTimeout(pedirFotoVivo, 300); return; }
+                const anterior = urlVivo;
+                urlVivo = URL.createObjectURL(b);
+                document.getElementById("foto").src = urlVivo;        // al cargar, se pide la siguiente
+                if (anterior) setTimeout(() => URL.revokeObjectURL(anterior), 2000);
+            })
+            .catch(() => { pidiendoVivo = false; esperaVivo = setTimeout(pedirFotoVivo, 1000); });
+    }
+    document.getElementById("foto").addEventListener("load", () => { if (vivoActivo) { fotoMostrada(false); pedirFotoVivo(); } });
+    document.getElementById("foto").addEventListener("error", () => { if (vivoActivo) esperaVivo = setTimeout(pedirFotoVivo, 500); });
+    function pintarVivo(e) {
+        const antes = vivoActivo;
+        vivoActivo = !!e.en_curso;
+        const btn = document.getElementById("btn-vivo");
+        btn.className = "btn " + (vivoActivo ? "btn-danger" : "btn-secondary");
+        btn.innerHTML = vivoActivo ? '<svg><use href="#i-stop"/></svg>Parar en vivo' : '<svg><use href="#i-play"/></svg>En vivo';
+        if (!vivoActivo) btn.disabled = false;
+        // Mientras dura, la cámara es del modo en vivo: nada de fotos, continuo, timelapse ni cambiar de modo
+        ["btn-foto", "modo-continuo", "modo-dia", "btn-tl", "dia-campo"].forEach(id => document.getElementById(id).disabled = vivoActivo);
+        document.querySelectorAll("#dia-objetivo button").forEach(b => b.disabled = vivoActivo);
+        const est = document.getElementById("estado-foto");
+        if (vivoActivo) {
+            est.className = "estado mt-2";
+            est.innerHTML = e.fase === "en vivo"
+                ? `<span class="spinner"></span>En vivo · ${e.fps || 0} fotos/s · ${e.exposicion_texto}` + (e.nivel !== null && e.nivel !== undefined ? ` · nivel ${Math.round(100 * e.nivel)} %` : "")
+                  + (e.color ? ` · ${e.color}` : "")
+                : `<span class="spinner"></span>${e.mensaje}`;
+            if (!antes) { versionVivo = -1; pedirFotoVivo(); }
+        } else if (antes || e.terminado) {
+            clearTimeout(esperaVivo);
+            est.className = "estado " + (e.error ? "err" : "ok") + " mt-2";
+            est.textContent = (e.error ? "❌ " : "✅ ") + (e.mensaje || "Modo en vivo terminado");
+            if (antes) document.getElementById("foto").src = "/imagen-capturada?" + Date.now();   // vuelve la última foto
+        }
+        return vivoActivo;
+    }
+    function sondearVivo() {
+        fetch("/vivo/estado").then(r => r.json()).then(e => {
+            if (!pintarVivo(e) && sondeoVivo) { clearInterval(sondeoVivo); sondeoVivo = null; }
+        }).catch(() => {});
+    }
+    // Al abrir la página: engancharse a un modo en vivo en marcha
+    fetch("/vivo/estado").then(r => r.json()).then(e => { if (e.en_curso && pintarVivo(e) && !sondeoVivo) sondeoVivo = setInterval(sondearVivo, 1000); }).catch(() => {});
 
     // ——— Modo continuo ———
     let modoContinuo = false, guardarContinuo = "no", sondeoContinuo = null, ultimaVersionContinuo = -1, continuoActivo = false;
@@ -967,7 +1149,7 @@
     ["pointerup", "pointercancel"].forEach(t => capa.addEventListener(t, () => { arrastrando = false; capa.classList.remove("arrastrando"); }));
     window.addEventListener("resize", () => { if (punteroActivo) ajustarCapa(); });
     // Foto nueva: puntero al centro, salvo con el continuo en marcha (de día se apunta sobre la imagen en vivo)
-    foto.addEventListener("load", () => { if (punteroActivo) { ajustarCapa(); if (!continuoActivo) ponerPunteroCentro(); } });
+    foto.addEventListener("load", () => { if (punteroActivo) { ajustarCapa(); if (!continuoActivo && !vivoActivo) ponerPunteroCentro(); } });
 
     function pintarModoPuntero() {
         capa.hidden = !punteroActivo;
@@ -1011,7 +1193,7 @@
                 // Foto nueva para ver dónde ha quedado el encuadre; el puntero vuelve al centro al cargarla
                 // (hacerFoto borra estado-sync, por eso el mensaje se escribe después). Con el continuo en
                 // marcha la foto llega sola: basta con devolver el puntero al centro.
-                if (d.ok && d.movido !== false) { if (continuoActivo) ponerPunteroCentro(); else hacerFoto(); }
+                if (d.ok && d.movido !== false) { if (continuoActivo || vivoActivo) ponerPunteroCentro(); else hacerFoto(); }
                 est.className = "estado " + (d.ok ? "ok" : "err");
                 est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
             })

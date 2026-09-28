@@ -51,6 +51,9 @@ import secretos
 import centrado
 import foto_dia
 import foto_actual
+import vivo_dia
+import camara_sdk
+import disco
 import apuntado_teorico
 import foto_continua
 import alineacion
@@ -604,7 +607,8 @@ def _activar_seguimiento(tel):
 # El driver se lee de config.ini al conectar: cambiarlo en Configuración y pulsar
 # "Reconectar equipo" basta, sin reiniciar la app.
 montura = TrabajadorCOM("montura", lambda: _dispositivos()["driver_telescopio"], al_conectar=_activar_seguimiento)
-camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_conectar=lambda cam: voz.decir("Cámara conectada"))
+camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_conectar=lambda cam: voz.decir("Cámara conectada"),
+                       fabricas={camara_sdk.DRIVER_SDK: camara_sdk.crear})    # Player One por la DLL, como en N.I.N.A.
 
 
 def _asegurar_seguimiento(motivo):
@@ -1420,6 +1424,9 @@ def ascom_drivers():
     except Exception as e:
         log.warning("No se pudo leer el perfil ASCOM (%s): %s", tipo, e)
     drivers.sort(key=lambda d: d["name"].lower())
+    if tipo == "Camera":
+        # La cámara Player One también se puede usar sin ASCOM, por su DLL (camara_sdk.py)
+        drivers.insert(0, {"progid": camara_sdk.DRIVER_SDK, "name": camara_sdk.NOMBRE_DRIVER})
     return jsonify({"drivers": drivers})
 
 
@@ -2054,7 +2061,8 @@ def esta_noche_objetos():
 def foto_prueba():
     """Página de foto de prueba: no dispara nada al abrirse; el botón de dentro captura."""
     return render_template('imagen.html', mostrar_volver=True, hay_foto=os.path.exists(RUTA_IMAGEN_WEB),
-                           niveles_dia={k: v["nivel"] for k, v in foto_dia.OBJETIVOS.items()})
+                           niveles_dia={k: v["nivel"] for k, v in foto_dia.OBJETIVOS.items()},
+                           camara_sdk=camara_sdk.es_sdk(_dispositivos()["driver_camara"]))
 
 
 def sincronizar_con_ultima_foto():
@@ -2223,30 +2231,28 @@ def _foto_en_pantalla():
     return f
 
 
-def apuntar_sin_plate_solving(fx, fy):
-    """
-    Centra el telescopio en el punto (fx, fy) de la foto que se ve (fracciones 0–1)
-    con la orientación y la escala de la cámara del último plate solving, sin
-    resolver la foto (ver apuntado_teorico.py). Devuelve un dict con ok y mensaje.
-    """
-    import orientacion_camara
+def _montura_ocupada():
+    """Motivo por el que no se debe mover la montura ahora, o None."""
     if bucle.activo and not bucle.pausado:
-        return {"ok": False, "mensaje": "El apilado está capturando; páusalo antes de mover el telescopio."}
+        return "El apilado está capturando; páusalo antes de mover el telescopio."
     for nombre, trabajo in (("centrado", centrado.trabajo_centrado), ("alineación", alineacion.trabajo_alineacion)):
         if trabajo.en_curso:
-            return {"ok": False, "mensaje": f"Hay un trabajo de {nombre} en marcha; espera a que termine."}
-    orientacion = orientacion_camara.ultima()
-    try:
-        du, dv = apuntado_teorico.desplazamiento(fx, fy, _foto_en_pantalla(), orientacion)
-    except apuntado_teorico.SinDatos as e:
-        return {"ok": False, "mensaje": str(e)}
-    salto = math.hypot(du, dv) * 60.0
-    if salto < 0.2:
-        return {"ok": True, "mensaje": "El punto ya está en el centro; no hace falta mover.", "salto_arcmin": 0.0, "movido": False}
-    try:
-        ra_m, dec_m = montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
-    except ErrorHardware as e:
-        return {"ok": False, "mensaje": f"Montura no disponible: {e}"}
+            return f"Hay un trabajo de {nombre} en marcha; espera a que termine."
+    return None
+
+
+def _observatorio():
+    return (LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+
+
+def mover_relativo_horizonte(du, dv):
+    """
+    Mueve el apuntado (du, dv) grados en el plano tangente horizontal (Δaz·cos alt,
+    Δalt) desde donde está la montura: GoTo corto en AR/Dec calculado con la misma
+    hora y lugar, así es un movimiento relativo aunque la montura esté mal alineada.
+    Devuelve la altura de partida; lanza ErrorHardware si falla.
+    """
+    ra_m, dec_m = montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
 
     # Desplazamiento en acimut/altura desde donde apunta la montura, y de vuelta a AR/Dec
     # con la misma hora y lugar: el GoTo resultante es un movimiento relativo
@@ -2278,13 +2284,36 @@ def apuntar_sin_plate_solving(fx, fy):
             if not seguia:
                 tel.Tracking = False
 
+    montura.ejecutar(_mover, timeout=150)
+    time.sleep(asentamiento_montura())
+    return float(ahora.alt.deg)
+
+
+def apuntar_sin_plate_solving(fx, fy):
+    """
+    Centra el telescopio en el punto (fx, fy) de la foto que se ve (fracciones 0–1)
+    con la orientación y la escala de la cámara del último plate solving, sin
+    resolver la foto (ver apuntado_teorico.py). Devuelve un dict con ok y mensaje.
+    """
+    import orientacion_camara
+    ocupada = _montura_ocupada()
+    if ocupada:
+        return {"ok": False, "mensaje": ocupada}
+    orientacion = orientacion_camara.ultima()
     try:
-        montura.ejecutar(_mover, timeout=150)
+        du, dv = apuntado_teorico.desplazamiento(fx, fy, _foto_en_pantalla(), orientacion)
+    except apuntado_teorico.SinDatos as e:
+        return {"ok": False, "mensaje": str(e)}
+    salto = math.hypot(du, dv) * 60.0
+    if salto < 0.2:
+        return {"ok": True, "mensaje": "El punto ya está en el centro; no hace falta mover.", "salto_arcmin": 0.0, "movido": False}
+    try:
+        altura = mover_relativo_horizonte(du, dv)
     except ErrorHardware as e:
         return {"ok": False, "mensaje": f"Error al mover el telescopio: {e}"}
-    time.sleep(asentamiento_montura())
+    disco.guiado.nueva_referencia()      # si se está guiando por el disco, su sitio es el nuevo
     log.info("Apuntado sin plate solving al punto (%.3f, %.3f): Δaz·cos(alt) %+.1f', Δalt %+.1f' (alt %.1f°)",
-             fx, fy, du * 60, dv * 60, ahora.alt.deg)
+             fx, fy, du * 60, dv * 60, altura)
     voz.decir("Telescopio centrado en el punto elegido")
     return {"ok": True, "movido": True, "salto_arcmin": round(salto, 2),
             "mensaje": f"Telescopio movido {salto:.1f}′ ({abs(du) * 60:.1f}′ en acimut, {abs(dv) * 60:.1f}′ en altura) "
@@ -2321,6 +2350,125 @@ def apuntar_foto_dia_info():
     return jsonify(salida)
 
 
+# ───────────────────────── Sol y Luna: sincronizar y guiar por el disco (disco.py) ─────────────────────────
+def _leer_captura():
+    with fits.open(RUTA_IMAGEN) as hdul:
+        return np.asarray(hdul[0].data), hdul[0].header.copy()
+
+
+def _medir_disco(foto, objetivo=None):
+    import orientacion_camara
+    orientacion = orientacion_camara.ultima()
+    if orientacion is None:
+        raise disco.SinDisco("Todavía no se conoce la orientación de la cámara: hace falta un plate solving de noche.")
+    objetivo = objetivo or (foto or {}).get("objetivo")
+    return disco.localizar(foto, orientacion, objetivo, _observatorio(), leer_fits=_leer_captura)
+
+
+def sincronizar_con_disco(centrar=False):
+    """
+    Sincroniza la montura con el Sol o la Luna de la foto que se ve: el centro de la foto
+    apunta a la posición del astro menos lo descentrado que esté el disco. Si `centrar`,
+    después lleva el disco al centro con un movimiento corto.
+    """
+    f = _foto_en_pantalla()
+    objetivo = (f or {}).get("objetivo")
+    if objetivo not in disco.RADIO_KM:
+        return {"ok": False, "mensaje": "Haz antes una foto de día del Sol o de la Luna (o pon el continuo o el modo en vivo)."}
+    ocupada = _montura_ocupada()
+    if ocupada:
+        return {"ok": False, "mensaje": ocupada}
+    try:
+        d = _medir_disco(f, objetivo)
+        ra_c, dec_c, alt_astro = disco.centro_de_la_foto(objetivo, d, _observatorio())
+        ra_m, dec_m = montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
+    except disco.SinDisco as e:
+        return {"ok": False, "mensaje": str(e)}
+    except ErrorHardware as e:
+        return {"ok": False, "mensaje": f"Montura no disponible: {e}"}
+    if alt_astro < 0:
+        return {"ok": False, "mensaje": f"El {disco.NOMBRE[objetivo]} está bajo el horizonte según las efemérides: revisa la hora del PC y la ubicación."}
+    ra_i, dec_i = coordenadas.desde_montura(ra_m, dec_m)
+    error = float(SkyCoord(ra=ra_i * u.hourangle, dec=dec_i * u.deg).separation(
+        SkyCoord(ra=ra_c * u.hourangle, dec=dec_c * u.deg)).arcmin)
+    ra_s, dec_s = coordenadas.a_montura(ra_c, dec_c)
+    try:
+        montura.ejecutar(lambda tel: tel.SyncToCoordinates(ra_s, dec_s), timeout=20)
+    except ErrorHardware as e:
+        return {"ok": False, "mensaje": f"La montura no ha aceptado la sincronización: {e}"}
+    nombre = disco.NOMBRE[objetivo]
+    log.info("Sincronizado con el disco de %s: centro de la foto AR %.4f h Dec %.3f° (disco a %.1f', ajuste %.0f %%%s); "
+             "la montura se equivocaba %.1f'", nombre, ra_c, dec_c, d["desvio_arcmin"], 100 * d["ajuste"],
+             ", cortado por el borde" if d["toca_borde"] else "", error)
+    mensaje = f"Montura sincronizada con el {nombre}: se equivocaba {error:.1f}′."
+    if d["toca_borde"]:
+        mensaje += " El disco salía cortado por el borde: la medida es algo menos precisa."
+    movido = False
+    if centrar and d["desvio_arcmin"] >= 0.2:
+        try:
+            mover_relativo_horizonte(d["du"], d["dv"])
+            movido = True
+            disco.guiado.nueva_referencia()
+            mensaje += f" Disco centrado (estaba a {d['desvio_arcmin']:.1f}′)."
+        except ErrorHardware as e:
+            mensaje += f" No se pudo centrar: {e}"
+    voz.decir(f"Montura sincronizada con el {nombre}")
+    return {"ok": True, "mensaje": mensaje, "error_arcmin": round(error, 2), "desvio_arcmin": round(d["desvio_arcmin"], 2),
+            "movido": movido}
+
+
+@app.route('/disco/sincronizar', methods=['POST'])
+def disco_sincronizar():
+    datos = request.get_json(silent=True) or {}
+    resultado = sincronizar_con_disco(centrar=bool(datos.get("centrar")))
+    return jsonify(resultado), (200 if resultado["ok"] else 409)
+
+
+def _pad_en_uso():
+    with _pad["lock"]:
+        return bool(_pad["activo"]) or time.time() - float(_pad.get("ultimo") or 0) < disco.PAUSA_PAD_S
+
+
+@app.route('/disco/guiado', methods=['POST'])
+def disco_guiado():
+    """{activar: bool}: mantener el disco del Sol o la Luna donde está, corrigiendo la montura."""
+    datos = request.get_json(silent=True) or {}
+    if not datos.get("activar"):
+        disco.guiado.desactivar()
+        return jsonify({"ok": True, "estado": disco.guiado.estado()})
+    f = _foto_en_pantalla()
+    objetivo = (f or {}).get("objetivo") or str(datos.get("objetivo") or "")
+    if objetivo not in disco.RADIO_KM:
+        return jsonify({"ok": False, "mensaje": "El guiado es para el Sol o la Luna en modo día."}), 409
+    import apuntado_teorico, orientacion_camara
+    orientacion = orientacion_camara.ultima()
+    if orientacion is None:
+        return jsonify({"ok": False, "mensaje": "Todavía no se conoce la orientación de la cámara: hace falta un plate solving de noche."}), 409
+    umbral = disco.UMBRAL_MINIMO_ARCMIN
+    if f and f.get("ancho"):
+        ancho_deg, _ = apuntado_teorico.campo_visible_grados(f, orientacion)
+        umbral = max(umbral, disco.FRACCION_CAMPO_UMBRAL * ancho_deg * 60.0)
+
+    def mover(du, dv):
+        ocupada = _montura_ocupada()
+        if ocupada:
+            raise ErrorHardware(ocupada)
+        mover_relativo_horizonte(du, dv)
+    try:
+        disco.guiado.activar(objetivo, _foto_en_pantalla, lambda foto: _medir_disco(foto, objetivo), mover, _pad_en_uso,
+                             umbral_arcmin=umbral)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    log.info("Guiado por el disco de %s activado (corrige a partir de %.1f')", disco.NOMBRE[objetivo], umbral)
+    voz.decir(f"Guiado por el disco del {disco.NOMBRE[objetivo]}")
+    return jsonify({"ok": True, "estado": disco.guiado.estado()})
+
+
+@app.route('/disco/estado')
+def disco_estado():
+    return jsonify(disco.guiado.estado())
+
+
 # ───────────────────────── Guardar la foto de Cámara en la galería ─────────────────────────
 CARPETA_CRUDOS_GALERIA = os.path.join("static", "fotos", "crudos")
 _lock_guardar_foto = threading.Lock()
@@ -2337,7 +2485,7 @@ def guardar_foto_en_galeria():
     if f is None:
         return {"ok": False, "mensaje": "No hay ninguna foto que guardar; haz una foto primero."}
     fecha = datetime.fromtimestamp(f.get("instante") or time.time())
-    if f["modo"] == "dia":
+    if f["modo"] in ("dia", "vivo"):
         objeto = foto_dia.OBJETIVOS.get(f.get("objetivo") or "", {}).get("nombre", "Foto de día")
         objeto = objeto[:1].upper() + objeto[1:]
     else:
@@ -2350,7 +2498,11 @@ def guardar_foto_en_galeria():
     os.makedirs(CARPETA_CRUDOS_GALERIA, exist_ok=True)
 
     exposicion = f.get("exposicion")
-    if f["modo"] == "dia":
+    if f["modo"] == "vivo":
+        # Fotograma del modo en vivo: ya revelado a la resolución de la vista, sin FITS
+        imagen = f["imagen"].copy()
+        ruta_crudo = None
+    elif f["modo"] == "dia":
         frame, prep = f.get("frame"), f.get("prep") or {}
         if frame is None:                      # foto suelta (o tras reiniciar): está en static/captura.fits
             with fits.open(RUTA_IMAGEN) as hdul:
@@ -3359,6 +3511,68 @@ def color_olvidar():
     """Borra el balance guardado: se vuelve al típico hasta la próxima calibración (o la próxima Luna)."""
     ok = foto_dia.olvidar_balance_luz_dia()
     return jsonify({"ok": ok, "balance": _balance_actual()}), (200 if ok else 500)
+
+
+# ───────────────────────── Modo en vivo de día (SDK nativo de la cámara) ─────────────────────────
+@app.route('/vivo/iniciar', methods=["POST"])
+def vivo_iniciar():
+    """Imagen casi continua para centrar y enfocar de día (vivo_dia.py). JSON: {objetivo, campo (%)}."""
+    datos = request.get_json(silent=True) or {}
+    objetivo = str(datos.get("objetivo", "paisaje"))
+    if objetivo not in foto_dia.OBJETIVOS:
+        return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
+                            ("foto continua", foto_continua.trabajo_continuo), ("foto de día", foto_dia.trabajo_foto_dia),
+                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
+                            ("calibración del color", foto_dia.trabajo_balance_blanco)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    if not camara_sdk.es_sdk(_dispositivos()["driver_camara"]):
+        return jsonify({"ok": False, "error": "El modo en vivo necesita la cámara por SDK: elige el driver "
+                                              f"«{camara_sdk.NOMBRE_DRIVER}» en Configuración"}), 409
+    # Seguimiento solar/lunar como en la foto de día; la web lo devuelve a sidéreo al salir del modo día
+    seguimiento_montura = None
+    conf = foto_dia.OBJETIVOS[objetivo]
+    if conf["seguimiento"] and montura.esta_conectado() and foto_dia.poner_seguimiento(montura, conf["seguimiento"]):
+        seguimiento_montura = conf["seguimiento"]
+    try:
+        vivo_dia.trabajo_vivo.iniciar(camara, objetivo, _campo_foto_dia(datos), compensacion=_compensacion_foto_dia)
+    except (RuntimeError, ValueError) as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    voz.decir(f"En vivo: {conf['nombre']}", categoria="capturas")
+    return jsonify({"ok": True, "seguimiento": seguimiento_montura})
+
+
+@app.route('/vivo/parar', methods=["POST"])
+def vivo_parar():
+    vivo_dia.trabajo_vivo.parar()
+    return jsonify({"ok": True})
+
+
+@app.route('/vivo/estado')
+def vivo_estado():
+    return jsonify(vivo_dia.trabajo_vivo.estado())
+
+
+@app.route('/vivo/imagen')
+def vivo_imagen():
+    """
+    Último fotograma del modo en vivo (JPG pequeño); 204 si aún no hay ninguno. Con
+    ?despues=<versión> espera (hasta 3 s) a que haya uno más nuevo que el que ya tiene la web.
+    """
+    try:
+        despues = int(request.args["despues"]) if "despues" in request.args else None
+    except ValueError:
+        despues = None
+    version, jpg = vivo_dia.trabajo_vivo.imagen(despues=despues)
+    if jpg is None:
+        return ("", 204)
+    respuesta = app.response_class(jpg, mimetype="image/jpeg")
+    respuesta.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    respuesta.headers["X-Vivo-Version"] = str(version)
+    return respuesta
 
 
 @app.route('/timelapse/iniciar', methods=["POST"])
