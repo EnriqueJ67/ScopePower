@@ -1347,6 +1347,21 @@ def observatorio():
                     "zona_horaria": time.strftime("%Z"), "stellarium": stellarium})
 
 
+@app.route('/observatorio/diagnostico', methods=['POST'])
+def observatorio_diagnostico():
+    """
+    La ubicación se pide en el navegador del móvil y el PC solo se enteraba si llegaba a
+    guardarse: cuando fallaba (27-sep-2026, la petición se quedó colgada) el log no decía
+    nada. La página de Configuración anota aquí cada paso: permiso, error o posición.
+    """
+    datos = request.get_json(silent=True) or {}
+    evento = " ".join(str(datos.get("evento", "")).split())[:200]
+    segura = "https o dirección segura" if datos.get("segura") else "http NO seguro"
+    log.info("Ubicación desde el móvil %s (%s, %s): %s", request.remote_addr,
+             str(datos.get("origen", ""))[:60], segura, evento)
+    return jsonify({"ok": True})
+
+
 def _stellarium_poner_ubicacion(lat, lon, alt):
     """Misma ubicación en Stellarium (si está abierto), para que sus alturas y acimuts coincidan."""
     try:
