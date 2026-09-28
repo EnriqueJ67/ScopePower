@@ -535,7 +535,11 @@ def medir_balance_disco(frame, patron, negro, blanco=65535.0):
 
 def balance_para(frame, sensor_type, objetivo, negro, blanco=65535.0, aprender=True):
     """Balance de blancos de una foto de día: {"r", "b", "origen"}; None para sensores sin color."""
-    patron = _patron(sensor_type)
+    return balance_para_patron(frame, _patron(sensor_type), objetivo, negro, blanco, aprender)
+
+
+def balance_para_patron(frame, patron, objetivo, negro, blanco=65535.0, aprender=True):
+    """Como balance_para() pero con el patrón Bayer ya sabido (el SDK nativo lo da directamente)."""
     if np.asarray(frame).ndim != 2 or patron not in ("RGGB", "BGGR", "GRBG", "GBRG"):
         return None
     if objetivo == "sol":

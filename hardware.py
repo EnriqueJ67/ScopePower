@@ -43,10 +43,13 @@ class TrabajadorCOM:
         ra = montura.ejecutar(lambda tel: tel.RightAscension)
     """
 
-    def __init__(self, nombre, obtener_driver, al_conectar=None):
+    def __init__(self, nombre, obtener_driver, al_conectar=None, fabricas=None):
+        """`fabricas`: {nombre de driver: función que crea el dispositivo} para drivers que no son
+        COM/ASCOM, como SDK:PlayerOne (camara_sdk.py). Los demás se crean con win32com."""
         self.nombre = nombre
         self._obtener_driver = obtener_driver
         self._al_conectar = al_conectar
+        self._fabricas = {str(k).upper(): v for k, v in (fabricas or {}).items()}
         self._dispositivo = None
         self._executor = ThreadPoolExecutor(
             max_workers=1,
@@ -56,13 +59,17 @@ class TrabajadorCOM:
         self.ocupado = False
         self.ultimo_error = None
         self._lock_estado = threading.Lock()
+        # Reserva: otro camino (el SDK nativo de la cámara) tiene el dispositivo. El driver ASCOM
+        # de Player One solo admite una conexión: mientras dure, nada debe reconectarlo por ASCOM
+        self.reservado_por = None
 
     # ── Conexión ──────────────────────────────────────────────────────────
     def _conectar_en_hilo(self):
         if self._dispositivo is None:
             driver = self._obtener_driver()
             log.info("Conectando %s con driver %s", self.nombre, driver)
-            dispositivo = win32com.client.Dispatch(driver)
+            fabrica = self._fabricas.get(str(driver).strip().upper())
+            dispositivo = fabrica() if fabrica else win32com.client.Dispatch(driver)
             dispositivo.Connected = True
             if self._al_conectar:
                 try:
@@ -111,6 +118,8 @@ class TrabajadorCOM:
             with self._lock_estado:
                 self.ocupado = True
             try:
+                if conectar and self.reservado_por:
+                    raise ErrorHardware(f"la {self.nombre} está en uso por {self.reservado_por}")
                 if conectar:
                     dispositivo = self._conectar_en_hilo()
                 else:
@@ -141,6 +150,9 @@ class TrabajadorCOM:
 
     def reconectar(self, timeout=30):
         """Desconecta y vuelve a conectar el dispositivo."""
+        if self.reservado_por:
+            raise ErrorHardware(f"la {self.nombre} está en uso por {self.reservado_por}")
+
         def tarea(_):
             self._desconectar_en_hilo()
             return self._conectar_en_hilo()
@@ -151,6 +163,17 @@ class TrabajadorCOM:
             self.ejecutar(lambda _: self._desconectar_en_hilo(), timeout=timeout, conectar=False)
         except ErrorHardware:
             pass
+
+    def reservar(self, motivo, timeout=15):
+        """Desconecta el driver ASCOM y no deja reconectarlo hasta liberar() (lo usa el modo en vivo)."""
+        self.desconectar(timeout=timeout)
+        self.reservado_por = motivo
+        log.info("%s reservada: %s", self.nombre, motivo)
+
+    def liberar(self):
+        if self.reservado_por:
+            log.info("%s liberada (%s)", self.nombre, self.reservado_por)
+        self.reservado_por = None
 
 
 def _mensaje_com(e):

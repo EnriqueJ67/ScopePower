@@ -62,6 +62,10 @@ CONFIG_POR_DEFECTO = {
 ESTADO_CERRADA, ESTADO_ABIERTA, ESTADO_EXPONIENDO = 0, 1, 2
 
 
+# POAErrors: "exposure is in progress"
+ERROR_EXPONIENDO = 11
+
+
 class ErrorCamaraNativa(Exception):
     """Fallo del SDK de Player One (con el texto de POAGetErrorString)."""
 
@@ -310,19 +314,33 @@ class CamaraNativa:
         ROI cuadrado de `roi_px` píxeles del sensor (antes del binning), centrado, con
         `binning` y formato de imagen. Para el vídeo en curso si lo había.
         """
+        binning = max(1, int(binning))
+        ancho_total = self.propiedades["ancho"] // binning
+        alto_total = self.propiedades["alto"] // binning
+        lado = max(8, min(int(roi_px) // binning, ancho_total, alto_total)) & ~1
+        x0 = ((ancho_total - lado) // 2) & ~1
+        y0 = ((alto_total - lado) // 2) & ~1
+        return self.configurar_area(x0, y0, lado, lado, binning=binning, formato=formato, exposicion_ms=exposicion_ms,
+                                    ganancia=ganancia, offset=offset, usb_limite=usb_limite, fps_max=fps_max)
+
+    def configurar_area(self, x0, y0, ancho, alto, binning=1, formato="RAW16", exposicion_ms=5.0, ganancia=None,
+                        offset=None, usb_limite=100, fps_max=None):
+        """
+        Zona rectangular en píxeles YA con binning (origen x0, y0; ancho × alto), binning y
+        formato. La usa camara_sdk.py (fotos a campo completo como el driver ASCOM); configurar()
+        la llama con un cuadrado centrado.
+        """
         dll, cid = self._dll, self._id
         if formato not in FORMATOS:
             raise ValueError(f"Formato desconocido: {formato} (RAW8, RAW16, RGB24 o MONO8)")
         with self._lock:
             self.parar_video()
             binning = max(1, int(binning))
-            ancho_total = self.propiedades["ancho"] // binning
-            alto_total = self.propiedades["alto"] // binning
-            lado = max(8, min(int(roi_px) // binning, ancho_total, alto_total)) & ~1
-            x0 = ((ancho_total - lado) // 2) & ~1
-            y0 = ((alto_total - lado) // 2) & ~1
+            ancho, alto = int(ancho) & ~1, int(alto) & ~1
+            x0, y0 = int(x0) & ~1, int(y0) & ~1
+            lado = ancho          # nombre histórico en la geometría (ROI cuadrado)
             self._ok(dll.POASetImageBin(cid, binning), "fijar binning")
-            self._ok(dll.POASetImageSize(cid, lado, lado), "fijar tamaño de imagen")
+            self._ok(dll.POASetImageSize(cid, ancho, alto), "fijar tamaño de imagen")
             self._ok(dll.POASetImageStartPos(cid, x0, y0), "fijar origen del ROI")
             self._ok(dll.POASetImageFormat(cid, FORMATOS[formato]), "fijar formato")
             if usb_limite is not None and "USBBandWidthLimit" in self.config_ids:
@@ -337,19 +355,19 @@ class CamaraNativa:
                 # Cadencia máxima en la propia cámara: leer más despacio de lo que produce
                 # acumularía fotogramas viejos en el búfer del SDK (latencia)
                 self.poner("FrameLimit", int(round(fps_max)) if fps_max else 0)
-            # Búfer único para los fotogramas
+            # Búfer único para los fotogramas (filas = y, columnas = x)
             if formato == "RAW16":
-                self._buffer = np.empty((lado, lado), dtype=np.uint16)
+                self._buffer = np.empty((alto, ancho), dtype=np.uint16)
             elif formato == "RGB24":
-                self._buffer = np.empty((lado, lado, 3), dtype=np.uint8)
+                self._buffer = np.empty((alto, ancho, 3), dtype=np.uint8)
             else:
-                self._buffer = np.empty((lado, lado), dtype=np.uint8)
+                self._buffer = np.empty((alto, ancho), dtype=np.uint8)
             self._bytes = int(self._buffer.nbytes)
             self._forma = self._buffer.shape
-            self.geometria = {"x0": x0 * binning, "y0": y0 * binning, "lado": lado, "binning": binning,
-                              "formato": formato, "exposicion_ms": self._exposicion_ms}
-            log.info("Cámara nativa: ROI %dx%d en (%d,%d) bin %d %s, exp %.2f ms, gain %s",
-                     lado, lado, x0, y0, binning, formato, self._exposicion_ms, ganancia)
+            self.geometria = {"x0": x0 * binning, "y0": y0 * binning, "lado": lado, "ancho": ancho, "alto": alto,
+                              "binning": binning, "formato": formato, "exposicion_ms": self._exposicion_ms}
+            log.info("Cámara nativa: zona %dx%d en (%d,%d) bin %d %s, exp %.2f ms, gain %s",
+                     ancho, alto, x0, y0, binning, formato, self._exposicion_ms, ganancia)
             return dict(self.geometria)
 
     def exposicion(self, exposicion_ms):
@@ -375,12 +393,39 @@ class CamaraNativa:
             self._dll.POAStopExposure(self._id)
             self._video = False
 
+    def _empezar_una(self):
+        """
+        POAStartExposure en modo foto. Si la DLL dice que aún hay una exposición en curso
+        (error 11: visto el 28-sep-2026 al reconfigurar entre fotos), la corta y reintenta.
+        """
+        err = self._dll.POAStartExposure(self._id, 1)
+        if err == ERROR_EXPONIENDO:
+            log.info("Cámara nativa: había una exposición en curso; se corta y se repite el disparo")
+            self._dll.POAStopExposure(self._id)
+            import time
+            time.sleep(0.05)
+            err = self._dll.POAStartExposure(self._id, 1)
+        self._ok(err, "iniciar la exposición")
+
+    def disparar(self):
+        """Empieza una sola exposición y vuelve enseguida (hay_frame() dice cuándo está; leer_frame() la lee)."""
+        if self._buffer is None:
+            raise ErrorCamaraNativa("Configura la cámara antes de disparar")
+        self.parar_video()
+        self._empezar_una()
+
+    def abortar(self):
+        """Corta la exposición en curso (foto o vídeo)."""
+        if self._id is not None:
+            self._dll.POAStopExposure(self._id)
+            self._video = False
+
     def foto(self, timeout_ms=None):
         """Una sola exposición (modo foto) y devuelve el fotograma (copia)."""
         if self._buffer is None:
             raise ErrorCamaraNativa("Configura la cámara antes de disparar")
         self.parar_video()
-        self._ok(self._dll.POAStartExposure(self._id, 1), "iniciar la exposición")
+        self._empezar_una()
         return self.leer_frame(timeout_ms).copy()
 
     def leer_frame(self, timeout_ms=None):
