@@ -9,6 +9,7 @@
         <p class="pagina-sub">
             Los darks quitan el ruido térmico y los píxeles calientes; los flats, el viñeteo y las sombras de polvo.
             Se restan a cada foto antes de apilar. El apilado también ofrece hacer los darks al empezar.
+            El color, para las fotos de día: una foto de algo blanco al Sol le enseña a la app cómo ve los colores tu cámara.
         </p>
     </div>
 </div>
@@ -26,7 +27,89 @@
     </div>
 </div>
 
+<!-- Color de las fotos de día (foto_dia.TrabajoBalanceBlanco): balance de luz de día medido con un blanco -->
+<div class="card" style="max-width: 900px;">
+    <div class="card-header"><h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>Color de día (balance de blancos)</h3></div>
+    <div id="info-color" class="estado mb-2">Consultando...</div>
+    <p class="card-sub" style="margin-top: 0;">
+        Apunta a algo <b>blanco iluminado por el Sol directo</b>: una pared o fachada soleada, o un folio o una tela blanca al Sol
+        justo delante del objetivo. Da igual que salga desenfocado; solo cuenta que llene el centro de la foto.
+        A la sombra saldría azulado y con luz artificial, naranja. Se usa en las fotos de paisaje y en el Sol «Del filtro».
+    </p>
+    <div class="acciones">
+        <button type="button" id="btn-color" class="btn btn-primary" onclick="calibrarColor()"><svg><use href="#i-foto"/></svg>Calibrar el color con algo blanco</button>
+        <button type="button" id="btn-color-cancelar" class="btn btn-secondary" onclick="fetch('/cancelar-captura', {method: 'POST'})" hidden><svg><use href="#i-stop"/></svg>Cancelar</button>
+        <button type="button" id="btn-color-olvidar" class="btn btn-ghost" onclick="olvidarColor()" hidden>Olvidar la calibración</button>
+    </div>
+    <div id="estado-color" class="estado mt-2"></div>
+    <div id="vista-color" class="mt-2" hidden>
+        <img id="img-color" alt="Blanco de referencia con el color corregido" style="display: block; width: 100%; max-width: 360px; border-radius: 12px; border: 1px solid var(--border); background: #000;">
+        <small class="ayuda">Así sale el blanco con el color corregido: debería verse gris o blanco, sin tinte.</small>
+    </div>
+</div>
+
 <script>
+    // ——— Color de día ———
+    let sondeoColor = null, versionColor = null;
+    function textoFecha(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        return isNaN(d) ? iso : d.toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
+    function pintarBalance(b) {
+        const v = `R×${b.r.toFixed(2).replace(".", ",")}, B×${b.b.toFixed(2).replace(".", ",")}`;
+        let texto;
+        if (b.calibrado) texto = `✅ Calibrado con un blanco el ${textoFecha(b.fecha)}: ${v}.`;
+        else if (b.origen === "Luna") texto = `Aprendido de la Luna el ${textoFecha(b.fecha)}: ${v}. Una calibración con un blanco es más fiable.`;
+        else texto = `Sin calibrar: se usa un valor típico de estos sensores (${v}).`;
+        document.getElementById("info-color").textContent = texto;
+        document.getElementById("btn-color-olvidar").hidden = b.origen === "típico" || !b.fecha;
+    }
+    function pintarColor(d) {
+        const t = d.trabajo, est = document.getElementById("estado-color");
+        pintarBalance(d.balance);
+        document.getElementById("btn-color").disabled = t.en_curso;
+        document.getElementById("btn-color-cancelar").hidden = !t.en_curso;
+        if (t.en_curso) { est.className = "estado mt-2"; est.innerHTML = `<span class="spinner"></span>${t.mensaje}`; }
+        else if (t.terminado) {
+            est.className = "estado mt-2 " + (t.error ? "err" : "ok");
+            est.textContent = (t.error ? "❌ " : "✅ ") + t.mensaje;
+            if (!t.error && t.version !== versionColor) {
+                versionColor = t.version;
+                document.getElementById("img-color").src = "/static/balance_blanco.jpg?v=" + Date.now();
+                document.getElementById("vista-color").hidden = false;
+            }
+        }
+        return t.en_curso;
+    }
+    function sondearColor() {
+        fetch("/color/estado").then(r => r.json()).then(d => {
+            if (!pintarColor(d) && sondeoColor) { clearInterval(sondeoColor); sondeoColor = null; }
+        }).catch(() => {});
+    }
+    function calibrarColor() {
+        const est = document.getElementById("estado-color");
+        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Empezando...';
+        fetch("/color/calibrar", { method: "POST" }).then(r => r.json()).then(d => {
+            if (!d.ok) { est.className = "estado mt-2 err"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
+            if (!sondeoColor) sondeoColor = setInterval(sondearColor, 800);
+            sondearColor();
+        }).catch(err => { est.className = "estado mt-2 err"; est.textContent = "❌ " + err; });
+    }
+    function olvidarColor() {
+        if (!confirm("¿Olvidar el color guardado? Se volverá al valor típico hasta que calibres con un blanco (o se aprenda de la próxima Luna).")) return;
+        fetch("/color/olvidar", { method: "POST" }).then(r => r.json()).then(d => {
+            pintarBalance(d.balance);
+            document.getElementById("vista-color").hidden = true;
+            const est = document.getElementById("estado-color");
+            est.className = "estado mt-2"; est.textContent = d.ok ? "Color olvidado: se usa el valor típico." : "❌ No se pudo borrar.";
+        }).catch(() => {});
+    }
+    fetch("/color/estado").then(r => r.json()).then(d => {
+        versionColor = d.trabajo.version;              // no enseñar la vista de una calibración anterior
+        if (pintarColor(d) && !sondeoColor) sondeoColor = setInterval(sondearColor, 800);
+    }).catch(() => { document.getElementById("info-color").textContent = "No se pudo consultar."; });
+
     fetch("/darks/estado").then(r => r.json()).then(d => {
         const u = d.ultimo || {};
         document.getElementById("info-dark").textContent = u.existe

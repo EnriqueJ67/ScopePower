@@ -415,6 +415,7 @@ PREFERENCIAS = {
     "foto_dia_compensacion": ("Interfaz", "foto_dia_compensacion", "decimal"),   # EV (−3..+3) sobre la exposición automática de día
     "foto_continua_guardar": ("Interfaz", "foto_continua_guardar", "texto"),   # no | jpg | fits: qué guardar en el modo continuo
     "foto_pad_flotante": ("Interfaz", "foto_pad_flotante", "texto"),   # "on"/"off": pad de la montura encima de la foto en Cámara
+    "foto_dia_color_sol": ("Interfaz", "foto_dia_color_sol", "texto"),  # amarillo | natural | blanco (foto_dia.COLORES_SOL)
 }
 
 
@@ -3260,6 +3261,46 @@ def foto_dia_estado():
     e = foto_dia.trabajo_foto_dia.estado()
     e["ultimas"] = {k: {"s": v, "texto": foto_dia.formatear_exposicion(v)} for k, v in _config_foto_dia().items() if v}
     return jsonify(e)
+
+
+# ───────────────────────── Calibración del color con algo blanco ─────────────────────────
+def _balance_actual():
+    """Balance de luz de día en uso, con de dónde sale (para la pantalla Calibración)."""
+    b = foto_dia.leer_balance_luz_dia()
+    if b is None:
+        return dict(foto_dia.BALANCE_DEFECTO, origen="típico", fecha="", calibrado=False)
+    return dict(b, calibrado=b.get("origen") == foto_dia.ORIGEN_BLANCO)
+
+
+@app.route('/color/calibrar', methods=["POST"])
+def color_calibrar():
+    """Foto de algo blanco al Sol: su gris da el balance de luz de día (foto_dia.TrabajoBalanceBlanco)."""
+    if bucle.activo and not bucle.pausado:
+        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
+                            ("foto continua", foto_continua.trabajo_continuo), ("foto de día", foto_dia.trabajo_foto_dia),
+                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
+                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+    try:
+        foto_dia.trabajo_balance_blanco.iniciar(camara, _dispositivos()["binning"])
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    voz.decir("Calibrando el color con el blanco", categoria="capturas")
+    return jsonify({"ok": True})
+
+
+@app.route('/color/estado')
+def color_estado():
+    return jsonify({"trabajo": foto_dia.trabajo_balance_blanco.estado(), "balance": _balance_actual()})
+
+
+@app.route('/color/olvidar', methods=["POST"])
+def color_olvidar():
+    """Borra el balance guardado: se vuelve al típico hasta la próxima calibración (o la próxima Luna)."""
+    ok = foto_dia.olvidar_balance_luz_dia()
+    return jsonify({"ok": ok, "balance": _balance_actual()}), (200 if ok else 500)
 
 
 @app.route('/timelapse/iniciar', methods=["POST"])
