@@ -1357,8 +1357,9 @@ def observatorio_diagnostico():
     datos = request.get_json(silent=True) or {}
     evento = " ".join(str(datos.get("evento", "")).split())[:200]
     segura = "https o dirección segura" if datos.get("segura") else "http NO seguro"
-    log.info("Ubicación desde el móvil %s (%s, %s): %s", request.remote_addr,
-             str(datos.get("origen", ""))[:60], segura, evento)
+    donde = "app instalada" if datos.get("app") else "pestaña de Chrome"
+    log.info("Ubicación desde el móvil %s (%s, %s, %s): %s", request.remote_addr,
+             str(datos.get("origen", ""))[:60], segura, donde, evento)
     return jsonify({"ok": True})
 
 
