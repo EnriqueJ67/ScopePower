@@ -19,7 +19,7 @@ function mostrarModalVoz(motivo) {
     const txt = document.getElementById("modal-voz-texto");
     const pasos = document.getElementById("modal-voz-pasos-http");
     const nota = document.getElementById("modal-voz-nota");
-    document.getElementById("modal-voz-origen").textContent = location.origin;
+    document.getElementById("modal-voz-origen").textContent = origenesParaChrome();
     pasos.hidden = motivo !== "http";
     nota.hidden = motivo !== "http";
     if (motivo === "http") {
@@ -46,3 +46,13 @@ function copiarTexto(id, boton) {
     }).catch(() => { window.prompt("Copia esta dirección:", texto); });
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarModalVoz(); });
+
+// Dirección (o direcciones) que hay que declarar seguras en chrome://flags. En la wifi del telescopio
+// (192.168.4.x, el SynScan es .1) el mini PC recibe .2 o .3 según quién se conecte antes: el log del
+// mini PC muestra la tablet en .3 unos días y en .2 otros. La opción de Chrome admite varias separadas
+// por comas, así vale siempre.
+function origenesParaChrome() {
+    if (!/^192\.168\.4\.\d+$/.test(location.hostname)) return location.origin;
+    const puerto = location.port ? ":" + location.port : "";
+    return [2, 3, 4, 5].map(n => `http://192.168.4.${n}${puerto}`).join(",");
+}
