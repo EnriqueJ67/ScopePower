@@ -25,10 +25,12 @@
             <div id="pad-flotante" class="pad-flotante" hidden>
                 <button type="button" class="pad-lado" onclick="cambiarLadoPad()" title="Pasar el pad a la otra esquina">⇆</button>
             </div>
-            <div class="visor-pie" id="barra-bloque" style="display: none;">
-                <div id="estado-foto-pie"></div>
-                <div class="progress"><div id="barra" class="progress-bar ok"></div></div>
-            </div>
+        </div>
+        <!-- Progreso de la exposición DEBAJO de la foto, en un hueco de alto fijo que siempre está: si
+             apareciera sobre la foto (o empujara algo) en el continuo, la foto o el pad se moverían bajo el dedo -->
+        <div class="visor-estado" id="barra-bloque">
+            <div id="estado-foto-pie"></div>
+            <div class="progress"><div id="barra" class="progress-bar ok"></div></div>
         </div>
     </div>
 
@@ -263,7 +265,9 @@
     /* Pad encima de la foto: pequeño, en una esquina y semitransparente hasta que se toca */
     .pad-flotante { position: absolute; right: 10px; bottom: 10px; z-index: 4; width: clamp(112px, 30%, 220px); transition: bottom .2s; }
     .pad-flotante.izquierda { right: auto; left: 10px; }
-    .visor.exponiendo .pad-flotante { bottom: 52px; }          /* deja ver la barra de la exposición */
+    .visor-estado { height: 34px; padding-top: 6px; font-size: 12.5px; color: var(--text-2); visibility: hidden; font-variant-numeric: tabular-nums; }
+    .visor-estado.activo { visibility: visible; }
+    .visor-estado .progress { margin-top: 4px; }
     .pad-flotante .control-pad { display: block; }
     .pad-flotante .pad { width: 100%; height: auto; aspect-ratio: 1 / 1; opacity: 0.72; border-color: rgba(255,255,255,0.35);
                          background: radial-gradient(circle at 50% 45%, rgba(60,60,70,0.55) 0%, rgba(12,12,16,0.6) 100%);
@@ -394,17 +398,17 @@
     }
 
     function pintarProgreso(c) {
+        // Solo cambia la visibilidad del hueco bajo la foto, nunca su tamaño: así nada se mueve
         const bloque = document.getElementById("barra-bloque");
         if (c && c.en_curso) {
             const hechos = Math.max(0, c.exposicion - c.restante);
             document.getElementById("barra").style.width = (c.exposicion > 0 ? 100 * hechos / c.exposicion : 0) + "%";
-            document.getElementById("estado-foto-pie").textContent = `Exponiendo · ${Math.ceil(hechos)} / ${c.exposicion} s`;
-            document.getElementById("estado-foto").textContent = `Exponiendo · ${Math.ceil(hechos)} / ${c.exposicion} s`;
-            bloque.style.display = "block";
-        } else {
-            bloque.style.display = "none";
+            // De día las exposiciones son de milisegundos: "1 / 0.00027 s" no dice nada
+            const texto = c.exposicion >= 1 ? `Exponiendo · ${Math.ceil(hechos)} / ${c.exposicion} s` : `Exponiendo · ${formatearExp(c.exposicion)}`;
+            document.getElementById("estado-foto-pie").textContent = texto;
+            document.getElementById("estado-foto").textContent = texto;
         }
-        bloque.parentElement.classList.toggle("exponiendo", !!(c && c.en_curso));
+        bloque.classList.toggle("activo", !!(c && c.en_curso));
     }
 
     function sondearCaptura() {
