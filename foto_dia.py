@@ -379,6 +379,16 @@ def revelar(frame, sensor_type, objetivo=None, balance=None, negro=None, aprende
     return img, {"negro": float(negro), "balance": balance}
 
 
+def _ascii_fits(v):
+    """La cabecera FITS solo admite ASCII: quita tildes y eñes de los textos ("típico" → "tipico")."""
+    if isinstance(v, tuple):
+        return tuple(_ascii_fits(x) for x in v)
+    if isinstance(v, str):
+        import unicodedata
+        return unicodedata.normalize("NFKD", v).encode("ascii", "ignore").decode("ascii")
+    return v
+
+
 def guardar_fits(frame, exposicion, prep, binning, ruta, extra=None):
     from astropy.io import fits
     hdu = fits.PrimaryHDU(np.asarray(frame, dtype=np.uint16))
@@ -394,7 +404,7 @@ def guardar_fits(frame, exposicion, prep, binning, ruta, extra=None):
     if prep.get("ganancia") is not None:
         hdu.header["GAIN"] = (prep["ganancia"], "Ganancia de la camara")
     for k, v in (extra or {}).items():
-        hdu.header[k] = v
+        hdu.header[k] = _ascii_fits(v)
     os.makedirs(os.path.dirname(ruta) or ".", exist_ok=True)
     hdu.writeto(ruta, overwrite=True)
 
