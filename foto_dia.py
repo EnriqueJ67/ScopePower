@@ -220,6 +220,20 @@ BALANCE_DEFECTO = {"r": 1.8, "b": 1.5}         # ganancias de R y B respecto a G
 # balance que la deja gris al de luz de día, el rojo sube y el azul baja
 LUNA_A_LUZ_DE_DIA = {"r": 1.10, "b": 0.80}
 RUTA_BALANCE = os.path.join("datos", "balance_dia.json")
+# Color del Sol (preferencia foto_dia_color_sol). Probado el 27-sep-2026: dejar el disco
+# gris neutro (como la Luna) lo pinta blanco-azulado y no se reconoce como el Sol.
+#   amarillo: el disco neutro teñido al amarillo-anaranjado de las fotos típicas
+#   natural:  balance de luz de día, sin tocar: el color que da el filtro solar
+#   blanco:   el disco gris neutro
+COLORES_SOL = ("amarillo", "natural", "blanco")
+# Tinte del Sol amarillo sobre el disco neutro, en lineal: con la gamma 1/1,6 del revelado
+# el disco sale como (255, 190, 65): amarillo anaranjado
+TINTE_SOL_AMARILLO = {"r": 1.58, "b": 0.17}
+# Solo se aprende la luz de día de algo que parezca la Luna: un disco con cielo alrededor.
+# Con el objetivo "Luna" puesto y la cámara en un paisaje, el "disco" es el cielo claro
+# (80 % de la foto el 27-sep) y el balance aprendido salía disparatado.
+DISCO_MAXIMO_PARA_APRENDER = 0.4
+FONDO_MINIMO_PARA_APRENDER = 0.3
 _cache_negro = {"clave": None, "valor": None}
 
 
@@ -273,25 +287,221 @@ def leer_balance_luz_dia():
         return None
 
 
-def guardar_balance_luz_dia(balance_luna):
-    """Guarda como balance de luz de día el que deja gris la Luna, corregido por su color."""
-    d = {"r": round(balance_luna["r"] * LUNA_A_LUZ_DE_DIA["r"], 4), "b": round(balance_luna["b"] * LUNA_A_LUZ_DE_DIA["b"], 4),
-         "origen": "Luna", "fecha": datetime.now().isoformat(timespec="seconds")}
-    anterior = leer_balance_luz_dia()
-    if anterior and abs(anterior["r"] - d["r"]) < 0.02 * d["r"] and abs(anterior["b"] - d["b"]) < 0.02 * d["b"]:
-        return          # sin cambios apreciables: no reescribir en cada foto del continuo
+def _escribir_balance(d):
     try:
         os.makedirs(os.path.dirname(RUTA_BALANCE), exist_ok=True)
         with open(RUTA_BALANCE, "w", encoding="utf-8") as f:
             json.dump(d, f, ensure_ascii=False, indent=1)
-        log.info("Balance de luz de día aprendido de la Luna: R×%.2f, B×%.2f", d["r"], d["b"])
+        return True
     except OSError as e:
         log.warning("No se pudo guardar el balance de luz de día: %s", e)
+        return False
+
+
+def guardar_balance_luz_dia(balance_luna):
+    """
+    Guarda como balance de luz de día el que deja gris la Luna, corregido por su color.
+    Nunca pisa una calibración con un blanco de referencia, que es más fiable.
+    """
+    anterior = leer_balance_luz_dia()
+    if anterior and anterior.get("origen") == ORIGEN_BLANCO:
+        return
+    d = {"r": round(balance_luna["r"] * LUNA_A_LUZ_DE_DIA["r"], 4), "b": round(balance_luna["b"] * LUNA_A_LUZ_DE_DIA["b"], 4),
+         "origen": "Luna", "fecha": datetime.now().isoformat(timespec="seconds")}
+    if anterior and abs(anterior["r"] - d["r"]) < 0.02 * d["r"] and abs(anterior["b"] - d["b"]) < 0.02 * d["b"]:
+        return          # sin cambios apreciables: no reescribir en cada foto del continuo
+    if _escribir_balance(d):
+        log.info("Balance de luz de día aprendido de la Luna: R×%.2f, B×%.2f", d["r"], d["b"])
+
+
+def olvidar_balance_luz_dia():
+    """Borra el balance guardado (calibrado o aprendido): se vuelve al típico hasta la próxima Luna o blanco."""
+    try:
+        os.remove(RUTA_BALANCE)
+        log.info("Balance de luz de día olvidado: se vuelve al típico")
+        return True
+    except FileNotFoundError:
+        return True
+    except OSError as e:
+        log.warning("No se pudo borrar %s: %s", RUTA_BALANCE, e)
+        return False
 
 
 def balance_luz_dia():
     b = leer_balance_luz_dia()
     return b if b else dict(BALANCE_DEFECTO, origen="típico")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Calibración del color con algo blanco (pantalla Calibración)
+# ─────────────────────────────────────────────────────────────────────────────
+# Foto de algo blanco iluminado por el Sol directo (pared soleada, un folio al sol
+# delante del objetivo; da igual que salga desenfocado): lo que haga falta para
+# dejarlo gris es el balance de luz de día de esta cámara con este tubo. Manda sobre
+# el aprendido de la Luna, que es algo rojiza y cambia con la altura.
+ORIGEN_BLANCO = "referencia blanca"
+NIVEL_BLANCO = 0.6                 # la zona central se lleva al 60 % del blanco del sensor
+ZONA_BLANCO = 0.5                  # se mide la mitad central del campo
+MAX_QUEMADO_BLANCO = 0.01          # como mucho un 1 % de la zona quemada
+MIN_NIVEL_BLANCO = 0.08
+MAX_DISPERSION_BLANCO = 0.08       # variación del color entre trozos de la zona (8 %)
+RUTA_VISTA_BLANCO = os.path.join("static", "balance_blanco.jpg")
+
+
+class BlancoNoValido(Exception):
+    """La foto no sirve como blanco de referencia; el texto dice por qué y qué hacer."""
+
+
+def medir_balance_blanco(frame, patron, negro, blanco=65535.0):
+    """
+    Ganancias de R y B (respecto a G) que dejan gris la zona central de la foto de un
+    objeto blanco. Lanza BlancoNoValido si la zona está quemada, muy oscura o no es de
+    un solo color. Devuelve {"r", "b", "nivel", "dispersion"}.
+    """
+    r, g, b = (c - negro for c in _submuestras(recortar_centro(frame, ZONA_BLANCO), patron))
+    util = blanco - negro
+    quemado = float(np.mean(np.maximum(np.maximum(r, g), b) >= 0.95 * util))
+    if quemado > MAX_QUEMADO_BLANCO:
+        raise BlancoNoValido(f"El blanco sale quemado en un {100 * quemado:.0f} % de la zona central: "
+                             "ni con la exposición mínima baja; apunta a algo menos brillante o sin reflejos.")
+    nivel = float(np.median(g)) / util
+    if nivel < MIN_NIVEL_BLANCO:
+        raise BlancoNoValido(f"La zona central está muy oscura ({100 * nivel:.0f} %): el blanco tiene que "
+                             "estar al Sol y llenar el centro de la foto.")
+    # Color por trozos (6×6): si cambia mucho, en el centro hay más cosas que el blanco
+    h, w = g.shape
+    gr, gb = [], []
+    for i in range(6):
+        for j in range(6):
+            sl = (slice(i * h // 6, (i + 1) * h // 6), slice(j * w // 6, (j + 1) * w // 6))
+            mr, mg, mb = float(np.mean(r[sl])), float(np.mean(g[sl])), float(np.mean(b[sl]))
+            if min(mr, mg, mb) > 0:
+                gr.append(mg / mr)
+                gb.append(mg / mb)
+    if len(gr) < 20:
+        raise BlancoNoValido("No se ha podido medir el color de la zona central.")
+    dispersion = max(float(np.std(gr) / np.mean(gr)), float(np.std(gb) / np.mean(gb)))
+    if dispersion > MAX_DISPERSION_BLANCO:
+        raise BlancoNoValido(f"El color del centro no es uniforme (varía un {100 * dispersion:.0f} %): "
+                             "acerca o encuadra el blanco para que llene todo el centro de la foto.")
+    ganancia_r = float(np.mean(g)) / float(np.mean(r))
+    ganancia_b = float(np.mean(g)) / float(np.mean(b))
+    if not (0.3 <= ganancia_r <= 6.0 and 0.3 <= ganancia_b <= 6.0):
+        raise BlancoNoValido(f"Balance fuera de lo razonable (R×{ganancia_r:.2f}, B×{ganancia_b:.2f}): "
+                             "¿es blanco de verdad y está al Sol?")
+    return {"r": ganancia_r, "b": ganancia_b, "nivel": nivel, "dispersion": dispersion}
+
+
+def guardar_balance_blanco(medido):
+    d = {"r": round(medido["r"], 4), "b": round(medido["b"], 4), "origen": ORIGEN_BLANCO,
+         "fecha": datetime.now().isoformat(timespec="seconds"),
+         "nivel": round(medido["nivel"], 3), "dispersion": round(medido["dispersion"], 4)}
+    if not _escribir_balance(d):
+        raise OSError("No se pudo guardar el balance en " + RUTA_BALANCE)
+    log.info("Balance de luz de día calibrado con un blanco: R×%.2f, B×%.2f (nivel %.0f %%, color uniforme al %.1f %%)",
+             d["r"], d["b"], 100 * medido["nivel"], 100 * medido["dispersion"])
+    return d
+
+
+class TrabajoBalanceBlanco:
+    """Foto del blanco con exposición automática, medida y guardado, en un hilo; la web sondea estado()."""
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.version = 0
+        self._reiniciar()
+
+    def _reiniciar(self):
+        self.en_curso = False
+        self.terminado = False
+        self.mensaje = ""
+        self.error = ""
+        self.resultado = None
+
+    def estado(self):
+        with self._lock:
+            return {"en_curso": self.en_curso, "terminado": self.terminado, "mensaje": self.mensaje,
+                    "error": self.error, "resultado": dict(self.resultado) if self.resultado else None,
+                    "version": self.version, "captura": estado_captura.como_dict()}
+
+    def _msg(self, texto):
+        with self._lock:
+            self.mensaje = texto
+        log.info(texto)
+
+    def iniciar(self, camara, binning, ruta_vista=RUTA_VISTA_BLANCO):
+        with self._lock:
+            if self.en_curso:
+                raise RuntimeError("Ya se está calibrando el color")
+            if camara.ocupado:
+                raise RuntimeError("La cámara está ocupada con otra captura")
+            self._reiniciar()
+            self.en_curso = True
+            self.mensaje = "Preparando la cámara..."
+        hilo = threading.Thread(target=self._ejecutar, name="balance-blanco", daemon=True, args=(camara, binning, ruta_vista))
+        hilo.start()
+        return hilo
+
+    def _ejecutar(self, camara, binning, ruta_vista):
+        conf = dict(OBJETIVOS["paisaje"], nivel=NIVEL_BLANCO)
+        error = ""
+        try:
+            def _sesion(cam):
+                prep = preparar_camara(cam, conf)
+                try:
+                    frame, exposicion, nivel, saturada, _ = capturar_ajustando(
+                        cam, conf, binning, prep, conf["inicial"], MAX_INTENTOS,
+                        informar=lambda t, i=None: self._msg(t), descripcion="Blanco de referencia", campo=ZONA_BLANCO)
+                    return frame, exposicion, prep
+                finally:
+                    restaurar_camara(cam, prep)
+
+            frame, exposicion, prep = camara.ejecutar(_sesion, timeout=180)
+            patron = _patron(prep["sensor_type"])
+            if patron not in ("RGGB", "BGGR", "GRBG", "GBRG"):
+                raise BlancoNoValido("La cámara no es de color: no hay balance que calibrar.")
+            negro = nivel_negro(frame, prep["blanco"])
+            medido = medir_balance_blanco(frame, patron, negro, prep["blanco"])
+            guardado = guardar_balance_blanco(medido)
+            # Vista previa pequeña con el color ya corregido, para comprobar que el blanco sale blanco
+            from AutoStrechSTF import guardar_jpg_web
+            imagen, _ = revelar(frame, prep["sensor_type"], "paisaje", balance=guardado, negro=negro, aprender=False)
+            os.makedirs(os.path.dirname(ruta_vista) or ".", exist_ok=True)
+            guardar_jpg_web(ruta_vista, imagen, ancho=600, calidad=85)
+            with self._lock:
+                self.resultado = dict(guardado, exposicion=exposicion)
+                self.version += 1
+            self._msg(f"Color calibrado: R×{guardado['r']:.2f}, B×{guardado['b']:.2f} "
+                      f"(exposición {formatear_exposicion(exposicion)}, nivel {100 * medido['nivel']:.0f} %)")
+        except BlancoNoValido as e:
+            error = str(e)
+        except CapturaCancelada:
+            error = "Calibración cancelada"
+        except ErrorHardware as e:
+            error = f"Error de cámara: {e}"
+        except Exception as e:
+            log.exception("Error calibrando el color con un blanco")
+            error = f"Error: {e}"
+        finally:
+            with self._lock:
+                self.en_curso = False
+                self.terminado = True
+                self.error = error
+                if error:
+                    self.mensaje = error
+            if error:
+                log.warning("Calibración del color con un blanco: %s", error)
+
+
+def color_sol(ruta_config="config.ini"):
+    """Color con que se revela el Sol ([Interfaz] foto_dia_color_sol; por defecto amarillo)."""
+    import configparser
+    cfg = configparser.ConfigParser()
+    try:
+        cfg.read(ruta_config, encoding="utf-8")
+        valor = cfg.get("Interfaz", "foto_dia_color_sol", fallback="amarillo").strip().lower()
+    except (configparser.Error, OSError):
+        valor = "amarillo"
+    return valor if valor in COLORES_SOL else "amarillo"
 
 
 def medir_balance_disco(frame, patron, negro, blanco=65535.0):
@@ -320,7 +530,7 @@ def medir_balance_disco(frame, patron, negro, blanco=65535.0):
     gr, gb = senal[1] / senal[0], senal[1] / senal[2]
     if not (0.3 <= gr <= 6.0 and 0.3 <= gb <= 6.0):
         return None
-    return {"r": gr, "b": gb}
+    return {"r": gr, "b": gb, "disco": float(disco.mean()), "fondo": float(fondo.mean())}
 
 
 def balance_para(frame, sensor_type, objetivo, negro, blanco=65535.0, aprender=True):
@@ -328,13 +538,23 @@ def balance_para(frame, sensor_type, objetivo, negro, blanco=65535.0, aprender=T
     patron = _patron(sensor_type)
     if np.asarray(frame).ndim != 2 or patron not in ("RGGB", "BGGR", "GRBG", "GBRG"):
         return None
-    if objetivo in ("luna", "sol"):
+    if objetivo == "sol":
+        modo = color_sol()
+        if modo == "natural":
+            return dict(balance_luz_dia(), origen="Sol con el color del filtro")
         medido = medir_balance_disco(frame, patron, negro, blanco)
         if medido is not None:
-            # El Sol no enseña la luz de día: su color lo pone el filtro solar
-            if objetivo == "luna" and aprender:
+            # El Sol no enseña la luz de día (su color lo pone el filtro): nunca se aprende de él
+            if modo == "amarillo":
+                return {"r": medido["r"] * TINTE_SOL_AMARILLO["r"], "b": medido["b"] * TINTE_SOL_AMARILLO["b"],
+                        "origen": "Sol amarillo"}
+            return {"r": medido["r"], "b": medido["b"], "origen": "disco de sol"}
+    elif objetivo == "luna":
+        medido = medir_balance_disco(frame, patron, negro, blanco)
+        if medido is not None:
+            if aprender and medido["disco"] <= DISCO_MAXIMO_PARA_APRENDER and medido["fondo"] >= FONDO_MINIMO_PARA_APRENDER:
                 guardar_balance_luz_dia(medido)
-            return dict(medido, origen=f"disco de {OBJETIVOS[objetivo]['nombre'].lower()}")
+            return {"r": medido["r"], "b": medido["b"], "origen": "disco de luna"}
     return balance_luz_dia()
 
 
@@ -820,4 +1040,5 @@ def listar_timelapses(raiz=None, maximo=10):
 
 
 trabajo_foto_dia = TrabajoFotoDia()
+trabajo_balance_blanco = TrabajoBalanceBlanco()
 trabajo_timelapse = TrabajoTimelapse()

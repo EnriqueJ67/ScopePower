@@ -129,6 +129,16 @@
                     <button type="button" data-v="luna" onclick="elegirObjetivoDia('luna')">🌙 Luna</button>
                     <button type="button" data-v="paisaje" onclick="elegirObjetivoDia('paisaje')">🏔️ Paisaje</button>
                 </div>
+                <!-- Color del Sol: el disco neutro se ve blanco-azulado; lo típico es amarillo (foto_dia.COLORES_SOL) -->
+                <div id="dia-color-sol" class="fila mt-2" style="justify-content: space-between;" hidden>
+                    <span class="texto-2" style="font-size: 14px;">Color del Sol</span>
+                    <div class="segmentado" id="dia-color-sol-seg">
+                        <button type="button" data-v="amarillo" onclick="elegirColorSol('amarillo')">Amarillo</button>
+                        <button type="button" data-v="natural" onclick="elegirColorSol('natural')">Del filtro</button>
+                        <button type="button" data-v="blanco" onclick="elegirColorSol('blanco')">Blanco</button>
+                    </div>
+                </div>
+                <small class="ayuda" id="dia-color-sol-ayuda" hidden></small>
                 <div id="dia-aviso-sol" class="aviso aviso-err mt-2" hidden>
                     <svg class="ico"><use href="#i-info"/></svg>
                     <span><b>Filtro solar obligatorio</b>, delante del objetivo y bien sujeto, y tapa el buscador. Sin filtro, el Sol
@@ -412,6 +422,7 @@
         document.getElementById("card-dia").classList.toggle("card-acento", modoDia);
         document.querySelectorAll("#dia-objetivo button").forEach(b => b.classList.toggle("activo", b.dataset.v === objetivoDia));
         document.getElementById("dia-aviso-sol").hidden = !(modoDia && objetivoDia === "sol");
+        pintarColorSol();
         pintarBotonFoto();
         document.getElementById("continuo-panel").hidden = !modoContinuo;
         document.getElementById("continuo-ayuda").textContent = ayudaGuardar();
@@ -461,6 +472,25 @@
         pintarCompensacionDia();
         clearTimeout(guardarCompTimer);
         guardarCompTimer = setTimeout(() => guardarPreferencias({ foto_dia_compensacion: evDia() }), 250);
+    }
+    // ——— Color del Sol (preferencia foto_dia_color_sol): vale desde la siguiente foto ———
+    let colorSol = "amarillo";
+    const AYUDA_COLOR_SOL = {
+        amarillo: "El amarillo de las fotos típicas del Sol, sea cual sea el filtro.",
+        natural: "El color que da tu filtro solar, con el balance de luz de día (el de la Luna).",
+        blanco: "El disco gris neutro: la luz del Sol sin color.",
+    };
+    function pintarColorSol() {
+        const ver = modoDia && objetivoDia === "sol";
+        document.getElementById("dia-color-sol").hidden = !ver;
+        document.getElementById("dia-color-sol-ayuda").hidden = !ver;
+        document.querySelectorAll("#dia-color-sol-seg button").forEach(b => b.classList.toggle("activo", b.dataset.v === colorSol));
+        document.getElementById("dia-color-sol-ayuda").textContent = AYUDA_COLOR_SOL[colorSol] + " Vale desde la siguiente foto.";
+    }
+    function elegirColorSol(v) {
+        colorSol = v;
+        pintarColorSol();
+        guardarPreferencias({ foto_dia_color_sol: v });
     }
     function cambiarCampoDia() { guardarPreferencias({ foto_dia_campo: campoDia() }); }
     function elegirObjetivoDia(v) {
@@ -649,6 +679,7 @@
         aplicarPadSobreFoto();
         if (p.foto_dia_objetivo && NOMBRE_OBJETIVO[p.foto_dia_objetivo]) objetivoDia = p.foto_dia_objetivo;
         if (p.foto_dia_campo) document.getElementById("dia-campo").value = String(p.foto_dia_campo);
+        if (AYUDA_COLOR_SOL[p.foto_dia_color_sol]) colorSol = p.foto_dia_color_sol;
         if (p.foto_dia_compensacion !== undefined) compDia = Math.max(-9, Math.min(9, Math.round(p.foto_dia_compensacion * 3)));
         pintarCompensacionDia();
         if (p.foto_continua_guardar && AYUDA_GUARDAR[p.foto_continua_guardar]) guardarContinuo = p.foto_continua_guardar;
