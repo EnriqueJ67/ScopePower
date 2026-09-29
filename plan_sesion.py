@@ -1075,6 +1075,15 @@ class TrabajoPlan:
                 objeto["fotos"] = fotos_objetivo
                 deps.guardar_config("Dispositivos", {"numero_maximo_imagenes": fotos_objetivo})
                 self._set(objeto_actual=dict(objeto))
+            # Edición en caliente del zoom: la vista previa y el JPG de la galería lo leen de config.ini
+            if actual["zoom"] != objeto["zoom"]:
+                objeto["zoom"] = actual["zoom"]
+                deps.guardar_config("Dispositivos", {"zoom_preview": actual["zoom"]})
+                self._evento(f"{objeto['nombre']}: zoom cambiado a {100 - actual['zoom']} % del campo")
+                try:
+                    deps.reprocesar_preview()
+                except Exception as ex:
+                    log.warning("Plan: no se pudo regenerar la vista previa: %s", ex)
             if total >= fotos_objetivo:
                 return "completo"
             bucle = deps.bucle

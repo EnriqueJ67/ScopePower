@@ -4487,14 +4487,17 @@ def presets_procesado_borrar():
     return jsonify({"presets": procesado.borrar_preset(datos.get("nombre", ""))})
 
 
-@app.route('/apilado/reprocesar', methods=['POST'])
-def apilado_reprocesar():
-    """Lanza la regeneración de la vista previa con los ajustes actuales, sin capturar nada."""
+def _reprocesar_preview_en_segundo_plano():
+    """
+    Regenera la vista previa con los ajustes actuales (zoom, estilo) sin capturar nada.
+    Devuelve (ok, mensaje); si el apilador está ocupado no hace nada (la siguiente foto ya
+    saldrá con los ajustes nuevos). Lo usan la ruta /apilado/reprocesar y el plan de la noche.
+    """
     a = apilado.apilador_global
     if REPROCESADO["en_curso"] or (a is not None and a.procesando):
-        return jsonify({"ok": False, "mensaje": "El apilador está ocupado; espera a que termine", "en_curso": True}), 409
+        return False, "El apilador está ocupado; espera a que termine"
     if a is None or not os.path.exists("static/resultado_apilado.fits"):
-        return jsonify({"ok": False, "mensaje": "No hay ningún apilado que reprocesar", "en_curso": False}), 409
+        return False, "No hay ningún apilado que reprocesar"
     REPROCESADO.update({"en_curso": True, "mensaje": "Regenerando la vista previa...", "ok": None})
 
     def _reprocesar():
@@ -4508,7 +4511,16 @@ def apilado_reprocesar():
             REPROCESADO["en_curso"] = False
 
     threading.Thread(target=_reprocesar, name="reprocesar-preview", daemon=True).start()
-    return jsonify({"ok": True, "mensaje": REPROCESADO["mensaje"], "en_curso": True})
+    return True, REPROCESADO["mensaje"]
+
+
+@app.route('/apilado/reprocesar', methods=['POST'])
+def apilado_reprocesar():
+    """Lanza la regeneración de la vista previa con los ajustes actuales, sin capturar nada."""
+    ok, mensaje = _reprocesar_preview_en_segundo_plano()
+    if not ok:
+        return jsonify({"ok": False, "mensaje": mensaje, "en_curso": REPROCESADO["en_curso"]}), 409
+    return jsonify({"ok": True, "mensaje": mensaje, "en_curso": True})
 
 
 @app.route('/apilado/reprocesar-estado')
@@ -4789,6 +4801,7 @@ def _deps_plan():
         esperar_guardado=esperar_guardado,
         reiniciar_apilado=reiniciar,
         anotar_objeto=lambda nombre, ra, dec, tipo: guardar_info_goto(nombre, {"type": tipo} if tipo else None, ra, dec, "Plan de la noche"),
+        reprocesar_preview=_reprocesar_preview_en_segundo_plano,
         leer_dispositivos=leer_dispositivos,
         guardar_config=_guardar_en_config,
         calcular_altitud=lambda ra, dec: calcular_altitud(ra=ra, dec=dec),

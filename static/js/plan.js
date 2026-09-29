@@ -403,7 +403,7 @@
         $("po-exposicion").placeholder = datos ? "la de config (" + datos.exposicion_config + " s)" : "la de config";
         $("po-btn-pendiente").hidden = !(o.estado === "hecho" || (o.resultado && o.resultado.parcial));
         $("po-btn-hecho").hidden = o.estado === "hecho" || o.estado === "en_curso";
-        $("po-nota").textContent = o.estado === "en_curso" ? "El número de fotos se aplica al momento; el zoom y la exposición, al siguiente objeto." : "";
+        $("po-nota").textContent = o.estado === "en_curso" ? "El número de fotos y el zoom se aplican al momento; la exposición, al siguiente objeto." : "";
     }
     function cerrarObjeto() { $("modal-plan-objeto").classList.remove("abierto"); modalId = null; }
     Plan.cerrarObjeto = cerrarObjeto;
