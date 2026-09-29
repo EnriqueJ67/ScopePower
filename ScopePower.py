@@ -54,6 +54,7 @@ import foto_actual
 import vivo_dia
 import camara_sdk
 import disco
+import espacio_disco
 import apuntado_teorico
 import foto_continua
 import alineacion
@@ -489,6 +490,9 @@ def pausar():
 
 @app.route('/reanudar-apilado', methods=["POST"])
 def reanudar():
+    motivo = _sin_espacio_en_disco()
+    if motivo:
+        return "⚠️ " + motivo, 409
     reanudar_apilado()
     bucle.reanudar()
     return "▶️ Apilado reanudado"
@@ -507,6 +511,9 @@ def apilado_iniciar():
     datos = request.get_json(silent=True) or {}
     nuevo = bool(datos.get("nuevo", True))
     usar_dark = bool(datos.get("usar_dark", True))
+    motivo = _sin_espacio_en_disco()
+    if motivo:
+        return jsonify({"ok": False, "error": motivo}), 409
     for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("centrado", centrado.trabajo_centrado),
                             ("foto continua", foto_continua.trabajo_continuo),
                             ("seguimiento", seguimiento.trabajo_seguimiento)):
@@ -1313,7 +1320,64 @@ def estado_conexion():
         # Hora del PC: el móvil la compara con la suya y avisa si difieren (sin Internet el reloj del PC puede irse)
         "hora_utc_ms": int(time.time() * 1000),
         "hora_local": datetime.now().strftime("%H:%M:%S"),
+        # Espacio libre en el disco de las fotos: la cabecera avisa si baja del umbral
+        "disco": espacio_disco.vigilante.estado(),
     })
+
+
+# ───────────────────────── Espacio en disco ─────────────────────────
+# El vigilante (espacio_disco.py) avisa por voz y en el log; el móvil lo ve en la cabecera
+# y en Configuración. Umbral en config.ini: [Disco] umbral_aviso_pct.
+if "Disco" in config:
+    espacio_disco.vigilante.configurar(config["Disco"].get("umbral_aviso_pct", espacio_disco.UMBRAL_POR_DEFECTO))
+
+
+def _sin_espacio_en_disco():
+    """Motivo para no empezar ni reanudar capturas (menos de 1 GB libre), o None."""
+    e = espacio_disco.vigilante.estado()
+    if e.get("sin_espacio"):
+        return (f"El disco está casi lleno ({e['libre_gb']} GB libres, hace falta al menos "
+                f"{e['minimo_gb']:.0f} GB). Libera espacio en el PC para seguir capturando.")
+    return None
+
+
+def _pausar_por_disco_lleno(e):
+    """
+    La llama el vigilante cada 30 s mientras queden menos de 1 GB libres: pausa el apilado
+    (la exposición en curso termina y se guarda). Si alguien reanuda sin
+    liberar espacio, las rutas de reanudar lo impiden; y si se colara, aquí se vuelve a pausar.
+    Una pausa puesta por el usuario se respeta tal cual.
+    """
+    motivo = f"Disco casi lleno: quedan {e['libre_gb']} GB. Libera espacio y reanuda."
+    pausado = False
+    if bucle.activo and (pausado or not bucle.pausado):
+        pausar_apilado()
+        bucle.pausar(motivo)
+        pausado = True
+    if pausado:
+        log.warning("Apilado pausado por falta de espacio en %s: %.2f GB libres", e["unidad"], e["libre_gb"])
+        voz.decir("Apilado pausado: queda menos de un giga libre en el disco.")
+
+
+@app.route('/disco', methods=['GET', 'POST'])
+def espacio_en_disco():
+    if request.method == 'POST':
+        datos = request.get_json(silent=True) or {}
+        try:
+            umbral = int(round(float(datos["umbral_pct"])))
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Indica el porcentaje"}), 400
+        if not 1 <= umbral <= 90:
+            return jsonify({"ok": False, "error": "El aviso debe estar entre 1 y 90 %"}), 400
+        espacio_disco.vigilante.configurar(umbral)
+        _guardar_en_config("Disco", {"umbral_aviso_pct": umbral})
+        log.info("Aviso de disco: por debajo del %d %% libre", umbral)
+        e = espacio_disco.vigilante.comprobar()
+    else:
+        e = espacio_disco.vigilante.estado()
+    if request.args.get("carpetas") or request.method == 'POST':
+        e["carpetas"] = espacio_disco.vigilante.carpetas()
+    return jsonify(e)
 
 
 # ───────────────────────── Ubicación del observatorio ─────────────────────────
@@ -4677,6 +4741,8 @@ if __name__ == '__main__':
     apilado.OBJETOS_ANOTADOS = config["Apilado"].get("objetos_anotados", "false").strip().lower() == "true" \
         if "Apilado" in config else False
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
+    # Espacio en disco: aviso por voz si baja del umbral de Configuración y pausa con menos de 1 GB
+    espacio_disco.vigilante.iniciar(voz, al_quedar_sin_espacio=_pausar_por_disco_lleno)
     # Stellarium tarda en arrancar: lanzarlo ya, en un hilo, para que esté listo
     # cuando el usuario entre (config: [General] lanzar_stellarium_al_arrancar)
     # Elementos orbitales de cometas y asteroides (MPC): renovar si hay red, en un hilo

@@ -101,6 +101,30 @@
                 <div id="estado-sync" class="estado"></div>
             </div>
         </div>
+
+        <!-- ─── Espacio en el disco del PC ─────────────────────────────── -->
+        <div class="card" id="disco">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-disco"/></svg>Disco del PC</h3></div>
+            <div id="disco-resumen" class="estado mb-1" style="font-size: 16px; color: var(--text);">Consultando...</div>
+            <div class="progress alta mb-2"><div id="disco-barra" class="progress-bar"></div></div>
+            <div class="dos-campos">
+                <div class="form-group">
+                    <label>Avisar con menos de (% libre)</label>
+                    <input type="number" id="disco-umbral" class="form-control" min="1" max="90" step="1">
+                </div>
+                <div class="form-group">
+                    <button type="button" class="btn btn-primary" style="margin-top: 26px;" onclick="guardarUmbralDisco()"><svg><use href="#i-guardar"/></svg>Guardar</button>
+                </div>
+            </div>
+            <small class="ayuda mb-2">Por debajo de ese porcentaje sale un aviso arriba en todas las páginas y el PC lo dice por el altavoz.
+                Con menos de la mitad (o de 2 GB) el aviso pasa a rojo: si el disco se llena, las fotos dejan de guardarse.
+                Con menos de 1 GB el apilado y el plan de la noche se pausan solos y no se pueden reanudar hasta liberar espacio.</small>
+            <div id="estado-disco" class="estado mb-2"></div>
+            <div class="seccion-titulo" style="margin: 0 0 6px;">Qué ocupa ScopePower</div>
+            <div id="disco-carpetas" class="direcciones">Calculando...</div>
+            <p class="card-sub">Lo que más crece son las fotos de la sesión (FITS) y la galería. Para liberar espacio copia la galería
+                a otro equipo por la red y borra lo que ya no necesites desde la Galería.</p>
+        </div>
     </div>
 
     <div class="columna">
@@ -251,6 +275,51 @@
                 est.className = "estado " + (d.ok ? "ok" : "err") + " mb-2";
                 est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
                 if (d.ok) document.getElementById("montura-asentamiento").value = d.segundos;
+            })
+            .catch(err => { est.className = "estado err mb-2"; est.textContent = "❌ " + err; });
+    }
+
+    // ——— Espacio en disco ———
+    function pintarDisco(d) {
+        const res = document.getElementById("disco-resumen");
+        if (!d.ok) { res.textContent = "❌ " + (d.error || "No se pudo leer el disco"); return; }
+        const barra = document.getElementById("disco-barra");
+        barra.style.width = Math.max(0, 100 - d.pct_libre) + "%";
+        barra.className = "progress-bar" + (d.bajo ? "" : " ok");
+        barra.style.background = d.critico ? "var(--err)" : (d.bajo ? "var(--warn)" : "");
+        res.innerHTML = `<b>${d.libre_gb} GB libres</b> de ${d.total_gb} GB en ${d.unidad} · ${Math.round(d.pct_libre)} % libre`
+            + (d.critico ? ' <span class="texto-err">· casi lleno</span>' : (d.bajo ? ' <span class="texto-warn">· por debajo del aviso</span>' : ""));
+        const umbral = document.getElementById("disco-umbral");
+        if (document.activeElement !== umbral) umbral.value = d.umbral_pct;
+        if (d.carpetas) {
+            const cont = document.getElementById("disco-carpetas");
+            cont.innerHTML = d.carpetas.length ? "" : "Sin datos guardados todavía";
+            for (const c of d.carpetas) {
+                const fila = document.createElement("div");
+                const tam = c.gb >= 1 ? c.gb.toFixed(1) + " GB" : Math.round(c.gb * 1024) + " MB";
+                fila.innerHTML = `<b></b> <span></span>`;
+                fila.querySelector("b").textContent = tam;
+                fila.querySelector("span").textContent = `${c.nombre} · ${c.carpeta} · ${c.ficheros} ficheros`;
+                cont.appendChild(fila);
+            }
+        }
+    }
+    function cargarDisco() {
+        fetch("/disco?carpetas=1").then(r => r.json()).then(pintarDisco)
+            .catch(err => document.getElementById("disco-resumen").textContent = "❌ " + err);
+    }
+    function guardarUmbralDisco() {
+        const est = document.getElementById("estado-disco");
+        const umbral_pct = parseInt(document.getElementById("disco-umbral").value);
+        if (isNaN(umbral_pct)) { est.className = "estado err mb-2"; est.textContent = "❌ Indica el porcentaje"; return; }
+        est.className = "estado mb-2"; est.textContent = "⏳ Guardando...";
+        fetch("/disco", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ umbral_pct }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mb-2"; est.textContent = "❌ " + (d.error || "No se pudo guardar"); return; }
+                pintarDisco(d);
+                est.className = "estado ok mb-2"; est.textContent = `✅ Avisará con menos del ${d.umbral_pct} % libre`;
+                if (window.refrescarEstadoEquipo) refrescarEstadoEquipo();   // actualiza el aviso de la cabecera
             })
             .catch(err => { est.className = "estado err mb-2"; est.textContent = "❌ " + err; });
     }
@@ -540,7 +609,7 @@
         }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 60000 });
     }
 
-    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); });
+    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); cargarDisco(); });
 </script>
 
 {% include '_modal_voz.html' %}

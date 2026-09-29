@@ -462,6 +462,9 @@ class TrabajoSeguimiento:
         self.telemetria = {}
         self.calibracion = None
         self.grabacion = None
+        self._grabacion_avisada = False
+        self.error_grabacion = ""   # por qué no se pudo abrir el vídeo (p. ej. disco casi lleno)
+        self._voz = None
 
     # ── estado para la web ───────────────────────────────────────────────
     def estado(self):
@@ -470,7 +473,8 @@ class TrabajoSeguimiento:
                     "mensaje": self.mensaje, "error": self.error, "inicio": self.inicio, "version": self.version,
                     "telemetria": dict(self.telemetria),
                     "calibracion": self.calibracion.como_dict() if self.calibracion else None,
-                    "grabacion": self.grabacion.estado() if self.grabacion else None}
+                    "grabacion": self.grabacion.estado() if self.grabacion else None,
+                    "error_grabacion": self.error_grabacion}
 
     def _msg(self, texto, nivel=logging.INFO):
         with self._lock:
@@ -540,6 +544,7 @@ class TrabajoSeguimiento:
 
     # ── hilo ─────────────────────────────────────────────────────────────
     def _ejecutar(self, camara_ascom, montura_ascom, fabrica_camara, fabrica_montura, voz, lat_lon):
+        self._voz = voz
         conf = self._conf
         cam = None
         montura = None
@@ -715,6 +720,13 @@ class TrabajoSeguimiento:
                     self._abrir_grabacion(recorte, geo, conf)
                 if self.grabacion is not None and self.grabacion.activa:
                     self.grabacion.encolar(recorte)
+                elif self.grabacion is not None and self.grabacion.error and not self._grabacion_avisada:
+                    # Se ha parado sola (disco casi lleno o error de escritura): el seguimiento sigue
+                    self._grabacion_avisada = True
+                    self._msg(f"Vídeo: {self.grabacion.error}. El seguimiento continúa sin grabar", logging.WARNING)
+                    if self._voz:
+                        self._voz.decir("Grabación de vídeo detenida: el disco está casi lleno"
+                                        if self.grabacion.sin_espacio else "Grabación de vídeo detenida por un error")
 
             # Objetivo pedido por el usuario (fracción del ROI → píxel del plano)
             pedido = self._objetivo_pedido
@@ -887,8 +899,11 @@ class TrabajoSeguimiento:
         except Exception as e:
             log.error("Seguimiento: no se pudo abrir la grabación de vídeo: %s", e)
             self._msg(f"Sin grabación de vídeo: {e}", logging.ERROR)
+            self.error_grabacion = str(e)
             self.grabacion = None
             self._conf["grabar"] = False
+            if self._voz and "disco casi lleno" in str(e):
+                self._voz.decir("No se graba el vídeo: el disco está casi lleno")
 
     def _guardar_vista(self, plano, manchas, objetivo_xy, ancho):
         try:

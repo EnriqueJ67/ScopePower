@@ -1116,7 +1116,7 @@
                 if (!bucleActivo) mostrarComoActivo(b);
                 document.getElementById("boton-pausa").style.display = b.pausado ? "none" : "inline-flex";
                 document.getElementById("boton-reanudar").style.display = b.pausado ? "inline-flex" : "none";
-                if (b.pausado) carga.textContent = "⏸️ Apilado pausado";
+                if (b.pausado) carga.textContent = "⏸️ " + (b.motivo_pausa || "Apilado pausado");
                 else if (b.esperando) carga.textContent = "⏳ Esperando: " + b.esperando;
                 else if (b.ultimo_error) carga.textContent = "⚠️ " + b.ultimo_error;
                 else carga.textContent = `📷 Capturando en el servidor · ${b.capturas} capturas desde las ${b.inicio}`;
@@ -1151,7 +1151,9 @@
 
     function reanudarApilado() {
         fetch("/reanudar-apilado", { method: "POST" })
-            .then(() => {
+            .then(async r => {
+                // 409 = el servidor no deja reanudar (disco casi lleno): se queda en pausa con el motivo
+                if (!r.ok) { document.getElementById("estado-carga").textContent = await r.text(); return; }
                 document.getElementById("boton-reanudar").style.display = "none";
                 document.getElementById("boton-pausa").style.display = "inline-flex";
                 document.getElementById("estado-carga").textContent = "";

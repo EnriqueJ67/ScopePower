@@ -12,7 +12,11 @@
 # La escritura va en un hilo propio con una cola: el bucle de seguimiento solo
 # encola una copia del fotograma y sigue; si el disco no da abasto se descartan
 # fotogramas (se cuentan) antes que frenar el control de la montura. Se vigila
-# el espacio libre y se para la grabación por debajo de un mínimo.
+# el espacio libre y se para la grabación por debajo de un mínimo (el mismo 1 GB
+# con el que espacio_disco.py pausa el apilado): no empieza si ya no llega, y
+# mientras graba lo mira cada 64 MB escritos o cada 2 s. Con el campo completo
+# son ~2 GB/min; antes se miraba cada 150 fotogramas, que a 9 MB por fotograma
+# eran 1,3 GB: más que todo el margen.
 #
 # Con binning 2 en una cámara de color el patrón Bayer desaparece (cada píxel
 # suma los cuatro colores), así que el SER se marca como MONO; con binning 1 se
@@ -24,14 +28,19 @@ import struct
 import shutil
 import logging
 import threading
+import time
 from datetime import datetime, timezone
 
 import numpy as np
 
+import espacio_disco
+
 log = logging.getLogger("scopepower.grabador_video")
 
 CARPETA_VIDEOS = "videos"
-DISCO_MINIMO_BYTES = 1_000_000_000
+DISCO_MINIMO_BYTES = int(espacio_disco.MINIMO_GB * 1024 ** 3)
+COMPROBAR_DISCO_BYTES = 64 * 1024 ** 2
+COMPROBAR_DISCO_S = 2.0
 COLA_MAXIMA = 90
 
 # ColorID del formato SER
@@ -136,6 +145,11 @@ class Grabacion:
     def __init__(self, carpeta=CARPETA_VIDEOS, formatos=("ser",), ancho=512, alto=512, fps=15.0, bayer="MONO",
                  bits=8, nombre=None, instrumento="", telescopio="", disco_minimo=DISCO_MINIMO_BYTES):
         os.makedirs(carpeta, exist_ok=True)
+        libre = espacio_libre(carpeta)
+        if libre is not None and libre < disco_minimo:
+            log.warning("Grabación de vídeo no iniciada: %.2f GB libres en %s", libre / 1024 ** 3, carpeta)
+            raise ValueError(f"disco casi lleno ({libre / 1024 ** 3:.1f} GB libres, hace falta al menos "
+                             f"{disco_minimo / 1024 ** 3:.0f} GB)")
         self.nombre = nombre or f"seguimiento_{datetime.now():%Y%m%d_%H%M%S}"
         self.carpeta = carpeta
         self.rutas = {}
@@ -155,6 +169,7 @@ class Grabacion:
         self.descartados = 0
         self.bytes_frame = int(ancho) * int(alto) * (2 if bits == 16 else 1)
         self.error = ""
+        self.sin_espacio = False   # True si se paró por el disco (el seguimiento lo avisa por voz)
         self.activa = True
         self._cola = queue.Queue(maxsize=COLA_MAXIMA)
         self._parar = threading.Event()
@@ -175,7 +190,7 @@ class Grabacion:
             return False
 
     def _escribir(self):
-        ultimo_disco = 0
+        bytes_desde_disco, t_disco = 0, time.monotonic()
         while not (self._parar.is_set() and self._cola.empty()):
             try:
                 frame, cuando = self._cola.get(timeout=0.2)
@@ -191,12 +206,14 @@ class Grabacion:
                 log.error("Grabación de vídeo: %s", e)
                 self.activa = False
                 break
-            if self.frames - ultimo_disco >= 150:
-                ultimo_disco = self.frames
+            bytes_desde_disco += frame.nbytes
+            if bytes_desde_disco >= COMPROBAR_DISCO_BYTES or time.monotonic() - t_disco >= COMPROBAR_DISCO_S:
+                bytes_desde_disco, t_disco = 0, time.monotonic()
                 libre = espacio_libre(self.carpeta)
                 if libre is not None and libre < self.disco_minimo:
-                    self.error = f"Disco casi lleno ({libre / 1e9:.1f} GB libres): grabación detenida"
+                    self.error = f"Disco casi lleno ({libre / 1024 ** 3:.2f} GB libres): grabación detenida"
                     log.warning("Grabación de vídeo: %s", self.error)
+                    self.sin_espacio = True
                     self.activa = False
                     break
         for g in self._grabadores:
@@ -215,7 +232,7 @@ class Grabacion:
         with self._lock:
             return {"nombre": self.nombre, "rutas": dict(self.rutas), "frames": self.frames, "descartados": self.descartados,
                     "mb": round(self.frames * self.bytes_frame / 1e6, 1), "activa": self.activa, "error": self.error,
-                    "libre_gb": None if (l := espacio_libre(self.carpeta)) is None else round(l / 1e9, 1)}
+                    "libre_gb": None if (l := espacio_libre(self.carpeta)) is None else round(l / 1024 ** 3, 1)}
 
 
 def leer_cabecera_ser(ruta):

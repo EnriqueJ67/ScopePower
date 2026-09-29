@@ -125,7 +125,8 @@ function pintar(e) {
         + (t.fondo === undefined ? "" : ` · fondo ${texto(t.fondo, 0)} ±${texto(t.ruido, 1)}, máx ${texto(t.maximo, 0)} (de 255)`);
     el("t-desc").textContent = texto(t.descartados, 0);
     const g = e.grabacion;
-    el("t-video").textContent = !g ? (activo && el("grabar").checked ? "esperando al bloqueo" : "—")
+    el("t-video").textContent = !g ? (e.error_grabacion ? "⚠️ Sin grabación: " + e.error_grabacion
+                                       : (activo && el("grabar").checked ? "esperando al bloqueo" : "—"))
         : `${g.nombre} · ${texto(g.frames, 0)} fotogramas · ${texto(g.mb, 1)} MB` + (g.descartados ? ` · ${g.descartados} descartados` : "")
           + (g.libre_gb !== null && g.libre_gb !== undefined ? ` · ${texto(g.libre_gb, 1)} GB libres` : "") + (g.error ? ` · ⚠️ ${g.error}` : "") + (g.activa ? "" : " · cerrada");
     if (e.calibracion) {

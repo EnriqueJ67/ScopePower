@@ -22,7 +22,7 @@
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=5">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=6">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -70,6 +70,7 @@
     <symbol id="i-abajo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
     <symbol id="i-reloj" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
     <symbol id="i-lugar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.3-6-11a6 6 0 0112 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></symbol>
+    <symbol id="i-disco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 14h18"/><circle cx="16.5" cy="17" r="0.8" fill="currentColor"/><path d="M6.5 17h5"/></symbol>
     <symbol id="i-sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
 </svg>
 
@@ -86,6 +87,8 @@
         <span class="chip chip-icono" id="chip-camara" title="Cámara"><svg><use href="#i-foto"/></svg><span class="oculto-movil">Cámara</span></span>
         <!-- Solo aparece si el reloj del PC difiere del móvil más de un minuto -->
         <a class="chip chip-icono chip-warn" id="chip-hora" href="/configuracion#hora" hidden><svg><use href="#i-reloj"/></svg><span class="oculto-movil" id="chip-hora-texto"></span></a>
+        <!-- Solo aparece si el disco del PC baja del umbral de aviso (Configuración > Disco) -->
+        <a class="chip chip-icono chip-warn" id="chip-disco" href="/configuracion#disco" hidden><svg><use href="#i-disco"/></svg><span id="chip-disco-texto"></span></a>
         {% endif %}
         <button type="button" class="header-boton" id="btn-pantalla" onclick="alternarPantallaCompleta()" title="Pantalla completa" hidden><svg><use id="btn-pantalla-icono" href="#i-pantalla"/></svg></button>
         <button type="button" class="header-boton" id="btn-tema" onclick="alternarTema()" title="Cambiar entre tema noche (rojo) y oscuro"><svg><use href="#i-tema"/></svg></button>
@@ -93,6 +96,13 @@
 </header>
 
 <main class="contenido">
+    {% if session.get('usuario') %}
+    <div id="aviso-disco" class="aviso aviso-warn" hidden>
+        <svg class="ico"><use href="#i-disco"/></svg>
+        <span style="flex: 1;"><span id="aviso-disco-texto"></span> <a href="/configuracion#disco" style="color: inherit; text-decoration: underline;">Ver qué ocupa</a></span>
+        <button type="button" class="header-boton" onclick="cerrarAvisoDisco()" title="Cerrar aviso" style="margin: -6px -6px -6px 0;"><svg><use href="#i-cerrar"/></svg></button>
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
 </main>
 
@@ -214,8 +224,40 @@
         chip.hidden = false;
     }
 
+    // ——— Espacio en disco del PC ———
+    // Chip en la cabecera mientras esté bajo; el aviso grande sale una vez por nivel (bajo / crítico)
+    // y se puede cerrar: vuelve solo si empeora.
+    const CLAVE_AVISO_DISCO = "scopepower_aviso_disco_cerrado";
+    function comprobarDisco(d) {
+        const e = d.disco;
+        const chip = document.getElementById("chip-disco"), aviso = document.getElementById("aviso-disco");
+        if (!chip || !e || !e.ok) return;
+        const nivel = e.critico ? 2 : (e.bajo ? 1 : 0);
+        chip.hidden = nivel === 0;
+        chip.className = "chip chip-icono " + (nivel === 2 ? "chip-err" : "chip-warn");
+        document.getElementById("chip-disco-texto").textContent = Math.round(e.pct_libre) + " %";
+        const texto = (nivel === 2 ? "El disco del PC está casi lleno: " : "Queda poco disco en el PC: ")
+            + `${e.libre_gb} GB libres de ${e.total_gb} GB (${Math.round(e.pct_libre)} %).`
+            + (e.sin_espacio ? ` Con menos de ${e.minimo_gb} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio.`
+                : (nivel === 2 ? ` Si se llena, las fotos dejarán de guardarse; con menos de ${e.minimo_gb} GB el apilado se pausa solo.` : ""));
+        chip.title = texto;
+        let cerrado = 0;
+        try { cerrado = parseInt(sessionStorage.getItem(CLAVE_AVISO_DISCO)) || 0; } catch (err) {}
+        if (nivel === 0 && cerrado) { try { sessionStorage.removeItem(CLAVE_AVISO_DISCO); } catch (err) {} cerrado = 0; }
+        aviso.hidden = nivel === 0 || nivel <= cerrado;
+        aviso.className = "aviso " + (nivel === 2 ? "aviso-err" : "aviso-warn");
+        aviso.dataset.nivel = nivel;
+        document.getElementById("aviso-disco-texto").textContent = texto;
+    }
+    function cerrarAvisoDisco() {
+        const aviso = document.getElementById("aviso-disco");
+        aviso.hidden = true;
+        try { sessionStorage.setItem(CLAVE_AVISO_DISCO, aviso.dataset.nivel || "1"); } catch (err) {}
+    }
+
     function pintarChipsEquipo(d) {
         comprobarHora(d);
+        comprobarDisco(d);
         const m = document.getElementById("chip-montura"), c = document.getElementById("chip-camara");
         if (!m || !c) return;
         const clase = (ok, busy) => "chip chip-icono " + (busy ? "chip-busy" : (ok ? "chip-ok" : "chip-err"));

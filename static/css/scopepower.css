@@ -550,6 +550,8 @@ nav.barra a.encendido .nav-ico { background: var(--ok-soft); color: var(--ok); }
 @media (min-width: 760px) { .grid-2 { grid-template-columns: 1fr 1fr; } .grid-2.ancha { grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); } }
 .oculto-movil { display: none; }
 @media (min-width: 700px) { .oculto-movil { display: initial; } .brand .brand-sub { display: inline; } }
+/* Móvil estrecho con avisos en la cabecera (disco, reloj): sin el nombre junto al logo, para que quepan */
+@media (max-width: 420px) { .app-header:has(#chip-disco:not([hidden]), #chip-hora:not([hidden])) .brand > span:nth-of-type(2) { display: none; } }
 
 /* ── Escritorio / tablet apaisada: barra al lateral ───────────────────────── */
 @media (min-width: 700px) {

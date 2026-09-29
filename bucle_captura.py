@@ -49,6 +49,7 @@ class BucleCaptura:
     def _reiniciar_estado(self):
         self.activo = False
         self.pausado = False
+        self.motivo_pausa = ""   # vacío = pausa del usuario; si no, por qué se pausó solo (disco lleno)
         self.usar_dark = True
         self.capturas = 0
         self.errores = 0
@@ -64,6 +65,7 @@ class BucleCaptura:
         with self._lock:
             if self.activo:
                 self.pausado = False
+                self.motivo_pausa = ""
                 self.usar_dark = usar_dark
                 return
             self._reiniciar_estado()
@@ -83,14 +85,16 @@ class BucleCaptura:
                 self.dither_cada = max(1, int(cada))
         log.info("Dithering %s (cada %d fotos)", "activado" if self.dithering else "desactivado", self.dither_cada)
 
-    def pausar(self):
+    def pausar(self, motivo=""):
         with self._lock:
             self.pausado = True
-        log.info("Bucle de captura pausado")
+            self.motivo_pausa = motivo
+        log.info("Bucle de captura pausado%s", f": {motivo}" if motivo else "")
 
     def reanudar(self):
         with self._lock:
             self.pausado = False
+            self.motivo_pausa = ""
         log.info("Bucle de captura reanudado")
 
     def detener(self, motivo="Detenido por el usuario"):
@@ -107,6 +111,7 @@ class BucleCaptura:
             return {
                 "activo": self.activo,
                 "pausado": self.pausado,
+                "motivo_pausa": self.motivo_pausa,
                 "usar_dark": self.usar_dark,
                 "capturas": self.capturas,
                 "errores": self.errores,
