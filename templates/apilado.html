@@ -188,6 +188,61 @@
             </div>
         </section>
 
+        <section class="card panel" data-panel="plan" id="panel-plan">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-noche"/></svg>Plan de la noche</h3>
+                <span id="plan-sub" class="panel-sub"></span>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <!-- Lista de objetos que se fotografían solos, uno tras otro (plan_sesion.py, static/js/plan.js) -->
+                <div class="acciones-grid dos">
+                    <button type="button" id="plan-btn-empezar" class="btn btn-primary" onclick="Plan.iniciar()" title="GoTo, centrado, apilado y guardado de cada objeto, en el orden del cronograma"><svg><use href="#i-play"/></svg>Empezar plan</button>
+                    <button type="button" id="plan-btn-pausar" class="btn btn-warning" onclick="Plan.pausar()" hidden>⏸ Pausar plan</button>
+                    <button type="button" id="plan-btn-reanudar" class="btn btn-success" onclick="Plan.reanudar()" hidden>▶ Reanudar plan</button>
+                    <button type="button" id="plan-btn-noche" class="btn btn-secondary" onclick="Plan.verNoche()" title="Cómo se reparten los objetos a lo largo de la noche"><svg><use href="#i-reloj"/></svg>Ver la noche</button>
+                    <button type="button" id="plan-btn-saltar" class="btn btn-ghost" onclick="Plan.saltar()" hidden>⏭ Saltar objeto</button>
+                    <button type="button" id="plan-btn-detener" class="btn btn-danger" onclick="Plan.detener()" hidden>⏹ Detener plan</button>
+                </div>
+                <div id="plan-estado" class="aviso aviso-info plan-estado" hidden></div>
+                <div id="plan-error" class="estado mt-1" style="font-size: 13px;"></div>
+                <div class="buscador-plan">
+                    <input type="text" id="plan-buscar" placeholder="Añadir objeto: M31, NGC 7000, Júpiter…" autocomplete="off">
+                    <div id="plan-sugerencias" class="sugerencias" hidden></div>
+                </div>
+                <div class="fila plan-herramientas">
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="Plan.messier()" title="Los 110 objetos Messier">Messier completo</button>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="document.getElementById('plan-fichero').click()" title="Un plan exportado o un texto con un nombre por línea">Importar</button>
+                    <input type="file" id="plan-fichero" accept=".json,.txt" hidden onchange="Plan.importar(this)">
+                    <a class="btn btn-sm btn-ghost" href="/plan/exportar" title="Guarda el plan con su progreso en un fichero">Exportar</a>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="Plan.vaciar()">Vaciar</button>
+                </div>
+                <ul id="plan-lista" class="lista plan-lista"></ul>
+                <div id="plan-vacio" class="texto-3" style="font-size: 13px;" hidden>Todavía no hay objetos. Busca uno arriba, pulsa "Messier completo" o añádelos desde el planetario y Esta noche. Lo que no se pueda hacer esta noche queda para otra.</div>
+                <details class="mt-2">
+                    <summary class="proc-mas-titulo">Ajustes del plan</summary>
+                    <div class="plan-ajustes">
+                        <label for="plan-aj-altura">Altura mínima (°)</label><input type="number" id="plan-aj-altura" class="corto" min="5" max="60" step="1" onchange="Plan.guardarAjustes()">
+                        <label for="plan-aj-fotos">Fotos por objeto (por defecto)</label><input type="number" id="plan-aj-fotos" class="corto" min="1" max="999" step="1" onchange="Plan.guardarAjustes()">
+                        <label for="plan-aj-zoom">Zoom por defecto</label>
+                        <select id="plan-aj-zoom" onchange="Plan.guardarAjustes()"><option value="0">Campo entero</option><option value="25">75 % del campo</option><option value="50">50 % del campo</option><option value="75">25 % del campo</option></select>
+                        <label for="plan-aj-minutos">Minutos sin fotos aceptadas para saltar</label><input type="number" id="plan-aj-minutos" class="corto" min="3" max="60" step="1" onchange="Plan.guardarAjustes()">
+                        <label for="plan-aj-crepusculo">Noche</label>
+                        <select id="plan-aj-crepusculo" onchange="Plan.guardarAjustes()"><option value="nautico">Crepúsculo náutico (Sol a −12°)</option><option value="astronomico">Crepúsculo astronómico (Sol a −18°)</option></select>
+                        <label class="switch"><input type="checkbox" id="plan-aj-dark" onchange="Plan.guardarAjustes()"> Usar el último dark</label>
+                        <label class="switch"><input type="checkbox" id="plan-aj-centrar" onchange="Plan.guardarAjustes()"> Centrar por plate solving tras cada GoTo</label>
+                        <label class="switch" title="Solo para pruebas con simuladores: la noche empieza ahora y dura 6 h"><input type="checkbox" id="plan-aj-probar" onchange="Plan.guardarAjustes()"> Probar de día (ignora la noche; solo pruebas)</label>
+                    </div>
+                    <div id="plan-aj-nota" class="texto-3 mt-1" style="font-size: 12.5px;"></div>
+                    <button type="button" class="btn btn-sm btn-ghost mt-2" onclick="Plan.reiniciarResultados()">Reiniciar resultados (todo a pendiente)</button>
+                </details>
+            </div>
+        </section>
+
         <section class="card panel" data-panel="info-goto">
             <div class="panel-header" onclick="alternarPanel(this)">
                 <h3 class="card-title"><svg class="ico"><use href="#i-goto"/></svg>Objeto del último GoTo</h3>
@@ -300,6 +355,56 @@
     </div>
 </div>
 
+<!-- Plan de la noche: ficha de un objeto (ajustes y estado) -->
+<div id="modal-plan-objeto" class="modal" onclick="if (event.target === this) Plan.cerrarObjeto()">
+    <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="po-nombre">
+        <div class="modal-titulo"><span id="po-icono"></span><span id="po-nombre"></span></div>
+        <div class="texto-2" id="po-datos" style="font-size: 13.5px;"></div>
+        <div id="po-previsto" style="font-weight: 600; font-size: 13.5px; margin-top: 8px;"></div>
+        <div class="fila mt-2" style="justify-content: space-between;">
+            <span class="texto-2" style="font-size: 14px;">Fotos apiladas</span>
+            <span class="fila" style="flex-wrap: nowrap; gap: 6px;">
+                <button type="button" class="btn btn-sm btn-ghost" onclick="Plan.fotosObjeto(-10)">−10</button>
+                <input type="number" id="po-fotos" class="corto" min="1" max="999" step="1" style="width: 72px;">
+                <button type="button" class="btn btn-sm btn-ghost" onclick="Plan.fotosObjeto(10)">+10</button>
+            </span>
+        </div>
+        <div class="fila mt-2" style="justify-content: space-between;">
+            <span class="texto-2" style="font-size: 14px;">Zoom (recorte)</span>
+            <span class="segmentado" id="po-zoom">
+                <button type="button" data-zoom="0" onclick="Plan.zoomObjeto(this)">100 %</button>
+                <button type="button" data-zoom="25" onclick="Plan.zoomObjeto(this)">75 %</button>
+                <button type="button" data-zoom="50" onclick="Plan.zoomObjeto(this)">50 %</button>
+                <button type="button" data-zoom="75" onclick="Plan.zoomObjeto(this)">25 %</button>
+            </span>
+        </div>
+        <div class="fila mt-2" style="justify-content: space-between;">
+            <span class="texto-2" style="font-size: 14px;">Exposición (s)</span>
+            <input type="number" id="po-exposicion" class="corto" min="0" max="600" step="0.5" style="width: 110px;">
+        </div>
+        <label class="switch mt-2" title="Reserva su hueco cuando esté más alto (paso por el meridiano); los demás objetos se reparten alrededor"><input type="checkbox" id="po-prioritario"> Prioritario: fotografiarlo cuando esté más alto</label>
+        <div id="po-nota" class="texto-3 mt-1" style="font-size: 12.5px;"></div>
+        <div class="modal-acciones">
+            <button type="button" class="btn btn-primary" onclick="Plan.guardarObjeto()"><svg><use href="#i-guardar"/></svg>Guardar</button>
+            <button type="button" class="btn" id="po-btn-pendiente" onclick="Plan.estadoObjeto('pendiente')" title="Volver a fotografiarlo">Volver a pendiente</button>
+            <button type="button" class="btn" id="po-btn-hecho" onclick="Plan.estadoObjeto('hecho')" title="Darlo por hecho sin fotografiarlo">Marcar como hecho</button>
+            <button type="button" class="btn btn-danger" onclick="Plan.borrarObjeto()"><svg><use href="#i-papelera"/></svg>Quitar</button>
+            <button type="button" class="btn" onclick="Plan.cerrarObjeto()">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Plan de la noche: cronograma -->
+<div id="modal-noche" class="modal" onclick="if (event.target === this) Plan.cerrarNoche()">
+    <div class="modal-caja ancha" role="dialog" aria-modal="true">
+        <div class="modal-titulo"><svg class="ico"><use href="#i-reloj"/></svg>La noche</div>
+        <p class="modal-texto" style="margin: 0;">Cada fila es un objeto: en claro, cuando está por encima de la altura mínima; en color, cuando se fotografía. La línea roja es ahora.</p>
+        <div id="crono" class="crono"></div>
+        <div class="crono-leyenda"><span><i style="background: var(--ok); opacity: .35;"></i>visible</span><span><i style="background: var(--accent);"></i>previsto</span><span><i style="background: var(--warn);"></i>en curso</span><span><i style="background: var(--ok);"></i>hecho</span><span><i style="background: repeating-linear-gradient(45deg, var(--text-3) 0 3px, transparent 3px 7px);"></i>espera</span></div>
+        <div class="modal-acciones"><button type="button" class="btn" onclick="Plan.cerrarNoche()">Cerrar</button></div>
+    </div>
+</div>
+
 <style>
     .apilado-layout { align-items: start; }
     /* Aviso de tablet sin conexión con el mini PC: visible incluso donde se oculta el subtítulo */
@@ -348,6 +453,7 @@
     //     nada hasta que el usuario pulsa Empezar (así abrir la página no
     //     destruye un apilado en curso) ———
     let bucleActivo = false;      // el bucle de capturas está en marcha
+    let modoPlan = false;         // el plan de la noche lleva el apilado (static/js/plan.js)
     let usarDark = true;          // se pasa a /capturar-imagen como &dark=0/1
     let apiladoNuevo = true;      // Empezar nuevo (reinicia) o continuar
     let sondeoDarks = null;
@@ -602,6 +708,7 @@
     }
 
     function detenerApilado() {
+        if (modoPlan) { Plan.detener(); return; }
         if (!confirm("¿Detener el apilado? Las capturas se paran; el resultado actual se conserva.")) return;
         fetch('/apilado/detener', { method: 'POST' })
             .then(r => r.json())
@@ -970,6 +1077,10 @@
     // ——— Máximo de fotos del apilado, cambiable en caliente (config.ini vía /preferencias) ———
     let maximoInicializado = false;
     function cambiarMaximo(delta) {
+        if (modoPlan) {
+            document.getElementById("maximo-estado").textContent = "El plan fija las fotos de cada objeto: tócalo en la lista del plan para cambiarlas.";
+            return;
+        }
         const campo = document.getElementById("maximo-fotos");
         let n = (parseInt(campo.value) || 20) + delta;
         n = Math.min(999, Math.max(1, n));
@@ -1097,6 +1208,7 @@
     }
 
     function confirmarReinicio() {
+        if (modoPlan) { alert("El plan de la noche está en marcha: detenlo antes de reiniciar el apilado."); return false; }
         return confirm("¿Seguro que quieres reiniciar el apilado?");
     }
 
@@ -1112,7 +1224,24 @@
             if (!estado) return;
             const b = estado.bucle || {};
             const carga = document.getElementById("estado-carga");
-            if (b.activo) {
+            if (window.Plan) Plan.actualizarEstado(estado.plan);
+            const planEnCurso = !!(estado.plan && estado.plan.en_curso);
+            if (planEnCurso) {
+                // El plan arranca y para el bucle entre objetos: la cabecera sigue al plan, no al bucle
+                if (!modoPlan) { modoPlan = true; document.getElementById("panel-inicio").style.display = "none"; }
+                const pausado = !!estado.plan.pausado;
+                document.getElementById("boton-pausa").style.display = pausado ? "none" : "inline-flex";
+                document.getElementById("boton-reanudar").style.display = pausado ? "inline-flex" : "none";
+                document.getElementById("boton-detener").style.display = "inline-flex";
+                carga.textContent = Plan.textoCabecera();
+                bucleActivo = !!b.activo;
+            } else if (modoPlan) {
+                // El plan ha terminado: volver a la pantalla normal
+                modoPlan = false;
+                mostrarComoDetenido(null);
+                if (estado.plan && estado.plan.mensaje) carga.textContent = "🗓️ " + estado.plan.mensaje;
+                prepararInicio();
+            } else if (b.activo) {
                 if (!bucleActivo) mostrarComoActivo(b);
                 document.getElementById("boton-pausa").style.display = b.pausado ? "none" : "inline-flex";
                 document.getElementById("boton-reanudar").style.display = b.pausado ? "inline-flex" : "none";
@@ -1141,6 +1270,7 @@
     }
 
     function pausarApilado() {
+        if (modoPlan) { Plan.pausar(); return; }
         fetch("/pausar-apilado", { method: "POST" })
             .then(() => {
                 document.getElementById("boton-pausa").style.display = "none";
@@ -1150,6 +1280,7 @@
     }
 
     function reanudarApilado() {
+        if (modoPlan) { Plan.reanudar(); return; }
         fetch("/reanudar-apilado", { method: "POST" })
             .then(async r => {
                 // 409 = el servidor no deja reanudar (disco casi lleno): se queda en pausa con el motivo
@@ -1215,6 +1346,7 @@
     document.getElementById("checkbox-objetos-anotados")
         .addEventListener("change", toggleObjetosAnotados);
 </script>
+<script src="{{ url_for('static', filename='js/plan.js') }}"></script>
 
 
     {% endblock %}

@@ -10,6 +10,7 @@
 <script src="{{ url_for('static', filename='atlas/hyg-star-catalog.js') }}" defer></script>
 <script src="{{ url_for('static', filename='atlas/western-constellations.js') }}" defer></script>
 <script src="{{ url_for('static', filename='atlas/dso-catalog.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/plan.js') }}" defer></script>
 <script>
     // Navegadores algo antiguos (Chrome < 98): el motor usa structuredClone para copiar objetos simples
     if (typeof window.structuredClone !== "function") window.structuredClone = function (v) { return JSON.parse(JSON.stringify(v)); };
@@ -73,6 +74,7 @@
         <div class="texto-3" id="ficha-coords" style="font-size: 13px; margin-top: 4px;"></div>
         <div class="modal-acciones">
             <button type="button" class="btn btn-primary" id="ficha-ir"><svg><use href="#i-goto"/></svg><span id="ficha-ir-texto">Ir y centrar</span></button>
+            <button type="button" class="btn" id="ficha-plan" title="Añadir a la lista del plan de la noche (pantalla Apilado)"><svg><use href="#i-apilado"/></svg>Añadir al plan</button>
             <button type="button" class="btn" id="ficha-ver"><svg><use href="#i-planetario"/></svg>Ver en el mapa</button>
             <button type="button" class="btn" onclick="cerrarFicha()">Cerrar</button>
         </div>
@@ -509,6 +511,13 @@
         // Igual que el botón "Ir y centrar" de Esta noche: nombre + coordenadas del catálogo propio
         const ok = await enviarGoto(o.nombre, o.ra_h, o.dec_deg, $("ficha-ir"));
         if (ok) cerrarFicha();
+    };
+    $("ficha-plan").onclick = () => {
+        if (!fichaActual) return;
+        const o = fichaActual;
+        // Luna y planetas van solo por nombre: el plan recalcula sus efemérides cada noche
+        const esCuerpo = o.tipo === "Planeta" || o.tipo === "Luna";
+        anadirAlPlan(esCuerpo ? { nombre: o.nombre, tipo: o.tipo } : { nombre: o.nombre, ra: o.ra_h, dec: o.dec_deg, tipo: o.tipo }, $("ficha-plan"));
     };
     $("ficha-ver").onclick = () => {
         if (!fichaActual) return;

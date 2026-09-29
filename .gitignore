@@ -65,3 +65,6 @@ datos/orientacion_camara_altaz.json
 datos/orientacion_sdk.json
 datos/signos_udp.json
 datos/signos_manuales_seguimiento.json
+# Plan de la noche (lista de objetos del usuario y su progreso)
+datos/plan.json
+datos/plan.json.tmp

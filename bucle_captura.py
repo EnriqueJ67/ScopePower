@@ -106,6 +106,14 @@ class BucleCaptura:
         self._parar.set()
         log.info("Bucle de captura detenido: %s", motivo)
 
+    def esperar_fin(self, timeout=None):
+        """Espera a que el hilo termine (tras detener): la captura en curso puede tardar
+        toda la exposición salvo que se cancele antes con estado_captura.cancelar."""
+        hilo = self._hilo
+        if hilo is not None and hilo.is_alive():
+            hilo.join(timeout)
+        return hilo is None or not hilo.is_alive()
+
     def estado(self):
         with self._lock:
             return {

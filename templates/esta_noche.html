@@ -58,7 +58,9 @@
     .tarjeta .visib.no { color: var(--text-3); }
     .tarjeta .estrellas { color: var(--warn); letter-spacing: 1px; font-size: 12px; }
     .tarjeta .btn { margin-top: 6px; }
+    .tarjeta .acciones { gap: 6px; }
 </style>
+<script src="{{ url_for('static', filename='js/plan.js') }}"></script>
 
 <script>
     let datos = null;
@@ -99,7 +101,13 @@
                 <div class="datos">${datosTxt} <span class="estrellas">${"★".repeat(o.popularidad)}${"☆".repeat(5 - o.popularidad)}</span></div>
                 <div class="desc">${o.descripcion}</div>
                 <div class="visib ${visib}">${texto}</div>
-                <a class="btn ${o.visible_ahora ? "btn-primary" : "btn-secondary"}" href="/goto?objeto=${encodeURIComponent(o.nombre)}&ra=${o.ra_h}&dec=${o.dec_deg}"><svg><use href="#i-goto"/></svg>Ir y centrar</a>`;
+                <div class="acciones">
+                    <a class="btn ${o.visible_ahora ? "btn-primary" : "btn-secondary"}" href="/goto?objeto=${encodeURIComponent(o.nombre)}&ra=${o.ra_h}&dec=${o.dec_deg}"><svg><use href="#i-goto"/></svg>Ir y centrar</a>
+                    <button type="button" class="btn btn-ghost" title="Añadir a la lista del plan de la noche (pantalla Apilado)"><svg><use href="#i-apilado"/></svg>Añadir al plan</button>
+                </div>`;
+            const botonPlan = div.querySelector("button");
+            const esCuerpo = o.tipo === "Planeta" || o.tipo === "Luna";
+            botonPlan.onclick = () => anadirAlPlan(esCuerpo ? { nombre: o.nombre, tipo: o.tipo } : { nombre: o.nombre, ra: o.ra_h, dec: o.dec_deg, tipo: o.tipo }, botonPlan);
             cont.appendChild(div);
         }
     }

@@ -65,18 +65,20 @@ def cargar_catalogo(ruta=RUTA_CATALOGO):
     return objetos
 
 
-def ventana_nocturna(lugar, ahora=None):
+def ventana_nocturna(lugar, ahora=None, crepusculo=CREPUSCULO_SOL):
     """
     (inicio, fin) de la noche "de hoy" como Time: del anochecer náutico al
     amanecer náutico. Si ya es de noche, el inicio es ahora. Si es de día, la
     noche que viene. Si el Sol no baja de -12° (verano en latitudes altas) se
     usa el tramo más oscuro de 4 h alrededor de la medianoche solar.
+    `crepusculo`: altura del Sol (grados) por debajo de la cual es de noche
+    (-12 náutico; el plan de la noche puede pedir -18, astronómico).
     """
     ahora = ahora or Time.now()
     # Muestreo del Sol cada 10 min durante las próximas 30 h
     ts = ahora + np.arange(0, 30 * 60, PASO_MIN) * u.min
     alt_sol = get_sun(ts).transform_to(AltAz(obstime=ts, location=lugar)).alt.deg
-    oscuro = alt_sol < CREPUSCULO_SOL
+    oscuro = alt_sol < crepusculo
     if not oscuro.any():
         i_min = int(np.argmin(alt_sol))
         return ts[max(0, i_min - 12)], ts[min(len(ts) - 1, i_min + 12)]

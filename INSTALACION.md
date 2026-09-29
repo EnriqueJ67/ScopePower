@@ -59,7 +59,8 @@ que usa el `activacion_secreto` de `secretos.ini`. Pega la clave en `/activar`.
 Con la carpeta del PC de campo compartida como `\\PC_MINIBESTIA\ScopePower`, basta con ejecutar
 `copiar_a_campo.bat` desde la carpeta de desarrollo cada vez que haya una versión nueva. Copia el
 código, plantillas y recursos, y respeta lo que es propio del PC de campo: `config.ini`,
-`secretos.ini`, `calibraciones\`, `capturas\`, `logs\` y la galería (`static\fotos\`).
+`secretos.ini`, `calibraciones\`, `capturas\`, `logs\`, la galería (`static\fotos\`) y el plan de la
+noche (`datos\plan.json`: la lista de objetos y lo que ya está hecho; se puede exportar desde Apilado).
 Para probar la copia en otra carpeta: `copiar_a_campo.bat D:\prueba`.
 Si `requirements.txt` ha cambiado, ejecutar después `instalar_scopepower.bat` en el PC de campo.
 

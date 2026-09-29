@@ -69,6 +69,7 @@ import recorridos
 import montura_ejes
 import seguimiento
 import vigilante_seguimiento
+import plan_sesion
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -502,6 +503,33 @@ def estado_pausa_apilado():
     return jsonify({"pausado": esta_pausado() or bucle.pausado})
 
 
+def _trabajos_en_curso():
+    """Nombre del trabajo que tiene la cámara o la montura (darks, centrado...), o None."""
+    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("centrado", centrado.trabajo_centrado),
+                            ("foto continua", foto_continua.trabajo_continuo),
+                            ("seguimiento", seguimiento.trabajo_seguimiento), ("alineación", alineacion.trabajo_alineacion)):
+        if trabajo.en_curso:
+            return nombre
+    return None
+
+
+def _plan_en_marcha():
+    """Motivo por el que el plan de la noche bloquea una acción manual, o None (ver plan_sesion.py)."""
+    t = plan_sesion.trabajo_plan
+    if t.en_curso and not t.pausado:
+        return "El plan de la noche está en marcha; páusalo o detenlo antes."
+    return None
+
+
+def _arrancar_apilado(nuevo, usar_dark):
+    """Arranca el bucle de captura (lo usan la ruta /apilado/iniciar y el plan de la noche)."""
+    if nuevo:
+        bucle.detener("Reiniciado")
+        reiniciar_apilado_global()
+    reanudar_apilado()
+    bucle.iniciar(usar_dark=usar_dark)
+
+
 @app.route('/apilado/iniciar', methods=["POST"])
 def apilado_iniciar():
     """
@@ -511,19 +539,13 @@ def apilado_iniciar():
     datos = request.get_json(silent=True) or {}
     nuevo = bool(datos.get("nuevo", True))
     usar_dark = bool(datos.get("usar_dark", True))
-    motivo = _sin_espacio_en_disco()
+    motivo = _plan_en_marcha() or _sin_espacio_en_disco()
     if motivo:
         return jsonify({"ok": False, "error": motivo}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("centrado", centrado.trabajo_centrado),
-                            ("foto continua", foto_continua.trabajo_continuo),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
-        if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
-    if nuevo:
-        bucle.detener("Reiniciado")
-        reiniciar_apilado_global()
-    reanudar_apilado()
-    bucle.iniciar(usar_dark=usar_dark)
+    otro = _trabajos_en_curso()
+    if otro:
+        return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {otro}"}), 409
+    _arrancar_apilado(nuevo, usar_dark)
     return jsonify({"ok": True, "bucle": bucle.estado()})
 
 
@@ -550,6 +572,9 @@ def apilado_dithering():
 
 @app.route('/apilado/detener', methods=["POST"])
 def apilado_detener():
+    # El botón Detener de la cabecera para también el plan de la noche (guarda lo apilado del objeto en curso)
+    if plan_sesion.trabajo_plan.en_curso:
+        plan_sesion.trabajo_plan.detener()
     bucle.detener()
     pausar_apilado()
     return jsonify({"ok": True, "bucle": bucle.estado()})
@@ -1343,13 +1368,17 @@ def _sin_espacio_en_disco():
 
 def _pausar_por_disco_lleno(e):
     """
-    La llama el vigilante cada 30 s mientras queden menos de 1 GB libres: pausa el apilado
-    (la exposición en curso termina y se guarda). Si alguien reanuda sin
+    La llama el vigilante cada 30 s mientras queden menos de 1 GB libres: pausa el plan de la
+    noche y el apilado (la exposición en curso termina y se guarda). Si alguien reanuda sin
     liberar espacio, las rutas de reanudar lo impiden; y si se colara, aquí se vuelve a pausar.
     Una pausa puesta por el usuario se respeta tal cual.
     """
     motivo = f"Disco casi lleno: quedan {e['libre_gb']} GB. Libera espacio y reanuda."
     pausado = False
+    plan = plan_sesion.trabajo_plan
+    if plan.en_curso and not plan.pausado:
+        plan.pausar()
+        pausado = True
     if bucle.activo and (pausado or not bucle.pausado):
         pausar_apilado()
         bucle.pausar(motivo)
@@ -2258,6 +2287,9 @@ def _foto_en_pantalla():
 
 def _montura_ocupada():
     """Motivo por el que no se debe mover la montura ahora, o None."""
+    motivo_plan = _plan_en_marcha()
+    if motivo_plan:
+        return motivo_plan
     if bucle.activo and not bucle.pausado:
         return "El apilado está capturando; páusalo antes de mover el telescopio."
     for nombre, trabajo in (("centrado", centrado.trabajo_centrado), ("alineación", alineacion.trabajo_alineacion),
@@ -2810,6 +2842,79 @@ def _config_recorrido():
             "espera_centrado_s": int(r.get("espera_centrado_s", 120))}
 
 
+def goto_sincrono(nombre, ra, dec, fuente, centrar=True, cancelar=None, info=None, al_centrar=None,
+                  espera_centrado_s=None):
+    """
+    GoTo que ESPERA a que la montura llegue y, si se pide, centra por plate solving y
+    espera a que el centrado termine. Lo usan el recorrido por constelación y el plan
+    de la noche (el GoTo de la página GoTo es asíncrono: responde al momento).
+    Devuelve {"ok": False, "motivo": ...} si no se movió, o
+    {"ok": True, "centrado": resultado del centrado (o None si no se centró), "detalle": texto}.
+    `cancelar` (threading.Event) aborta el movimiento y el centrado; `al_centrar()` se
+    llama cuando empieza el centrado (para que el plan cambie de fase).
+    """
+    ra, dec = float(ra), float(dec)
+    if calcular_altitud(ra=ra, dec=dec) < float(ALTURA_MINIMA):
+        return {"ok": False, "motivo": "por debajo de la altura mínima"}
+    ULTIMO_GOTO.clear()
+    ULTIMO_GOTO.update({"ra": ra, "dec": dec, "objeto": nombre, "fuente": fuente,
+                        "hora": datetime.now().isoformat(timespec="seconds")})
+    guardar_info_goto(nombre, info, ra, dec, fuente)
+    voz.decir(f"Moviendo el telescopio a {nombre}")
+
+    def _mover(tel):
+        tel.Tracking = True
+        ra_m, dec_m = coordenadas.a_montura(ra, dec)
+        if getattr(tel, "CanSlewAsync", False):
+            tel.SlewToCoordinatesAsync(ra_m, dec_m)
+        else:
+            tel.SlewToCoordinates(ra_m, dec_m)
+        inicio = time.time()
+        time.sleep(0.5)
+        while tel.Slewing:
+            if cancelar is not None and cancelar.is_set():
+                try:
+                    tel.AbortSlew()
+                except Exception:
+                    pass
+                raise ErrorHardware("movimiento cancelado")
+            if time.time() - inicio > 180:
+                raise ErrorHardware("La montura no terminó el movimiento en 180 s")
+            time.sleep(0.5)
+
+    try:
+        montura.ejecutar(_mover, timeout=200)
+    except ErrorHardware as e:
+        return {"ok": False, "motivo": f"error de montura: {e}"}
+    if not centrar:
+        return {"ok": True, "centrado": None, "detalle": ""}
+    if es_de_dia():
+        return {"ok": True, "centrado": None, "detalle": "de día no hay centrado (sin estrellas que resolver)"}
+    time.sleep(asentamiento_montura())
+    # Si una exposición está acabando, esperar a que la cámara quede libre
+    fin = time.time() + 30
+    while camara.ocupado and time.time() < fin:
+        if cancelar is not None and cancelar.is_set():
+            return {"ok": True, "centrado": "cancelado", "detalle": "cancelado"}
+        time.sleep(0.5)
+    try:
+        centrado.trabajo_centrado.iniciar(camara, montura, ra, dec, objeto=nombre,
+                                          calcular_altitud=calcular_altitud, altura_minima=float(ALTURA_MINIMA))
+    except RuntimeError as e:
+        return {"ok": True, "centrado": "error", "detalle": str(e)}
+    if al_centrar:
+        al_centrar()
+    conf = centrado.leer_config()
+    tope = espera_centrado_s or (conf["max_vueltas"] * (conf["exposicion"] + 60) + 120)
+    inicio = time.time()
+    while centrado.trabajo_centrado.estado()["en_curso"] and time.time() - inicio < tope:
+        if cancelar is not None and cancelar.is_set():
+            centrado.trabajo_centrado.cancelar()
+        time.sleep(0.5)
+    e = centrado.trabajo_centrado.estado()
+    return {"ok": True, "centrado": e["resultado"] or ("error" if e["en_curso"] else ""), "detalle": e["detalle"]}
+
+
 @app.route("/iniciar-recorrido", methods=["POST"])
 def iniciar_recorrido():
     """Mueve el telescopio a un objeto del recorrido y espera a que llegue (opcionalmente centra)."""
@@ -2820,45 +2925,19 @@ def iniciar_recorrido():
         return jsonify({"error": "❌ Datos de estrella incompletos."})
     if bucle.activo and not bucle.pausado:
         return jsonify({"error": "El apilado está capturando; páusalo antes del recorrido."})
-
-    if calcular_altitud(ra=float(ra), dec=float(dec)) < float(ALTURA_MINIMA):
-        return jsonify({"skipped": True, "nombre": nombre})
-
-    ULTIMO_GOTO.clear()
-    ULTIMO_GOTO.update({"ra": float(ra), "dec": float(dec), "objeto": nombre, "fuente": "recorrido",
-                        "hora": datetime.now().isoformat(timespec="seconds")})
-    guardar_info_goto(nombre, None, ra, dec, "Recorrido por constelación")
-    voz.decir(f"Moviendo el telescopio a {nombre}")
-
-    def _mover(tel):
-        tel.Tracking = True
-        ra_m, dec_m = coordenadas.a_montura(float(ra), float(dec))
-        if getattr(tel, "CanSlewAsync", False):
-            tel.SlewToCoordinatesAsync(ra_m, dec_m)
-        else:
-            tel.SlewToCoordinates(ra_m, dec_m)
-        inicio = time.time()
-        time.sleep(0.5)
-        while tel.Slewing:
-            if time.time() - inicio > 180:
-                raise ErrorHardware("La montura no terminó el movimiento en 180 s")
-            time.sleep(0.5)
-
-    try:
-        montura.ejecutar(_mover, timeout=200)
-    except ErrorHardware as e:
-        return jsonify({"error": f"❌ Error durante GOTO: {e}"})
+    motivo_plan = _plan_en_marcha()
+    if motivo_plan:
+        return jsonify({"error": motivo_plan})
 
     conf = _config_recorrido()
-    if conf["centrar"] and not camara.ocupado:
-        try:
-            centrado.trabajo_centrado.iniciar(camara, montura, float(ra), float(dec), objeto=nombre,
-                                              calcular_altitud=calcular_altitud, altura_minima=float(ALTURA_MINIMA))
-            inicio = time.time()
-            while centrado.trabajo_centrado.estado()["en_curso"] and time.time() - inicio < conf["espera_centrado_s"]:
-                time.sleep(0.5)
-        except RuntimeError as e:
-            print(f"⚠️ Centrado omitido en el recorrido: {e}")
+    r = goto_sincrono(nombre, ra, dec, "Recorrido por constelación",
+                      centrar=conf["centrar"] and not camara.ocupado, espera_centrado_s=conf["espera_centrado_s"])
+    if not r["ok"]:
+        if r["motivo"].startswith("por debajo"):
+            return jsonify({"skipped": True, "nombre": nombre})
+        return jsonify({"error": f"❌ Error durante GOTO: {r['motivo']}"})
+    if r.get("centrado") == "error":
+        print(f"⚠️ Centrado omitido en el recorrido: {r.get('detalle')}")
     return jsonify({"ok": True, "nombre": nombre})
 
 
@@ -3042,6 +3121,9 @@ def goto_objeto():
         objeto = request.form.get("objeto", "").strip()
         if not objeto:
             return jsonify({"error": "Debe proporcionar un nombre de objeto."})
+        motivo_plan = _plan_en_marcha()
+        if motivo_plan:
+            return jsonify({"error": motivo_plan})
 
         objeto_original = objeto          # tal como lo escribió el usuario, para el rótulo
         objeto = reemplazar_numeros_en_texto(objeto)
@@ -3374,7 +3456,11 @@ def login():
             hash_guardado = USUARIOS_HASH[usuario].encode()
             if bcrypt.checkpw(clave.encode(), hash_guardado):
                 session['usuario'] = usuario
-                eliminar_info_goto()
+                # La ficha del último GoTo (rótulo y nombre de archivo de la galería) solo se borra si
+                # no hay nada en marcha: entrar desde otro móvil con el apilado o el plan corriendo
+                # dejaba el rótulo en "Objeto"
+                if not bucle.activo and not plan_sesion.trabajo_plan.en_curso:
+                    eliminar_info_goto()
                 iniciar_conexion()  # ← aquí arrancamos Stellarium y telescopio tras login
                 # 🔐 Verificar activación aquí
                 if not validar_licencia():
@@ -3427,6 +3513,7 @@ def estado_apilado():
     estado["camara_ocupada"] = camara.ocupado
     estado["bucle"] = bucle.estado()
     estado["ultima_toma"] = dict(ULTIMA_CAPTURA)
+    estado["plan"] = plan_sesion.trabajo_plan.estado()
     return jsonify(estado)
 
 
@@ -4050,6 +4137,9 @@ def cancelar_captura():
 
 @app.route('/reiniciar-apilado', methods=["POST"])
 def reiniciar_apilado():
+    if _plan_en_marcha():
+        # Con el plan en marcha no se reinicia nada (la web ya lo avisa antes de enviar)
+        return redirect(url_for('vista_apilado'))
     bucle.detener("Reiniciado")
     reiniciar_apilado_global()
     return redirect(url_for('vista_apilado'))
@@ -4241,19 +4331,19 @@ def descargar_fits_apilado():
 GUARDADO = {"en_curso": False, "mensaje": "", "archivo": "", "ok": None}
 
 
-@app.route('/guardar-imagen-jpg', methods=['POST'])
-def guardar_imagen_jpg():
+def guardar_apilado_en_galeria():
     """
     Guarda el apilado en la galería: el FITS se copia al momento (campo completo)
     y el JPG se procesa a resolución completa en segundo plano con el estilo y el
-    recorte de zoom actuales.
-    Consultar el progreso en /guardar-imagen-estado.
+    recorte de zoom actuales. Devuelve el dict que la ruta /guardar-imagen-jpg
+    manda a la web (con "codigo" HTTP); el plan de la noche lo llama directamente
+    y espera el final con esperar_guardado() (GUARDADO).
     """
     if GUARDADO["en_curso"]:
-        return jsonify({"error": "⏳ Ya hay un guardado en curso"}), 409
+        return {"ok": False, "error": "⏳ Ya hay un guardado en curso", "codigo": 409}
     origenFits = "static/resultado_apilado.fits"
     if not os.path.exists(origenFits):
-        return jsonify({"error": "❌ Archivo FITS no encontrado."}), 404
+        return {"ok": False, "error": "❌ Archivo FITS no encontrado.", "codigo": 404}
 
     # Nombre a partir del objeto del último GOTO
     nombre_objeto = "Objeto"
@@ -4314,7 +4404,22 @@ def guardar_imagen_jpg():
             GUARDADO["en_curso"] = False
 
     threading.Thread(target=_procesar_y_guardar, name="guardar-galeria", daemon=True).start()
-    return jsonify({"mensaje": GUARDADO["mensaje"], "archivo": nombre_archivo, "en_curso": True})
+    return {"ok": True, "mensaje": GUARDADO["mensaje"], "archivo": nombre_archivo, "en_curso": True, "codigo": 200}
+
+
+@app.route('/guardar-imagen-jpg', methods=['POST'])
+def guardar_imagen_jpg():
+    r = guardar_apilado_en_galeria()
+    codigo = r.pop("codigo", 200)
+    return jsonify(r), codigo
+
+
+def esperar_guardado(timeout=180):
+    """Espera a que termine el guardado en la galería en segundo plano; devuelve GUARDADO."""
+    fin = time.time() + timeout
+    while GUARDADO["en_curso"] and time.time() < fin:
+        time.sleep(1)
+    return dict(GUARDADO)
 
 
 @app.route('/guardar-imagen-estado')
@@ -4623,6 +4728,319 @@ def guardar_config_datos():
         avisos.append("montura desconectada; pulsa Reconectar equipo en el inicio")
     return "✅ Configuración guardada correctamente" + (" (" + "; ".join(avisos) + ")" if avisos else "")
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  Plan de la noche (ver plan_sesion.py): lista de objetos que se fotografían solos
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _deps_plan():
+    """Las piezas de ScopePower que necesita el hilo del plan (inyectadas para poder probarlo en seco)."""
+    from types import SimpleNamespace
+
+    def detener_apilado():
+        bucle.detener("Plan de la noche: siguiente objeto")
+        pausar_apilado()
+        if estado_captura.como_dict()["en_curso"]:
+            estado_captura.cancelar.set()      # no esperar toda la exposición
+        bucle.esperar_fin(90)
+
+    def estado_apilado():
+        e = apilado.obtener_estado_apilado()
+        return {"total": e.get("total", 0), "procesando": e.get("procesando", False),
+                "duracion_ultima_foto": e.get("duracion_ultima_foto")}
+
+    def leer_dispositivos():
+        cfg = configparser.ConfigParser()
+        cfg.read("config.ini")
+        d = cfg["Dispositivos"] if "Dispositivos" in cfg else {}
+        return {"numero_maximo_imagenes": d.get("numero_maximo_imagenes", "20"),
+                "zoom_preview": d.get("zoom_preview", "0"),
+                "exposicion_captura": d.get("exposicion_captura", "10")}
+
+    def exposicion_config():
+        try:
+            return float(leer_dispositivos()["exposicion_captura"])
+        except ValueError:
+            return 10.0
+
+    def reiniciar():
+        bucle.detener("Plan de la noche")
+        reiniciar_apilado_global()
+
+    return SimpleNamespace(
+        lugar=lambda: (LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO),
+        altura_general=lambda: float(ALTURA_MINIMA),
+        exposicion_config=exposicion_config,
+        goto_sincrono=goto_sincrono,
+        arrancar_apilado=lambda usar_dark: _arrancar_apilado(True, usar_dark),
+        detener_apilado=detener_apilado,
+        estado_apilado=estado_apilado,
+        guardar_galeria=guardar_apilado_en_galeria,
+        esperar_guardado=esperar_guardado,
+        reiniciar_apilado=reiniciar,
+        anotar_objeto=lambda nombre, ra, dec, tipo: guardar_info_goto(nombre, {"type": tipo} if tipo else None, ra, dec, "Plan de la noche"),
+        leer_dispositivos=leer_dispositivos,
+        guardar_config=_guardar_en_config,
+        calcular_altitud=lambda ra, dec: calcular_altitud(ra=ra, dec=dec),
+        es_de_dia=es_de_dia,
+        otro_trabajo_en_curso=_trabajos_en_curso,
+        cancelar_centrado=lambda: centrado.trabajo_centrado.cancelar(),
+        bucle=bucle,
+        decir=voz.decir,
+    )
+
+
+def _resolver_nombre_plan(nombre):
+    """
+    Ficha para el plan: {nombre, ra_h, dec_deg, tipo, dinamico} o None. Misma cadena que el
+    GoTo pero sin Stellarium: Luna y planetas (efemérides, se recalculan cada noche),
+    catálogo local, cometas y asteroides del MPC y, por último, Internet.
+    """
+    nombre = " ".join(str(nombre or "").split())
+    if not nombre:
+        return None
+    normalizado = reemplazar_numeros_en_texto(nombre)
+    clave = quitar_tildes(normalizado.lower())
+    if clave in ("sol", "sun"):
+        raise ValueError("Al Sol no se va con el plan: usa el GoTo con el filtro solar puesto")
+    if clave in plan_sesion.CUERPOS:
+        d = plan_sesion.CUERPOS[clave]
+        ra, dec = plan_sesion.coordenadas_dinamicas({"dinamico": d, "ra_h": 0, "dec_deg": 0, "nombre": nombre},
+                                                    LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO, Time.now())
+        return {"nombre": plan_sesion.NOMBRES_CUERPOS[d], "ra_h": ra, "dec_deg": dec,
+                "tipo": "Luna" if d == "moon" else "Planeta", "dinamico": d}
+    # El nombre tal como lo escribió el usuario (M31, Vega), salvo que llevara números en letras
+    nombre_bonito = nombre if quitar_tildes(nombre.lower()) == clave else normalizado
+    ficha = catalogo_offline.buscar(normalizado)
+    if ficha:
+        return {"nombre": nombre_bonito, "ra_h": float(ficha["ra"]), "dec_deg": float(ficha["dec"]),
+                "tipo": ficha.get("type") or "", "dinamico": None}
+    if cuerpos_menores.buscar(normalizado) is not None:
+        ra, dec, info_cm = cuerpos_menores.coordenadas(normalizado, LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+        return {"nombre": info_cm["nombre"], "ra_h": float(ra), "dec_deg": float(dec),
+                "tipo": "Cometa" if info_cm["tipo"] == "cometa" else "Asteroide", "dinamico": "mpc:" + info_cm["nombre"]}
+    try:
+        c = SkyCoord.from_name(normalizado)
+        return {"nombre": nombre_bonito, "ra_h": float(c.ra.hour), "dec_deg": float(c.dec.deg), "tipo": "", "dinamico": None}
+    except Exception:
+        return None
+
+
+@app.route('/plan')
+def plan_ver():
+    """Lista, ajustes, visibilidad de cada objeto esta noche y el cronograma previsto."""
+    plan = plan_sesion.leer()
+    t = plan_sesion.trabajo_plan
+    deps = _deps_plan()
+    try:
+        vis, programa = t.calcular(plan, deps=deps)
+    except Exception as e:
+        log.exception("Error calculando el plan de la noche")
+        return jsonify({"error": str(e), "ajustes": plan["ajustes"], "objetos": plan["objetos"],
+                        "estado": t.estado(), "resumen": plan_sesion.resumen(plan)}), 500
+    pj = plan_sesion.programa_json(programa)
+    previstos = {tr["id"]: tr for tr in pj["tramos"]}
+    no_prog = {n["id"]: n for n in pj["no_programados"]}
+    objetos = []
+    for o in plan["objetos"]:
+        d = dict(o)
+        d["vis"] = vis.json(o["id"])
+        if o["id"] in previstos:
+            d["previsto"] = dict(previstos[o["id"]], programado=True)
+        elif o["id"] in no_prog:
+            d["previsto"] = {"programado": False, "motivo": no_prog[o["id"]]["motivo"],
+                             "fotos_posibles": no_prog[o["id"]]["fotos_posibles"]}
+        else:
+            d["previsto"] = None
+        objetos.append(d)
+    altura_efectiva = max(float(plan["ajustes"]["altura_minima"]), float(ALTURA_MINIMA))
+    return jsonify({
+        "ajustes": plan["ajustes"], "objetos": objetos, "programa": pj,
+        "noche_desde": plan_sesion._hhmm(vis.inicio), "noche_hasta": plan_sesion._hhmm(vis.fin),
+        "noche_desde_ms": plan_sesion._ms(vis.inicio), "noche_hasta_ms": plan_sesion._ms(vis.fin),
+        "ahora_ms": int(time.time() * 1000), "de_noche": vis.de_noche,
+        "altura_efectiva": altura_efectiva, "altura_general": float(ALTURA_MINIMA),
+        "tiempo_por_foto_s": round(plan_sesion.tiempo_por_foto(deps.exposicion_config(), plan.get("medido")), 1),
+        "exposicion_config": deps.exposicion_config(),
+        "estado": t.estado(), "version_lista": plan_sesion.version(), "resumen": plan_sesion.resumen(plan),
+    })
+
+
+@app.route('/plan/estado')
+def plan_estado():
+    return jsonify(plan_sesion.trabajo_plan.estado())
+
+
+@app.route('/plan/objetos', methods=['POST'])
+def plan_anadir():
+    """{nombre, ra?, dec?, tipo?, fotos?, zoom?, exposicion?}: sin ra/dec se resuelve el nombre."""
+    datos = request.get_json(silent=True) or {}
+    nombre = " ".join(str(datos.get("nombre", "")).split())
+    if not nombre:
+        return jsonify({"ok": False, "error": "Falta el nombre del objeto"}), 400
+    try:
+        if datos.get("ra") is not None and datos.get("dec") is not None:
+            clave = quitar_tildes(nombre.lower())
+            if clave in ("sol", "sun"):
+                raise ValueError("Al Sol no se va con el plan: usa el GoTo con el filtro solar puesto")
+            dinamico = plan_sesion.CUERPOS.get(clave)   # Luna y planetas: efemérides de cada noche
+            ficha = {"nombre": plan_sesion.NOMBRES_CUERPOS[dinamico] if dinamico else nombre,
+                     "ra_h": float(datos["ra"]), "dec_deg": float(datos["dec"]),
+                     "tipo": str(datos.get("tipo") or ""), "dinamico": dinamico}
+        else:
+            ficha = _resolver_nombre_plan(nombre)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    if not ficha:
+        return jsonify({"ok": False, "error": f"No encuentro «{nombre}» en los catálogos"}), 404
+    try:
+        o, dup = plan_sesion.anadir(ficha["nombre"], ficha["ra_h"], ficha["dec_deg"], ficha.get("tipo", ""),
+                                    ficha.get("dinamico"), fotos=datos.get("fotos"), zoom=datos.get("zoom"),
+                                    exposicion=datos.get("exposicion"), prioritario=bool(datos.get("prioritario")))
+    except (TypeError, ValueError) as e:
+        return jsonify({"ok": False, "error": f"Datos no válidos: {e}"}), 400
+    return jsonify({"ok": True, "objeto": o, "duplicado": dup, "total": plan_sesion.resumen()["total"]})
+
+
+@app.route('/plan/objetos/<id_>', methods=['POST'])
+def plan_editar(id_):
+    datos = request.get_json(silent=True) or {}
+    try:
+        o = plan_sesion.editar(id_, **{k: datos[k] for k in ("fotos", "zoom", "exposicion", "nombre", "prioritario") if k in datos})
+    except (TypeError, ValueError) as e:
+        return jsonify({"ok": False, "error": f"Datos no válidos: {e}"}), 400
+    if o is None:
+        return jsonify({"ok": False, "error": "Ese objeto ya no está en el plan"}), 404
+    return jsonify({"ok": True, "objeto": o})
+
+
+@app.route('/plan/objetos/<id_>/borrar', methods=['POST'])
+def plan_borrar(id_):
+    t = plan_sesion.trabajo_plan
+    actual = (t.estado().get("objeto") or {}).get("id")
+    if t.en_curso and actual == id_:
+        t.saltar()
+    plan_sesion.borrar(id_)
+    return jsonify({"ok": True, "total": plan_sesion.resumen()["total"]})
+
+
+@app.route('/plan/objetos/<id_>/estado', methods=['POST'])
+def plan_cambiar_estado(id_):
+    datos = request.get_json(silent=True) or {}
+    try:
+        o = plan_sesion.cambiar_estado(id_, datos.get("estado"))
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    if o is None:
+        return jsonify({"ok": False, "error": "Ese objeto ya no está en el plan"}), 404
+    return jsonify({"ok": True, "objeto": o})
+
+
+@app.route('/plan/vaciar', methods=['POST'])
+def plan_vaciar():
+    if plan_sesion.trabajo_plan.en_curso:
+        return jsonify({"ok": False, "error": "Detén el plan antes de vaciarlo"}), 409
+    plan_sesion.vaciar()
+    return jsonify({"ok": True})
+
+
+@app.route('/plan/reiniciar-resultados', methods=['POST'])
+def plan_reiniciar_resultados():
+    if plan_sesion.trabajo_plan.en_curso:
+        return jsonify({"ok": False, "error": "Detén el plan antes de reiniciar los resultados"}), 409
+    plan_sesion.reiniciar_resultados()
+    return jsonify({"ok": True})
+
+
+@app.route('/plan/ajustes', methods=['POST'])
+def plan_ajustes():
+    datos = request.get_json(silent=True) or {}
+    try:
+        ajustes = plan_sesion.guardar_ajustes(datos)
+    except (TypeError, ValueError) as e:
+        return jsonify({"ok": False, "error": f"Ajuste no válido: {e}"}), 400
+    return jsonify({"ok": True, "ajustes": ajustes})
+
+
+@app.route('/plan/messier', methods=['POST'])
+def plan_messier():
+    r = plan_sesion.messier_completo()
+    return jsonify({"ok": True, **r, "total": plan_sesion.resumen()["total"]})
+
+
+@app.route('/plan/importar', methods=['POST'])
+def plan_importar():
+    """{"plan": {...exportado por ScopePower...}} o {"nombres": "M31\\nM42\\n..."} (un nombre por línea)."""
+    datos = request.get_json(silent=True) or {}
+    if isinstance(datos.get("plan"), dict):
+        r = plan_sesion.importar(datos["plan"], _resolver_nombre_plan)
+    elif datos.get("nombres"):
+        r = plan_sesion.importar(str(datos["nombres"]), _resolver_nombre_plan)
+    else:
+        return jsonify({"ok": False, "error": "No hay nada que importar: un plan de ScopePower o una lista de nombres"}), 400
+    return jsonify({"ok": True, **r, "total": plan_sesion.resumen()["total"]})
+
+
+@app.route('/plan/exportar')
+def plan_exportar():
+    import json as _json
+    datos = _json.dumps(plan_sesion.exportar(), ensure_ascii=False, indent=1).encode("utf-8")
+    nombre = f"plan_{datetime.now().strftime('%Y%m%d')}.json"
+    return send_file(io.BytesIO(datos), mimetype="application/json", as_attachment=True, download_name=nombre)
+
+
+@app.route('/plan/iniciar', methods=['POST'])
+def plan_iniciar():
+    motivo = _sin_espacio_en_disco()
+    if motivo:
+        return jsonify({"ok": False, "error": motivo}), 409
+    if bucle.activo:
+        return jsonify({"ok": False, "error": "Hay un apilado en marcha: detenlo (y guárdalo si quieres) antes de empezar el plan"}), 409
+    try:
+        plan_sesion.trabajo_plan.iniciar(_deps_plan())
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True, "estado": plan_sesion.trabajo_plan.estado()})
+
+
+@app.route('/plan/pausar', methods=['POST'])
+def plan_pausar():
+    t = plan_sesion.trabajo_plan
+    if not t.en_curso:
+        return jsonify({"ok": False, "error": "El plan no está en marcha"}), 409
+    t.pausar()
+    return jsonify({"ok": True, "estado": t.estado()})
+
+
+@app.route('/plan/reanudar', methods=['POST'])
+def plan_reanudar():
+    t = plan_sesion.trabajo_plan
+    if not t.en_curso:
+        return jsonify({"ok": False, "error": "El plan no está en marcha"}), 409
+    motivo = _sin_espacio_en_disco()
+    if motivo:
+        return jsonify({"ok": False, "error": motivo}), 409
+    t.reanudar()
+    return jsonify({"ok": True, "estado": t.estado()})
+
+
+@app.route('/plan/detener', methods=['POST'])
+def plan_detener():
+    t = plan_sesion.trabajo_plan
+    if not t.en_curso:
+        return jsonify({"ok": False, "error": "El plan no está en marcha"}), 409
+    t.detener()
+    return jsonify({"ok": True, "estado": t.estado()})
+
+
+@app.route('/plan/saltar', methods=['POST'])
+def plan_saltar():
+    t = plan_sesion.trabajo_plan
+    if not t.en_curso:
+        return jsonify({"ok": False, "error": "El plan no está en marcha"}), 409
+    t.saltar()
+    return jsonify({"ok": True, "estado": t.estado()})
+
+
 PUERTO_WEB = 5000
 
 
@@ -4743,6 +5161,8 @@ if __name__ == '__main__':
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
     # Espacio en disco: aviso por voz si baja del umbral de Configuración y pausa con menos de 1 GB
     espacio_disco.vigilante.iniciar(voz, al_quedar_sin_espacio=_pausar_por_disco_lleno)
+    # Si la app se cerró con el plan de la noche a medias, devolver a config.ini sus valores
+    plan_sesion.restaurar_pendiente(_guardar_en_config)
     # Stellarium tarda en arrancar: lanzarlo ya, en un hilo, para que esté listo
     # cuando el usuario entre (config: [General] lanzar_stellarium_al_arrancar)
     # Elementos orbitales de cometas y asteroides (MPC): renovar si hay red, en un hilo
