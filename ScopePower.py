@@ -3449,26 +3449,37 @@ def verificar_estado_stellarium():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        usuario = request.form.get('usuario')
-        clave = request.form.get('clave')
+        # El formulario puede llegar incompleto (petición manual, script, campo
+        # vacío): nunca llamar a .encode() sobre None ni dejar escapar una traza.
+        usuario = (request.form.get('usuario') or '').strip()
+        clave = request.form.get('clave') or ''
 
-        if usuario in USUARIOS_HASH:
-            hash_guardado = USUARIOS_HASH[usuario].encode()
-            if bcrypt.checkpw(clave.encode(), hash_guardado):
-                session['usuario'] = usuario
-                # La ficha del último GoTo (rótulo y nombre de archivo de la galería) solo se borra si
-                # no hay nada en marcha: entrar desde otro móvil con el apilado o el plan corriendo
-                # dejaba el rótulo en "Objeto"
-                if not bucle.activo and not plan_sesion.trabajo_plan.en_curso:
-                    eliminar_info_goto()
-                iniciar_conexion()  # ← aquí arrancamos Stellarium y telescopio tras login
-                # 🔐 Verificar activación aquí
-                if not validar_licencia():
-                    return redirect(url_for("activar"))
+        if not usuario or not clave:
+            return render_template('login.html', error="Introduce usuario y contraseña"), 400
 
-                return redirect(url_for('home'))
+        hash_guardado = USUARIOS_HASH.get(usuario) or ''   # '' o None si no existe o está vacío en [Usuarios]
+        valido = False
+        if hash_guardado:
+            try:
+                valido = bcrypt.checkpw(clave.encode(), hash_guardado.encode())
+            except ValueError:
+                log.warning("Hash bcrypt inválido para el usuario %r en [Usuarios] de config.ini", usuario)
 
-        return render_template('login.html', error="Credenciales incorrectas")
+        if valido:
+            session['usuario'] = usuario
+            # La ficha del último GoTo (rótulo y nombre de archivo de la galería) solo se borra si
+            # no hay nada en marcha: entrar desde otro móvil con el apilado o el plan corriendo
+            # dejaba el rótulo en "Objeto"
+            if not bucle.activo and not plan_sesion.trabajo_plan.en_curso:
+                eliminar_info_goto()
+            iniciar_conexion()  # ← aquí arrancamos Stellarium y telescopio tras login
+            # 🔐 Verificar activación aquí
+            if not validar_licencia():
+                return redirect(url_for("activar"))
+
+            return redirect(url_for('home'))
+
+        return render_template('login.html', error="Credenciales incorrectas"), 401
 
     return render_template('login.html')
 
