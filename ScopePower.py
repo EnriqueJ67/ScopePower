@@ -5325,7 +5325,75 @@ def ascom_selector():
     return jsonify({"driver": driver})
 
 
+# ─── Instancia única ─────────────────────────────────────────────────────────
+# En Windows, dos servidores Werkzeug pueden escuchar A LA VEZ en el mismo puerto
+# (SO_REUSEADDR): la segunda copia de ScopePower no falla al arrancar, las dos
+# lanzan sus hilos (apilado, disco, plan de la noche pisando config.ini) y el
+# navegador habla con una u otra sin criterio. Por eso, antes de arrancar nada,
+# se reserva el puerto con un socket SIN SO_REUSEADDR (con él ligado, ningún
+# otro proceso puede ligarse). Se suelta justo antes de app.run.
+CODIGO_SALIDA_YA_EN_MARCHA = 4
+
+
+def _reservar_puerto_web(puerto):
+    """Socket ligado al puerto (cerrarlo justo antes de app.run) o None si está ocupado."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("0.0.0.0", puerto))
+        return s
+    except OSError:
+        s.close()
+        return None
+
+
+def _quien_ocupa_el_puerto(puerto):
+    """'scopepower' si responde una web de Flask/Werkzeug, 'otro' si responde otra cosa,
+    'nadie' si no contesta (puerto en un estado raro: se deja que Flask lo intente)."""
+    import http.client
+    try:
+        con = http.client.HTTPConnection("127.0.0.1", puerto, timeout=3)
+        con.request("GET", "/login")
+        servidor = con.getresponse().getheader("Server", "") or ""
+        con.close()
+    except OSError:
+        return "nadie"
+    except Exception:
+        return "otro"
+    return "scopepower" if "Werkzeug" in servidor else "otro"
+
+
+def _comprobar_instancia_unica(puerto):
+    """Devuelve el socket de reserva, o sale del proceso si ScopePower ya está en marcha."""
+    reserva = _reservar_puerto_web(puerto)
+    if reserva is not None:
+        return reserva
+    quien = _quien_ocupa_el_puerto(puerto)
+    if quien == "nadie":
+        log.warning("El puerto %d aparece ocupado pero nadie responde: se sigue arrancando", puerto)
+        return None
+    if quien == "scopepower":
+        log.warning("ScopePower ya está en marcha en este equipo (puerto %d): esta segunda copia se cierra", puerto)
+        print(f"\nAVISO: ScopePower ya está en marcha en este equipo: http://127.0.0.1:{puerto}\n"
+              "    Esta segunda copia se cierra; usa la que ya estaba abierta.\n", flush=True)
+        voz.decir("ScopePower ya estaba en marcha. Esta segunda copia se cierra.")
+        try:
+            import webbrowser
+            webbrowser.open(f"http://127.0.0.1:{puerto}/")
+        except Exception:
+            pass
+        voz.esperar(timeout=8)
+        sys.exit(CODIGO_SALIDA_YA_EN_MARCHA)
+    log.error("El puerto %d lo está usando otro programa: ScopePower no puede arrancar", puerto)
+    print(f"\nERROR: El puerto {puerto} lo está usando otro programa. Ciérralo y vuelve a arrancar ScopePower.\n", flush=True)
+    voz.decir(f"El puerto {puerto} está ocupado por otro programa. ScopePower no puede arrancar.")
+    voz.esperar(timeout=8)
+    sys.exit(1)
+
+
 if __name__ == '__main__':
+    # Antes de arrancar hilos ni tocar config.ini: ¿ya hay un ScopePower en este equipo?
+    _reserva_puerto = _comprobar_instancia_unica(PUERTO_WEB)
     os.makedirs(ruta_absoluta("capturas"), exist_ok=True)
     os.makedirs(ruta_absoluta("static"), exist_ok=True)
     # Objetos anotados: lo que dejó puesto el usuario la última vez ([Apilado] objetos_anotados)
@@ -5351,5 +5419,7 @@ if __name__ == '__main__':
     # threaded=True: cada petición en su hilo. El acceso a la montura y a la
     # cámara está serializado en hardware.py, así que la web sigue respondiendo
     # (estado, parar montura, cancelar) mientras hay una exposición en curso.
+    if _reserva_puerto is not None:
+        _reserva_puerto.close()      # soltar la reserva justo antes de que Flask abra el puerto
     app.run(host='0.0.0.0', port=PUERTO_WEB, threaded=True)
 

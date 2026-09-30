@@ -19,6 +19,7 @@
 
 import queue
 import threading
+import time
 import logging
 import configparser
 
@@ -112,6 +113,13 @@ class Locutor:
             self._aplicar_ajustes = True
         _guardar_config(cambios)
 
+    def esperar(self, timeout=10.0):
+        """Bloquea hasta que se haya dicho todo lo encolado (o pase el timeout).
+        Para avisos justo antes de salir del proceso: el hilo de voz es daemon."""
+        limite = time.monotonic() + timeout
+        while self._cola.unfinished_tasks and time.monotonic() < limite:
+            time.sleep(0.1)
+
     def estado(self):
         with self._lock:
             return {
@@ -128,34 +136,41 @@ class Locutor:
     def _bucle(self):
         import pythoncom
         pythoncom.CoInitialize()
-        sapi = None
+        self._sapi = None
         self._aplicar_ajustes = True
         while True:
             texto = self._cola.get()
+            try:
+                self._decir_con_reintento(texto)
+            finally:
+                self._cola.task_done()      # para esperar(): ya se ha dicho (o se ha rendido)
+
+    def _decir_con_reintento(self, texto):
+        sapi = self._sapi
+        if sapi is None:
+            sapi = self._sapi = self._inicializar()
             if sapi is None:
-                sapi = self._inicializar()
+                return
+        # Si SAPI falla (p. ej. SPERR_NOT_FOUND al apagar, o la salida de audio
+        # que cambia), se vuelve a crear la voz y se reintenta UNA vez el mismo
+        # texto, para no perder el aviso
+        for intento in (1, 2):
+            try:
+                if self._aplicar_ajustes:
+                    self._ajustar(sapi)
+                    self._aplicar_ajustes = False
+                with self._lock:
+                    self.ultimo_texto = texto
+                sapi.Speak(texto)   # síncrono dentro de este hilo; no bloquea a nadie más
+                break
+            except Exception as e:
+                with self._lock:
+                    self.ultimo_error = str(e)
+                log.warning("Error hablando «%s» (intento %d): %s", texto, intento, e)
+                sapi = self._sapi = self._inicializar() if intento == 1 else None
+                self._aplicar_ajustes = True
                 if sapi is None:
-                    continue
-            # Si SAPI falla (p. ej. SPERR_NOT_FOUND al apagar, o la salida de audio
-            # que cambia), se vuelve a crear la voz y se reintenta UNA vez el mismo
-            # texto, para no perder el aviso
-            for intento in (1, 2):
-                try:
-                    if self._aplicar_ajustes:
-                        self._ajustar(sapi)
-                        self._aplicar_ajustes = False
-                    with self._lock:
-                        self.ultimo_texto = texto
-                    sapi.Speak(texto)   # síncrono dentro de este hilo; no bloquea a nadie más
                     break
-                except Exception as e:
-                    with self._lock:
-                        self.ultimo_error = str(e)
-                    log.warning("Error hablando «%s» (intento %d): %s", texto, intento, e)
-                    sapi = self._inicializar() if intento == 1 else None
-                    self._aplicar_ajustes = True
-                    if sapi is None:
-                        break
 
     def _inicializar(self):
         try:
@@ -207,3 +222,7 @@ locutor = Locutor()
 
 def decir(texto, categoria="general"):
     return locutor.decir(texto, categoria)
+
+
+def esperar(timeout=10.0):
+    return locutor.esperar(timeout)

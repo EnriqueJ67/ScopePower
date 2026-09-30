@@ -12,6 +12,8 @@ REM  La ventana se queda abierta: es la consola del servidor (el log completo es
 REM  en logs\scopepower.log). Para cerrar la app usa "Cerrar Aplicacion" en la web
 REM  o cierra esta ventana. "Reiniciar ScopePower" en la web sale con codigo 3
 REM  y este bat la vuelve a arrancar sin cerrar la ventana.
+REM  Si ya habia otro ScopePower en marcha, la app sale con codigo 4 y esta
+REM  ventana se cierra sola a los 10 s.
 REM
 REM  lanzar_scopepower.bat /test  -> solo muestra que Python usaria y sale
 REM ============================================================================
@@ -60,6 +62,12 @@ if "%CODIGO%"=="3" (
     echo Reiniciando ScopePower...
     ping -n 3 127.0.0.1 >nul
     goto arrancar
+)
+if "%CODIGO%"=="4" (
+    echo.
+    echo ScopePower ya estaba en marcha en este equipo. Esta ventana se cierra en 10 s.
+    ping -n 11 127.0.0.1 >nul
+    exit /b 0
 )
 echo.
 echo ScopePower ha terminado (codigo %CODIGO%). Revisa logs\scopepower.log si ha sido un error.
