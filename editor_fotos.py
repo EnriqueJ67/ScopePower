@@ -231,6 +231,11 @@ def _meta_firma(ruta_jpg, ruta_fits, objeto, n, exposicion):
             continue
         if v not in ("", 0, 0.0) or k not in meta:
             meta[k] = v
+    if objeto != meta.get("objeto") or not meta.get("tipo"):
+        # Objeto cambiado a mano (o foto antigua sin tipo): el tipo de la galería se
+        # vuelve a deducir del nombre nuevo; si no se reconoce, se conserva el que había
+        import catalogo_offline
+        meta["tipo"] = catalogo_offline.categoria_objeto("", objeto) or meta.get("tipo", "")
     meta["objeto"] = objeto
     meta["n_fotos"] = n or meta.get("n_fotos", 0)
     meta["exposicion"] = exposicion or meta.get("exposicion", 0)

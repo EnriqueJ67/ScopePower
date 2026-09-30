@@ -6,7 +6,7 @@
 <div class="pagina-cabecera">
     <div>
         <h1 class="pagina-titulo">Galería</h1>
-        <p class="pagina-sub">{{ imagenes|length }} imágenes guardadas desde el apilado.</p>
+        <p class="pagina-sub" id="galeria-resumen">{{ imagenes|length }} imágenes guardadas desde el apilado.</p>
     </div>
     <div class="pagina-acciones">
         <div class="segmentado" id="orden-seg">
@@ -15,6 +15,16 @@
         </div>
     </div>
 </div>
+
+{% if filtros|length > 1 %}
+<!-- Filtro por tipo de objeto: un chip por tipo con las fotos que hay de cada uno -->
+<div class="galeria-filtros" id="galeria-filtros">
+    <button type="button" class="chip activo" data-tipo="" onclick="filtrarGaleria('')">Todas <span class="n">{{ imagenes|length }}</span></button>
+    {% for tipo, n in filtros %}
+    <button type="button" class="chip" data-tipo="{{ tipo }}" onclick="filtrarGaleria('{{ tipo }}')">{{ tipo }} <span class="n">{{ n }}</span></button>
+    {% endfor %}
+</div>
+{% endif %}
 
 {% if not imagenes %}
 <div class="card centro">
@@ -27,10 +37,11 @@
 <div id="galeria" class="galeria">
     {% for nombre in imagenes %}
     {% set partes = nombre.replace('.jpg', '').rsplit('_', 2) %}
-    <div class="foto tarjeta" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes|length == 3 else nombre }}">
+    <div class="foto tarjeta" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes|length == 3 else nombre }}" data-tipo="{{ tipos[nombre] }}">
         <img src="{{ url_for('static', filename='fotos/' ~ nombre) }}" alt="{{ nombre }}" loading="lazy" onclick="abrirLightbox(this.src, this.closest('.foto').querySelector('.foto-nombre').textContent)">
         <div class="foto-pie">
             <div class="foto-nombre">{{ partes[0].replace('_', ' ') }}</div>
+            <div class="foto-tipo">{{ tipos[nombre] }}</div>
             <div class="foto-fecha">
                 {% if partes|length == 3 and partes[1]|length == 8 %}
                 {{ partes[1][6:8] }}/{{ partes[1][4:6] }}/{{ partes[1][0:4] }} · {{ partes[2][0:2] }}:{{ partes[2][2:4] }}
@@ -54,8 +65,35 @@
     <div class="lightbox-pie" id="lightbox-pie"></div>
 </div>
 
+<div class="card centro" id="galeria-vacia" style="display: none;">
+    <p class="card-sub">No hay fotos de este tipo.</p>
+</div>
+
 <script>
     const CON_FITS = {{ con_fits|list|tojson }};
+    const TOTAL_FOTOS = {{ imagenes|length }};
+
+    // Filtro por tipo de objeto (se recuerda entre visitas en este navegador)
+    function filtrarGaleria(tipo) {
+        const chips = document.querySelectorAll("#galeria-filtros .chip");
+        if (tipo && !Array.from(chips).some(c => c.dataset.tipo === tipo)) tipo = "";
+        chips.forEach(c => c.classList.toggle("activo", c.dataset.tipo === tipo));
+        let visibles = 0;
+        document.querySelectorAll("#galeria .foto").forEach(t => {
+            const ver = !tipo || t.dataset.tipo === tipo;
+            t.style.display = ver ? "" : "none";
+            if (ver) visibles++;
+        });
+        document.getElementById("galeria-vacia").style.display = (visibles === 0 && TOTAL_FOTOS > 0) ? "" : "none";
+        const resumen = document.getElementById("galeria-resumen");
+        if (resumen) resumen.textContent = tipo ? `${visibles} de ${TOTAL_FOTOS} imágenes · ${tipo}` : `${TOTAL_FOTOS} imágenes guardadas desde el apilado.`;
+        try { localStorage.setItem("galeria_filtro_tipo", tipo); } catch (e) {}
+    }
+    if (document.getElementById("galeria-filtros")) {
+        let guardado = "";
+        try { guardado = localStorage.getItem("galeria_filtro_tipo") || ""; } catch (e) {}
+        if (guardado) filtrarGaleria(guardado);
+    }
     function abrirLightbox(src, nombre) {
         document.getElementById('imagen-grande').src = src;
         document.getElementById('lightbox-pie').textContent = (nombre || "") + " · toca para cerrar";
@@ -125,6 +163,13 @@
                 if (data.ok) {
                     const tarjeta = document.querySelector(`.tarjeta button[onclick*="'${nombre}'"]`).closest(".foto");
                     tarjeta.remove();
+                    // Un chip menos en el filtro de su tipo (y en "Todas")
+                    document.querySelectorAll("#galeria-filtros .chip").forEach(c => {
+                        if (c.dataset.tipo === "" || c.dataset.tipo === tarjeta.dataset.tipo) {
+                            const n = c.querySelector(".n");
+                            if (n) n.textContent = Math.max(0, parseInt(n.textContent, 10) - 1);
+                        }
+                    });
                 } else {
                     alert(data.mensaje || data.error);
                 }

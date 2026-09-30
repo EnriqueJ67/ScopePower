@@ -56,7 +56,7 @@
                         title="Imagen casi continua por el SDK de la cámara, para centrar y enfocar. Mientras dura, la cámara no está disponible por ASCOM."><svg><use href="#i-play"/></svg>En vivo</button>
                 <button id="btn-sync" class="btn btn-secondary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-sync"/></svg>Sincronizar telescopio con la foto</button>
                 <button id="btn-puntero" class="btn btn-secondary" onclick="alternarPuntero()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-goto"/></svg>Apunta aquí</button>
-                <button id="btn-galeria" class="btn btn-secondary" onclick="guardarEnGaleria()" {% if not hay_foto %}disabled{% endif %} title="Guarda la foto que se ve, a resolución completa, en la galería"><svg><use href="#i-guardar"/></svg>Guardar en la galería</button>
+                <button id="btn-galeria" class="btn btn-secondary" onclick="guardarEnGaleria()" {% if not hay_foto %}disabled{% endif %} title="Guarda la foto que se ve, a resolución completa, en la galería. De noche, con el procesado y el preset de Apilado."><svg><use href="#i-guardar"/></svg>Guardar en la galería</button>
             </div>
             <!-- Panel del puntero: se ve mientras "Apunta aquí" está activado -->
             <div id="puntero-panel" class="mt-2" hidden>
@@ -256,7 +256,7 @@
 
         <section class="card panel" data-panel="vista-previa">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Vista previa</h3>
+                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Revelado</h3>
                 <div class="panel-botones" onclick="event.stopPropagation()">
                     <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
                     <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
@@ -264,13 +264,15 @@
                 </div>
             </div>
             <div class="panel-cuerpo">
-                <div class="campo">
-                    <label for="input-color">Intensidad del color</label>
-                    <input type="number" id="input-color" class="form-control" min="0" max="3" step="0.1">
-                </div>
-                <div class="fila entre">
-                    <button class="btn btn-secondary" onclick="guardarParametrosMTF()"><svg><use href="#i-guardar"/></svg>Guardar</button>
-                    <div id="estado-mtf" class="estado"></div>
+                <!-- Revelado "como el apilado": la misma foto por procesado.py con el preset de Apilado
+                     (a media resolución, en segundo plano). No sustituye al revelado rápido: se alterna
+                     entre los dos y la foto siguiente vuelve al rápido. Solo de noche. La saturación del
+                     revelado rápido (intensidad de color) se ajusta en Configuración. -->
+                <div id="revelar-bloque">
+                    <button id="btn-revelar" class="btn btn-secondary btn-block" onclick="revelarComoApilado()" {% if not hay_foto %}disabled{% endif %}
+                            title="Reprocesa la foto que se ve con el procesado y el preset del panel de Apilado"><svg><use href="#i-refrescar"/></svg>Revelar como el apilado</button>
+                    <small class="ayuda">Vuelve a revelar la última foto de noche con el procesado y el preset de Apilado (gradiente, ruido, contraste...). Tarda unos segundos; la foto siguiente vuelve al revelado rápido.</small>
+                    <div id="estado-revelar" class="estado"></div>
                 </div>
             </div>
         </section>
@@ -344,10 +346,12 @@
         document.getElementById("btn-sync").disabled = continuoActivo || !hayFotoNueva;
         document.getElementById("btn-puntero").disabled = modoDia ? !hayFoto : (continuoActivo || !hayFotoNueva);
         document.getElementById("btn-galeria").disabled = !hayFoto;
+        document.getElementById("btn-revelar").disabled = !hayFoto || modoDia;   // el revelado del apilado es de noche
     }
     function fotoMostrada(nueva) {
         hayFoto = true;
         if (nueva) hayFotoNueva = true;
+        olvidarRevelado();
         pintarBotonesFoto();
     }
 
@@ -475,6 +479,7 @@
         document.getElementById("continuo-panel").hidden = !modoContinuo;
         document.getElementById("continuo-ayuda").textContent = ayudaGuardar();
         document.getElementById("btn-sync").hidden = modoDia;     // de día no hay plate solving
+        document.getElementById("revelar-bloque").hidden = modoDia;  // ni revelado como el apilado
         // "Apunta aquí" cambia de método con el modo: el puntero se quita al cambiar
         if (punteroActivo && punteroModoDia !== modoDia) { punteroActivo = false; pintarModoPuntero(); }
         pintarBotonesFoto();
@@ -1208,38 +1213,84 @@
             .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; btn.disabled = false; document.getElementById("btn-foto").disabled = false; });
     }
 
+    // De noche el servidor revela la foto con el procesado del apilado a resolución
+    // completa en segundo plano (de medio minuto a unos minutos): aquí se sigue el progreso.
     function guardarEnGaleria() {
         const btn = document.getElementById("btn-galeria");
         const est = document.getElementById("estado-galeria");
         btn.disabled = true;
         est.className = "estado";
         est.innerHTML = '<span class="spinner"></span>Guardando la foto a resolución completa...';
+        const terminar = d => {
+            est.className = "estado " + (d.ok ? "ok" : "err");
+            est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
+            if (d.ok) est.insertAdjacentHTML("beforeend", ' · <a href="/galeria">Ver la galería</a>');
+            pintarBotonesFoto();
+        };
         fetch("/foto/guardar-galeria", { method: "POST" })
             .then(r => r.json())
             .then(d => {
-                est.className = "estado " + (d.ok ? "ok" : "err");
-                est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
-                if (d.ok) est.insertAdjacentHTML("beforeend", ' · <a href="/galeria">Ver la galería</a>');
+                if (!d.ok || !d.en_curso) { terminar(d); return; }
+                est.innerHTML = '<span class="spinner"></span>' + d.mensaje;
+                const sondeo = setInterval(() => {
+                    fetch("/foto/guardar-galeria/estado").then(r => r.json()).then(g => {
+                        if (g.en_curso) { est.innerHTML = '<span class="spinner"></span>' + g.mensaje; return; }
+                        clearInterval(sondeo);
+                        terminar(g);
+                    }).catch(err => { clearInterval(sondeo); terminar({ ok: false, mensaje: String(err) }); });
+                }, 1500);
             })
-            .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; })
-            .finally(() => { pintarBotonesFoto(); });
+            .catch(err => terminar({ ok: false, mensaje: String(err) }));
     }
 
-    function cargarParametros() {
-        fetch("/config-color").then(r => r.json()).then(d => {
-            document.getElementById("input-color").value = d.intensidad;
-        }).catch(err => document.getElementById("estado-mtf").textContent = "❌ Error al cargar intensidad de color");
+    // ——— Revelar como el apilado: la misma foto por procesado.py, en segundo plano ———
+    //     Cuando termina se enseña en el visor y el botón pasa a alternar con el revelado rápido.
+    let revelado = { listo: false, mostrando: false, version: 0 };
+    function pintarBotonRevelar() {
+        const btn = document.getElementById("btn-revelar");
+        btn.innerHTML = revelado.listo && revelado.mostrando
+            ? '<svg><use href="#i-refrescar"/></svg>Ver el revelado rápido'
+            : '<svg><use href="#i-refrescar"/></svg>' + (revelado.listo ? "Ver el revelado como el apilado" : "Revelar como el apilado");
+    }
+    function mostrarRevelado(comoApilado) {
+        revelado.mostrando = comoApilado;
+        document.getElementById("foto").src = comoApilado ? "/imagen-revelada?v=" + revelado.version + "&" + Date.now()
+                                                          : "/imagen-capturada?" + Date.now();
+        pintarBotonRevelar();
+    }
+    function olvidarRevelado() {      // foto nueva en el visor: el revelado anterior ya no vale
+        revelado = { listo: false, mostrando: false, version: 0 };
+        document.getElementById("estado-revelar").textContent = "";
+        pintarBotonRevelar();
+    }
+    function revelarComoApilado() {
+        if (revelado.listo) { mostrarRevelado(!revelado.mostrando); return; }
+        const btn = document.getElementById("btn-revelar");
+        const est = document.getElementById("estado-revelar");
+        btn.disabled = true;
+        est.className = "estado";
+        est.innerHTML = '<span class="spinner"></span>Revelando...';
+        const terminar = d => {
+            est.className = "estado " + (d.ok ? "ok" : "err");
+            est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
+            if (d.ok) { revelado.listo = true; revelado.version = d.version || 0; mostrarRevelado(true); }
+            pintarBotonesFoto();
+        };
+        fetch("/foto/revelar-apilado", { method: "POST" })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok || !d.en_curso) { terminar(d); return; }
+                const sondeo = setInterval(() => {
+                    fetch("/foto/revelar-apilado/estado").then(r => r.json()).then(g => {
+                        if (g.en_curso) { est.innerHTML = '<span class="spinner"></span>' + g.mensaje; return; }
+                        clearInterval(sondeo);
+                        terminar(g);
+                    }).catch(err => { clearInterval(sondeo); terminar({ ok: false, mensaje: String(err) }); });
+                }, 1000);
+            })
+            .catch(err => terminar({ ok: false, mensaje: String(err) }));
     }
 
-    function guardarParametrosMTF() {
-        const intensidad = parseFloat(document.getElementById("input-color").value);
-        fetch("/guardar-config-color", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ intensidad })
-        }).then(r => r.text()).then(msg => document.getElementById("estado-mtf").textContent = msg);
-    }
-
-    cargarParametros();
     // Si ya hay una exposición en marcha (p. ej. desde otra pestaña), mostrarla
     fetch("/estado-captura").then(r => r.json()).then(c => { if (c.en_curso && !sondeo) sondeo = setInterval(sondearCaptura, 1000); }).catch(() => {});
 </script>

@@ -342,3 +342,68 @@ _PREFIJOS_TECNICOS = ("2MASX", "IRAS", "MCG", "PGC", "UGC", "ESO", "MWSC", "LEDA
 
 def _alias_tecnico(alias):
     return any(alias.startswith(p) for p in _PREFIJOS_TECNICOS)
+
+
+# ── Tipo de objeto para la galería ──────────────────────────────────────────
+# Las fichas llegan con el tipo en español (catálogo local, plan de la noche), en
+# inglés (Stellarium: "galaxy", "open star cluster", "Planet"...) o sin tipo (Sol,
+# Luna y planetas por efemérides). La galería filtra por unas pocas familias, así
+# que aquí se reduce cualquier tipo, y si no hay tipo el propio nombre, a una de
+# ellas. Devuelve "" si no se reconoce nada.
+CATEGORIAS = ("Galaxia", "Nebulosa", "Nebulosa planetaria", "Resto de supernova", "Cúmulo abierto",
+              "Cúmulo globular", "Estrella", "Planeta", "Luna", "Sol", "Cometa", "Asteroide", "Paisaje")
+
+_PLANETAS = ("mercurio", "mercury", "venus", "marte", "mars", "jupiter", "saturno", "saturn",
+             "urano", "uranus", "neptuno", "neptune", "pluton", "pluto")
+
+
+def _categoria_de_texto(texto):
+    t = unidecode(str(texto or "")).lower()
+    if not t.strip():
+        return ""
+    if "supernova" in t:
+        return "Resto de supernova"
+    if "planetar" in t and "nebul" in t:
+        return "Nebulosa planetaria"
+    if "galax" in t:
+        return "Galaxia"
+    if "globular" in t:
+        return "Cúmulo globular"
+    if "cumulo" in t or "cluster" in t or "asociacion" in t or "association" in t:
+        return "Cúmulo abierto"
+    if "nebul" in t or "h ii" in t or "hii" in t:
+        return "Nebulosa"
+    if "cometa" in t or "comet" in t:
+        return "Cometa"
+    if "asteroid" in t or "minor planet" in t:
+        return "Asteroide"
+    if "paisaje" in t or "landscape" in t:
+        return "Paisaje"
+    palabras = set(re.findall(r"[a-z]+", t))
+    if palabras & {"sol", "sun"}:
+        return "Sol"
+    if palabras & {"luna", "moon"}:
+        return "Luna"
+    if "planet" in t or palabras & set(_PLANETAS):
+        return "Planeta"
+    if "estrella" in t or "star" in t or "stellar" in t:
+        return "Estrella"
+    return ""
+
+
+def categoria_objeto(tipo="", nombre=""):
+    """
+    Familia de la galería a partir del tipo de la ficha y, si no basta, del nombre
+    ('Sol', 'Luna', 'Júpiter', 'Whirlpool Galaxy'...) o del catálogo local.
+    """
+    cat = _categoria_de_texto(tipo)
+    if cat or not nombre:
+        return cat
+    cat = _categoria_de_texto(nombre)
+    if cat:
+        return cat
+    try:
+        ficha = buscar(nombre)
+    except Exception:
+        ficha = None
+    return _categoria_de_texto(ficha["type"]) if ficha else ""

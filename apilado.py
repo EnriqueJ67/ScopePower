@@ -389,13 +389,32 @@ def nombre_objeto_goto():
     return nombre
 
 
+def tipo_objeto_goto(nombre=None):
+    """
+    Tipo del objeto del último GOTO reducido a las familias de la galería (galaxia,
+    nebulosa, cúmulo abierto...): de la línea «Tipo:» de info_objeto_goto.txt y, si
+    no la hay (Sol, Luna, planetas), del nombre. "" si no se sabe.
+    """
+    import catalogo_offline
+    tipo = ""
+    info_path = ruta_absoluta("static/info_objeto_goto.txt")
+    if os.path.isfile(info_path):
+        with open(info_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if line.lower().startswith("tipo:"):
+                    tipo = line.split(":", 1)[1].strip()
+                    break
+    return catalogo_offline.categoria_objeto(tipo, nombre or nombre_objeto_goto())
+
+
 def metadatos_firma(cfg=None, ruta_fits=None, n_fotos=0, exposicion=0):
     """
     Datos para firmar el apilado (firma.py): autor, lugar e interruptor del config,
-    objeto del último GOTO, coordenadas de la cabecera del FITS, fotos y exposición.
+    objeto y tipo del último GOTO, coordenadas de la cabecera del FITS, fotos y exposición.
     """
     meta = firma.datos_observatorio(cfg)
-    meta.update({"objeto": nombre_objeto_goto(), "fecha": datetime.now(),
+    objeto = nombre_objeto_goto()
+    meta.update({"objeto": objeto, "tipo": tipo_objeto_goto(objeto), "fecha": datetime.now(),
                  "n_fotos": n_fotos, "exposicion": exposicion})
     if ruta_fits and os.path.isfile(ruta_fits):
         try:

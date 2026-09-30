@@ -1736,6 +1736,38 @@ def revelar_foto_noche(imagen_fits, patron_bayer):
     return cv2.cvtColor(imagen_mtf, cv2.COLOR_RGB2BGR) if imagen_mtf.ndim == 3 else imagen_mtf
 
 
+# Nombre en la web de cada paso del procesado (procesado.SUBFASES)
+FASES_REVELADO = {"gradiente": "Quitando el gradiente", "estirando": "Estirando", "ruido": "Reduciendo el ruido",
+                  "contraste": "Contraste local", "color": "Color"}
+
+
+def revelar_foto_noche_apilado(imagen_fits, patron_bayer, escala=0.5, progreso=None):
+    """
+    La misma foto de noche revelada como si fuera un apilado de una sola foto: debayer a
+    16 bits, el recorte de zoom de Configuración (zoom_preview) y el procesado multiescala
+    de procesado.py con el preset de Apilado ([Procesado] de config.ini). Tarda bastante
+    más que revelar_foto_noche (la reducción de ruido manda), por eso se llama desde un
+    hilo. `escala`: 0.5 para la vista de Cámara, 1.0 para la galería. Devuelve BGR uint8.
+    """
+    import procesado
+    if imagen_fits.ndim == 2 and patron_bayer in ('RGGB', 'BGGR', 'GRBG', 'GBRG'):
+        rgb = debayer_rgb(imagen_fits, patron_bayer)
+    elif imagen_fits.ndim == 2:
+        rgb = np.repeat(imagen_fits[:, :, None], 3, axis=2)       # sensor mono: los tres canales iguales
+    else:
+        rgb = imagen_fits
+    rgb = np.asarray(rgb, dtype=np.float32)
+    rgb, _, _ = procesado.recortar_centro(rgb, procesado.fraccion_campo())
+    rgb8 = procesado.procesar(rgb, 1, procesado.leer_config(), escala=escala, progreso=progreso)
+    return cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
+
+
+def _escala_revelado_vista():
+    """Como la vista previa del apilado: media resolución salvo con el zoom al 50 % o menos."""
+    import procesado
+    return 0.5 if procesado.fraccion_campo() > 0.5 else 1.0
+
+
 def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura", ganancia=None, copia=None,
                        exposicion=None):
     """
@@ -2587,24 +2619,72 @@ def guardar_foto_en_galeria():
         imagen, _ = foto_dia.revelar(foto_dia.recortar_centro(frame, f["campo"]), sensor_type, f.get("objetivo"),
                                      balance=f.get("balance"), negro=f.get("negro"), aprender=False, ev=f.get("ev") or 0.0)
     else:
+        # Foto de noche: se revela en segundo plano con el procesado y el preset del apilado
+        # (procesado.py a resolución completa, como el JPG de la galería de Apilado). Tarda
+        # de medio minuto a unos minutos según el PC; la web sigue el progreso por
+        # /foto/guardar-galeria/estado. Si ese procesado falla, se guarda con el revelado
+        # rápido (STF) para que la foto no se pierda.
+        if GUARDADO_FOTO["en_curso"]:
+            return {"ok": False, "mensaje": "Ya se está guardando una foto; espera a que termine."}
         with fits.open(RUTA_IMAGEN) as hdul:
             datos_fits = np.asarray(hdul[0].data)
             patron = str(hdul[0].header.get("BAYERPAT") or "").strip().upper()
             exposicion = exposicion or hdul[0].header.get("EXPTIME") or hdul[0].header.get("EXPOSURE")
-        imagen = revelar_foto_noche(datos_fits, patron)
+        imagen = None
         import shutil
         shutil.copy(RUTA_IMAGEN, ruta_crudo)
 
     meta = apilado.metadatos_firma(None, ruta_crudo, 1, float(exposicion or 0))
     meta.update({"objeto": objeto, "fecha": fecha})
-    if meta["activa"]:
-        imagen = firma.firmar(imagen, meta)
-    cv2.imwrite(ruta_jpg, imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
-    meta["firmada"] = bool(meta["activa"])
-    firma.guardar_meta(ruta_jpg, meta)
-    log.info("Foto de Cámara guardada en la galería: %s", base)
-    voz.decir("Foto guardada en la galería")
-    return {"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg", "archivo": base + ".jpg"}
+    if f["modo"] in ("dia", "vivo"):
+        # Sol, Luna o paisaje: el tipo sale del objetivo del modo día, no del GoTo
+        meta["tipo"] = catalogo_offline.categoria_objeto(objeto)
+
+    def _terminar(imagen):
+        if meta["activa"]:
+            imagen = firma.firmar(imagen, meta)
+        cv2.imwrite(ruta_jpg, imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
+        meta["firmada"] = bool(meta["activa"])
+        firma.guardar_meta(ruta_jpg, meta)
+        log.info("Foto de Cámara guardada en la galería: %s", base)
+        voz.decir("Foto guardada en la galería")
+
+    if imagen is not None:
+        _terminar(imagen)
+        return {"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg", "archivo": base + ".jpg"}
+
+    GUARDADO_FOTO.update({"en_curso": True, "ok": None, "archivo": base + ".jpg",
+                          "mensaje": "Revelando con el procesado del apilado..."})
+
+    def _avisar(subfase, fraccion):
+        GUARDADO_FOTO["mensaje"] = f"{FASES_REVELADO.get(subfase, subfase)}... {int(fraccion * 100)} %"
+
+    def _fondo():
+        aviso = ""
+        try:
+            try:
+                imagen = revelar_foto_noche_apilado(datos_fits, patron, escala=1.0, progreso=_avisar)
+            except Exception:
+                log.exception("Falló el procesado del apilado sobre la foto de Cámara; se guarda con el revelado rápido")
+                imagen = revelar_foto_noche(datos_fits, patron)
+                aviso = " (falló el procesado del apilado; guardada con el revelado rápido)"
+            _terminar(imagen)
+            GUARDADO_FOTO.update({"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg{aviso}"})
+        except Exception as e:
+            log.exception("Error guardando la foto de Cámara en la galería")
+            GUARDADO_FOTO.update({"ok": False, "mensaje": f"Error al guardar: {e}"})
+        finally:
+            GUARDADO_FOTO["en_curso"] = False
+
+    threading.Thread(target=_fondo, name="guardar-foto-galeria", daemon=True).start()
+    return {"ok": True, "en_curso": True, "mensaje": GUARDADO_FOTO["mensaje"], "archivo": base + ".jpg"}
+
+
+# Guardado en la galería de la foto de noche de Cámara (segundo plano) y revelado
+# "como el apilado" de la foto en pantalla: la web sigue los dos por sus rutas /estado
+GUARDADO_FOTO = {"en_curso": False, "ok": None, "mensaje": "", "archivo": ""}
+REVELADO_FOTO = {"en_curso": False, "ok": None, "mensaje": "", "version": 0}
+RUTA_IMAGEN_REVELADA = os.path.splitext(RUTA_IMAGEN)[0] + "_apilado.jpg"
 
 
 @app.route('/foto/guardar-galeria', methods=['POST'])
@@ -2619,6 +2699,63 @@ def foto_guardar_galeria():
     finally:
         _lock_guardar_foto.release()
     return jsonify(resultado), (200 if resultado["ok"] else 409)
+
+
+@app.route('/foto/guardar-galeria/estado')
+def foto_guardar_galeria_estado():
+    return jsonify(GUARDADO_FOTO)
+
+
+@app.route('/foto/revelar-apilado', methods=['POST'])
+def foto_revelar_apilado():
+    """
+    Vuelve a revelar la foto de noche que se ve en Cámara con el procesado y el preset de
+    Apilado, a la escala de la vista previa del apilado, y la deja en captura_apilado.jpg
+    (/imagen-revelada). El revelado rápido de captura.jpg no se toca: la web alterna entre
+    los dos y la foto siguiente vuelve al rápido.
+    """
+    f = _foto_en_pantalla()
+    if f is None or f.get("modo") != "noche" or not os.path.exists(RUTA_IMAGEN):
+        return jsonify({"ok": False, "mensaje": "Solo para fotos de noche; haz una foto primero."}), 409
+    if REVELADO_FOTO["en_curso"]:
+        return jsonify({"ok": False, "mensaje": "Ya se está revelando; espera a que termine."}), 409
+    REVELADO_FOTO.update({"en_curso": True, "ok": None, "mensaje": "Leyendo la foto..."})
+
+    def _avisar(subfase, fraccion):
+        REVELADO_FOTO["mensaje"] = f"{FASES_REVELADO.get(subfase, subfase)}... {int(fraccion * 100)} %"
+
+    def _fondo():
+        inicio = time.time()
+        try:
+            with fits.open(RUTA_IMAGEN) as hdul:
+                datos_fits = np.asarray(hdul[0].data)
+                patron = str(hdul[0].header.get("BAYERPAT") or "").strip().upper()
+            imagen = revelar_foto_noche_apilado(datos_fits, patron, escala=_escala_revelado_vista(), progreso=_avisar)
+            guardar_jpg_web(RUTA_IMAGEN_REVELADA, imagen)
+            REVELADO_FOTO.update({"ok": True, "version": REVELADO_FOTO["version"] + 1,
+                                  "mensaje": f"Revelada como el apilado en {time.time() - inicio:.0f} s"})
+        except Exception as e:
+            log.exception("Error revelando la foto de Cámara como el apilado")
+            REVELADO_FOTO.update({"ok": False, "mensaje": f"Error al revelar: {e}"})
+        finally:
+            REVELADO_FOTO["en_curso"] = False
+
+    threading.Thread(target=_fondo, name="revelar-foto-apilado", daemon=True).start()
+    return jsonify({"ok": True, "en_curso": True, "mensaje": REVELADO_FOTO["mensaje"]})
+
+
+@app.route('/foto/revelar-apilado/estado')
+def foto_revelar_apilado_estado():
+    return jsonify(REVELADO_FOTO)
+
+
+@app.route('/imagen-revelada')
+def imagen_revelada():
+    if not os.path.exists(RUTA_IMAGEN_REVELADA):
+        return send_file("static/esperando.png", mimetype="image/png")
+    response = send_file(RUTA_IMAGEN_REVELADA, mimetype='image/jpeg')
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 # Ruta para resolver plate solve con ASTAP
 @app.route('/platesolve')
@@ -4311,23 +4448,6 @@ def guardar_config_zoom():
         return f"❌ Error al guardar zoom: {e}", 500
 
 
-@app.route("/config-color")
-def obtener_config_color():
-    config.read("config.ini")
-    intensidad = float(config["Dispositivos"].get("color_intensity", 1.0))
-    return jsonify({"intensidad": intensidad})
-
-@app.route("/guardar-config-color", methods=["POST"])
-def guardar_config_color():
-    try:
-        data = request.get_json()
-        config.read("config.ini")
-        config["Dispositivos"]["color_intensity"] = str(data["intensidad"])
-        with open("config.ini", "w") as configfile:
-            config.write(configfile)
-        return "✅ Intensidad guardada correctamente"
-    except Exception as e:
-        return f"❌ Error al guardar: {e}", 500
 
 
 @app.route('/descargar-fits-apilado')
@@ -4540,7 +4660,36 @@ def galeria():
     imagenes = sorted([f for f in os.listdir(carpeta) if f.lower().endswith(".jpg")])
     # Solo las fotos con su FITS apilado al lado se pueden reprocesar en el editor
     con_fits = {f for f in imagenes if os.path.isfile(os.path.join(carpeta, os.path.splitext(f)[0] + ".fits"))}
-    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits)
+    # Tipo de objeto (galaxia, nebulosa, cúmulo...) para filtrar: del JSON hermano si la
+    # foto se guardó con él; las antiguas se deducen del nombre y el catálogo local
+    tipos = {f: _tipo_foto_galeria(carpeta, f) for f in imagenes}
+    conteo = {}
+    for t in tipos.values():
+        conteo[t] = conteo.get(t, 0) + 1
+    orden = list(catalogo_offline.CATEGORIAS) + [SIN_TIPO]
+    filtros = sorted(conteo.items(), key=lambda kv: orden.index(kv[0]) if kv[0] in orden else len(orden))
+    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, tipos=tipos, filtros=filtros)
+
+
+SIN_TIPO = "Sin tipo"
+
+
+def _tipo_foto_galeria(carpeta, nombre):
+    """Familia del objeto de una foto de la galería (ver catalogo_offline.categoria_objeto)."""
+    base = os.path.splitext(nombre)[0]
+    tipo = ""
+    ruta_json = os.path.join(carpeta, base + ".json")
+    if os.path.isfile(ruta_json):
+        try:
+            import json
+            with open(ruta_json, "r", encoding="utf-8") as f:
+                datos = json.load(f)
+            tipo = catalogo_offline.categoria_objeto(datos.get("tipo") or "", datos.get("objeto") or "")
+        except Exception:
+            pass
+    if not tipo:
+        tipo = catalogo_offline.categoria_objeto("", editor_fotos.partes_nombre(nombre)[0].replace("_", " "))
+    return tipo or SIN_TIPO
 
 @app.route("/eliminar-imagen", methods=["POST"])
 def eliminar_imagen():
