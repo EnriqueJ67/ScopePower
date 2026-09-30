@@ -357,7 +357,7 @@ _PLANETAS = ("mercurio", "mercury", "venus", "marte", "mars", "jupiter", "saturn
              "urano", "uranus", "neptuno", "neptune", "pluton", "pluto")
 
 
-def _categoria_de_texto(texto):
+def _categoria_de_texto(texto, es_nombre=False):
     t = unidecode(str(texto or "")).lower()
     if not t.strip():
         return ""
@@ -369,8 +369,12 @@ def _categoria_de_texto(texto):
         return "Galaxia"
     if "globular" in t:
         return "Cúmulo globular"
-    if "cumulo" in t or "cluster" in t or "asociacion" in t or "association" in t:
+    if "abierto" in t or "open" in t or "asociacion" in t or "association" in t or "nebulosity" in t:
         return "Cúmulo abierto"
+    if "cumulo" in t or "cluster" in t:
+        # Un tipo genérico ("star cluster" de Stellarium) se da por abierto; en un
+        # nombre ("Gran Cúmulo de Hércules" es globular) no se adivina
+        return "" if es_nombre else "Cúmulo abierto"
     if "nebul" in t or "h ii" in t or "hii" in t:
         return "Nebulosa"
     if "cometa" in t or "comet" in t:
@@ -399,11 +403,11 @@ def categoria_objeto(tipo="", nombre=""):
     cat = _categoria_de_texto(tipo)
     if cat or not nombre:
         return cat
-    cat = _categoria_de_texto(nombre)
-    if cat:
-        return cat
+    # Primero el catálogo (sabe que el Gran Cúmulo de Hércules es globular) y solo
+    # después lo que diga el propio nombre
     try:
         ficha = buscar(nombre)
     except Exception:
         ficha = None
-    return _categoria_de_texto(ficha["type"]) if ficha else ""
+    cat = _categoria_de_texto(ficha["type"]) if ficha else ""
+    return cat or _categoria_de_texto(nombre, es_nombre=True)
