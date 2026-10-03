@@ -230,7 +230,10 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     """
     Como recortar_campo, pero con el encuadre girado `giro` grados alrededor del
     centro de la zona útil (positivo = la imagen gira en sentido horario) y, con
-    `espejo`, volteado antes de izquierda a derecha. Devuelve solo el recorte.
+    `espejo`, volteado antes de izquierda a derecha. Devuelve (recorte, M): M es
+    la matriz afín 2×3 que lleva un píxel (x, y) de la imagen completa al
+    recorte, que necesitan las anotaciones. Sin giro ni espejo el recorte es el
+    mismo de recortar_campo.
 
     Los cuartos de vuelta se hacen cambiando filas por columnas, sin interpolar
     ni perder campo. El resto (entre -45° y 45°) se interpola (bicúbica, acotada
@@ -238,18 +241,23 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     como las esquinas se salen del campo el recorte se encoge lo justo: con
     `fraccion` por debajo de fraccion_con_giro() no se pierde nada más.
     """
-    rec, _, _ = recortar_campo(cubo, 1.0, zona, margen)
+    rec, zx, zy = recortar_campo(cubo, 1.0, zona, margen)
     canales_primero = rec.ndim == 3 and rec.shape[0] == 3 and rec.shape[-1] != 3
     ejes = (1, 2) if canales_primero else (0, 1)
+    T = np.array([[1.0, 0.0, -zx], [0.0, 1.0, -zy], [0.0, 0.0, 1.0]])
     if espejo:
         rec = np.flip(rec, axis=ejes[1])
+        T = np.array([[-1.0, 0.0, rec.shape[ejes[1]] - 1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) @ T
     giro = (float(giro) + 180.0) % 360.0 - 180.0
     cuartos = int(round(giro / 90.0))
     resto = giro - 90.0 * cuartos
-    if cuartos % 4:
-        rec = np.rot90(rec, -cuartos, axes=ejes)     # np.rot90 gira en antihorario
+    for _ in range(cuartos % 4):                     # un cuarto en horario: (x, y) -> (alto - 1 - y, x)
+        T = np.array([[0.0, -1.0, rec.shape[ejes[0]] - 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]) @ T
+        rec = np.rot90(rec, -1, axes=ejes)           # np.rot90 gira en antihorario
     if abs(resto) < 0.05:
-        return np.ascontiguousarray(recortar_centro(rec, fraccion)[0])
+        rec, x1, y1 = recortar_centro(rec, fraccion)
+        T = np.array([[1.0, 0.0, -x1], [0.0, 1.0, -y1], [0.0, 0.0, 1.0]]) @ T
+        return np.ascontiguousarray(rec), T[:2]
     h, w = rec.shape[ejes[0]], rec.shape[ejes[1]]
     f = min(fraccion, fraccion_con_giro(w, h, resto))
     nw, nh = max(8, int(w * f)), max(8, int(h * f))
@@ -260,9 +268,10 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     if mx or my:
         rec = rec[:, my:h - my, mx:w - mx] if canales_primero else rec[my:h - my, mx:w - mx]
         h, w = h - 2 * my, w - 2 * mx
-    M =cv2.getRotationMatrix2D(((w - 1) / 2.0, (h - 1) / 2.0), -resto, 1.0)
+    M = cv2.getRotationMatrix2D(((w - 1) / 2.0, (h - 1) / 2.0), -resto, 1.0)
     M[0, 2] += (nw - 1) / 2.0 - (w - 1) / 2.0
     M[1, 2] += (nh - 1) / 2.0 - (h - 1) / 2.0
+    T = np.vstack([M, [0.0, 0.0, 1.0]]) @ np.array([[1.0, 0.0, -mx], [0.0, 1.0, -my], [0.0, 0.0, 1.0]]) @ T
     nucleo = np.ones((3, 3), np.uint8)
 
     def _girar(canal):
@@ -273,8 +282,49 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
         return np.clip(sal, bajo, alto_)
 
     if canales_primero:
-        return np.stack([_girar(rec[i]) for i in range(3)])
-    return np.dstack([_girar(rec[:, :, i]) for i in range(rec.shape[2])]) if rec.ndim == 3 else _girar(rec)
+        return np.stack([_girar(rec[i]) for i in range(3)]), T[:2]
+    return (np.dstack([_girar(rec[:, :, i]) for i in range(rec.shape[2])]) if rec.ndim == 3 else _girar(rec)), T[:2]
+
+
+# Encuadre de la vista previa del apilado y del JPG de la galería ([Dispositivos]
+# de config.ini), además del zoom: giro_preview (grados en horario) y
+# espejo_preview son el encuadre a mano; con norte_arriba = true mandan el giro
+# y el espejo que dejan el norte arriba y el este a la izquierda, que el
+# apilador calcula con el plate solving de la referencia y guarda en la
+# cabecera del FITS apilado (NORTEGIR, NORTEESP).
+
+def leer_norte(header):
+    """(giro, espejo) que dejan el norte arriba, de la cabecera del FITS apilado; None si no los lleva."""
+    try:
+        if header is None or "NORTEGIR" not in header:
+            return None
+        return float(header["NORTEGIR"]), bool(header.get("NORTEESP", False))
+    except Exception:
+        return None
+
+
+def encuadre_vista(config=None, header=None):
+    """
+    Encuadre de la vista previa según config.ini: dict con fraccion, giro,
+    espejo y norte ("auto" si se ha aplicado el norte arriba de la cabecera,
+    "pendiente" si está pedido pero el FITS aún no lo lleva, "" si es a mano).
+    """
+    if config is None:
+        config = configparser.ConfigParser()
+        config.read("config.ini")
+    d = config["Dispositivos"] if "Dispositivos" in config else {}
+    try:
+        giro = float(d.get("giro_preview", 0) or 0) % 360.0
+    except ValueError:
+        giro = 0.0
+    espejo = str(d.get("espejo_preview", "false")).strip().lower() == "true"
+    norte = ""
+    if str(d.get("norte_arriba", "false")).strip().lower() == "true":
+        n = leer_norte(header)
+        norte = "auto" if n else "pendiente"
+        if n:
+            giro, espejo = n
+    return {"fraccion": fraccion_campo(config), "giro": giro, "espejo": espejo, "norte": norte}
 
 
 def zona_automatica(cubo, margen=12):

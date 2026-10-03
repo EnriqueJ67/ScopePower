@@ -53,11 +53,62 @@
         <small class="ayuda">La vista previa se calcula a media resolución en el mini PC (unos segundos). Al guardar se procesa todo el FITS y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos.</small>
     </div>
 
-    <!-- ─── Columna lateral: controles ─── -->
-    <div class="columna lateral">
-        <section class="card panel">
-            <div class="panel-header">
+    <!-- ─── Columna lateral: paneles plegables, en el orden que elija el usuario
+         (orden y plegado se guardan en config.ini vía /preferencias), como en Apilado ─── -->
+    <div class="columna lateral" id="paneles-editor">
+        <!-- Encuadre: lo que decide qué trozo del FITS se ve y cómo está orientado -->
+        <section class="card panel" data-panel="encuadre">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-pantalla"/></svg>Encuadre</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="campo">
+                    <div class="rango-titulo"><span>Recorte de bordes</span><span id="v-bordes"></span></div>
+                    <input type="range" id="c-bordes" data-clave="bordes" min="0" max="20" step="1">
+                    <small class="ayuda">% que se quita por cada lado antes de procesar (ni el fondo ni nada se calcula con lo recortado). Los bordes negros de la rotación de campo se detectan y se quitan solos; esto es para apurar más.</small>
+                </div>
+                <div class="campo mt-2">
+                    <label>Campo visible (zoom)</label>
+                    <select id="c-zoom" class="form-control">
+                        <option value="0">100 % (campo completo)</option>
+                        <option value="25">75 %</option>
+                        <option value="50">50 %</option>
+                        <option value="75">25 % (objetos pequeños)</option>
+                    </select>
+                </div>
+                <div class="campo mt-2">
+                    <div class="rango-titulo"><span>Giro del encuadre</span><span id="v-giro"></span></div>
+                    <div class="segmentado" id="giro-seg" style="width: 100%;">
+                        <button type="button" data-cuartos="0" onclick="elegirCuartos(0)" style="flex: 1;">0°</button>
+                        <button type="button" data-cuartos="1" onclick="elegirCuartos(1)" style="flex: 1;">90°</button>
+                        <button type="button" data-cuartos="2" onclick="elegirCuartos(2)" style="flex: 1;">180°</button>
+                        <button type="button" data-cuartos="3" onclick="elegirCuartos(3)" style="flex: 1;">270°</button>
+                    </div>
+                    <input type="range" id="c-giro-fino" min="-45" max="45" step="0.5" value="0" class="mt-2" title="Ajuste fino del giro">
+                    <label class="fila-check"><input type="checkbox" id="c-espejo"> Espejo (voltear de izquierda a derecha)</label>
+                    <div class="fila mt-2" style="gap: 6px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-norte" onclick="norteArriba()" title="Resuelve la foto con ASTAP y la deja como en los atlas: norte arriba y este a la izquierda" style="flex: 1;">Norte arriba</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="pintarGiro(0); document.getElementById('c-espejo').checked = false; programarVistaPrevia();" style="flex: 1;">Sin giro</button>
+                    </div>
+                    <div id="estado-giro" class="estado"></div>
+                    <small class="ayuda">Gira la foto en sentido horario. Los cuartos de vuelta no pierden nada; con el ajuste fino las esquinas se salen del campo y la foto se recorta lo justo (hasta quedarse en el 71 % a 45°). Con el zoom al 50 % o menos el giro no quita campo. «Norte arriba» resuelve la foto y la deja como en los atlas (norte arriba, este a la izquierda), con espejo si hace falta.</small>
+                </div>
+            </div>
+        </section>
+
+        <section class="card panel" data-panel="estirado">
+            <div class="panel-header" onclick="alternarPanel(this)">
                 <h3 class="card-title"><svg class="ico"><use href="#i-foto"/></svg>Estirado</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
             </div>
             <div class="panel-cuerpo">
                 <div class="segmentado" id="estirado-seg" style="width: 100%;">
@@ -79,9 +130,14 @@
             </div>
         </section>
 
-        <section class="card panel">
-            <div class="panel-header">
+        <section class="card panel" data-panel="procesado">
+            <div class="panel-header" onclick="alternarPanel(this)">
                 <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Procesado</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
             </div>
             <div class="panel-cuerpo">
                 <div class="campo">
@@ -131,43 +187,17 @@
                 </div>
                 <label class="fila-check"><input type="checkbox" id="c-gradiente"> Quitar gradiente de contaminación lumínica</label>
                 <label class="fila-check"><input type="checkbox" id="c-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
-                <div class="campo mt-2">
-                    <div class="rango-titulo"><span>Recorte de bordes</span><span id="v-bordes"></span></div>
-                    <input type="range" id="c-bordes" data-clave="bordes" min="0" max="20" step="1">
-                    <small class="ayuda">% que se quita por cada lado antes de procesar (ni el fondo ni nada se calcula con lo recortado). Los bordes negros de la rotación de campo se detectan y se quitan solos; esto es para apurar más.</small>
-                </div>
-                <div class="campo mt-2">
-                    <label>Campo visible (zoom)</label>
-                    <select id="c-zoom" class="form-control">
-                        <option value="0">100 % (campo completo)</option>
-                        <option value="25">75 %</option>
-                        <option value="50">50 %</option>
-                        <option value="75">25 % (objetos pequeños)</option>
-                    </select>
-                </div>
-                <div class="campo mt-2">
-                    <div class="rango-titulo"><span>Giro del encuadre</span><span id="v-giro"></span></div>
-                    <div class="segmentado" id="giro-seg" style="width: 100%;">
-                        <button type="button" data-cuartos="0" onclick="elegirCuartos(0)" style="flex: 1;">0°</button>
-                        <button type="button" data-cuartos="1" onclick="elegirCuartos(1)" style="flex: 1;">90°</button>
-                        <button type="button" data-cuartos="2" onclick="elegirCuartos(2)" style="flex: 1;">180°</button>
-                        <button type="button" data-cuartos="3" onclick="elegirCuartos(3)" style="flex: 1;">270°</button>
-                    </div>
-                    <input type="range" id="c-giro-fino" min="-45" max="45" step="0.5" value="0" class="mt-2" title="Ajuste fino del giro">
-                    <label class="fila-check"><input type="checkbox" id="c-espejo"> Espejo (voltear de izquierda a derecha)</label>
-                    <div class="fila mt-2" style="gap: 6px;">
-                        <button type="button" class="btn btn-secondary btn-sm" id="btn-norte" onclick="norteArriba()" title="Resuelve la foto con ASTAP y la deja como en los atlas: norte arriba y este a la izquierda" style="flex: 1;">Norte arriba</button>
-                        <button type="button" class="btn btn-ghost btn-sm" onclick="pintarGiro(0); document.getElementById('c-espejo').checked = false; programarVistaPrevia();" style="flex: 1;">Sin giro</button>
-                    </div>
-                    <div id="estado-giro" class="estado"></div>
-                    <small class="ayuda">Gira la foto en sentido horario. Los cuartos de vuelta no pierden nada; con el ajuste fino las esquinas se salen del campo y la foto se recorta lo justo (hasta quedarse en el 71 % a 45°). Con el zoom al 50 % o menos el giro no quita campo. «Norte arriba» resuelve la foto y la deja como en los atlas (norte arriba, este a la izquierda), con espejo si hace falta.</small>
-                </div>
             </div>
         </section>
 
-        <section class="card panel">
-            <div class="panel-header">
+        <section class="card panel" data-panel="firma">
+            <div class="panel-header" onclick="alternarPanel(this)">
                 <h3 class="card-title"><svg class="ico"><use href="#i-guardar"/></svg>Firma y nombre</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
             </div>
             <div class="panel-cuerpo">
                 <div class="campo">
@@ -182,8 +212,70 @@
     </div>
 </div>
 
+<style>
+    .apilado-layout { align-items: start; }
+    .lateral .card + .card { margin-top: 0; }
+    /* Pantalla ancha: la columna lateral se queda fija y hace su propio scroll, así la
+       foto no se pierde de vista al tocar los controles */
+    @media (min-width: 760px) {
+        .lateral { position: sticky; top: calc(var(--header-h) + 12px); max-height: calc(100vh - var(--header-h) - 24px); overflow-y: auto; scrollbar-width: thin; padding-right: 2px; }
+    }
+    @media (max-height: 500px) and (orientation: landscape) {
+        .apilado-layout { grid-template-columns: minmax(0, 1fr) minmax(260px, 1fr); }
+    }
+</style>
+
 <script>
     const NOMBRE = {{ info.nombre|tojson }};
+
+    // ——— Paneles laterales: orden y plegado, guardados en el servidor ([Interfaz] de config.ini) ———
+    let prefPaneles = { orden: [], plegados: [] };
+    fetch("/preferencias").then(r => r.json()).then(d => {
+        if (d && d.editor_paneles && Array.isArray(d.editor_paneles.orden)) prefPaneles = d.editor_paneles;
+    }).catch(() => {}).finally(aplicarPaneles);
+
+    function aplicarPaneles() {
+        const cont = document.getElementById("paneles-editor");
+        const paneles = Array.from(cont.querySelectorAll(".panel"));
+        const orden = prefPaneles.orden || [];
+        // Un panel que no esté en el orden guardado (añadido después) se queda al final
+        const pos = p => { const i = orden.indexOf(p.dataset.panel); return i < 0 ? orden.length : i; };
+        paneles.sort((a, b) => pos(a) - pos(b));
+        paneles.forEach(p => {
+            cont.appendChild(p);
+            p.classList.toggle("plegado", (prefPaneles.plegados || []).includes(p.dataset.panel));
+        });
+        paneles.forEach((p, i) => {
+            p.querySelector(".panel-subir").disabled = i === 0;
+            p.querySelector(".panel-bajar").disabled = i === paneles.length - 1;
+        });
+    }
+    // Se guarda con un pequeño retardo: varios toques seguidos hacen una sola escritura
+    let guardadoPaneles = null;
+    function guardarPaneles() {
+        const paneles = Array.from(document.querySelectorAll("#paneles-editor .panel"));
+        prefPaneles = {
+            orden: paneles.map(p => p.dataset.panel),
+            plegados: paneles.filter(p => p.classList.contains("plegado")).map(p => p.dataset.panel)
+        };
+        clearTimeout(guardadoPaneles);
+        guardadoPaneles = setTimeout(() => fetch("/preferencias", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ editor_paneles: prefPaneles }) }).catch(err => console.warn("No se pudieron guardar las preferencias:", err)), 400);
+    }
+    function moverPanel(boton, delta) {
+        const panel = boton.closest(".panel");
+        const paneles = Array.from(document.querySelectorAll("#paneles-editor .panel"));
+        const i = paneles.indexOf(panel), j = i + delta;
+        if (j < 0 || j >= paneles.length) return;
+        [paneles[i], paneles[j]] = [paneles[j], paneles[i]];
+        prefPaneles.orden = paneles.map(p => p.dataset.panel);
+        aplicarPaneles();
+        guardarPaneles();
+    }
+    function alternarPanel(el) {
+        el.closest(".panel").classList.toggle("plegado");
+        guardarPaneles();
+    }
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
     const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "contraste", "saturacion", "scnr", "bordes"];

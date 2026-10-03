@@ -116,7 +116,8 @@ def info_foto(nombre):
         raise ErrorEditor("Imagen no encontrada")
     meta = firma.meta_de_archivo(ruta_jpg)
     ajustes = meta.get("ajustes") or {}
-    base_cfg = procesado.leer_config()
+    # Sin editar todavía: el procesado del config y el encuadre (zoom, giro, espejo) con que se guardó
+    base_cfg = dict(procesado.leer_config(), **(meta.get("encuadre") or {}))
     completos = ajustes_desde(dict(base_cfg, **ajustes)) if ajustes else ajustes_desde(base_cfg)
     if "estirado" not in ajustes:
         # Foto guardada antes del editor: la firma dice si iba firmada; el estirado
@@ -273,11 +274,8 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
     objeto = " ".join(str(opciones.get("objeto", "")).split())[:60] or partes_nombre(nombre)[0].replace("_", " ")
     cubo, n, exposicion, zona = cargar_cubo(ruta_fits)
     fraccion = (100 - aj["zoom"]) / 100.0
-    margen = aj.get("bordes", 0) / 100.0
-    if aj.get("giro") or aj.get("espejo"):
-        recorte = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=margen, espejo=bool(aj.get("espejo")))
-    else:
-        recorte, _, _ = procesado.recortar_campo(cubo, fraccion, zona, margen=margen)
+    recorte, _ = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=aj.get("bordes", 0) / 100.0,
+                                       espejo=bool(aj.get("espejo")))
     escala = 1.0 if completa or fraccion <= 0.5 else 0.5
     rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso)
     imagen = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
@@ -311,11 +309,10 @@ def vista_previa(nombre, opciones):
 def giro_norte(nombre):
     """
     (giro, espejo) que dejan la foto como en los atlas, con el norte arriba y el
-    este a la izquierda: resuelve el FITS con ASTAP (en una carpeta temporal, para
-    no dejar el FITS monocromo en la galería) y mira hacia dónde caen el norte y
-    el este en el centro de la imagen. `espejo` sale True si la foto está en
-    espejo respecto al cielo (hay que voltearla antes de girar); `giro` en grados,
-    horario, -180..180. El resultado se recuerda mientras el FITS no cambie.
+    este a la izquierda (anotaciones.norte_arriba). Si el apilador ya los dejó en
+    la cabecera del FITS (NORTEGIR, NORTEESP) salen de ahí; si no, se resuelve el
+    FITS con ASTAP (en una carpeta temporal, para no dejar el FITS monocromo en la
+    galería). El resultado se recuerda mientras el FITS no cambie.
     """
     import anotaciones
     _, _, ruta_fits, _ = rutas(nombre)
@@ -328,32 +325,20 @@ def giro_norte(nombre):
     try:
         if clave in _cache_norte:
             return _cache_norte[clave]
-        with tempfile.TemporaryDirectory(prefix="scopepower_norte_") as carpeta:
-            res = anotaciones.resolver_wcs(ruta_fits, ruta_mono=os.path.join(carpeta, "foto_mono.fits"))
-        if res is None:
-            raise ErrorEditor("ASTAP no ha podido resolver la foto (¿pocas estrellas?)")
-        wcs = res[0]
         h = fits.getheader(ruta_fits)
-        ancho, alto = int(h["NAXIS1"]), int(h["NAXIS2"])
-        cx, cy = (ancho - 1) / 2.0, (alto - 1) / 2.0
-        ra, dec = (float(v) for v in wcs.all_pix2world([[cx, cy]], 0)[0])
-        paso = 0.05 if dec < 89.9 else -0.05                    # un poco hacia el norte (o desde el sur, en el polo)
-        xn, yn = (float(v) for v in wcs.all_world2pix([[ra, dec + paso]], 0)[0])
-        xe, ye = (float(v) for v in wcs.all_world2pix([[ra + 0.05 / max(math.cos(math.radians(dec)), 1e-3), dec]], 0)[0])
-        dx, dy = (xn - cx) * math.copysign(1, paso), (yn - cy) * math.copysign(1, paso)
-        ex, ey = xe - cx, ye - cy
-        if not all(math.isfinite(v) for v in (dx, dy, ex, ey)) or (dx == 0 and dy == 0):
-            raise ErrorEditor("No se pudo calcular la dirección del norte")
-        # En pantalla (y hacia abajo) el cielo tiene el este a 90° en antihorario del norte;
-        # si cae al otro lado la foto está en espejo y se voltea (x cambia de signo)
-        espejo = dx * ey - dy * ex > 0
-        if espejo:
-            dx = -dx
-        # El norte cae a atan2(dx, -dy) en horario desde arriba: se deshace
-        giro = round((-math.degrees(math.atan2(dx, -dy)) + 180.0) % 360.0 - 180.0, 1)
-        _cache_norte[clave] = (giro, espejo)
-        log.info("Norte arriba en %s: giro de %.1f°%s", nombre, giro, " con espejo" if espejo else "")
-        return giro, espejo
+        norte = procesado.leer_norte(h)
+        if norte is None:
+            with tempfile.TemporaryDirectory(prefix="scopepower_norte_") as carpeta:
+                res = anotaciones.resolver_wcs(ruta_fits, ruta_mono=os.path.join(carpeta, "foto_mono.fits"))
+            if res is None:
+                raise ErrorEditor("ASTAP no ha podido resolver la foto (¿pocas estrellas?)")
+            norte = anotaciones.norte_arriba(res[0], int(h["NAXIS1"]), int(h["NAXIS2"]))
+            if norte is None:
+                raise ErrorEditor("No se pudo calcular la dirección del norte")
+        norte = (round(float(norte[0]), 1), bool(norte[1]))
+        _cache_norte[clave] = norte
+        log.info("Norte arriba en %s: giro de %.1f°%s", nombre, norte[0], " con espejo" if norte[1] else "")
+        return norte
     finally:
         _lock_norte.release()
 

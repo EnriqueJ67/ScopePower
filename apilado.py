@@ -589,6 +589,8 @@ class ApiladorEnTiempoReal:
         # Zona (x0, y0, ancho, alto) cubierta por todas las fotos alineadas; la vista
         # previa y el JPG de la galería se recortan a ella (rotación de campo)
         self.zona_comun = None
+        # Encuadre con que se hizo la última vista previa (procesado.encuadre_vista): giro, espejo, norte
+        self.encuadre = None
         self.procesando = False
         self.fase = ""   # paso actual del procesado (para la barra de progreso de la web)
         # Progreso fino y tiempo restante: sub-fase dentro de la fase (p. ej.
@@ -820,7 +822,7 @@ class ApiladorEnTiempoReal:
     def generar_preview(self, rgb_cube, num_imagenes_preview, EXPOSICION, ObjetosAnotados=False,
                         anotar_evolucion=True, ruta_fits=None):
         """
-        Del cubo lineal (3, H, W) al JPG de vista previa: recorte de zoom,
+        Del cubo lineal (3, H, W) al JPG de vista previa: recorte de zoom y giro,
         procesado estilo Seestar (procesado.py), texto, miniatura de la tira de
         evolución y aviso a la web (versión). ruta_fits: FITS del que sacar las
         coordenadas para la firma.
@@ -833,11 +835,18 @@ class ApiladorEnTiempoReal:
         # completo (o el 75 %) se procesa a media resolución (la web muestra ≤600 px);
         # con el 50 % o menos, a resolución completa: mismo coste que el campo
         # entero a media resolución y el doble de detalle en los objetos pequeños.
-        fraccion = procesado.fraccion_campo(nuevo_config)
+        # El giro y el espejo del encuadre (a mano o "norte arriba", que sale de la
+        # cabecera del FITS apilado) van en el mismo paso.
+        try:
+            cabecera = fits.getheader("static/resultado_apilado.fits")
+        except Exception:
+            cabecera = None
+        encuadre = procesado.encuadre_vista(nuevo_config, cabecera)
+        fraccion = encuadre["fraccion"]
         with self.lock:
             zona = self.zona_comun
-        rgb_cube, x0, y0 = procesado.recortar_campo(rgb_cube, fraccion, zona)
-        recorte = (x0, y0, rgb_cube.shape[2], rgb_cube.shape[1]) if (fraccion < 0.999 or zona) else None
+            self.encuadre = encuadre
+        rgb_cube, matriz = procesado.girar_campo(rgb_cube, fraccion, encuadre["giro"], zona, espejo=encuadre["espejo"])
         escala = 0.5 if fraccion > 0.5 else 1.0
         rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=escala,
                                      progreso=self._subfase)
@@ -846,7 +855,9 @@ class ApiladorEnTiempoReal:
             # catálogo local sin Internet, SIMBAD si hay red, letra proporcional
             self._fase("anotando")
             try:
-                anotada = anotaciones.anotar(rgb_mtf, "static/resultado_apilado.fits", recorte=recorte)
+                # Del FITS a la vista previa: el encuadre y la reducción del procesado
+                matriz_vista = matriz * (rgb_mtf.shape[1] / float(rgb_cube.shape[2]))
+                anotada = anotaciones.anotar(rgb_mtf, "static/resultado_apilado.fits", matriz=matriz_vista)
                 if anotada is not None:
                     rgb_mtf = anotada
                     cv2.imwrite("static/scopepower_objetos.jpg", cv2.cvtColor(anotada, cv2.COLOR_RGB2BGR))
@@ -943,6 +954,15 @@ class ApiladorEnTiempoReal:
         hdr_out["NAXIS2"] = rgb_cube.shape[1]     # alto
         hdr_out["NAXIS3"] = rgb_cube.shape[0]     # canales
         hdr_out["COMMENT"] = "Debayered RGB image"
+        # Giro y espejo que dejan el norte arriba y el este a la izquierda, del plate solving
+        # de la referencia: los usan la vista previa (norte_arriba = true) y el editor de fotos
+        for clave in ("NORTEGIR", "NORTEESP"):
+            hdr_out.pop(clave, None)
+        wcs_ref = self.ref_info.get("wcs") if self.ref_info else None
+        norte = anotaciones.norte_arriba(wcs_ref, rgb_cube.shape[2], rgb_cube.shape[1]) if wcs_ref is not None else None
+        if norte:
+            hdr_out["NORTEGIR"] = (norte[0], "Giro horario (grados) que deja el norte arriba")
+            hdr_out["NORTEESP"] = (bool(norte[1]), "Espejo previo para dejar el este a la izquierda")
 
         hdu = PrimaryHDU(data=rgb_cube, header=hdr_out)
         hdu.writeto("static/resultado_apilado.fits", overwrite=True)
@@ -1359,6 +1379,7 @@ def reiniciar_apilado_global():
             apilador_global.ultima_detalle = None
             apilador_global.dimensiones = None
             apilador_global.zona_comun = None
+            apilador_global.encuadre = None
             apilador_global.apilados_realizados = 0
             apilador_global.evolucion.clear()
             apilador_global.desplazamientos.clear()
@@ -1491,6 +1512,7 @@ def obtener_estado_apilado():
             "referencia_nombre": a.imagen_referencia or "",
             "dimensiones": list(a.dimensiones) if a.dimensiones else None,
             "zona_comun": list(a.zona_comun) if a.zona_comun else None,
+            "encuadre": dict(a.encuadre) if a.encuadre else None,
             "ultima_detalle": dict(a.ultima_detalle) if a.ultima_detalle else None,
             "version": a.version_preview,
             "evolucion": list(a.evolucion),

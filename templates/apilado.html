@@ -348,6 +348,21 @@
                     </select>
                     <small class="ayuda">Recorta por los bordes la vista previa y el JPG de la galería, para ver más grandes los cúmulos globulares, planetarias y galaxias. El apilado y el FITS siguen a campo completo.</small>
                 </div>
+                <div class="campo mt-2">
+                    <div class="rango-titulo"><span>Giro del encuadre</span><span id="giro-v"></span></div>
+                    <label class="fila-check"><input type="checkbox" id="input-norte" onchange="pintarValorGiro()"> Norte arriba automático (este a la izquierda)</label>
+                    <div id="giro-manual">
+                        <div class="segmentado" id="giro-seg" style="width: 100%;">
+                            <button type="button" data-cuartos="0" onclick="elegirCuartos(0)" style="flex: 1;">0°</button>
+                            <button type="button" data-cuartos="1" onclick="elegirCuartos(1)" style="flex: 1;">90°</button>
+                            <button type="button" data-cuartos="2" onclick="elegirCuartos(2)" style="flex: 1;">180°</button>
+                            <button type="button" data-cuartos="3" onclick="elegirCuartos(3)" style="flex: 1;">270°</button>
+                        </div>
+                        <input type="range" id="input-giro-fino" min="-45" max="45" step="0.5" value="0" class="mt-2" title="Ajuste fino del giro" oninput="pintarValorGiro()">
+                        <label class="fila-check"><input type="checkbox" id="input-espejo"> Espejo (voltear de izquierda a derecha)</label>
+                    </div>
+                    <small class="ayuda">Gira en sentido horario la vista previa y el JPG de la galería; el FITS se guarda sin girar. Los cuartos de vuelta no pierden nada; con el ajuste fino se recorta lo justo para que no asomen las esquinas (nada con el zoom al 50 % o menos). «Norte arriba automático» usa el plate solving de la referencia de cada apilado y deja cada objeto como en los atlas.</small>
+                </div>
                 <button class="btn btn-primary btn-block" onclick="guardarParametrosMTF()">Aplicar a la vista previa</button>
                 <div id="estado-mtf" class="estado mt-1"></div>
             </div>
@@ -793,7 +808,19 @@
         });
         fetch("/config-zoom").then(r => r.json()).then(d => {
             pintarZoom(d.zoom);
+            document.getElementById("input-norte").checked = !!d.norte;
+            document.getElementById("input-espejo").checked = !!d.espejo;
+            pintarGiro(d.giro);
         }).catch(err => console.error("⚠️ Error al cargar zoom:", err));
+    }
+
+    // Fila "Giro" de las estadísticas: el encuadre con que se hizo la última vista previa
+    function textoEncuadre(e) {
+        if (!e) return "";
+        const giro = `${Number(e.giro).toLocaleString("es", { maximumFractionDigits: 1 })}°${e.espejo ? " con espejo" : ""}`;
+        if (e.norte === "auto") return `norte arriba (${giro})`;
+        if (e.norte === "pendiente") return "norte arriba: falta el plate solving de la referencia";
+        return (Number(e.giro) || e.espejo) ? giro : "";
     }
 
     // El config puede traer un valor antiguo (p. ej. 10): elegir la opción más cercana
@@ -805,6 +832,29 @@
             if (Math.abs(parseInt(o.value) - z) < Math.abs(parseInt(mejor.value) - z)) mejor = o;
         }
         sel.value = mejor.value;
+    }
+
+    // Giro del encuadre = cuartos de vuelta (botones, sin pérdida) + ajuste fino (-45..45), en horario.
+    // Con "Norte arriba automático" el giro y el espejo los pone el plate solving de la referencia.
+    function pintarGiro(giro) {
+        giro = ((parseFloat(giro) || 0) % 360 + 360) % 360;
+        const cuartos = Math.round(giro / 90);
+        document.getElementById("input-giro-fino").value = giro - 90 * cuartos;
+        document.querySelectorAll("#giro-seg button").forEach(b => b.classList.toggle("activo", parseInt(b.dataset.cuartos) === cuartos % 4));
+        pintarValorGiro();
+    }
+    function leerGiro() {
+        const cuartos = parseInt((document.querySelector("#giro-seg button.activo") || {}).dataset?.cuartos) || 0;
+        return (cuartos * 90 + (parseFloat(document.getElementById("input-giro-fino").value) || 0) + 360) % 360;
+    }
+    function pintarValorGiro() {
+        const norte = document.getElementById("input-norte").checked;
+        document.getElementById("giro-manual").style.display = norte ? "none" : "";
+        document.getElementById("giro-v").textContent = norte ? "norte arriba" : leerGiro().toLocaleString("es", { maximumFractionDigits: 1 }) + "°";
+    }
+    function elegirCuartos(cuartos) {
+        document.querySelectorAll("#giro-seg button").forEach(b => b.classList.toggle("activo", parseInt(b.dataset.cuartos) === cuartos));
+        pintarValorGiro();
     }
 
     // ——— Presets (compartidos con el editor de la galería) ———
@@ -864,6 +914,8 @@
     function guardarParametrosMTF() {
         const estado = document.getElementById("estado-mtf");
         const zoom = parseInt(document.getElementById("input-zoom").value) || 0;
+        const encuadre = { zoom, giro: leerGiro(), espejo: document.getElementById("input-espejo").checked,
+                           norte: document.getElementById("input-norte").checked };
         const ajustes = {
             estilo: document.getElementById("proc-estilo").value,
             fondo_objetivo: parseFloat(document.getElementById("proc-fondo_objetivo").value),
@@ -878,7 +930,7 @@
             aplanar: document.getElementById("proc-aplanar").checked
         };
         estado.textContent = "⏳ Aplicando y regenerando la vista previa...";
-        fetch("/guardar-config-zoom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zoom }) })
+        fetch("/guardar-config-zoom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(encuadre) })
             .then(() => fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ajustes) }))
             .then(() => reprocesarVistaPrevia(estado))
             .catch(err => estado.textContent = "❌ " + err);
@@ -1049,6 +1101,7 @@
                 ["Descartadas", desc.length ? desc.join(" · ") : "ninguna", desc.length ? "warn" : ""],
                 ["Tamaño", d.dimensiones ? `${d.dimensiones[0]} × ${d.dimensiones[1]} px` : ""],
                 ["Recorte", d.zona_comun ? `${d.zona_comun[2]} × ${d.zona_comun[3]} px (zona con ${d.referencia_fijada ? "al menos la mitad de" : "todas"} las fotos)` : (d.dimensiones ? "sin recortar" : "")],
+                ["Giro", textoEncuadre(d.encuadre)],
                 ["Referencia", d.referencia_nombre || ""],
             ]);
         } else {

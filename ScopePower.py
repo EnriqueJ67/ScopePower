@@ -412,6 +412,7 @@ PREFERENCIAS = {
     # clave web: (sección, clave en config.ini, tipo)
     "apilado_paneles": ("Interfaz", "apilado_paneles", "json"),
     "foto_paneles": ("Interfaz", "foto_paneles", "json"),         # orden y plegado de los paneles de la Foto de prueba
+    "editor_paneles": ("Interfaz", "editor_paneles", "json"),     # orden y plegado de los paneles del editor de fotos
     "opcion_dark": ("Interfaz", "opcion_dark", "texto"),
     "numero_darks": ("Dispositivos", "numero_darks", "entero"),
     "numero_maximo_imagenes": ("Dispositivos", "numero_maximo_imagenes", "entero"),   # se puede cambiar con el apilado en marcha
@@ -4444,9 +4445,13 @@ def procesar_dark():
 
 @app.route("/config-zoom")
 def obtener_config_zoom():
+    import procesado
     config.read("config.ini")
-    zoom = int(config["Dispositivos"].get("zoom_preview", 0))
-    return jsonify({"zoom": zoom})
+    d = config["Dispositivos"]
+    zoom = int(d.get("zoom_preview", 0))
+    manual = procesado.encuadre_vista(config)       # sin cabecera: el giro y el espejo puestos a mano
+    return jsonify({"zoom": zoom, "giro": manual["giro"], "espejo": manual["espejo"],
+                    "norte": str(d.get("norte_arriba", "false")).strip().lower() == "true"})
 
 @app.route("/guardar-config-zoom", methods=["POST"])
 def guardar_config_zoom():
@@ -4455,6 +4460,14 @@ def guardar_config_zoom():
         zoom = min(90, max(0, int(float(data["zoom"]))))
         config.read("config.ini")
         config["Dispositivos"]["zoom_preview"] = str(zoom)
+        # Giro del encuadre (grados en horario), espejo y norte arriba automático: opcionales
+        if "giro" in data:
+            giro = float(data["giro"])
+            config["Dispositivos"]["giro_preview"] = f"{(giro if np.isfinite(giro) else 0.0) % 360.0:g}"
+        if "espejo" in data:
+            config["Dispositivos"]["espejo_preview"] = "true" if data["espejo"] else "false"
+        if "norte" in data:
+            config["Dispositivos"]["norte_arriba"] = "true" if data["norte"] else "false"
         with open("config.ini", "w") as configfile:
             config.write(configfile)
         return "✅ Zoom guardado correctamente"
@@ -4522,9 +4535,10 @@ def guardar_apilado_en_galeria():
                 n = int(hdul[0].header.get("NSTACK", 1))
                 exp_total = float(hdul[0].header.get("EXPTOT", 0) or 0)
                 zona = procesado.leer_zona(hdul[0].header)
-            # Mismo recorte que la vista previa (zona cubierta por todas las fotos
-            # y zoom); el FITS se guarda entero
-            cubo, _, _ = procesado.recortar_campo(cubo, procesado.fraccion_campo(), zona)
+                encuadre = procesado.encuadre_vista(header=hdul[0].header)
+            # Mismo encuadre que la vista previa (zona cubierta por todas las fotos,
+            # zoom, giro y espejo); el FITS se guarda entero y sin girar
+            cubo, _ = procesado.girar_campo(cubo, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
             rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0)
             imagen_bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
             # Firma (logo, autor, objeto, tiempo, coordenadas). El FITS queda limpio y
@@ -4534,6 +4548,9 @@ def guardar_apilado_en_galeria():
                 imagen_bgr = firma.firmar(imagen_bgr, meta)
             cv2.imwrite(destino, imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92])
             meta["firmada"] = bool(meta["activa"])
+            # El encuadre con que se guarda, para que el editor de fotos parta del mismo
+            meta["encuadre"] = {"zoom": int(round((1.0 - encuadre["fraccion"]) * 100)), "giro": encuadre["giro"],
+                                "espejo": encuadre["espejo"]}
             firma.guardar_meta(destino, meta)
             GUARDADO.update({"ok": True, "mensaje": f"✅ Imagen guardada como {nombre_archivo} (y su FITS)"})
             voz.decir("Imagen guardada en la galería")

@@ -105,6 +105,36 @@ def wcs_desde_ini(ruta_ini):
     return wcs, escala_arcsec, angulo_cam
 
 
+def norte_arriba(wcs, ancho, alto):
+    """
+    (giro, espejo) que dejan una imagen de ancho × alto con ese WCS como en los
+    atlas, con el norte arriba y el este a la izquierda: `espejo` es True si la
+    imagen está en espejo respecto al cielo (hay que voltearla de izquierda a
+    derecha antes de girar) y `giro` va en grados, horario, -180..180 (los de
+    procesado.girar_campo). None si no se puede calcular.
+    """
+    try:
+        cx, cy = (ancho - 1) / 2.0, (alto - 1) / 2.0
+        ra, dec = (float(v) for v in wcs.all_pix2world([[cx, cy]], 0)[0])
+        paso = 0.05 if dec < 89.9 else -0.05                    # un poco hacia el norte (o desde el sur, en el polo)
+        xn, yn = (float(v) for v in wcs.all_world2pix([[ra, dec + paso]], 0)[0])
+        xe, ye = (float(v) for v in wcs.all_world2pix([[ra + 0.05 / max(math.cos(math.radians(dec)), 1e-3), dec]], 0)[0])
+    except Exception as e:
+        log.warning("No se pudo calcular el norte de la imagen: %s", e)
+        return None
+    dx, dy = (xn - cx) * math.copysign(1, paso), (yn - cy) * math.copysign(1, paso)
+    ex, ey = xe - cx, ye - cy
+    if not all(math.isfinite(v) for v in (dx, dy, ex, ey)) or (dx == 0 and dy == 0):
+        return None
+    # En pantalla (y hacia abajo) el cielo tiene el este a 90° en antihorario del norte;
+    # si cae al otro lado la imagen está en espejo y se voltea (x cambia de signo)
+    espejo = dx * ey - dy * ex > 0
+    if espejo:
+        dx = -dx
+    # El norte cae a atan2(dx, -dy) en horario desde arriba: se deshace
+    return round((-math.degrees(math.atan2(dx, -dy)) + 180.0) % 360.0 - 180.0, 1), espejo
+
+
 def objetos_catalogo_en_campo(wcs, ancho, alto, margen=0.02):
     """Objetos de catalogo_objetos.csv cuyo centro cae dentro de la imagen (píxeles de la imagen completa)."""
     try:
@@ -189,15 +219,15 @@ def _fusionar(catalogo, simbad, wcs, tol_px=40):
     return resultado
 
 
-def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, factor, desplazamiento=(0, 0)):
+def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, matriz):
     """
-    Dibuja elipses/círculos y etiquetas sobre img_bgr (ya reducida por `factor`
-    respecto al FITS que resolvió ASTAP). Tamaño de letra y grosor proporcionales.
-    desplazamiento: (x0, y0) en píxeles del FITS de la esquina superior izquierda
-    de img_bgr, cuando esta es un recorte central del campo (zoom).
+    Dibuja elipses/círculos y etiquetas sobre img_bgr. Tamaño de letra y grosor
+    proporcionales. matriz: afín 2×3 que lleva un píxel del FITS que resolvió
+    ASTAP a img_bgr (reducción, recorte de zoom, giro y espejo del encuadre).
     """
     h, w = img_bgr.shape[:2]
-    dx, dy = desplazamiento
+    matriz = np.asarray(matriz, dtype=np.float64)
+    factor = math.sqrt(abs(matriz[0, 0] * matriz[1, 1] - matriz[0, 1] * matriz[1, 0]))
     lado = max(h, w)
     grosor = max(1, int(round(lado / 700)))
     fuente = max(0.45, lado / 1500)
@@ -215,8 +245,8 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, factor, desplazami
     for o in objetos:
         try:
             xw, yw = wcs.all_world2pix([o["ra"]], [o["dec"]], 0)
-            x = int(round((float(xw[0]) - dx) * factor))
-            y = int(round((float(yw[0]) - dy) * factor))
+            x = int(round(matriz[0, 0] * float(xw[0]) + matriz[0, 1] * float(yw[0]) + matriz[0, 2]))
+            y = int(round(matriz[1, 0] * float(xw[0]) + matriz[1, 1] * float(yw[0]) + matriz[1, 2]))
             if not (0 <= x < w and 0 <= y < h):
                 continue
             semi_maj = (o["tamano_arcsec"] / 2.0) / escala_arcsec * factor
@@ -230,7 +260,11 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, factor, desplazami
             if ang is None:
                 cv2.circle(img_bgr, (x, y), int(round(semi_maj)), color, grosor, cv2.LINE_AA)
             else:
-                cv2.ellipse(img_bgr, (x, y), (int(round(semi_maj)), int(round(semi_min))), ang - angulo_cam,
+                # El eje mayor, que en el FITS va a (ang - angulo_cam), gira (y se voltea) con el encuadre
+                a = math.radians(ang - angulo_cam)
+                vx, vy = math.cos(a), math.sin(a)
+                ang_img = math.degrees(math.atan2(matriz[1, 0] * vx + matriz[1, 1] * vy, matriz[0, 0] * vx + matriz[0, 1] * vy))
+                cv2.ellipse(img_bgr, (x, y), (int(round(semi_maj)), int(round(semi_min))), ang_img,
                             0, 360, color, grosor, cv2.LINE_AA)
             n += 1
             mag = o.get("mag")
@@ -256,12 +290,13 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, factor, desplazami
     return n
 
 
-def anotar(rgb_procesado, ruta_fits, usar_simbad=True, recorte=None):
+def anotar(rgb_procesado, ruta_fits, usar_simbad=True, matriz=None):
     """
     Devuelve una copia de rgb_procesado (uint8 RGB, a cualquier escala del FITS)
     con los objetos del campo anotados, o None si no se pudo resolver el campo.
-    recorte: (x0, y0, ancho, alto) en píxeles del FITS si rgb_procesado es un
-    recorte central del campo (zoom); None si es el campo completo.
+    matriz: afín 2×3 que lleva un píxel del FITS a rgb_procesado (la de
+    procesado.girar_campo por la reducción del procesado); None si
+    rgb_procesado es el campo completo, solo reducido.
     """
     from astropy.io import fits as _fits
     with _fits.open(ruta_fits) as hdul:
@@ -271,18 +306,16 @@ def anotar(rgb_procesado, ruta_fits, usar_simbad=True, recorte=None):
         log.info("Anotaciones: el campo no se pudo resolver")
         return None
     wcs, escala_arcsec, angulo_cam, ruta_ini = res
-    if recorte:
-        x0, y0, ancho_rec, _ = recorte
-    else:
-        x0, y0, ancho_rec = 0, 0, ancho_fits
-    factor = rgb_procesado.shape[1] / float(ancho_rec)
+    if matriz is None:
+        factor = rgb_procesado.shape[1] / float(ancho_fits)
+        matriz = [[factor, 0.0, 0.0], [0.0, factor, 0.0]]
     objetos = objetos_catalogo_en_campo(wcs, ancho_fits, alto_fits)
     if usar_simbad:
         objetos = _fusionar(objetos, objetos_simbad(ruta_ini, ruta_fits), wcs)
     if not objetos:
         log.info("Anotaciones: ningún objeto conocido en el campo")
     img = cv2.cvtColor(rgb_procesado, cv2.COLOR_RGB2BGR)
-    n = dibujar(img, wcs, escala_arcsec, angulo_cam, objetos, factor, desplazamiento=(x0, y0))
+    n = dibujar(img, wcs, escala_arcsec, angulo_cam, objetos, matriz)
     log.info("Anotaciones: %d objetos dibujados (%d del catálogo local)", n,
              sum(1 for o in objetos if o.get("fuente") == "catalogo"))
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
