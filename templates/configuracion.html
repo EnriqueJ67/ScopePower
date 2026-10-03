@@ -41,6 +41,16 @@
                     <label>Máximo de fotos a apilar</label>
                     <input type="number" id="numero_maximo_imagenes" class="form-control" min="1" step="1">
                 </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Modo de apilado</label>
+                    <select id="modo_apilado" class="form-control">
+                        <option value="mejores">Las N mejores</option>
+                        <option value="incremental">Incremental (sin tope)</option>
+                    </select>
+                    <small class="ayuda"><b>Las N mejores:</b> se guardan las mejores fotos hasta el máximo y se reapilan todas con cada foto nueva; una foto mejor sustituye a la peor. El tiempo por foto crece con el número de fotos.</small>
+                    <small class="ayuda"><b>Incremental:</b> las primeras fotos buenas (10) fijan la referencia y las siguientes se suman quitando lo que no encaja con ella (satélites, aviones). Tiempo fijo por foto y sin máximo, pero una foto que ha entrado ya no se puede quitar.</small>
+                    <small class="ayuda">Para comparar los dos modos con el mismo objeto: cambia aquí, guarda y reinicia el apilado.</small>
+                </div>
                 <div class="form-group">
                     <label>Focal (mm)</label>
                     <input type="number" id="focal_len" class="form-control">
@@ -392,7 +402,8 @@
             ganancia_camara: document.getElementById("ganancia_camara").value,
             focal_len: document.getElementById("focal_len").value,
             color_intensity: document.getElementById("color_intensity").value,
-            zoom_preview: document.getElementById("zoom_preview").value
+            zoom_preview: document.getElementById("zoom_preview").value,
+            modo_apilado: document.getElementById("modo_apilado").value
         };
 
         fetch("/guardar-config-datos", {

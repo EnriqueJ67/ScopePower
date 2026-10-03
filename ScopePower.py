@@ -4957,7 +4957,8 @@ def obtener_config_datos():
         "ganancia_camara": config["Dispositivos"].get("ganancia_camara", "").strip(),   # "" = la del driver
         "focal_len": config["Dispositivos"].getfloat("focal_len"),
         "color_intensity": config["Dispositivos"].getfloat("color_intensity"),
-        "zoom_preview": config["Dispositivos"].getint("zoom_preview")
+        "zoom_preview": config["Dispositivos"].getint("zoom_preview"),
+        "modo_apilado": apilado.leer_config_calidad()["modo"],    # mejores | incremental ([Apilado])
     })
 
 @app.route("/camara/ganancia")
@@ -4983,6 +4984,12 @@ def guardar_config_datos():
     for clave, valor in data.items():
         if clave in config["Dispositivos"] or clave in ("ganancia_camara",):
             config["Dispositivos"][clave] = str(valor).strip()
+    # El modo de apilado va en [Apilado]; el apilador lo relee con cada foto
+    if "modo_apilado" in data:
+        if "Apilado" not in config:
+            config["Apilado"] = {}
+        modo = str(data["modo_apilado"]).strip().lower()
+        config["Apilado"]["modo_apilado"] = modo if modo in ("mejores", "incremental") else "mejores"
     with open("config.ini", "w") as f:
         config.write(f)
     # Si cambia un driver, desconectar ese dispositivo: la siguiente conexión usa el nuevo
