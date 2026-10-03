@@ -18,6 +18,7 @@
 # (ruido, contraste, saturación) en la sección [Procesado] de config.ini.
 
 import logging
+import math
 import configparser
 import json
 import threading
@@ -212,6 +213,68 @@ def recortar_campo(cubo, fraccion, zona=None, margen=0.0):
         zx, zy = zx + mx, zy + my
     rec, x1, y1 = recortar_centro(cubo, fraccion)
     return np.ascontiguousarray(rec), zx + x1, zy + y1
+
+
+def fraccion_con_giro(ancho, alto, giro):
+    """
+    Mayor fracción del lado que cabe entera dentro de un campo de ancho × alto
+    cuando el encuadre se gira `giro` grados sin cambiar de proporción: 1.0 en
+    los múltiplos de 180° (y de 90° si el campo es cuadrado), 0,71 a 45° en un
+    campo cuadrado.
+    """
+    c, s = abs(math.cos(math.radians(giro))), abs(math.sin(math.radians(giro)))
+    return min(1.0, ancho / (ancho * c + alto * s), alto / (ancho * s + alto * c))
+
+
+def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
+    """
+    Como recortar_campo, pero con el encuadre girado `giro` grados alrededor del
+    centro de la zona útil (positivo = la imagen gira en sentido horario) y, con
+    `espejo`, volteado antes de izquierda a derecha. Devuelve solo el recorte.
+
+    Los cuartos de vuelta se hacen cambiando filas por columnas, sin interpolar
+    ni perder campo. El resto (entre -45° y 45°) se interpola (bicúbica, acotada
+    a los valores vecinos para que las estrellas no dejen anillos oscuros), y
+    como las esquinas se salen del campo el recorte se encoge lo justo: con
+    `fraccion` por debajo de fraccion_con_giro() no se pierde nada más.
+    """
+    rec, _, _ = recortar_campo(cubo, 1.0, zona, margen)
+    canales_primero = rec.ndim == 3 and rec.shape[0] == 3 and rec.shape[-1] != 3
+    ejes = (1, 2) if canales_primero else (0, 1)
+    if espejo:
+        rec = np.flip(rec, axis=ejes[1])
+    giro = (float(giro) + 180.0) % 360.0 - 180.0
+    cuartos = int(round(giro / 90.0))
+    resto = giro - 90.0 * cuartos
+    if cuartos % 4:
+        rec = np.rot90(rec, -cuartos, axes=ejes)     # np.rot90 gira en antihorario
+    if abs(resto) < 0.05:
+        return np.ascontiguousarray(recortar_centro(rec, fraccion)[0])
+    h, w = rec.shape[ejes[0]], rec.shape[ejes[1]]
+    f = min(fraccion, fraccion_con_giro(w, h, resto))
+    nw, nh = max(8, int(w * f)), max(8, int(h * f))
+    # Con zoom solo hace falta el trozo central que pisa el encuadre girado (más 3 px para la bicúbica)
+    c, s = abs(math.cos(math.radians(resto))), abs(math.sin(math.radians(resto)))
+    mx = max(0, int((w - (nw * c + nh * s)) / 2.0) - 3)
+    my = max(0, int((h - (nw * s + nh * c)) / 2.0) - 3)
+    if mx or my:
+        rec = rec[:, my:h - my, mx:w - mx] if canales_primero else rec[my:h - my, mx:w - mx]
+        h, w = h - 2 * my, w - 2 * mx
+    M =cv2.getRotationMatrix2D(((w - 1) / 2.0, (h - 1) / 2.0), -resto, 1.0)
+    M[0, 2] += (nw - 1) / 2.0 - (w - 1) / 2.0
+    M[1, 2] += (nh - 1) / 2.0 - (h - 1) / 2.0
+    nucleo = np.ones((3, 3), np.uint8)
+
+    def _girar(canal):
+        canal = np.ascontiguousarray(canal, dtype=np.float32)
+        sal = cv2.warpAffine(canal, M, (nw, nh), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+        bajo = cv2.warpAffine(cv2.erode(canal, nucleo), M, (nw, nh), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REFLECT)
+        alto_ = cv2.warpAffine(cv2.dilate(canal, nucleo), M, (nw, nh), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REFLECT)
+        return np.clip(sal, bajo, alto_)
+
+    if canales_primero:
+        return np.stack([_girar(rec[i]) for i in range(3)])
+    return np.dstack([_girar(rec[:, :, i]) for i in range(rec.shape[2])]) if rec.ndim == 3 else _girar(rec)
 
 
 def zona_automatica(cubo, margen=12):

@@ -4927,6 +4927,19 @@ def galeria_editar_guardar(nombre):
         return jsonify({"ok": False, "mensaje": str(e)}), 409
 
 
+@app.route("/galeria/editar/<nombre>/norte", methods=["POST"])
+def galeria_editar_norte(nombre):
+    """Giro y espejo que dejan el norte arriba y el este a la izquierda (plate solving del FITS; unos segundos)."""
+    try:
+        giro, espejo = editor_fotos.giro_norte(nombre)
+        return jsonify({"ok": True, "giro": giro, "espejo": espejo})
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    except Exception as e:
+        log.exception("Error buscando el norte de la foto")
+        return jsonify({"ok": False, "mensaje": f"No se pudo resolver: {e}"}), 500
+
+
 @app.route("/galeria/editar-estado")
 def galeria_editar_estado():
     return jsonify(editor_fotos.EDICION)

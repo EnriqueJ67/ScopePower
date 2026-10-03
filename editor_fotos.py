@@ -8,6 +8,8 @@
 #   - estirado: "multiescala" (el nuevo, sep-2026) o "stf" (el clásico), para
 #     comparar los dos sistemas sobre la misma foto;
 #   - firma (logo, autor, lugar, fecha, objeto, integración, coordenadas) sí/no;
+#   - giro y espejo del encuadre (procesado.girar_campo), a mano o "norte arriba"
+#     con el plate solving del FITS;
 #   - nombre del objeto: cambia el rótulo de la firma y, si se guarda, el nombre
 #     de los tres ficheros (JPG, FITS y JSON), que es de donde la galería saca el
 #     nombre y la fecha.
@@ -22,8 +24,10 @@ import os
 import io
 import re
 import json
+import math
 import shutil
 import logging
+import tempfile
 import threading
 from datetime import datetime
 
@@ -56,6 +60,8 @@ EDICION = {"en_curso": False, "mensaje": "", "ok": None, "archivo": "", "nombre_
 _lock_preview = threading.Lock()
 _lock_cubo = threading.Lock()
 _cache_cubo = {"ruta": None, "mtime": None, "cubo": None, "n": 0, "exposicion": 0.0, "zona": None}
+_lock_norte = threading.Lock()
+_cache_norte = {}      # (ruta_fits, mtime) -> (giro, espejo) que dejan el norte arriba y el este a la izquierda
 
 
 class ErrorEditor(Exception):
@@ -145,7 +151,7 @@ def ajustes_desde(datos):
     """
     Ajustes de procesado completos a partir de lo que manda la web (o de un JSON
     guardado): el estilo aporta los valores base y cada clave explícita manda.
-    Devuelve también las claves propias del editor: estirado, zoom, firma.
+    Devuelve también las claves propias del editor: estirado, zoom, giro, espejo, firma.
     """
     datos = datos or {}
     estilo = str(datos.get("estilo", "seestar")).lower()
@@ -177,6 +183,13 @@ def ajustes_desde(datos):
         aj["bordes"] = int(min(max(float(datos.get("bordes", 0) or 0), 0), 20))   # % recortado por cada lado
     except (TypeError, ValueError):
         aj["bordes"] = 0
+    try:
+        giro = float(datos.get("giro", 0) or 0)
+        aj["giro"] = round((giro + 180.0) % 360.0 - 180.0, 1) if math.isfinite(giro) else 0.0   # horario, -180..180
+    except (TypeError, ValueError):
+        aj["giro"] = 0.0
+    v = datos.get("espejo", False)
+    aj["espejo"] = (str(v).lower() == "true") if not isinstance(v, bool) else v
     v = datos.get("firma", True)
     aj["firma"] = (str(v).lower() == "true") if not isinstance(v, bool) else v
     return aj
@@ -185,7 +198,7 @@ def ajustes_desde(datos):
 def _ajustes_para_json(aj):
     """Solo lo que tiene sentido guardar en el JSON hermano (sin los valores del estilo que no se tocan)."""
     guardar = {"estilo": aj["estilo"], "estirado": aj["estirado"], "zoom": aj["zoom"], "bordes": aj.get("bordes", 0),
-               "firma": bool(aj["firma"])}
+               "giro": aj.get("giro", 0.0), "espejo": bool(aj.get("espejo")), "firma": bool(aj["firma"])}
     for k in CLAVES_FLOAT:
         guardar[k] = aj.get(k)
     for k in CLAVES_BOOL:
@@ -260,7 +273,11 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
     objeto = " ".join(str(opciones.get("objeto", "")).split())[:60] or partes_nombre(nombre)[0].replace("_", " ")
     cubo, n, exposicion, zona = cargar_cubo(ruta_fits)
     fraccion = (100 - aj["zoom"]) / 100.0
-    recorte, _, _ = procesado.recortar_campo(cubo, fraccion, zona, margen=aj.get("bordes", 0) / 100.0)
+    margen = aj.get("bordes", 0) / 100.0
+    if aj.get("giro") or aj.get("espejo"):
+        recorte = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=margen, espejo=bool(aj.get("espejo")))
+    else:
+        recorte, _, _ = procesado.recortar_campo(cubo, fraccion, zona, margen=margen)
     escala = 1.0 if completa or fraccion <= 0.5 else 0.5
     rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso)
     imagen = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
@@ -289,6 +306,56 @@ def vista_previa(nombre, opciones):
         return jpg.tobytes()
     finally:
         _lock_preview.release()
+
+
+def giro_norte(nombre):
+    """
+    (giro, espejo) que dejan la foto como en los atlas, con el norte arriba y el
+    este a la izquierda: resuelve el FITS con ASTAP (en una carpeta temporal, para
+    no dejar el FITS monocromo en la galería) y mira hacia dónde caen el norte y
+    el este en el centro de la imagen. `espejo` sale True si la foto está en
+    espejo respecto al cielo (hay que voltearla antes de girar); `giro` en grados,
+    horario, -180..180. El resultado se recuerda mientras el FITS no cambie.
+    """
+    import anotaciones
+    _, _, ruta_fits, _ = rutas(nombre)
+    try:
+        clave = (ruta_fits, os.path.getmtime(ruta_fits))
+    except OSError:
+        raise ErrorEditor("Esta foto no tiene FITS guardado; no se puede resolver")
+    if not _lock_norte.acquire(blocking=False):
+        raise ErrorEditor("Ya se está resolviendo la foto; espera a que termine")
+    try:
+        if clave in _cache_norte:
+            return _cache_norte[clave]
+        with tempfile.TemporaryDirectory(prefix="scopepower_norte_") as carpeta:
+            res = anotaciones.resolver_wcs(ruta_fits, ruta_mono=os.path.join(carpeta, "foto_mono.fits"))
+        if res is None:
+            raise ErrorEditor("ASTAP no ha podido resolver la foto (¿pocas estrellas?)")
+        wcs = res[0]
+        h = fits.getheader(ruta_fits)
+        ancho, alto = int(h["NAXIS1"]), int(h["NAXIS2"])
+        cx, cy = (ancho - 1) / 2.0, (alto - 1) / 2.0
+        ra, dec = (float(v) for v in wcs.all_pix2world([[cx, cy]], 0)[0])
+        paso = 0.05 if dec < 89.9 else -0.05                    # un poco hacia el norte (o desde el sur, en el polo)
+        xn, yn = (float(v) for v in wcs.all_world2pix([[ra, dec + paso]], 0)[0])
+        xe, ye = (float(v) for v in wcs.all_world2pix([[ra + 0.05 / max(math.cos(math.radians(dec)), 1e-3), dec]], 0)[0])
+        dx, dy = (xn - cx) * math.copysign(1, paso), (yn - cy) * math.copysign(1, paso)
+        ex, ey = xe - cx, ye - cy
+        if not all(math.isfinite(v) for v in (dx, dy, ex, ey)) or (dx == 0 and dy == 0):
+            raise ErrorEditor("No se pudo calcular la dirección del norte")
+        # En pantalla (y hacia abajo) el cielo tiene el este a 90° en antihorario del norte;
+        # si cae al otro lado la foto está en espejo y se voltea (x cambia de signo)
+        espejo = dx * ey - dy * ex > 0
+        if espejo:
+            dx = -dx
+        # El norte cae a atan2(dx, -dy) en horario desde arriba: se deshace
+        giro = round((-math.degrees(math.atan2(dx, -dy)) + 180.0) % 360.0 - 180.0, 1)
+        _cache_norte[clave] = (giro, espejo)
+        log.info("Norte arriba en %s: giro de %.1f°%s", nombre, giro, " con espejo" if espejo else "")
+        return giro, espejo
+    finally:
+        _lock_norte.release()
 
 
 # ── Guardar / restaurar ─────────────────────────────────────────────────────

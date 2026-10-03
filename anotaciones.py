@@ -44,13 +44,14 @@ def _ruta_astap():
     return cfg.get("General", "ruta_astap", fallback="")
 
 
-def resolver_wcs(ruta_fits, timeout=TIMEOUT_ASTAP_S):
+def resolver_wcs(ruta_fits, timeout=TIMEOUT_ASTAP_S, ruta_mono=None):
     """
     Plate solving del FITS apilado con ASTAP. Devuelve (wcs, escala_arcsec_px,
     angulo_camara_deg, ruta_ini) o None. El WCS está en píxeles de la imagen
-    completa (la del FITS).
+    completa (la del FITS). ruta_mono: dónde dejar el FITS monocromo que resuelve
+    ASTAP (y su .ini); por defecto, junto al FITS.
     """
-    ruta_mono = os.path.splitext(ruta_fits)[0] + "_mono.fits"
+    ruta_mono = ruta_mono or os.path.splitext(ruta_fits)[0] + "_mono.fits"
     ruta_ini = os.path.splitext(ruta_mono)[0] + ".ini"
     generar_fits_monocromo_para_platesolve(ruta_fits, ruta_mono)
     for viejo in (ruta_ini, os.path.splitext(ruta_mono)[0] + ".wcs"):

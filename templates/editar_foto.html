@@ -145,6 +145,23 @@
                         <option value="75">25 % (objetos pequeños)</option>
                     </select>
                 </div>
+                <div class="campo mt-2">
+                    <div class="rango-titulo"><span>Giro del encuadre</span><span id="v-giro"></span></div>
+                    <div class="segmentado" id="giro-seg" style="width: 100%;">
+                        <button type="button" data-cuartos="0" onclick="elegirCuartos(0)" style="flex: 1;">0°</button>
+                        <button type="button" data-cuartos="1" onclick="elegirCuartos(1)" style="flex: 1;">90°</button>
+                        <button type="button" data-cuartos="2" onclick="elegirCuartos(2)" style="flex: 1;">180°</button>
+                        <button type="button" data-cuartos="3" onclick="elegirCuartos(3)" style="flex: 1;">270°</button>
+                    </div>
+                    <input type="range" id="c-giro-fino" min="-45" max="45" step="0.5" value="0" class="mt-2" title="Ajuste fino del giro">
+                    <label class="fila-check"><input type="checkbox" id="c-espejo"> Espejo (voltear de izquierda a derecha)</label>
+                    <div class="fila mt-2" style="gap: 6px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-norte" onclick="norteArriba()" title="Resuelve la foto con ASTAP y la deja como en los atlas: norte arriba y este a la izquierda" style="flex: 1;">Norte arriba</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="pintarGiro(0); document.getElementById('c-espejo').checked = false; programarVistaPrevia();" style="flex: 1;">Sin giro</button>
+                    </div>
+                    <div id="estado-giro" class="estado"></div>
+                    <small class="ayuda">Gira la foto en sentido horario. Los cuartos de vuelta no pierden nada; con el ajuste fino las esquinas se salen del campo y la foto se recorta lo justo (hasta quedarse en el 71 % a 45°). Con el zoom al 50 % o menos el giro no quita campo. «Norte arriba» resuelve la foto y la deja como en los atlas (norte arriba, este a la izquierda), con espejo si hace falta.</small>
+                </div>
             </div>
         </section>
 
@@ -187,6 +204,8 @@
         document.getElementById("c-aplanar").checked = !!a.aplanar;
         if (a.estilo) document.getElementById("c-estilo").value = a.estilo;
         if (a.zoom !== undefined) document.getElementById("c-zoom").value = String(a.zoom);
+        if (a.giro !== undefined) pintarGiro(a.giro);
+        if (a.espejo !== undefined) document.getElementById("c-espejo").checked = !!a.espejo;
         if (a.firma !== undefined) document.getElementById("c-firma").checked = !!a.firma;
         if (a.estirado) elegirEstirado(a.estirado, false);
     }
@@ -202,6 +221,48 @@
         if (refrescar) programarVistaPrevia();
     }
 
+    // Giro = cuartos de vuelta (botones, sin pérdida) + ajuste fino (-45..45, deslizador), en horario
+    function pintarGiro(giro) {
+        giro = ((parseFloat(giro) || 0) % 360 + 360) % 360;
+        let cuartos = Math.round(giro / 90), fino = giro - 90 * cuartos;
+        cuartos = cuartos % 4;
+        document.getElementById("c-giro-fino").value = fino;
+        document.querySelectorAll("#giro-seg button").forEach(b => b.classList.toggle("activo", parseInt(b.dataset.cuartos) === cuartos));
+        pintarValorGiro();
+    }
+
+    function leerGiro() {
+        const cuartos = parseInt((document.querySelector("#giro-seg button.activo") || {}).dataset?.cuartos) || 0;
+        return (cuartos * 90 + (parseFloat(document.getElementById("c-giro-fino").value) || 0) + 360) % 360;
+    }
+
+    function pintarValorGiro() {
+        document.getElementById("v-giro").textContent = leerGiro().toLocaleString("es", { maximumFractionDigits: 1 }) + "°";
+    }
+
+    function elegirCuartos(cuartos) {
+        document.querySelectorAll("#giro-seg button").forEach(b => b.classList.toggle("activo", parseInt(b.dataset.cuartos) === cuartos));
+        pintarValorGiro();
+        programarVistaPrevia();
+    }
+
+    async function norteArriba() {
+        const boton = document.getElementById("btn-norte"), estado = document.getElementById("estado-giro");
+        boton.disabled = true; boton.textContent = "Resolviendo..."; estado.textContent = "";
+        try {
+            const d = await fetch(`/galeria/editar/${encodeURIComponent(NOMBRE)}/norte`, { method: "POST" }).then(r => r.json());
+            if (!d.ok) throw new Error(d.mensaje || "No se pudo resolver la foto");
+            pintarGiro(d.giro);
+            document.getElementById("c-espejo").checked = !!d.espejo;
+            estado.textContent = "✅ Norte arriba y este a la izquierda" + (d.espejo ? " (la foto estaba en espejo y se ha volteado)" : "");
+            programarVistaPrevia();
+        } catch (e) {
+            estado.textContent = "⚠️ " + e.message;
+        } finally {
+            boton.disabled = false; boton.textContent = "Norte arriba";
+        }
+    }
+
     function leerAjustes() {
         const a = {
             estirado: (document.querySelector("#estirado-seg button.activo") || {}).dataset?.estirado || "multiescala",
@@ -209,6 +270,8 @@
             gradiente: document.getElementById("c-gradiente").checked,
             aplanar: document.getElementById("c-aplanar").checked,
             zoom: parseInt(document.getElementById("c-zoom").value) || 0,
+            giro: leerGiro(),
+            espejo: document.getElementById("c-espejo").checked,
             firma: document.getElementById("c-firma").checked,
             objeto: document.getElementById("c-objeto").value.trim()
         };
@@ -324,7 +387,8 @@
         c.addEventListener("input", () => document.getElementById("v-" + k).textContent = c.value);
         c.addEventListener("change", programarVistaPrevia);
     }
-    for (const id of ["c-gradiente", "c-aplanar", "c-zoom", "c-firma"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
+    for (const id of ["c-gradiente", "c-aplanar", "c-zoom", "c-firma", "c-giro-fino", "c-espejo"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
+    document.getElementById("c-giro-fino").addEventListener("input", pintarValorGiro);
     document.getElementById("c-objeto").addEventListener("change", () => { if (document.getElementById("c-firma").checked) programarVistaPrevia(); });
 
     // ——— Presets (compartidos con la pantalla de Apilado) ———
