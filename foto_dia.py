@@ -21,6 +21,7 @@ from datetime import datetime
 import numpy as np
 
 from hardware import capturar_frame, CapturaCancelada, ErrorHardware, estado_captura
+import giro_camara
 
 log = logging.getLogger("scopepower.foto_dia")
 
@@ -652,13 +653,16 @@ def cabecera_revelado(objetivo, campo, info, instante=None):
     return extra
 
 
-def registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info, en_disco=False):
-    """Anota en foto_actual la foto de día que se acaba de mostrar (el crudo va en memoria si no está en disco)."""
+def registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info, en_disco=False, encuadre=None, sin_girar=None):
+    """
+    Anota en foto_actual la foto de día que se acaba de mostrar (el crudo va en memoria si no
+    está en disco), con el giro con que se enseña y la imagen revelada sin girar (giro_camara).
+    """
     import foto_actual
     foto_actual.registrar("dia", frame.shape[1], frame.shape[0], binning, campo,
                           frame=None if en_disco else frame, objetivo=objetivo, balance=info.get("balance"),
                           negro=info.get("negro"), ev=info.get("ev"), exposicion=exposicion, ganancia=prep.get("ganancia"),
-                          prep=prep)
+                          prep=prep, encuadre=encuadre, sin_girar=sin_girar)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -752,13 +756,15 @@ class TrabajoFotoDia:
             self._msg("Guardando la foto...", fase="guardando")
             instante = time.time()
             imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo, ev=conf["ev"])
+            girada, encuadre = giro_camara.girar(imagen)      # el giro de Cámara; el FITS queda sin girar
             if ruta_fits:
                 guardar_fits(frame, exposicion, prep, binning, ruta_fits, extra=cabecera_revelado(objetivo, campo, info, instante))
             if ruta_web:
                 from AutoStrechSTF import guardar_jpg_web
                 os.makedirs(os.path.dirname(ruta_web) or ".", exist_ok=True)
-                guardar_jpg_web(ruta_web, imagen)
-            registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info, en_disco=bool(ruta_fits))
+                guardar_jpg_web(ruta_web, girada)
+            registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info, en_disco=bool(ruta_fits),
+                            encuadre=encuadre, sin_girar=imagen)
             with self._lock:
                 self.version += 1
                 self.ruta_fits = ruta_fits or ""
@@ -922,7 +928,9 @@ class TrabajoTimelapse:
                     imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo, balance=balance_tl,
                                            ev=conf_n["ev"])
                     balance_tl = info["balance"]
-                    registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info)
+                    sin_girar = imagen
+                    imagen, encuadre = giro_camara.girar(imagen)      # el giro de Cámara, también en el vídeo
+                    registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info, encuadre=encuadre, sin_girar=sin_girar)
                     cv2.imwrite(os.path.join(carpeta, archivo), imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
                     # Miniatura de la última foto para la lista de timelapses de la web
                     from AutoStrechSTF import guardar_jpg_web

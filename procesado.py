@@ -226,6 +226,53 @@ def fraccion_con_giro(ancho, alto, giro):
     return min(1.0, ancho / (ancho * c + alto * s), alto / (ancho * s + alto * c))
 
 
+def _traslacion(dx, dy):
+    return np.array([[1.0, 0.0, dx], [0.0, 1.0, dy], [0.0, 0.0, 1.0]])
+
+
+def geometria_giro(ancho, alto, fraccion, giro, espejo=False):
+    """
+    Geometría del encuadre de girar_campo sobre una zona útil de ancho × alto, sin
+    tocar la imagen (la usa también «Apunta aquí» para deshacer el giro de un
+    toque). Devuelve un dict:
+      T        matriz 3×3 que lleva un píxel (x, y) de la zona al recorte
+      ancho, alto   tamaño del recorte
+      cuartos  cuartos de vuelta en horario (0..3), tras el espejo
+      M        matriz 2×3 del warpAffine si hay que interpolar; None si no
+      recorte  (x, y): sin interpolar, la esquina del recorte central; con M, lo
+               que sobra por cada lado y se quita antes de girar
+    """
+    w, h = int(ancho), int(alto)
+    T = np.eye(3)
+    if espejo:
+        T = np.array([[-1.0, 0.0, w - 1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) @ T
+    giro = (float(giro) + 180.0) % 360.0 - 180.0
+    cuartos = int(round(giro / 90.0))
+    resto = giro - 90.0 * cuartos
+    cuartos %= 4
+    for _ in range(cuartos):                         # un cuarto en horario: (x, y) -> (alto - 1 - y, x)
+        T = np.array([[0.0, -1.0, h - 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]) @ T
+        w, h = h, w
+    if abs(resto) < 0.05:
+        if fraccion >= 0.999:
+            return {"T": T, "ancho": w, "alto": h, "cuartos": cuartos, "M": None, "recorte": (0, 0)}
+        nh, nw = max(8, int(round(h * fraccion))), max(8, int(round(w * fraccion)))      # como recortar_centro
+        y1, x1 = (h - nh) // 2, (w - nw) // 2
+        return {"T": _traslacion(-x1, -y1) @ T, "ancho": nw, "alto": nh, "cuartos": cuartos, "M": None, "recorte": (x1, y1)}
+    f = min(fraccion, fraccion_con_giro(w, h, resto))
+    nw, nh = max(8, int(w * f)), max(8, int(h * f))
+    # Con zoom solo hace falta el trozo central que pisa el encuadre girado (más 3 px para la bicúbica)
+    c, s = abs(math.cos(math.radians(resto))), abs(math.sin(math.radians(resto)))
+    mx = max(0, int((w - (nw * c + nh * s)) / 2.0) - 3)
+    my = max(0, int((h - (nw * s + nh * c)) / 2.0) - 3)
+    w, h = w - 2 * mx, h - 2 * my
+    M = cv2.getRotationMatrix2D(((w - 1) / 2.0, (h - 1) / 2.0), -resto, 1.0)
+    M[0, 2] += (nw - 1) / 2.0 - (w - 1) / 2.0
+    M[1, 2] += (nh - 1) / 2.0 - (h - 1) / 2.0
+    T = np.vstack([M, [0.0, 0.0, 1.0]]) @ _traslacion(-mx, -my) @ T
+    return {"T": T, "ancho": nw, "alto": nh, "cuartos": cuartos, "M": M, "recorte": (mx, my)}
+
+
 def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     """
     Como recortar_campo, pero con el encuadre girado `giro` grados alrededor del
@@ -233,7 +280,8 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     `espejo`, volteado antes de izquierda a derecha. Devuelve (recorte, M): M es
     la matriz afín 2×3 que lleva un píxel (x, y) de la imagen completa al
     recorte, que necesitan las anotaciones. Sin giro ni espejo el recorte es el
-    mismo de recortar_campo.
+    mismo de recortar_campo. Vale para un cubo (3, H, W), una imagen (H, W, 3) o
+    un plano (H, W), y conserva el tipo (float32, uint16, uint8).
 
     Los cuartos de vuelta se hacen cambiando filas por columnas, sin interpolar
     ni perder campo. El resto (entre -45° y 45°) se interpola (bicúbica, acotada
@@ -244,46 +292,51 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     rec, zx, zy = recortar_campo(cubo, 1.0, zona, margen)
     canales_primero = rec.ndim == 3 and rec.shape[0] == 3 and rec.shape[-1] != 3
     ejes = (1, 2) if canales_primero else (0, 1)
-    T = np.array([[1.0, 0.0, -zx], [0.0, 1.0, -zy], [0.0, 0.0, 1.0]])
+    g = geometria_giro(rec.shape[ejes[1]], rec.shape[ejes[0]], fraccion, giro, espejo)
+    T = (g["T"] @ _traslacion(-zx, -zy))[:2]
     if espejo:
         rec = np.flip(rec, axis=ejes[1])
-        T = np.array([[-1.0, 0.0, rec.shape[ejes[1]] - 1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]) @ T
-    giro = (float(giro) + 180.0) % 360.0 - 180.0
-    cuartos = int(round(giro / 90.0))
-    resto = giro - 90.0 * cuartos
-    for _ in range(cuartos % 4):                     # un cuarto en horario: (x, y) -> (alto - 1 - y, x)
-        T = np.array([[0.0, -1.0, rec.shape[ejes[0]] - 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]) @ T
-        rec = np.rot90(rec, -1, axes=ejes)           # np.rot90 gira en antihorario
-    if abs(resto) < 0.05:
-        rec, x1, y1 = recortar_centro(rec, fraccion)
-        T = np.array([[1.0, 0.0, -x1], [0.0, 1.0, -y1], [0.0, 0.0, 1.0]]) @ T
-        return np.ascontiguousarray(rec), T[:2]
-    h, w = rec.shape[ejes[0]], rec.shape[ejes[1]]
-    f = min(fraccion, fraccion_con_giro(w, h, resto))
-    nw, nh = max(8, int(w * f)), max(8, int(h * f))
-    # Con zoom solo hace falta el trozo central que pisa el encuadre girado (más 3 px para la bicúbica)
-    c, s = abs(math.cos(math.radians(resto))), abs(math.sin(math.radians(resto)))
-    mx = max(0, int((w - (nw * c + nh * s)) / 2.0) - 3)
-    my = max(0, int((h - (nw * s + nh * c)) / 2.0) - 3)
-    if mx or my:
-        rec = rec[:, my:h - my, mx:w - mx] if canales_primero else rec[my:h - my, mx:w - mx]
-        h, w = h - 2 * my, w - 2 * mx
-    M = cv2.getRotationMatrix2D(((w - 1) / 2.0, (h - 1) / 2.0), -resto, 1.0)
-    M[0, 2] += (nw - 1) / 2.0 - (w - 1) / 2.0
-    M[1, 2] += (nh - 1) / 2.0 - (h - 1) / 2.0
-    T = np.vstack([M, [0.0, 0.0, 1.0]]) @ np.array([[1.0, 0.0, -mx], [0.0, 1.0, -my], [0.0, 0.0, 1.0]]) @ T
+    if g["cuartos"]:
+        rec = np.rot90(rec, -g["cuartos"], axes=ejes)     # np.rot90 gira en antihorario
+    x1, y1 = g["recorte"]
+    nw, nh = g["ancho"], g["alto"]
+    M = g["M"]
+    if M is None:
+        rec = rec[:, y1:y1 + nh, x1:x1 + nw] if canales_primero else rec[y1:y1 + nh, x1:x1 + nw]
+        return np.ascontiguousarray(rec), T
+    if x1 or y1:
+        h, w = rec.shape[ejes[0]], rec.shape[ejes[1]]
+        rec = rec[:, y1:h - y1, x1:w - x1] if canales_primero else rec[y1:h - y1, x1:w - x1]
     nucleo = np.ones((3, 3), np.uint8)
 
-    def _girar(canal):
-        canal = np.ascontiguousarray(canal, dtype=np.float32)
-        sal = cv2.warpAffine(canal, M, (nw, nh), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
-        bajo = cv2.warpAffine(cv2.erode(canal, nucleo), M, (nw, nh), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REFLECT)
-        alto_ = cv2.warpAffine(cv2.dilate(canal, nucleo), M, (nw, nh), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REFLECT)
+    def _girar(img):
+        img = np.ascontiguousarray(img if img.dtype in (np.uint8, np.uint16, np.float32) else img.astype(np.float32))
+        sal = cv2.warpAffine(img, M, (nw, nh), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+        bajo = cv2.warpAffine(cv2.erode(img, nucleo), M, (nw, nh), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REFLECT)
+        alto_ = cv2.warpAffine(cv2.dilate(img, nucleo), M, (nw, nh), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REFLECT)
         return np.clip(sal, bajo, alto_)
 
     if canales_primero:
-        return np.stack([_girar(rec[i]) for i in range(3)]), T[:2]
-    return (np.dstack([_girar(rec[:, :, i]) for i in range(rec.shape[2])]) if rec.ndim == 3 else _girar(rec)), T[:2]
+        return np.stack([_girar(rec[i]) for i in range(3)]), T
+    return _girar(rec), T
+
+
+def encuadre_con_arriba(ux, uy, rx, ry):
+    """
+    (giro, espejo) de girar_campo que dejan hacia arriba la dirección (ux, uy) de
+    la imagen (píxeles, y hacia abajo) y hacia la derecha la (rx, ry), que va a
+    90° de la primera: el norte y el oeste para "norte arriba", la altura y el
+    acimut para "cénit arriba". `espejo` sale True si la segunda cae al otro
+    lado (hay que voltear la imagen antes de girar); giro en grados, horario,
+    -180..180. None si las direcciones no valen.
+    """
+    if not all(math.isfinite(v) for v in (ux, uy, rx, ry)) or (ux == 0 and uy == 0):
+        return None
+    espejo = ux * ry - uy * rx < 0
+    if espejo:
+        ux = -ux
+    # (ux, uy) cae a atan2(ux, -uy) en horario desde arriba: se deshace
+    return round((-math.degrees(math.atan2(ux, -uy)) + 180.0) % 360.0 - 180.0, 1), espejo
 
 
 # Encuadre de la vista previa del apilado y del JPG de la galería ([Dispositivos]

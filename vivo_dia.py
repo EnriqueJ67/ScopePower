@@ -40,6 +40,7 @@ import numpy as np
 
 import foto_dia
 import foto_actual
+import giro_camara
 import orientacion_camara
 
 log = logging.getLogger("scopepower.vivo")
@@ -348,9 +349,10 @@ class TrabajoVivo:
                 ultimo_balance = ahora
 
             imagen = revelar_vivo(cfa, patron, negro, balance, orientacion, paso, ev=conf_n["ev"])
-            jpg = jpg_web(imagen)
+            girada, encuadre = giro_camara.girar(imagen)      # el giro de Cámara; se anota sin girar (disco.py la mide así)
+            jpg = jpg_web(girada)
             foto_actual.registrar("vivo", ancho_ascom, alto_ascom, 1, campo_visto, imagen=imagen,
-                                  objetivo=self.objetivo, exposicion=exposicion, ev=conf_n["ev"])
+                                  objetivo=self.objetivo, exposicion=exposicion, ev=conf_n["ev"], encuadre=encuadre)
             n_fps += 1
             with self._nuevo:
                 self._jpg = jpg

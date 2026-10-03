@@ -29,6 +29,7 @@ from astropy.wcs import WCS
 from astropy.io.fits import Header
 
 import esta_noche
+import procesado
 from ScopePower_ObjetosAnotados import generar_fits_monocromo_para_platesolve, obtener_objetos_simbad
 
 log = logging.getLogger("scopepower.anotaciones")
@@ -123,16 +124,8 @@ def norte_arriba(wcs, ancho, alto):
         log.warning("No se pudo calcular el norte de la imagen: %s", e)
         return None
     dx, dy = (xn - cx) * math.copysign(1, paso), (yn - cy) * math.copysign(1, paso)
-    ex, ey = xe - cx, ye - cy
-    if not all(math.isfinite(v) for v in (dx, dy, ex, ey)) or (dx == 0 and dy == 0):
-        return None
-    # En pantalla (y hacia abajo) el cielo tiene el este a 90° en antihorario del norte;
-    # si cae al otro lado la imagen está en espejo y se voltea (x cambia de signo)
-    espejo = dx * ey - dy * ex > 0
-    if espejo:
-        dx = -dx
-    # El norte cae a atan2(dx, -dy) en horario desde arriba: se deshace
-    return round((-math.degrees(math.atan2(dx, -dy)) + 180.0) % 360.0 - 180.0, 1), espejo
+    # El norte arriba y el oeste (lo contrario del este) a la derecha
+    return procesado.encuadre_con_arriba(dx, dy, -(xe - cx), -(ye - cy))
 
 
 def objetos_catalogo_en_campo(wcs, ancho, alto, margen=0.02):

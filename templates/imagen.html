@@ -233,6 +233,38 @@
             </div>
         </section>
 
+        <!-- ─── Giro de la foto: cómo se enseña y se guarda en JPG lo que da la cámara (giro_camara.py).
+             Vale para todo lo de esta pantalla; el FITS queda sin girar ─── -->
+        <section class="card panel" data-panel="giro">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-refrescar"/></svg>Giro de la foto</h3>
+                <span class="panel-sub" id="giro-v"></span>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="segmentado" id="giro-seg" style="width: 100%;">
+                    <button type="button" data-cuartos="0" onclick="elegirCuartos(0)" style="flex: 1;">0°</button>
+                    <button type="button" data-cuartos="1" onclick="elegirCuartos(1)" style="flex: 1;">90°</button>
+                    <button type="button" data-cuartos="2" onclick="elegirCuartos(2)" style="flex: 1;">180°</button>
+                    <button type="button" data-cuartos="3" onclick="elegirCuartos(3)" style="flex: 1;">270°</button>
+                </div>
+                <input type="range" id="giro-fino" min="-45" max="45" step="0.5" value="0" class="mt-2" title="Ajuste fino del giro"
+                       oninput="pintarValorGiro()" onchange="programarGiro()">
+                <label class="fila-check"><input type="checkbox" id="giro-espejo" onchange="programarGiro()"> Espejo (voltear de izquierda a derecha)</label>
+                <div class="fila mt-1" style="gap: 6px;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-cenit" onclick="cenitArriba()" style="flex: 1;"
+                            title="Deja la foto como se ve a simple vista: arriba hacia el cénit y el acimut hacia la derecha">Cénit arriba</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="pintarGiro(0, false); programarGiro();" style="flex: 1;">Sin giro</button>
+                </div>
+                <div id="estado-giro" class="estado"></div>
+                <small class="ayuda">Gira en sentido horario lo que se ve y lo que se guarda en JPG desde esta pantalla (foto, continuo, modo en vivo, timelapse y galería); el FITS queda como lo da la cámara. Los cuartos de vuelta no pierden nada; con el ajuste fino se recorta lo justo para que no asomen las esquinas. «Cénit arriba» usa la orientación de la cámara del último plate solving y vale mientras no gires la cámara en el tubo. «Apunta aquí» lo tiene en cuenta.</small>
+            </div>
+        </section>
+
         <!-- ─── Pad para mover la montura: centrar a mano el Sol o la Luna mirando la foto
              (el mismo de Control manual: templates/_pad.html y static/js/pad.js) ─── -->
         <section class="card panel" data-panel="pad">
@@ -1118,6 +1150,65 @@
             .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; })
             .finally(() => { pintarBotonesFoto(); });
     }
+
+    // ——— Giro de la foto: cuartos de vuelta (botones, sin pérdida) + ajuste fino (-45..45), en horario, y espejo ———
+    //     Se guarda en el servidor al tocarlo, que vuelve a girar la foto que hay en pantalla sin repetir la
+    //     captura; con el modo en vivo o el continuo se ve en el fotograma siguiente.
+    function pintarGiro(giro, espejo) {
+        giro = ((parseFloat(giro) || 0) % 360 + 360) % 360;
+        const cuartos = Math.round(giro / 90);
+        document.getElementById("giro-fino").value = giro - 90 * cuartos;
+        document.querySelectorAll("#giro-seg button").forEach(b => b.classList.toggle("activo", parseInt(b.dataset.cuartos) === cuartos % 4));
+        if (espejo !== undefined) document.getElementById("giro-espejo").checked = !!espejo;
+        pintarValorGiro();
+    }
+    function leerGiro() {
+        const cuartos = parseInt((document.querySelector("#giro-seg button.activo") || {}).dataset?.cuartos) || 0;
+        return (cuartos * 90 + (parseFloat(document.getElementById("giro-fino").value) || 0) + 360) % 360;
+    }
+    function pintarValorGiro() {
+        const giro = leerGiro(), espejo = document.getElementById("giro-espejo").checked;
+        document.getElementById("giro-v").textContent = (giro || espejo)
+            ? giro.toLocaleString("es", { maximumFractionDigits: 1 }) + "°" + (espejo ? " · espejo" : "") : "sin giro";
+    }
+    function elegirCuartos(cuartos) {
+        document.querySelectorAll("#giro-seg button").forEach(b => b.classList.toggle("activo", parseInt(b.dataset.cuartos) === cuartos));
+        programarGiro();
+    }
+    let temporizadorGiro = null;
+    function programarGiro() {
+        pintarValorGiro();
+        clearTimeout(temporizadorGiro);
+        temporizadorGiro = setTimeout(guardarGiro, 300);
+    }
+    function guardarGiro() {
+        const est = document.getElementById("estado-giro");
+        est.className = "estado";
+        fetch("/camara/giro", { method: "POST", headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ giro: leerGiro(), espejo: document.getElementById("giro-espejo").checked }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err"; est.textContent = "❌ " + d.mensaje; return; }
+                if (d.regenerada && !vivoActivo) {
+                    // La foto en pantalla es otra imagen: el revelado "como el apilado" anterior ya no vale
+                    olvidarRevelado();
+                    document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
+                }
+                est.textContent = d.regenerada || vivoActivo || continuoActivo ? "" : "Se verá en la próxima foto.";
+            })
+            .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; });
+    }
+    function cenitArriba() {
+        const est = document.getElementById("estado-giro"), btn = document.getElementById("btn-cenit");
+        btn.disabled = true;
+        fetch("/camara/giro/cenit").then(r => r.json()).then(d => {
+            btn.disabled = false;
+            if (!d.ok) { est.className = "estado err"; est.textContent = "⚠️ " + d.mensaje; return; }
+            pintarGiro(d.giro, d.espejo);
+            guardarGiro();
+        }).catch(err => { btn.disabled = false; est.className = "estado err"; est.textContent = "❌ " + err; });
+    }
+    fetch("/camara/giro").then(r => r.json()).then(d => pintarGiro(d.giro, d.espejo)).catch(() => {});
 
     // ——— Apunta aquí: puntero sobre la foto y centrado del telescopio en ese punto ———
     // El puntero se guarda como fracción del ancho y del alto de la foto (0,5 / 0,5 = centro),

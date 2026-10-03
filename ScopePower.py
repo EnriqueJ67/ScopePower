@@ -51,6 +51,7 @@ import secretos
 import centrado
 import foto_dia
 import foto_actual
+import giro_camara
 import vivo_dia
 import camara_sdk
 import disco
@@ -1743,13 +1744,14 @@ FASES_REVELADO = {"gradiente": "Quitando el gradiente", "estirando": "Estirando"
                   "contraste": "Contraste local", "color": "Color"}
 
 
-def revelar_foto_noche_apilado(imagen_fits, patron_bayer, escala=0.5, progreso=None):
+def revelar_foto_noche_apilado(imagen_fits, patron_bayer, escala=0.5, progreso=None, encuadre=None):
     """
     La misma foto de noche revelada como si fuera un apilado de una sola foto: debayer a
     16 bits, el recorte de zoom de Configuración (zoom_preview) y el procesado multiescala
     de procesado.py con el preset de Apilado ([Procesado] de config.ini). Tarda bastante
     más que revelar_foto_noche (la reducción de ruido manda), por eso se llama desde un
-    hilo. `escala`: 0.5 para la vista de Cámara, 1.0 para la galería. Devuelve BGR uint8.
+    hilo. `escala`: 0.5 para la vista de Cámara, 1.0 para la galería. `encuadre`: el giro
+    de Cámara (giro_camara), que se aplica con el zoom sobre la imagen lineal. Devuelve BGR uint8.
     """
     import procesado
     if imagen_fits.ndim == 2 and patron_bayer in ('RGGB', 'BGGR', 'GRBG', 'GBRG'):
@@ -1759,7 +1761,9 @@ def revelar_foto_noche_apilado(imagen_fits, patron_bayer, escala=0.5, progreso=N
     else:
         rgb = imagen_fits
     rgb = np.asarray(rgb, dtype=np.float32)
-    rgb, _, _ = procesado.recortar_centro(rgb, procesado.fraccion_campo())
+    e = encuadre or giro_camara.SIN_GIRO
+    rgb, _ = procesado.girar_campo(rgb, procesado.fraccion_campo(), e.get("giro", 0.0),
+                                   zona=(0, 0, rgb.shape[1], rgb.shape[0]), espejo=bool(e.get("espejo")))
     rgb8 = procesado.procesar(rgb, 1, procesado.leer_config(), escala=escala, progreso=progreso)
     return cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
 
@@ -1927,11 +1931,12 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
                     "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia}
 
         # ───   Revelado (debayer, STF, saturación) y versión reducida para la web   ───
-        imagen_web = revelar_foto_noche(imagen_fits, patron_bayer)
+        sin_girar = revelar_foto_noche(imagen_fits, patron_bayer)
+        imagen_web, encuadre = giro_camara.girar(sin_girar)      # el giro de Cámara; el FITS queda sin girar
         guardar_jpg_web(RUTA_IMAGEN_WEB, imagen_web)
         # La foto que se ve ahora en Cámara está en static/captura.fits (para "Apunta aquí" y la galería)
         foto_actual.registrar("noche", imagen_fits.shape[1], imagen_fits.shape[0], BINNING,
-                              exposicion=EXPOSICION, ganancia=ganancia_real)
+                              exposicion=EXPOSICION, ganancia=ganancia_real, encuadre=encuadre, sin_girar=sin_girar)
         if copia and copia.get("formato") == "jpg":
             # La foto revelada entera (no la reducida de la web), para tener la serie sin el peso del FITS
             os.makedirs(copia["carpeta"], exist_ok=True)
@@ -2245,8 +2250,10 @@ def apuntar_a_punto_de_la_foto(fx, fy):
     if isinstance(res, str):
         return {"ok": False, "mensaje": res}
     wcs, ancho, alto = res
+    # El toque viene sobre la foto como se ve (con el giro de Cámara): a la imagen del FITS
+    fx, fy = giro_camara.original(fx, fy, ancho, alto, (_foto_en_pantalla() or {}).get("encuadre"))
     # Fracción de la imagen -> píxel (origen 0 en la esquina superior izquierda,
-    # como el JPG de la web, que es la misma imagen reducida sin recortar)
+    # como el JPG de la web, que es la misma imagen reducida)
     px, py = fx * ancho - 0.5, fy * alto - 0.5
     cx, cy = (ancho - 1) / 2.0, (alto - 1) / 2.0
     try:
@@ -2316,7 +2323,75 @@ def _foto_en_pantalla():
         f = foto_actual.desde_fits(RUTA_IMAGEN)
         if f is not None and not f.get("instante"):
             f["instante"] = os.path.getmtime(RUTA_IMAGEN)
+        if f is not None:
+            f["encuadre"] = giro_camara.leer()      # el JPG que quedó en disco se hizo con el giro de config.ini
+    if f is not None and not f.get("encuadre"):
+        f["encuadre"] = dict(giro_camara.SIN_GIRO)
     return f
+
+
+def _revelar_captura_en_disco():
+    """La foto de static/captura.fits revelada otra vez como la enseña Cámara, sin girar; None si no hay."""
+    f = foto_actual.desde_fits(RUTA_IMAGEN) if os.path.exists(RUTA_IMAGEN) else None
+    if f is None:
+        return None
+    with fits.open(RUTA_IMAGEN) as hdul:
+        datos = np.asarray(hdul[0].data)
+        patron = str(hdul[0].header.get("BAYERPAT") or "").strip().upper()
+    if f["modo"] == "dia":
+        return foto_dia.revelar(foto_dia.recortar_centro(datos, f["campo"]), foto_dia.sensor_type_de_patron(patron),
+                                f.get("objetivo"), balance=f.get("balance"), negro=f.get("negro"), aprender=False,
+                                ev=f.get("ev") or 0.0)[0]
+    return revelar_foto_noche(datos, patron)
+
+
+@app.route('/camara/giro')
+def camara_giro():
+    """Giro y espejo con que Cámara enseña y guarda las fotos (giro_camara.py)."""
+    import orientacion_camara
+    return jsonify(dict(giro_camara.leer(), cenit=orientacion_camara.ultima() is not None))
+
+
+@app.route('/camara/giro', methods=['POST'])
+def camara_giro_guardar():
+    """
+    {giro, espejo}: los guarda y vuelve a girar la foto que hay en pantalla (sin repetir la
+    captura). Con el modo en vivo o el continuo en marcha se ve en el fotograma siguiente.
+    """
+    datos = request.get_json(silent=True) or {}
+    try:
+        encuadre = giro_camara.guardar(float(datos.get("giro", 0) or 0), bool(datos.get("espejo")))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "mensaje": "Giro no válido."}), 400
+    regenerada = False
+    try:
+        f = foto_actual.actual()
+        if f is None:
+            base = _revelar_captura_en_disco()          # tras reiniciar o al parar el modo en vivo
+        else:
+            base = f.get("sin_girar") if f.get("modo") in ("noche", "dia") else None
+        if base is not None:
+            guardar_jpg_web(RUTA_IMAGEN_WEB, giro_camara.aplicar(base, encuadre))
+            foto_actual.actualizar(encuadre=encuadre)
+            regenerada = True
+    except Exception as e:
+        log.exception("No se pudo volver a girar la foto de Cámara")
+        return jsonify({"ok": False, "mensaje": f"Giro guardado, pero no se pudo volver a girar la foto: {e}", **encuadre}), 500
+    log.info("Giro de Cámara: %g°%s", encuadre["giro"], " con espejo" if encuadre["espejo"] else "")
+    return jsonify({"ok": True, "regenerada": regenerada, **encuadre})
+
+
+@app.route('/camara/giro/cenit')
+def camara_giro_cenit():
+    """Giro y espejo que dejan la foto como se ve a simple vista (cénit arriba), con la orientación de la cámara."""
+    import orientacion_camara
+    orientacion = orientacion_camara.ultima()
+    cenit = giro_camara.cenit_arriba(orientacion)
+    if cenit is None:
+        return jsonify({"ok": False, "mensaje": "Aún no hay ningún plate solving con esta cámara: haz uno de noche "
+                                                "(centrado, alineación, apilado o sincronizar la foto) y luego se podrá calcular."}), 409
+    return jsonify({"ok": True, "giro": cenit[0] % 360.0, "espejo": cenit[1],
+                    "orientacion": apuntado_teorico.describir_orientacion(orientacion)})
 
 
 def _montura_ocupada():
@@ -2600,7 +2675,7 @@ def guardar_foto_en_galeria():
     exposicion = f.get("exposicion")
     if f["modo"] == "vivo":
         # Fotograma del modo en vivo: ya revelado a la resolución de la vista, sin FITS
-        imagen = f["imagen"].copy()
+        imagen = giro_camara.aplicar(f["imagen"], f["encuadre"]).copy()
         ruta_crudo = None
     elif f["modo"] == "dia":
         frame, prep = f.get("frame"), f.get("prep") or {}
@@ -2620,6 +2695,7 @@ def guardar_foto_en_galeria():
                                                                    f.get("instante")))
         imagen, _ = foto_dia.revelar(foto_dia.recortar_centro(frame, f["campo"]), sensor_type, f.get("objetivo"),
                                      balance=f.get("balance"), negro=f.get("negro"), aprender=False, ev=f.get("ev") or 0.0)
+        imagen = giro_camara.aplicar(imagen, f["encuadre"])
     else:
         # Foto de noche: se revela en segundo plano con el procesado y el preset del apilado
         # (procesado.py a resolución completa, como el JPG de la galería de Apilado). Tarda
@@ -2645,7 +2721,7 @@ def guardar_foto_en_galeria():
     if imagen is not None:
         _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
         return {"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg", "archivo": base + ".jpg"}
-    return _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base)
+    return _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base, f["encuadre"])
 
 
 def _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base):
@@ -2658,7 +2734,7 @@ def _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base):
     voz.decir("Foto guardada en la galería")
 
 
-def _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base):
+def _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base, encuadre=None):
     """
     Revela una foto de noche (FITS en bruto) en segundo plano con el procesado y el
     preset del apilado (procesado.py a resolución completa), la firma y la guarda en
@@ -2678,10 +2754,10 @@ def _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base):
         aviso = ""
         try:
             try:
-                imagen = revelar_foto_noche_apilado(datos_fits, patron, escala=1.0, progreso=_avisar)
+                imagen = revelar_foto_noche_apilado(datos_fits, patron, escala=1.0, progreso=_avisar, encuadre=encuadre)
             except Exception:
                 log.exception("Falló el procesado del apilado sobre la foto; se guarda con el revelado rápido")
-                imagen = revelar_foto_noche(datos_fits, patron)
+                imagen = giro_camara.aplicar(revelar_foto_noche(datos_fits, patron), encuadre or giro_camara.SIN_GIRO)
                 aviso = " (falló el procesado del apilado; guardada con el revelado rápido)"
             _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
             GUARDADO_FOTO.update({"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg{aviso}"})
@@ -2735,6 +2811,7 @@ def foto_revelar_apilado():
     if REVELADO_FOTO["en_curso"]:
         return jsonify({"ok": False, "mensaje": "Ya se está revelando; espera a que termine."}), 409
     REVELADO_FOTO.update({"en_curso": True, "ok": None, "mensaje": "Leyendo la foto..."})
+    encuadre = f["encuadre"]
 
     def _avisar(subfase, fraccion):
         REVELADO_FOTO["mensaje"] = f"{FASES_REVELADO.get(subfase, subfase)}... {int(fraccion * 100)} %"
@@ -2745,7 +2822,8 @@ def foto_revelar_apilado():
             with fits.open(RUTA_IMAGEN) as hdul:
                 datos_fits = np.asarray(hdul[0].data)
                 patron = str(hdul[0].header.get("BAYERPAT") or "").strip().upper()
-            imagen = revelar_foto_noche_apilado(datos_fits, patron, escala=_escala_revelado_vista(), progreso=_avisar)
+            imagen = revelar_foto_noche_apilado(datos_fits, patron, escala=_escala_revelado_vista(), progreso=_avisar,
+                                                encuadre=encuadre)
             guardar_jpg_web(RUTA_IMAGEN_REVELADA, imagen)
             REVELADO_FOTO.update({"ok": True, "version": REVELADO_FOTO["version"] + 1,
                                   "mensaje": f"Revelada como el apilado en {time.time() - inicio:.0f} s"})
@@ -3960,9 +4038,10 @@ def _capturador_dia_continuo(objetivo, campo, binning):
         memoria["exposicion"], memoria["n"] = exposicion, memoria["n"] + 1
         try:
             instante = time.time()
-            imagen, info = foto_dia.revelar(foto_dia.recortar_centro(frame, campo), prep["sensor_type"], objetivo, ev=ev)
+            sin_girar, info = foto_dia.revelar(foto_dia.recortar_centro(frame, campo), prep["sensor_type"], objetivo, ev=ev)
+            imagen, encuadre = giro_camara.girar(sin_girar)      # el giro de Cámara; el FITS queda sin girar
             guardar_jpg_web(RUTA_IMAGEN_WEB, imagen)
-            foto_dia.registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info)
+            foto_dia.registrar_vista(frame, objetivo, campo, binning, prep, exposicion, info, encuadre=encuadre, sin_girar=sin_girar)
             archivo = None
             if copia and copia.get("formato") == "fits":
                 archivo = os.path.join(copia["carpeta"], copia["nombre"] + ".fits")

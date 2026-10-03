@@ -26,7 +26,9 @@ def registrar(modo, ancho, alto, binning, campo=1.0, frame=None, **datos):
     Anota la foto que se acaba de mostrar. `ancho` y `alto`: tamaño del fotograma
     completo en píxeles (ya con binning); `campo`: fracción visible en pantalla.
     `frame`: el crudo, si no está en static/captura.fits. `datos`: lo necesario para
-    volver a revelarla (objetivo, balance, negro, exposicion, ganancia, prep...).
+    volver a revelarla (objetivo, balance, negro, exposicion, ganancia, prep...), el
+    giro con que se enseña (encuadre, de giro_camara) y la imagen revelada sin girar
+    (sin_girar), para volver a girarla si cambia el giro.
     """
     global _actual
     d = dict(datos, modo=modo, ancho=int(ancho), alto=int(alto), binning=int(binning or 1),
@@ -38,6 +40,13 @@ def registrar(modo, ancho, alto, binning, campo=1.0, frame=None, **datos):
 def actual():
     with _lock:
         return dict(_actual) if _actual else None
+
+
+def actualizar(**datos):
+    """Cambia datos de la foto anotada (p. ej. el encuadre, al cambiar el giro); nada si no hay ninguna."""
+    with _lock:
+        if _actual:
+            _actual.update(datos)
 
 
 def olvidar(modo):

@@ -21,6 +21,7 @@ import math
 import numpy as np
 
 import foto_dia
+import giro_camara
 import orientacion_camara
 
 
@@ -46,6 +47,8 @@ def desplazamiento(fx, fy, vista, orientacion):
         raise SinDatos("Todavía no se conoce la orientación de la cámara: hace falta un plate solving "
                        "que salga bien (centrado, alineación, apilado o foto de noche) con la cámara como está ahora.")
     w, h = geometria_visible(vista)
+    # El toque viene sobre la foto como se ve (con el giro de Cámara): al fotograma sin girar
+    fx, fy = giro_camara.original(fx, fy, w, h, vista.get("encuadre"))
     # Píxeles del fotograma con binning -> píxeles de la foto resuelta
     factor = float(vista.get("binning", 1) or 1) / float(orientacion.get("binning_foto", 1) or 1)
     d = np.array([(fx - 0.5) * w, (fy - 0.5) * h]) * factor
@@ -54,8 +57,8 @@ def desplazamiento(fx, fy, vista, orientacion):
 
 
 def campo_visible_grados(vista, orientacion):
-    """(ancho, alto) en grados de la foto que se ve, con la escala del plate solving."""
-    w, h = geometria_visible(vista)
+    """(ancho, alto) en grados de la foto que se ve (con su giro), con la escala del plate solving."""
+    w, h = giro_camara.tamano(*geometria_visible(vista), vista.get("encuadre"))
     factor = float(vista.get("binning", 1) or 1) / float(orientacion.get("binning_foto", 1) or 1)
     esc = float(orientacion["escala_arcsec"]) / 3600.0
     return w * factor * esc, h * factor * esc
