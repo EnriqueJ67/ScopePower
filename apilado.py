@@ -23,6 +23,7 @@ import procesado
 import firma
 import rotacion_camara
 import rastros
+import apilado_incremental
 import cv2
 
 import subprocess
@@ -255,6 +256,13 @@ def leer_config_calidad():
         # para revisar si alguno era un meteoro; como mucho max_rastros
         "guardar_rastros": str(c.get("guardar_rastros", "true")).lower() in ("1", "true", "si", "sí", "yes"),
         "max_rastros": int(c.get("max_rastros", 50)),
+        # Cómo se combinan las fotos: "mejores" (sigma-clip de las N mejores, se
+        # reapilan todas con cada foto) o "incremental" (las primeras
+        # fotos_referencia fijan la referencia y las demás se comparan con ella y
+        # se suman: coste fijo por foto y sin tope; ver apilado_incremental.py)
+        "modo": "incremental" if str(c.get("modo_apilado", "mejores")).strip().lower() == "incremental" else "mejores",
+        "fotos_referencia": max(apilado_incremental.MIN_FOTOS_REFERENCIA, int(c.get("fotos_referencia", 10))),
+        "sigma_incremental": float(c.get("sigma_incremental", 3.0)),
     }
 
 
@@ -323,36 +331,64 @@ def zona_comun(poligonos, ancho, alto, escala=8, margen=2):
             signos = np.stack(signos)
             dentro &= (signos >= -1e-6).all(axis=0) | (signos <= 1e-6).all(axis=0)
         mascara = dentro[:-1, :-1] & dentro[:-1, 1:] & dentro[1:, :-1] & dentro[1:, 1:]
-        fil, col = np.nonzero(mascara)
-        if len(fil) == 0:
-            return None
-        y0, y1, x0, x1 = int(fil.min()), int(fil.max()) + 1, int(col.min()), int(col.max()) + 1
-        while y1 - y0 > 2 and x1 - x0 > 2:
-            sub = mascara[y0:y1, x0:x1]
-            if sub.all():
-                break
-            bordes = {"arriba": sub[0].mean(), "abajo": sub[-1].mean(), "izq": sub[:, 0].mean(), "der": sub[:, -1].mean()}
-            peor = min(bordes, key=bordes.get)
-            if bordes[peor] >= 1.0:
-                break   # los cuatro bordes enteros: en una región convexa el interior también
-            if peor == "arriba": y0 += 1
-            elif peor == "abajo": y1 -= 1
-            elif peor == "izq": x0 += 1
-            else: x1 -= 1
-        X0, Y0 = x0 * escala, y0 * escala
-        X1, Y1 = min(ancho, x1 * escala), min(alto, y1 * escala)
-        if X0 > 0: X0 += margen
-        if Y0 > 0: Y0 += margen
-        if X1 < ancho: X1 -= margen
-        if Y1 < alto: Y1 -= margen
-        if X1 - X0 < ancho // 2 or Y1 - Y0 < alto // 2:
-            return None   # algo raro (una foto muy desplazada): mejor no recortar
-        if X0 == 0 and Y0 == 0 and X1 == ancho and Y1 == alto:
-            return None
-        return (int(X0), int(Y0), int(X1 - X0), int(Y1 - Y0))
+        return rectangulo_cubierto(mascara, ancho, alto, escala, margen)
     except Exception as e:
         print(f"⚠️ No se pudo calcular la zona común del apilado: {e}")
         return None
+
+
+def zona_cobertura(cuenta, minimo, escala=8, margen=2):
+    """
+    Como zona_comun, para el apilado incremental: rectángulo (x0, y0, ancho, alto)
+    donde cada píxel tiene al menos `minimo` fotos sumadas (`cuenta` es el mapa de
+    fotos por píxel). Con cientos de fotos y rotación de campo la zona cubierta por
+    todas se queda en nada; con la mitad de las fotos el ruido solo sube un 40 %.
+    """
+    try:
+        alto, ancho = cuenta.shape
+        h, w = int(np.ceil(alto / escala)), int(np.ceil(ancho / escala))
+        relleno = np.pad(cuenta, ((0, h * escala - alto), (0, w * escala - ancho)), mode="edge")
+        mascara = relleno.reshape(h, escala, w, escala).min(axis=(1, 3)) >= minimo
+        return rectangulo_cubierto(mascara, ancho, alto, escala, margen)
+    except Exception as e:
+        print(f"⚠️ No se pudo calcular la zona cubierta del apilado: {e}")
+        return None
+
+
+def rectangulo_cubierto(mascara, ancho, alto, escala, margen):
+    """
+    Rectángulo (x0, y0, ancho, alto) en píxeles dentro de una máscara de celdas de
+    `escala` px (True = celda cubierta): se parte del que encierra todas las celdas
+    cubiertas y se encoge por el lado menos cubierto hasta que queda entero dentro.
+    None si no hay nada que recortar o el resultado es absurdo.
+    """
+    fil, col = np.nonzero(mascara)
+    if len(fil) == 0:
+        return None
+    y0, y1, x0, x1 = int(fil.min()), int(fil.max()) + 1, int(col.min()), int(col.max()) + 1
+    while y1 - y0 > 2 and x1 - x0 > 2:
+        sub = mascara[y0:y1, x0:x1]
+        if sub.all():
+            break
+        bordes = {"arriba": sub[0].mean(), "abajo": sub[-1].mean(), "izq": sub[:, 0].mean(), "der": sub[:, -1].mean()}
+        peor = min(bordes, key=bordes.get)
+        if bordes[peor] >= 1.0:
+            break   # los cuatro bordes enteros: en una región convexa el interior también
+        if peor == "arriba": y0 += 1
+        elif peor == "abajo": y1 -= 1
+        elif peor == "izq": x0 += 1
+        else: x1 -= 1
+    X0, Y0 = x0 * escala, y0 * escala
+    X1, Y1 = min(ancho, x1 * escala), min(alto, y1 * escala)
+    if X0 > 0: X0 += margen
+    if Y0 > 0: Y0 += margen
+    if X1 < ancho: X1 -= margen
+    if Y1 < alto: Y1 -= margen
+    if X1 - X0 < ancho // 2 or Y1 - Y0 < alto // 2:
+        return None   # algo raro (una foto muy desplazada): mejor no recortar
+    if X0 == 0 and Y0 == 0 and X1 == ancho and Y1 == alto:
+        return None
+    return (int(X0), int(Y0), int(X1 - X0), int(Y1 - Y0))
 
 
 # ─── Flag para activar/desactivar anotación de objetos ─────────
@@ -529,6 +565,12 @@ class ApiladorEnTiempoReal:
         # almacenado lo sustituye. uint16 en vez de float32 = la mitad de RAM.
         self.fotogramas = []
         self.num_max = 0
+        # Apilado incremental (apilado_incremental.py): None mientras se reúnen las
+        # fotos de referencia; después, suma/cuenta/sigma por píxel, y en
+        # self.fotogramas solo quedan los datos de cada foto, sin sus planos.
+        self.acumulador = None
+        self.modo = "mejores"
+        self.fotos_referencia = 0
 
         # Estado visible desde la web
         self.descartadas = 0           # sin resolver / error
@@ -857,6 +899,74 @@ class ApiladorEnTiempoReal:
         with self.lock:
             self.version_preview += 1
 
+    def _publicar_apilado(self, planos, zona, ruta_fits, EXPOSICION, ObjetosAnotados):
+        """
+        Del apilado ya calculado (planos r, g, b float32 y su zona cubierta) al FITS
+        de static/, la vista previa de la web, el texto de información y el FTP.
+        """
+        num_imagenes_preview = self.total
+        with self.lock:
+            self.zona_comun = zona
+        if zona:
+            print(f"✂️ Zona común de las {num_imagenes_preview} fotos: {zona[2]}×{zona[3]} px desde ({zona[0]}, {zona[1]})")
+
+        # Usar la cabecera del último FITS como base
+        with fits.open(ruta_fits) as hdul:
+            header_original = hdul[0].header.copy()
+
+        # Modificar cabecera con datos del apilado
+        header_original['NSTACK'] = (num_imagenes_preview, 'Numero de imagenes apiladas')
+        header_original['EXPTOT'] = (num_imagenes_preview * EXPOSICION, 'Tiempo total de exposicion (s)')
+        header_original['DATE'] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        header_original['CREATOR'] = ('ScopePower', 'Real-time Power for Your Telescope')
+        for clave in ("ZONAX0", "ZONAY0", "ZONAW", "ZONAH"):
+            header_original.pop(clave, None)
+        if zona:
+            header_original['ZONAX0'] = (zona[0], 'Zona cubierta por todas las fotos: x0')
+            header_original['ZONAY0'] = (zona[1], 'Zona cubierta por todas las fotos: y0')
+            header_original['ZONAW'] = (zona[2], 'Zona cubierta por todas las fotos: ancho')
+            header_original['ZONAH'] = (zona[3], 'Zona cubierta por todas las fotos: alto')
+
+        # ——— Guardar FITS apilado como RGB (3×H×W) ———
+        rgb_cube = np.stack(planos, axis=0).astype(np.float32)  # shape = (3, H, W)
+        del planos
+
+        # Preparamos la cabecera
+        hdr_out = header_original.copy()
+        # Eliminamos claves antiguas de CFA si existen
+        for key in ("BAYERPAT","CFA","NAXIS","NAXIS1","NAXIS2","NAXIS3","BITPIX"):
+            hdr_out.pop(key, None)
+        # Definimos el nuevo formato
+        hdr_out["BITPIX"] = -32                   # float32
+        hdr_out["NAXIS"]  = 3
+        hdr_out["NAXIS1"] = rgb_cube.shape[2]     # ancho
+        hdr_out["NAXIS2"] = rgb_cube.shape[1]     # alto
+        hdr_out["NAXIS3"] = rgb_cube.shape[0]     # canales
+        hdr_out["COMMENT"] = "Debayered RGB image"
+
+        hdu = PrimaryHDU(data=rgb_cube, header=hdr_out)
+        hdu.writeto("static/resultado_apilado.fits", overwrite=True)
+        with self.lock:
+            self.dimensiones = (int(rgb_cube.shape[2]), int(rgb_cube.shape[1]))
+        print("✅ FITS apilado guardado en modo RGB.")
+
+        self.generar_preview(rgb_cube, num_imagenes_preview, EXPOSICION, ObjetosAnotados, ruta_fits=ruta_fits)
+
+        duracion = datetime.now() - self.inicio_apilado
+        info = f"{num_imagenes_preview} imágenes apiladas\nTiempo de integración total: {num_imagenes_preview * EXPOSICION:.1f} segundos\nDuración del proceso: {duracion}"
+
+        with open("static/apilado_info.txt", "w") as f:
+            f.write(info)
+
+        print(f"✅ Imagen apilada actualizada. Total: {self.total}")
+
+        # Subir imagen al FTP en segundo plano (no bloquea el apilado)
+        subir_imagen_ftp_async("static/resultado_apilado_preview.jpg", "ultima.jpg")
+        subir_imagen_ftp_async("static/info_objeto_goto.txt", "info_objeto_goto.txt")
+
+        # Limpiar imágenes FITS antiguas en disco
+        self.limpiar_fits_antiguos()
+
     def procesar_imagen_fits(self, ruta_fits, ObjetosAnotados=False):
         try:
 
@@ -1045,7 +1155,6 @@ class ApiladorEnTiempoReal:
                 g = self.aplicar_transformacion(g, M, metodo)
                 b = self.aplicar_transformacion(b, M, metodo)
 
-            # ── Selección de los mejores NUM_MAX fotogramas ──
             fotograma = {
                 "nombre": nombre_fits,
                 "puntuacion": puntuacion,
@@ -1054,24 +1163,77 @@ class ApiladorEnTiempoReal:
                 "fondo": fondo,
                 "exposicion": EXPOSICION,
                 "esquinas": esquinas,
+            }
+
+            # Incremental: con la referencia ya fijada la foto se suma al acumulador
+            # (y ya no se puede volver a "las N mejores" hasta reiniciar el apilado);
+            # antes, las fotos se guardan como siempre hasta reunir las de referencia
+            acumulador = self.acumulador
+            incremental = acumulador is not None or calidad["modo"] == "incremental"
+            n_referencia = calidad["fotos_referencia"]
+            with self.lock:
+                self.modo = "incremental" if incremental else "mejores"
+                self.fotos_referencia = n_referencia if incremental else 0
+            if acumulador is not None:
+                self._fase("apilando")
+                suma = acumulador.anadir(r, g, b, None if metodo == "REF" else M)
+                del r, g, b
+                with self.lock:
+                    if self.acumulador is not acumulador:
+                        return      # el apilado se ha reiniciado mientras tanto
+                    self.fotogramas.append(fotograma)
+                    self.total = len(self.fotogramas)
+                    self.ultimo_mensaje = (f"{nombre_fits} añadido ({self.total} fotos; "
+                                           f"{suma['rechazado']:.1%} de píxeles rechazados)")
+                    self._anotar_resultado("apilada")
+                    if self.ultima_detalle is not None:
+                        self.ultima_detalle["rechazado"] = round(100 * suma["rechazado"], 1)
+                        self.ultima_detalle["cambio_fondo"] = round(suma["nivel"])
+                print(f"📚 {self.ultimo_mensaje}; fondo {suma['nivel']:+.0f} ADU, ruido ×{suma['ruido']:.2f}")
+                if suma["rechazado"] > 0.2:
+                    print("⚠️ Más del 20 % de la foto no se parece a la referencia (¿nubes, alineado, enfoque?)")
+                voz.decir(f"Foto añadida, {self.total} apiladas")
+                self._publicar_apilado(acumulador.imagen(), zona_cobertura(*acumulador.cobertura()),
+                                       ruta_fits, EXPOSICION, ObjetosAnotados)
+                return
+
+            # ── Selección de los mejores NUM_MAX fotogramas ──
+            fotograma.update({
+                "M": None if metodo == "REF" else M,
                 "r": np.clip(r, 0, 65535).astype(np.uint16),
                 "g": np.clip(g, 0, 65535).astype(np.uint16),
                 "b": np.clip(b, 0, 65535).astype(np.uint16),
-            }
+            })
             del r, g, b
 
             with self.lock:
                 # El máximo se puede bajar en caliente desde la web: se quitan las
                 # peores hasta dejar hueco (o hasta el nuevo límite)
                 quitadas = 0
-                while len(self.fotogramas) > NUM_MAX:
+                while not incremental and len(self.fotogramas) > NUM_MAX:
                     idx_peor = min(range(len(self.fotogramas)), key=lambda i: self.fotogramas[i]["puntuacion"])
                     del self.fotogramas[idx_peor]
                     quitadas += 1
                 if quitadas:
                     print(f"✂️ Máximo bajado a {NUM_MAX}: {quitadas} foto(s) peores quitadas del apilado")
                 entra = True
-                if len(self.fotogramas) < NUM_MAX:
+                if incremental:
+                    # La referencia se hace con fotos BUENAS: el umbral de calidad se
+                    # forma con las primeras fotos, así que una mala del principio puede
+                    # haber entrado; se repasa con el umbral de ahora y se espera a tener
+                    # n_referencia que lo superen
+                    malas = [f for f in self.fotogramas if f["puntuacion"] < umbral]
+                    if malas:
+                        self.fotogramas = [f for f in self.fotogramas if f["puntuacion"] >= umbral]
+                        self.descartadas_calidad += len(malas)
+                        print("✂️ Fuera de la referencia por calidad (umbral {:.2f}): {}".format(
+                            umbral, ", ".join(f"{f['nombre']} ({f['puntuacion']:.2f})" for f in malas)))
+                    self.fotogramas.append(fotograma)
+                    self.ultimo_mensaje = (f"{nombre_fits} añadido (referencia: {len(self.fotogramas)} de "
+                                           f"{n_referencia} fotos buenas"
+                                           + (f"; {len(malas)} quitada(s) por calidad)" if malas else ")"))
+                    self._anotar_resultado("apilada")
+                elif len(self.fotogramas) < NUM_MAX:
                     self.fotogramas.append(fotograma)
                     self.ultimo_mensaje = f"{nombre_fits} añadido ({len(self.fotogramas)}/{NUM_MAX})"
                     self._anotar_resultado("apilada")
@@ -1103,87 +1265,31 @@ class ApiladorEnTiempoReal:
                 print(f"📚 {self.ultimo_mensaje}")
                 voz.decir("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas")
 
-            # ── Apilado (sigma-clipping por bloques, memoria acotada) ──
             self._fase("apilando")
-            r = apilar_sigma_clip([f["r"] for f in fotogramas_actuales])
-            g = apilar_sigma_clip([f["g"] for f in fotogramas_actuales])
-            b = apilar_sigma_clip([f["b"] for f in fotogramas_actuales])
-
-
-            rgb = np.stack([r, g, b], axis=0)
-            num_imagenes_preview = self.total
-
-            # Zona cubierta por todas las fotos: fuera de ella solo hay unas pocas
-            # (rotación de campo, dithering) y se ven bandas en los bordes
-            zona = zona_comun([f["esquinas"] for f in fotogramas_actuales if f.get("esquinas") is not None],
-                              r.shape[1], r.shape[0])
-            with self.lock:
-                self.zona_comun = zona
-            if zona:
-                print(f"✂️ Zona común de las {len(fotogramas_actuales)} fotos: {zona[2]}×{zona[3]} px desde ({zona[0]}, {zona[1]})")
-
-
-            # Usar la cabecera del último FITS como base
-            with fits.open(ruta_fits) as hdul:
-                header_original = hdul[0].header.copy()
-
-            # Modificar cabecera con datos del apilado
-            header_original['NSTACK'] = (num_imagenes_preview, 'Numero de imagenes apiladas')
-            header_original['EXPTOT'] = (num_imagenes_preview * EXPOSICION, 'Tiempo total de exposicion (s)')
-            header_original['DATE'] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-            header_original['CREATOR'] = ('ScopePower', 'Real-time Power for Your Telescope')
-            for clave in ("ZONAX0", "ZONAY0", "ZONAW", "ZONAH"):
-                header_original.pop(clave, None)
-            if zona:
-                header_original['ZONAX0'] = (zona[0], 'Zona cubierta por todas las fotos: x0')
-                header_original['ZONAY0'] = (zona[1], 'Zona cubierta por todas las fotos: y0')
-                header_original['ZONAW'] = (zona[2], 'Zona cubierta por todas las fotos: ancho')
-                header_original['ZONAH'] = (zona[3], 'Zona cubierta por todas las fotos: alto')
-
-            # Usamos r (o bien el canal que prefieras), pero como r=g=b
-            # ——— 1) Guardar FITS apilado como RGB (3×H×W) ———
-            rgb_cube = np.stack([r, g, b], axis=0).astype(np.float32)  # shape = (3, H, W)
-
-            # Preparamos la cabecera
-            hdr_out = header_original.copy()
-            # Eliminamos claves antiguas de CFA si existen
-            for key in ("BAYERPAT","CFA","NAXIS","NAXIS1","NAXIS2","NAXIS3","BITPIX"):
-                hdr_out.pop(key, None)
-            # Definimos el nuevo formato
-            hdr_out["BITPIX"] = -32                   # float32
-            hdr_out["NAXIS"]  = 3
-            hdr_out["NAXIS1"] = rgb_cube.shape[2]     # ancho
-            hdr_out["NAXIS2"] = rgb_cube.shape[1]     # alto
-            hdr_out["NAXIS3"] = rgb_cube.shape[0]     # canales
-            hdr_out["COMMENT"] = "Debayered RGB image"
-
-            hdu = PrimaryHDU(data=rgb_cube, header=hdr_out)
-            hdu.writeto("static/resultado_apilado.fits", overwrite=True)
-            with self.lock:
-                self.dimensiones = (int(rgb_cube.shape[2]), int(rgb_cube.shape[1]))
-            print("✅ FITS apilado guardado en modo RGB.")
-
-
-
-            self.generar_preview(rgb_cube, num_imagenes_preview, EXPOSICION, ObjetosAnotados, ruta_fits=ruta_fits)
-
-
-
-            duracion = datetime.now() - self.inicio_apilado
-            #info = f"{self.total} imágenes apiladas\nTiempo de integración total: {self.total * EXPOSICION:.1f} segundos\nDuración del proceso: {duracion}"
-            info = f"{num_imagenes_preview} imágenes apiladas\nTiempo de integración total: {num_imagenes_preview * EXPOSICION:.1f} segundos\nDuración del proceso: {duracion}"
-
-            with open("static/apilado_info.txt", "w") as f:
-                f.write(info)
-
-            print(f"✅ Imagen apilada actualizada. Total: {self.total}")
-
-            # Subir imagen al FTP en segundo plano (no bloquea el apilado)
-            subir_imagen_ftp_async("static/resultado_apilado_preview.jpg", "ultima.jpg")
-            subir_imagen_ftp_async("static/info_objeto_goto.txt", "info_objeto_goto.txt")
-
-            # Limpiar imágenes FITS antiguas en disco
-            self.limpiar_fits_antiguos()
+            if incremental and len(fotogramas_actuales) >= n_referencia:
+                # Ya hay fotos buenas suficientes: su sigma-clip es la referencia y
+                # desde la siguiente foto se suma sin reapilar. Los planos se sueltan.
+                acumulador = apilado_incremental.Acumulador(fotogramas_actuales, k=calidad["sigma_incremental"])
+                with self.lock:
+                    if not any(f is fotograma for f in self.fotogramas):
+                        return      # el apilado se ha reiniciado mientras tanto
+                    self.acumulador = acumulador
+                    for f in self.fotogramas:
+                        for clave in ("r", "g", "b", "M"):
+                            f.pop(clave, None)
+                print(f"📌 Referencia del apilado incremental fijada con {len(fotogramas_actuales)} fotos")
+                voz.decir("Referencia del apilado fijada")
+                planos = acumulador.imagen()
+                zona = zona_cobertura(*acumulador.cobertura())
+            else:
+                # ── Apilado (sigma-clipping por bloques, memoria acotada) ──
+                planos = tuple(apilar_sigma_clip([f[c] for f in fotogramas_actuales]) for c in ("r", "g", "b"))
+                # Zona cubierta por todas las fotos: fuera de ella solo hay unas pocas
+                # (rotación de campo, dithering) y se ven bandas en los bordes
+                zona = zona_comun([f["esquinas"] for f in fotogramas_actuales if f.get("esquinas") is not None],
+                                  planos[0].shape[1], planos[0].shape[0])
+            del fotogramas_actuales
+            self._publicar_apilado(planos, zona, ruta_fits, EXPOSICION, ObjetosAnotados)
 
         except Exception as e:
             import traceback
@@ -1241,6 +1347,7 @@ def reiniciar_apilado_global():
             apilador_global.ultima_captura = ""
             apilador_global.inicio_apilado = datetime.now()
             apilador_global.fotogramas.clear()
+            apilador_global.acumulador = None
             apilador_global.descartadas = 0
             apilador_global.descartadas_calidad = 0
             apilador_global.descartadas_rastros = 0
@@ -1350,6 +1457,11 @@ def obtener_estado_apilado():
             "total": a.total,
             "ultima": a.ultima_captura or "Ninguna",
             "maximo": leer_num_max(),
+            # incremental: sin tope de fotos; fotos_referencia las que fijan la
+            # referencia y referencia_fijada si ya se está sumando sobre ella
+            "modo": a.modo,
+            "fotos_referencia": a.fotos_referencia,
+            "referencia_fijada": a.acumulador is not None,
             "descartadas": a.descartadas,
             "descartadas_calidad": a.descartadas_calidad,
             "descartadas_rastros": a.descartadas_rastros,

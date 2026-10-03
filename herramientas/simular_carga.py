@@ -30,6 +30,7 @@
 #   python herramientas\simular_carga.py --fits capturas\captura_xxx.fits
 #   python herramientas\simular_carga.py --sintetico       (ignora los FITS reales)
 #   python herramientas\simular_carga.py --sin-pausa       (carga máxima continua)
+#   python herramientas\simular_carga.py --modo incremental   (apilado incremental, ver config.example.ini)
 #
 # Todo lo que escribe va a logs\simulacion_carga\ (FITS de trabajo, JPG y el
 # log con los tiempos de cada foto); no toca static\, capturas\ ni config.ini.
@@ -54,8 +55,9 @@ from astropy.io.fits import PrimaryHDU
 
 import procesado
 from AutoStrechSTF import debayer_rgb, guardar_jpg_web
-from apilado import (calcular_puntuacion, apilar_sigma_clip, zona_comun, esquinas_transformadas,
-                     generar_fits_monocromo_para_astap, ini_resuelto, parse_ini_wcs, ASTAP_TIMEOUT)
+from apilado import (calcular_puntuacion, apilar_sigma_clip, zona_comun, zona_cobertura, esquinas_transformadas,
+                     generar_fits_monocromo_para_astap, ini_resuelto, parse_ini_wcs, leer_config_calidad, ASTAP_TIMEOUT)
+from apilado_incremental import Acumulador
 
 CARPETA = os.path.join("logs", "simulacion_carga")
 ANCHO, ALTO = 3008, 3008          # IMX533 (Saturn-C SQR)
@@ -66,9 +68,13 @@ def leer_config():
     cfg = configparser.ConfigParser()
     cfg.read("config.ini")
     d = cfg["Dispositivos"] if "Dispositivos" in cfg else {}
+    calidad = leer_config_calidad()
     return {
         "exposicion": float(d.get("exposicion_captura", 20)),
         "num_max": max(1, int(d.get("numero_maximo_imagenes", 20))),
+        "modo": calidad["modo"],
+        "fotos_referencia": calidad["fotos_referencia"],
+        "sigma_incremental": calidad["sigma_incremental"],
         "ruta_astap": cfg["General"].get("ruta_astap", "") if "General" in cfg else "",
     }
 
@@ -186,6 +192,10 @@ def main():
                    help=f"segundos entre fotos, como exposicion_captura ({cfg['exposicion']:g})")
     p.add_argument("--num-max", type=int, default=cfg["num_max"],
                    help=f"fotos que se guardan y apilan, como numero_maximo_imagenes ({cfg['num_max']})")
+    p.add_argument("--modo", choices=("mejores", "incremental"), default=cfg["modo"],
+                   help=f"cómo se apila, como modo_apilado ({cfg['modo']})")
+    p.add_argument("--fotos-referencia", type=int, default=cfg["fotos_referencia"],
+                   help=f"fotos que fijan la referencia en el modo incremental ({cfg['fotos_referencia']})")
     p.add_argument("--fits", help="FITS real (CFA) que usar como foto base; por defecto el más reciente de capturas\\")
     p.add_argument("--sintetico", action="store_true", help="campo de estrellas sintético aunque haya FITS reales")
     p.add_argument("--astap-segundos", type=float, default=4.0,
@@ -220,12 +230,16 @@ def main():
     else:
         fuente = FuenteSintetica(rng)
         log(f"Foto base: campo sintético {ANCHO}x{ALTO} {PATRON}; ASTAP imitado con {args.astap_segundos:g} s de cálculo")
-    log(f"Prueba de {args.minutos:g} min: una foto cada {args.exposicion:g} s, apilando hasta {args.num_max} "
+    limite = (f"apilado incremental (referencia de {args.fotos_referencia} fotos, sin tope)"
+              if args.modo == "incremental" else f"apilando hasta {args.num_max}")
+    log(f"Prueba de {args.minutos:g} min: una foto cada {args.exposicion:g} s, {limite} "
         f"({os.cpu_count()} núcleos){' — SIN pausa entre fotos' if args.sin_pausa else ''}")
     log("Apunta ahora los mAh del cargador.")
 
     ajustes = procesado.leer_config()
     fotogramas = []
+    acumulador = None       # modo incremental: suma/cuenta/sigma por píxel una vez fijada la referencia
+    n_apiladas = 0
     ref_info = None
     n_fotos = 0
     tiempos = []
@@ -288,34 +302,47 @@ def main():
             r = cv2.warpAffine(r, M, (w, h), flags=cv2.INTER_LINEAR)
             g = cv2.warpAffine(g, M, (w, h), flags=cv2.INTER_LINEAR)
             b = cv2.warpAffine(b, M, (w, h), flags=cv2.INTER_LINEAR)
-            fotogramas.append({
-                "esquinas": esquinas_transformadas(M, w, h),
-                "r": np.clip(r, 0, 65535).astype(np.uint16),
-                "g": np.clip(g, 0, 65535).astype(np.uint16),
-                "b": np.clip(b, 0, 65535).astype(np.uint16),
-            })
-            del r, g, b
-            if len(fotogramas) > args.num_max:
-                fotogramas.pop(0)
             t = fase("alinear", t)
 
             # Apilar + FITS de salida
-            r = apilar_sigma_clip([f["r"] for f in fotogramas])
-            g = apilar_sigma_clip([f["g"] for f in fotogramas])
-            b = apilar_sigma_clip([f["b"] for f in fotogramas])
-            zona = zona_comun([f["esquinas"] for f in fotogramas], w, h)
+            if acumulador is not None:
+                acumulador.anadir(r, g, b, M)
+                n_apiladas += 1
+            else:
+                fotogramas.append({
+                    "esquinas": esquinas_transformadas(M, w, h),
+                    "M": M,
+                    "r": np.clip(r, 0, 65535).astype(np.uint16),
+                    "g": np.clip(g, 0, 65535).astype(np.uint16),
+                    "b": np.clip(b, 0, 65535).astype(np.uint16),
+                })
+                if args.modo != "incremental" and len(fotogramas) > args.num_max:
+                    fotogramas.pop(0)
+                n_apiladas = len(fotogramas)
+                if args.modo == "incremental" and n_apiladas >= args.fotos_referencia:
+                    acumulador = Acumulador(fotogramas, k=cfg["sigma_incremental"])
+                    fotogramas = []
+            del r, g, b
+            if acumulador is not None:
+                r, g, b = acumulador.imagen()
+                zona = zona_cobertura(*acumulador.cobertura())
+            else:
+                r = apilar_sigma_clip([f["r"] for f in fotogramas])
+                g = apilar_sigma_clip([f["g"] for f in fotogramas])
+                b = apilar_sigma_clip([f["b"] for f in fotogramas])
+                zona = zona_comun([f["esquinas"] for f in fotogramas], w, h)
             cubo = np.stack([r, g, b], axis=0).astype(np.float32)
             del r, g, b
             hdr_out = hdr.copy()
             for k in ("BAYERPAT", "NAXIS", "NAXIS1", "NAXIS2", "NAXIS3", "BITPIX"):
                 hdr_out.pop(k, None)
-            hdr_out["NSTACK"] = len(fotogramas)
+            hdr_out["NSTACK"] = n_apiladas
             PrimaryHDU(cubo, header=hdr_out).writeto(os.path.join(CARPETA, "apilado.fits"), overwrite=True)
             t = fase("apilar", t)
 
             # Estirado y JPG de la web (apilado.generar_preview)
             recorte, _, _ = procesado.recortar_campo(cubo, 1.0, zona)
-            rgb8 = procesado.procesar(recorte, len(fotogramas), ajustes, escala=0.5)
+            rgb8 = procesado.procesar(recorte, n_apiladas, ajustes, escala=0.5)
             bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
             cv2.imwrite(os.path.join(CARPETA, "preview.jpg"), bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
             guardar_jpg_web(os.path.join(CARPETA, "preview_web.jpg"), bgr)
@@ -327,7 +354,7 @@ def main():
             tiempos.append(total)
             detalle = " ".join(f"{k} {v:.1f}" for k, v in fases.items())
             log(f"foto {n_fotos:3d}: {total:5.1f} s (cpu {cpu_pct(cpu_foto, t_foto):3.0f} %) "
-                f"apiladas {len(fotogramas):2d}, {n_estrellas} estrellas — {detalle}")
+                f"apiladas {n_apiladas:2d}, {n_estrellas} estrellas — {detalle}")
 
             # Descanso hasta la siguiente "exposición"
             restante = fin - time.perf_counter()

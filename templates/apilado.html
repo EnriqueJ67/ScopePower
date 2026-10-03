@@ -76,7 +76,7 @@
         <div class="visor">
             <img id="preview" src="" alt="Apilado">
             <div class="visor-overlay">
-                <span class="chip"><svg class="ico-sm"><use href="#i-apilado"/></svg><span id="contador-apilado">0</span>&nbsp;/ <span id="maximo-apilado">-</span> fotos</span>
+                <span class="chip"><svg class="ico-sm"><use href="#i-apilado"/></svg><span id="contador-apilado">0</span><span id="maximo-apilado-sep">&nbsp;/ </span><span id="maximo-apilado">-</span> fotos</span>
                 <span class="chip" id="chip-ultima">Última: <span id="ultima-captura">Ninguna</span></span>
                 <!-- Progreso del ciclo: anillo discreto arriba a la derecha que se completa con
                      la exposición (segundos dentro) o con las fases del procesado. La banda inferior
@@ -959,6 +959,16 @@
                 }
                 document.getElementById("contador-apilado").textContent = d.total || 0;
                 document.getElementById("maximo-apilado").textContent = d.maximo || "-";
+                // Apilado incremental: sin tope de fotos (el máximo solo es el objetivo del plan)
+                const sinTope = d.modo === "incremental" && !modoPlan;
+                document.getElementById("maximo-apilado").style.display = sinTope ? "none" : "";
+                document.getElementById("maximo-apilado-sep").innerHTML = sinTope ? "&nbsp;" : "&nbsp;/ ";
+                if (sinTope !== avisoSinTope) {
+                    avisoSinTope = sinTope;
+                    document.getElementById("maximo-estado").textContent = sinTope
+                        ? "Apilado incremental: no hay tope, todas las fotos buenas se suman. Este número solo decide cuántos FITS se conservan en el disco."
+                        : "Se puede cambiar con el apilado en marcha: se guardan las N mejores. Si lo bajas, con la siguiente foto se quitan las peores.";
+                }
                 document.getElementById("ultima-captura").textContent = d.ultima || "Ninguna";
                 document.getElementById("mensaje-apilado").textContent = d.mensaje || "";
                 document.getElementById("error-apilado").textContent = d.ultimo_error ? "⚠️ " + d.ultimo_error : "";
@@ -1026,7 +1036,9 @@
             if (d.descartadas_rastros) desc.push(`${d.descartadas_rastros} por rastros o luces`);
             const std = d.desplazamiento_std;
             pintarKV("datos-apilado", [
-                ["Fotos", `${d.total} de ${d.maximo || "?"}`],
+                ["Fotos", d.modo === "incremental"
+                    ? (d.referencia_fijada ? `${d.total} (incremental, sin tope)` : `${d.total} de ${d.fotos_referencia} para la referencia`)
+                    : `${d.total} de ${d.maximo || "?"}`],
                 ["Integración", d.segundos_totales ? `${fmtMin(d.segundos_totales)} (${d.total} × ${Math.round(d.segundos_totales / d.total)} s)` : ""],
                 ["Sesión", d.inicio ? `desde las ${d.inicio.slice(0, 5)} · ${fmtMinutos(d.duracion_min)}` : ""],
                 ["Puntuación", hayNum(d.puntuacion_std) ? `${fmtPunt(d.puntuacion_media)} ± ${fmtPunt(d.puntuacion_std)}` : fmtPunt(d.puntuacion_media)],
@@ -1036,7 +1048,7 @@
                 ["Deriva", std ? `±${std[0]} / ±${std[1]} px (${d.desplazamientos_n} fotos)` : ""],
                 ["Descartadas", desc.length ? desc.join(" · ") : "ninguna", desc.length ? "warn" : ""],
                 ["Tamaño", d.dimensiones ? `${d.dimensiones[0]} × ${d.dimensiones[1]} px` : ""],
-                ["Recorte", d.zona_comun ? `${d.zona_comun[2]} × ${d.zona_comun[3]} px (zona con todas las fotos)` : (d.dimensiones ? "sin recortar" : "")],
+                ["Recorte", d.zona_comun ? `${d.zona_comun[2]} × ${d.zona_comun[3]} px (zona con ${d.referencia_fijada ? "al menos la mitad de" : "todas"} las fotos)` : (d.dimensiones ? "sin recortar" : "")],
                 ["Referencia", d.referencia_nombre || ""],
             ]);
         } else {
@@ -1065,6 +1077,7 @@
                 ["Fondo de cielo", hayNum(u.fondo) ? `${u.fondo} ADU` : ""],
                 ["Desplazamiento", u.desplazamiento ? `${u.desplazamiento[0]} / ${u.desplazamiento[1]} px` : ""],
                 ["Exposición", u.exposicion ? `${u.exposicion} s` : ""],
+                ["Píxeles rechazados", hayNum(u.rechazado) ? `${Number(u.rechazado).toFixed(1)} %` + (hayNum(u.cambio_fondo) ? ` · fondo ${u.cambio_fondo > 0 ? "+" : ""}${u.cambio_fondo} ADU` : "") : ""],
             ]);
         }
         // El máximo del apilado, la primera vez que llega (después manda el usuario)
@@ -1076,6 +1089,7 @@
 
     // ——— Máximo de fotos del apilado, cambiable en caliente (config.ini vía /preferencias) ———
     let maximoInicializado = false;
+    let avisoSinTope = false;
     function cambiarMaximo(delta) {
         if (modoPlan) {
             document.getElementById("maximo-estado").textContent = "El plan fija las fotos de cada objeto: tócalo en la lista del plan para cambiarlas.";
