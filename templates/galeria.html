@@ -9,6 +9,10 @@
         <p class="pagina-sub" id="galeria-resumen">{{ imagenes|length }} imágenes guardadas desde el apilado.</p>
     </div>
     <div class="pagina-acciones">
+        <!-- Fotos que el apilado descartó por un rastro (aviones, satélites, posibles meteoros) -->
+        <a class="btn btn-secondary btn-sm" href="/galeria/rastros" title="Fotos descartadas del apilado por un rastro de avión, satélite o meteoro">
+            ☄️ Rastros{% if n_rastros %} <span class="texto-3">{{ n_rastros }}</span>{% endif %}{% if n_meteoros %} · {{ n_meteoros }} meteoro{{ 's' if n_meteoros != 1 }}{% endif %}
+        </a>
         <div class="segmentado" id="orden-seg">
             <button type="button" class="activo" data-orden="fecha" onclick="ordenarGaleria('fecha')">Fecha</button>
             <button type="button" data-orden="objeto" onclick="ordenarGaleria('objeto')">Objeto</button>

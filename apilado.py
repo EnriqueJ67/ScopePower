@@ -251,6 +251,10 @@ def leer_config_calidad():
         "detectar_rastros": str(c.get("detectar_rastros", "true")).lower() in ("1", "true", "si", "sí", "yes"),
         "detectar_luces": str(c.get("detectar_luces", "true")).lower() in ("1", "true", "si", "sí", "yes"),
         "penalizacion_defectos": float(c.get("penalizacion_defectos", 0.1)),
+        # Las fotos descartadas por rastro se guardan aparte (static/fotos/rastros)
+        # para revisar si alguno era un meteoro; como mucho max_rastros
+        "guardar_rastros": str(c.get("guardar_rastros", "true")).lower() in ("1", "true", "si", "sí", "yes"),
+        "max_rastros": int(c.get("max_rastros", 50)),
     }
 
 
@@ -651,8 +655,9 @@ class ApiladorEnTiempoReal:
 
     def _buscar_defectos(self, g, exposicion, calidad):
         """
-        Rastro de satélite/avión o luz parásita en el plano verde (rastros.py).
-        Devuelve (texto para la web, aviso de voz) o None si la foto está limpia.
+        Rastro de satélite/avión/meteoro o luz parásita en el plano verde (rastros.py).
+        Devuelve (texto para la web, aviso de voz, rastro, clase) o None si la foto
+        está limpia; rastro y clase son None si es una luz.
         """
         try:
             peq = rastros.media_resolucion(g)
@@ -667,15 +672,47 @@ class ApiladorEnTiempoReal:
                 self.historial_fondo = (self.historial_fondo + [rejilla])[-rastros.FOTOS_HISTORIAL:]
                 if luz:
                     return (f"luz parásita (fondo +{luz['subida']:.1f} σ en el {luz['zona']:.0%} de la foto)",
-                            "Foto descartada: luz parásita")
+                            "Foto descartada: luz parásita", None, None)
             if calidad["detectar_rastros"]:
                 rastro = rastros.detectar_rastro(g, peq)
                 if rastro:
-                    return (f"rastro de satélite o avión ({rastro['longitud']} px a {rastro['angulo']:.0f}°)",
-                            "Foto descartada: rastro de satélite o avión")
+                    try:
+                        clase = rastros.clasificar_rastro(peq, rastro)
+                    except Exception as e:
+                        print(f"⚠️ No se pudo clasificar el rastro: {e}")
+                        clase = dict(rastros.TIPOS_RASTRO["satelite"], tipo="satelite", rasgos={})
+                    longitud = (clase.get("rasgos") or {}).get("longitud", rastro["longitud"])
+                    if clase["tipo"] == "meteoro":
+                        texto, aviso = "posible meteoro", "¡Posible meteoro!"
+                    else:
+                        texto = f"rastro de {clase['nombre'].lower()}"
+                        aviso = f"Foto descartada: rastro de {clase['nombre'].lower()}"
+                    return (f"{clase['icono']} {texto} ({longitud} px a {rastro['angulo']:.0f}°)",
+                            aviso, rastro, clase)
         except Exception as e:
             print(f"⚠️ No se pudieron buscar rastros ni luces: {e}")
         return None
+
+    def _guardar_rastro(self, ruta_fits, r, g, b, rastro, clase, exposicion, maximo):
+        """
+        Guarda aparte la foto descartada por rastro (rastros.guardar_rastro). El FITS
+        (~18 MB) solo si queda espacio en el disco; la miniatura y el JSON siempre.
+        Devuelve el nombre base o None si falla.
+        """
+        try:
+            import espacio_disco
+            disco = espacio_disco.vigilante.estado()
+            copiar_fits = not (disco.get("ok") and disco.get("bajo"))
+            datos = {"hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                     "objeto": nombre_objeto_goto(), "exposicion": exposicion}
+            base = rastros.guardar_rastro(ruta_fits, r, g, b, rastro, clase, datos,
+                                          copiar_fits=copiar_fits, maximo=maximo,
+                                          carpeta=ruta_absoluta(rastros.CARPETA_RASTROS))
+            print(f"💾 Rastro guardado: {base} ({clase['nombre']}{'' if copiar_fits else ', sin FITS: poco disco'})")
+            return base
+        except Exception as e:
+            print(f"⚠️ No se pudo guardar la foto con rastro: {e}")
+            return None
 
     def obtener_transformacion(self, img, ref, ruta_fits=None):
         """
@@ -912,12 +949,21 @@ class ApiladorEnTiempoReal:
             # Antes del umbral relativo: la puntuación hundida no debe entrar en
             # la media de las mejores, y las primeras fotos (que entran siempre) también se filtran
             if defecto:
+                texto, aviso, rastro, clase = defecto
+                if rastro and calidad["guardar_rastros"]:
+                    guardado = self._guardar_rastro(ruta_fits, r, g, b, rastro, clase, EXPOSICION, calidad["max_rastros"])
+                    if guardado:
+                        texto += " · guardada en Rastros"
+                        if clase["tipo"] == "meteoro":
+                            aviso += " Foto guardada en rastros"
                 with self.lock:
                     self.descartadas_rastros += 1
-                    self._anotar_resultado("descartada", defecto[0])
-                    self.ultimo_mensaje = f"{nombre_fits} ({puntuacion:.2f}): {defecto[0]}; descartada"
+                    self._anotar_resultado("descartada", texto)
+                    if self.ultima_detalle is not None:
+                        self.ultima_detalle["defecto"] = texto
+                    self.ultimo_mensaje = f"{nombre_fits} ({puntuacion:.2f}): {texto}; descartada"
                 print(f"ℹ️ {self.ultimo_mensaje}")
-                voz.decir(defecto[1])
+                voz.decir(aviso)
                 return
 
             # ── Umbral relativo (regla de la versión de junio): se guardan las

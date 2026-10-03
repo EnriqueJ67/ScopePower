@@ -351,7 +351,8 @@ def _alias_tecnico(alias):
 # que aquí se reduce cualquier tipo, y si no hay tipo el propio nombre, a una de
 # ellas. Devuelve "" si no se reconoce nada.
 CATEGORIAS = ("Galaxia", "Nebulosa", "Nebulosa planetaria", "Resto de supernova", "Cúmulo abierto",
-              "Cúmulo globular", "Estrella", "Planeta", "Luna", "Sol", "Cometa", "Asteroide", "Paisaje")
+              "Cúmulo globular", "Estrella", "Planeta", "Luna", "Sol", "Cometa", "Asteroide", "Meteoro",
+              "Satélite artificial", "Avión", "Paisaje")
 
 _PLANETAS = ("mercurio", "mercury", "venus", "marte", "mars", "jupiter", "saturno", "saturn",
              "urano", "uranus", "neptuno", "neptune", "pluton", "pluto")
@@ -383,7 +384,14 @@ def _categoria_de_texto(texto, es_nombre=False):
         return "Asteroide"
     if "paisaje" in t or "landscape" in t:
         return "Paisaje"
+    # Fotos sacadas de los rastros guardados (rastros.py)
+    if "meteor" in t:
+        return "Meteoro"
+    if "satelite artificial" in t or "artificial satellite" in t:
+        return "Satélite artificial"
     palabras = set(re.findall(r"[a-z]+", t))
+    if palabras & {"avion", "aircraft", "airplane"}:
+        return "Avión"
     if palabras & {"sol", "sun"}:
         return "Sol"
     if palabras & {"luna", "moon"}:

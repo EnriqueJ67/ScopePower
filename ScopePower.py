@@ -55,6 +55,7 @@ import vivo_dia
 import camara_sdk
 import disco
 import espacio_disco
+import rastros
 import apuntado_teorico
 import foto_continua
 import alineacion
@@ -2640,19 +2641,32 @@ def guardar_foto_en_galeria():
         # Sol, Luna o paisaje: el tipo sale del objetivo del modo día, no del GoTo
         meta["tipo"] = catalogo_offline.categoria_objeto(objeto)
 
-    def _terminar(imagen):
-        if meta["activa"]:
-            imagen = firma.firmar(imagen, meta)
-        cv2.imwrite(ruta_jpg, imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
-        meta["firmada"] = bool(meta["activa"])
-        firma.guardar_meta(ruta_jpg, meta)
-        log.info("Foto de Cámara guardada en la galería: %s", base)
-        voz.decir("Foto guardada en la galería")
-
     if imagen is not None:
-        _terminar(imagen)
+        _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
         return {"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg", "archivo": base + ".jpg"}
+    return _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base)
 
+
+def _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base):
+    if meta["activa"]:
+        imagen = firma.firmar(imagen, meta)
+    cv2.imwrite(ruta_jpg, imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    meta["firmada"] = bool(meta["activa"])
+    firma.guardar_meta(ruta_jpg, meta)
+    log.info("Foto guardada en la galería: %s", base)
+    voz.decir("Foto guardada en la galería")
+
+
+def _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base):
+    """
+    Revela una foto de noche (FITS en bruto) en segundo plano con el procesado y el
+    preset del apilado (procesado.py a resolución completa), la firma y la guarda en
+    la galería. Tarda de medio minuto a unos minutos según el PC; la web sigue el
+    progreso por /foto/guardar-galeria/estado. Si ese procesado falla, se guarda con
+    el revelado rápido (STF) para que la foto no se pierda.
+    """
+    if GUARDADO_FOTO["en_curso"]:
+        return {"ok": False, "mensaje": "Ya se está guardando una foto; espera a que termine."}
     GUARDADO_FOTO.update({"en_curso": True, "ok": None, "archivo": base + ".jpg",
                           "mensaje": "Revelando con el procesado del apilado..."})
 
@@ -2665,13 +2679,13 @@ def guardar_foto_en_galeria():
             try:
                 imagen = revelar_foto_noche_apilado(datos_fits, patron, escala=1.0, progreso=_avisar)
             except Exception:
-                log.exception("Falló el procesado del apilado sobre la foto de Cámara; se guarda con el revelado rápido")
+                log.exception("Falló el procesado del apilado sobre la foto; se guarda con el revelado rápido")
                 imagen = revelar_foto_noche(datos_fits, patron)
                 aviso = " (falló el procesado del apilado; guardada con el revelado rápido)"
-            _terminar(imagen)
+            _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
             GUARDADO_FOTO.update({"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg{aviso}"})
         except Exception as e:
-            log.exception("Error guardando la foto de Cámara en la galería")
+            log.exception("Error guardando la foto en la galería")
             GUARDADO_FOTO.update({"ok": False, "mensaje": f"Error al guardar: {e}"})
         finally:
             GUARDADO_FOTO["en_curso"] = False
@@ -4668,7 +4682,10 @@ def galeria():
         conteo[t] = conteo.get(t, 0) + 1
     orden = list(catalogo_offline.CATEGORIAS) + [SIN_TIPO]
     filtros = sorted(conteo.items(), key=lambda kv: orden.index(kv[0]) if kv[0] in orden else len(orden))
-    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, tipos=tipos, filtros=filtros)
+    lista_rastros = rastros.listar()
+    n_meteoros = sum(1 for d in lista_rastros if d.get("tipo") == "meteoro")
+    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, tipos=tipos, filtros=filtros,
+                           n_rastros=len(lista_rastros), n_meteoros=n_meteoros)
 
 
 SIN_TIPO = "Sin tipo"
@@ -4690,6 +4707,85 @@ def _tipo_foto_galeria(carpeta, nombre):
     if not tipo:
         tipo = catalogo_offline.categoria_objeto("", editor_fotos.partes_nombre(nombre)[0].replace("_", " "))
     return tipo or SIN_TIPO
+
+
+# ─── Rastros guardados (rastros.py): fotos que el apilado descartó por un rastro ───
+# de avión, satélite o posible meteoro, para revisarlas y rescatar los meteoros.
+
+def _rastro_valido(base):
+    return isinstance(base, str) and re.fullmatch(r"rastro_\d{8}_\d{6}", base) is not None
+
+
+@app.route("/galeria/rastros")
+def galeria_rastros():
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    lista = rastros.listar()
+    conteo = {}
+    for d in lista:
+        conteo[d.get("tipo")] = conteo.get(d.get("tipo"), 0) + 1
+    filtros = [(clave, info, conteo[clave]) for clave, info in rastros.TIPOS_RASTRO.items() if clave in conteo]
+    filtros.sort(key=lambda f: f[0] != "meteoro")   # los meteoros, lo primero
+    return render_template("rastros.html", rastros=lista, filtros=filtros)
+
+
+@app.route("/galeria/rastros/borrar", methods=["POST"])
+def galeria_rastros_borrar():
+    """{"base": "rastro_..."} borra uno; {"menos_meteoros": true} borra aviones y satélites."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "mensaje": "No autorizado"}), 403
+    datos = request.get_json(silent=True) or {}
+    if datos.get("menos_meteoros"):
+        borrados = [d["base"] for d in rastros.listar() if d.get("tipo") != "meteoro"]
+        for base in borrados:
+            rastros.borrar(base)
+        return jsonify({"ok": True, "borrados": borrados, "mensaje": f"{len(borrados)} rastros borrados"})
+    base = datos.get("base")
+    if not _rastro_valido(base):
+        return jsonify({"ok": False, "mensaje": "Rastro no válido"}), 400
+    rastros.borrar(base)
+    return jsonify({"ok": True, "borrados": [base], "mensaje": "Rastro borrado"})
+
+
+@app.route("/galeria/rastros/a-galeria", methods=["POST"])
+def galeria_rastros_a_galeria():
+    """Revela el FITS del rastro como una foto de la galería (en segundo plano, como Cámara)."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "mensaje": "No autorizado"}), 403
+    base = (request.get_json(silent=True) or {}).get("base")
+    if not _rastro_valido(base):
+        return jsonify({"ok": False, "mensaje": "Rastro no válido"}), 400
+    carpeta = rastros.CARPETA_RASTROS
+    ruta_fits_rastro = os.path.join(carpeta, base + ".fits")
+    if not os.path.isfile(ruta_fits_rastro):
+        return jsonify({"ok": False, "mensaje": "Este rastro se guardó sin FITS (había poco disco): solo queda la miniatura."}), 404
+    try:
+        import json
+        with open(os.path.join(carpeta, base + ".json"), "r", encoding="utf-8") as f:
+            datos = json.load(f)
+    except Exception:
+        datos = {}
+    objeto = rastros.TIPOS_RASTRO.get(datos.get("tipo"), rastros.TIPOS_RASTRO["satelite"])["objeto"]
+    fecha = datetime.strptime(base[len("rastro_"):], "%Y%m%d_%H%M%S")
+    nombre = f"{editor_fotos.nombre_archivo_objeto(objeto)}_{fecha:%Y%m%d_%H%M%S}"
+    ruta_jpg = os.path.join("static", "fotos", nombre + ".jpg")
+    if os.path.exists(ruta_jpg):
+        return jsonify({"ok": True, "mensaje": f"Ya estaba en la galería ({nombre}.jpg).", "archivo": nombre + ".jpg"})
+    if GUARDADO_FOTO["en_curso"]:
+        return jsonify({"ok": False, "mensaje": "Ya se está guardando una foto; espera a que termine."}), 409
+    # El FITS en bruto va con los de las fotos sueltas (se borra con la foto de la galería)
+    os.makedirs(CARPETA_CRUDOS_GALERIA, exist_ok=True)
+    ruta_crudo = os.path.join(CARPETA_CRUDOS_GALERIA, nombre + ".fits")
+    import shutil
+    shutil.copy2(ruta_fits_rastro, ruta_crudo)
+    with fits.open(ruta_crudo) as hdul:
+        datos_fits = np.asarray(hdul[0].data)
+        patron = str(hdul[0].header.get("BAYERPAT") or "").strip().upper()
+        exposicion = hdul[0].header.get("EXPTIME") or hdul[0].header.get("EXPOSURE") or datos.get("exposicion") or 0
+    meta = apilado.metadatos_firma(None, ruta_crudo, 1, float(exposicion))
+    meta.update({"objeto": objeto, "fecha": fecha, "tipo": catalogo_offline.categoria_objeto(objeto)})
+    return jsonify(_revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, nombre))
+
 
 @app.route("/eliminar-imagen", methods=["POST"])
 def eliminar_imagen():
