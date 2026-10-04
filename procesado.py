@@ -3,12 +3,14 @@
 # Procesado "estilo Seestar" del apilado, en este orden:
 #   1. Gradiente: se ajusta una superficie polinómica de 2º orden al fondo
 #      (con estrellas y objeto enmascarados) y se resta. Espacio lineal.
-#   2. Neutralización de fondo + estirado adaptativo multiescala (tipo
+#   2. Reducción de ruido, todavía en lineal (donde el ruido es uniforme y
+#      simétrico): por escalas de 1 a 16 px, cada una atenuada según lo que
+#      destaca sobre el ruido medido en ella; más fuerte en color que en
+#      luminancia. Estrellas, bordes y gradientes suaves pasan intactos.
+#   3. Neutralización de fondo + estirado adaptativo multiescala (tipo
 #      MultiscaleAdaptiveStretch de PixInsight): se estira la luminancia con una
 #      ganancia LOCAL (alta en el fondo, baja en estrellas y núcleos) y el color
 #      se escala en proporción, así lo brillante no se quema ni pierde el color.
-#   3. Reducción de ruido: fuerte en color, suave en luminancia, con máscara
-#      de estrellas para no ablandarlas. La fuerza baja con el nº de fotos.
 #   4. Contraste local (CLAHE en luminancia) + curva en S suave.
 #   5. Color: reneutralizar el fondo, temperatura de color y brillo general
 #      (deslizadores del editor), SCNR (quitar dominante verde, sin tocar las
@@ -564,7 +566,181 @@ def aplanar_fondo(rgb, escala=0.16):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  2. Estirado adaptativo multiescala (de lineal a no lineal)
+#  2. Ruido (espacio lineal, antes de estirar)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# El ruido de un apilado en color no es grano fino: el debayer y el alineado lo
+# dejan en manchas de 2 a 8 px. Un filtro de parecidos (medias no locales, el
+# que había hasta oct-2026, aplicado tras el estirado) toma esas manchas por
+# detalle: quitaba el grano, dejaba el cielo en mesetas con huecos oscuros,
+# borraba las estrellas débiles y recortaba el halo de los objetos en un
+# contorno duro. Aquí la imagen se separa en escalas (diferencias de suavizados
+# sucesivos, como una transformada à trous) y en cada escala un coeficiente se
+# conserva en la medida en que la energía de su entorno supera la del ruido
+# (filtro de Wiener local). No hay umbral duro ni máscara de estrellas: lo que
+# destaca pasa entero, lo que no se distingue del ruido se atenúa, y los
+# gradientes suaves (el residuo) no se tocan.
+#
+#   - Se hace en lineal porque ahí el ruido es gaussiano y casi uniforme; tras
+#     el estirado el del cielo queda mucho más amplificado que el del objeto.
+#     Donde hay objeto el ruido de fotones crece con la raíz del nivel, y el
+#     umbral sube con él.
+#   - El ruido de cada escala no se puede medir en la luminancia: en un campo
+#     de la Vía Láctea la dispersión a 4-16 px son estrellas débiles, no ruido.
+#     Se mide en los planos de color (canal - luminancia), donde las estrellas
+#     casi se cancelan; con canales independientes var(L) = suma var(C) / 6.
+#   - El color se limpia más fuerte que la luminancia, pero se conserva donde
+#     la luminancia tiene estructura (estrellas, bordes): ahí su ruido no se ve
+#     y sin ello las estrellas débiles perdían el color.
+#   - En el cielo no hay detalles oscuros: un hueco de la luminancia solo se
+#     conserva si tiene algo brillante al lado (ver ganancia_huecos).
+
+# Dos pasadas de caja de ancho n suavizan como una gaussiana de ~0,41 n px, y
+# cuestan lo mismo con cualquier n: escalas de 1, 2, 4, 8 y 16 px
+ANCHOS_ESCALA = (3, 5, 9, 19, 39)
+ANCHOS_ENERGIA = (3, 5)                 # entorno de la energía en las escalas finas; en las demás, a resolución reducida
+REDUCCION_ESCALA = (1, 1, 2, 4, 8)
+PESO_LUMINANCIA = (1.0, 1.0, 0.9, 0.7, 0.0)     # la escala de 16 px de la luminancia no se toca: ahí ya es cielo real
+RAZON_RUIDO_MAX = 0.7                   # el ruido de una escala no pasa de 0,7 veces el de la anterior: lo demás es señal
+
+
+def _caja2(img, n):
+    return cv2.blur(cv2.blur(img, (n, n), borderType=cv2.BORDER_REFLECT), (n, n), borderType=cv2.BORDER_REFLECT)
+
+
+def _sigma_mad(w, paso=3):
+    v = w[::paso, ::paso]
+    return float(np.median(np.abs(v - np.median(v)))) * 1.4826
+
+
+def reducir_ruido(rgb, fuerza, progreso=None):
+    """
+    rgb: (H, W, 3) float lineal (ADU), antes de estirar. fuerza 0..1: con 0,15 se
+    queda algo de grano y con 0,4 o más se quita todo lo que no destaca del
+    ruido; a partir de ahí solo sube el umbral (de 1 a 2,5 sigmas). El ruido se
+    mide en la propia imagen, así que se adapta solo al número de fotos y a la
+    resolución. progreso(fraccion): opcional. Devuelve float32 (H, W, 3) lineal.
+    """
+    fuerza = float(np.clip(fuerza, 0, 1))
+    rgb = np.asarray(rgb, dtype=np.float32)
+    h, w = rgb.shape[:2]
+    if fuerza <= 0 or min(h, w) < 64:
+        return rgb
+    k = 1.0 + 1.5 * fuerza
+    cantidad = min(1.0, 0.6 + fuerza)
+    k_color = 1.5 * k + 0.5
+    cantidad_color = min(1.0, 0.7 + fuerza)
+
+    def tam(f):
+        return (max(8, w // f), max(8, h // f)) if f > 1 else (w, h)
+
+    cL = (rgb[..., 0] + rgb[..., 1] + rgb[..., 2]) * np.float32(1.0 / 3.0)
+    cR = rgb[..., 0] - cL
+    cB = rgb[..., 2] - cL
+    # Nivel local respecto al cielo (de la imagen a 1/8): la varianza del ruido de fotones va con él
+    peq = cv2.GaussianBlur(cv2.resize(cL, tam(8), interpolation=cv2.INTER_AREA), (0, 0), 2.0, borderType=cv2.BORDER_REFLECT)
+    cielo = float(np.median(peq))
+    nivel = {8: np.clip(peq / cielo, 1.0, 25.0) if cielo > 0 else np.ones_like(peq)}
+    for f in (1, 2, 4):
+        nivel[f] = cv2.resize(nivel[8], tam(f), interpolation=cv2.INTER_LINEAR)
+
+    def energia(cuadrados, j, ancha=False):
+        """Media local de los cuadrados de los coeficientes, a la resolución de la escala."""
+        f = REDUCCION_ESCALA[j]
+        if f > 1:
+            return _caja2(cv2.resize(cuadrados, tam(f), interpolation=cv2.INTER_AREA), 5 if ancha else 3)
+        return _caja2(cuadrados, 2 * ANCHOS_ENERGIA[j] + 1 if ancha else ANCHOS_ENERGIA[j])
+
+    def ganancia(wj, j, sig, umbral):
+        """
+        Wiener local, a la resolución de la escala: 1 donde la energía del entorno
+        supera de largo la del ruido (umbral² sigma² por el nivel local), 0 donde
+        es solo ruido.
+        """
+        r = nivel[REDUCCION_ESCALA[j]] / np.maximum(energia(cv2.multiply(wj, wj), j), 1e-20)
+        r *= -((umbral * sig) ** 2)
+        r += 1.0
+        return np.clip(r, 0.0, 1.0, out=r)
+
+    def ganancia_huecos(wj, j, sig, umbral, g):
+        """
+        Ganancia de los coeficientes NEGATIVOS de la luminancia. En el cielo no hay
+        detalles oscuros: un hueco es el borde de algo brillante (el anillo
+        negativo de una estrella, que hay que conservar o el fondo subiría) o es
+        ruido, y un hueco de ruido que se salva queda como una mancha negra en un
+        cielo ya liso. Se conserva solo si además hay energía POSITIVA en un
+        entorno más ancho (x2: la mitad de la de un ruido simétrico). Sobre un
+        objeto (nivel por encima del cielo) los huecos son bandas de polvo y vale
+        la ganancia normal.
+        """
+        f = REDUCCION_ESCALA[j]
+        r = nivel[f] / np.maximum(energia(np.square(np.maximum(wj, 0)), j, ancha=True) * 2.0, 1e-20)
+        r *= -((umbral * sig) ** 2)
+        r += 1.0
+        np.clip(r, 0.0, 1.0, out=r)
+        np.minimum(r, g, out=r)
+        sobre_objeto = np.clip((nivel[f] - 1.05) * 4.0, 0.0, 1.0)
+        r += sobre_objeto * (g - r)
+        return r
+
+    def sumar(salida, wj, ganancia, cuanto, huecos=None):
+        """salida += wj * (1 - cuanto * (1 - ganancia)); `ganancia` se pisa. `huecos`: la de los coeficientes negativos."""
+        if ganancia.shape != wj.shape:
+            ganancia = cv2.resize(ganancia, (w, h), interpolation=cv2.INTER_LINEAR)
+        if huecos is not None:
+            if huecos.shape != wj.shape:
+                huecos = cv2.resize(huecos, (w, h), interpolation=cv2.INTER_LINEAR)
+            np.copyto(ganancia, huecos, where=wj < 0)
+        ganancia *= cuanto
+        ganancia += 1.0 - cuanto
+        ganancia *= wj
+        salida += ganancia
+
+    oL, oR, oB = np.zeros_like(cL), np.zeros_like(cL), np.zeros_like(cL)
+    anterior = None
+    for j, n in enumerate(ANCHOS_ESCALA):
+        sL, sR, sB = _caja2(cL, n), _caja2(cR, n), _caja2(cB, n)
+        wL, wR, wB = cL - sL, cR - sR, cB - sB
+        cL, cR, cB = sL, sR, sB
+        # Ruido de la escala: R-L, G-L (= -(R-L) - (B-L)) y B-L, y de ellos el de la luminancia
+        sig_r, sig_g, sig_b = _sigma_mad(wR), _sigma_mad(wR[::3, ::3] + wB[::3, ::3], 1), _sigma_mad(wB)
+        sig_l = math.sqrt((sig_r ** 2 + sig_g ** 2 + sig_b ** 2) / 6.0)
+        sig_l_directo = _sigma_mad(wL)
+        if sig_l < 0.3 * sig_l_directo:
+            sig_l = sig_l_directo            # imagen sin color (gris): no hay planos de color donde medir
+        if anterior is not None:
+            sig_l, sig_r, sig_b = (min(s, RAZON_RUIDO_MAX * a) for s, a in zip((sig_l, sig_r, sig_b), anterior))
+        anterior = (sig_l, sig_r, sig_b)
+
+        guia = ganancia(wL, j, sig_l, 1.5)                # dónde tiene estructura la luminancia
+        if PESO_LUMINANCIA[j] > 0:
+            umbral = k * PESO_LUMINANCIA[j]
+            g = ganancia(wL, j, sig_l, umbral)
+            sumar(oL, wL, g, cantidad, huecos=ganancia_huecos(wL, j, sig_l, umbral, g))
+        else:
+            oL += wL
+        for wC, oC, sig in ((wR, oR, sig_r), (wB, oB, sig_b)):
+            g = ganancia(wC, j, sig, k_color)
+            np.maximum(g, guia, out=g)
+            sumar(oC, wC, g, cantidad_color)
+        log.debug("ruido escala %d: sigma L %.3f, R-L %.3f, B-L %.3f", j + 1, sig_l, sig_r, sig_b)
+        if progreso:
+            try:
+                progreso((j + 1) / len(ANCHOS_ESCALA))
+            except Exception:
+                pass
+    oL += cL
+    oR += cR
+    oB += cB
+    out = np.empty_like(rgb)
+    out[..., 0] = oL + oR
+    out[..., 1] = oL - oR - oB
+    out[..., 2] = oL + oB
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  3. Estirado adaptativo multiescala (de lineal a no lineal)
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # Una curva global (STF, MTF, gamma) no puede a la vez sacar la señal débil y
@@ -722,11 +898,19 @@ def fondo_gran_escala(L, m, sigma, escala_px, factor=8):
     return np.maximum(B, 1e-6).astype(np.float32)
 
 
-def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None):
+def sigma_fondo(rgb):
+    """Sigma del fondo de cielo tal como lo mide estirar_multiescala (luminancia neutralizada, 0..1)."""
+    L = np.clip(neutralizar_fondo(np.asarray(rgb, dtype=np.float32)) / 65535.0, 0, None).mean(axis=2)
+    return estadistica_fondo(L)[1]
+
+
+def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None, sigma=None):
     """
     rgb: (H, W, 3) float lineal en ADU (0..65535), ya sin gradiente.
     escala_imagen: 0.5 si la imagen viene a media resolución (la escala de fondo
     en px se reduce en proporción). progreso(fraccion): opcional, 0..1.
+    sigma: el del fondo antes de reducir el ruido (sigma_fondo); el punto negro
+    va a k sigmas del cielo y, medido en la imagen ya limpia, se pegaría a él.
     Devuelve float32 (H, W, 3) en [0, 1], no lineal.
     """
     aj = ajustes or {}
@@ -747,7 +931,8 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None):
     rgb = neutralizar_fondo(np.asarray(rgb, dtype=np.float32))
     rgb = np.clip(rgb / 65535.0, 0, None)
     L = rgb.mean(axis=2)
-    m, sigma = estadistica_fondo(L)
+    m, sigma_medido = estadistica_fondo(L)
+    sigma = float(sigma) if sigma else sigma_medido
     blanco = float(np.percentile(L[::4, ::4], 99.82))        # el mismo blanco que el STF clásico
     S_curva = CurvaFondo(m, sigma, fondo_objetivo, agresividad, curva, blanco=blanco)
     avisar(0.2)
@@ -799,7 +984,7 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  3. Ruido
+#  4. Contraste local + curva
 # ─────────────────────────────────────────────────────────────────────────────
 
 def mascara_estrellas(lum8, dilatar=2):
@@ -810,65 +995,6 @@ def mascara_estrellas(lum8, dilatar=2):
         m = cv2.dilate(m, np.ones((2 * dilatar + 1, 2 * dilatar + 1), np.uint8))
     return cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.0)   # borde suave 0..1
 
-
-def medir_ruido(canal, fondo):
-    """Sigma del ruido de un canal float: MAD del paso alto sobre píxeles de fondo."""
-    alto = canal - cv2.GaussianBlur(canal, (0, 0), 3)
-    v = alto[fondo]
-    if v.size < 100:
-        return 0.0
-    return float(np.median(np.abs(v - np.median(v))) * 1.4826)
-
-
-def reducir_ruido(rgbf, fuerza, n_fotos=1):
-    """
-    rgbf: (H, W, 3) float32 en [0, 1] ya estirado. fuerza 0..1. Devuelve float32 [0, 1].
-
-    Se trabaja en coma flotante (no en 8 bits: con el fondo en ~24/255 y ruido de
-    ±1,5 niveles, filtrar cuantizado deja el fondo a parches). La intensidad se
-    calcula a partir del ruido MEDIDO en el fondo, así se adapta sola al número
-    de fotos apiladas. Luminancia: medias no locales a 16 bits con h ≈ k·sigma.
-    Color: suavizado gaussiano de a/b (sin parches). Las estrellas se restauran
-    del original en ambos.
-    """
-    fuerza = float(np.clip(fuerza, 0, 1))
-    if fuerza <= 0:
-        return rgbf
-    rgbf = np.clip(np.asarray(rgbf, dtype=np.float32), 0, 1)
-    lab = cv2.cvtColor(rgbf, cv2.COLOR_RGB2LAB)          # L 0..100, a/b -127..127
-    L, a, b = cv2.split(lab)
-    L8 = np.clip(L * 2.55, 0, 255).astype(np.uint8)
-    mask = mascara_estrellas(L8)
-    fondo = mask < 0.05
-
-    def restaurar(orig, filtrado):
-        return filtrado * (1 - mask) + orig * mask
-
-    # Luminancia: NLM a 16 bits, h proporcional al ruido medido
-    s_L = medir_ruido(L, fondo)
-    if s_L > 1e-4:
-        k = 0.5 + 1.0 * fuerza
-        L16 = np.clip(L / 100.0 * 65535.0, 0, 65535).astype(np.uint16)
-        h16 = float(s_L / 100.0 * 65535.0 * k)
-        L16d = cv2.fastNlMeansDenoising(L16, h=[h16], templateWindowSize=7, searchWindowSize=21,
-                                        normType=cv2.NORM_L1)
-        L_d = restaurar(L, L16d.astype(np.float32) / 65535.0 * 100.0)
-    else:
-        L_d = L
-
-    # Color: gaussiano en a/b (el ojo no distingue detalle de color fino)
-    sigma_ab = 1.0 + 4.0 * fuerza
-    a_d = restaurar(a, cv2.GaussianBlur(a, (0, 0), sigma_ab))
-    b_d = restaurar(b, cv2.GaussianBlur(b, (0, 0), sigma_ab))
-
-    log.debug("ruido: sigma L %.3f -> k %.2f; sigma color %.1f px", s_L, 0.5 + 1.0 * fuerza, sigma_ab)
-    out = cv2.cvtColor(cv2.merge([L_d, a_d, b_d]), cv2.COLOR_LAB2RGB)
-    return np.clip(out, 0, 1).astype(np.float32)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. Contraste local + curva
-# ─────────────────────────────────────────────────────────────────────────────
 
 def contraste_local(rgb, cantidad):
     """
@@ -1042,7 +1168,7 @@ def color(rgb, ajustes):
 # Sub-fases del procesado y la fracción del tiempo total que se lleva cada una
 # (medidas en la vista previa; la reducción de ruido es la que manda). Sirven
 # para que la web pinte el progreso dentro de la fase "estirando" del apilador.
-SUBFASES = (("gradiente", 0.10), ("estirando", 0.20), ("ruido", 0.55), ("contraste", 0.10), ("color", 0.05))
+SUBFASES = (("gradiente", 0.05), ("ruido", 0.40), ("estirando", 0.20), ("contraste", 0.15), ("color", 0.20))
 
 
 def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None):
@@ -1080,20 +1206,30 @@ def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None):
     if ajustes.get("aplanar", False):
         rgb = aplanar_fondo(rgb, float(ajustes.get("escala_aplanado", 0.16)))
 
-    # Neutralización + estirado adaptativo multiescala, en coma flotante
-    avisar("estirando")
-    if str(ajustes.get("estirado", "multiescala")).lower() == "stf":
+    # Los dos estirados ponen el punto negro según el ruido del fondo: se mide
+    # ANTES de reducirlo, para que el estirado sea el mismo con cualquier fuerza
+    # de ruido (medido en la imagen limpia, el negro se pegaría al cielo)
+    stf = str(ajustes.get("estirado", "multiescala")).lower() == "stf"
+    if stf:
         # Estirado clásico (STF enlazado de AutoStrechSTF, el sistema anterior a
-        # sep-2026): lo ofrece el editor de la galería para comparar con el nuevo
-        from AutoStrechSTF import apply_stf_color
-        rgbf = apply_stf_color(rgb, linked=True, neutralizar=True, output_8bit=False).astype(np.float32)
+        # sep-2026): lo ofrece el editor de la galería para comparar con el nuevo.
+        # Mismos parámetros que apply_stf_color(linked=True, neutralizar=True)
+        from AutoStrechSTF import calcular_parametros_stf, aplicar_parametros_stf
+        parametros_stf = calcular_parametros_stf(neutralizar_fondo(rgb).mean(axis=2), clipping=0.0018, target_median=0.10)
     else:
-        rgbf = estirar_multiescala(rgb, ajustes, escala_imagen=escala,
-                                   progreso=lambda f: avisar("estirando", f))
+        sigma = sigma_fondo(rgb)
 
     avisar("ruido")
-    # De aquí al final todo sigue en coma flotante; se cuantiza a 8 bits una sola vez, al salir de color()
-    rgbf = reducir_ruido(rgbf, ajustes.get("ruido", 0.5), n_fotos)
+    rgb = reducir_ruido(rgb, ajustes.get("ruido", 0.5), progreso=lambda f: avisar("ruido", f))
+
+    # Neutralización + estirado, en coma flotante; de aquí al final todo sigue
+    # así y se cuantiza a 8 bits una sola vez, al salir de color()
+    avisar("estirando")
+    if stf:
+        rgbf = aplicar_parametros_stf(neutralizar_fondo(rgb), *parametros_stf).astype(np.float32)
+    else:
+        rgbf = estirar_multiescala(rgb, ajustes, escala_imagen=escala, sigma=sigma,
+                                   progreso=lambda f: avisar("estirando", f))
     avisar("contraste")
     rgbf = contraste_local(rgbf, ajustes.get("contraste", 0.5))
     avisar("color")
