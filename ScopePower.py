@@ -1762,9 +1762,10 @@ def revelar_foto_noche_apilado(imagen_fits, patron_bayer, escala=0.5, progreso=N
         rgb = imagen_fits
     rgb = np.asarray(rgb, dtype=np.float32)
     e = encuadre or giro_camara.SIN_GIRO
+    balance = procesado.balance_estrellas(rgb)                 # color: con las estrellas del campo completo
     rgb, _ = procesado.girar_campo(rgb, procesado.fraccion_campo(), e.get("giro", 0.0),
                                    zona=(0, 0, rgb.shape[1], rgb.shape[0]), espejo=bool(e.get("espejo")))
-    rgb8 = procesado.procesar(rgb, 1, procesado.leer_config(), escala=escala, progreso=progreso)
+    rgb8 = procesado.procesar(rgb, 1, procesado.leer_config(), escala=escala, progreso=progreso, balance=balance)
     return cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
 
 
@@ -4617,8 +4618,9 @@ def guardar_apilado_en_galeria():
                 encuadre = procesado.encuadre_vista(header=hdul[0].header)
             # Mismo encuadre que la vista previa (zona cubierta por todas las fotos,
             # zoom, giro y espejo); el FITS se guarda entero y sin girar
+            balance = procesado.balance_estrellas(cubo, zona)      # color: con las estrellas del campo completo
             cubo, _ = procesado.girar_campo(cubo, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
-            rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0)
+            rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0, balance=balance)
             imagen_bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
             # Firma (logo, autor, objeto, tiempo, coordenadas). El FITS queda limpio y
             # el JSON hermano guarda los datos para el botón de compartir.

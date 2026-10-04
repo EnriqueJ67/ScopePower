@@ -342,7 +342,8 @@ def main():
 
             # Estirado y JPG de la web (apilado.generar_preview)
             recorte, _, _ = procesado.recortar_campo(cubo, 1.0, zona)
-            rgb8 = procesado.procesar(recorte, n_apiladas, ajustes, escala=0.5)
+            rgb8 = procesado.procesar(recorte, n_apiladas, ajustes, escala=0.5,
+                                      balance=procesado.balance_estrellas(cubo, zona))
             bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
             cv2.imwrite(os.path.join(CARPETA, "preview.jpg"), bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
             guardar_jpg_web(os.path.join(CARPETA, "preview_web.jpg"), bgr)

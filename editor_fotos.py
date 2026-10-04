@@ -59,7 +59,7 @@ ZOOMS = (0, 25, 50, 75)
 EDICION = {"en_curso": False, "mensaje": "", "ok": None, "archivo": "", "nombre_nuevo": ""}
 _lock_preview = threading.Lock()
 _lock_cubo = threading.Lock()
-_cache_cubo = {"ruta": None, "mtime": None, "cubo": None, "n": 0, "exposicion": 0.0, "zona": None}
+_cache_cubo = {"ruta": None, "mtime": None, "cubo": None, "n": 0, "exposicion": 0.0, "zona": None, "balance": None}
 _lock_norte = threading.Lock()
 _cache_norte = {}      # (ruta_fits, mtime) -> (giro, espejo) que dejan el norte arriba y el este a la izquierda
 
@@ -210,9 +210,10 @@ def _ajustes_para_json(aj):
 # ── Procesado ───────────────────────────────────────────────────────────────
 def cargar_cubo(ruta_fits):
     """
-    Cubo lineal float32 (3, H, W) del FITS apilado con NSTACK, exposición por foto
-    y zona cubierta. Se guarda el último en memoria (108 MB en 3008×3008): mover un
-    deslizador no debe volver a leer el fichero del disco.
+    Cubo lineal float32 (3, H, W) del FITS apilado con NSTACK, exposición por foto,
+    zona cubierta y balance de color de sus estrellas (procesado.balance_estrellas,
+    medido a campo completo). Se guarda el último en memoria (108 MB en 3008×3008):
+    mover un deslizador no debe volver a leer el fichero del disco.
     """
     with _lock_cubo:
         try:
@@ -231,9 +232,12 @@ def cargar_cubo(ruta_fits):
                 h = hdul[0].header
                 n = int(h.get("NSTACK", 1) or 1)
                 total = float(h.get("EXPTOT", 0) or 0)
-                c.update({"ruta": ruta_fits, "mtime": mtime, "cubo": np.ascontiguousarray(cubo), "n": n,
-                          "exposicion": round(total / n, 3) if n and total else 0.0, "zona": procesado.leer_zona(h)})
-        return c["cubo"], c["n"], c["exposicion"], c["zona"]
+                zona = procesado.leer_zona(h)
+                cubo = np.ascontiguousarray(cubo)
+                c.update({"ruta": ruta_fits, "mtime": mtime, "cubo": cubo, "n": n,
+                          "exposicion": round(total / n, 3) if n and total else 0.0, "zona": zona,
+                          "balance": procesado.balance_estrellas(cubo, zona)})
+        return c["cubo"], c["n"], c["exposicion"], c["zona"], c["balance"]
 
 
 def _meta_firma(ruta_jpg, ruta_fits, objeto, n, exposicion):
@@ -272,12 +276,12 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
         raise ErrorEditor("Esta foto no tiene FITS guardado; no se puede reprocesar")
     aj = ajustes_desde(opciones)
     objeto = " ".join(str(opciones.get("objeto", "")).split())[:60] or partes_nombre(nombre)[0].replace("_", " ")
-    cubo, n, exposicion, zona = cargar_cubo(ruta_fits)
+    cubo, n, exposicion, zona, balance = cargar_cubo(ruta_fits)
     fraccion = (100 - aj["zoom"]) / 100.0
     recorte, _ = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=aj.get("bordes", 0) / 100.0,
                                        espejo=bool(aj.get("espejo")))
     escala = 1.0 if completa or fraccion <= 0.5 else 0.5
-    rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso)
+    rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso, balance=balance)
     imagen = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
     meta = _meta_firma(ruta_jpg, ruta_fits, objeto, n, exposicion)
     if aj["firma"]:

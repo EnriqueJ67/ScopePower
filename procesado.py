@@ -3,6 +3,8 @@
 # Procesado "estilo Seestar" del apilado, en este orden:
 #   1. Gradiente: se ajusta una superficie polinómica de 2º orden al fondo
 #      (con estrellas y objeto enmascarados) y se resta. Espacio lineal.
+#      Después, calibración de color: a cada canal se le resta su cielo y se
+#      equilibran con las estrellas del campo (la estrella mediana, blanca).
 #   2. Reducción de ruido, todavía en lineal (donde el ruido es uniforme y
 #      simétrico): por escalas de 1 a 16 px, cada una atenuada según lo que
 #      destaca sobre el ruido medido en ella; más fuerte en color que en
@@ -563,6 +565,115 @@ def aplanar_fondo(rgb, escala=0.16):
     fondo_grande = cv2.resize(fondo, (w, h), interpolation=cv2.INTER_LINEAR)
     nivel = fondo_grande.reshape(-1, 3).mean(axis=0)
     return rgb - fondo_grande + nivel
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  1b. Calibración de color con las estrellas (espacio lineal)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Igualar el cielo multiplicando cada canal (neutralizar_fondo, lo que se hacía
+# hasta oct-2026) deja el fondo gris, pero ese mismo factor se lo lleva la luz
+# de los objetos: su color acaba dependiendo del color del cielo. Con el cielo
+# anaranjado de ciudad la estrella media salía un 5-14 % magenta, y con el
+# azulado del crepúsculo un 20 % amarilla (M13 del 24-sep-2026). La luz del
+# cielo se SUMA a la del objeto: lo correcto es restarla, y equilibrar los
+# canales con algo cuyo color se conoce. Aquí, las estrellas del campo: la
+# estrella mediana se deja blanca (como el balance de luz de día, porque la
+# estrella típica se parece al Sol). Medido en cuatro campos distintos, las
+# ganancias salen casi iguales (R x1,3-1,5 y B x1,6-1,9 con la Saturn-C): son
+# sobre todo la respuesta del sensor, más la extinción de esa noche.
+
+MIN_ESTRELLAS_COLOR = 25
+LADO_MEDIDA_COLOR = 1600        # el color se mide con la imagen reducida a este lado como mucho
+
+
+def balance_estrellas(imagen, zona=None):
+    """
+    Balance de color medido en las estrellas: {"r", "b", "n"} con las ganancias
+    de rojo y azul (respecto al verde) que dejan blanca la estrella mediana de
+    las `n` medidas, o None si no hay bastantes (campo vacío, de día, imagen sin
+    color...). imagen: cubo (3, H, W) o (H, W, 3) lineal, a ser posible el campo
+    completo y no el recorte de zoom (más estrellas, y el mismo color con
+    cualquier zoom); zona: (x0, y0, ancho, alto) cubierta por todas las fotos.
+
+    Fotometría de apertura con el fondo local (un anillo) restado en cada canal,
+    así no dependen del cielo ni de su gradiente; solo estrellas aisladas, bien
+    por encima del ruido y sin saturar.
+    """
+    imagen = np.asarray(imagen)
+    if imagen.ndim != 3:
+        return None
+    canales_primero = imagen.shape[0] == 3 and imagen.shape[-1] != 3
+    planos = [imagen[c] if canales_primero else imagen[..., c] for c in range(3)]
+    if zona:
+        x0, y0, ancho, alto = [int(v) for v in zona]
+        planos = [p[y0:y0 + alto, x0:x0 + ancho] for p in planos]
+    h, w = planos[0].shape
+    f = max(1, int(math.ceil(max(h, w) / float(LADO_MEDIDA_COLOR))))
+    if f > 1:
+        planos = [cv2.resize(np.ascontiguousarray(p, dtype=np.float32), (w // f, h // f), interpolation=cv2.INTER_AREA)
+                  for p in planos]
+    rgb = np.stack([np.asarray(p, dtype=np.float32) for p in planos], axis=2)
+    h, w = rgb.shape[:2]
+    r_ap, r_in, r_out = 5, 9, 13
+    if min(h, w) < 8 * r_out:
+        return None
+
+    lum = cv2.GaussianBlur(rgb.mean(axis=2), (0, 0), 1.5)
+    fondo = cv2.medianBlur(cv2.resize(lum, (max(8, w // 4), max(8, h // 4)), interpolation=cv2.INTER_AREA), 5)
+    lum -= cv2.resize(cv2.GaussianBlur(fondo, (0, 0), 8), (w, h), interpolation=cv2.INTER_LINEAR)
+    sigma = float(np.median(np.abs(lum[::4, ::4]))) * 1.4826
+    if sigma <= 0:
+        return None
+    picos = (lum == cv2.dilate(lum, np.ones((2 * r_out + 1, 2 * r_out + 1), np.uint8))) & (lum > 25.0 * sigma)
+    picos[:r_out] = picos[-r_out:] = False
+    picos[:, :r_out] = picos[:, -r_out:] = False
+    ys, xs = np.nonzero(picos)
+    saturado = 0.7 * float(rgb.max())
+    yy, xx = np.mgrid[-r_out:r_out + 1, -r_out:r_out + 1]
+    radio = np.hypot(xx, yy)
+    apertura, anillo = radio <= r_ap, (radio >= r_in) & (radio <= r_out)
+    flujos = []
+    for i in np.argsort(-lum[ys, xs])[:3000]:
+        x, y = int(xs[i]), int(ys[i])
+        trozo = rgb[y - r_out:y + r_out + 1, x - r_out:x + r_out + 1]
+        if trozo.max() > saturado:
+            continue
+        flujo = trozo[apertura].sum(axis=0) - np.median(trozo[anillo], axis=0) * apertura.sum()
+        if flujo.min() > 0:
+            flujos.append(flujo)
+    if len(flujos) < MIN_ESTRELLAS_COLOR:
+        return None
+    flujos = np.array(flujos)
+    r = 1.0 / float(np.median(flujos[:, 0] / flujos[:, 1]))
+    b = 1.0 / float(np.median(flujos[:, 2] / flujos[:, 1]))
+    if not (0.25 <= r <= 4.0 and 0.25 <= b <= 4.0):
+        return None
+    return {"r": r, "b": b, "n": len(flujos)}
+
+
+def calibrar_color(rgb, balance):
+    """
+    rgb: (H, W, 3) float lineal (ya sin gradiente). Resta a cada canal su cielo,
+    le aplica la ganancia de `balance` (balance_estrellas) y devuelve los tres
+    sobre un mismo fondo gris, del nivel medio que tenía. Sin balance la imagen
+    vuelve intacta y el fondo lo iguala el estirado multiplicando, como antes.
+    No modifica `rgb`.
+    """
+    if not balance:
+        return rgb
+    rgb = np.asarray(rgb, dtype=np.float32)
+    cielo = np.array([np.median(rgb[::4, ::4, c]) for c in range(3)], dtype=np.float32)
+    ganancias = np.array([balance["r"], 1.0, balance["b"]], dtype=np.float32)
+    # El nivel del fondo es el brillo del cielo ya equilibrado, llevado a la escala que tenía la imagen
+    nivel = float(cielo.mean())
+    equilibrado = float((cielo * ganancias).mean())
+    if nivel > 0 and equilibrado > 0:
+        ganancias *= nivel / equilibrado
+    out = rgb - cielo.reshape(1, 1, 3)
+    out *= ganancias.reshape(1, 1, 3)
+    out += nivel
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1171,12 +1282,15 @@ def color(rgb, ajustes):
 SUBFASES = (("gradiente", 0.05), ("ruido", 0.40), ("estirando", 0.20), ("contraste", 0.15), ("color", 0.20))
 
 
-def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None):
+def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, balance="auto"):
     """
     cubo_lineal: (3, H, W) o (H, W, 3) float lineal (el apilado).
     escala: 0.5 para la vista previa (4 veces más rápido), 1.0 para guardar.
     progreso(subfase, fraccion): opcional; se llama al empezar cada paso (y
     dentro del estirado) con la fracción 0..1 del procesado completo.
+    balance: el de balance_estrellas() medido en el campo completo, cuando lo
+    que llega aquí es un recorte de zoom; "auto" lo mide en la propia imagen y
+    None deja el color como antes (fondo igualado multiplicando).
     Devuelve uint8 (h, w, 3) RGB listo para JPG.
     """
     ajustes = ajustes or leer_config()
@@ -1205,6 +1319,11 @@ def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None):
         rgb = quitar_gradiente(rgb)
     if ajustes.get("aplanar", False):
         rgb = aplanar_fondo(rgb, float(ajustes.get("escala_aplanado", 0.16)))
+    if isinstance(balance, str):
+        balance = balance_estrellas(rgb)
+    if balance:
+        log.debug("color: R x%.2f, B x%.2f (%d estrellas)", balance["r"], balance["b"], balance.get("n", 0))
+    rgb = calibrar_color(rgb, balance)
 
     # Los dos estirados ponen el punto negro según el ruido del fondo: se mide
     # ANTES de reducirlo, para que el estirado sea el mismo con cualquier fuerza

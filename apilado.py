@@ -846,10 +846,12 @@ class ApiladorEnTiempoReal:
         with self.lock:
             zona = self.zona_comun
             self.encuadre = encuadre
+        # El color se calibra con las estrellas del campo completo, antes del recorte de zoom
+        balance = procesado.balance_estrellas(rgb_cube, zona)
         rgb_cube, matriz = procesado.girar_campo(rgb_cube, fraccion, encuadre["giro"], zona, espejo=encuadre["espejo"])
         escala = 0.5 if fraccion > 0.5 else 1.0
         rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=escala,
-                                     progreso=self._subfase)
+                                     progreso=self._subfase, balance=balance)
         if ObjetosAnotados:
             # Objetos del campo dibujados SOBRE la imagen procesada (anotaciones.py):
             # catálogo local sin Internet, SIMBAD si hay red, letra proporcional
