@@ -64,6 +64,9 @@
 <!-- Visor a pantalla completa -->
 <div id="lightbox" class="lightbox">
     <img id="imagen-grande" src="" alt="">
+    <!-- Objetos del campo pintados encima de la foto (/galeria/anotaciones); solo en las fotos con FITS -->
+    <svg id="lightbox-anotaciones" class="lightbox-anotaciones" aria-hidden="true"></svg>
+    <label class="switch" id="lightbox-anotar" onclick="event.stopPropagation()" style="display: none;" title="Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos"><input type="checkbox" id="anotar-activo" onchange="cambiarAnotaciones()"> Anotaciones</label>
     <button id="lightbox-compartir" class="btn btn-primary" onclick="event.stopPropagation(); compartirImagen(this.dataset.nombre, this)"><svg><use href="#i-compartir"/></svg>Compartir</button>
     <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>Editar</a>
     <div class="lightbox-pie" id="lightbox-pie"></div>
@@ -99,17 +102,122 @@
         if (guardado) filtrarGaleria(guardado);
     }
     function abrirLightbox(src, nombre) {
-        document.getElementById('imagen-grande').src = src;
-        document.getElementById('lightbox-pie').textContent = (nombre || "") + " · toca para cerrar";
         const nombre_archivo = decodeURIComponent(src.split("/").pop());
+        ANOT.nombre = nombre_archivo;
+        ANOT.titulo = nombre || "";
+        svgAnot.replaceChildren();
+        pieLightbox("");
         document.getElementById('lightbox-compartir').dataset.nombre = nombre_archivo;
         const editar = document.getElementById('lightbox-editar');
         editar.href = "/galeria/editar/" + encodeURIComponent(nombre_archivo);
         editar.style.display = CON_FITS.includes(nombre_archivo) ? "" : "none";
+        document.getElementById('lightbox-anotar').style.display = CON_FITS.includes(nombre_archivo) ? "" : "none";
         document.getElementById('lightbox').classList.add("abierto");
+        // Las anotaciones se colocan sobre la foto ya cargada (hace falta su tamaño)
+        const img = document.getElementById('imagen-grande');
+        img.onload = actualizarAnotaciones;
+        img.src = src;
+        if (img.complete && img.naturalWidth) actualizarAnotaciones();
     }
-    document.getElementById('lightbox').onclick = () => document.getElementById('lightbox').classList.remove("abierto");
-    document.addEventListener("keydown", e => { if (e.key === "Escape") document.getElementById('lightbox').classList.remove("abierto"); });
+    function cerrarLightbox() {
+        document.getElementById('lightbox').classList.remove("abierto");
+        ANOT.nombre = "";
+    }
+    document.getElementById('lightbox').onclick = cerrarLightbox;
+    document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarLightbox(); });
+
+    // ── Anotaciones: los objetos del campo pintados encima de la foto del visor ──
+    // El servidor da su posición en píxeles del JPG (la primera vez resuelve el campo);
+    // aquí se dibujan a tamaño de pantalla, así los nombres se leen igual en el móvil.
+    const ANOT = { nombre: "", titulo: "", datos: {}, pidiendo: "" };
+    const svgAnot = document.getElementById("lightbox-anotaciones");
+    const chkAnot = document.getElementById("anotar-activo");
+    try { chkAnot.checked = localStorage.getItem("galeria_anotar") === "1"; } catch (e) {}
+
+    function pieLightbox(extra) {
+        document.getElementById('lightbox-pie').textContent = ANOT.titulo + (extra ? " · " + extra : "") + " · toca para cerrar";
+    }
+    function cambiarAnotaciones() {
+        try { localStorage.setItem("galeria_anotar", chkAnot.checked ? "1" : "0"); } catch (e) {}
+        actualizarAnotaciones();
+    }
+    async function actualizarAnotaciones() {
+        const nombre = ANOT.nombre;
+        svgAnot.replaceChildren();
+        if (!nombre) return;
+        if (!chkAnot.checked || !CON_FITS.includes(nombre)) { pieLightbox(""); return; }
+        if (!ANOT.datos[nombre]) {
+            if (ANOT.pidiendo === nombre) return;
+            ANOT.pidiendo = nombre;
+            pieLightbox("resolviendo el campo…");
+            try {
+                const d = await (await fetch("/galeria/anotaciones/" + encodeURIComponent(nombre))).json();
+                if (!d.ok) throw new Error(d.mensaje || "no se pudo anotar");
+                ANOT.datos[nombre] = d;
+            } catch (e) {
+                if (ANOT.nombre === nombre) pieLightbox(e.message);
+                return;
+            } finally {
+                if (ANOT.pidiendo === nombre) ANOT.pidiendo = "";
+            }
+        }
+        if (ANOT.nombre === nombre) pintarAnotaciones();      // puede haberse cerrado o cambiado de foto mientras tanto
+    }
+    function pintarAnotaciones() {
+        svgAnot.replaceChildren();
+        const d = ANOT.datos[ANOT.nombre];
+        const img = document.getElementById('imagen-grande');
+        if (!d || !chkAnot.checked || !img.naturalWidth) return;
+        // La capa ocupa justo lo que ocupa la foto en pantalla (la imagen se encaja dentro de su caja)
+        const caja = img.getBoundingClientRect();
+        const s = Math.min(caja.width / img.naturalWidth, caja.height / img.naturalHeight);
+        const w = img.naturalWidth * s, h = img.naturalHeight * s;
+        svgAnot.style.left = (caja.left + (caja.width - w) / 2) + "px";
+        svgAnot.style.top = (caja.top + (caja.height - h) / 2) + "px";
+        svgAnot.style.width = w + "px";
+        svgAnot.style.height = h + "px";
+        svgAnot.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        const k = w / d.ancho;                                // de píxeles del JPG a píxeles de pantalla
+        const NS = "http://www.w3.org/2000/svg";
+        // Sitio ocupado: los nombres ya puestos y los círculos pequeños (un nombre encima los taparía)
+        const ocupados = [];
+        const libre = rc => ocupados.every(o => rc[2] < o[0] || rc[0] > o[2] || rc[3] < o[1] || rc[1] > o[3]);
+        for (const o of d.objetos) {
+            const x = o.x * k, y = o.y * k, a = Math.max(o.a * k, 7);
+            if (a <= 24) ocupados.push([x - a - 1, y - a - 1, x + a + 1, y + a + 1]);
+        }
+        for (const o of d.objetos) {
+            const x = o.x * k, y = o.y * k, a = Math.max(o.a * k, 7), b = Math.max(o.b * k, 7);
+            const clase = o.fuente === "catalogo" ? "anot-catalogo" : "anot-simbad";
+            const elipse = document.createElementNS(NS, "ellipse");
+            elipse.setAttribute("cx", x); elipse.setAttribute("cy", y);
+            elipse.setAttribute("rx", a); elipse.setAttribute("ry", o.angulo === null ? a : b);
+            if (o.angulo !== null) elipse.setAttribute("transform", `rotate(${o.angulo} ${x} ${y})`);
+            elipse.setAttribute("class", clase);
+            svgAnot.appendChild(elipse);
+            const texto = document.createElementNS(NS, "text");
+            texto.textContent = o.mag !== null ? `${o.nombre} (${o.mag.toFixed(1)})` : o.nombre;
+            texto.setAttribute("class", clase);
+            svgAnot.appendChild(texto);
+            const tw = texto.getComputedTextLength(), th = 13, r = a + 5;
+            // Debajo, encima, a la derecha o a la izquierda: el primer sitio libre; sin sitio, se queda el círculo solo
+            let puesto = false;
+            for (let [tx, ty] of [[x - tw / 2, y + r + th], [x - tw / 2, y - r - 2], [x + r + 2, y + th / 3], [x - r - tw - 2, y + th / 3]]) {
+                tx = Math.min(Math.max(3, tx), w - tw - 3);
+                ty = Math.min(Math.max(th + 2, ty), h - 4);
+                const rc = [tx - 3, ty - th - 1, tx + tw + 3, ty + 4];
+                if (libre(rc)) {
+                    texto.setAttribute("x", tx); texto.setAttribute("y", ty);
+                    ocupados.push(rc); puesto = true;
+                    break;
+                }
+            }
+            if (!puesto) texto.remove();
+        }
+        const n = d.objetos.length;
+        pieLightbox(n ? `${n} objeto${n === 1 ? "" : "s"} en el campo` : "ningún objeto conocido en el campo");
+    }
+    window.addEventListener("resize", pintarAnotaciones);
 
     // Compartir la foto firmada. El menú nativo del móvil (WhatsApp, Fotos...) solo existe
     // en HTTPS; en HTTP se abre la foto en una pestaña (móvil: mantener pulsado para guardar

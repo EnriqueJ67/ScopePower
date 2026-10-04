@@ -65,6 +65,7 @@ import esta_noche
 import cuerpos_menores
 import catalogo_offline
 import editor_fotos
+import galeria_anotada
 import anuncio_ip
 import coordenadas
 import recorridos
@@ -4970,6 +4971,22 @@ def galeria_compartir(nombre):
     if not ok:
         return "No se pudo codificar la imagen", 500
     return send_file(io.BytesIO(jpg.tobytes()), mimetype="image/jpeg", as_attachment=descargar, download_name=nombre_salida)
+
+@app.route("/galeria/anotaciones/<nombre>")
+def galeria_anotaciones(nombre):
+    """
+    Objetos del campo de una foto de la galería, situados sobre su JPG (galeria_anotada.py):
+    los pinta el visor como una capa encima de la foto. La primera vez resuelve el FITS con
+    ASTAP (unos segundos); después sale de datos/anotaciones_galeria.json.
+    """
+    try:
+        return jsonify(galeria_anotada.objetos_foto(nombre))
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    except Exception as e:
+        log.exception("Error anotando la foto de la galería")
+        return jsonify({"ok": False, "mensaje": f"No se pudo anotar: {e}"}), 500
+
 
 # ─── Editor de fotos de la galería (editor_fotos.py) ─────────────────────────
 # Reprocesa el FITS guardado junto al JPG con los controles del apilado, el

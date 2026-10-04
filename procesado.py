@@ -325,6 +325,29 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     return _girar(rec), T
 
 
+def matriz_campo(ancho, alto, fraccion, giro, zona=None, margen=0.0, espejo=False):
+    """
+    La geometría de girar_campo sin la imagen: (M, ancho_recorte, alto_recorte),
+    con M la afín 2×3 que lleva un píxel de una imagen completa de ancho × alto
+    a su recorte. `zona` ya resuelta: None es la imagen entera (girar_campo, si
+    no se le da, la detecta con zona_automatica). La usan las anotaciones de la
+    galería, que colocan los objetos sobre un JPG ya guardado.
+    """
+    w, h = int(ancho), int(alto)
+    zx, zy = 0, 0
+    if zona:
+        x0, y0, zw, zh = [int(v) for v in zona]
+        w, h = min(zw, w - x0), min(zh, h - y0)
+        zx, zy = x0, y0
+    margen = float(min(max(margen, 0.0), 0.3))
+    if margen > 0:
+        mx, my = int(w * margen), int(h * margen)
+        w, h = w - 2 * mx, h - 2 * my
+        zx, zy = zx + mx, zy + my
+    g = geometria_giro(w, h, fraccion, giro, espejo)
+    return (g["T"] @ _traslacion(-zx, -zy))[:2], g["ancho"], g["alto"]
+
+
 def encuadre_con_arriba(ux, uy, rx, ry):
     """
     (giro, espejo) de girar_campo que dejan hacia arriba la dirección (ux, uy) de

@@ -21,6 +21,7 @@ import math
 import socket
 import logging
 import subprocess
+import threading
 import configparser
 
 import cv2
@@ -37,6 +38,7 @@ log = logging.getLogger("scopepower.anotaciones")
 TIMEOUT_ASTAP_S = 60
 TIMEOUT_SIMBAD_S = 12
 HOST_SIMBAD = ("simbad.u-strasbg.fr", 443)
+_lock_simbad = threading.Lock()
 
 
 def _ruta_astap():
@@ -170,25 +172,28 @@ def hay_internet(host=HOST_SIMBAD, timeout=3.0):
 
 def objetos_simbad(ruta_ini, ruta_fits, timeout=TIMEOUT_SIMBAD_S):
     """SIMBAD con espera corta; [] si no hay red o falla. Nunca usa la caché CSV antigua."""
-    for cache in ("objetos_filtrados.csv", "objetos_descartados.csv"):
+    # De una en una: obtener_objetos_simbad deja su resultado en un CSV de la carpeta
+    # de trabajo, y el apilado y la galería pueden pedir objetos de campos distintos
+    with _lock_simbad:
+        for cache in ("objetos_filtrados.csv", "objetos_descartados.csv"):
+            try:
+                if os.path.exists(cache):
+                    os.remove(cache)
+            except OSError:
+                pass
+        if not hay_internet():
+            log.info("Sin Internet: anotaciones solo con el catálogo local")
+            return []
         try:
-            if os.path.exists(cache):
-                os.remove(cache)
-        except OSError:
-            pass
-    if not hay_internet():
-        log.info("Sin Internet: anotaciones solo con el catálogo local")
-        return []
-    try:
-        from astroquery.simbad import Simbad
-        Simbad.TIMEOUT = timeout
-        objetos = obtener_objetos_simbad(ruta_ini, ruta_fits, mag_max=14.0) or []
-        for o in objetos:
-            o["fuente"] = "simbad"
-        return objetos
-    except Exception as e:
-        log.warning("SIMBAD no disponible (%s); anotaciones solo con el catálogo local", e)
-        return []
+            from astroquery.simbad import Simbad
+            Simbad.TIMEOUT = timeout
+            objetos = obtener_objetos_simbad(ruta_ini, ruta_fits, mag_max=14.0) or []
+            for o in objetos:
+                o["fuente"] = "simbad"
+            return objetos
+        except Exception as e:
+            log.warning("SIMBAD no disponible (%s); anotaciones solo con el catálogo local", e)
+            return []
 
 
 def _fusionar(catalogo, simbad, wcs, tol_px=40):
