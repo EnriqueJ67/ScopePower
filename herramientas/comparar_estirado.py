@@ -130,9 +130,8 @@ def main():
         print("Pipeline completo (lo que nota el usuario):")
         t0 = time.perf_counter()
         f = cronometro("  reducir_ruido", procesado.reducir_ruido, mas, ajustes["ruido"])
-        f8 = a_uint8(f)
-        f8 = cronometro("  contraste_local", procesado.contraste_local, f8, ajustes["contraste"])
-        f8 = cronometro("  color (neutralizar, scnr, saturar)", procesado.color, f8, ajustes)
+        f = cronometro("  contraste_local", procesado.contraste_local, f, ajustes["contraste"])
+        f8 = cronometro("  color (neutralizar, scnr, saturar)", procesado.color, f, ajustes)
         print(f"  {'total tras el estirado':<44s} {time.perf_counter() - t0:6.2f} s")
         mas8 = f8
         stf8 = a_uint8(stf)

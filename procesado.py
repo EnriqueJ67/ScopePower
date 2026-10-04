@@ -870,32 +870,61 @@ def reducir_ruido(rgbf, fuerza, n_fotos=1):
 #  4. Contraste local + curva
 # ─────────────────────────────────────────────────────────────────────────────
 
-def contraste_local(rgb8, cantidad):
-    """CLAHE en luminancia mezclado con el original según `cantidad` (0..1), más curva en S suave."""
+def contraste_local(rgb, cantidad):
+    """
+    CLAHE en luminancia mezclado con el original según `cantidad` (0..1), más curva en S suave.
+    rgb: (H, W, 3) float32 en [0, 1] (devuelve float32) o uint8 (devuelve uint8).
+
+    La luminancia se retoca en coma flotante: con el fondo muy oscuro (objetivo
+    0,03 = nivel 5 de 255) un solo nivel es un 20 % de brillo, y cuantizada a 8
+    bits cualquier ajuste pequeño dejaba escalones de bordes duros alrededor de
+    los objetos y de las estrellas, que el brillo general amplificaba después.
+    """
     cantidad = float(np.clip(cantidad, 0, 1))
     if cantidad <= 0:
-        return rgb8
-    lab = cv2.cvtColor(rgb8, cv2.COLOR_RGB2LAB)
-    L, a, b = cv2.split(lab)
-    mask = mascara_estrellas(L, dilatar=4)
+        return rgb
+    es_uint8 = np.asarray(rgb).dtype == np.uint8
+    rgbf = np.asarray(rgb, dtype=np.float32) / 255.0 if es_uint8 else np.clip(np.asarray(rgb, dtype=np.float32), 0, 1)
+    lab = cv2.cvtColor(rgbf, cv2.COLOR_RGB2LAB)          # L 0..100, a/b -127..127
+    L = lab[..., 0] * 2.55                               # 0..255, sin cuantizar
+    L8 = np.clip(L + 0.5, 0, 255).astype(np.uint8)
+    mask = mascara_estrellas(L8, dilatar=4)
 
     # CLAHE se calcula sobre una luminancia SIN estrellas (sustituidas por el
     # fondo local) para que las estrellas brillantes no oscurezcan su entorno.
     # Después se aplica al original solo la DIFERENCIA que introduce CLAHE
     # (un mapa suave de ajuste local); así estrellas y halos quedan intactos y
     # no aparecen anillos oscuros alrededor.
-    fondo_local = cv2.medianBlur(L, 21)
-    L_sin = (L.astype(np.float32) * (1 - mask) + fondo_local.astype(np.float32) * mask).astype(np.uint8)
+    fondo_local = cv2.medianBlur(L8, 21).astype(np.float32)
+    L_sin = L * (1 - mask) + fondo_local * mask
+    # CLAHE solo admite 8 bits: se cuantiza con tramado (el desenfoque del ajuste
+    # lo promedia) para que el redondeo no deje el ajuste a parches en el cielo
+    tramado = np.random.default_rng(0).random(L.shape, dtype=np.float32)
+    L_q = np.clip(np.floor(L_sin + tramado), 0, 255).astype(np.uint8)
     clahe = cv2.createCLAHE(clipLimit=1.0 + 2.0 * cantidad, tileGridSize=(6, 6))
-    L_c = clahe.apply(L_sin).astype(np.float32)
-    delta = cv2.GaussianBlur(L_c - L_sin.astype(np.float32), (0, 0), 2.0)
+    delta = cv2.GaussianBlur(clahe.apply(L_q).astype(np.float32) - L_q.astype(np.float32), (0, 0), 2.0)
     # Solo el contraste local: CLAHE también desplaza el nivel medio de cada
     # mosaico según su histograma y en cielo plano eso se ve como bandas del
     # tamaño del mosaico (sobre todo junto a los bordes). Se le resta al ajuste
-    # su componente de gran escala (medio mosaico) y el fondo conserva su nivel.
-    lado = max(L.shape) / 6.0
-    delta -= cv2.GaussianBlur(delta, (0, 0), lado / 2.0, borderType=cv2.BORDER_REPLICATE)
-    L_m = L.astype(np.float32) + cantidad * delta
+    # su componente de gran escala (medio mosaico) MEDIDA SOLO EN EL CIELO: con
+    # la de toda la imagen, la subida del objeto se esparcía a su alrededor y al
+    # restarla quedaba un cerco oscuro en torno a nebulosas y galaxias.
+    sub = L_sin[::4, ::4]
+    med = float(np.median(sub))
+    mad = float(np.median(np.abs(sub - med))) * 1.4826 + 0.25
+    cielo = (L_sin <= med + 2.0 * mad).astype(np.float32)
+    h, w = L.shape
+    sigma = max(h, w) / 12.0
+    f = max(1, int(sigma / 8.0))                         # la gran escala no necesita resolución completa
+    peq = (max(8, w // f), max(8, h // f))
+    num = cv2.GaussianBlur(cv2.resize(delta * cielo, peq, interpolation=cv2.INTER_AREA), (0, 0), sigma / f,
+                           borderType=cv2.BORDER_REPLICATE)
+    den = cv2.GaussianBlur(cv2.resize(cielo, peq, interpolation=cv2.INTER_AREA), (0, 0), sigma / f,
+                           borderType=cv2.BORDER_REPLICATE)
+    nivel = float(np.median(delta[cielo > 0])) if cielo.any() else 0.0
+    # donde no hay cielo cerca (un objeto que llena el campo) vale el nivel medio del cielo
+    delta -= cv2.resize((num + 0.02 * nivel) / (den + 0.02), (w, h), interpolation=cv2.INTER_LINEAR)
+    L_m = L + cantidad * delta
 
     # Curva en S suave alrededor del gris medio (mezcla máxima 35 %)
     x = np.clip(L_m / 255.0, 0, 1)
@@ -904,10 +933,10 @@ def contraste_local(rgb8, cantidad):
     s0, s1 = 1.0 / (1.0 + np.exp(k * 3.0)), 1.0 / (1.0 + np.exp(-k * 3.0))
     s = (s - s0) / (s1 - s0)
     peso = 0.35 * cantidad
-    curva = x * (1 - peso) + s * peso
+    lab[..., 0] = (x * (1 - peso) + s * peso) * 100.0
 
-    L_out = np.clip(curva * 255.0, 0, 255).astype(np.uint8)
-    return cv2.cvtColor(cv2.merge([L_out, a, b]), cv2.COLOR_LAB2RGB)
+    out = np.clip(cv2.cvtColor(lab, cv2.COLOR_LAB2RGB), 0, 1).astype(np.float32)
+    return np.clip(out * 255.0 + 0.5, 0, 255).astype(np.uint8) if es_uint8 else out
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -990,10 +1019,14 @@ def brillo_general(rgbf, brillo):
     return np.power(np.clip(rgbf, 0, 1), 2.0 ** (-b)).astype(np.float32)
 
 
-def color(rgb8, ajustes):
-    """Etapa de color completa sobre la imagen de 8 bits: devuelve uint8."""
-    f = rgb8.astype(np.float32) / 255.0
-    estrellas = mascara_estrellas(cv2.cvtColor(rgb8, cv2.COLOR_RGB2GRAY), dilatar=2)
+def color(rgb, ajustes):
+    """Etapa de color completa sobre la imagen estirada (float [0, 1] o uint8): devuelve uint8."""
+    if np.asarray(rgb).dtype == np.uint8:
+        f = rgb.astype(np.float32) / 255.0
+    else:
+        f = np.clip(np.asarray(rgb, dtype=np.float32), 0, 1)
+    gris = np.clip(cv2.cvtColor(f, cv2.COLOR_RGB2GRAY) * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    estrellas = mascara_estrellas(gris, dilatar=2)
     f = neutralizar_fondo_final(f)
     f = temperatura_color(f, ajustes.get("temperatura", 0.0))
     f = brillo_general(f, ajustes.get("brillo", 0.0))
@@ -1059,9 +1092,9 @@ def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None):
                                    progreso=lambda f: avisar("estirando", f))
 
     avisar("ruido")
+    # De aquí al final todo sigue en coma flotante; se cuantiza a 8 bits una sola vez, al salir de color()
     rgbf = reducir_ruido(rgbf, ajustes.get("ruido", 0.5), n_fotos)
-    rgb8 = np.clip(rgbf * 255.0 + 0.5, 0, 255).astype(np.uint8)
     avisar("contraste")
-    rgb8 = contraste_local(rgb8, ajustes.get("contraste", 0.5))
+    rgbf = contraste_local(rgbf, ajustes.get("contraste", 0.5))
     avisar("color")
-    return color(rgb8, ajustes)
+    return color(rgbf, ajustes)
