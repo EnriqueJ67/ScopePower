@@ -22,7 +22,7 @@
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=7">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=8">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -189,6 +189,12 @@
 <script src="{{ url_for('static', filename='js/pantalla.js') }}"></script>
 <!-- Aviso a pantalla completa antes de un GoTo al Sol (pide confirmar el filtro solar) -->
 <script src="{{ url_for('static', filename='js/filtro_solar.js') }}?v=1"></script>
+<!-- Ayuda de voz/ubicación por http y asistente de configuración inicial (se abre solo si falta configurar) -->
+{% include '_modal_voz.html' %}
+<script src="{{ url_for('static', filename='js/ayuda_voz.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ubicacion_movil.js') }}?v=1"></script>
+{% include '_asistente.html' %}
+<script src="{{ url_for('static', filename='js/asistente.js') }}?v=1"></script>
 <script>
     // ——— Interruptor de los avisos hablados por el altavoz del PC (SAPI, ver voz.py) ———
     function pintarVoz(e) {

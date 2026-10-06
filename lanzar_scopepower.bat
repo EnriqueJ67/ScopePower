@@ -44,9 +44,8 @@ if /I "%~1"=="/test" (
 )
 
 if not exist "config.ini" (
-    echo No existe config.ini. Ejecuta instalar_scopepower.bat o copia config.example.ini a config.ini
-    pause
-    exit /b 1
+    copy "config.example.ini" "config.ini" >nul
+    echo config.ini creado a partir de config.example.ini: al entrar en la web se abrira el asistente de configuracion.
 )
 
 REM Con esta variable la app sabe que puede pedir un reinicio saliendo con codigo 3

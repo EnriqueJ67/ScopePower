@@ -34,10 +34,12 @@ import threading
 from ftplib import FTP
 import configparser
 import os
+import config_inicial
 
 cfg = configparser.ConfigParser()
 cfg.read("config.ini")
-ruta_astap = cfg["General"]["ruta_astap"]
+# Ruta de ASTAP: se lee en cada uso (config_inicial.ruta_astap) para que una instalación
+# hecha desde el asistente de configuración valga sin reiniciar
 
 # Segundos máximos que se espera a ASTAP por fotograma. Si se cuelga, el
 # fotograma se descarta en vez de bloquear el apilado para siempre.
@@ -545,6 +547,10 @@ DURACION_SEMILLA = {"leyendo": 1.0, "puntuando": 1.0, "resolviendo": 10.0, "alin
 
 
 class ApiladorEnTiempoReal:
+    @property
+    def ruta_astap(self):
+        return config_inicial.ruta_astap()
+
     def __init__(self, carpeta, salida_png, alinear=True):
         self.carpeta = carpeta
         self.salida_png = salida_png
@@ -557,7 +563,6 @@ class ApiladorEnTiempoReal:
         self.inicio_apilado = datetime.now()
         self.ultima_captura = ""
         self.lock = threading.Lock()
-        self.ruta_astap = ruta_astap
 
         # Fotogramas que forman el apilado. Cada elemento es un dict con los
         # planos alineados en uint16 ("r","g","b"), su "puntuacion" y "nombre".
@@ -1127,7 +1132,7 @@ class ApiladorEnTiempoReal:
                 ref_ini = ref_mono.replace(".fits", ".ini")
                 try:
                     generar_fits_monocromo_para_astap(ruta_fits, ref_mono)
-                    subprocess.run(f'"{ruta_astap}" -f "{ref_mono}" -solve -r 50',
+                    subprocess.run(f'"{self.ruta_astap}" -f "{ref_mono}" -solve -r 50',
                                    shell=True, capture_output=True, timeout=ASTAP_TIMEOUT)
                     if ini_resuelto(ref_ini):
                         rotacion_camara.anotar_ini(ref_ini, "apilado")

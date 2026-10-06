@@ -14,7 +14,6 @@
         <span class="chip" id="estado_stellarium" title="Fuentes de coordenadas: catálogo local (OpenNGC y estrellas) y, si está abierto, Stellarium"><span class="dot"></span>Catálogo local</span>
     </div>
 </div>
-{% include '_modal_voz.html' %}
 
 <!-- En pantallas anchas (tablet, móvil apaisado) el formulario va a la izquierda
      y el estado + información del objeto a la derecha -->
@@ -99,7 +98,6 @@
 
 <!-- La pantalla se mantiene encendida desde base.html (static/js/pantalla.js) -->
 <script src="{{ url_for('static', filename='centrado.js') }}"></script>
-<script src="{{ url_for('static', filename='js/ayuda_voz.js') }}"></script>
 <script>
     const palabraClave = document.getElementById("config").dataset.palabraClave.toLowerCase();
     const sonidoClick = new Audio("/static/click.wav");

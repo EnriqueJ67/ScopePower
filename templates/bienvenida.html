@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Bienvenida{% endblock %}
+{% block titulo_cabecera %}{% endblock %}
+
+{% block content %}
+<!-- Primer arranque (ScopePower.py, bienvenida): todavía no hay ninguna contraseña en config.ini.
+     Al crear el usuario se entra directamente y se abre el asistente de configuración. -->
+<div class="login">
+    <div class="card login-card">
+        <img src="/static/logo_transparente.png" alt="ScopePower" class="login-logo">
+        <h2 class="centro bienvenida-titulo">¡Bienvenido a ScopePower!</h2>
+        <p class="card-sub centro">Es la primera vez que se abre en este ordenador. Crea el usuario y la contraseña con los que entrarás desde el móvil; después te guiaremos para configurar el telescopio paso a paso.</p>
+
+        {% if error %}
+        <div class="aviso aviso-err"><svg class="ico"><use href="#i-info"/></svg>{{ error }}</div>
+        {% endif %}
+
+        <form method="post" class="columna">
+            <div class="campo">
+                <label for="usuario">Usuario</label>
+                <input type="text" id="usuario" name="usuario" class="form-control" required maxlength="30"
+                       pattern="[A-Za-z0-9_.\-]+" value="{{ usuario or 'admin' }}" autocomplete="username" autocapitalize="none">
+                <small class="ayuda">Letras sin acentos, números, punto o guion. Se guarda en minúsculas.</small>
+            </div>
+            <div class="campo">
+                <label for="clave">Contraseña</label>
+                <input type="password" id="clave" name="clave" class="form-control" required minlength="4" autocomplete="new-password">
+            </div>
+            <div class="campo">
+                <label for="clave2">Repite la contraseña</label>
+                <input type="password" id="clave2" name="clave2" class="form-control" required minlength="4" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg btn-block"><svg><use href="#i-candado"/></svg>Crear usuario y empezar</button>
+        </form>
+        <p class="ayuda centro mt-2">Más adelante se puede cambiar con <code>herramientas\cambiar_password.py</code>.</p>
+    </div>
+</div>
+
+<style>
+    .login { min-height: calc(100vh - var(--header-h) - 120px); display: flex; align-items: center; justify-content: center; padding: 10px 0; }
+    .login-card { width: 100%; max-width: 420px; padding: 24px 22px; }
+    .login-logo { display: block; max-width: 220px; margin: 0 auto 8px; border-radius: 12px; }
+    .bienvenida-titulo { font-size: 20px; margin: 4px 0 6px; }
+</style>
+{% endblock %}

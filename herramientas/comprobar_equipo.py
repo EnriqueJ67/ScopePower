@@ -59,15 +59,17 @@ else:
     linea(AVISO, "secretos.ini no existe (se creará al arrancar; pon ahí la contraseña FTP si la usas)")
 
 print("\n=== Programas externos ===")
-if ruta_astap and os.path.exists(ruta_astap):
-    carpeta = os.path.dirname(ruta_astap)
-    bases = [f for f in os.listdir(carpeta) if f.lower().startswith(("d50", "d20", "d80", "h17", "h18", "w08", "v50", "g05"))]
-    if bases:
-        linea(OK, f"ASTAP con base de datos de estrellas ({len(bases)} ficheros)")
-    else:
-        falta("Base de datos de estrellas de ASTAP", "instala la D50 (o H18) desde https://www.hnsky.org/astap.htm")
+sys.path.insert(0, RAIZ)
+import instalar_astap   # busca también en Program Files y en la carpeta donde lo instala el asistente
+astap = instalar_astap.estado(ruta_astap)
+if astap["ok"]:
+    linea(OK, f"ASTAP con catálogo de estrellas {', '.join(c.upper() for c in astap['catalogos'])} ({astap['ruta']})")
+    if os.path.normcase(astap["ruta"]) != os.path.normcase(ruta_astap):
+        linea(AVISO, f"config.ini apunta a {ruta_astap or '(nada)'}: el asistente de configuración lo corrige al terminar")
+elif astap["programa"]:
+    falta("Catálogo de estrellas de ASTAP", "instálalo desde el asistente de configuración de la web (o la D50 de https://www.hnsky.org/astap.htm)")
 else:
-    falta("ASTAP", f"no está en {ruta_astap or '(sin ruta en config.ini)'}; descarga: https://www.hnsky.org/astap.htm")
+    falta("ASTAP", "instálalo desde el asistente de configuración de la web (Configuración > Asistente) o desde https://www.hnsky.org/astap.htm")
 if ruta_stellarium and os.path.exists(ruta_stellarium):
     linea(OK, "Stellarium")
 else:

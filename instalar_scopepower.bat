@@ -130,7 +130,7 @@ if %ERRORLEVEL% NEQ 0 (
 REM ---- 5) config.ini, carpetas y acceso directo ----
 if not exist "%RAIZ%\config.ini" (
     copy "%RAIZ%\config.example.ini" "%RAIZ%\config.ini" >nul
-    echo [AVISO] config.ini creado a partir de config.example.ini: revisa drivers, focal y observatorio en Configuracion.
+    echo [AVISO] config.ini creado a partir de config.example.ini: al entrar en la web se abrira el asistente de configuracion.
 )
 for %%D in (capturas calibraciones logs static\fotos) do if not exist "%RAIZ%\%%D" mkdir "%RAIZ%\%%D"
 powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\ScopePower.lnk'); $s.TargetPath='%RAIZ%\lanzar_scopepower.bat'; $s.WorkingDirectory='%RAIZ%'; $s.IconLocation='%RAIZ%\scopepower.ico'; $s.Description='Arrancar ScopePower'; $s.Save()"

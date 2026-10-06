@@ -528,6 +528,45 @@ nav.barra a.encendido .nav-ico { background: var(--ok-soft); color: var(--ok); }
 .modal-acciones { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
 @media (min-width: 700px) { .modal { align-items: center; padding: 20px; } .modal-caja { border-radius: 20px; } }
 
+/* ── Asistente de configuración inicial (templates/_asistente.html, static/js/asistente.js) ── */
+.asistente-caja { max-width: 640px; }
+.asis-cabecera { display: flex; align-items: center; gap: 10px; margin: -4px 0 10px; }
+.asis-puntos { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.asis-puntos span { flex: 1; max-width: 42px; height: 5px; border-radius: 999px; background: var(--surface-3, var(--border)); }
+.asis-puntos span.hecho { background: var(--accent-2, var(--accent)); opacity: 0.6; }
+.asis-puntos span.actual { background: var(--accent); }
+.asis-contador { font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
+.asis-cabecera .btn-icono { width: 38px; height: 38px; }
+.asis-paso .modal-titulo .ico { color: var(--accent); }
+.asis-paso .form-group { margin-bottom: 10px; }
+.asis-paso .ayuda { display: block; }
+.dos-campos-asis, .tres-campos-asis { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.tres-campos-asis { grid-template-columns: 1fr 1fr 0.8fr; margin-top: 10px; }
+@media (max-width: 420px) { .dos-campos-asis { grid-template-columns: 1fr; } .tres-campos-asis { grid-template-columns: 1fr 1fr; } }
+.asis-resumen { list-style: none; margin: 4px 0 8px; padding: 0; }
+.asis-resumen li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--border); font-size: 14.5px; }
+.asis-resumen li:first-child { border-top: 0; }
+.asis-resumen .ico { margin-top: 1px; }
+.asis-resumen .ok .ico { color: var(--ok); }
+.asis-resumen .warn .ico { color: var(--warn); }
+.asis-resumen b { display: block; }
+.asis-resumen small { color: var(--text-3); overflow-wrap: anywhere; }
+#asis-ubic-estado:empty { display: none; }
+.asistente-caja .aviso > div { min-width: 0; overflow-wrap: anywhere; }
+.asistente-caja .aviso small { display: block; color: inherit; opacity: 0.8; }
+.asis-acciones { justify-content: space-between; }
+.asis-acciones #asis-saltar { margin-left: auto; }
+.asis-acciones .btn[hidden] { display: none; }
+/* En el móvil: el botón principal arriba y a lo ancho, Atrás y Saltar debajo */
+@media (max-width: 520px) {
+    .asis-acciones .btn { flex: 1 1 auto; justify-content: center; }
+    .asis-acciones #asis-siguiente, .asis-acciones #asis-ir-inicio { flex-basis: 100%; order: -1; }
+    .asis-acciones #asis-saltar { margin-left: 0; }
+}
+.giro-180 { transform: rotate(180deg); }
+/* El modal de ayuda de la ubicación (http) se abre desde el asistente y tiene que quedar encima */
+#modal-voz { z-index: 2100; }
+
 /* ── Aviso del filtro solar (GoTo al Sol): a pantalla completa, con el fondo latiendo ── */
 .modal-sol { z-index: 3000; align-items: center; padding: 0; background: rgba(0, 0, 0, 0.85); animation: sol-fondo 1.2s ease-in-out infinite; }
 .modal-sol-caja { max-width: 640px; min-height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 12px; padding: 24px 20px; border: 0; border-radius: 0; color: #fff; background: linear-gradient(180deg, #c8171d 0%, #8f0c11 60%, #3a0508 100%); box-shadow: inset 0 0 0 8px #ffb547, inset 0 0 0 16px #c8171d; }

@@ -26,6 +26,9 @@ import astropy.units as u
 import configparser
 import sys
 import bcrypt
+# Antes que nada que lea config.ini: en un PC recién instalado se crea desde la plantilla
+import config_inicial
+config_inicial.asegurar_config()
 from apilado import iniciar_hilo_apilado
 from apilado import pausar_apilado, reanudar_apilado, esta_pausado
 from apilado import aumentar_saturacion #, subir_imagen_ftp_async
@@ -98,7 +101,7 @@ config.read("config.ini")
 # Acceder a valores
 USUARIOS_HASH = dict(config["Usuarios"])
 
-RUTA_ASTAP = config["General"]["RUTA_ASTAP"]
+RUTA_ASTAP = config_inicial.ruta_astap()   # solo para el resumen del arranque: se relee en cada uso
 RUTA_IMAGEN = ruta_absoluta("static/captura.fits") # config["General"]["RUTA_IMAGEN"]
 # Versión para la web de la foto de prueba: JPG reducido (ver guardar_jpg_web), no el PNG entero
 RUTA_IMAGEN_WEB = os.path.splitext(RUTA_IMAGEN)[0] + ".jpg"
@@ -763,7 +766,8 @@ def conectar_telescopio():
 @app.before_request
 def verificar_licencia_y_autenticacion():
     rutas_publicas = {
-        '/login', '/logout', '/activar', '/static/', '/identificador-cliente'
+        '/login', '/logout', '/activar', '/static/', '/identificador-cliente',
+        '/bienvenida',   # alta del primer usuario; solo responde mientras no haya ninguno
     }
 
     # Primera petición desde otro dispositivo: ya no hace falta anunciar la IP
@@ -1093,7 +1097,7 @@ def ejecutar_astap(ruta_fits_mono, timeout=90):
                 os.remove(antiguo)
         except Exception:
             pass
-    comando_astap = f'"{RUTA_ASTAP}" -f "{ruta_fits_mono}" -solve -r 50'
+    comando_astap = f'"{config_inicial.ruta_astap()}" -f "{ruta_fits_mono}" -solve -r 50'
     try:
         subprocess.run(comando_astap, shell=True, capture_output=True, text=True, timeout=timeout)
         return True
@@ -1416,31 +1420,45 @@ def espacio_en_disco():
 # ───────────────────────── Ubicación del observatorio ─────────────────────────
 # Latitud, longitud y altitud viven en config.ini ([Observatorio]) y en las constantes
 # de este módulo. Se pueden cambiar desde Configuración, a mano o con el GPS del móvil.
+def _guardar_observatorio(datos, hablar=True, stellarium=True):
+    """
+    Valida y guarda latitud, longitud, altitud (y autor/firma si vienen). Lo usan
+    Configuración y el asistente de configuración inicial (que no espera a Stellarium
+    si no se usa: sin él la petición tarda unos 4 s en fallar).
+    Devuelve (None, stellarium) si va bien o (mensaje de error, None).
+    """
+    global LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO
+    try:
+        lat = float(datos["latitud"])
+        lon = float(datos["longitud"])
+        alt = float(datos.get("altitud", ALTITUD_OBSERVATORIO))
+    except (KeyError, TypeError, ValueError):
+        return "Latitud y longitud deben ser números", None
+    if not (-90 <= lat <= 90) or not (-180 <= lon <= 180) or not (-500 <= alt <= 9000):
+        return "Valores fuera de rango", None
+    LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO = round(lat, 6), round(lon, 6), int(round(alt))
+    valores = {"latitud_observatorio": LATITUD_OBSERVATORIO,
+               "longitud_observatorio": LONGITUD_OBSERVATORIO,
+               "altitud_observatorio": ALTITUD_OBSERVATORIO}
+    if "autor" in datos:   # autor de las fotos, para la firma
+        valores["autor"] = str(datos["autor"]).strip()[:60]
+    _guardar_en_config("Observatorio", valores)
+    if "firma" in datos:
+        _guardar_en_config("Apilado", {"firma": "true" if datos["firma"] else "false"})
+    log.info("Ubicación del observatorio cambiada: %.5f, %.5f, %d m (%s)", lat, lon, ALTITUD_OBSERVATORIO, datos.get("origen", "manual"))
+    if hablar:
+        voz.decir("Ubicación del observatorio actualizada")
+    if not stellarium:
+        return None, None
+    return None, _stellarium_poner_ubicacion(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+
+
 @app.route('/observatorio', methods=['GET', 'POST'])
 def observatorio():
-    global LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO
     if request.method == 'POST':
-        datos = request.get_json(silent=True) or {}
-        try:
-            lat = float(datos["latitud"])
-            lon = float(datos["longitud"])
-            alt = float(datos.get("altitud", ALTITUD_OBSERVATORIO))
-        except (KeyError, TypeError, ValueError):
-            return jsonify({"ok": False, "error": "Latitud y longitud deben ser números"}), 400
-        if not (-90 <= lat <= 90) or not (-180 <= lon <= 180) or not (-500 <= alt <= 9000):
-            return jsonify({"ok": False, "error": "Valores fuera de rango"}), 400
-        LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO = round(lat, 6), round(lon, 6), int(round(alt))
-        valores = {"latitud_observatorio": LATITUD_OBSERVATORIO,
-                   "longitud_observatorio": LONGITUD_OBSERVATORIO,
-                   "altitud_observatorio": ALTITUD_OBSERVATORIO}
-        if "autor" in datos:   # autor de las fotos, para la firma
-            valores["autor"] = str(datos["autor"]).strip()[:60]
-        _guardar_en_config("Observatorio", valores)
-        if "firma" in datos:
-            _guardar_en_config("Apilado", {"firma": "true" if datos["firma"] else "false"})
-        log.info("Ubicación del observatorio cambiada: %.5f, %.5f, %d m (%s)", lat, lon, ALTITUD_OBSERVATORIO, datos.get("origen", "manual"))
-        voz.decir("Ubicación del observatorio actualizada")
-        stellarium = _stellarium_poner_ubicacion(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+        error, stellarium = _guardar_observatorio(request.get_json(silent=True) or {})
+        if error:
+            return jsonify({"ok": False, "error": error}), 400
     else:
         stellarium = None
     obs = firma.datos_observatorio()
@@ -2124,7 +2142,7 @@ def planetario_estado():
                        "altitud": ALTITUD_OBSERVATORIO},
         "hora_utc_ms": int(time.time() * 1000),
         "altura_minima": float(ALTURA_MINIMA),
-        "focal_mm": FOCAL_LEN,
+        "focal_mm": _dispositivos()["focal"],   # la de ahora, no la del arranque
         "camara": dict(_geometria_camara),
         "montura": montura_info,
         "ultimo_goto": ({"objeto": ULTIMO_GOTO.get("objeto", ""), "ra_h": ULTIMO_GOTO.get("ra"),
@@ -3680,6 +3698,9 @@ def verificar_estado_stellarium():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # PC recién instalado: todavía no hay contraseña, el asistente da de alta el primer usuario
+    if not config_inicial.hay_usuarios():
+        return redirect(url_for('bienvenida'))
     if request.method == 'POST':
         # El formulario puede llegar incompleto (petición manual, script, campo
         # vacío): nunca llamar a .encode() sobre None ni dejar escapar una traza.
@@ -3689,7 +3710,8 @@ def login():
         if not usuario or not clave:
             return render_template('login.html', error="Introduce usuario y contraseña"), 400
 
-        hash_guardado = USUARIOS_HASH.get(usuario) or ''   # '' o None si no existe o está vacío en [Usuarios]
+        # configparser guarda las claves de [Usuarios] en minúsculas
+        hash_guardado = USUARIOS_HASH.get(usuario) or USUARIOS_HASH.get(usuario.lower()) or ''   # '' si no existe o está vacío
         valido = False
         if hash_guardado:
             try:
@@ -3714,6 +3736,39 @@ def login():
         return render_template('login.html', error="Credenciales incorrectas"), 401
 
     return render_template('login.html')
+
+
+@app.route('/bienvenida', methods=['GET', 'POST'])
+def bienvenida():
+    """
+    Primer arranque: config.ini recién creado sin ninguna contraseña en [Usuarios]. Da de
+    alta el primer usuario, abre la sesión y la página de inicio enseña el asistente de
+    configuración. En cuanto hay un usuario con contraseña esta ruta solo redirige al login.
+    """
+    if config_inicial.hay_usuarios():
+        return redirect(url_for('login'))
+    if request.method == 'POST':
+        usuario = (request.form.get('usuario') or '').strip().lower()
+        clave = request.form.get('clave') or ''
+        error = None
+        if not re.fullmatch(r"[a-z0-9_.-]{1,30}", usuario):
+            error = "El usuario solo puede llevar letras sin acentos, números, punto, guion y guion bajo"
+        elif len(clave) < 4:
+            error = "La contraseña tiene que tener al menos 4 caracteres"
+        elif clave != (request.form.get('clave2') or ''):
+            error = "Las dos contraseñas no coinciden"
+        if error:
+            return render_template('bienvenida.html', error=error, usuario=usuario), 400
+        hash_nuevo = bcrypt.hashpw(clave.encode(), bcrypt.gensalt()).decode()
+        _guardar_en_config("Usuarios", {usuario: hash_nuevo})
+        USUARIOS_HASH[usuario] = hash_nuevo
+        session['usuario'] = usuario
+        log.info("Primer usuario dado de alta desde %s: %s", request.remote_addr, usuario)
+        iniciar_conexion()
+        if not validar_licencia():
+            return redirect(url_for("activar"))
+        return redirect(url_for('home'))
+    return render_template('bienvenida.html')
 
 from apilado import reiniciar_apilado_global
 
@@ -5130,6 +5185,193 @@ def guardar_config_datos():
         montura.desconectar()
         avisos.append("montura desconectada; pulsa Reconectar equipo en el inicio")
     return "✅ Configuración guardada correctamente" + (" (" + "; ".join(avisos) + ")" if avisos else "")
+
+
+# ───────────────────────── Asistente de configuración inicial ─────────────────────────
+# Ventana paso a paso (templates/_asistente.html + static/js/asistente.js, incluidos en
+# base.html) que se abre sola mientras config.ini tenga [General] asistente_pendiente = true
+# (un config.ini recién creado desde la plantilla, ver config_inicial.py) y desde el botón de
+# Configuración. Prueba la montura y la cámara de verdad, instala ASTAP si falta
+# (instalar_astap.py) y al terminar lo guarda todo de una vez.
+import instalar_astap
+
+
+@app.context_processor
+def _contexto_asistente():
+    if not session.get('usuario'):
+        return {}
+    try:
+        return {"asistente_pendiente": config_inicial.asistente_pendiente()}
+    except Exception:
+        return {"asistente_pendiente": False}
+
+
+@app.route("/asistente/datos")
+def asistente_datos():
+    """Lo que ya está guardado, para rellenar el asistente."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    d = cfg["Dispositivos"] if "Dispositivos" in cfg else {}
+    return jsonify({
+        "pendiente": config_inicial.asistente_pendiente(),
+        "focal_len": d.get("focal_len", ""),
+        "driver_telescopio": d.get("driver_telescopio", ""),
+        "driver_camara": d.get("driver_camara", ""),
+        "exposicion": d.get("exposicion_captura", ""),
+        "ganancia_camara": d.get("ganancia_camara", "").strip(),
+        "latitud": LATITUD_OBSERVATORIO, "longitud": LONGITUD_OBSERVATORIO, "altitud": ALTITUD_OBSERVATORIO,
+        "autor": firma.datos_observatorio(cfg)["autor"],
+        "montura_conectada": montura.esta_conectado(),
+        "camara_conectada": camara.esta_conectado(),
+    })
+
+
+def _asistente_leer_montura(tel):
+    """Dentro del hilo de la montura: lo justo para demostrar que responde."""
+    datos = {"ra": float(tel.RightAscension), "dec": float(tel.Declination), "nombre": None}
+    try:
+        datos["nombre"] = str(tel.Name)
+    except Exception:
+        pass
+    return datos
+
+
+def _asistente_leer_camara(cam):
+    """Dentro del hilo de la cámara: sensor y ganancia, para el campo de visión y el paso de captura."""
+    datos = {}
+    for clave, atributo, tipo in (("ancho_px", "CameraXSize", int), ("alto_px", "CameraYSize", int),
+                                  ("pixel_um", "PixelSizeX", float), ("nombre", "Name", str)):
+        try:
+            datos[clave] = tipo(getattr(cam, atributo))
+        except Exception:
+            datos[clave] = None
+    datos["ganancia"] = leer_ganancia(cam)
+    return datos
+
+
+@app.route("/asistente/probar", methods=["POST"])
+def asistente_probar():
+    """
+    {dispositivo: montura|camara, driver}: guarda el driver (TrabajadorCOM lo relee de config.ini
+    al conectar) y conecta de verdad. Si se cancela el asistente, /asistente/restaurar-drivers
+    deja el que había.
+    """
+    datos = request.get_json(silent=True) or {}
+    dispositivo = datos.get("dispositivo")
+    driver = str(datos.get("driver") or "").strip()
+    if dispositivo not in ("montura", "camara") or not driver:
+        return jsonify({"ok": False, "error": "Elige un driver de la lista"}), 400
+    if dispositivo == "montura":
+        trabajador, clave, leer = montura, "driver_telescopio", _asistente_leer_montura
+    else:
+        trabajador, clave, leer = camara, "driver_camara", _asistente_leer_camara
+    if _dispositivos()[clave] != driver:
+        _guardar_en_config("Dispositivos", {clave: driver})
+        if trabajador.esta_conectado():
+            trabajador.desconectar()
+    try:
+        info = trabajador.ejecutar(leer, timeout=40)
+    except ErrorHardware as e:
+        log.info("Asistente: la %s no conecta con %s: %s", trabajador.nombre, driver, e)
+        return jsonify({"ok": False, "error": str(e)})
+    log.info("Asistente: %s conectada con %s: %s", trabajador.nombre, driver, info)
+    return jsonify({"ok": True, "datos": info})
+
+
+@app.route("/asistente/restaurar-drivers", methods=["POST"])
+def asistente_restaurar_drivers():
+    """Asistente cerrado sin terminar: vuelven los drivers que había antes de probar otros."""
+    datos = request.get_json(silent=True) or {}
+    actuales, cambios = _dispositivos(), {}
+    for clave, trabajador in (("driver_telescopio", montura), ("driver_camara", camara)):
+        valor = str(datos.get(clave) or "").strip()
+        if valor and valor != actuales[clave]:
+            cambios[clave] = valor
+            if trabajador.esta_conectado():
+                trabajador.desconectar()
+    if cambios:
+        _guardar_en_config("Dispositivos", cambios)
+        log.info("Asistente cancelado: drivers restaurados %s", cambios)
+    return jsonify({"ok": True, "restaurados": list(cambios)})
+
+
+@app.route("/asistente/astap")
+def asistente_astap():
+    """Estado de ASTAP y su catálogo. ?campo=grados (lado corto del sensor) para recomendar catálogo."""
+    try:
+        campo = float(request.args.get("campo", ""))
+    except ValueError:
+        campo = None
+    return jsonify(instalar_astap.estado(config_inicial.ruta_astap(), campo))
+
+
+@app.route("/asistente/astap/instalar", methods=["POST"])
+def asistente_astap_instalar():
+    base = (request.get_json(silent=True) or {}).get("base")
+    ok, motivo = instalar_astap.instalar(
+        base, al_terminar=lambda ruta: _guardar_en_config("General", {"ruta_astap": ruta}))
+    if ok:
+        log.info("Asistente: instalando ASTAP con el catálogo %s en %s", base, instalar_astap.CARPETA_LOCAL)
+    return jsonify({"ok": ok, "error": motivo, "progreso": instalar_astap.progreso()}), (200 if ok else 400)
+
+
+@app.route("/asistente/astap/cancelar", methods=["POST"])
+def asistente_astap_cancelar():
+    instalar_astap.cancelar()
+    return jsonify({"ok": True})
+
+
+@app.route("/asistente/guardar", methods=["POST"])
+def asistente_guardar():
+    """Final del asistente: valida todo, lo guarda y quita la marca de configuración pendiente."""
+    datos = request.get_json(silent=True) or {}
+    dispositivos = {}
+    try:
+        focal = float(datos.get("focal_len"))
+        if not 50 <= focal <= 5000:
+            raise ValueError
+        dispositivos["focal_len"] = f"{focal:g}"
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "La focal tiene que ser un número entre 50 y 5000 mm"}), 400
+    if str(datos.get("exposicion", "")).strip():
+        try:
+            exposicion = float(datos["exposicion"])
+            if not 0.001 <= exposicion <= 3600:
+                raise ValueError
+            dispositivos["exposicion_captura"] = f"{exposicion:g}"
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "La exposición tiene que estar entre 0,001 y 3600 s"}), 400
+    if "ganancia_camara" in datos:
+        ganancia = str(datos["ganancia_camara"]).strip()
+        if ganancia and not ganancia.isdigit():
+            return jsonify({"ok": False, "error": "La ganancia tiene que ser un número entero (o vacía)"}), 400
+        dispositivos["ganancia_camara"] = ganancia
+    for clave in ("driver_telescopio", "driver_camara"):
+        if str(datos.get(clave) or "").strip():
+            dispositivos[clave] = str(datos[clave]).strip()
+
+    if "latitud" in datos:
+        error, _ = _guardar_observatorio({k: datos[k] for k in ("latitud", "longitud", "altitud", "autor") if k in datos}
+                                         | {"origen": "asistente"}, hablar=False, stellarium=usar_stellarium())
+        if error:
+            return jsonify({"ok": False, "error": error}), 400
+
+    antes = _dispositivos()
+    _guardar_en_config("Dispositivos", dispositivos)
+    despues = _dispositivos()
+    if despues["driver_camara"] != antes["driver_camara"] and camara.esta_conectado():
+        camara.desconectar()
+    if despues["driver_telescopio"] != antes["driver_telescopio"] and montura.esta_conectado():
+        montura.desconectar()
+
+    general = {"asistente_pendiente": "false"}
+    astap = instalar_astap.estado(config_inicial.ruta_astap())
+    if astap["ruta"]:
+        general["ruta_astap"] = astap["ruta"]
+    _guardar_en_config("General", general)
+    log.info("Asistente de configuración terminado: %s; ASTAP %s %s", dispositivos, astap["ruta"] or "no instalado", astap["catalogos"])
+    voz.decir("Configuración guardada. ScopePower está listo")
+    return jsonify({"ok": True, "astap": astap})
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Plan de la noche (ver plan_sesion.py): lista de objetos que se fotografían solos

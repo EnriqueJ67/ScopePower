@@ -16,7 +16,7 @@ from astropy.utils.masked import Masked
 
 config = configparser.ConfigParser()
 config.read("config.ini")
-RUTA_ASTAP = config["General"]["RUTA_ASTAP"]
+import config_inicial   # ruta de ASTAP leída en cada uso (puede instalarse con la app en marcha)
 
 # Datos de respaldo para objetos a los que SIMBAD no da tamaño/ángulo/magnitud
 # (portado de la versión de junio). Dimensiones en minutos de arco, ángulo en
@@ -412,7 +412,7 @@ def resolver_y_generar_imagen_con_objetos(ruta_fits, mag_max=14.0, ruta_salida_j
     ruta_mono = os.path.splitext(ruta_fits)[0] + "_mono.fits"
     generar_fits_monocromo_para_platesolve(ruta_fits, ruta_mono)
 
-    comando_astap = f'"{RUTA_ASTAP}" -f "{ruta_mono}" -solve -r 50'
+    comando_astap = f'"{config_inicial.ruta_astap()}" -f "{ruta_mono}" -solve -r 50'
     subprocess.run(comando_astap, shell=True, capture_output=True, text=True)
 
     ruta_ini = os.path.splitext(ruta_mono)[0] + ".ini"
