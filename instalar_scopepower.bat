@@ -11,7 +11,8 @@ REM   2. Crea un entorno virtual FUERA de OneDrive (%LOCALAPPDATA%\ScopePower\ve
 REM   3. Instala las dependencias de requirements.txt
 REM   4. Abre el puerto 5000 en el firewall para el movil
 REM   5. Crea config.ini si no existe y el acceso directo del escritorio
-REM   6. Comprueba ASCOM, drivers, ASTAP, Stellarium, SynScan Pro y la voz
+REM   6. Instala ASTAP y su catalogo de estrellas si faltan (pregunta cual)
+REM   7. Comprueba ASCOM, drivers, ASTAP, Stellarium, SynScan Pro y la voz
 REM
 REM  Uso:  instalar_scopepower.bat            (instalacion completa; pide admin)
 REM        instalar_scopepower.bat /comprobar (solo la comprobacion final)
@@ -136,7 +137,16 @@ for %%D in (capturas calibraciones logs static\fotos) do if not exist "%RAIZ%\%%
 powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\ScopePower.lnk'); $s.TargetPath='%RAIZ%\lanzar_scopepower.bat'; $s.WorkingDirectory='%RAIZ%'; $s.IconLocation='%RAIZ%\scopepower.ico'; $s.Description='Arrancar ScopePower'; $s.Save()"
 echo [OK] Acceso directo 'ScopePower' creado en el escritorio.
 
-REM ---- 6) Comprobacion final ----
+REM ---- 6) ASTAP y su catalogo de estrellas ----
+REM       Se bajan ahora, en casa y con internet (el catalogo D50 son 900 MB): en el campo el PC
+REM       suele estar en la wifi del SynScan, sin salida a internet. Mismo codigo que el asistente
+REM       de la web (instalar_astap.py), que sigue sirviendo si aqui se elige no instalarlo.
+echo.
+echo ---- ASTAP (plate solving) ----
+set "PYTHONIOENCODING=utf-8"
+"%VENV%\Scripts\python.exe" "%RAIZ%\herramientas\instalar_astap_consola.py"
+
+REM ---- 7) Comprobacion final ----
 :comprobar
 echo.
 echo ======================================
@@ -150,10 +160,10 @@ if exist "%VENV%\Scripts\python.exe" (
 echo.
 echo Lo que este script NO instala (hazlo a mano si aparece como FALTA arriba):
 echo   - ASCOM Platform 7:        https://ascom-standards.org
-echo   - Driver ASCOM SynScan App: https://skywatcher.com/download/software/ascom-driver/
-echo   - App SynScan Pro:          https://skywatcher.com/download/software/synscan-app/
-echo   - Driver ASCOM PlayerOne:   https://player-one-astronomy.com/service/software/
-echo   - ASTAP + base D50:         https://www.hnsky.org/astap.htm
+echo   - Driver ASCOM de tu montura: el de su fabricante (lista por marcas: https://ascom-standards.org/Downloads/ScopeDrivers.htm)
+echo       Sky-Watcher por wifi: driver SynScan App + app SynScan Pro (https://skywatcher.com/download/software/)
+echo   - Driver ASCOM de tu camara:  el de su fabricante (Player One: https://player-one-astronomy.com/service/software/)
+echo   - ASTAP + catalogo:         lo instala este script o el asistente de la web (a mano: https://www.hnsky.org/astap.htm)
 echo   - Stellarium (opcional):    https://stellarium.org
 echo   - Voz en espanol: Configuracion de Windows ^> Hora e idioma ^> Voz ^> Anadir voces
 echo.

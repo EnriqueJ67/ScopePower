@@ -24,7 +24,11 @@ con internet:
    usuarios el permiso "Cambiar la hora del sistema" (para poner el PC en hora desde el
    móvil; hace efecto al volver a iniciar sesión en Windows).
 5. Crea el acceso directo **ScopePower** en el escritorio.
-6. Comprueba ASCOM, drivers, ASTAP, Stellarium, SynScan Pro y la voz en español.
+6. Instala ASTAP y su catálogo de estrellas si faltan: pregunta cuál (D05 100 MB, D20 400 MB o
+   D50 900 MB, el recomendado) y lo baja de SourceForge a `%LOCALAPPDATA%\ScopePowerstap`.
+   Conviene hacerlo aquí, en casa y con internet: en el campo el PC suele estar en la wifi del
+   SynScan, sin salida a internet. Se puede repetir con `herramientas\instalar_astap_consola.py`.
+7. Comprueba ASCOM, drivers, ASTAP, Stellarium, SynScan Pro y la voz en español.
 
 `instalar_scopepower.bat /comprobar` repite solo la comprobación.
 
@@ -36,7 +40,7 @@ con internet:
 | Driver ASCOM SynScan App (1.4+) | Montura SynScan (y `ClearSyncTo`) | https://skywatcher.com/download/software/ascom-driver/ |
 | App SynScan Pro (Windows) | La montura se controla a través de la app | https://skywatcher.com/download/software/synscan-app/ (en `C:\SynScanPro`) |
 | Driver ASCOM PlayerOne | Cámara | https://player-one-astronomy.com/service/software/ |
-| ASTAP + base de datos D50 | Plate solving y alineado del apilado | Lo instala el asistente de configuración de la web (en `%LOCALAPPDATA%\ScopePowerstap`); a mano: https://www.hnsky.org/astap.htm (en `C:\Program Files\Astap`) |
+| ASTAP + base de datos D50 | Plate solving y alineado del apilado | Lo instalan `instalar_scopepower.bat` o el asistente de configuración de la web (en `%LOCALAPPDATA%\ScopePowerstap`); a mano: https://www.hnsky.org/astap.htm (en `C:\Program Files\Astap`) |
 | Stellarium (ya no hace falta) | El GoTo resuelve los nombres con el catálogo local (`static/atlas` + `alias_objetos.csv`). Solo si `lanzar_stellarium_al_arrancar = true` | https://stellarium.org |
 | Voz en español | Avisos hablados | Configuración de Windows > Hora e idioma > Voz > Añadir voces > Español |
 
