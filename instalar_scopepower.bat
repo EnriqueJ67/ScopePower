@@ -13,6 +13,7 @@ REM   4. Abre el puerto 5000 en el firewall para el movil
 REM   5. Crea config.ini si no existe y el acceso directo del escritorio
 REM   6. Instala ASTAP y su catalogo de estrellas si faltan (pregunta cual)
 REM   7. Comprueba ASCOM, drivers, ASTAP, Stellarium, SynScan Pro y la voz
+REM   8. Ofrece arrancar ScopePower (abre el navegador con el asistente de configuracion)
 REM
 REM  Uso:  instalar_scopepower.bat            (instalacion completa; pide admin)
 REM        instalar_scopepower.bat /comprobar (solo la comprobacion final)
@@ -25,6 +26,8 @@ set "PYVER=3.11"
 set "PY_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
 
 if /I "%~1"=="/comprobar" goto :comprobar
+REM Instalacion completa: al final se ofrece arrancar la app
+set "INSTALACION=1"
 
 REM ---- Pedir permisos de administrador (instalar Python y abrir el firewall) ----
 net session >nul 2>&1
@@ -167,6 +170,21 @@ echo   - ASTAP + catalogo:         lo instala este script o el asistente de la w
 echo   - Stellarium (opcional):    https://stellarium.org
 echo   - Voz en espanol: Configuracion de Windows ^> Hora e idioma ^> Voz ^> Anadir voces
 echo.
+REM ---- 8) Arrancar ScopePower ----
+if not defined INSTALACION goto :fin_ok
+echo.
+choice /C SN /M "Arrancar ScopePower ahora (se abrira el navegador con el asistente de configuracion)"
+if errorlevel 2 goto :fin_ok
+REM Este script corre como administrador: lanzada a traves del Explorador, la app arranca como el
+REM usuario normal (si no, capturas, config.ini y los drivers ASCOM quedarian con permisos de administrador)
+explorer.exe "%RAIZ%\lanzar_scopepower.bat"
+echo.
+echo ScopePower se esta arrancando en su propia ventana; esta ya se puede cerrar.
+echo Las proximas veces arrancala con el acceso directo 'ScopePower' del escritorio.
+ping -n 6 127.0.0.1 >nul
+exit /b 0
+
+:fin_ok
 echo Arranca la app con el acceso directo 'ScopePower' del escritorio o con lanzar_scopepower.bat
 echo.
 pause

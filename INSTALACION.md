@@ -25,10 +25,14 @@ con internet:
    móvil; hace efecto al volver a iniciar sesión en Windows).
 5. Crea el acceso directo **ScopePower** en el escritorio.
 6. Instala ASTAP y su catálogo de estrellas si faltan: pregunta cuál (D05 100 MB, D20 400 MB o
-   D50 900 MB, el recomendado) y lo baja de SourceForge a `%LOCALAPPDATA%\ScopePowerstap`.
+   D50 900 MB) y lo baja de SourceForge a `%LOCALAPPDATA%\ScopePowerstap`. La opción
+   **A) Ayúdame a elegir** pregunta la focal y el sensor de la cámara, calcula el campo y recomienda
+   el catálogo (la focal queda apuntada en `config.ini`).
    Conviene hacerlo aquí, en casa y con internet: en el campo el PC suele estar en la wifi del
    SynScan, sin salida a internet. Se puede repetir con `herramientas\instalar_astap_consola.py`.
 7. Comprueba ASCOM, drivers, ASTAP, Stellarium, SynScan Pro y la voz en español.
+8. Ofrece arrancar ScopePower: la app se abre como usuario normal (no como administrador) y, como
+   falta configurarla, abre el navegador del PC con la bienvenida y el asistente de configuración.
 
 `instalar_scopepower.bat /comprobar` repite solo la comprobación.
 
@@ -50,7 +54,7 @@ Acceso directo **ScopePower** del escritorio (o `lanzar_scopepower.bat`). La
 ventana que se abre es la consola del servidor; el log está en `logs\scopepower.log`.
 Al arrancar, el PC dicta por el altavoz la dirección a escribir en el móvil.
 
-**Primera vez (config.ini recién creado):** la web pide crear el usuario y la contraseña y abre
+**Primera vez (config.ini recién creado):** la app abre sola el navegador del PC; la web pide crear el usuario y la contraseña y abre
 el **asistente de configuración**, que guía paso a paso: focal del telescopio, driver de la montura
 y de la cámara (con una prueba de conexión real), exposición y ganancia, ASTAP con su catálogo de
 estrellas (si falta, lo descarga de SourceForge y lo instala sin permisos de administrador en

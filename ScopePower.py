@@ -5909,6 +5909,19 @@ if __name__ == '__main__':
     # threaded=True: cada petición en su hilo. El acceso a la montura y a la
     # cámara está serializado en hardware.py, así que la web sigue respondiendo
     # (estado, parar montura, cancelar) mientras hay una exposición en curso.
+    # PC recién instalado (sin contraseña o con el asistente pendiente): se abre el navegador del
+    # propio PC en la bienvenida / el asistente de configuración. Con la configuración hecha no se
+    # abre nada (MINIBESTIA arranca sola y se maneja desde el móvil).
+    if not config_inicial.hay_usuarios() or config_inicial.asistente_pendiente():
+        def _abrir_navegador():
+            import webbrowser
+            url = f"http://127.0.0.1:{PUERTO_WEB}/"
+            log.info("Configuración inicial sin hacer: se abre %s en el navegador del PC", url)
+            try:
+                webbrowser.open(url)
+            except Exception as e:
+                log.warning("No se pudo abrir el navegador: %s", e)
+        threading.Timer(2.0, _abrir_navegador).start()
     if _reserva_puerto is not None:
         _reserva_puerto.close()      # soltar la reserva justo antes de que Flask abra el puerto
     app.run(host='0.0.0.0', port=PUERTO_WEB, threaded=True)
