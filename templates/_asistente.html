@@ -20,7 +20,7 @@
                 <li><div><b>ASTAP</b>: el programa que reconoce las estrellas de cada foto. Si falta, se instala solo.</div></li>
                 <li><div><b>Ubicación</b> del observatorio y autor de las fotos.</div></li>
             </ol>
-            <div class="aviso aviso-info"><svg class="ico"><use href="#i-info"/></svg><div>Antes de seguir: enchufa la cámara al USB del PC y, si tu montura es SynScan, abre <b>SynScan Pro</b> en el PC y conéctala a la montura.</div></div>
+            <div class="aviso aviso-info"><svg class="ico"><use href="#i-info"/></svg><div>Antes de seguir: enciende la montura y conéctala al PC (por cable o por red, según tu modelo) y enchufa la cámara al USB. Si el driver de tu montura trabaja con un programa intermedio (SynScan Pro, EQMOD, GSServer...), ábrelo y conéctalo primero.</div></div>
         </section>
 
         <!-- 2. Telescopio -->
@@ -40,12 +40,14 @@
             <div class="form-group">
                 <label for="asis-driver-tel">Driver de la montura (ASCOM)</label>
                 <select id="asis-driver-tel" class="form-control"></select>
-                <small class="ayuda">Para las monturas Sky-Watcher con wifi: <b>SynScan App Driver</b> (ASCOM.SynScanMobile.Telescope), con SynScan Pro abierta y conectada.</small>
+                <small class="ayuda" id="asis-ayuda-tel">Cualquier montura con driver ASCOM instalado en el PC.</small>
             </div>
-            <div class="aviso aviso-warn" id="asis-sin-drivers-tel" hidden><svg class="ico"><use href="#i-info"/></svg><div>Este PC no tiene ningún driver ASCOM de montura. Instala <a href="https://ascom-standards.org" target="_blank" rel="noopener">ASCOM Platform</a> y el <a href="https://skywatcher.com/download/software/ascom-driver/" target="_blank" rel="noopener">driver ASCOM de SynScan</a> en el PC y vuelve a abrir el asistente.</div></div>
+            <div class="aviso aviso-warn" id="asis-sin-drivers-tel" hidden><svg class="ico"><use href="#i-info"/></svg><div>Este PC no tiene ningún driver ASCOM de montura. Instala en el PC <a href="https://ascom-standards.org" target="_blank" rel="noopener">ASCOM Platform</a> y el driver ASCOM de tu montura, que da su fabricante (en <a href="https://ascom-standards.org/Downloads/ScopeDrivers.htm" target="_blank" rel="noopener">ascom-standards.org</a> hay una lista por marcas), y vuelve a abrir el asistente.</div></div>
             <div class="fila">
                 <button type="button" class="btn btn-primary" id="asis-probar-tel" onclick="asisProbar('montura')"><svg><use href="#i-conectar"/></svg>Probar conexión</button>
+                <button type="button" class="btn btn-secondary" id="asis-selector-tel" onclick="asisSelectorAscom('montura')"><svg><use href="#i-ajustes"/></svg>Configurar el driver en el PC</button>
             </div>
+            <small class="ayuda mt-1">«Configurar el driver en el PC» abre el selector de ASCOM <b>en la pantalla del PC</b>: con su botón <i>Properties</i> se elige el puerto COM, la dirección IP o el modelo. Úsalo solo si estás delante del PC; el asistente espera hasta que cierres esa ventana.</small>
             <div id="asis-res-tel" class="mt-2"></div>
         </section>
 
@@ -59,6 +61,7 @@
             </div>
             <div class="fila">
                 <button type="button" class="btn btn-primary" id="asis-probar-cam" onclick="asisProbar('camara')"><svg><use href="#i-conectar"/></svg>Probar conexión</button>
+                <button type="button" class="btn btn-secondary" id="asis-selector-cam" onclick="asisSelectorAscom('camara')"><svg><use href="#i-ajustes"/></svg>Configurar el driver en el PC</button>
             </div>
             <div id="asis-res-cam" class="mt-2"></div>
         </section>

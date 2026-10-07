@@ -85,14 +85,23 @@
         try { drivers = (await (await fetch("/ascom-drivers?tipo=" + tipo)).json()).drivers || []; } catch (e) {}
         sel.innerHTML = "";
         drivers.forEach(d => sel.add(new Option(`${d.name} (${d.progid})`, d.progid)));
-        if (guardado && !drivers.some(d => d.progid === guardado)) sel.add(new Option(guardado + " (no está instalado en este PC)", guardado), 0);
-        if (guardado) sel.value = guardado;
+        const instalado = drivers.some(d => d.progid === guardado);
+        if (guardado && !instalado && A.pendiente) {
+            // Primera configuración: el driver de la plantilla (SynScan, Player One) es solo una suposición
+            sel.add(new Option(tipo === "Telescope" ? "— Elige el driver de tu montura —" : "— Elige el driver de tu cámara —", ""), 0);
+            sel.value = "";
+        } else {
+            if (guardado && !instalado) sel.add(new Option(guardado + " (no está instalado en este PC)", guardado), 0);
+            if (guardado) sel.value = guardado;
+        }
         if (tipo === "Telescope") $("asis-sin-drivers-tel").hidden = drivers.length > 0;
         sel.onchange = () => {    // otro driver: la prueba anterior ya no vale
             const disp = tipo === "Telescope" ? "montura" : "camara";
             A.prueba[disp] = null;
             $(tipo === "Telescope" ? "asis-res-tel" : "asis-res-cam").innerHTML = "";
+            if (tipo === "Telescope") pintarAyudaMontura();
         };
+        if (tipo === "Telescope") pintarAyudaMontura();
     }
 
     // ——— Navegación ———
@@ -178,8 +187,12 @@
                 res.innerHTML = disp === "montura" ? textoMonturaOk(r.datos) : textoCamaraOk(r.datos);
             } else {
                 const error = r.error || "error desconocido";
-                // El error de la montura sin enlace ya trae su propio consejo (hardware.py)
-                const extra = error.includes("SynScan Pro") ? "" : `<br>${consejos(disp)}`;
+                // Si la montura conecta pero no contesta, el error del PC ya trae el consejo general
+                // (_activar_seguimiento): solo falta lo propio de su familia de drivers
+                let extra = consejos(disp);
+                if (disp === "montura" && error.includes("comprueba que"))
+                    extra = error.includes("SynScan Pro") ? "" : ayudaMontura($("asis-driver-tel"));
+                extra = extra ? "<br>" + extra : "";
                 res.innerHTML = `<div class="aviso aviso-err"><svg class="ico"><use href="#i-info"/></svg><div><b>No conecta:</b> ${escapar(error)}${extra}</div></div>`;
             }
         } catch (e) {
@@ -192,8 +205,57 @@
 
     function consejos(disp) {
         return disp === "montura"
-            ? "Comprueba que la montura está encendida, que SynScan Pro está abierta en el PC y conectada (por la wifi del SynScan) y que el driver es el de tu montura."
+            ? "Comprueba que la montura está encendida y conectada al PC y que el driver es el de tu modelo. " + ayudaMontura($("asis-driver-tel"))
             : "Comprueba que la cámara está enchufada al USB del PC (y alimentada si lo necesita), que ningún otro programa la está usando y que el driver es el de tu cámara.";
+    }
+
+    // Qué necesita cada familia de drivers de montura para conectar. Se mira el ProgID y el nombre
+    // que da el perfil ASCOM; lo que no se reconoce recibe el consejo general.
+    const AYUDA_MONTURA = [
+        [/simulat|scopesim|omnisim|_sim\b/i, "Simulador: sirve para probar ScopePower sin montura; no mueve nada real."],
+        [/synscan/i, "Sky-Watcher a través de la app <b>SynScan Pro</b>: ábrela en el PC y conéctala a la montura (por su wifi o por cable) antes de probar."],
+        [/eqmod/i, "<b>EQMOD</b>: montura Sky-Watcher u Orion por cable EQDirect al PC. Al conectar se abre su ventana en el PC; el puerto COM se elige ahí o con «Configurar el driver en el PC»."],
+        [/gss|greenswamp/i, "<b>GSServer</b>: ábrelo en el PC y conéctalo a la montura antes de probar."],
+        [/celestron|nexstar/i, "<b>Celestron</b>: mando NexStar o StarSense por cable al PC (o CPWI abierto, según el driver). El puerto COM se elige con «Configurar el driver en el PC»."],
+        [/ioptron/i, "<b>iOptron</b>: cable USB o serie al PC. El puerto se elige con «Configurar el driver en el PC»."],
+        [/onstep/i, "<b>OnStep</b>: por USB o por wifi. El puerto o la dirección IP se ponen con «Configurar el driver en el PC»."],
+        [/lx200|meade|autostar/i, "<b>Meade / LX200</b>: cable al PC. El puerto COM se elige con «Configurar el driver en el PC»."],
+        [/esp32go/i, "<b>Esp32Go</b>: por wifi. La dirección IP se pone con «Configurar el driver en el PC»."],
+        [/alpaca/i, "Montura <b>Alpaca</b> por red, dada de alta en el PC con el selector de ASCOM: tiene que estar encendida y en la misma red que el PC."],
+        [/hub/i, "Es un <b>concentrador</b> que reparte la montura entre varios programas: antes elige en el PC qué montura real usa, con «Configurar el driver en el PC»."],
+    ];
+    function ayudaMontura(sel) {
+        const o = sel.options[sel.selectedIndex];
+        const texto = o ? o.value + " " + o.text : "";
+        const familia = AYUDA_MONTURA.find(([patron]) => patron.test(texto));
+        return familia ? familia[1]
+            : "Enciende la montura y conéctala al PC como indique su fabricante. Si es la primera vez que usas este driver en este PC, elige su puerto COM o su dirección IP con «Configurar el driver en el PC».";
+    }
+    function pintarAyudaMontura() { $("asis-ayuda-tel").innerHTML = ayudaMontura($("asis-driver-tel")); }
+
+    // Selector de ASCOM en la pantalla del PC (botón Properties del driver: puerto COM, IP, modelo)
+    async function asisSelectorAscom(disp) {
+        const tel = disp === "montura";
+        const sel = $(tel ? "asis-driver-tel" : "asis-driver-cam"), res = $(tel ? "asis-res-tel" : "asis-res-cam");
+        const boton = $(tel ? "asis-selector-tel" : "asis-selector-cam");
+        ocultarError();
+        boton.disabled = true;
+        res.innerHTML = `<div class="estado"><span class="spinner"></span>Se ha abierto el selector de ASCOM en la pantalla del PC: elige el driver, pulsa <b>Properties</b> para configurarlo y cierra con <b>OK</b>.</div>`;
+        try {
+            const d = await (await fetch(`/ascom-selector?tipo=${tel ? "Telescope" : "Camera"}&actual=${encodeURIComponent(sel.value)}`)).json();
+            if (d.driver) {
+                if (![...sel.options].some(o => o.value === d.driver)) sel.add(new Option(d.driver, d.driver));
+                sel.value = d.driver;
+                sel.onchange();
+                res.innerHTML = `<div class="aviso aviso-info"><svg class="ico"><use href="#i-info"/></svg><div>Driver elegido en el PC: <b>${escapar(d.driver)}</b>. Ahora pulsa «Probar conexión».</div></div>`;
+            } else {
+                res.innerHTML = `<div class="estado">Se cerró el selector sin elegir driver.</div>`;
+            }
+        } catch (e) {
+            res.innerHTML = `<div class="aviso aviso-err"><svg class="ico"><use href="#i-info"/></svg><div>No se pudo abrir el selector de ASCOM en el PC: ${escapar(String(e))}</div></div>`;
+        } finally {
+            boton.disabled = false;
+        }
     }
 
     function textoMonturaOk(d) {
@@ -360,7 +422,7 @@
 
     function nombreDriver(idSelect) {
         const sel = $(idSelect), o = sel.options[sel.selectedIndex];
-        return o ? escapar(o.text) : "sin driver";
+        return o && o.value ? escapar(o.text) : "Sin driver elegido";
     }
 
     function pintarResumen() {
@@ -429,6 +491,7 @@
     window.asisSaltar = asisSaltar;
     window.asisSiguiente = asisSiguiente;
     window.asisProbar = asisProbar;
+    window.asisSelectorAscom = asisSelectorAscom;
     window.asisInstalarAstap = asisInstalarAstap;
     window.asisCancelarAstap = asisCancelarAstap;
     window.asisUbicacionMovil = asisUbicacionMovil;

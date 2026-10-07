@@ -21,6 +21,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeou
 
 import numpy as np
 import pythoncom
+import pywintypes
 import win32com.client
 
 log = logging.getLogger("scopepower.hardware")
@@ -69,7 +70,14 @@ class TrabajadorCOM:
             driver = self._obtener_driver()
             log.info("Conectando %s con driver %s", self.nombre, driver)
             fabrica = self._fabricas.get(str(driver).strip().upper())
-            dispositivo = fabrica() if fabrica else win32com.client.Dispatch(driver)
+            try:
+                dispositivo = fabrica() if fabrica else win32com.client.Dispatch(driver)
+            except pywintypes.com_error as e:
+                # CO_E_CLASSSTRING: Windows solo decía "Cadena clase no válida"
+                if e.hresult == -2147221005:
+                    raise RuntimeError(f"el driver «{driver}» no está instalado en este PC: "
+                                       "elige otro o instala el de tu equipo") from e
+                raise
             dispositivo.Connected = True
             if self._al_conectar:
                 try:

@@ -616,17 +616,26 @@ def limpiar_sincronizaciones(tel):
         return False, msg
 
 
+def _es_synscan(driver):
+    """Driver de Sky-Watcher a través de la app SynScan Pro (ASCOM.SynScanMobile.Telescope y similares)."""
+    return "synscan" in str(driver or "").lower()
+
+
 def _activar_seguimiento(tel):
     # El driver SynScanMobile "conecta" con la app SynScan Pro aunque esta no tenga
     # enlace con la montura (apagada, sin WiFi): la conexión ASCOM tiene éxito y luego
-    # cada orden falla con "Conversation timeout". Se comprueba antes que la montura
-    # contesta; si no, la conexión se da por fallida con un aviso claro.
+    # cada orden falla con "Conversation timeout". Pasa lo mismo con otros drivers que
+    # hablan con un programa intermedio (EQMOD, GSServer...): se comprueba antes que la
+    # montura contesta; si no, la conexión se da por fallida con un aviso claro.
+    synscan = _es_synscan(_dispositivos()["driver_telescopio"])
     try:
         tel.RightAscension
     except Exception as e:
         from hardware import _mensaje_com
-        raise ErrorHardware(f"la montura no responde ({_mensaje_com(e)}): comprueba que está "
-                            "encendida y que SynScan Pro tiene enlace con ella") from e
+        consejo = ("comprueba que está encendida y que SynScan Pro tiene enlace con ella" if synscan else
+                   "comprueba que está encendida y conectada al PC, y que el driver está bien configurado "
+                   "(puerto COM, dirección IP o el programa que necesite abierto)")
+        raise ErrorHardware(f"la montura no responde ({_mensaje_com(e)}): {consejo}") from e
     try:
         tel.Tracking = True
     except Exception as e:
@@ -641,7 +650,9 @@ def _activar_seguimiento(tel):
 
     cfg = configparser.ConfigParser()
     cfg.read("config.ini")
-    if cfg.get("Montura", "limpiar_sync_al_conectar", fallback="true").lower() == "true":
+    # ClearSyncTo solo existe en el driver de SynScan: con otras monturas se fallaba (y se
+    # anunciaba por voz) en cada conexión
+    if synscan and cfg.get("Montura", "limpiar_sync_al_conectar", fallback="true").lower() == "true":
         ok, msg = limpiar_sincronizaciones(tel)
         voz.decir("Sincronizaciones anteriores borradas" if ok
                   else "No se han podido borrar las sincronizaciones anteriores")
@@ -5790,11 +5801,17 @@ def error_no_capturado(e):
 def ascom_selector():
     import pythoncom
     import win32com.client
+    # Abre el selector de ASCOM EN LA PANTALLA DEL PC (con su botón Properties para el puerto
+    # COM, la IP...) y espera a que se cierre. ?actual= deja marcado ese driver.
     tipo = request.args.get("tipo", "Telescope")
+    # Muchos drivers no dejan cambiar su configuración mientras están conectados
+    trabajador = montura if tipo == "Telescope" else camara
+    if trabajador.esta_conectado():
+        trabajador.desconectar()
     pythoncom.CoInitialize()
     chooser = win32com.client.Dispatch("ASCOM.Utilities.Chooser")
     chooser.DeviceType = tipo
-    driver = chooser.Choose("")
+    driver = chooser.Choose(request.args.get("actual", ""))
     return jsonify({"driver": driver})
 
 
