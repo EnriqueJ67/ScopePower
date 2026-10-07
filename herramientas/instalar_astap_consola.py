@@ -60,7 +60,9 @@ SENSORES = [
     ("Sony IMX183 1\" (ZWO ASI183)", 13.2, 8.8),
     ("Sony IMX678 (ZWO ASI678)", 7.7, 4.3),
     ("Sony IMX462 / IMX290 (cámaras planetarias pequeñas: ZWO ASI462, Player One Mars-C)", 5.6, 3.2),
-    ("Cámara réflex o sin espejo APS-C", 23.5, 15.6),
+    # Canon recorta algo más que el resto (factor 1,6 frente a 1,5): 1100D 22,2 × 14,7; 600D/2000D 22,3 × 14,9
+    ("Réflex o sin espejo APS-C de Canon (1100D, 600D, 2000D, 80D, EOS M, R10...)", 22.3, 14.9),
+    ("Réflex o sin espejo APS-C de Nikon, Sony, Fujifilm o Pentax", 23.5, 15.6),
     ("Cámara réflex o sin espejo de formato completo", 36.0, 24.0),
 ]
 
