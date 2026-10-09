@@ -378,3 +378,45 @@ conexion_fallo;50;Siempre hay una manera. Suele empezar por revisar el cable.
 apilado_inicio;45;Es hora de jugar.
 # ── Mario Kart ──
 cancelado;55;Tienes que ser más rápido que eso. La exposición casi acaba.
+# ══════════════════════════════════════════════════════════════════════════════
+# Modo ácido (85-100 %): se mete con el usuario y con sus fotos. Solo para pieles duras.
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;85;ScopePower listo. El operador, a juzgar por la hora, no tanto.
+arranque;95;Sistemas en línea. Otra noche más fingiendo que esto es ciencia y no una excusa para no dormir.
+conexion_ok;85;Equipo conectado a la primera. No te acostumbres: la estadística dice que ha sido suerte.
+conexion_fallo;85;Sin conexión. Antes de culpar al software, mira si has encendido la montura. Sí, otra vez.
+conexion_fallo;95;No conecta. Según mi registro, el noventa por ciento de estos fallos están entre la silla y el móvil.
+goto_inicio;85;Moviendo la montura al objeto que has elegido. Qué original: el mismo que la semana pasada.
+goto_inicio;95;Yendo al objetivo. Si sale como la última vez, mejor que no se lo enseñes a nadie.
+goto_rechazado;90;La montura ha dicho que no. Es la segunda cosa esta noche que te lleva la contraria con razón.
+goto_bajo_horizonte;90;Está bajo el horizonte. Un vistazo a la pantalla de Esta noche te habría ahorrado el ridículo.
+objeto_no_encontrado;90;No existe ese objeto. Hay doce mil quinientos en el catálogo y has conseguido pedir uno que no está.
+centrado_ok;85;Centrado. Yo. Tú solo has pulsado un botón, que conste.
+centrado_fallo;90;No se resuelve el campo. Enfocar antes de empezar era una opción. Lo sigue siendo.
+foto_guardada;85;Foto guardada. Tus amigos dirán que es preciosa. Tus amigos no han visto una buena.
+foto_guardada;95;Foto en la galería. He tenido que estirar mucho para sacar algo de ahí. Mucho.
+foto_descartada;85;Foto descartada. Y era de las mejores que has hecho esta noche, lo cual lo dice todo.
+foto_descartada;90;Otra foto a la basura. Si la montura siguiera tan bien como tú te justificas, tendríamos un apilado.
+foto_descartada;95;Descartada. No es culpa del cielo. El cielo lleva trece mil millones de años haciéndolo bien.
+foto_descartada;100;Esa foto solo la aprobaría tu madre. Y porque te quiere, no por la foto.
+foto_sustituye;85;Una foto peor sale del apilado. Si aplicáramos ese criterio a tus fotos de otros años, la galería quedaría vacía.
+referencia_fijada;85;Referencia fijada con las mejores fotos de la noche. Mejores es un decir.
+apilado_inicio;85;Empieza el apilado. Ya puedes irte a mirar el móvil, que es lo que ibas a hacer de todas formas.
+apilado_inicio;95;Apilando. Procura no tocar el trípode esta vez. Ni respirar cerca.
+apilado_fin;85;Apilado terminado con {n} fotos. Con el doble habría quedado bien, pero querías irte a dormir.
+apilado_fin;95;{n} fotos apiladas. El resultado no es malo. Es tuyo, que no es lo mismo.
+apilado_fin;100;Apilado terminado. Antes de subirla a ningún sitio, piensa en la gente que tendrá que verla.
+error_camara;85;Error de cámara. O de quien la ha conectado con un cable de dos euros.
+cancelado;85;Captura cancelada. Qué decisión tan firme. Pena que no tengas la misma con el enfoque.
+disco_bajo;85;Queda poco disco. Podrías borrar las fotos malas, pero entonces no quedaría ninguna.
+disco_bajo;95;Disco casi lleno de fotos que no vas a procesar jamás. Como las de las vacaciones.
+configuracion_guardada;85;Configuración guardada. Ya iba siendo hora de que leyeras las opciones en vez de pulsar Siguiente.
+sincronizado;85;Montura sincronizada. Ahora sabe dónde apunta. Ya es una de las dos partes de este equipo que lo sabe.
+apagado;85;Apagando. Mañana dirás que la noche fue productiva. Yo he visto las fotos.
+apagado;95;Apagando el equipo. No te preocupes por el resultado: nadie esperaba nada.
+tars;85;Honestidad al noventa por ciento: tu enfoque mejora. Tu puntería, no.
+tars;90;He analizado tus últimas fotos. Recomiendo el modo visual. Al menos ahí no quedan pruebas.
+tars;95;Llevas tres años con este hobby y sigues preguntándote por qué las estrellas salen alargadas. Yo también.
+tars;100;Nivel de humor al máximo y honestidad al máximo: la culpa nunca es del telescopio, del cielo ni del software. Piénsalo.
+nivel_humor;85;Humor al {nivel} por ciento. A partir de aquí, tus fotos son objetivo legítimo.
+nivel_humor;95;Humor al {nivel} por ciento. Tú lo has pedido. Luego no llores.
