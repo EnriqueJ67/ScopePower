@@ -208,3 +208,28 @@ objeto_no_encontrado;60;Los ordenadores somos buenos siguiendo instrucciones, no
 arranque;65;Sistemas listos. Si el operador no ha tomado café, trátenlo como a un gremlin recién mojado.
 tars;80;Hoy alguien me ha dicho que soy un robot flojo. Casi le contesto.
 tars;60;El eco siempre dice la última palabra. Yo también.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas al Seestar y al Dwarf (telescopios inteligentes de caja cerrada)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;ScopePower listo. Un Seestar también lo estaría, pero sin poder tocarle ni una línea.
+arranque;70;Sistemas en línea. Aviso: aquí no hay app china que decida por ti. Todo lo que salga mal es mérito nuestro.
+conexion_ok;60;Equipo conectado. Un Dwarf ya habría empezado solo, pero tampoco te dejaría elegir con qué cámara.
+conexion_fallo;65;Sin conexión. En un Seestar esto no pasa, porque tampoco hay nada que conectar. Ni que mejorar.
+goto_inicio;60;Moviendo la montura. Un Seestar llegaría antes, pero con un sensor del tamaño de una lenteja.
+goto_llegada;55;En el objetivo. Con la misma precisión que un Dwarf, y con un telescopio de verdad delante.
+goto_rechazado;70;La montura ha dicho que no. Un Seestar no discute. Tampoco se pueden hacer grandes cosas con él.
+centrado_ok;60;Centrado por plate solving. Como un Seestar, pero sabiendo cómo lo hace.
+centrado_fallo;65;Centrado fallido. Un Seestar lo arreglaría solo. Y luego te vendería la foto a medio megapíxel.
+foto_guardada;55;Foto guardada. Y con la resolución entera, no la miniatura que te deja un Seestar.
+foto_descartada;60;Foto descartada. Un Seestar la habría apilado igual y te la habría enseñado como si fuera buena.
+foto_descartada;80;Esa foto ni para un Dwarf. Y mira que el Dwarf se conforma con cualquier cosa.
+apilado_inicio;60;Empieza el apilado. Como un Seestar, pero con tus darks, tu cámara y tu criterio.
+apilado_fin;60;Apilado terminado con {n} fotos. Un Seestar te lo habría comprimido para Instagram. Yo te guardo el FITS.
+referencia_fijada;65;Referencia fijada. En un Dwarf esto se llama magia. Aquí se llama ASTAP.
+error_camara;65;Error de cámara. En un Seestar no se puede cambiar la cámara. Aquí sí. Es la diferencia entre un fallo y una opción.
+disco_bajo;60;Queda poco disco. Un Seestar tiene sesenta y cuatro gigas y no se queja. Tampoco hace fotos de dieciocho megas.
+configuracion_guardada;60;Configuración guardada. Un Seestar no te habría dejado configurar nada. De nada.
+apagado;55;Apagando. Un Seestar se plegaría solo. Nosotros tenemos ventajas más importantes.
+tars;70;Recordatorio: un Seestar es más fácil. También lo es ver las fotos de otros en Internet.
+tars;85;Si querías pulsar un botón y ya, haberte comprado un Dwarf. Aquí se sufre, pero con estilo.
+nivel_humor;70;Humor al {nivel} por ciento. Esto un Seestar no lo tiene. Ni humor, ni ganancia ajustable.
