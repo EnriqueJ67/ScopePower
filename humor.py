@@ -51,6 +51,8 @@ GRUPO_DE_EVENTO = {
     "conexion_fallo": "error",
     "goto_inicio": "proceso",
     "goto_rechazado": "error",
+    "goto_bajo_horizonte": "error",
+    "objeto_no_encontrado": "error",
     "goto_llegada": "exito",
     "centrado_ok": "exito",
     "centrado_fallo": "error",

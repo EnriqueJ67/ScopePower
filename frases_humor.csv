@@ -17,6 +17,8 @@
 #   conexion_fallo        no se ha podido conectar con el telescopio o la cámara
 #   goto_inicio           la montura empieza a moverse a un objeto
 #   goto_rechazado        la montura no acepta el movimiento
+#   goto_bajo_horizonte   GoTo cancelado: el objeto está por debajo de la altura mínima
+#   objeto_no_encontrado  el GoTo no encuentra el objeto en ningún catálogo
 #   goto_llegada          telescopio apuntando al objeto
 #   centrado_ok           centrado por plate solving terminado bien
 #   centrado_fallo        el centrado ha fallado (ASTAP no resuelve, etc.)
@@ -46,7 +48,7 @@ proceso;70;Generando matriz de fotones. Si nota un fallo en la realidad, es culp
 proceso;55;Plegando el espacio-tiempo para acelerar la descarga. De nada.
 proceso;40;Cargando mapa estelar. Si ve una estrella parpadear, probablemente se acaba de renderizar.
 # ── Errores, fallos y excepciones ──
-error;70;Error 404: objeto no encontrado. Podría estar oculto por materia oscura, o por un bug.
+objeto_no_encontrado;70;Error 404: objeto no encontrado. Podría estar oculto por materia oscura, o por un bug.
 error;80;Materia oscura detectada en la línea de código. Procediendo a simular que todo está bien.
 error;45;La masa del archivo ha superado el límite de Chandrasekhar. Colapso inminente.
 error;65;Pérdida de señal con el servidor. Asumiendo que nos hemos adentrado en un agujero de gusano.
@@ -79,6 +81,13 @@ conexion_fallo;75;Sin conexión. Según mis cálculos, el culpable está a menos
 goto_inicio;45;Rumbo fijado. Prohibido tocar el telescopio hasta que deje de moverse. Sí, a ti también.
 goto_rechazado;60;La montura ha dicho que no. Y cuando una montura dice que no, es que no.
 goto_rechazado;80;Movimiento rechazado. Yo tampoco iría ahí sin un buen motivo.
+goto_bajo_horizonte;45;Objeto bajo el horizonte. Puedo moverme muy rápido, pero no atravesar el planeta.
+goto_bajo_horizonte;60;Ese objeto sale dentro de unas horas. La Tierra gira a su ritmo, no al tuyo.
+goto_bajo_horizonte;75;Está debajo del horizonte. Si quieres verlo ya, el telescopio no es el problema: es el planeta.
+goto_bajo_horizonte;85;GoTo cancelado. Apuntar al suelo da fotos muy nítidas de tierra.
+objeto_no_encontrado;50;No encuentro ese objeto. O no existe, o lo has pronunciado en klingon.
+objeto_no_encontrado;65;Objeto desconocido. He buscado en doce mil quinientos objetos y en ninguno pone eso.
+objeto_no_encontrado;80;No está en mis catálogos. Si lo acabas de descubrir, enhorabuena: ponle nombre y avísame.
 goto_llegada;45;Apuntando al objetivo. Si no está en la foto, es que el universo lo ha movido.
 centrado_fallo;55;Las estrellas se han negado a identificarse. Falta de enfoque, nubes o pura desidia.
 centrado_fallo;75;No he resuelto el campo. En mi defensa diré que ahí arriba hay muchas estrellas iguales.
@@ -130,12 +139,14 @@ arranque;30;El espacio, la última frontera.
 apagado;30;Larga vida y prosperidad.
 goto_inicio;35;Energía.
 goto_rechazado;40;No puedo cambiar las leyes de la física.
+goto_bajo_horizonte;40;No puedo cambiar las leyes de la física.
 # ── Interstellar ──
 disco_bajo;40;Es necesario que nos vayamos de este planeta.
 arranque;45;No te vayas dócilmente a esa buena noche.
 # ── Alien ──
 error;55;En el espacio nadie puede oír tus gritos. Ni tus errores de sintaxis.
 # ── Guía del autoestopista galáctico ──
+objeto_no_encontrado;45;Casi inofensivo. Pero no está en la Guía.
 error;30;No entres en pánico.
 conexion_fallo;30;No entres en pánico.
 tars;45;La respuesta es cuarenta y dos. La pregunta sigue pendiente.

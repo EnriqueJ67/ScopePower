@@ -3576,6 +3576,8 @@ def goto_objeto():
                 elif '/' in objeto or objeto.lower().startswith(('c/', 'p/')):
                     ra, dec = obtener_coords_cometa(objeto)
                     if ra is None or dec is None:
+                        voz.decir(f"No encuentro el cometa {objeto}")
+                        humor.decir("objeto_no_encontrado")
                         return jsonify({"error": f"No se pudo obtener coordenadas para el cometa '{objeto}' desde JPL Horizons."})
                     coords = SkyCoord(ra=ra * u.hourangle, dec=dec * u.deg)
                     fuente_coords = "JPL Horizons (cometa)"
@@ -3588,6 +3590,8 @@ def goto_objeto():
                         coords = None
 
                     if coords is None:
+                        voz.decir(f"No encuentro {objeto} en ningún catálogo")
+                        humor.decir("objeto_no_encontrado")
                         return jsonify({"error": f"No se pudo obtener coordenadas para el objeto '{objeto}'. Verifica el nombre o intenta con otro método."})
 
                     ra = coords.ra.hour
@@ -3599,6 +3603,8 @@ def goto_objeto():
 
 
             if altitud < int(ALTURA_MINIMA):
+                voz.decir(f"{objeto} está por debajo de la altura mínima. GoTo cancelado")
+                humor.decir("goto_bajo_horizonte")
                 return jsonify({"warning": "El objeto está por debajo de altura mínima. GOTO cancelado."})
 
             # Nombre para el rótulo del apilado, los mensajes y la voz: el pedido con sus
