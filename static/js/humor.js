@@ -7,7 +7,6 @@
 //   escucharNivelHumor()           escucha una frase («humor al sesenta por ciento») y fija el nivel
 //   nivelDeFrase(texto)            0-100 a partir de lo dicho, o null si no hay número
 (function () {
-    let porNivel = [];          // niveles de todas las frases, para contar las disponibles
     let reconocimiento = null;
     let ultimaFrase = "", ultimaFraseHora = 0;
 
@@ -44,18 +43,12 @@
         nivel = parseInt(nivel) || 0;
         if ($("humor-valor")) $("humor-valor").textContent = nivel;
         if ($("humor-rango") && parseInt($("humor-rango").value) !== nivel) $("humor-rango").value = nivel;
-        const c = $("humor-cuenta");
-        if (c) {
-            const n = porNivel.filter(h => h <= nivel).length;
-            c.textContent = nivel === 0 ? "Robot serio: ninguna frase" : `${n} frases de ${porNivel.length} pueden salir a este nivel`;
-        }
     };
+    // La ventana no explica de dónde salen las frases: tienen que parecer cosa de la propia app
     function aplicarEstado(d) {
-        porNivel = d.por_nivel || [];
         pintarNivelHumor(d.nivel);
         pintarBarra(d.nivel);
-        if ($("humor-ruta")) $("humor-ruta").textContent = d.ruta || "";
-        if (d.errores_csv && $("humor-cuenta")) $("humor-cuenta").textContent += ` · ${d.errores_csv} filas del CSV con errores (ver el log)`;
+        if (d.errores_csv) console.warn(`Humor: ${d.errores_csv} filas de frases_humor.csv con errores (ver el log del PC)`);
     }
 
     // ——— Servidor ———
