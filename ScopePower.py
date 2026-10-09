@@ -398,10 +398,19 @@ def obtener_fecha_primer_uso():
 
 #HASTA AQUI SISTEMA DE ACTIVACION
 
-@app.route('/config-objetos', methods=['GET'])
+@app.route('/config-objetos', methods=['GET', 'POST'])
 def get_config_objetos():
-    # Devuelve el estado actual del checkbox
-    return jsonify({"objetos_anotados": apilado.OBJETOS_ANOTADOS})
+    # Estado del checkbox y magnitud límite de los NGC/IC anotados ([Apilado] anotar_ngc_hasta_mag)
+    import anotaciones
+    if request.method == 'POST':
+        try:
+            mag = max(0.0, min(18.0, float((request.get_json(silent=True) or {}).get("ngc_hasta_mag"))))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Magnitud no válida"}), 400
+        _guardar_en_config("Apilado", {"anotar_ngc_hasta_mag": f"{mag:g}"})
+        return jsonify({"ok": True, "ngc_hasta_mag": mag})
+    return jsonify({"objetos_anotados": apilado.OBJETOS_ANOTADOS,
+                    "ngc_hasta_mag": anotaciones.magnitud_maxima_ngc()})
 
 @app.route('/toggle-objetos-anotados', methods=['POST'])
 def toggle_objetos_anotados():

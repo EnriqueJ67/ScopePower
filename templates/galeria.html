@@ -188,7 +188,7 @@
         }
         for (const o of d.objetos) {
             const x = o.x * k, y = o.y * k, a = Math.max(o.a * k, 7), b = Math.max(o.b * k, 7);
-            const clase = o.fuente === "catalogo" ? "anot-catalogo" : "anot-simbad";
+            const clase = o.fuente === "catalogo" ? "anot-catalogo" : o.fuente === "ngc" ? "anot-ngc" : "anot-simbad";
             const elipse = document.createElementNS(NS, "ellipse");
             elipse.setAttribute("cx", x); elipse.setAttribute("cy", y);
             elipse.setAttribute("rx", a); elipse.setAttribute("ry", o.angulo === null ? a : b);

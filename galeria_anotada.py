@@ -162,8 +162,9 @@ def objetos_foto(nombre):
     factor = math.sqrt(abs(M[0, 0] * M[1, 1] - M[0, 1] * M[1, 0]))
     escala, angulo_cam = solucion["escala_arcsec"], solucion["angulo_cam"]
     objetos = anotaciones.objetos_catalogo_en_campo(wcs, solucion["ancho"], solucion["alto"])
+    objetos = anotaciones._fusionar(objetos, anotaciones.objetos_ngc_en_campo(wcs, solucion["ancho"], solucion["alto"]), wcs)
     objetos = anotaciones._fusionar(objetos, solucion.get("simbad") or [], wcs)
-    objetos.sort(key=lambda o: (o.get("fuente") != "catalogo", -float(o.get("tamano_arcsec") or 0)))
+    objetos.sort(key=anotaciones.orden_rotulos)
     salida = []
     for o in objetos:
         try:
@@ -177,13 +178,12 @@ def objetos_foto(nombre):
             if not (math.isfinite(a) and math.isfinite(b)):
                 continue
             angulo = None
-            if o.get("angulo_objeto") is not None:
-                # Como anotaciones.dibujar: el eje mayor va a (ángulo - el de la cámara) en el FITS y gira con el encuadre
-                t = math.radians(float(o["angulo_objeto"]) - angulo_cam)
-                vx, vy = math.cos(t), math.sin(t)
-                angulo = round(math.degrees(math.atan2(M[1, 0] * vx + M[1, 1] * vy, M[0, 0] * vx + M[0, 1] * vy)), 1)
+            pa = anotaciones.pa_de(o)
+            if pa is not None:
+                # Como anotaciones.dibujar: medido con el WCS, vale con el encuadre girado o en espejo
+                angulo = round(anotaciones.angulo_en_imagen(wcs, o["ra"], o["dec"], pa, M), 1)
             mag = o.get("mag")
-            if o.get("fuente") != "catalogo" and mag is not None and float(mag) > MAG_MAX_SIMBAD:
+            if o.get("fuente") == "simbad" and mag is not None and float(mag) > MAG_MAX_SIMBAD:
                 continue
             salida.append({"nombre": " ".join(str(o["nombre"]).split()), "x": round(x, 1), "y": round(y, 1),
                            "a": round(a, 1), "b": round(b, 1), "angulo": angulo,

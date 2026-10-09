@@ -13,6 +13,10 @@
 #      con un tiempo de espera corto para no retrasar la vista previa en el campo.
 #   3. Letra y grosor proporcionales al tamaño de la imagen, con borde oscuro, para
 #      que se lean en el móvil.
+#   4. Además de los populares, los NGC e IC del catálogo OpenNGC que ya lleva el
+#      planetario (static/atlas), hasta la magnitud de [Apilado] anotar_ngc_hasta_mag:
+#      galaxias débiles como NGC 6207 junto a M13, sin Internet. Van en azul claro, con
+#      su elipse orientada de verdad (ejes y ángulo de posición del catálogo).
 #
 # El plate solving sigue siendo ASTAP sobre un FITS monocromo del apilado.
 
@@ -33,6 +37,7 @@ from astropy.io.fits import Header
 import esta_noche
 import firma
 import procesado
+import catalogo_offline
 from ScopePower_ObjetosAnotados import generar_fits_monocromo_para_platesolve, obtener_objetos_simbad
 
 log = logging.getLogger("scopepower.anotaciones")
@@ -164,6 +169,129 @@ def objetos_catalogo_en_campo(wcs, ancho, alto, margen=0.02):
     return dentro
 
 
+# ── NGC e IC del catálogo OpenNGC (el del planetario, sin Internet) ──
+MAG_NGC_POR_DEFECTO = 14.0      # lo que llega a verse con el Evoguide 50 apilando fotos de 20 s
+MAX_NGC = 60                    # en un campo rico (Virgo) no más de estos, los más brillantes
+TAMANO_SIN_MAG_ARCMIN = 8.0     # sin magnitud (muchas nebulosas) solo si son grandes
+TIPOS_NGC = {"G", "GPair", "GTrpl", "GGroup", "GCl", "OCl", "Cl+N", "PN", "Neb", "HII",
+             "EmN", "RfN", "SNR", "DrkN"}   # fuera: estrellas, asociaciones, duplicados ("Other")
+_ngc = {"objetos": None}
+_lock_ngc = threading.Lock()
+
+
+def magnitud_maxima_ngc():
+    """[Apilado] anotar_ngc_hasta_mag de config.ini; 0 o menos = sin NGC/IC."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    try:
+        return float(cfg.get("Apilado", "anotar_ngc_hasta_mag", fallback=str(MAG_NGC_POR_DEFECTO)))
+    except ValueError:
+        return MAG_NGC_POR_DEFECTO
+
+
+def _catalogo_ngc():
+    """NGC e IC de static/atlas/dso-catalog.js (se lee una vez, ~0,5 s), con arrays para filtrar rápido."""
+    with _lock_ngc:
+        if _ngc["objetos"] is None:
+            lista = []
+            try:
+                for d in catalogo_offline._leer_js("dso-catalog.js", "DSO_CATALOG_DATA"):
+                    if d["id"].split()[0] not in ("NGC", "IC") or d.get("typeCode") not in TIPOS_NGC:
+                        continue
+                    lista.append(d)
+            except Exception as e:
+                log.warning("No se pudo leer el catálogo NGC/IC: %s", e)
+            _ngc["objetos"] = lista
+            _ngc["ra"] = np.array([float(d["raDeg"]) for d in lista])
+            _ngc["dec"] = np.array([float(d["decDeg"]) for d in lista])
+            log.info("Catálogo NGC/IC para anotar: %d objetos", len(lista))
+        return _ngc
+
+
+def objetos_ngc_en_campo(wcs, ancho, alto, mag_max=None, maximo=MAX_NGC):
+    """NGC e IC dentro de la imagen hasta mag_max, los más brillantes primero (como objetos_catalogo_en_campo)."""
+    if mag_max is None:
+        mag_max = magnitud_maxima_ngc()
+    if mag_max <= 0:
+        return []
+    cat = _catalogo_ngc()
+    if not cat["objetos"]:
+        return []
+    try:
+        # Primero un corte grueso por distancia al centro del campo: proyectar 12 000 objetos sobra
+        (ra0, dec0), = wcs.all_pix2world([[ancho / 2.0, alto / 2.0]], 0)
+        (ra1, dec1), = wcs.all_pix2world([[0.0, 0.0]], 0)
+        radio = _separacion_deg(ra0, dec0, ra1, dec1) * 1.2 + 0.2
+        cerca = np.nonzero(_separacion_deg(ra0, dec0, cat["ra"], cat["dec"]) < radio)[0]
+        if not len(cerca):
+            return []
+        px, py = wcs.all_world2pix(cat["ra"][cerca], cat["dec"][cerca], 0)
+    except Exception as e:
+        log.warning("Error proyectando el catálogo NGC/IC: %s", e)
+        return []
+    dentro = []
+    for i, x, y in zip(cerca, px, py):
+        if not (np.isfinite(x) and np.isfinite(y) and 0 <= x < ancho and 0 <= y < alto):
+            continue
+        d = cat["objetos"][i]
+        mayor = float(d.get("major") or 0.0)
+        mag = d.get("mag")
+        if mag is None:
+            if mayor < TAMANO_SIN_MAG_ARCMIN:
+                continue
+        elif float(mag) > mag_max:
+            continue
+        menor = float(d.get("minor") or mayor)
+        pa = d.get("positionAngle")
+        mayor = mayor or 1.0
+        dentro.append({"nombre": d["id"], "ra": float(d["raDeg"]), "dec": float(d["decDeg"]),
+                       "tamano_arcsec": mayor * 60.0, "tamano_menor_arcsec": (menor or mayor) * 60.0,
+                       "pa": float(pa) if pa is not None and menor and menor < mayor * 0.9 else None,
+                       "mag": float(mag) if mag is not None else None, "fuente": "ngc"})
+    dentro.sort(key=lambda o: o["mag"] if o["mag"] is not None else 99.0)
+    return dentro[:maximo]
+
+
+def _separacion_deg(ra1, dec1, ra2, dec2):
+    """Distancia angular en grados (admite arrays en ra2/dec2)."""
+    r1, d1, r2, d2 = np.radians(ra1), np.radians(dec1), np.radians(ra2), np.radians(dec2)
+    c = np.sin(d1) * np.sin(d2) + np.cos(d1) * np.cos(d2) * np.cos(r1 - r2)
+    return np.degrees(np.arccos(np.clip(c, -1.0, 1.0)))
+
+
+def angulo_en_imagen(wcs, ra, dec, pa_deg, matriz):
+    """
+    Ángulo del eje mayor en la imagen (grados desde +x hacia +y, el de cv2.ellipse y el
+    del SVG de la galería) de un objeto con ángulo de posición pa_deg (desde el norte
+    hacia el este). Se mide con el WCS, así vale con cualquier giro y con la foto en espejo.
+    """
+    paso = 1.0 / 60.0
+    pa = math.radians(pa_deg)
+    dra = paso * math.sin(pa) / max(1e-6, math.cos(math.radians(dec)))
+    xs, ys = wcs.all_world2pix([ra, ra + dra], [dec, dec + paso * math.cos(pa)], 0)
+    vx, vy = float(xs[1] - xs[0]), float(ys[1] - ys[0])
+    m = np.asarray(matriz, dtype=np.float64)
+    return math.degrees(math.atan2(m[1, 0] * vx + m[1, 1] * vy, m[0, 0] * vx + m[0, 1] * vy))
+
+
+def pa_de(o):
+    """Ángulo de posición del objeto (grados, N→E) o None. SIMBAD llega guardado como 90 - PA."""
+    if o.get("pa") is not None:
+        return float(o["pa"])
+    if o.get("angulo_objeto") is not None:
+        return 90.0 - float(o["angulo_objeto"])
+    return None
+
+
+def orden_rotulos(o):
+    """Orden en que se rotulan: populares (los grandes antes), luego NGC/IC y SIMBAD por brillo."""
+    tam = -float(o.get("tamano_arcsec") or 0)
+    if o.get("fuente") == "catalogo":
+        return (0, 0.0, tam)
+    mag = o.get("mag")
+    return (1, float(mag) if mag is not None else 99.0, tam)
+
+
 def hay_internet(host=HOST_SIMBAD, timeout=3.0):
     try:
         with socket.create_connection(host, timeout=timeout):
@@ -237,7 +365,8 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, matriz):
     # de antes: las mayúsculas de una TrueType miden ~0,7 del tamaño de la fuente.
     letra = firma._fuente(round(fuente_px / 0.7))
     borde = grosor + 1
-    blanco, negro, amarillo = (255, 255, 255), (0, 0, 0), (120, 220, 255)
+    blanco, negro, amarillo, azul = (255, 255, 255), (0, 0, 0), (120, 220, 255), (255, 210, 150)
+    colores = {"catalogo": amarillo, "ngc": azul}
     n = 0
     ocupados = []          # rectángulos de etiquetas ya puestas (x0, y0, x1, y1)
     etiquetas = []         # (texto, x, y de la línea base, color BGR): se escriben al final, de una vez
@@ -250,8 +379,8 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, matriz):
         x0, y0, x1, y1 = rc
         return all(x1 < a or x0 > c or y1 < b or y0 > d for a, b, c, d in ocupados)
 
-    # Primero el catálogo y los objetos grandes: son los que importan si hay que apretar
-    objetos = sorted(objetos, key=lambda o: (o.get("fuente") != "catalogo", -float(o.get("tamano_arcsec") or 0)))
+    # Primero los populares; luego NGC/IC y SIMBAD por brillo: son los que importan si hay que apretar
+    objetos = sorted(objetos, key=orden_rotulos)
     for o in objetos:
         try:
             xw, yw = wcs.all_world2pix([o["ra"]], [o["dec"]], 0)
@@ -265,15 +394,12 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, matriz):
                 continue
             r_min = 6 * grosor
             semi_maj, semi_min = max(semi_maj, r_min), max(semi_min, r_min)
-            color = amarillo if o.get("fuente") == "catalogo" else blanco
-            ang = o.get("angulo_objeto")
-            if ang is None:
+            color = colores.get(o.get("fuente"), blanco)
+            pa = pa_de(o)
+            if pa is None:
                 cv2.circle(img_bgr, (x, y), int(round(semi_maj)), color, grosor, cv2.LINE_AA)
             else:
-                # El eje mayor, que en el FITS va a (ang - angulo_cam), gira (y se voltea) con el encuadre
-                a = math.radians(ang - angulo_cam)
-                vx, vy = math.cos(a), math.sin(a)
-                ang_img = math.degrees(math.atan2(matriz[1, 0] * vx + matriz[1, 1] * vy, matriz[0, 0] * vx + matriz[0, 1] * vy))
+                ang_img = angulo_en_imagen(wcs, o["ra"], o["dec"], pa, matriz)
                 cv2.ellipse(img_bgr, (x, y), (int(round(semi_maj)), int(round(semi_min))), ang_img,
                             0, 360, color, grosor, cv2.LINE_AA)
             n += 1
@@ -331,12 +457,14 @@ def anotar(rgb_procesado, ruta_fits, usar_simbad=True, matriz=None):
         factor = rgb_procesado.shape[1] / float(ancho_fits)
         matriz = [[factor, 0.0, 0.0], [0.0, factor, 0.0]]
     objetos = objetos_catalogo_en_campo(wcs, ancho_fits, alto_fits)
+    objetos = _fusionar(objetos, objetos_ngc_en_campo(wcs, ancho_fits, alto_fits), wcs)
     if usar_simbad:
         objetos = _fusionar(objetos, objetos_simbad(ruta_ini, ruta_fits), wcs)
     if not objetos:
         log.info("Anotaciones: ningún objeto conocido en el campo")
     img = cv2.cvtColor(rgb_procesado, cv2.COLOR_RGB2BGR)
     n = dibujar(img, wcs, escala_arcsec, angulo_cam, objetos, matriz)
-    log.info("Anotaciones: %d objetos dibujados (%d del catálogo local)", n,
-             sum(1 for o in objetos if o.get("fuente") == "catalogo"))
+    log.info("Anotaciones: %d objetos dibujados (%d populares, %d NGC/IC)", n,
+             sum(1 for o in objetos if o.get("fuente") == "catalogo"),
+             sum(1 for o in objetos if o.get("fuente") == "ngc"))
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

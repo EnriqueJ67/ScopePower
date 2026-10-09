@@ -364,6 +364,8 @@ details[open] > .proc-mas-titulo::before { content: "▾ "; }
 .lightbox-anotaciones text.anot-catalogo { fill: #ffdc78; }
 .lightbox-anotaciones ellipse.anot-simbad { stroke: #fff; }
 .lightbox-anotaciones text.anot-simbad { fill: #fff; }
+.lightbox-anotaciones ellipse.anot-ngc { stroke: #96d2ff; }
+.lightbox-anotaciones text.anot-ngc { fill: #96d2ff; }
 
 /* ── Visor de imagen (apilado, foto de prueba) ────────────────────────────── */
 .visor { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
