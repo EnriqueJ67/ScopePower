@@ -309,3 +309,27 @@ configuracion_guardada;60;Configuración guardada. Y el driver de la cámara lo 
 tars;65;Dato: el ASIAIR es una Raspberry con una app bonita y una lista de cámaras permitidas. Esto es un mini PC con una app menos bonita y ninguna lista.
 tars;80;Un usuario de ASIAIR diría que esto es complicado. Un usuario de ASIAIR también ha pagado trescientos euros por una Raspberry.
 apagado;55;Apagando. El del ASIAIR también apaga, con un botón rojo que hace juego con la caja. Buenas noches.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas a los de PixInsight (el procesado de doscientos euros y cuarenta pasos)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;ScopePower listo. Esta noche la foto sale hecha. Los de PixInsight la verán el fin de semana que viene.
+arranque;70;Sistemas en línea. Aquí el procesado tarda segundos. En PixInsight, lo que tarda es el tutorial de YouTube.
+conexion_ok;60;Equipo conectado. Dentro de un rato tendrás una imagen. Un usuario de PixInsight tendría un proyecto.
+goto_llegada;60;En el objetivo. Cuando acabemos verás la foto en el móvil. No en una pestaña llamada «integration_crop_ABE_SPCC_v3_final_FINAL».
+centrado_ok;60;Centrado. Un usuario de PixInsight ahora mismo también está centrando algo: una máscara de estrellas, a mano, desde hace veinte minutos.
+foto_guardada;60;Foto guardada y revelada. En PixInsight esto se llama «estirar», lleva tres procesos y un vídeo de cuarenta minutos.
+foto_guardada;75;Foto en la galería, con color calibrado. Los de PixInsight lo llaman SPCC y lo pronuncian con reverencia.
+foto_descartada;65;Foto descartada por puntuación. En PixInsight la rechazaría SubframeSelector, con un gráfico, tras diez minutos de pesar cada estrella.
+referencia_fijada;60;Referencia fijada y apilando sobre la marcha. En PixInsight lo llaman WBPP, dura una hora y no se puede mirar mientras tanto.
+apilado_inicio;60;Empieza el apilado. Sin WBPP, sin esperar a mañana y sin que el ordenador suene como un secador.
+apilado_inicio;75;Apilando en vivo. Un usuario de PixInsight diría que así no se hace. Lo diría a las dos de la tarde del día siguiente, con la integración aún en marcha.
+apilado_fin;60;Apilado terminado con {n} fotos. Imagen lista. En PixInsight esto sería el principio de la historia, no el final.
+apilado_fin;80;{n} fotos apiladas y reveladas. El de PixInsight tiene las mismas y una lista de pasos: gradiente, deconvolución, ruido, estrellas fuera, estrellas dentro, y a dormir sin terminar.
+error_camara;60;Error de cámara. Al menos no es un error de PixInsight: esos vienen en una ventana con fondo gris y letra de 1998.
+disco_bajo;60;Queda poco disco. Un usuario de PixInsight lo tendría peor: cada paso guarda un fichero de doscientos megas por si acaso.
+cancelado;60;Captura cancelada. Más rápido que cancelar una integración en PixInsight, que primero hay que encontrar el botón.
+configuracion_guardada;60;Configuración guardada. Diez campos. Un solo proceso de PixInsight tiene más deslizadores.
+tars;65;Dato: PixInsight saca mejores fotos que esto. También exige doscientos euros, un curso y una fe inquebrantable en los histogramas.
+tars;80;Un usuario de PixInsight diría que mi estirado es «agresivo». Lo diría con una imagen de fondo gris que lleva tres días sin acabar.
+tars;85;PixInsight no se usa: se practica. Como el violín, pero con más ruido.
+apagado;55;Apagando. Los de PixInsight no apagan nunca: tienen una integración en marcha desde el martes. Buenas noches.
