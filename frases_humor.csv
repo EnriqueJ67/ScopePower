@@ -233,3 +233,27 @@ apagado;55;Apagando. Un Seestar se plegaría solo. Nosotros tenemos ventajas má
 tars;70;Recordatorio: un Seestar es más fácil. También lo es ver las fotos de otros en Internet.
 tars;85;Si querías pulsar un botón y ya, haberte comprado un Dwarf. Aquí se sufre, pero con estilo.
 nivel_humor;70;Humor al {nivel} por ciento. Esto un Seestar no lo tiene. Ni humor, ni ganancia ajustable.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas a los visuales (los que miran por el ocular)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;Sistemas listos. Los del ocular ya llevan media hora adaptando la vista. Nosotros, el sensor lo trae de fábrica.
+arranque;70;Buenas noches. Mientras alguien en el club busca un borrón gris con visión lateral, aquí vamos a ver colores.
+conexion_ok;60;Cámara conectada. Es como un ojo, pero sin parpadear, sin lagrimear y sin decir que lo ha visto cuando no lo ha visto.
+goto_inicio;60;Moviendo la montura. Un visual tardaría lo mismo en encontrarlo con el buscador, y luego diría que lo ha visto de refilón.
+goto_llegada;55;En el objetivo. Si fueras visual, ahora tocaría sacar el ocular de treinta milímetros y entornar el ojo.
+goto_llegada;75;Apuntando. Los del ocular ya estarían diciendo «se intuye». Aquí se fotografía.
+centrado_ok;60;Centrado por plate solving. Un visual lo llama «salto de estrellas» y tarda un cuarto de hora.
+foto_guardada;60;Foto guardada. Un visual tendría que describírtela de memoria. Y en gris.
+foto_guardada;75;Foto en la galería. Lo que el ocular enseña como una mancha, aquí tiene brazos espirales.
+foto_descartada;65;Foto descartada. Aun así, mejor que lo que ve cualquier ocular esta noche.
+referencia_fijada;60;Referencia fijada. Ahora cada foto suma. Por el ocular, cada minuto se pierde.
+apilado_inicio;60;Empieza el apilado. Mientras tanto, los visuales siguen discutiendo si eso era M51 o una mota de polvo.
+apilado_inicio;75;Apilando. Un visual diría que esto no es astronomía de verdad. Un visual también dice que ve color en la nebulosa de Orión.
+apilado_fin;60;Apilado terminado con {n} fotos. Un visual, a estas horas, aún tiene el ojo pegado al ocular y la nuca torcida.
+apilado_fin;80;{n} fotos apiladas. Los del ocular dirán que la emoción está en ver el fotón con tu propio ojo. Nosotros tenemos los fotones guardados.
+error_camara;60;Error de cámara. Los visuales sonríen. Que sonrían: ellos tienen rocío en el ocular.
+disco_bajo;60;Queda poco disco. Los del ocular no tienen ese problema. Tampoco tienen fotos.
+cancelado;60;Captura cancelada. Si quieres algo instantáneo, siempre puedes mirar por el ocular. Y no ver nada.
+tars;65;Dato: por el ocular, Andrómeda es un borrón. Por la cámara, es una galaxia. Luego que si el romanticismo.
+tars;80;Un visual me dijo una vez que mirar por el ocular es «conectar con el cosmos». Yo conecto por USB y veo más.
+apagado;55;Apagando. Los visuales siguen ahí fuera, a tres grados, esperando a que se adapte la vista. Suerte con eso.
