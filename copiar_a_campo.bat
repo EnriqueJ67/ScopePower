@@ -66,6 +66,8 @@ robocopy "%ORIGEN%\info_objetos" "%DESTINO%\info_objetos" /E %OPC%
 if errorlevel 8 set "ERRORES=1"
 REM Elementos orbitales de cometas y asteroides: por si el PC de campo no tiene Internet
 if exist "%ORIGEN%\datos\mpc\" robocopy "%ORIGEN%\datos\mpc" "%DESTINO%\datos\mpc" /E %OPC%
+REM Tabla IERS: /XO para no pisar una mas nueva que haya bajado el PC de campo
+if exist "%ORIGEN%\datos\iers\" robocopy "%ORIGEN%\datos\iers" "%DESTINO%\datos\iers" finals2000A.all /XO %OPC%
 
 echo  [5/7] Configuracion y secretos (solo si alli no existen)
 if not exist "%DESTINO%\config.ini" (

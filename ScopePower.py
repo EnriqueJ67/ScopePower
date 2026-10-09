@@ -45,6 +45,8 @@ import winreg
 import logging
 from registro import configurar_logging
 log = configurar_logging()   # fichero rotativo logs/scopepower.log + consola; print() también va al log
+import datos_iers
+datos_iers.configurar()      # tabla IERS sin Internet: antes de cualquier cálculo de altura/acimut
 from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
                       capturar_frame, estado_captura, ganancia_configurada, leer_ganancia,
                       asentamiento_montura)
@@ -5898,6 +5900,8 @@ if __name__ == '__main__':
     # cuando el usuario entre (config: [General] lanzar_stellarium_al_arrancar)
     # Elementos orbitales de cometas y asteroides (MPC): renovar si hay red, en un hilo
     cuerpos_menores.actualizar_en_segundo_plano()
+    # Tabla IERS (rotación de la Tierra) para astropy: renovar si hay red, en un hilo
+    datos_iers.actualizar_en_segundo_plano()
     catalogo_offline.precargar()
     if usar_stellarium():
         threading.Thread(target=lanzar_stellarium_si_no_esta_activo, name="stellarium-arranque", daemon=True).start()
