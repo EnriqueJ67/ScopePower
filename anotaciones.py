@@ -26,10 +26,12 @@ import configparser
 
 import cv2
 import numpy as np
+from PIL import Image, ImageDraw
 from astropy.wcs import WCS
 from astropy.io.fits import Header
 
 import esta_noche
+import firma
 import procesado
 from ScopePower_ObjetosAnotados import generar_fits_monocromo_para_platesolve, obtener_objetos_simbad
 
@@ -230,9 +232,19 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, matriz):
     grosor = max(1, int(round(lado / 700)))
     fuente = max(0.45, lado / 1500)
     fuente_px = int(round(22 * fuente))
+    # Los nombres van con una fuente TrueType (la de la firma): la de OpenCV solo tiene ASCII
+    # y "Gran Cúmulo de Hércules" salía "Gran C??mulo de H??rcules". Tamaño equivalente al
+    # de antes: las mayúsculas de una TrueType miden ~0,7 del tamaño de la fuente.
+    letra = firma._fuente(round(fuente_px / 0.7))
+    borde = grosor + 1
     blanco, negro, amarillo = (255, 255, 255), (0, 0, 0), (120, 220, 255)
     n = 0
     ocupados = []          # rectángulos de etiquetas ya puestas (x0, y0, x1, y1)
+    etiquetas = []         # (texto, x, y de la línea base, color BGR): se escriben al final, de una vez
+
+    def _medir(txt):
+        x0, y0, x1, y1 = letra.getbbox(txt, anchor="ls", stroke_width=borde)
+        return x1 - x0, -y0                 # ancho y alto sobre la línea base, como cv2.getTextSize
 
     def _libre(rc):
         x0, y0, x1, y1 = rc
@@ -268,7 +280,7 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, matriz):
             mag = o.get("mag")
             nombre = " ".join(str(o["nombre"]).split())          # SIMBAD trae dobles espacios
             txt = f"{nombre} ({mag:.1f})" if mag is not None else nombre
-            (tw, th), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_SIMPLEX, fuente, grosor)
+            tw, th = _medir(txt)
             r = int(semi_maj) + 4 * grosor
             # Posiciones candidatas: debajo, encima, derecha, izquierda; la primera libre
             candidatas = [(x - tw // 2, y + r + th), (x - tw // 2, y - r), (x + r + 2, y + th // 2), (x - r - tw - 2, y + th // 2)]
@@ -277,14 +289,25 @@ def dibujar(img_bgr, wcs, escala_arcsec, angulo_cam, objetos, matriz):
                 tx = min(max(0, tx), w - tw - 1); ty = min(max(th, ty), h - 2)
                 rc = (tx - 2, ty - th - 2, tx + tw + 2, ty + 2)
                 if _libre(rc):
-                    cv2.putText(img_bgr, txt, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, fuente, negro, grosor * 3, cv2.LINE_AA)
-                    cv2.putText(img_bgr, txt, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, fuente, color, grosor, cv2.LINE_AA)
+                    etiquetas.append((txt, tx, ty, color))
                     ocupados.append(rc); puesto = True
                     break
             if not puesto:
                 pass       # sin sitio: se queda el círculo sin nombre antes que un texto ilegible
         except Exception as e:
             log.warning("No se pudo dibujar %s: %s", o.get("nombre", "?"), e)
+
+    # Todas las etiquetas en una sola pasada por PIL (texto con borde oscuro, en el sitio)
+    if etiquetas:
+        try:
+            lienzo = Image.fromarray(np.ascontiguousarray(img_bgr[:, :, ::-1]))
+            dibujo = ImageDraw.Draw(lienzo)
+            for txt, tx, ty, color in etiquetas:
+                dibujo.text((tx, ty), txt, font=letra, anchor="ls", fill=tuple(reversed(color)),
+                            stroke_width=borde, stroke_fill=negro)
+            img_bgr[:] = np.asarray(lienzo)[:, :, ::-1]
+        except Exception as e:
+            log.warning("No se pudieron escribir los nombres de los objetos: %s", e)
     return n
 
 
