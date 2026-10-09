@@ -19,6 +19,7 @@ from collections import deque
 from AutoStrechSTF import debayer_rgb
 import anotaciones
 import voz
+import humor
 import procesado
 import firma
 import rotacion_camara
@@ -1123,6 +1124,7 @@ class ApiladorEnTiempoReal:
                                            f"({umbral:.2f}, {calidad['umbral_relativo']:.0%} de la media de las mejores); descartada")
                 print(f"ℹ️ {self.ultimo_mensaje}")
                 voz.decir("Foto descartada por calidad")
+                humor.decir("foto_descartada")
                 return
 
             self._fase("resolviendo")
@@ -1155,6 +1157,7 @@ class ApiladorEnTiempoReal:
                                     aviso="No se ha podido resolver la imagen de referencia. Se intentará con la siguiente")
                     return
                 voz.decir("Imagen de referencia establecida")
+                humor.decir("referencia_fijada")
                 # El fotograma de referencia no necesita transformación
                 M, metodo = np.eye(2, 3, dtype=np.float32), "REF"
             else:
@@ -1284,6 +1287,7 @@ class ApiladorEnTiempoReal:
             if not entra:
                 print(f"ℹ️ {self.ultimo_mensaje}")
                 voz.decir("Foto descartada por calidad")
+                humor.decir("foto_descartada")
                 # Sin recorte no cambia nada y no hace falta reapilar; con recorte
                 # sí, para que la vista previa refleje las fotos que quedan
                 if not quitadas:
@@ -1291,6 +1295,8 @@ class ApiladorEnTiempoReal:
             else:
                 print(f"📚 {self.ultimo_mensaje}")
                 voz.decir("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas")
+                if sustituida:
+                    humor.decir("foto_sustituye")
 
             self._fase("apilando")
             if incremental and len(fotogramas_actuales) >= n_referencia:
@@ -1306,6 +1312,7 @@ class ApiladorEnTiempoReal:
                             f.pop(clave, None)
                 print(f"📌 Referencia del apilado incremental fijada con {len(fotogramas_actuales)} fotos")
                 voz.decir("Referencia del apilado fijada")
+                humor.decir("referencia_fijada")
                 planos = acumulador.imagen()
                 zona = zona_cobertura(*acumulador.cobertura())
             else:

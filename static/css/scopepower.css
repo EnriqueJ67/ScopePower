@@ -534,6 +534,16 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .modal-acciones { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
 @media (min-width: 700px) { .modal { align-items: center; padding: 20px; } .modal-caja { border-radius: 20px; } }
 
+/* ── Nivel de humor (templates/_modal_humor.html, static/js/humor.js) ─────── */
+#modal-humor .modal-titulo .ico { color: var(--accent-2); }
+.humor-nivel { text-align: center; font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--accent-2); margin: 10px 0 4px; font-variant-numeric: tabular-nums; }
+.humor-nivel .humor-pct { font-size: 26px; font-weight: 700; margin-left: 4px; color: var(--text-2); }
+#humor-rango { width: 100%; margin: 6px 0 10px; accent-color: var(--accent); }
+.humor-atajos { display: flex; gap: 6px; justify-content: space-between; margin-bottom: 12px; }
+.humor-atajos .btn { flex: 1 1 0; padding-left: 0; padding-right: 0; }
+.humor-mic { width: 100%; justify-content: center; font-size: 16px; padding: 14px 16px; }
+.humor-mic.yendo { box-shadow: 0 0 0 3px var(--accent); animation: pulso 0.9s ease-in-out infinite; }
+
 /* ── Asistente de configuración inicial (templates/_asistente.html, static/js/asistente.js) ── */
 .asistente-caja { max-width: 640px; }
 .asis-cabecera { display: flex; align-items: center; gap: 10px; margin: -4px 0 10px; }

@@ -17,6 +17,15 @@ from datetime import datetime
 
 log = logging.getLogger("scopepower.bucle")
 
+
+def _humor(evento, **datos):
+    """Frase de humor de la voz del PC (humor.py); nunca estorba al bucle."""
+    try:
+        import humor
+        humor.decir(evento, **datos)
+    except Exception:
+        pass
+
 ERRORES_SEGUIDOS_MAX = 3
 
 
@@ -76,6 +85,7 @@ class BucleCaptura:
             self._hilo = threading.Thread(target=self._ejecutar, name="bucle-captura", daemon=True)
             self._hilo.start()
         log.info("Bucle de captura iniciado (dark=%s)", usar_dark)
+        _humor("apilado_inicio")
 
     def configurar_dithering(self, activado=None, cada=None):
         with self._lock:
@@ -105,6 +115,7 @@ class BucleCaptura:
             self.ultimo_mensaje = motivo
         self._parar.set()
         log.info("Bucle de captura detenido: %s", motivo)
+        _humor("apilado_fin", n=self.capturas)
 
     def esperar_fin(self, timeout=None):
         """Espera a que el hilo termine (tras detener): la captura en curso puede tardar
@@ -208,6 +219,7 @@ class BucleCaptura:
                         try:
                             import voz
                             voz.decir("Apilado detenido por errores seguidos de la cámara")
+                            _humor("error_camara")
                         except Exception:
                             pass
 

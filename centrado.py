@@ -268,7 +268,12 @@ class TrabajoCentrado:
             log.info("Centrado terminado: %s (%s) errores=%s", resultado, detalle, self.errores)
             try:
                 import voz
+                import humor
                 voz.decir(detalle.replace("'", " minutos de arco"))
+                if resultado == "centrado":
+                    humor.decir("centrado_ok")
+                elif resultado == "error":
+                    humor.decir("centrado_fallo")
             except Exception:
                 pass
 

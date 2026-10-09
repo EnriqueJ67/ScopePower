@@ -67,6 +67,7 @@ import apuntado_teorico
 import foto_continua
 import alineacion
 import voz
+import humor
 import esta_noche
 import cuerpos_menores
 import catalogo_offline
@@ -659,6 +660,7 @@ def _activar_seguimiento(tel):
     except Exception as e:
         print(f"⚠️ No se pudo leer EquatorialSystem de la montura ({e}); se asume J2000")
     voz.decir("Telescopio conectado")
+    humor.decir("conexion_ok")
 
     cfg = configparser.ConfigParser()
     cfg.read("config.ini")
@@ -672,7 +674,7 @@ def _activar_seguimiento(tel):
 # El driver se lee de config.ini al conectar: cambiarlo en Configuración y pulsar
 # "Reconectar equipo" basta, sin reiniciar la app.
 montura = TrabajadorCOM("montura", lambda: _dispositivos()["driver_telescopio"], al_conectar=_activar_seguimiento)
-camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_conectar=lambda cam: voz.decir("Cámara conectada"),
+camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_conectar=lambda cam: (voz.decir("Cámara conectada"), humor.decir("conexion_ok")),
                        fabricas={camara_sdk.DRIVER_SDK: camara_sdk.crear})    # Player One por la DLL, como en N.I.N.A.
 
 
@@ -774,6 +776,7 @@ def conectar_telescopio():
     except ErrorHardware as e:
         print(f"Error al conectar telescopio: {e}")
         voz.decir("No se ha podido conectar con el telescopio")
+        humor.decir("conexion_fallo")
         return False
 
 
@@ -833,6 +836,7 @@ def _conectar_equipo_completo():
     except ErrorHardware as e:
         resultado["errores"].append(f"Montura: {e}")
         voz.decir("No se ha podido conectar con el telescopio")
+        humor.decir("conexion_fallo")
     try:
         if camara.esta_conectado():
             camara.reconectar(timeout=30)
@@ -842,6 +846,7 @@ def _conectar_equipo_completo():
     except ErrorHardware as e:
         resultado["errores"].append(f"Cámara: {e}")
         voz.decir("No se ha podido conectar con la cámara")
+        humor.decir("conexion_fallo")
     resultado["ok"] = resultado["montura"] and resultado["camara"]
     resultado["sistema"] = coordenadas.sistema() if resultado["montura"] else None
     return resultado
@@ -953,6 +958,7 @@ def apagar_equipo():
     desconectar_telescopio()
     desconectar_camara()
     voz.decir("Apagando el equipo" if accion == "apagar" else "Reiniciando el equipo")
+    humor.decir("apagado")
     args = ["/s" if accion == "apagar" else "/r", "/t", str(APAGADO_ESPERA_S), "/f",
             "/c", "ScopePower: " + ("apagado" if accion == "apagar" else "reinicio") + " pedido desde el movil"]
     try:
@@ -1420,6 +1426,8 @@ def estado_conexion():
 # y en Configuración. Umbral en config.ini: [Disco] umbral_aviso_pct.
 if "Disco" in config:
     espacio_disco.vigilante.configurar(config["Disco"].get("umbral_aviso_pct", espacio_disco.UMBRAL_POR_DEFECTO))
+# Nivel de humor de la voz (humor.py): [Humor] nivel; frases en frases_humor.csv
+humor.humorista.cargar_nivel(config)
 
 
 def _sin_espacio_en_disco():
@@ -1472,6 +1480,42 @@ def espacio_en_disco():
     if request.args.get("carpetas") or request.method == 'POST':
         e["carpetas"] = espacio_disco.vigilante.carpetas()
     return jsonify(e)
+
+
+# ───────────────────────── Nivel de humor (humor.py) ─────────────────────────
+# Botón «Humor» de la barra (templates/_modal_humor.html, static/js/humor.js). Las
+# confirmaciones y la prueba suenan aunque los avisos por voz estén apagados, como /voz/probar.
+
+def _con_voz_forzada(funcion):
+    activada = voz.locutor.config["activada"]
+    voz.locutor.config["activada"] = True
+    try:
+        return funcion()
+    finally:
+        voz.locutor.config["activada"] = activada
+
+
+@app.route('/humor', methods=['GET', 'POST'])
+def nivel_humor():
+    if request.method == 'POST':
+        datos = request.get_json(silent=True) or {}
+        try:
+            nivel = int(round(float(datos["nivel"])))
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Indica el nivel de humor"}), 400
+        if not 0 <= nivel <= 100:
+            return jsonify({"ok": False, "error": "El nivel de humor va de 0 a 100 %"}), 400
+        frase = _con_voz_forzada(lambda: humor.humorista.fijar_nivel(nivel))
+        _guardar_en_config("Humor", {"nivel": nivel})
+        log.info("Nivel de humor cambiado al %d %% (%s)", nivel, datos.get("origen") or "web")
+        return jsonify({"ok": True, "frase": frase, **humor.humorista.estado()})
+    return jsonify({"ok": True, **humor.humorista.estado()})
+
+
+@app.route('/humor/probar', methods=['POST'])
+def probar_humor():
+    frase = _con_voz_forzada(humor.humorista.probar)
+    return jsonify({"ok": True, "frase": frase})
 
 
 # ───────────────────────── Ubicación del observatorio ─────────────────────────
@@ -1894,9 +1938,11 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             _exponer, timeout=EXPOSICION + 90)
     except CapturaCancelada:
         voz.decir("Captura cancelada")
+        humor.decir("cancelado")
         return {"ok": False, "mensaje": "⏹️ Captura cancelada", "cancelada": True}
     except ErrorHardware as e:
         voz.decir("Error de cámara")
+        humor.decir("error_camara")
         return {"ok": False, "mensaje": f"Error: {e}"}
 
     # RA/Dec solo van a la cabecera del FITS (OBJCTRA/OBJCTDEC). Si la montura no
@@ -2284,6 +2330,7 @@ def sincronizar_con_ultima_foto():
         return {"ok": False, "mensaje": f"Error al sincronizar: {e}"}
     ra_str, dec_str = formatear_ra_dec(ra_h, dec_deg)
     voz.decir(f"Telescopio sincronizado. Se equivocaba {error:.0f} minutos de arco")
+    humor.decir("sincronizado")
     log.info("Sincronizado con la foto de prueba: RA %s DEC %s (error previo %.1f')", ra_str, dec_str, error)
     return {"ok": True, "mensaje": f"Sincronizado con la foto: RA {ra_str}, DEC {dec_str}. La montura se equivocaba {error:.1f}′.",
             "ra": ra_h, "dec": dec_deg, "error_arcmin": round(error, 2)}
@@ -2666,6 +2713,7 @@ def sincronizar_con_disco(centrar=False):
         except ErrorHardware as e:
             mensaje += f" No se pudo centrar: {e}"
     voz.decir(f"Montura sincronizada con el {nombre}")
+    humor.decir("sincronizado")
     return {"ok": True, "mensaje": mensaje, "error_arcmin": round(error, 2), "desvio_arcmin": round(d["desvio_arcmin"], 2),
             "movido": movido}
 
@@ -2818,6 +2866,7 @@ def _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base):
     firma.guardar_meta(ruta_jpg, meta)
     log.info("Foto guardada en la galería: %s", base)
     voz.decir("Foto guardada en la galería")
+    humor.decir("foto_guardada")
 
 
 def _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base, encuadre=None):
@@ -3177,6 +3226,7 @@ def goto_sincrono(nombre, ra, dec, fuente, centrar=True, cancelar=None, info=Non
                         "hora": datetime.now().isoformat(timespec="seconds")})
     guardar_info_goto(nombre, info, ra, dec, fuente)
     voz.decir(f"Moviendo el telescopio a {nombre}")
+    humor.decir("goto_inicio")
 
     def _mover(tel):
         tel.Tracking = True
@@ -3203,6 +3253,7 @@ def goto_sincrono(nombre, ra, dec, fuente, centrar=True, cancelar=None, info=Non
         montura.ejecutar(_mover, timeout=200)
     except ErrorHardware as e:
         voz.decir("La montura no ha aceptado el movimiento")
+        humor.decir("goto_rechazado")
         try:
             altitud = calcular_altitud(ra=ra, dec=dec)
         except Exception:
@@ -3609,10 +3660,12 @@ def goto_objeto():
                     lambda f: print(f"❌ Error al mover el telescopio: {f.exception()}") if f.exception() else None)
             except Exception as e:
                 voz.decir("La montura no ha aceptado el movimiento")
+                humor.decir("goto_rechazado")
                 print(f"❌ GoTo a {nombre_rotulo} rechazado (altura {altitud:.0f}°): {e}")
                 return jsonify({"error": f"❌ La montura no ha ido a <b>{nombre_rotulo}</b>: "
                                          f"{motivo_goto_fallido(e, altitud)}"})
             voz.decir(f"Moviendo el telescopio a {nombre_rotulo}")
+            humor.decir("goto_inicio")
 
             # Al terminar el movimiento (sondeo aparte, sin ocupar el hilo de la
             # montura): avisar por voz y, como un Seestar, centrar automáticamente
@@ -3637,9 +3690,11 @@ def goto_objeto():
                     # Al Sol (con filtro), o a lo que sea con el cielo claro: no hay estrellas
                     # que resolver, así que no se gasta una foto ni se anuncia un fallo
                     voz.decir(f"Telescopio apuntando a {nombre}. De día no hay centrado automático.")
+                    humor.decir("goto_llegada")
                     print(f"ℹ️ Centrado tras el GOTO a {nombre} omitido: es de día, sin estrellas para resolver")
                     return
                 voz.decir(f"Telescopio apuntando a {nombre}")
+                humor.decir("goto_llegada")
                 if not centrado.leer_config().get("centrar_tras_goto", True):
                     return
                 if (bucle.activo and not bucle.pausado) or camara.ocupado or centrado.trabajo_centrado.en_curso:
@@ -4826,6 +4881,7 @@ def guardar_apilado_en_galeria():
             firma.guardar_meta(destino, meta)
             GUARDADO.update({"ok": True, "mensaje": f"✅ Imagen guardada como {nombre_archivo} (y su FITS)"})
             voz.decir("Imagen guardada en la galería")
+            humor.decir("foto_guardada")
         except Exception as e:
             log.exception("Error procesando la imagen para la galería")
             # Que no se pierda: al menos la vista previa
@@ -5506,6 +5562,7 @@ def asistente_guardar():
     _guardar_en_config("General", general)
     log.info("Asistente de configuración terminado: %s; ASTAP %s %s", dispositivos, astap["ruta"] or "no instalado", astap["catalogos"])
     voz.decir("Configuración guardada. ScopePower está listo")
+    humor.decir("configuracion_guardada")
     return jsonify({"ok": True, "astap": astap})
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -6032,6 +6089,7 @@ if __name__ == '__main__':
         anunciador.iniciar()
     else:
         voz.decir("ScopePower iniciado. Servidor listo.")
+    humor.decir("arranque")
     # threaded=True: cada petición en su hilo. El acceso a la montura y a la
     # cámara está serializado en hardware.py, así que la web sigue respondiendo
     # (estado, parar montura, cancelar) mientras hay una exposición en curso.

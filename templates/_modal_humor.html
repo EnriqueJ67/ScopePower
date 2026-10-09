@@ -1,0 +1,30 @@
+<!-- templates/_modal_humor.html: ventana del Nivel de humor de la voz del PC (humor.py).
+     La abre el botón «Humor» de la barra (base.html) con abrirHumor(); la lógica está en
+     static/js/humor.js. El nivel se fija con el deslizador, los atajos o diciéndoselo
+     al micrófono («humor al sesenta por ciento»), como Cooper a TARS en Interstellar. -->
+<div id="modal-humor" class="modal" onclick="if (event.target === this) cerrarHumor()">
+    <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="modal-humor-titulo">
+        <div class="modal-titulo" id="modal-humor-titulo"><svg class="ico"><use href="#i-humor"/></svg><span>Nivel de humor de ScopePower</span></div>
+        <p class="modal-texto">Con humor, el PC añade a sus avisos frases sarcásticas y de película. El porcentaje decide qué frases
+            pueden salir y con qué frecuencia: al 0 % es un robot serio; al 100 % no se calla ninguna.</p>
+        <div class="humor-nivel"><span id="humor-valor">75</span><span class="humor-pct">%</span></div>
+        <div id="humor-cuenta" class="estado centro mb-2"></div>
+        <input type="range" id="humor-rango" min="0" max="100" step="5" value="75" aria-label="Nivel de humor"
+               oninput="pintarNivelHumor(this.value)" onchange="fijarNivelHumor(this.value, 'deslizador')">
+        <div class="humor-atajos">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="fijarNivelHumor(0, 'atajo')">0 %</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="fijarNivelHumor(25, 'atajo')">25 %</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="fijarNivelHumor(50, 'atajo')">50 %</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="fijarNivelHumor(75, 'atajo')">75 %</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="fijarNivelHumor(100, 'atajo')">100 %</button>
+        </div>
+        <button type="button" class="btn btn-primary humor-mic" id="humor-mic" onclick="escucharNivelHumor()"><svg><use href="#i-mic"/></svg>Decírselo a ScopePower</button>
+        <div id="humor-estado" class="estado mt-1" aria-live="polite"></div>
+        <p class="modal-texto texto-3 mt-2" style="font-size: 13px;">Las frases están en <code>frases_humor.csv</code>, en la carpeta de ScopePower
+            (<span id="humor-ruta"></span>): edítalas o añade las tuyas y se recargan solas. Las dice el altavoz del PC, con la voz encendida.</p>
+        <div class="modal-acciones">
+            <button type="button" class="btn btn-secondary" onclick="probarHumor()"><svg><use href="#i-altavoz"/></svg>Probar</button>
+            <button type="button" class="btn btn-primary" onclick="cerrarHumor()">Cerrar</button>
+        </div>
+    </div>
+</div>

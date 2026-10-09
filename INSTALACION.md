@@ -46,7 +46,7 @@ con internet:
 | Driver ASCOM PlayerOne | Cámara | https://player-one-astronomy.com/service/software/ |
 | ASTAP + base de datos D50 | Plate solving y alineado del apilado | Lo instalan `instalar_scopepower.bat` o el asistente de configuración de la web (en `%LOCALAPPDATA%\ScopePowerstap`); a mano: https://www.hnsky.org/astap.htm (en `C:\Program Files\Astap`) |
 | Stellarium (ya no hace falta) | El GoTo resuelve los nombres con el catálogo local (`static/atlas` + `alias_objetos.csv`). Solo si `lanzar_stellarium_al_arrancar = true` | https://stellarium.org |
-| Voz en español | Avisos hablados | Configuración de Windows > Hora e idioma > Voz > Añadir voces > Español |
+| Voz en español | Avisos hablados y, según el nivel de humor (botón «Humor» de la barra), frases de `frases_humor.csv` | Configuración de Windows > Hora e idioma > Voz > Añadir voces > Español |
 
 ## 4. Arrancar
 

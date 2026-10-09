@@ -139,6 +139,11 @@ class VigilanteDisco:
                 texto = f"Queda poco espacio en el disco: {e['pct_libre']:.0f} por ciento libre, {_gigas_hablados(gigas)}."
             if self._voz:
                 self._voz.decir(texto)
+                try:
+                    import humor
+                    humor.decir("disco_bajo")
+                except Exception:
+                    pass
             self._nivel_avisado = nivel
         elif nivel == 0 and self._nivel_avisado and e["pct_libre"] >= self.umbral_pct + HISTERESIS_PCT:
             log.info("Disco %s recuperado: %.1f GB libres (%.1f %%)", e["unidad"], e["libre_gb"], e["pct_libre"])

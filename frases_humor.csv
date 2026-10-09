@@ -1,0 +1,168 @@
+# Frases de humor de la voz del PC (humor.py), al estilo del robot TARS de Interstellar.
+# El PC las dice detrás del aviso serio de cada evento, según el Nivel de humor (botón
+# «Humor» de la barra): solo salen las frases con nivel <= al ajuste, y el ajuste es
+# también la probabilidad de que un evento suelte frase. Se puede editar con la app en
+# marcha: se recarga sola.
+#
+# Formato: evento;humor;frase
+#   evento  momento de la app (lista abajo) o grupo genérico de reserva (proceso, error,
+#           exito, tars), que se usa cuando el evento no tiene frases propias a ese nivel
+#   humor   0-100, nivel mínimo para que la frase pueda salir
+#   frase   texto que dice el PC; admite {nivel} (porcentaje actual) y {n} (dato del evento)
+#           Si la frase lleva punto y coma, va entre comillas dobles.
+#
+# Eventos:
+#   arranque              ScopePower iniciado, servidor listo
+#   conexion_ok           telescopio o cámara conectados
+#   conexion_fallo        no se ha podido conectar con el telescopio o la cámara
+#   goto_inicio           la montura empieza a moverse a un objeto
+#   goto_rechazado        la montura no acepta el movimiento
+#   goto_llegada          telescopio apuntando al objeto
+#   centrado_ok           centrado por plate solving terminado bien
+#   centrado_fallo        el centrado ha fallado (ASTAP no resuelve, etc.)
+#   sincronizado          montura sincronizada con una foto o con el disco del Sol/Luna
+#   foto_guardada         foto guardada en la galería
+#   foto_descartada       el apilado descarta una foto por mala puntuación
+#   foto_sustituye        una foto nueva sustituye a una peor en el apilado
+#   referencia_fijada     imagen de referencia del apilado establecida
+#   apilado_inicio        empieza el apilado (bucle de capturas)
+#   apilado_fin           el apilado se detiene ({n} = fotos apiladas)
+#   error_camara          error de la cámara en una captura
+#   cancelado             captura cancelada por el usuario
+#   disco_bajo            queda poco espacio en el disco del PC
+#   configuracion_guardada  asistente de configuración terminado
+#   apagado               apagando o reiniciando el PC
+#   nivel_humor           confirmación al cambiar el nivel (siempre se dice una)
+evento;humor;frase
+# ══════════════════════════════════════════════════════════════════════════════
+# Listado inicial (del usuario)
+# ══════════════════════════════════════════════════════════════════════════════
+# ── Cargas, procesamiento y renderizado ──
+proceso;75;Comprimiendo datos hasta la singularidad. Si no vuelvo, no me busques.
+proceso;60;Acelerando a velocidad de curvatura. Por favor, mantenga la cabeza pegada al reposacabezas.
+proceso;65;Acercándonos al horizonte de sucesos. Última oportunidad para cancelar o aporrear Control C.
+proceso;50;Calculando la constante cosmológica. Por favor, no estornude cerca del procesador.
+proceso;70;Generando matriz de fotones. Si nota un fallo en la realidad, es culpa de la GPU.
+proceso;55;Plegando el espacio-tiempo para acelerar la descarga. De nada.
+proceso;40;Cargando mapa estelar. Si ve una estrella parpadear, probablemente se acaba de renderizar.
+# ── Errores, fallos y excepciones ──
+error;70;Error 404: objeto no encontrado. Podría estar oculto por materia oscura, o por un bug.
+error;80;Materia oscura detectada en la línea de código. Procediendo a simular que todo está bien.
+error;45;La masa del archivo ha superado el límite de Chandrasekhar. Colapso inminente.
+error;65;Pérdida de señal con el servidor. Asumiendo que nos hemos adentrado en un agujero de gusano.
+error;75;Límite de memoria alcanzado. Expulsando carga útil al espacio exterior.
+error;85;Proceso interrumpido por espaguetización de hilos en la CPU.
+# ── Respuestas estilo TARS (interacción y feedback) ──
+tars;90;Nivel de honestidad al noventa por ciento: tu consulta astronómica no tiene sentido, pero la procesaré igual.
+nivel_humor;60;Iniciando secuencia de autodestrucción en tres, dos... Es broma. Humor ajustado al {nivel} por ciento.
+tars;50;Grabando esta consulta para posterior análisis de conducta del usuario.
+tars;95;Ajustando el parámetro de empatía al diez por ciento: el universo es gigante e indiferente a tus errores de sintaxis.
+tars;65;Confirmado. Pero que conste que las leyes de la física no recomendaban hacer esto.
+goto_inicio;80;Calculando trayectoria. Si nos estrellamos contra una enana blanca, yo no conducía.
+# ── Éxito, finalización y estado listo ──
+centrado_ok;40;Órbita estabilizada. Todos los sistemas responden dentro de los márgenes de cordura.
+exito;70;Proceso finalizado. Ningún planeta fue destruido durante esta operación.
+goto_llegada;60;Alineación planetaria completada con éxito. Ya puedes pedir tu deseo.
+exito;30;Datos sincronizados con la Tierra. Retardo relativo: dos microsegundos.
+# ══════════════════════════════════════════════════════════════════════════════
+# Propuestas para los eventos que el listado inicial no cubría (revisar y recortar)
+# ══════════════════════════════════════════════════════════════════════════════
+nivel_humor;30;Humor ajustado al {nivel} por ciento. Confirmado.
+nivel_humor;80;Humor al {nivel} por ciento. Honestidad al noventa. No pidas las dos cosas al cien.
+nivel_humor;95;Humor al {nivel} por ciento. Si querías un robot serio, haberte comprado un Seestar.
+arranque;40;Sistemas en línea. Café no detectado en el operador. Procedo igualmente.
+arranque;70;ScopePower listo. Probabilidad de nubes esta noche: la misma de siempre.
+conexion_ok;50;Enlace establecido. La montura jura que esta vez sí sabe dónde está el norte.
+conexion_ok;65;Cámara conectada. Promete no sacar nada de polvo en el sensor. Yo no me lo creería.
+conexion_fallo;55;El equipo no responde. Puede que esté dormido, apagado o en otra dimensión. Casi siempre es el cable.
+conexion_fallo;75;Sin conexión. Según mis cálculos, el culpable está a menos de dos metros de este altavoz.
+goto_inicio;45;Rumbo fijado. Prohibido tocar el telescopio hasta que deje de moverse. Sí, a ti también.
+goto_rechazado;60;La montura ha dicho que no. Y cuando una montura dice que no, es que no.
+goto_rechazado;80;Movimiento rechazado. Yo tampoco iría ahí sin un buen motivo.
+goto_llegada;45;Apuntando al objetivo. Si no está en la foto, es que el universo lo ha movido.
+centrado_fallo;55;Las estrellas se han negado a identificarse. Falta de enfoque, nubes o pura desidia.
+centrado_fallo;75;No he resuelto el campo. En mi defensa diré que ahí arriba hay muchas estrellas iguales.
+sincronizado;50;Montura sincronizada. Ahora sabe dónde está. Ya es más que la mayoría de nosotros.
+foto_guardada;45;Foto guardada. Los fotones han tardado miles de años en llegar y tú dos segundos en guardarlos.
+foto_descartada;50;Foto descartada. Ni el mejor algoritmo puede arreglar un cielo así.
+foto_descartada;65;Esa foto no pasa el corte. La guardo en la carpeta de «ejemplos de lo que no hay que hacer».
+foto_descartada;75;Puntuación insuficiente. Si fuera un examen, el cielo repetiría curso.
+foto_descartada;85;Foto descartada. Fotones mal aprovechados. El universo exige una disculpa formal.
+foto_sustituye;55;Una foto peor acaba de ser reemplazada. La evolución en acción.
+referencia_fijada;45;Referencia fijada. A partir de ahora, todo se compara con esta. Sin presión.
+apilado_inicio;45;Empieza el apilado. Puedes irte a dormir, pero yo no.
+apilado_inicio;70;Apilando. Recuerda: cada foto cuenta, salvo las que descarte sin avisarte.
+apilado_fin;45;Apilado terminado con {n} fotos. Ningún fotón ha sido maltratado durante el proceso.
+apilado_fin;65;Fin del apilado. {n} fotos apiladas y cero quejas, que es más de lo que puedo decir del operador.
+error_camara;55;La cámara ha fallado. Técnicamente, ha fallado la cámara, no yo.
+error_camara;75;Error de cámara. Prueba a apagar y encender. Funciona desde 1980 y nadie sabe por qué.
+cancelado;50;Captura cancelada. Los fotones ya venían de camino, pero se entiende.
+disco_bajo;50;Queda poco disco. Puedo borrar las fotos malas, o también las tuyas. Es lo mismo.
+disco_bajo;70;Disco casi lleno. Esto es lo más parecido a un agujero negro que verás esta noche.
+configuracion_guardada;50;Configuración guardada. Ahora solo falta que el cielo coopere.
+apagado;50;Apagando. Las estrellas seguirán ahí mañana. Probablemente.
+# ══════════════════════════════════════════════════════════════════════════════
+# Frases míticas de cine (guiños: nivel moderado; las adaptadas al telescopio, más alto)
+# ══════════════════════════════════════════════════════════════════════════════
+# ── Blade Runner (monólogo troceado) ──
+foto_guardada;35;He visto cosas que vosotros nunca creeríais.
+apilado_fin;35;He visto cosas que vosotros nunca creeríais.
+goto_llegada;35;Atacar naves en llamas más allá de Orión.
+goto_llegada;35;He visto rayos C brillar en la oscuridad cerca de la Puerta de Tannhäuser.
+foto_descartada;40;Todos esos momentos se perderán en el tiempo, como lágrimas en la lluvia.
+foto_descartada;70;Todos esos fotones se perderán en el tiempo, como lágrimas en la lluvia.
+apagado;40;Es hora de morir.
+# ── 2001: Una odisea del espacio ──
+goto_rechazado;35;Lo siento, Dave. Me temo que no puedo hacer eso.
+conexion_fallo;45;Abre la compuerta de la cámara, HAL.
+# ── Apolo 13 ──
+error;30;Houston, tenemos un problema.
+error_camara;30;Houston, tenemos un problema.
+conexion_fallo;35;El fracaso no es una opción.
+goto_llegada;40;Houston, aquí base Tranquilidad. El Águila ha aterrizado.
+# ── Star Wars ──
+apilado_inicio;30;Que la Fuerza te acompañe.
+disco_bajo;35;Tengo un mal presentimiento sobre esto.
+goto_llegada;45;Eso no es una luna.
+foto_descartada;45;Es una trampa.
+# ── Star Trek ──
+arranque;30;El espacio, la última frontera.
+apagado;30;Larga vida y prosperidad.
+goto_inicio;35;Energía.
+goto_rechazado;40;No puedo cambiar las leyes de la física.
+# ── Interstellar ──
+disco_bajo;40;Es necesario que nos vayamos de este planeta.
+arranque;45;No te vayas dócilmente a esa buena noche.
+# ── Alien ──
+error;55;En el espacio nadie puede oír tus gritos. Ni tus errores de sintaxis.
+# ── Guía del autoestopista galáctico ──
+error;30;No entres en pánico.
+conexion_fallo;30;No entres en pánico.
+tars;45;La respuesta es cuarenta y dos. La pregunta sigue pendiente.
+apagado;45;Hasta luego, y gracias por el pescado.
+# ── Matrix ──
+centrado_fallo;60;No hay cuchara. Ni estrellas, al parecer.
+goto_inicio;40;Sigue al conejo blanco.
+# ── Terminator ──
+apagado;30;Volveré.
+cancelado;40;Sayonara, baby.
+# ── Regreso al futuro ──
+goto_inicio;40;¿Carreteras? Adonde vamos no necesitamos carreteras.
+error_camara;45;¡Uno coma veintiún gigavatios!
+# ── Marte (The Martian) ──
+apilado_inicio;40;Voy a tener que hacer ciencia a lo bestia.
+# ── Parque Jurásico ──
+centrado_ok;35;La vida se abre camino.
+arranque;55;Es un sistema Windows. Lo conozco.
+# ── Toy Story ──
+goto_inicio;30;Hasta el infinito y más allá.
+# ── Galaxy Quest ──
+conexion_fallo;40;¡Nunca te rindas, nunca te entregues!
+# ── Juegos de guerra ──
+apilado_fin;45;¿Le apetece una partida de ajedrez?
+# ── Contact ──
+foto_guardada;40;Si solo estuviéramos nosotros, sería un gran desperdicio de espacio.
+# ── Gravity ──
+error;45;Odio el espacio.
+# ── E.T. ──
+conexion_ok;35;Mi casa. Teléfono.
