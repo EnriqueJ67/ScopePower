@@ -22,7 +22,7 @@
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=9">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -187,6 +187,8 @@
 <!-- Mantener la pantalla del móvil encendida (se activa con el primer toque) -->
 <script src="{{ url_for('static', filename='js/NoSleep.js') }}"></script>
 <script src="{{ url_for('static', filename='js/pantalla.js') }}"></script>
+<!-- Clic y vibración al pulsar un enlace que cambia de pantalla (la página nueva tarda por la wifi) -->
+<script src="{{ url_for('static', filename='js/clic.js') }}?v=1"></script>
 <!-- Aviso a pantalla completa antes de un GoTo al Sol (pide confirmar el filtro solar) -->
 <script src="{{ url_for('static', filename='js/filtro_solar.js') }}?v=1"></script>
 <!-- Ayuda de voz/ubicación por http y asistente de configuración inicial (se abre solo si falta configurar) -->
