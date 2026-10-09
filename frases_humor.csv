@@ -283,3 +283,29 @@ configuracion_guardada;60;Configuración guardada. Diez campos. El perfil de NIN
 tars;65;Dato: NINA hace todo lo que hace ScopePower y mucho más. Por eso hace falta un máster para usarlo.
 tars;80;Un usuario de NINA diría que esto es un juguete. Lo diría desde un portátil con el ventilador a tope a las tres de la mañana.
 apagado;55;Apagando. Los de NINA aún tienen que cerrar la secuencia, aparcar la montura, calentar la cámara y recoger el portátil. Buenas noches.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas a los del ASIAIR (la cajita roja que solo habla con cámaras de su marca)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;ScopePower listo. Funciona con cualquier cámara. Un ASIAIR también, siempre que sea de su marca.
+arranque;70;Sistemas en línea. Sin cajita roja, sin cámara obligatoria y sin tener que pedir permiso al fabricante para usar lo que es tuyo.
+conexion_ok;60;Cámara conectada. Y no he mirado la marca antes de decidir si me apetecía.
+conexion_ok;75;Equipo conectado. Con un ASIAIR, tu Player One se quedaría en la caja. Aquí trabaja.
+conexion_fallo;60;Sin conexión. En un ASIAIR tampoco conectaría, pero por política de empresa, no por el cable.
+goto_inicio;60;Moviendo la montura. En un ASIAIR esto va igual de bien. Es lo demás lo que no va si no es de su marca.
+goto_llegada;60;En el objetivo. Lo mismo que un ASIAIR, pero sabiendo qué hay dentro de la caja.
+centrado_ok;60;Centrado por plate solving. Un ASIAIR también lo hace. Y también te cobra por la caja lo que vale un mini PC entero.
+centrado_fallo;65;Centrado fallido. Un ASIAIR habría dicho «plate solve failed» con la misma elegancia y menos letras.
+foto_guardada;60;Foto guardada. En un ASIAIR la tendrías en una memoria USB que hay que ir a buscar a la caja con una linterna roja.
+foto_descartada;65;Foto descartada. El ASIAIR también las descarta: las que vienen de cámaras de otra marca.
+referencia_fijada;60;Referencia fijada. Esto un ASIAIR lo hace con una aplicación cerrada. Nosotros con un fichero que puedes leer.
+apilado_inicio;60;Empieza el apilado. Un ASIAIR también apila en vivo. Es que de ahí copiamos la idea, pero sin pedir cámara propia.
+apilado_inicio;75;Apilando. Los del ASIAIR dicen que todo va en una caja. Es verdad. Y la caja decide con qué juegas.
+apilado_fin;60;Apilado terminado con {n} fotos. Un ASIAIR te lo enseñaría igual. Pero este mini PC también sirve para otras cosas cuando hay nubes.
+apilado_fin;80;{n} fotos apiladas. El del ASIAIR estará contento también, hasta que quiera cambiar de cámara y descubra que no puede.
+error_camara;65;Error de cámara. En un ASIAIR no pasaría. Porque esa cámara ni siquiera estaría conectada.
+disco_bajo;60;Queda poco disco. Un ASIAIR lo soluciona con una memoria USB. Nosotros también, que para eso es un ordenador.
+cancelado;60;Captura cancelada. En el ASIAIR también se cancela. Es de lo poco que se puede hacer con cualquier cámara.
+configuracion_guardada;60;Configuración guardada. Y el driver de la cámara lo eliges tú, no la cajita.
+tars;65;Dato: el ASIAIR es una Raspberry con una app bonita y una lista de cámaras permitidas. Esto es un mini PC con una app menos bonita y ninguna lista.
+tars;80;Un usuario de ASIAIR diría que esto es complicado. Un usuario de ASIAIR también ha pagado trescientos euros por una Raspberry.
+apagado;55;Apagando. El del ASIAIR también apaga, con un botón rojo que hace juego con la caja. Buenas noches.
