@@ -1132,7 +1132,7 @@
             const std = d.desplazamiento_std;
             pintarKV("datos-apilado", [
                 ["Fotos", d.modo === "incremental"
-                    ? (d.referencia_fijada ? `${d.total} (incremental, sin tope)` : `${d.total} de ${d.fotos_referencia} para la referencia`)
+                    ? (d.referencia_fijada ? `${d.total} (incremental, sin tope)` : `${d.total} de ${d.fotos_referencia} para la referencia` + (d.apartadas ? ` (${d.apartadas} apartada${d.apartadas > 1 ? "s" : ""})` : ""))
                     : `${d.total} de ${d.maximo || "?"}`],
                 ["Integración", d.segundos_totales ? `${fmtMin(d.segundos_totales)} (${d.total} × ${Math.round(d.segundos_totales / d.total)} s)` : ""],
                 ["Sesión", d.inicio ? `desde las ${d.inicio.slice(0, 5)} · ${fmtMinutos(d.duracion_min)}` : ""],

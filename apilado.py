@@ -266,6 +266,11 @@ def leer_config_calidad():
         "modo": "incremental" if str(c.get("modo_apilado", "mejores")).strip().lower() == "incremental" else "mejores",
         "fotos_referencia": max(apilado_incremental.MIN_FOTOS_REFERENCIA, int(c.get("fotos_referencia", 10))),
         "sigma_incremental": float(c.get("sigma_incremental", 3.0)),
+        # Antes de fijar la referencia se repasan sus fotos con un umbral más
+        # exigente: umbral_referencia × media de la mejor mitad. Las que no llegan
+        # se apartan (no se pierden: se suman en cuanto la referencia queda fijada).
+        # 0 = sin repaso
+        "umbral_referencia": float(c.get("umbral_referencia", 0.6)),
     }
 
 
@@ -577,6 +582,9 @@ class ApiladorEnTiempoReal:
         self.acumulador = None
         self.modo = "mejores"
         self.fotos_referencia = 0
+        # Fotos buenas pero flojas para la referencia (umbral_referencia): esperan
+        # con sus planos y se suman al acumulador en cuanto se fija la referencia
+        self.apartadas = []
 
         # Estado visible desde la web
         self.descartadas = 0           # sin resolver / error
@@ -1259,9 +1267,29 @@ class ApiladorEnTiempoReal:
                         print("✂️ Fuera de la referencia por calidad (umbral {:.2f}): {}".format(
                             umbral, ", ".join(f"{f['nombre']} ({f['puntuacion']:.2f})" for f in malas)))
                     self.fotogramas.append(fotograma)
+                    # Con las fotos de referencia reunidas, repaso más exigente: las
+                    # que no llegan a umbral_referencia × media de la mejor mitad se
+                    # apartan (se sumarán al fijar la referencia) y se espera a tener
+                    # n_referencia que sí lleguen. Como mucho se apartan n_referencia/2
+                    # (memoria y para no retrasar la referencia con mal seeing).
+                    apartadas = []
+                    if len(self.fotogramas) >= n_referencia and calidad["umbral_referencia"] > 0:
+                        mejores = sorted((f["puntuacion"] for f in self.fotogramas), reverse=True)[:n_referencia // 2]
+                        umbral_ref = calidad["umbral_referencia"] * sum(mejores) / len(mejores)
+                        hueco = n_referencia // 2 - len(self.apartadas)
+                        apartadas = sorted((f for f in self.fotogramas if f["puntuacion"] < umbral_ref),
+                                           key=lambda f: f["puntuacion"])[:max(hueco, 0)]
+                        if apartadas:
+                            self.fotogramas = [f for f in self.fotogramas if not any(f is a for a in apartadas)]
+                            self.apartadas.extend(apartadas)
+                            print("✂️ Apartadas de la referencia (umbral {:.2f}, {:.0%} de la mejor mitad): {}".format(
+                                umbral_ref, calidad["umbral_referencia"],
+                                ", ".join(f"{f['nombre']} ({f['puntuacion']:.2f})" for f in apartadas)))
                     self.ultimo_mensaje = (f"{nombre_fits} añadido (referencia: {len(self.fotogramas)} de "
                                            f"{n_referencia} fotos buenas"
-                                           + (f"; {len(malas)} quitada(s) por calidad)" if malas else ")"))
+                                           + (f"; {len(malas)} quitada(s) por calidad" if malas else "")
+                                           + (f"; {len(apartadas)} apartada(s), se sumarán después" if apartadas else "")
+                                           + ")")
                     self._anotar_resultado("apilada")
                 elif len(self.fotogramas) < NUM_MAX:
                     self.fotogramas.append(fotograma)
@@ -1313,6 +1341,21 @@ class ApiladorEnTiempoReal:
                 print(f"📌 Referencia del apilado incremental fijada con {len(fotogramas_actuales)} fotos")
                 voz.decir("Referencia del apilado fijada")
                 humor.decir("referencia_fijada")
+                # Las apartadas del repaso pasan ahora como cualquier otra foto
+                with self.lock:
+                    apartadas = list(self.apartadas)
+                    self.apartadas.clear()
+                for f in apartadas:
+                    suma = acumulador.anadir(f["r"], f["g"], f["b"], f.get("M"))
+                    for clave in ("r", "g", "b", "M"):
+                        f.pop(clave, None)
+                    with self.lock:
+                        if self.acumulador is not acumulador:
+                            return      # el apilado se ha reiniciado mientras tanto
+                        self.fotogramas.append(f)
+                        self.total = len(self.fotogramas)
+                    print(f"📚 {f['nombre']} (apartada) añadido ({self.total} fotos; "
+                          f"{suma['rechazado']:.1%} de píxeles rechazados); fondo {suma['nivel']:+.0f} ADU, ruido ×{suma['ruido']:.2f}")
                 planos = acumulador.imagen()
                 zona = zona_cobertura(*acumulador.cobertura())
             else:
@@ -1381,6 +1424,7 @@ def reiniciar_apilado_global():
             apilador_global.ultima_captura = ""
             apilador_global.inicio_apilado = datetime.now()
             apilador_global.fotogramas.clear()
+            apilador_global.apartadas.clear()
             apilador_global.acumulador = None
             apilador_global.descartadas = 0
             apilador_global.descartadas_calidad = 0
@@ -1497,6 +1541,7 @@ def obtener_estado_apilado():
             "modo": a.modo,
             "fotos_referencia": a.fotos_referencia,
             "referencia_fijada": a.acumulador is not None,
+            "apartadas": len(a.apartadas),
             "descartadas": a.descartadas,
             "descartadas_calidad": a.descartadas_calidad,
             "descartadas_rastros": a.descartadas_rastros,
