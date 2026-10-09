@@ -16,6 +16,9 @@
     <div class="foto-imagen">
         <div class="visor">
             <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" alt="Última foto">
+            <!-- Sello: la foto que va bajando por la wifi (con su progreso) y, cuando llega, de qué hora es:
+                 al enfocar se sabe si lo que se ve es la foto nueva o todavía la anterior -->
+            <div id="foto-sello" class="foto-sello" hidden></div>
             <!-- Apunta aquí: capa sobre la foto con un puntero que se arrastra (o se toca) -->
             <div id="puntero-capa" class="puntero-capa" hidden>
                 <div id="puntero" class="puntero"><span></span></div>
@@ -334,6 +337,11 @@
     .visor-estado { height: 34px; padding-top: 6px; font-size: 12.5px; color: var(--text-2); visibility: hidden; font-variant-numeric: tabular-nums; }
     .visor-estado.activo { visibility: visible; }
     .visor-estado .progress { margin-top: 4px; }
+    .foto-sello { position: absolute; left: 8px; top: 8px; z-index: 3; max-width: calc(100% - 16px); padding: 4px 10px; border-radius: 999px;
+                  background: rgba(0,0,0,0.6); color: #fff; font-size: 12.5px; font-variant-numeric: tabular-nums; pointer-events: none;
+                  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); transition: background .4s, box-shadow .4s; }
+    .foto-sello .spinner { width: 12px; height: 12px; border-width: 2px; margin-right: 6px; vertical-align: -2px; }
+    .foto-sello.nueva { background: color-mix(in srgb, var(--ok) 75%, #000); box-shadow: 0 0 0 2px var(--ok); }
     .pad-flotante .control-pad { display: block; }
     .pad-flotante .pad { width: 100%; height: auto; aspect-ratio: 1 / 1; opacity: 0.72; border-color: rgba(255,255,255,0.35);
                          background: radial-gradient(circle at 50% 45%, rgba(60,60,70,0.55) 0%, rgba(12,12,16,0.6) 100%);
@@ -380,6 +388,101 @@
         document.getElementById("btn-galeria").disabled = !hayFoto;
         document.getElementById("btn-revelar").disabled = !hayFoto || modoDia;   // el revelado del apilado es de noche
     }
+    // ——— Llegada de la foto al móvil ———
+    //     Por la wifi del SynScan una foto tarda segundos en bajar: se descarga con fetch para enseñar
+    //     el progreso en el sello, se cambia de golpe al terminar (nunca a medio pintar) y el sello dice
+    //     de qué hora es y cuánto hace que llegó. Si llega otra antes de acabar, la anterior se deja.
+    let cargaFoto = null, urlFotoBlob = null, horaFoto = null, llegadaFoto = 0, destelloSello = null;
+    function kbLegible(b) { return b >= 1024 ** 2 ? (b / 1024 ** 2).toFixed(1).replace(".", ",") + " MB" : Math.round(b / 1024) + " KB"; }
+    function pintarSello() {
+        const sello = document.getElementById("foto-sello");
+        if (cargaFoto || destelloSello) return;          // mientras baja o destella, el sello dice otra cosa
+        if (!llegadaFoto || vivoActivo) { sello.hidden = true; return; }
+        const s = Math.max(0, Math.round((Date.now() - llegadaFoto) / 1000));
+        sello.hidden = false;
+        sello.textContent = (horaFoto ? `Foto de las ${horaFoto}` : "Foto") + " · llegó hace "
+            + (s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s / 60)} min` : "más de una hora");
+    }
+    setInterval(pintarSello, 1000);
+    function cancelarCargaFoto() {
+        if (cargaFoto) { cargaFoto.abort(); cargaFoto = null; }
+        pintarSello();
+    }
+    // opciones: hora (de la foto, la del servidor), nueva (false = la misma foto otra vez: giro, revelado),
+    //           alTerminar({bytes, segundos})
+    function cargarFoto(url, opciones) {
+        const { hora = null, nueva = true, alTerminar = null } = opciones || {};
+        if (cargaFoto) cargaFoto.abort();
+        const ctrl = new AbortController();
+        cargaFoto = ctrl;
+        clearTimeout(destelloSello); destelloSello = null;
+        const sello = document.getElementById("foto-sello");
+        sello.classList.remove("nueva");
+        const t0 = performance.now();
+        const pintar = (recibidos, total) => {
+            if (cargaFoto !== ctrl) return;
+            sello.hidden = false;
+            sello.innerHTML = '<span class="spinner"></span>' + (nueva ? "Recibiendo la foto nueva" : "Recibiendo la foto")
+                + (total ? ` · ${Math.min(100, Math.round(100 * recibidos / total))} % de ${kbLegible(total)}`
+                         : recibidos ? ` · ${kbLegible(recibidos)}` : "…");
+        };
+        pintar(0, 0);
+        fetch(url, { cache: "no-store", signal: ctrl.signal })
+            .then(async r => {
+                if (!r.ok) throw new Error("HTTP " + r.status);
+                const total = parseInt(r.headers.get("Content-Length")) || 0;
+                let trozos = [], recibidos = 0;
+                if (r.body && r.body.getReader) {
+                    const lector = r.body.getReader();
+                    for (;;) {
+                        const { done, value } = await lector.read();
+                        if (done) break;
+                        trozos.push(value); recibidos += value.length;
+                        pintar(recibidos, total);
+                    }
+                } else {
+                    const b = new Uint8Array(await r.arrayBuffer());
+                    trozos = [b]; recibidos = b.length;
+                }
+                const urlNueva = URL.createObjectURL(new Blob(trozos, { type: r.headers.get("Content-Type") || "image/jpeg" }));
+                const previa = new Image();
+                previa.src = urlNueva;
+                // decode() no termina con la página oculta (móvil con la pantalla apagada): como mucho 1,5 s
+                await Promise.race([previa.decode().catch(() => {}), new Promise(ok => setTimeout(ok, 1500))]);
+                if (cargaFoto !== ctrl || vivoActivo) { URL.revokeObjectURL(urlNueva); return; }   // llegó otra, o empezó el vivo
+                cargaFoto = null;
+                const anterior = urlFotoBlob;
+                urlFotoBlob = urlNueva;
+                document.getElementById("foto").src = urlNueva;
+                if (anterior) setTimeout(() => URL.revokeObjectURL(anterior), 2000);
+                const segundos = (performance.now() - t0) / 1000;
+                if (nueva) {
+                    horaFoto = hora || new Date().toLocaleTimeString("es-ES");
+                    llegadaFoto = Date.now();
+                    sello.hidden = false;
+                    sello.classList.add("nueva");
+                    sello.textContent = `✓ Foto nueva · ${horaFoto}`;
+                    destelloSello = setTimeout(() => { destelloSello = null; sello.classList.remove("nueva"); pintarSello(); }, 2500);
+                } else {
+                    pintarSello();
+                }
+                if (alTerminar) alTerminar({ bytes: recibidos, segundos });
+            })
+            .catch(err => {
+                if (err.name === "AbortError") return;
+                if (cargaFoto !== ctrl) return;
+                cargaFoto = null;
+                // Sin fetch con progreso (o falló a medias): que la cargue el navegador como siempre
+                document.getElementById("foto").src = url;
+                if (nueva) { horaFoto = hora; llegadaFoto = Date.now(); }
+                sello.hidden = false;
+                sello.textContent = "⚠️ La foto llega con problemas por la wifi: reintentando…";
+            });
+    }
+    function textoLlegada(info) {
+        return ` · llegó al móvil en ${info.segundos.toFixed(1).replace(".", ",")} s (${kbLegible(info.bytes)})`;
+    }
+
     function fotoMostrada(nueva) {
         hayFoto = true;
         if (nueva) hayFotoNueva = true;
@@ -478,15 +581,23 @@
     function pintarProgreso(c) {
         // Solo cambia la visibilidad del hueco bajo la foto, nunca su tamaño: así nada se mueve
         const bloque = document.getElementById("barra-bloque");
-        if (c && c.en_curso) {
+        const barra = document.getElementById("barra");
+        const fase = c && c.fase;
+        barra.classList.toggle("procesando", !!fase);
+        if (fase) {
+            // Después de exponer: descarga de la cámara, dark y flat, revelado... (lo dice el servidor)
+            const texto = `${c.fase}…` + (c.fase_s >= 1 ? ` ${Math.round(c.fase_s)} s` : "");
+            document.getElementById("estado-foto-pie").textContent = texto;
+            document.getElementById("estado-foto").innerHTML = '<span class="spinner"></span>' + texto;
+        } else if (c && c.en_curso) {
             const hechos = Math.max(0, c.exposicion - c.restante);
-            document.getElementById("barra").style.width = (c.exposicion > 0 ? 100 * hechos / c.exposicion : 0) + "%";
+            barra.style.width = (c.exposicion > 0 ? 100 * hechos / c.exposicion : 0) + "%";
             // De día las exposiciones son de milisegundos: "1 / 0.00027 s" no dice nada
             const texto = c.exposicion >= 1 ? `Exponiendo · ${Math.ceil(hechos)} / ${c.exposicion} s` : `Exponiendo · ${formatearExp(c.exposicion)}`;
             document.getElementById("estado-foto-pie").textContent = texto;
             document.getElementById("estado-foto").textContent = texto;
         }
-        bloque.classList.toggle("activo", !!(c && c.en_curso));
+        bloque.classList.toggle("activo", !!(c && (c.en_curso || fase)));
     }
 
     function sondearCaptura() {
@@ -713,7 +824,7 @@
         // última foto en el visor grande
         if (e.ultima && e.carpeta && e.version !== ultimaVersionTl) {
             ultimaVersionTl = e.version;
-            document.getElementById("foto").src = `/static/timelapse/${e.carpeta}/${e.ultima.archivo}?v=${e.version}`;
+            cargarFoto(`/static/timelapse/${e.carpeta}/${e.ultima.archivo}?v=${e.version}`, { hora: e.ultima.hora });
             fotoMostrada(false);
             document.getElementById("estado-foto").className = "estado mt-2";
             document.getElementById("estado-foto").textContent = `Timelapse: foto ${e.ultima.n} a las ${e.ultima.hora} · ${formatearExp(e.ultima.exposicion)}`;
@@ -801,7 +912,7 @@
                 else {
                     est.className = "estado " + (e.saturada ? "warn" : "ok") + " mt-2";
                     est.textContent = (e.saturada ? "⚠️ " : "✅ ") + e.mensaje + (e.ganancia !== null && e.ganancia !== undefined ? ` · ganancia ${e.ganancia}` : "");
-                    document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
+                    cargarFoto("/imagen-capturada?" + Date.now(), { alTerminar: info => { est.textContent += textoLlegada(info); } });
                     fotoMostrada(false);
                     if (e.seguimiento) seguimientoCambiado = true;
                 }
@@ -906,12 +1017,12 @@
                 ? `<span class="spinner"></span>En vivo · ${e.fps || 0} fotos/s · ${e.exposicion_texto}` + (e.nivel !== null && e.nivel !== undefined ? ` · nivel ${Math.round(100 * e.nivel)} %` : "")
                   + (e.color ? ` · ${e.color}` : "")
                 : `<span class="spinner"></span>${e.mensaje}`;
-            if (!antes) { versionVivo = -1; pedirFotoVivo(); }
+            if (!antes) { versionVivo = -1; cancelarCargaFoto(); pedirFotoVivo(); }
         } else if (antes || e.terminado) {
             clearTimeout(esperaVivo);
             est.className = "estado " + (e.error ? "err" : "ok") + " mt-2";
             est.textContent = (e.error ? "❌ " : "✅ ") + (e.mensaje || "Modo en vivo terminado");
-            if (antes) document.getElementById("foto").src = "/imagen-capturada?" + Date.now();   // vuelve la última foto
+            if (antes) cargarFoto("/imagen-capturada?" + Date.now(), { nueva: false });   // vuelve la última foto
         }
         return vivoActivo;
     }
@@ -1020,7 +1131,7 @@
         const est = document.getElementById("estado-foto");
         if (e.ultima && e.version !== ultimaVersionContinuo) {
             ultimaVersionContinuo = e.version;
-            document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
+            cargarFoto("/imagen-capturada?" + Date.now(), { hora: e.ultima.hora });
             hayFoto = true; if (!modoDia) hayFotoNueva = true;   // el continuo de día no escribe captura.fits
         }
         pintarBotonesFoto();
@@ -1077,7 +1188,7 @@
                     est.className = "estado ok mt-2";
                     est.textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "")
                         + (d.ganancia !== null && d.ganancia !== undefined ? ` · ganancia ${d.ganancia}` : "");
-                    document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
+                    cargarFoto("/imagen-capturada?" + Date.now(), { hora: d.hora, alTerminar: info => { est.textContent += textoLlegada(info); } });
                     fotoMostrada(true);
                 } else {
                     est.className = "estado err mt-2";
@@ -1192,7 +1303,7 @@
                 if (d.regenerada && !vivoActivo) {
                     // La foto en pantalla es otra imagen: el revelado "como el apilado" anterior ya no vale
                     olvidarRevelado();
-                    document.getElementById("foto").src = "/imagen-capturada?" + Date.now();
+                    cargarFoto("/imagen-capturada?" + Date.now(), { nueva: false });
                 }
                 est.textContent = d.regenerada || vivoActivo || continuoActivo ? "" : "Se verá en la próxima foto.";
             })
@@ -1345,8 +1456,8 @@
     }
     function mostrarRevelado(comoApilado) {
         revelado.mostrando = comoApilado;
-        document.getElementById("foto").src = comoApilado ? "/imagen-revelada?v=" + revelado.version + "&" + Date.now()
-                                                          : "/imagen-capturada?" + Date.now();
+        cargarFoto(comoApilado ? "/imagen-revelada?v=" + revelado.version + "&" + Date.now()
+                               : "/imagen-capturada?" + Date.now(), { nueva: false });
         pintarBotonRevelar();
     }
     function olvidarRevelado() {      // foto nueva en el visor: el revelado anterior ya no vale

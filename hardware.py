@@ -202,7 +202,11 @@ def _mensaje_com(e):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class EstadoCaptura:
-    """Estado observable de la exposición en curso, para mostrarlo en la web."""
+    """
+    Estado observable de la exposición en curso, para mostrarlo en la web.
+    `fase`: lo que se hace después de exponer (descargar de la cámara, revelar...),
+    para que la web no se quede muda entre el fin de la exposición y la foto.
+    """
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -210,6 +214,8 @@ class EstadoCaptura:
         self.inicio = None
         self.exposicion = 0.0
         self.descripcion = ""
+        self.fase = ""
+        self.fase_inicio = None
         self.cancelar = threading.Event()
 
     def empezar(self, exposicion, descripcion=""):
@@ -218,6 +224,7 @@ class EstadoCaptura:
             self.inicio = time.time()
             self.exposicion = float(exposicion)
             self.descripcion = descripcion
+            self.fase, self.fase_inicio = "", None
             self.cancelar.clear()
 
     def terminar(self):
@@ -225,6 +232,13 @@ class EstadoCaptura:
             self.en_curso = False
             self.inicio = None
             self.descripcion = ""
+            self.fase, self.fase_inicio = "", None
+
+    def poner_fase(self, texto):
+        """Fase tras la exposición ("" = ninguna). La pone también quien procesa la foto."""
+        with self._lock:
+            self.fase = texto or ""
+            self.fase_inicio = time.time() if texto else None
 
     def como_dict(self):
         with self._lock:
@@ -236,6 +250,8 @@ class EstadoCaptura:
                 "exposicion": self.exposicion,
                 "restante": round(restante, 1),
                 "descripcion": self.descripcion,
+                "fase": self.fase,
+                "fase_s": round(time.time() - self.fase_inicio, 1) if self.fase_inicio else 0.0,
             }
 
 
@@ -366,6 +382,7 @@ def capturar_frame(camara, exposicion, binning=1, estado=None, descripcion="", l
                 _abortar(camara)
                 raise ErrorHardware(f"La cámara no devolvió la imagen en {limite:.0f} s")
             time.sleep(0.2)
+        estado.poner_fase("Descargando la foto de la cámara")   # ImageArray: 1–3 s por ASCOM
         return np.array(camara.ImageArray, dtype=np.uint16)
     finally:
         estado.terminar()

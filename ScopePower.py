@@ -1893,6 +1893,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     # RA/Dec solo van a la cabecera del FITS (OBJCTRA/OBJCTDEC). Si la montura no
     # contesta (SynScan sin enlace, wifi caído) la foto sigue siendo buena: se usa la
     # última posición conocida y se avisa, en vez de tirar la toma y parar el bucle.
+    estado_captura.poner_fase("Leyendo la posición de la montura")
     try:
         ra_actual, dec_actual = montura.ejecutar(
             lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
@@ -1905,9 +1906,11 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             ra_actual, dec_actual = coordenadas.a_montura(ULTIMO_GOTO["ra"], ULTIMO_GOTO["dec"])
             log.warning("Montura sin respuesta al leer RA/Dec (%s): la cabecera lleva el destino del último GoTo", e)
         else:
+            estado_captura.poner_fase("")
             return {"ok": False, "mensaje": f"Error: {e}"}
 
     try:
+        estado_captura.poner_fase("Restando el dark y el flat")
         # ───── Aplicar dark maestro ─────
         ruta_dark = f"calibraciones/dark_{EXPOSICION:.2f}s.fits"
         dark_aplicado = False
@@ -1963,6 +1966,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         if flat_aplicado:
             hdu.header['FLATFILE'] = (os.path.basename(ruta_flat), 'Archivo flat utilizado')
 
+        estado_captura.poner_fase("Guardando la foto")
         hdu.writeto(RUTA_IMAGEN, overwrite=True)
         ruta_guardada = RUTA_IMAGEN
 
@@ -1996,9 +2000,11 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
 
         if not generar_preview:
             return {"ok": True, "mensaje": f"Captura de {EXPOSICION:g} s guardada", "ruta": ruta_guardada,
-                    "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia}
+                    "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia,
+                    "hora": ULTIMA_CAPTURA.get("hora")}
 
         # ───   Revelado (debayer, STF, saturación) y versión reducida para la web   ───
+        estado_captura.poner_fase("Revelando la foto")
         sin_girar = revelar_foto_noche(imagen_fits, patron_bayer)
         imagen_web, encuadre = giro_camara.girar(sin_girar)      # el giro de Cámara; el FITS queda sin girar
         guardar_jpg_web(RUTA_IMAGEN_WEB, imagen_web)
@@ -2012,11 +2018,14 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             cv2.imwrite(archivo_copia, imagen_web, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
         return {"ok": True, "mensaje": f"Captura de {EXPOSICION:g} s guardada", "ruta": ruta_guardada,
-                "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia}
+                "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia,
+                "hora": ULTIMA_CAPTURA.get("hora")}
 
     except Exception as e:
         log.exception("Error al procesar la captura")
         return {"ok": False, "mensaje": f"❌ Error al capturar la imagen: {e}"}
+    finally:
+        estado_captura.poner_fase("")
 
 
 def _exposicion_pedida(valor):
