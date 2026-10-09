@@ -257,3 +257,29 @@ cancelado;60;Captura cancelada. Si quieres algo instantáneo, siempre puedes mir
 tars;65;Dato: por el ocular, Andrómeda es un borrón. Por la cámara, es una galaxia. Luego que si el romanticismo.
 tars;80;Un visual me dijo una vez que mirar por el ocular es «conectar con el cosmos». Yo conecto por USB y veo más.
 apagado;55;Apagando. Los visuales siguen ahí fuera, a tres grados, esperando a que se adapte la vista. Suerte con eso.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas a los que usan N.I.N.A. (y su secuenciador avanzado de cuarenta pestañas)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;ScopePower listo en diez segundos. Un usuario de NINA aún está instalando plugins.
+arranque;70;Sistemas en línea. Sin perfil de equipo, sin secuenciador avanzado y sin tres pantallas. Hoy también se hacen fotos.
+conexion_ok;60;Equipo conectado desde el móvil. En NINA esto son seis desplegables y un portátil al relente.
+conexion_ok;75;Conectado. Un usuario de NINA habría tardado lo mismo, pero antes habría actualizado ASCOM, el driver y el plugin de la rueda de filtros que no tiene.
+conexion_fallo;60;Sin conexión. Tranquilo: en NINA también falla, pero con un registro de dos mil líneas que explica por qué.
+goto_inicio;60;Moviendo la montura. En NINA esto se llama «Slew and Center» y viene con doce opciones que nadie toca.
+goto_llegada;60;En el objetivo. Sin framing wizard, sin mosaico y sin rotador. A veces apuntar es solo apuntar.
+centrado_ok;60;Centrado. Lo mismo que NINA con el plate solving, pero sin elegir entre cinco resolvedores en un desplegable.
+centrado_fallo;65;Centrado fallido. En NINA habría fallado igual, pero te lo diría en inglés y con un gráfico.
+foto_guardada;60;Foto guardada. Un usuario de NINA aún está decidiendo la plantilla del nombre del fichero.
+foto_descartada;65;Foto descartada por puntuación. En NINA lo llaman HFR, le ponen un gráfico y se quedan igual de tristes.
+referencia_fijada;60;Referencia fijada. En NINA esto sería una secuencia de tres contenedores y un disparador. Aquí es una foto buena.
+apilado_inicio;60;Empieza el apilado en tiempo real. NINA aún no apila: te deja los FITS para mañana. Eso también es astronomía, pero diferida.
+apilado_inicio;75;Apilando. Un usuario de NINA está ahora mismo ajustando el autoenfoque por cuarta vez. Con curva y todo.
+apilado_fin;60;Apilado terminado con {n} fotos. Y ya hay imagen. Con NINA tendrías {n} FITS y una cita con PixInsight.
+apilado_fin;80;{n} fotos apiladas y la imagen en el móvil. El de NINA se irá a dormir con una carpeta llena y la ilusión de procesarla el domingo.
+error_camara;65;Error de cámara. En NINA lo mismo, pero con una ventana emergente, tres botones y un enlace a Discord.
+disco_bajo;60;Queda poco disco. Un usuario de NINA lo llenaría igual, pero con flats, darks, bias y una carpeta por filtro.
+cancelado;60;Captura cancelada. En NINA se llama «interrumpir la secuencia» y requiere confirmar dos veces.
+configuracion_guardada;60;Configuración guardada. Diez campos. El perfil de NINA tiene más pestañas que un navegador en lunes.
+tars;65;Dato: NINA hace todo lo que hace ScopePower y mucho más. Por eso hace falta un máster para usarlo.
+tars;80;Un usuario de NINA diría que esto es un juguete. Lo diría desde un portátil con el ventilador a tope a las tres de la mañana.
+apagado;55;Apagando. Los de NINA aún tienen que cerrar la secuencia, aparcar la montura, calentar la cámara y recoger el portátil. Buenas noches.
