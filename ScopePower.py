@@ -3893,6 +3893,54 @@ def estado_apilado():
     return jsonify(estado)
 
 
+# Cortes de conexión que ve el móvil (página Apilado): al recuperar la conexión manda cuánto
+# duró y si la página estuvo en segundo plano, para saber después qué pasó. Solo se apunta una
+# línea en el log: no toca cámara, montura ni apilado, no espera a nada, tiene tope de tamaño y
+# de frecuencia, y cualquier cosa rara se descarta en silencio.
+_log_conexion = logging.getLogger("scopepower.conexion")
+_cortes_recibidos = []                      # horas de los últimos avisos (tope de frecuencia)
+_cortes_lock = threading.Lock()
+
+
+def _texto_corto(valor, maximo=60):
+    """Texto del móvil apto para el log: sin saltos ni caracteres de control, y corto."""
+    return "".join(c if c.isprintable() else " " for c in str(valor if valor is not None else ""))[:maximo]
+
+
+@app.route('/registro-conexion', methods=['POST'])
+def registro_conexion():
+    try:
+        if (request.content_length or 0) > 2048:
+            return "", 204
+        ahora = time.time()
+        with _cortes_lock:
+            _cortes_recibidos[:] = [t for t in _cortes_recibidos if ahora - t < 60]
+            if len(_cortes_recibidos) >= 6:          # como mucho 6 por minuto
+                return "", 204
+            _cortes_recibidos.append(ahora)
+        d = request.get_json(force=True, silent=True)
+        if not isinstance(d, dict):
+            return "", 204
+        try:
+            duracion = max(0.0, min(86400.0, float(d.get("duracion_s") or 0)))
+            fallos = max(0, min(100000, int(d.get("fallos") or 0)))
+        except (TypeError, ValueError):
+            return "", 204
+        aviso, oculta = bool(d.get("aviso")), bool(d.get("oculta"))
+        _log_conexion.log(
+            logging.WARNING if aviso else logging.INFO,
+            "Corte de conexión visto desde el móvil %s (página %s): sin respuesta del mini PC desde las %s "
+            "hasta las %s (%.0f s, %d consultas fallidas: %s)%s%s",
+            _texto_corto(request.remote_addr, 45), _texto_corto(d.get("pagina"), 20),
+            _texto_corto(d.get("desde"), 12), _texto_corto(d.get("hasta"), 12), duracion, fallos,
+            _texto_corto(d.get("error")),
+            " · se vio el aviso en pantalla" if aviso else "",
+            " · la página estuvo en segundo plano (pantalla apagada u otra app)" if oculta else "")
+    except Exception:
+        pass
+    return "", 204
+
+
 @app.route('/estado-captura')
 def estado_captura_actual():
     """Progreso de la exposición en curso (para la cuenta atrás de la web)."""

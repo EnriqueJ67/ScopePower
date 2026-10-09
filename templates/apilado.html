@@ -995,15 +995,45 @@
 
     // Fallos seguidos al pedir el estado: en el campo la tablet y el mini PC cuelgan del
     // wifi del SynScan, y si se cae la página se quedaba congelada sin avisar.
+    // Con la página oculta (pantalla apagada, otra app) el navegador corta las peticiones:
+    // eso no cuenta como fallo. Al recuperar la conexión se apunta el corte en el log del
+    // mini PC (registrarCorte) con su duración y si la página estuvo en segundo plano.
     let fallosEstado = 0;
     let sinConexionDesde = null;
+    let ultimaRespuesta = null;      // hora de la última respuesta buena
+    let visibleDesde = new Date();   // un corte no empieza antes de que la página volviera a verse
+    let corte = null;                // { desde, fallos, oculta, aviso, error } mientras no responde
+
+    const horaCorta = f => f.toTimeString().slice(0, 8);
+    function registrarCorte(c, hasta) {
+        const datos = JSON.stringify({
+            pagina: "apilado", desde: horaCorta(c.desde), hasta: horaCorta(hasta),
+            duracion_s: Math.round((hasta - c.desde) / 1000), fallos: c.fallos,
+            aviso: c.aviso, oculta: c.oculta, error: c.error,
+        });
+        // Sin esperar respuesta y sin reintentos: si no llega, no pasa nada
+        try {
+            if (!(navigator.sendBeacon && navigator.sendBeacon("/registro-conexion", new Blob([datos], { type: "application/json" }))))
+                fetch("/registro-conexion", { method: "POST", headers: { "Content-Type": "application/json" }, body: datos, keepalive: true }).catch(() => {});
+        } catch (e) { /* nada */ }
+    }
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) { if (corte) corte.oculta = true; return; }
+        visibleDesde = new Date();
+        // De vuelta a la página: preguntar ya, sin esperar al siguiente ciclo
+        if (sondeoEstado) cicloActualizacion();
+    });
 
     function actualizarEstadoApilado() {
         const control = new AbortController();
         const tope = setTimeout(() => control.abort(), 8000);
+        const ocultaAlPedir = document.hidden;
         return fetch("/estado-apilado", { signal: control.signal })
             .then(r => r.json())
             .then(d => {
+                const ahora = new Date();
+                if (corte) { registrarCorte(corte, ahora); corte = null; }
+                ultimaRespuesta = ahora;
                 fallosEstado = 0;
                 if (sinConexionDesde) {
                     sinConexionDesde = null;
@@ -1033,8 +1063,16 @@
             })
             .catch(err => {
                 console.warn("⚠️ Error leyendo estado:", err);
+                if (ocultaAlPedir || document.hidden) {     // la cortó el navegador al ocultar la página
+                    if (corte) corte.oculta = true;
+                    return;
+                }
+                if (!corte) corte = { desde: new Date(Math.max(ultimaRespuesta || 0, visibleDesde)), fallos: 0, oculta: false, aviso: false, error: "" };
+                corte.fallos++;
+                corte.error = err && err.name === "AbortError" ? "sin respuesta en 8 s" : String((err && err.message) || err);
                 fallosEstado++;
                 if (fallosEstado >= 3) {
+                    corte.aviso = true;
                     if (!sinConexionDesde) sinConexionDesde = new Date();
                     const hora = sinConexionDesde.toTimeString().slice(0, 5);
                     const carga = document.getElementById("estado-carga");
