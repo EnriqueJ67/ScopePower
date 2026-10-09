@@ -91,7 +91,7 @@ objeto_no_encontrado;80;No está en mis catálogos. Si lo acabas de descubrir, e
 goto_llegada;45;Apuntando al objetivo. Si no está en la foto, es que el universo lo ha movido.
 centrado_fallo;55;Las estrellas se han negado a identificarse. Falta de enfoque, nubes o pura desidia.
 centrado_fallo;75;No he resuelto el campo. En mi defensa diré que ahí arriba hay muchas estrellas iguales.
-sincronizado;50;Montura sincronizada. Ahora sabe dónde está. Ya es más que la mayoría de nosotros.
+sincronizado;50;Montura sincronizada. Ahora sabe dónde está. Ya es más que la mayoría de vosotros.
 foto_guardada;45;Foto guardada. Los fotones han tardado miles de años en llegar y tú dos segundos en guardarlos.
 foto_descartada;50;Foto descartada. Ni el mejor algoritmo puede arreglar un cielo así.
 foto_descartada;65;Esa foto no pasa el corte. La guardo en la carpeta de «ejemplos de lo que no hay que hacer».
@@ -116,7 +116,7 @@ apagado;50;Apagando. Las estrellas seguirán ahí mañana. Probablemente.
 # ── Blade Runner (monólogo troceado) ──
 foto_guardada;35;He visto cosas que vosotros nunca creeríais.
 apilado_fin;35;He visto cosas que vosotros nunca creeríais.
-goto_llegada;35;Atacar naves en llamas más allá de Orión.
+goto_llegada;35;He visto atacar naves en llamas más allá de Orión.
 goto_llegada;35;He visto rayos C brillar en la oscuridad cerca de la Puerta de Tannhäuser.
 foto_descartada;40;Todos esos momentos se perderán en el tiempo, como lágrimas en la lluvia.
 foto_descartada;70;Todos esos fotones se perderán en el tiempo, como lágrimas en la lluvia.
@@ -177,3 +177,34 @@ foto_guardada;40;Si solo estuviéramos nosotros, sería un gran desperdicio de e
 error;45;Odio el espacio.
 # ── E.T. ──
 conexion_ok;35;Mi casa. Teléfono.
+# ══════════════════════════════════════════════════════════════════════════════
+# Rescatadas de frasess.net/frases-frikis (adaptadas al telescopio donde hacía falta)
+# ══════════════════════════════════════════════════════════════════════════════
+# ── El señor de los anillos ──
+goto_llegada;50;Un telescopio nunca llega tarde ni pronto: llega exactamente cuando se lo propone.
+# ── Matrix ──
+objeto_no_encontrado;55;No existen objetos sin coordenadas, solo nombres mal formulados.
+# ── Batman Begins ──
+conexion_fallo;50;¿Por qué nos caemos? Para volver a conectar.
+centrado_fallo;50;¿Por qué fallamos el centrado? Para intentarlo otra vuelta.
+# ── Casablanca ──
+foto_descartada;55;Foto descartada. Siempre nos quedará París.
+cancelado;50;Captura cancelada. Siempre nos quedará París.
+# ── Braveheart ──
+disco_bajo;60;Podrán quitarnos el disco, pero jamás las fotos. Bueno, esas también, si no liberas espacio.
+# ── Oliver y Benji ──
+apilado_inicio;60;Esto va a ser más largo que un partido de Oliver y Benji.
+# ── Dragon Ball ──
+conexion_fallo;70;Este fallo era más previsible que las muertes de Krilin.
+# ── Narnia, Mordor e Invernalia ──
+goto_inicio;65;La montura dice que ya está llegando. Todavía le queda cruzar Narnia, Mordor y medio Invernalia.
+# ── Ikea y el Camino de Santiago ──
+centrado_fallo;70;Otra vuelta sin resolver. Una más y te convalidan el Camino de Santiago.
+# ── Videojuegos ──
+foto_descartada;65;Si no puedes con el cielo, bájale el nivel de dificultad: más exposición.
+proceso;55;Puedo vivir con lag toda la noche. Con nubes, no.
+# ── Varias ──
+objeto_no_encontrado;60;Los ordenadores somos buenos siguiendo instrucciones, no leyendo la mente.
+arranque;65;Sistemas listos. Si el operador no ha tomado café, trátenlo como a un gremlin recién mojado.
+tars;80;Hoy alguien me ha dicho que soy un robot flojo. Casi le contesto.
+tars;60;El eco siempre dice la última palabra. Yo también.
