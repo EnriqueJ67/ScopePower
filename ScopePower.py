@@ -8,6 +8,7 @@ import subprocess
 import time
 import math
 import threading
+import concurrent.futures
 import os
 import re
 import numpy as np
@@ -1118,6 +1119,40 @@ def ejecutar_astap(ruta_fits_mono, timeout=90):
         print(f"⏱️ ASTAP no terminó en {timeout} s; se cancela la resolución.")
         return False
 
+
+
+# SynScan Pro no hace GoTo por encima de su "Upper Go To Limit" (Settings > Altitude Limit),
+# 75° de serie en Alt-Az: el driver ASCOM solo dice "Invalid response". Así falló M57 a 79°
+# el 8-oct-2026 (M31 a 34° un minuto después, bien). El límite se puede cambiar en SynScan Pro.
+ALTURA_GOTO_DUDOSA = 75.0
+
+
+def separacion_grados(ra1_h, dec1, ra2_h, dec2):
+    """Distancia en el cielo entre dos posiciones (RA en horas, Dec en grados)."""
+    a1, d1, a2, d2 = (math.radians(ra1_h * 15.0), math.radians(dec1),
+                      math.radians(ra2_h * 15.0), math.radians(dec2))
+    c = math.sin(d1) * math.sin(d2) + math.cos(d1) * math.cos(d2) * math.cos(a1 - a2)
+    return math.degrees(math.acos(max(-1.0, min(1.0, c))))
+
+
+def comprobar_que_llego(tel, ra_m, dec_m, tolerancia=1.0):
+    """
+    Tras un GoTo sin error: si la montura sigue lejos del destino es que no ha hecho
+    caso de la orden (la app decía "apuntando" y el centrado fallaba sin explicación).
+    """
+    lejos = separacion_grados(tel.RightAscension, tel.Declination, ra_m, dec_m)
+    if lejos > tolerancia:
+        raise ErrorHardware(f"la montura no se ha movido: sigue a {lejos:.0f}° del objetivo")
+
+
+def motivo_goto_fallido(e, altitud):
+    """Mensaje del GoTo rechazado, con la pista del cenit si el objeto está muy alto."""
+    texto = str(e)
+    if altitud is not None and altitud >= ALTURA_GOTO_DUDOSA:
+        texto += (f". El objeto está a {altitud:.0f}° de altura: si pasa del límite de SynScan Pro "
+                  "(Settings > Altitude Limit > Upper Go To Limit, 75° de serie) no hace el GoTo; "
+                  "espera a que baje o sube ese límite si el tubo no choca con la base")
+    return texto
 
 
 def calcular_altitud( ra=None, dec=None):
@@ -3144,11 +3179,17 @@ def goto_sincrono(nombre, ra, dec, fuente, centrar=True, cancelar=None, info=Non
             if time.time() - inicio > 180:
                 raise ErrorHardware("La montura no terminó el movimiento en 180 s")
             time.sleep(0.5)
+        comprobar_que_llego(tel, ra_m, dec_m)
 
     try:
         montura.ejecutar(_mover, timeout=200)
     except ErrorHardware as e:
-        return {"ok": False, "motivo": f"error de montura: {e}"}
+        voz.decir("La montura no ha aceptado el movimiento")
+        try:
+            altitud = calcular_altitud(ra=ra, dec=dec)
+        except Exception:
+            altitud = None
+        return {"ok": False, "motivo": f"error de montura: {motivo_goto_fallido(e, altitud)}"}
     if not centrar:
         return {"ok": True, "centrado": None, "detalle": ""}
     if es_de_dia():
@@ -3535,12 +3576,25 @@ def goto_objeto():
                     if tel.Slewing:
                         break
                     time.sleep(0.5)
+                else:
+                    # No se mueve: o ya estaba allí, o la montura no ha hecho caso
+                    comprobar_que_llego(tel, ra_m, dec_m)
 
-            # Lanzar movimiento en el hilo de la montura sin esperar a que termine
-            voz.decir(f"Moviendo el telescopio a {nombre_rotulo}")
+            # Lanzar el movimiento en el hilo de la montura y esperar solo a que lo
+            # acepte (SynScan puede rechazarlo, p. ej. cerca del cenit), no a que llegue
             futuro = montura.ejecutar_async(_mover_telescopio)
-            futuro.add_done_callback(
-                lambda f: print(f"❌ Error al mover el telescopio: {f.exception()}") if f.exception() else None)
+            try:
+                futuro.result(timeout=20)
+            except concurrent.futures.TimeoutError:
+                # La montura está ocupada con otra cosa: seguirá cuando acabe
+                futuro.add_done_callback(
+                    lambda f: print(f"❌ Error al mover el telescopio: {f.exception()}") if f.exception() else None)
+            except Exception as e:
+                voz.decir("La montura no ha aceptado el movimiento")
+                print(f"❌ GoTo a {nombre_rotulo} rechazado (altura {altitud:.0f}°): {e}")
+                return jsonify({"error": f"❌ La montura no ha ido a <b>{nombre_rotulo}</b>: "
+                                         f"{motivo_goto_fallido(e, altitud)}"})
+            voz.decir(f"Moviendo el telescopio a {nombre_rotulo}")
 
             # Al terminar el movimiento (sondeo aparte, sin ocupar el hilo de la
             # montura): avisar por voz y, como un Seestar, centrar automáticamente
@@ -3550,6 +3604,8 @@ def goto_objeto():
             def _al_llegar(nombre=nombre_rotulo, ra_obj=float(ra), dec_obj=float(dec), de_dia=de_dia):
                 inicio = time.time()
                 time.sleep(3)
+                if futuro.done() and futuro.exception() is not None:
+                    return      # la orden falló: ni "apuntando" ni centrado
                 while time.time() - inicio < 180:
                     try:
                         if not montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=5):
