@@ -1127,10 +1127,20 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None, sig
 #  4. Contraste local + curva
 # ─────────────────────────────────────────────────────────────────────────────
 
-def mascara_estrellas(lum8, dilatar=2):
+def mascara_estrellas(lum8, dilatar=2, solo_pequenas=False):
+    """
+    Máscara 0..1 de las estrellas: lo que está 6 sigmas por encima del cielo.
+    Con solo_pequenas, por encima del FONDO LOCAL (mediana de 15 px) en vez del
+    cielo: una nebulosa brillante supera el umbral global y entraría entera en
+    la máscara (la Pacman, 10-oct-2026: su centro se desaturaba con la
+    saturación de las estrellas y salía una mancha gris); lo extenso no sobresale
+    de su propio fondo local y queda fuera, las estrellas y sus halos sí.
+    """
+    lum = lum8.astype(np.float32)
     med = float(np.median(lum8))
-    mad = float(np.median(np.abs(lum8.astype(np.float32) - med))) * 1.4826 + 1.0
-    m = (lum8.astype(np.float32) > med + 6 * mad).astype(np.uint8)
+    mad = float(np.median(np.abs(lum - med))) * 1.4826 + 1.0
+    base = cv2.medianBlur(lum8, 15).astype(np.float32) if solo_pequenas else med
+    m = (lum > base + 6 * mad).astype(np.uint8)
     if dilatar > 0:
         m = cv2.dilate(m, np.ones((2 * dilatar + 1, 2 * dilatar + 1), np.uint8))
     return cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.0)   # borde suave 0..1
@@ -1304,7 +1314,8 @@ def color(rgb, ajustes):
     f = temperatura_color(f, ajustes.get("temperatura", 0.0))
     f = brillo_general(f, ajustes.get("brillo", 0.0))
     f = scnr_verde(f, ajustes.get("scnr", 0.8), estrellas)
-    f = saturar(f, ajustes.get("saturacion", 1.5), mascara_estrellas(gris, dilatar=3), ajustes.get("saturacion_estrellas"))
+    f = saturar(f, ajustes.get("saturacion", 1.5), mascara_estrellas(gris, dilatar=3, solo_pequenas=True),
+                ajustes.get("saturacion_estrellas"))
     return np.clip(f * 255.0 + 0.5, 0, 255).astype(np.uint8)
 
 
