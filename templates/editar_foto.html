@@ -211,6 +211,8 @@
                 </div>
                 <label class="fila-check"><input type="checkbox" id="c-scnr_estrellas"> Quitar el verde también en las estrellas</label>
                 <small class="ayuda">El SCNR solo baja el verde hasta la media de rojo y azul: las estrellas azules y naranjas no cambian; las de halo verdoso (el foco de la noche no es igual en los tres colores) quedan neutras.</small>
+                <label class="fila-check"><input type="checkbox" id="c-color_estrellas_uniforme"> Un solo color por estrella</label>
+                <small class="ayuda">El azul y el verde enfocan en el núcleo y el rojo desenfocado forma el halo, y la misma estrella sale con un punto azul dentro de una mancha naranja. Con esto cada estrella toma el color medio de su luz.</small>
                 <label class="fila-check"><input type="checkbox" id="c-gradiente"> Quitar gradiente de contaminación lumínica</label>
                 <label class="fila-check"><input type="checkbox" id="c-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
             </div>
@@ -322,6 +324,7 @@
         document.getElementById("c-gradiente").checked = !!a.gradiente;
         document.getElementById("c-aplanar").checked = !!a.aplanar;
         document.getElementById("c-scnr_estrellas").checked = a.scnr_estrellas !== false;   // fotos y presets anteriores: activado
+        document.getElementById("c-color_estrellas_uniforme").checked = a.color_estrellas_uniforme !== false;
         if (a.estilo) document.getElementById("c-estilo").value = a.estilo;
         if (a.zoom !== undefined) document.getElementById("c-zoom").value = String(a.zoom);
         if (a.giro !== undefined) pintarGiro(a.giro);
@@ -470,6 +473,7 @@
             gradiente: document.getElementById("c-gradiente").checked,
             aplanar: document.getElementById("c-aplanar").checked,
             scnr_estrellas: document.getElementById("c-scnr_estrellas").checked,
+            color_estrellas_uniforme: document.getElementById("c-color_estrellas_uniforme").checked,
             zoom: parseInt(document.getElementById("c-zoom").value) || 0,
             giro: leerGiro(),
             espejo: document.getElementById("c-espejo").checked,
@@ -592,7 +596,7 @@
         c.addEventListener("input", () => document.getElementById("v-" + k).textContent = c.value);
         c.addEventListener("change", programarVistaPrevia);
     }
-    for (const id of ["c-gradiente", "c-aplanar", "c-scnr_estrellas", "c-zoom", "c-firma", "c-giro-fino", "c-espejo", "c-curva"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
+    for (const id of ["c-gradiente", "c-aplanar", "c-scnr_estrellas", "c-color_estrellas_uniforme", "c-zoom", "c-firma", "c-giro-fino", "c-espejo", "c-curva"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
     document.getElementById("c-giro-fino").addEventListener("input", pintarValorGiro);
     document.getElementById("c-objeto").addEventListener("change", () => { if (document.getElementById("c-firma").checked) programarVistaPrevia(); });
 
