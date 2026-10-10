@@ -311,6 +311,15 @@
                     <small class="ayuda">0 = igual que el STF clásico (estrellas y núcleos saturan a blanco); a más valor, más se protegen y más color conservan. 0,1-0,3 nebulosas, 0,3-0,6 galaxias y cúmulos.</small>
                 </div>
                 <div class="campo">
+                    <label>Curva del fondo</label>
+                    <select id="proc-curva" class="form-control">
+                        <option value="gamma">Gamma: la de siempre</option>
+                        <option value="asinh">Asinh: levanta más lo tenue</option>
+                        <option value="mtf">MTF (PixInsight): aún más pegada</option>
+                    </select>
+                    <small class="ayuda">Asinh y MTF dan más ganancia justo por encima del fondo: las nebulosas débiles suben el doble con el mismo cielo, y con ellas el ruido a media escala (bajar el contraste local y subir la reducción de ruido).</small>
+                </div>
+                <div class="campo">
                     <div class="rango-titulo"><span>Reducción de ruido</span><span id="proc-ruido-v"></span></div>
                     <input type="range" id="proc-ruido" min="0" max="1" step="0.05" oninput="document.getElementById('proc-ruido-v').textContent = this.value">
                 </div>
@@ -801,6 +810,7 @@
         }
         document.getElementById("proc-gradiente").checked = !!a.gradiente;
         document.getElementById("proc-aplanar").checked = !!a.aplanar;
+        if (a.curva !== undefined) document.getElementById("proc-curva").value = a.curva || "gamma";
     }
 
     function cargarParametros() {
@@ -879,7 +889,7 @@
         const n = document.getElementById("proc-preset").value;
         if (!n || !PRESETS[n]) return;
         const estado = document.getElementById("estado-mtf");
-        fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(PRESETS[n]) })
+        fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ curva: "gamma" }, PRESETS[n])) })
             .then(r => r.json())
             .then(d => { if (d.ajustes) pintarAjustes(d.ajustes); estado.textContent = `Preset "${n}" cargado · pulsa "Aplicar a la vista previa"`; })
             .catch(err => estado.textContent = "❌ " + err);
@@ -892,6 +902,7 @@
         const cfg = await fetch("/config-procesado").then(r => r.json()).catch(() => ({ ajustes: {} }));
         const ajustes = Object.assign({}, cfg.ajustes || {}, {
             estilo: document.getElementById("proc-estilo").value,
+            curva: document.getElementById("proc-curva").value,
             fondo_objetivo: parseFloat(document.getElementById("proc-fondo_objetivo").value),
             compresion: parseFloat(document.getElementById("proc-compresion").value),
             ruido: parseFloat(document.getElementById("proc-ruido").value),
@@ -923,6 +934,7 @@
                            norte: document.getElementById("input-norte").checked };
         const ajustes = {
             estilo: document.getElementById("proc-estilo").value,
+            curva: document.getElementById("proc-curva").value,
             fondo_objetivo: parseFloat(document.getElementById("proc-fondo_objetivo").value),
             compresion: parseFloat(document.getElementById("proc-compresion").value),
             ruido: parseFloat(document.getElementById("proc-ruido").value),

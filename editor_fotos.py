@@ -199,7 +199,8 @@ def ajustes_desde(datos):
 def _ajustes_para_json(aj):
     """Solo lo que tiene sentido guardar en el JSON hermano (sin los valores del estilo que no se tocan)."""
     guardar = {"estilo": aj["estilo"], "estirado": aj["estirado"], "zoom": aj["zoom"], "bordes": aj.get("bordes", 0),
-               "giro": aj.get("giro", 0.0), "espejo": bool(aj.get("espejo")), "firma": bool(aj["firma"])}
+               "giro": aj.get("giro", 0.0), "espejo": bool(aj.get("espejo")), "firma": bool(aj["firma"]),
+               "curva": str(aj.get("curva") or "gamma").lower()}
     for k in CLAVES_FLOAT:
         guardar[k] = aj.get(k)
     for k in CLAVES_BOOL:

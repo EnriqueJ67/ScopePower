@@ -126,6 +126,15 @@
                         <input type="range" id="c-compresion" data-clave="compresion" min="0" max="1" step="0.05">
                         <small class="ayuda">0 = igual que el STF clásico (estrellas y núcleos saturan a blanco); a más valor, más se protegen y más color y estructura conservan, a costa de pegada. 0,1-0,3 nebulosas, 0,3-0,6 galaxias y cúmulos.</small>
                     </div>
+                    <div class="campo">
+                        <label>Curva del fondo</label>
+                        <select id="c-curva" class="form-control">
+                            <option value="gamma">Gamma: la de siempre</option>
+                            <option value="asinh">Asinh: levanta más lo tenue</option>
+                            <option value="mtf">MTF (PixInsight): aún más pegada</option>
+                        </select>
+                        <small class="ayuda">Forma de la curva que lleva el cielo al brillo elegido. Asinh y MTF dan más ganancia justo por encima del fondo: una nebulosa débil sube el doble con el mismo cielo, y con ella el ruido a media escala (bajar el contraste local y subir la reducción de ruido). Medido en la Pacman: +17 niveles sobre el cielo con gamma, +37 con asinh.</small>
+                    </div>
                 </div>
             </div>
         </section>
@@ -300,6 +309,8 @@
         if (a.espejo !== undefined) document.getElementById("c-espejo").checked = !!a.espejo;
         if (a.firma !== undefined) document.getElementById("c-firma").checked = !!a.firma;
         if (a.estirado) elegirEstirado(a.estirado, false);
+        if (a.curva !== undefined) document.getElementById("c-curva").value = a.curva || "gamma";
+        else if (inicial) document.getElementById("c-curva").value = "gamma";
     }
 
     function aplicarEstilo() {
@@ -359,6 +370,7 @@
         const a = {
             estirado: (document.querySelector("#estirado-seg button.activo") || {}).dataset?.estirado || "multiescala",
             estilo: document.getElementById("c-estilo").value,
+            curva: document.getElementById("c-curva").value,
             gradiente: document.getElementById("c-gradiente").checked,
             aplanar: document.getElementById("c-aplanar").checked,
             zoom: parseInt(document.getElementById("c-zoom").value) || 0,
@@ -479,7 +491,7 @@
         c.addEventListener("input", () => document.getElementById("v-" + k).textContent = c.value);
         c.addEventListener("change", programarVistaPrevia);
     }
-    for (const id of ["c-gradiente", "c-aplanar", "c-zoom", "c-firma", "c-giro-fino", "c-espejo"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
+    for (const id of ["c-gradiente", "c-aplanar", "c-zoom", "c-firma", "c-giro-fino", "c-espejo", "c-curva"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
     document.getElementById("c-giro-fino").addEventListener("input", pintarValorGiro);
     document.getElementById("c-objeto").addEventListener("change", () => { if (document.getElementById("c-firma").checked) programarVistaPrevia(); });
 
@@ -500,8 +512,9 @@
         document.getElementById("btn-borrar-preset").style.display = n ? "" : "none";
         if (!n || !PRESETS[n]) return;
         const p = PRESETS[n];
-        if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({}, ESTILOS[p.estilo], p));
-        else pintarAjustes(p);
+        // Un preset sin curva (anterior a que existiera el control) es la gamma de siempre
+        if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({ curva: "gamma" }, ESTILOS[p.estilo], p));
+        else pintarAjustes(Object.assign({ curva: "gamma" }, p));
         programarVistaPrevia();
     }
     async function guardarPreset() {
