@@ -36,11 +36,11 @@ log = logging.getLogger("scopepower.procesado")
 
 ESTILOS = {
     #            gradiente ruido  contraste saturacion scnr  + estirado (fondo_objetivo, agresividad, compresion, recuperacion)
-    "natural":  {"gradiente": True, "aplanar": False, "ruido": 0.30, "contraste": 0.25, "saturacion": 1.3, "scnr": 0.5,
+    "natural":  {"gradiente": True, "aplanar": False, "ruido": 0.30, "contraste": 0.25, "saturacion": 1.3, "scnr": 0.5, "scnr_estrellas": True,
                  "saturacion_estrellas": 1.0, "fondo_objetivo": 0.10, "agresividad": 0.6, "compresion": 0.3, "recuperacion": 1.0},
-    "seestar":  {"gradiente": True, "aplanar": False, "ruido": 0.55, "contraste": 0.50, "saturacion": 1.7, "scnr": 0.8,
+    "seestar":  {"gradiente": True, "aplanar": False, "ruido": 0.55, "contraste": 0.50, "saturacion": 1.7, "scnr": 0.8, "scnr_estrellas": True,
                  "saturacion_estrellas": 1.2, "fondo_objetivo": 0.13, "agresividad": 0.7, "compresion": 0.3, "recuperacion": 1.0},
-    "agresivo": {"gradiente": True, "aplanar": False, "ruido": 0.80, "contraste": 0.80, "saturacion": 2.1, "scnr": 1.0,
+    "agresivo": {"gradiente": True, "aplanar": False, "ruido": 0.80, "contraste": 0.80, "saturacion": 2.1, "scnr": 1.0, "scnr_estrellas": True,
                  "saturacion_estrellas": 1.2, "fondo_objetivo": 0.16, "agresividad": 0.8, "compresion": 0.2, "recuperacion": 1.1},
     # saturacion_estrellas: la saturación general multiplica también los halos de las
     # estrellas, y en un doblete con cámara de color el halo es rojo + azul (los dos
@@ -48,6 +48,12 @@ ESTILOS = {
     # 0,71 y 1,21 en el núcleo), así que las estrellas azules salen violeta. Con su
     # propia saturación (sobre la máscara de estrellas) quedan blancas, azules o
     # naranjas según su color real y la nebulosa conserva la general.
+    # scnr_estrellas: el SCNR se aplica también a las estrellas. Se excluían por
+    # miedo a teñirlas de magenta, pero el método «average neutral» solo baja el
+    # verde hasta la media de rojo y azul, nunca por debajo: una estrella azul o
+    # naranja no cambia y una con el halo verdoso (M 13, 8-oct-2026: a 4-10 px
+    # del núcleo el verde dominaba, B/G 0,5-0,85, por el foco de esa noche) queda
+    # neutra. Con false, el comportamiento anterior.
     # "aplanar" (fondo local a gran escala) queda como opción manual: no elimina
     # las sombras de polvo del sensor, que tienen el tamaño de una galaxia
     # (eso solo lo arreglan los flats), y puede comerse nebulosas extensas.
@@ -69,7 +75,7 @@ def leer_config():
         v = p.get(clave, "")
         if str(v).strip() != "":
             ajustes[clave] = float(v)
-    for clave in ("gradiente", "aplanar"):
+    for clave in ("gradiente", "aplanar", "scnr_estrellas"):
         if str(p.get(clave, "")).strip() != "":
             ajustes[clave] = str(p.get(clave)).lower() == "true"
     if str(p.get("escala_aplanado", "")).strip() != "":
@@ -84,7 +90,7 @@ def leer_config():
 # de la galería o desde el apilado y se cargan en cualquiera de los dos.
 PRESETS_RUTA = "presets_procesado.json"
 CLAVES_PRESET = ("estilo", "estirado", "curva", "fondo_objetivo", "compresion", "brillo", "temperatura",
-                 "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "gradiente", "aplanar")
+                 "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "scnr_estrellas", "gradiente", "aplanar")
 _lock_presets = threading.Lock()
 
 
@@ -106,7 +112,7 @@ def _filtrar_preset(ajustes):
         if k not in ajustes or ajustes[k] is None or str(ajustes[k]).strip() == "":
             continue
         v = ajustes[k]
-        if k in ("gradiente", "aplanar"):
+        if k in ("gradiente", "aplanar", "scnr_estrellas"):
             limpio[k] = (str(v).lower() == "true") if not isinstance(v, bool) else v
         elif k in ("estilo", "estirado", "curva"):
             limpio[k] = str(v).lower()
@@ -221,7 +227,7 @@ def guardar_config(cambios):
     if "Procesado" not in cfg:
         cfg["Procesado"] = {}
     for k, v in cambios.items():
-        if k in ("estilo", "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "gradiente", "aplanar", "escala_aplanado",
+        if k in ("estilo", "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "scnr_estrellas", "gradiente", "aplanar", "escala_aplanado",
                  "fondo_objetivo", "agresividad", "compresion", "recuperacion", "escala", "curva",
                  "brillo", "temperatura"):
             cfg["Procesado"][k] = str(v).lower() if isinstance(v, bool) else str(v)
@@ -1388,7 +1394,10 @@ def color(rgb, ajustes):
     f = neutralizar_fondo_final(f)
     f = temperatura_color(f, ajustes.get("temperatura", 0.0))
     f = brillo_general(f, ajustes.get("brillo", 0.0))
-    f = scnr_verde(f, ajustes.get("scnr", 0.8), estrellas)
+    scnr_estrellas = ajustes.get("scnr_estrellas", True)
+    if not isinstance(scnr_estrellas, bool):
+        scnr_estrellas = str(scnr_estrellas).lower() == "true"
+    f = scnr_verde(f, ajustes.get("scnr", 0.8), None if scnr_estrellas else estrellas)
     f = saturar(f, ajustes.get("saturacion", 1.5), mascara_estrellas(gris, dilatar=3, solo_pequenas=True),
                 ajustes.get("saturacion_estrellas"))
     return np.clip(f * 255.0 + 0.5, 0, 255).astype(np.uint8)

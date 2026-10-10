@@ -336,6 +336,7 @@
                     <input type="range" id="proc-saturacion_estrellas" min="0" max="2" step="0.1" oninput="document.getElementById('proc-saturacion_estrellas-v').textContent = this.value">
                     <small class="ayuda">Solo sobre las estrellas y sus halos. Con mucha saturación general las estrellas azules salen violeta (halo rojo + azul del refractor): 0,5-0,8 las deja con su color real.</small>
                 </div>
+                <label class="fila-check"><input type="checkbox" id="proc-scnr_estrellas"> Quitar el verde también en las estrellas</label>
                 <label class="fila-check"><input type="checkbox" id="proc-gradiente"> Quitar gradiente de contaminación lumínica</label>
                 <label class="fila-check"><input type="checkbox" id="proc-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
                 <!-- Acabado: los mismos controles que el editor de la galería, plegados
@@ -816,6 +817,7 @@
         }
         document.getElementById("proc-gradiente").checked = !!a.gradiente;
         document.getElementById("proc-aplanar").checked = !!a.aplanar;
+        document.getElementById("proc-scnr_estrellas").checked = a.scnr_estrellas !== false;
         if (a.curva !== undefined) document.getElementById("proc-curva").value = a.curva || "gamma";
     }
 
@@ -919,7 +921,8 @@
             temperatura: parseFloat(document.getElementById("proc-temperatura").value),
             scnr: parseFloat(document.getElementById("proc-scnr").value),
             gradiente: document.getElementById("proc-gradiente").checked,
-            aplanar: document.getElementById("proc-aplanar").checked
+            aplanar: document.getElementById("proc-aplanar").checked,
+            scnr_estrellas: document.getElementById("proc-scnr_estrellas").checked
         });
         const r = await fetch("/presets-procesado", { method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ nombre: nombre.trim(), ajustes }) }).then(r => r.json());
@@ -952,7 +955,8 @@
             temperatura: parseFloat(document.getElementById("proc-temperatura").value),
             scnr: parseFloat(document.getElementById("proc-scnr").value),
             gradiente: document.getElementById("proc-gradiente").checked,
-            aplanar: document.getElementById("proc-aplanar").checked
+            aplanar: document.getElementById("proc-aplanar").checked,
+            scnr_estrellas: document.getElementById("proc-scnr_estrellas").checked
         };
         estado.textContent = "⏳ Aplicando y regenerando la vista previa...";
         fetch("/guardar-config-zoom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(encuadre) })
