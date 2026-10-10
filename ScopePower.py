@@ -1088,6 +1088,16 @@ def guardar_info_goto(nombre, info=None, ra=None, dec=None, fuente=""):
         if fuente:
             f.write(f"Fuente: {fuente}\n")
         f.write(f"\n📅 Fecha y hora UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\n")
+    # El apilado en tiempo real carga el preset de procesado de la familia del
+    # objeto (Galaxias, Nebulosas, Cúmulos...) si existe uno con ese nombre
+    try:
+        import procesado
+        tipo = apilado.tipo_objeto_goto(nombre)
+        cargado = procesado.aplicar_preset_por_tipo(tipo)
+        if cargado:
+            print(f"🎨 Preset «{cargado}» cargado para {nombre} ({tipo})")
+    except Exception as e:
+        print(f"⚠️ No se pudo cargar el preset del tipo de objeto: {e}")
 
 
 def cambiar_nombre_objeto_goto(nombre):
@@ -3960,6 +3970,8 @@ def estado_apilado():
     estado["bucle"] = bucle.estado()
     estado["ultima_toma"] = dict(ULTIMA_CAPTURA)
     estado["plan"] = plan_sesion.trabajo_plan.estado()
+    import procesado
+    estado["preset_automatico"] = dict(procesado.PRESET_AUTOMATICO)
     return jsonify(estado)
 
 

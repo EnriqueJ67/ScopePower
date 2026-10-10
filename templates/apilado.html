@@ -290,7 +290,7 @@
                         </select>
                         <button type="button" class="btn btn-secondary btn-sm" onclick="guardarPresetApilado()" title="Guardar los ajustes actuales con un nombre">Guardar</button>
                     </div>
-                    <small class="ayuda">Los presets se crean aquí o en el editor de la galería. Al elegir uno se cargan todos sus ajustes; luego pulsa "Aplicar a la vista previa".</small>
+                    <small class="ayuda">Los presets se crean aquí o en el editor de la galería. Al elegir uno se cargan todos sus ajustes; luego pulsa "Aplicar a la vista previa". Al apuntar a un objeto se carga solo el preset de su familia si existe: «Galaxias», «Nebulosas» (también planetarias y restos de supernova) o «Cúmulos».</small>
                 </div>
                 <div class="campo">
                     <label>Estilo</label>
@@ -1349,6 +1349,7 @@
     let versionTomaMostrada = null;  // versión de la miniatura de la última toma
 
     let ciclosInfoGoto = 0;
+    let presetAutoVisto = null;      // contador del último preset automático reflejado en el panel
     function cicloActualizacion() {
         actualizarEstadoApilado().then(estado => {
             if (!estado) return;
@@ -1396,6 +1397,17 @@
             pintarEvolucion(estado.evolucion);
             // Un GoTo desde otra pestaña (planetario, Esta noche...) cambia el objeto del rótulo
             if (++ciclosInfoGoto % 10 === 0) cargarInfoGoto();
+            // Preset cargado por el tipo de objeto (al apuntar): reflejarlo en el panel
+            const pa = estado.preset_automatico || {};
+            if (pa.contador && pa.contador !== presetAutoVisto) {
+                const primero = presetAutoVisto === null;
+                presetAutoVisto = pa.contador;
+                if (!primero) {
+                    cargarParametros();
+                    pintarPresets(PRESETS, pa.nombre);
+                    document.getElementById("estado-mtf").textContent = `🎨 Preset "${pa.nombre}" cargado por el tipo de objeto (${pa.tipo}) a las ${pa.hora}`;
+                }
+            }
         }).catch(console.error);
     }
 

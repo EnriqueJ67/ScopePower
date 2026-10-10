@@ -131,6 +131,81 @@ def guardar_preset(nombre, ajustes):
     return leer_presets()
 
 
+# ── Preset automático por tipo de objeto ─────────────────────────────────────
+# Al apuntar a un objeto (GoTo, planetario, Esta noche, plan de la noche) el
+# apilado en tiempo real carga el preset que corresponde a su familia, si existe
+# uno con ese nombre: «Galaxias» para las galaxias, «Nebulosas» para nebulosas,
+# nebulosas planetarias y restos de supernova, «Cúmulos» (o «Cúmulos abiertos» /
+# «Cúmulos globulares») para los cúmulos. Sin preset para esa familia no se toca
+# nada. Se desactiva con [Procesado] preset_automatico = false.
+PRESETS_POR_TIPO = {
+    "Galaxia": ("galaxias", "galaxia"),
+    "Nebulosa": ("nebulosas", "nebulosa"),
+    "Nebulosa planetaria": ("nebulosas planetarias", "nebulosas", "nebulosa"),
+    "Resto de supernova": ("restos de supernova", "nebulosas", "nebulosa"),
+    "Cúmulo abierto": ("cumulos abiertos", "cumulos", "cumulo"),
+    "Cúmulo globular": ("cumulos globulares", "cumulos", "cumulo"),
+    "Cometa": ("cometas", "cometa"),
+    "Planeta": ("planetas", "planeta"),
+    "Luna": ("luna",),
+    "Sol": ("sol",),
+}
+# Último preset cargado automáticamente, para que la pantalla de Apilado lo refleje
+PRESET_AUTOMATICO = {"contador": 0, "nombre": "", "tipo": "", "hora": ""}
+
+
+def _normalizar(texto):
+    try:
+        from unidecode import unidecode
+        texto = unidecode(str(texto or ""))
+    except Exception:
+        texto = str(texto or "")
+    return " ".join(texto.lower().split())
+
+
+def preset_para_tipo(tipo, presets=None):
+    """Nombre del preset que corresponde a la familia `tipo` (categoría de la galería), o None."""
+    candidatos = PRESETS_POR_TIPO.get(str(tipo or ""), ())
+    if not candidatos:
+        return None
+    presets = leer_presets() if presets is None else presets
+    por_nombre = {_normalizar(n): n for n in presets}
+    for c in candidatos:
+        if c in por_nombre:
+            return por_nombre[c]
+    return None
+
+
+def preset_automatico_activo():
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    try:
+        return str(cfg.get("Procesado", "preset_automatico", fallback="true")).strip().lower() not in ("false", "0", "no", "off")
+    except Exception:
+        return True
+
+
+def aplicar_preset_por_tipo(tipo):
+    """
+    Carga en config.ini el preset de la familia `tipo` (el apilado lee los ajustes
+    del config en cada foto). Devuelve el nombre cargado o None si no procede.
+    """
+    if not preset_automatico_activo():
+        return None
+    presets = leer_presets()
+    nombre = preset_para_tipo(tipo, presets)
+    if not nombre:
+        return None
+    # Un preset sin curva o sin saturación de estrellas es de antes de esos controles
+    ajustes = dict({"curva": "gamma"}, **presets[nombre])
+    guardar_config(ajustes)
+    from datetime import datetime
+    PRESET_AUTOMATICO.update({"contador": PRESET_AUTOMATICO["contador"] + 1, "nombre": nombre,
+                              "tipo": str(tipo or ""), "hora": datetime.now().strftime("%H:%M:%S")})
+    log.info("Preset «%s» cargado por el tipo de objeto (%s)", nombre, tipo)
+    return nombre
+
+
 def borrar_preset(nombre):
     with _lock_presets:
         presets = leer_presets()
