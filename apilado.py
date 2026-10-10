@@ -345,18 +345,35 @@ def zona_comun(poligonos, ancho, alto, escala=8, margen=2):
         return None
 
 
-def zona_cobertura(cuenta, minimo, escala=8, margen=2):
+def zona_cobertura(cuenta, minimo, escala=8, margen=4):
     """
     Como zona_comun, para el apilado incremental: rectángulo (x0, y0, ancho, alto)
-    donde cada píxel tiene al menos `minimo` fotos sumadas (`cuenta` es el mapa de
+    donde los píxeles tienen al menos `minimo` fotos sumadas (`cuenta` es el mapa de
     fotos por píxel). Con cientos de fotos y rotación de campo la zona cubierta por
     todas se queda en nada; con la mitad de las fotos el ruido solo sube un 40 %.
+
+    La cobertura baja de verdad solo entra por los bordes de la imagen (el relleno
+    del alineado). Píxeles sueltos con pocas fotos los hay por todo el campo: los
+    flancos de las estrellas, que el sigma-clip rechaza en muchas fotos porque la
+    nitidez cambia de una a otra. Si uno solo bastara para anular su celda, el
+    recorte saltaría de golpe a un trozo del campo (Pacman, 9-oct-2026: 2452×2140
+    desde (130, 770) con 45 fotos). Por eso cada celda se juzga por su cuarto
+    de píxeles menos cubierto, no por el mínimo, y los huecos que no tocan el
+    borde no cuentan.
     """
     try:
         alto, ancho = cuenta.shape
         h, w = int(np.ceil(alto / escala)), int(np.ceil(ancho / escala))
         relleno = np.pad(cuenta, ((0, h * escala - alto), (0, w * escala - ancho)), mode="edge")
-        mascara = relleno.reshape(h, escala, w, escala).min(axis=(1, 3)) >= minimo
+        celdas = relleno.reshape(h, escala, w, escala).transpose(0, 2, 1, 3).reshape(h, w, escala * escala)
+        k = (escala * escala) // 4
+        mascara = np.partition(celdas, k, axis=2)[:, :, k] >= minimo
+        # Huecos interiores: componentes sin cubrir que no tocan el borde de la imagen
+        n_comp, etiquetas = cv2.connectedComponents((~mascara).astype(np.uint8), connectivity=8)
+        if n_comp > 1:
+            en_borde = np.unique(np.concatenate([etiquetas[0], etiquetas[-1], etiquetas[:, 0], etiquetas[:, -1]]))
+            en_borde = en_borde[en_borde != 0]
+            mascara = ~np.isin(etiquetas, en_borde)
         return rectangulo_cubierto(mascara, ancho, alto, escala, margen)
     except Exception as e:
         print(f"⚠️ No se pudo calcular la zona cubierta del apilado: {e}")

@@ -32,6 +32,7 @@ SUBMUESTREO = 4         # el fondo y el ruido de la foto se miden con 1 de cada 
 NIVELES_RUIDO = 40      # tramos de brillo del modelo de ruido (ruido en función del nivel)
 COBERTURA_ZONA = 0.5    # la vista previa se recorta a los píxeles con al menos esta fracción de las fotos
 RUIDO_MAX = 3.0         # tope del factor por el que una foto ruidosa ensancha el umbral
+TOLERANCIA_FLANCO = 2.0 # px de desplazamiento del perfil de una estrella que no se rechaza
 
 
 def mascara_valida(M, ancho, alto):
@@ -145,6 +146,16 @@ def sigma_referencia(ref, std, n_validas):
             ruidos = np.maximum.accumulate(np.array(ruidos, dtype=np.float32))
             suelo = np.interp(ref.ravel(), niveles, ruidos).reshape(ref.shape).astype(np.float32)
             np.maximum(sigma, suelo, out=sigma)
+    # Flancos de las estrellas: la nitidez cambia de una foto a otra y el alineado
+    # no es exacto, así que donde la referencia tiene pendiente el valor baila
+    # mucho más que el ruido de su nivel de brillo. Con ~10 fotos la desviación
+    # medida no lo recoge y el flanco se rechazaría en la mitad de las fotos
+    # Se tolera un desplazamiento del perfil de TOLERANCIA_FLANCO px. Medido con
+    # 46 fotos reales de M 45 (píxeles del interior con menos de la mitad / menos
+    # del 90 % de las fotos): sin tolerancia 17 / 11 981; 1 px 0 / 2 560;
+    # 2 px 0 / 554, y los rechazos totales bajan del 0,40 % al 0,30 %.
+    gy, gx = np.gradient(ref.astype(np.float32))
+    np.maximum(sigma, TOLERANCIA_FLANCO * np.hypot(gx, gy), out=sigma)
     sigma[n_validas < MIN_REFERENCIA] = np.inf
     return sigma
 
