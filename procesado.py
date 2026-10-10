@@ -37,11 +37,17 @@ log = logging.getLogger("scopepower.procesado")
 ESTILOS = {
     #            gradiente ruido  contraste saturacion scnr  + estirado (fondo_objetivo, agresividad, compresion, recuperacion)
     "natural":  {"gradiente": True, "aplanar": False, "ruido": 0.30, "contraste": 0.25, "saturacion": 1.3, "scnr": 0.5,
-                 "fondo_objetivo": 0.10, "agresividad": 0.6, "compresion": 0.3, "recuperacion": 1.0},
+                 "saturacion_estrellas": 1.0, "fondo_objetivo": 0.10, "agresividad": 0.6, "compresion": 0.3, "recuperacion": 1.0},
     "seestar":  {"gradiente": True, "aplanar": False, "ruido": 0.55, "contraste": 0.50, "saturacion": 1.7, "scnr": 0.8,
-                 "fondo_objetivo": 0.13, "agresividad": 0.7, "compresion": 0.3, "recuperacion": 1.0},
+                 "saturacion_estrellas": 1.2, "fondo_objetivo": 0.13, "agresividad": 0.7, "compresion": 0.3, "recuperacion": 1.0},
     "agresivo": {"gradiente": True, "aplanar": False, "ruido": 0.80, "contraste": 0.80, "saturacion": 2.1, "scnr": 1.0,
-                 "fondo_objetivo": 0.16, "agresividad": 0.8, "compresion": 0.2, "recuperacion": 1.1},
+                 "saturacion_estrellas": 1.2, "fondo_objetivo": 0.16, "agresividad": 0.8, "compresion": 0.2, "recuperacion": 1.1},
+    # saturacion_estrellas: la saturación general multiplica también los halos de las
+    # estrellas, y en un doblete con cámara de color el halo es rojo + azul (los dos
+    # enfocan fuera del verde; medido en la Pacman: halo R/G 1,04 y B/G 1,89 frente a
+    # 0,71 y 1,21 en el núcleo), así que las estrellas azules salen violeta. Con su
+    # propia saturación (sobre la máscara de estrellas) quedan blancas, azules o
+    # naranjas según su color real y la nebulosa conserva la general.
     # "aplanar" (fondo local a gran escala) queda como opción manual: no elimina
     # las sombras de polvo del sensor, que tienen el tamaño de una galaxia
     # (eso solo lo arreglan los flats), y puede comerse nebulosas extensas.
@@ -58,7 +64,7 @@ def leer_config():
         estilo = "seestar"
     ajustes = dict(ESTILOS[estilo])
     ajustes["estilo"] = estilo
-    for clave in ("ruido", "contraste", "saturacion", "scnr", "brillo", "temperatura",
+    for clave in ("ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "brillo", "temperatura",
                   "fondo_objetivo", "agresividad", "compresion", "recuperacion", "escala"):
         v = p.get(clave, "")
         if str(v).strip() != "":
@@ -78,7 +84,7 @@ def leer_config():
 # de la galería o desde el apilado y se cargan en cualquiera de los dos.
 PRESETS_RUTA = "presets_procesado.json"
 CLAVES_PRESET = ("estilo", "estirado", "curva", "fondo_objetivo", "compresion", "brillo", "temperatura",
-                 "ruido", "contraste", "saturacion", "scnr", "gradiente", "aplanar")
+                 "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "gradiente", "aplanar")
 _lock_presets = threading.Lock()
 
 
@@ -140,7 +146,7 @@ def guardar_config(cambios):
     if "Procesado" not in cfg:
         cfg["Procesado"] = {}
     for k, v in cambios.items():
-        if k in ("estilo", "ruido", "contraste", "saturacion", "scnr", "gradiente", "aplanar", "escala_aplanado",
+        if k in ("estilo", "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "gradiente", "aplanar", "escala_aplanado",
                  "fondo_objetivo", "agresividad", "compresion", "recuperacion", "escala", "curva",
                  "brillo", "temperatura"):
             cfg["Procesado"][k] = str(v).lower() if isinstance(v, bool) else str(v)
@@ -1242,12 +1248,19 @@ def scnr_verde(rgbf, factor, estrellas=None):
     return np.clip(f, 0, 1).astype(np.float32)
 
 
-def saturar(rgbf, factor):
+def saturar(rgbf, factor, estrellas=None, factor_estrellas=None):
+    """
+    Multiplica la saturación por `factor`; donde `estrellas` (máscara 0..1) vale 1
+    se usa `factor_estrellas` en su lugar (None = el mismo), para que los halos
+    de las estrellas no hereden la saturación pensada para la nebulosa.
+    """
     factor = float(factor)
-    if abs(factor - 1.0) < 1e-3:
+    fe = factor if factor_estrellas is None or estrellas is None else float(factor_estrellas)
+    if abs(factor - 1.0) < 1e-3 and abs(fe - 1.0) < 1e-3:
         return rgbf
     hsv = cv2.cvtColor(np.clip(rgbf, 0, 1).astype(np.float32), cv2.COLOR_RGB2HSV)   # H 0..360, S y V 0..1
-    hsv[..., 1] = np.clip(hsv[..., 1] * factor, 0, 1)
+    ganancia = factor if abs(fe - factor) < 1e-3 else factor * (1.0 - estrellas) + fe * estrellas
+    hsv[..., 1] = np.clip(hsv[..., 1] * ganancia, 0, 1)
     return np.clip(cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB), 0, 1).astype(np.float32)
 
 
@@ -1291,7 +1304,7 @@ def color(rgb, ajustes):
     f = temperatura_color(f, ajustes.get("temperatura", 0.0))
     f = brillo_general(f, ajustes.get("brillo", 0.0))
     f = scnr_verde(f, ajustes.get("scnr", 0.8), estrellas)
-    f = saturar(f, ajustes.get("saturacion", 1.5))
+    f = saturar(f, ajustes.get("saturacion", 1.5), mascara_estrellas(gris, dilatar=3), ajustes.get("saturacion_estrellas"))
     return np.clip(f * 255.0 + 0.5, 0, 255).astype(np.uint8)
 
 

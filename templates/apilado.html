@@ -331,6 +331,11 @@
                     <div class="rango-titulo"><span>Saturación</span><span id="proc-saturacion-v"></span></div>
                     <input type="range" id="proc-saturacion" min="0.5" max="3" step="0.1" oninput="document.getElementById('proc-saturacion-v').textContent = this.value">
                 </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>Saturación de las estrellas</span><span id="proc-saturacion_estrellas-v"></span></div>
+                    <input type="range" id="proc-saturacion_estrellas" min="0" max="2" step="0.1" oninput="document.getElementById('proc-saturacion_estrellas-v').textContent = this.value">
+                    <small class="ayuda">Solo sobre las estrellas y sus halos. Con mucha saturación general las estrellas azules salen violeta (halo rojo + azul del refractor): 0,5-0,8 las deja con su color real.</small>
+                </div>
                 <label class="fila-check"><input type="checkbox" id="proc-gradiente"> Quitar gradiente de contaminación lumínica</label>
                 <label class="fila-check"><input type="checkbox" id="proc-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
                 <!-- Acabado: los mismos controles que el editor de la galería, plegados
@@ -802,10 +807,11 @@
 
     function pintarAjustes(a) {
         document.getElementById("proc-estilo").value = a.estilo;
-        for (const k of ["fondo_objetivo", "compresion", "ruido", "contraste", "saturacion", "brillo", "temperatura", "scnr"]) {
+        for (const k of ["fondo_objetivo", "compresion", "ruido", "contraste", "saturacion", "saturacion_estrellas", "brillo", "temperatura", "scnr"]) {
             const c = document.getElementById("proc-" + k);
             if (a[k] !== undefined && a[k] !== null) c.value = a[k];
             else if (k === "brillo" || k === "temperatura") c.value = 0;
+            else if (k === "saturacion_estrellas") c.value = 1;
             document.getElementById("proc-" + k + "-v").textContent = c.value;
         }
         document.getElementById("proc-gradiente").checked = !!a.gradiente;
@@ -908,6 +914,7 @@
             ruido: parseFloat(document.getElementById("proc-ruido").value),
             contraste: parseFloat(document.getElementById("proc-contraste").value),
             saturacion: parseFloat(document.getElementById("proc-saturacion").value),
+            saturacion_estrellas: parseFloat(document.getElementById("proc-saturacion_estrellas").value),
             brillo: parseFloat(document.getElementById("proc-brillo").value),
             temperatura: parseFloat(document.getElementById("proc-temperatura").value),
             scnr: parseFloat(document.getElementById("proc-scnr").value),
@@ -940,6 +947,7 @@
             ruido: parseFloat(document.getElementById("proc-ruido").value),
             contraste: parseFloat(document.getElementById("proc-contraste").value),
             saturacion: parseFloat(document.getElementById("proc-saturacion").value),
+            saturacion_estrellas: parseFloat(document.getElementById("proc-saturacion_estrellas").value),
             brillo: parseFloat(document.getElementById("proc-brillo").value),
             temperatura: parseFloat(document.getElementById("proc-temperatura").value),
             scnr: parseFloat(document.getElementById("proc-scnr").value),

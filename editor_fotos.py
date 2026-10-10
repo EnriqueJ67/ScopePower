@@ -51,7 +51,7 @@ CALIDAD_PREVIEW = 85
 CALIDAD_GUARDADO = 92
 
 # Claves de procesado que acepta el editor (las del panel del apilado + estirado + scnr)
-CLAVES_FLOAT = ("fondo_objetivo", "compresion", "ruido", "contraste", "saturacion", "scnr", "brillo", "temperatura")
+CLAVES_FLOAT = ("fondo_objetivo", "compresion", "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "brillo", "temperatura")
 CLAVES_BOOL = ("gradiente", "aplanar")
 ESTIRADOS = ("multiescala", "stf")
 ZOOMS = (0, 25, 50, 75)
