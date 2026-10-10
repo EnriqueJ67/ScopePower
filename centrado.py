@@ -109,6 +109,11 @@ class TrabajoCentrado:
         self._lock = threading.Lock()
         self._cancelar = threading.Event()
         self.imagen_version = 0    # sube con cada vista previa nueva (la web la refresca por ella)
+        # Fase previa al centrado (p. ej. el asentamiento de la montura tras el GoTo) y
+        # motivo por el que se omitió: así la pantalla GoTo nunca se queda muda entre
+        # "telescopio en el objeto" y la primera foto del centrado.
+        self.previo = None         # {"mensaje", "inicio", "hasta"}
+        self.omitido = None        # {"mensaje", "hora"}
         self._reiniciar()
 
     def _reiniciar(self):
@@ -119,6 +124,8 @@ class TrabajoCentrado:
         self.tolerancia = 0.0
         self.errores = []          # error en minutos de arco por vuelta
         self.mensaje = ""
+        self.paso = ""             # foto | resolver | medir | corregir | asentar (dentro de la vuelta)
+        self.paso_inicio = None
         self.resultado = ""        # centrado | fuera_tolerancia | sin_mejora | error | cancelado
         self.detalle = ""
         self.objetivo = None       # (ra_h, dec_deg)
@@ -127,6 +134,16 @@ class TrabajoCentrado:
 
     def estado(self):
         with self._lock:
+            ahora = time.time()
+            previo = None
+            if self.previo and not self.en_curso:
+                previo = {"mensaje": self.previo["mensaje"],
+                          "transcurrido": round(ahora - self.previo["inicio"], 1),
+                          "restante": (round(max(0.0, self.previo["hasta"] - ahora), 1)
+                                       if self.previo.get("hasta") else None)}
+            omitido = None
+            if self.omitido and ahora - self.omitido["hora"] < 120:
+                omitido = {"mensaje": self.omitido["mensaje"], "hace": round(ahora - self.omitido["hora"], 1)}
             return {
                 "en_curso": self.en_curso,
                 "terminado": self.terminado,
@@ -136,6 +153,10 @@ class TrabajoCentrado:
                 "errores": list(self.errores),
                 "error_final": self.errores[-1] if self.errores else None,
                 "mensaje": self.mensaje,
+                "paso": self.paso,
+                "paso_s": round(ahora - self.paso_inicio, 1) if self.paso_inicio else 0.0,
+                "previo": previo,
+                "omitido": omitido,
                 "resultado": self.resultado,
                 "detalle": self.detalle,
                 "objeto": self.objeto,
@@ -143,10 +164,29 @@ class TrabajoCentrado:
                 "captura": estado_captura.como_dict(),
             }
 
-    def _msg(self, texto):
+    def _msg(self, texto, paso=None):
         with self._lock:
             self.mensaje = texto
+            if paso is not None and paso != self.paso:
+                self.paso, self.paso_inicio = paso, time.time()
         log.info(texto)
+
+    def anunciar_previo(self, mensaje, segundos=None):
+        """Lo que pasa ANTES de que arranque el centrado (esperar a la montura, asentamiento).
+        `segundos`, si se sabe cuánto va a durar: la web enseña la cuenta atrás."""
+        with self._lock:
+            ahora = time.time()
+            self.previo = {"mensaje": mensaje, "inicio": ahora,
+                           "hasta": ahora + float(segundos) if segundos else None}
+            self.omitido = None
+        log.info("Centrado, fase previa: %s", mensaje)
+
+    def anunciar_omitido(self, motivo):
+        """El centrado no se va a hacer (de día, cámara ocupada...): la web lo dice y deja de esperar."""
+        with self._lock:
+            self.previo = None
+            self.omitido = {"mensaje": motivo, "hora": time.time()}
+        log.info("Centrado omitido: %s", motivo)
 
     def cancelar(self):
         self._cancelar.set()
@@ -171,6 +211,8 @@ class TrabajoCentrado:
                 raise RuntimeError("La cámara está ocupada con otra captura")
             self._reiniciar()
             self._cancelar.clear()
+            self.previo = None
+            self.omitido = None
             self.en_curso = True
             self.max_vueltas = conf["max_vueltas"]
             self.tolerancia = conf["tolerancia_arcmin"]
@@ -195,7 +237,7 @@ class TrabajoCentrado:
                 self._comprobar_cancelacion()
 
                 # 1) Foto corta
-                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: exponiendo {conf['exposicion']:.0f} s")
+                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: exponiendo {conf['exposicion']:.0f} s", paso="foto")
                 if self.antes_de_foto:
                     try:
                         self.antes_de_foto()
@@ -212,7 +254,7 @@ class TrabajoCentrado:
                 self._comprobar_cancelacion()
 
                 # 2) Resolver
-                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: resolviendo la imagen")
+                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: resolviendo la imagen (plate solving con ASTAP)", paso="resolver")
                 solucion = resolver(RUTA_FITS_CENTRADO)
                 if solucion is None:
                     resultado, detalle = "error", f"No se pudo resolver la imagen en la vuelta {vuelta}"
@@ -229,7 +271,7 @@ class TrabajoCentrado:
                 error = float(objetivo.separation(real).arcmin)
                 with self._lock:
                     self.errores.append(round(error, 2))
-                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: error {error:.1f}'")
+                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: el telescopio está a {error:.1f}' del objetivo", paso="medir")
 
                 if error <= conf["tolerancia_arcmin"]:
                     resultado, detalle = "centrado", f"Centrado a {error:.1f}' del objetivo en {vuelta} vuelta(s)"
@@ -245,9 +287,10 @@ class TrabajoCentrado:
 
                 # 4) Corregir
                 self._comprobar_cancelacion()
-                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: corrigiendo {error:.1f}'")
+                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: moviendo la montura para corregir {error:.1f}'", paso="corregir")
                 self._corregir(montura, objetivo, real, sincronizar=(vuelta == 1 and conf["sync_primera_vuelta"]),
-                               asentamiento=conf["asentamiento_s"])
+                               asentamiento=conf["asentamiento_s"],
+                               rotulo=f"Vuelta {vuelta}/{conf['max_vueltas']}")
 
         except CentradoCancelado:
             resultado, detalle = "cancelado", "Centrado cancelado por el usuario"
@@ -316,7 +359,7 @@ class TrabajoCentrado:
         except Exception as e:
             log.warning("No se pudo generar la vista previa del centrado: %s", e)
 
-    def _corregir(self, montura, objetivo, real, sincronizar, asentamiento):
+    def _corregir(self, montura, objetivo, real, sincronizar, asentamiento, rotulo="Corrección"):
         # Error en el cielo: hacia dónde hay que mover (objetivo - real)
         d_ra = (objetivo.ra.deg - real.ra.deg + 180.0) % 360.0 - 180.0   # grados, con envoltura
         d_dec = objetivo.dec.deg - real.dec.deg
@@ -351,7 +394,12 @@ class TrabajoCentrado:
             return ra_dest, dec_dest
 
         montura.ejecutar(_mover, timeout=150)
-        time.sleep(asentamiento)
+        if asentamiento > 0:
+            self._msg(f"{rotulo}: esperando {asentamiento:.0f} s a que se asiente la montura", paso="asentar")
+            fin = time.time() + asentamiento
+            while time.time() < fin:
+                self._comprobar_cancelacion()
+                time.sleep(min(0.5, max(0.0, fin - time.time())))
 
 
 trabajo_centrado = TrabajoCentrado()

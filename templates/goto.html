@@ -349,15 +349,17 @@
                     if (!data.slewing) {
                         clearInterval(interval);
                         document.getElementById("status").innerHTML = `🧭 Telescopio en <b>${objeto}</b>`;
-                        document.getElementById("btnModoAutomatico").disabled = false;
                         // Leer la información del objeto (esperando al centrado si el PC va a hablar)
                         sendWikipediaInfo(window.tipoObjeto, true);
-                        // El servidor arranca el centrado automático al llegar (centrar_tras_goto):
-                        // engancharse a él para mostrar las vueltas y el error
-                        setTimeout(() => engancharCentradoEnCurso("centrado", {
-                            hablar: false, siguientePaso: true,
+                        // El servidor arranca el centrado automático al llegar (centrar_tras_goto),
+                        // pero antes espera el asentamiento de la montura: engancharse ya y seguir
+                        // sondeando hasta que arranque (mientras, enseña la fase previa que anuncia
+                        // el servidor) y después cada vuelta y cada paso. El botón de centrar a
+                        // mano se habilita cuando el centrado termina o se omite.
+                        engancharCentradoEnCurso("centrado", {
+                            hablar: false, siguientePaso: true, esperarArranqueS: 30,
                             alTerminar: () => { document.getElementById("btnModoAutomatico").disabled = false; }
-                        }), 4000);
+                        });
                     }
                 })
                 .catch(err => {
@@ -401,6 +403,7 @@
 
         document.getElementById("status").innerHTML = `<span class="spinner"></span> Obteniendo datos de <b>${objeto}</b>...`;
         document.getElementById("extraInfo").innerHTML = "";
+        olvidarCentrado("centrado");          // el resultado del GoTo anterior ya no vale
         document.getElementById("btnModoAutomatico").disabled = true;
 
         // Coordenadas directas (vienen de la página Esta noche); solo para ese objeto
@@ -531,7 +534,7 @@
         let esperas = 0, vioCentrado = false;
         const comprobar = () => {
             fetch("/centrado/estado").then(r => r.json()).then(e => {
-                if (e.en_curso && esperas < 150) {                // como mucho 5 minutos
+                if ((e.en_curso || e.previo) && esperas < 150) {   // como mucho 5 minutos (previo = aún no ha arrancado)
                     esperas++; vioCentrado = true;
                     document.getElementById("status").innerHTML = "⏸️ El resumen se leerá cuando termine el centrado (el PC está hablando)";
                     setTimeout(comprobar, 2000);

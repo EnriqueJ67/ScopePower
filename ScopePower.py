@@ -3690,21 +3690,27 @@ def goto_objeto():
 
             def _al_llegar(nombre=nombre_rotulo, ra_obj=float(ra), dec_obj=float(dec), de_dia=de_dia):
                 inicio = time.time()
+                # La pantalla GoTo enseña esta fase previa hasta que arranque el centrado
+                centrado.trabajo_centrado.anunciar_previo(f"Esperando a que el telescopio llegue a {nombre}")
                 time.sleep(3)
                 if futuro.done() and futuro.exception() is not None:
+                    centrado.trabajo_centrado.anunciar_omitido("La montura no aceptó el movimiento; no hay centrado")
                     return      # la orden falló: ni "apuntando" ni centrado
                 while time.time() - inicio < 180:
                     try:
                         if not montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=5):
                             break
-                    except ErrorHardware:
+                    except ErrorHardware as e:
+                        centrado.trabajo_centrado.anunciar_omitido(f"La montura no responde ({e}); no hay centrado")
                         return
                     time.sleep(1)
                 else:
+                    centrado.trabajo_centrado.anunciar_omitido("La montura no terminó el movimiento en 3 minutos; no hay centrado")
                     return
                 if de_dia:
                     # Al Sol (con filtro), o a lo que sea con el cielo claro: no hay estrellas
                     # que resolver, así que no se gasta una foto ni se anuncia un fallo
+                    centrado.trabajo_centrado.anunciar_omitido("De día no hay centrado automático: sin estrellas no hay plate solving")
                     voz.decir(f"Telescopio apuntando a {nombre}. De día no hay centrado automático.")
                     humor.decir("goto_llegada")
                     print(f"ℹ️ Centrado tras el GOTO a {nombre} omitido: es de día, sin estrellas para resolver")
@@ -3712,17 +3718,24 @@ def goto_objeto():
                 voz.decir(f"Telescopio apuntando a {nombre}")
                 humor.decir("goto_llegada")
                 if not centrado.leer_config().get("centrar_tras_goto", True):
+                    centrado.trabajo_centrado.anunciar_omitido("El centrado tras el GoTo está desactivado en la configuración")
                     return
                 if (bucle.activo and not bucle.pausado) or camara.ocupado or centrado.trabajo_centrado.en_curso:
+                    centrado.trabajo_centrado.anunciar_omitido("Centrado omitido: la cámara está ocupada o el apilado en marcha")
                     print("ℹ️ Centrado tras GOTO omitido: cámara ocupada o apilado en marcha")
                     return
-                time.sleep(asentamiento_montura())   # asentamiento de la montura
+                asentamiento = asentamiento_montura()
+                centrado.trabajo_centrado.anunciar_previo(
+                    f"Telescopio en {nombre}: esperando {asentamiento:.0f} s a que se asiente la montura antes de centrar",
+                    asentamiento)
+                time.sleep(asentamiento)   # asentamiento de la montura
                 try:
                     centrado.trabajo_centrado.iniciar(
                         camara, montura, ra_obj, dec_obj, objeto=nombre,
                         calcular_altitud=calcular_altitud, altura_minima=float(ALTURA_MINIMA))
                     print(f"🎯 Centrado automático tras el GOTO a {nombre}")
                 except RuntimeError as e:
+                    centrado.trabajo_centrado.anunciar_omitido(f"No se pudo iniciar el centrado: {e}")
                     print(f"⚠️ No se pudo iniciar el centrado tras el GOTO: {e}")
             threading.Thread(target=_al_llegar, name="llegada-goto", daemon=True).start()
 
@@ -5317,6 +5330,29 @@ def galeria_editar_norte(nombre):
     except Exception as e:
         log.exception("Error buscando el norte de la foto")
         return jsonify({"ok": False, "mensaje": f"No se pudo resolver: {e}"}), 500
+
+
+@app.route("/galeria/editar/<nombre>/centrar", methods=["POST"])
+def galeria_editar_centrar(nombre):
+    """
+    Centro del encuadre para el zoom del editor: {"modo": "toque", "u", "v", "ajustes": {...}}
+    deshace el encuadre de la vista previa que se ve (hecha con esos ajustes) para
+    saber qué píxel del FITS se tocó; {"modo": "objeto"} busca el objeto por sus
+    coordenadas con el plate solving de la foto (unos segundos la primera vez).
+    Devuelve {"ok", "centro": [fx, fy], "mensaje"}.
+    """
+    datos = request.get_json(silent=True) or {}
+    try:
+        if datos.get("modo") == "objeto":
+            centro, coords = editor_fotos.centro_objeto(nombre)
+            return jsonify({"ok": True, "centro": centro, "mensaje": "Objeto centrado" + (f" ({coords})" if coords else "")})
+        centro = editor_fotos.centro_desde_toque(nombre, datos.get("ajustes") or {}, datos.get("u"), datos.get("v"))
+        return jsonify({"ok": True, "centro": centro, "mensaje": "Encuadre centrado donde has tocado"})
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    except Exception as e:
+        log.exception("Error centrando el encuadre del editor")
+        return jsonify({"ok": False, "mensaje": f"No se pudo centrar: {e}"}), 500
 
 
 @app.route("/galeria/editar-estado")

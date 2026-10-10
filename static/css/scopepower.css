@@ -370,6 +370,8 @@ details[open] > .proc-mas-titulo::before { content: "▾ "; }
 /* ── Visor de imagen (apilado, foto de prueba) ────────────────────────────── */
 .visor { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
 .visor img { display: block; width: 100%; height: auto; }
+.visor.visor-toque { outline: 2px solid var(--accent, #e5484d); outline-offset: -2px; }
+.visor.visor-toque img { cursor: crosshair; }
 .visor-overlay { position: absolute; left: 0; right: 0; top: 0; padding: 10px 62px 10px 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; background: linear-gradient(180deg, rgba(0,0,0,0.65), transparent); pointer-events: none; }
 .visor-overlay .chip { background: rgba(0,0,0,0.45); backdrop-filter: blur(6px); border-color: rgba(255,255,255,0.12); color: #fff; }
 .visor-overlay .chip.chip-ok { color: var(--ok); }
@@ -516,6 +518,12 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .centrado-foto img { display: block; width: 100%; max-width: 360px; border-radius: 12px; border: 1px solid var(--border); background: #000; cursor: zoom-in; }
 .centrado-foto-pie { font-size: 12.5px; color: var(--text-3); margin-top: 4px; }
 .centrado-siguiente { margin-top: 12px; }
+/* Progreso del centrado: mensaje del paso en curso y los cuatro pasos de cada vuelta */
+.centrado-mensaje { display: block; margin-top: 4px; color: var(--text-2); }
+.centrado-pasos { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 6px; font-size: 12.5px; }
+.centrado-pasos .paso { padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-3); }
+.centrado-pasos .paso.activo { border-color: var(--accent-2); color: var(--text); font-weight: 600; }
+.centrado-pasos .paso.hecho { color: var(--ok); border-color: var(--border-2); }
 .centrado-siguiente .seccion-titulo { margin-top: 0; }
 
 /* ── Ventana modal ────────────────────────────────────────────────────────── */
