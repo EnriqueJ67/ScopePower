@@ -5344,8 +5344,8 @@ def galeria_editar_centrar(nombre):
     datos = request.get_json(silent=True) or {}
     try:
         if datos.get("modo") == "objeto":
-            centro, coords = editor_fotos.centro_objeto(nombre)
-            return jsonify({"ok": True, "centro": centro, "mensaje": "Objeto centrado" + (f" ({coords})" if coords else "")})
+            centro, mensaje = editor_fotos.centro_objeto(nombre)
+            return jsonify({"ok": True, "centro": centro, "mensaje": mensaje[0].upper() + mensaje[1:]})
         centro = editor_fotos.centro_desde_toque(nombre, datos.get("ajustes") or {}, datos.get("u"), datos.get("v"))
         return jsonify({"ok": True, "centro": centro, "mensaje": "Encuadre centrado donde has tocado"})
     except editor_fotos.ErrorEditor as e:

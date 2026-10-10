@@ -370,7 +370,8 @@ details[open] > .proc-mas-titulo::before { content: "▾ "; }
 /* ── Visor de imagen (apilado, foto de prueba) ────────────────────────────── */
 .visor { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
 .visor img { display: block; width: 100%; height: auto; }
-.visor.visor-toque { outline: 2px solid var(--accent, #e5484d); outline-offset: -2px; }
+.visor.visor-toque { outline: 2px solid var(--accent); outline-offset: -2px; }
+.btn.activo { box-shadow: 0 0 0 2px var(--accent); }
 .visor.visor-toque img { cursor: crosshair; }
 .visor-overlay { position: absolute; left: 0; right: 0; top: 0; padding: 10px 62px 10px 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; background: linear-gradient(180deg, rgba(0,0,0,0.65), transparent); pointer-events: none; }
 .visor-overlay .chip { background: rgba(0,0,0,0.45); backdrop-filter: blur(6px); border-color: rgba(255,255,255,0.12); color: #fff; }

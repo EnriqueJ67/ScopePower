@@ -82,6 +82,16 @@
                     </select>
                 </div>
                 <div class="campo mt-2">
+                    <div class="rango-titulo"><span>Centro del encuadre</span><span id="v-centro">centro del campo</span></div>
+                    <div class="fila" style="gap: 6px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-centro-objeto" onclick="centrarObjeto()" title="Resuelve la foto con ASTAP y deja el objeto (por sus coordenadas) en el centro del encuadre" style="flex: 1;">Centrar el objeto</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-centro-toque" onclick="armarToque()" title="Toca después la foto: el punto que toques pasa a ser el centro del encuadre" style="flex: 1;">Tocar la foto</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="ponerCentro(null, 'Centro del campo')" title="Vuelve al recorte central de siempre">Al centro</button>
+                    </div>
+                    <div id="estado-centro" class="estado"></div>
+                    <small class="ayuda">Con el zoom, el recorte se hace alrededor de este punto en vez del centro del campo (si no cabe, se arrima lo justo). «Centrar el objeto» lo busca por sus coordenadas con el plate solving; «Tocar la foto» espera a que toques el objeto en la imagen, con el campo completo o ya ampliado.</small>
+                </div>
+                <div class="campo mt-2">
                     <div class="rango-titulo"><span>Giro del encuadre</span><span id="v-giro"></span></div>
                     <div class="segmentado" id="giro-seg" style="width: 100%;">
                         <button type="button" data-cuartos="0" onclick="elegirCuartos(0)" style="flex: 1;">0°</button>
@@ -316,6 +326,7 @@
         if (a.zoom !== undefined) document.getElementById("c-zoom").value = String(a.zoom);
         if (a.giro !== undefined) pintarGiro(a.giro);
         if (a.espejo !== undefined) document.getElementById("c-espejo").checked = !!a.espejo;
+        if (a.centro !== undefined) ponerCentro(a.centro, "", false);
         if (a.firma !== undefined) document.getElementById("c-firma").checked = !!a.firma;
         if (a.estirado) elegirEstirado(a.estirado, false);
         if (a.curva !== undefined) document.getElementById("c-curva").value = a.curva || "gamma";
@@ -375,6 +386,82 @@
         }
     }
 
+    // ── Centro del encuadre: [fx, fy] (fracciones del FITS completo) o null = centro del campo.
+    // «Tocar la foto» arma el siguiente toque sobre la imagen; el servidor deshace el encuadre
+    // de la vista previa que se ve (ajustesVista) para saber qué píxel del FITS se tocó.
+    let centroEncuadre = null, toqueArmado = false, ajustesVista = null;
+
+    function ponerCentro(centro, mensaje, refrescar = true) {
+        centroEncuadre = Array.isArray(centro) && centro.length === 2 ? [Number(centro[0]), Number(centro[1])] : null;
+        document.getElementById("v-centro").textContent = centroEncuadre
+            ? `${Math.round(centroEncuadre[0] * 100)} % · ${Math.round(centroEncuadre[1] * 100)} %` : "centro del campo";
+        if (mensaje !== undefined && mensaje !== "") document.getElementById("estado-centro").textContent = mensaje;
+        if (refrescar) programarVistaPrevia();
+    }
+
+    function armarToque(armar = !toqueArmado) {
+        toqueArmado = armar;
+        document.getElementById("btn-centro-toque").classList.toggle("activo", armar);
+        document.getElementById("btn-centro-toque").textContent = armar ? "Toca la foto..." : "Tocar la foto";
+        document.querySelector(".visor").classList.toggle("visor-toque", armar);
+        const estado = document.getElementById("estado-centro");
+        if (!armar) { if (estado.textContent.startsWith("👆")) estado.textContent = ""; return; }
+        if (!hayNueva) {
+            estado.textContent = "👆 Preparando la vista previa; después toca el objeto en la foto";
+            pedirVistaPrevia(false);
+        } else {
+            if (vistaActual() !== "nueva") mostrarVista("nueva");
+            estado.textContent = "👆 Toca el objeto en la foto para dejarlo en el centro";
+        }
+    }
+
+    function vistaActual() {
+        return (document.querySelector("#vista-seg button.activo") || {}).dataset?.vista || "original";
+    }
+
+    async function toqueEnFoto(ev) {
+        if (!toqueArmado) return;
+        const img = document.getElementById("imagen"), estado = document.getElementById("estado-centro");
+        if (!hayNueva || vistaActual() !== "nueva" || !ajustesVista) {
+            estado.textContent = "⏳ Espera a que esté la vista previa y vuelve a tocar";
+            return;
+        }
+        const r = img.getBoundingClientRect();
+        const u = (ev.clientX - r.left) / r.width, v = (ev.clientY - r.top) / r.height;
+        if (u < 0 || u > 1 || v < 0 || v > 1) return;
+        armarToque(false);
+        estado.textContent = "⏳ Centrando...";
+        try {
+            const d = await fetch(`/galeria/editar/${encodeURIComponent(NOMBRE)}/centrar`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ modo: "toque", u, v, ajustes: ajustesVista })
+            }).then(r => r.json());
+            if (!d.ok) throw new Error(d.mensaje || "No se pudo centrar");
+            ponerCentro(d.centro, "✅ " + d.mensaje);
+        } catch (e) {
+            estado.textContent = "⚠️ " + e.message;
+        }
+    }
+
+    async function centrarObjeto() {
+        const boton = document.getElementById("btn-centro-objeto"), estado = document.getElementById("estado-centro");
+        armarToque(false);
+        boton.disabled = true; boton.textContent = "Resolviendo..."; estado.textContent = "";
+        try {
+            const d = await fetch(`/galeria/editar/${encodeURIComponent(NOMBRE)}/centrar`, {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modo: "objeto" })
+            }).then(r => r.json());
+            if (!d.ok) throw new Error(d.mensaje || "No se pudo centrar el objeto");
+            ponerCentro(d.centro, "✅ " + d.mensaje);
+        } catch (e) {
+            estado.textContent = "⚠️ " + e.message;
+        } finally {
+            boton.disabled = false; boton.textContent = "Centrar el objeto";
+        }
+    }
+
+    document.getElementById("imagen").addEventListener("click", toqueEnFoto);
+
     function leerAjustes() {
         const a = {
             estirado: (document.querySelector("#estirado-seg button.activo") || {}).dataset?.estirado || "multiescala",
@@ -386,6 +473,7 @@
             zoom: parseInt(document.getElementById("c-zoom").value) || 0,
             giro: leerGiro(),
             espejo: document.getElementById("c-espejo").checked,
+            centro: centroEncuadre,
             firma: document.getElementById("c-firma").checked,
             objeto: document.getElementById("c-objeto").value.trim()
         };
@@ -425,8 +513,9 @@
             chip.style.display = "";
         }, 250);
         try {
+            const ajustes = leerAjustes();
             const r = await fetch(`/galeria/editar/${encodeURIComponent(NOMBRE)}/vista`, {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(leerAjustes())
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ajustes)
             });
             if (!r.ok) {
                 const d = await r.json().catch(() => ({}));
@@ -436,6 +525,8 @@
             if (urlNueva) URL.revokeObjectURL(urlNueva);
             urlNueva = URL.createObjectURL(blob);
             hayNueva = true;
+            ajustesVista = ajustes;
+            if (toqueArmado) document.getElementById("estado-centro").textContent = "👆 Toca el objeto en la foto para dejarlo en el centro";
             document.getElementById("btn-vista-nueva").disabled = false;
             ultimaDuracion = (Date.now() - inicio) / 1000;
             mostrarVista("nueva");

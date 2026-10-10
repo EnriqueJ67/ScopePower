@@ -134,11 +134,13 @@ def _matriz_al_jpg(meta, solucion, ruta_jpg):
         fraccion = (100.0 - float(enc.get("zoom", 0) or 0)) / 100.0
         giro, espejo = float(enc.get("giro", 0) or 0), bool(enc.get("espejo"))
         margen = float(enc.get("bordes", 0) or 0) / 100.0
+        centro = enc.get("centro") or None          # el editor puede centrar el zoom fuera del centro del campo
     else:
         # Foto anterior a que se guardara el encuadre: sin giro, y el zoom se deduce del ancho del JPG
         ancho_zona = zona[2] if zona else solucion["ancho"]
-        fraccion, giro, espejo, margen = min(1.0, ancho_jpg / float(ancho_zona)), 0.0, False, 0.0
-    M, ancho, alto = procesado.matriz_campo(solucion["ancho"], solucion["alto"], fraccion, giro, zona, margen, espejo)
+        fraccion, giro, espejo, margen, centro = min(1.0, ancho_jpg / float(ancho_zona)), 0.0, False, 0.0, None
+    M, ancho, alto = procesado.matriz_campo(solucion["ancho"], solucion["alto"], fraccion, giro, zona, margen, espejo,
+                                            centro=centro)
     # El JPG se guarda a resolución completa; si no (se quedó la vista previa), se lleva a su tamaño
     M = M.copy()
     M[0] *= ancho_jpg / float(ancho)

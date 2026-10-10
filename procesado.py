@@ -321,17 +321,20 @@ def _traslacion(dx, dy):
     return np.array([[1.0, 0.0, dx], [0.0, 1.0, dy], [0.0, 0.0, 1.0]])
 
 
-def geometria_giro(ancho, alto, fraccion, giro, espejo=False):
+def geometria_giro(ancho, alto, fraccion, giro, espejo=False, centro=None):
     """
     Geometría del encuadre de girar_campo sobre una zona útil de ancho × alto, sin
     tocar la imagen (la usa también «Apunta aquí» para deshacer el giro de un
-    toque). Devuelve un dict:
+    toque). `centro`: (x, y) en píxeles de la zona alrededor del cual se recorta
+    el zoom (None = el centro de la zona); si el recorte no cabe, se arrima lo
+    justo para no salirse del campo. Devuelve un dict:
       T        matriz 3×3 que lleva un píxel (x, y) de la zona al recorte
       ancho, alto   tamaño del recorte
       cuartos  cuartos de vuelta en horario (0..3), tras el espejo
       M        matriz 2×3 del warpAffine si hay que interpolar; None si no
-      recorte  (x, y): sin interpolar, la esquina del recorte central; con M, lo
-               que sobra por cada lado y se quita antes de girar
+      recorte  (x, y): sin interpolar, la esquina del recorte
+      ventana  con M, (x0, y0, x1, y1): el trozo de la zona (ya volteada y con los
+               cuartos dados) que pisa el encuadre girado, lo único que se interpola
     """
     w, h = int(ancho), int(alto)
     T = np.eye(3)
@@ -344,31 +347,65 @@ def geometria_giro(ancho, alto, fraccion, giro, espejo=False):
     for _ in range(cuartos):                         # un cuarto en horario: (x, y) -> (alto - 1 - y, x)
         T = np.array([[0.0, -1.0, h - 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]) @ T
         w, h = h, w
+    # Centro del encuadre, llevado al espacio ya volteado y girado en cuartos; por
+    # defecto el centro de la zona (dx = dy = 0: el mismo recorte central de siempre)
+    dx = dy = 0.0
+    if centro is not None:
+        try:
+            cx, cy, _ = T @ np.array([float(centro[0]), float(centro[1]), 1.0])
+            if math.isfinite(cx) and math.isfinite(cy):
+                dx, dy = cx - (w - 1) / 2.0, cy - (h - 1) / 2.0
+        except (TypeError, ValueError, IndexError):
+            pass
     if abs(resto) < 0.05:
         if fraccion >= 0.999:
             return {"T": T, "ancho": w, "alto": h, "cuartos": cuartos, "M": None, "recorte": (0, 0)}
         nh, nw = max(8, int(round(h * fraccion))), max(8, int(round(w * fraccion)))      # como recortar_centro
         y1, x1 = (h - nh) // 2, (w - nw) // 2
+        x1 = min(max(x1 + int(round(dx)), 0), w - nw)
+        y1 = min(max(y1 + int(round(dy)), 0), h - nh)
         return {"T": _traslacion(-x1, -y1) @ T, "ancho": nw, "alto": nh, "cuartos": cuartos, "M": None, "recorte": (x1, y1)}
     f = min(fraccion, fraccion_con_giro(w, h, resto))
     nw, nh = max(8, int(w * f)), max(8, int(h * f))
-    # Con zoom solo hace falta el trozo central que pisa el encuadre girado (más 3 px para la bicúbica)
+    # Solo hace falta el trozo que pisa el encuadre girado (más 3 px para la bicúbica):
+    # medio ancho y medio alto del rectángulo girado, y el centro arrimado para que quepa
     c, s = abs(math.cos(math.radians(resto))), abs(math.sin(math.radians(resto)))
-    mx = max(0, int((w - (nw * c + nh * s)) / 2.0) - 3)
-    my = max(0, int((h - (nw * s + nh * c)) / 2.0) - 3)
-    w, h = w - 2 * mx, h - 2 * my
-    M = cv2.getRotationMatrix2D(((w - 1) / 2.0, (h - 1) / 2.0), -resto, 1.0)
-    M[0, 2] += (nw - 1) / 2.0 - (w - 1) / 2.0
-    M[1, 2] += (nh - 1) / 2.0 - (h - 1) / 2.0
-    T = np.vstack([M, [0.0, 0.0, 1.0]]) @ _traslacion(-mx, -my) @ T
-    return {"T": T, "ancho": nw, "alto": nh, "cuartos": cuartos, "M": M, "recorte": (mx, my)}
+    hx, hy = (nw * c + nh * s) / 2.0, (nw * s + nh * c) / 2.0
+    cx = (w - 1) / 2.0 + (min(max(dx, hx - (w - 1) / 2.0), (w - 1) / 2.0 - hx) if (w - 1) / 2.0 > hx else 0.0)
+    cy = (h - 1) / 2.0 + (min(max(dy, hy - (h - 1) / 2.0), (h - 1) / 2.0 - hy) if (h - 1) / 2.0 > hy else 0.0)
+    x0, y0 = max(0, int(cx - hx) - 3), max(0, int(cy - hy) - 3)
+    x1, y1 = min(w, int(cx + hx) + 4), min(h, int(cy + hy) + 4)
+    M = cv2.getRotationMatrix2D((cx - x0, cy - y0), -resto, 1.0)
+    M[0, 2] += (nw - 1) / 2.0 - (cx - x0)
+    M[1, 2] += (nh - 1) / 2.0 - (cy - y0)
+    T = np.vstack([M, [0.0, 0.0, 1.0]]) @ _traslacion(-x0, -y0) @ T
+    return {"T": T, "ancho": nw, "alto": nh, "cuartos": cuartos, "M": M, "recorte": (x0, y0), "ventana": (x0, y0, x1, y1)}
 
 
-def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
+def _centro_en_zona(centro, ancho, alto, zx, zy):
+    """
+    El centro del encuadre, dado como fracciones (fx, fy) de la imagen completa
+    de ancho × alto (0..1, lo que guarda el editor en los ajustes), en píxeles de
+    la zona útil que empieza en (zx, zy). None si no viene o no vale.
+    """
+    if centro is None:
+        return None
+    try:
+        fx, fy = float(centro[0]), float(centro[1])
+    except (TypeError, ValueError, IndexError):
+        return None
+    if not (math.isfinite(fx) and math.isfinite(fy)):
+        return None
+    return fx * ancho - zx, fy * alto - zy
+
+
+def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False, centro=None):
     """
     Como recortar_campo, pero con el encuadre girado `giro` grados alrededor del
     centro de la zona útil (positivo = la imagen gira en sentido horario) y, con
-    `espejo`, volteado antes de izquierda a derecha. Devuelve (recorte, M): M es
+    `espejo`, volteado antes de izquierda a derecha. `centro`: (fx, fy),
+    fracciones de la imagen completa alrededor de las cuales se recorta el zoom
+    (None = el centro de la zona; ver geometria_giro). Devuelve (recorte, M): M es
     la matriz afín 2×3 que lleva un píxel (x, y) de la imagen completa al
     recorte, que necesitan las anotaciones. Sin giro ni espejo el recorte es el
     mismo de recortar_campo. Vale para un cubo (3, H, W), una imagen (H, W, 3) o
@@ -380,10 +417,11 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     como las esquinas se salen del campo el recorte se encoge lo justo: con
     `fraccion` por debajo de fraccion_con_giro() no se pierde nada más.
     """
-    rec, zx, zy = recortar_campo(cubo, 1.0, zona, margen)
-    canales_primero = rec.ndim == 3 and rec.shape[0] == 3 and rec.shape[-1] != 3
+    canales_primero = cubo.ndim == 3 and cubo.shape[0] == 3 and cubo.shape[-1] != 3
     ejes = (1, 2) if canales_primero else (0, 1)
-    g = geometria_giro(rec.shape[ejes[1]], rec.shape[ejes[0]], fraccion, giro, espejo)
+    rec, zx, zy = recortar_campo(cubo, 1.0, zona, margen)
+    g = geometria_giro(rec.shape[ejes[1]], rec.shape[ejes[0]], fraccion, giro, espejo,
+                       centro=_centro_en_zona(centro, cubo.shape[ejes[1]], cubo.shape[ejes[0]], zx, zy))
     T = (g["T"] @ _traslacion(-zx, -zy))[:2]
     if espejo:
         rec = np.flip(rec, axis=ejes[1])
@@ -395,9 +433,8 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     if M is None:
         rec = rec[:, y1:y1 + nh, x1:x1 + nw] if canales_primero else rec[y1:y1 + nh, x1:x1 + nw]
         return np.ascontiguousarray(rec), T
-    if x1 or y1:
-        h, w = rec.shape[ejes[0]], rec.shape[ejes[1]]
-        rec = rec[:, y1:h - y1, x1:w - x1] if canales_primero else rec[y1:h - y1, x1:w - x1]
+    x0, y0, x1, y1 = g["ventana"]
+    rec = rec[:, y0:y1, x0:x1] if canales_primero else rec[y0:y1, x0:x1]
     nucleo = np.ones((3, 3), np.uint8)
 
     def _girar(img):
@@ -412,13 +449,14 @@ def girar_campo(cubo, fraccion, giro, zona=None, margen=0.0, espejo=False):
     return _girar(rec), T
 
 
-def matriz_campo(ancho, alto, fraccion, giro, zona=None, margen=0.0, espejo=False):
+def matriz_campo(ancho, alto, fraccion, giro, zona=None, margen=0.0, espejo=False, centro=None):
     """
     La geometría de girar_campo sin la imagen: (M, ancho_recorte, alto_recorte),
     con M la afín 2×3 que lleva un píxel de una imagen completa de ancho × alto
     a su recorte. `zona` ya resuelta: None es la imagen entera (girar_campo, si
-    no se le da, la detecta con zona_automatica). La usan las anotaciones de la
-    galería, que colocan los objetos sobre un JPG ya guardado.
+    no se le da, la detecta con zona_automatica); `centro` como en girar_campo.
+    La usan las anotaciones de la galería, que colocan los objetos sobre un JPG
+    ya guardado, y el editor para saber qué píxel del FITS se ha tocado.
     """
     w, h = int(ancho), int(alto)
     zx, zy = 0, 0
@@ -431,7 +469,7 @@ def matriz_campo(ancho, alto, fraccion, giro, zona=None, margen=0.0, espejo=Fals
         mx, my = int(w * margen), int(h * margen)
         w, h = w - 2 * mx, h - 2 * my
         zx, zy = zx + mx, zy + my
-    g = geometria_giro(w, h, fraccion, giro, espejo)
+    g = geometria_giro(w, h, fraccion, giro, espejo, centro=_centro_en_zona(centro, int(ancho), int(alto), zx, zy))
     return (g["T"] @ _traslacion(-zx, -zy))[:2], g["ancho"], g["alto"]
 
 

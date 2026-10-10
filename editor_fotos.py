@@ -10,6 +10,9 @@
 #   - firma (logo, autor, lugar, fecha, objeto, integración, coordenadas) sí/no;
 #   - giro y espejo del encuadre (procesado.girar_campo), a mano o "norte arriba"
 #     con el plate solving del FITS;
+#   - centro del encuadre: con zoom, el recorte se hace alrededor de un punto
+#     elegido (tocando la foto o buscando el objeto por sus coordenadas con el
+#     plate solving) en vez del centro del campo;
 #   - nombre del objeto: cambia el rótulo de la firma y, si se guarda, el nombre
 #     de los tres ficheros (JPG, FITS y JSON), que es de donde la galería saca el
 #     nombre y la fecha.
@@ -191,16 +194,34 @@ def ajustes_desde(datos):
         aj["giro"] = 0.0
     v = datos.get("espejo", False)
     aj["espejo"] = (str(v).lower() == "true") if not isinstance(v, bool) else v
+    aj["centro"] = _centro_valido(datos.get("centro"))
     v = datos.get("firma", True)
     aj["firma"] = (str(v).lower() == "true") if not isinstance(v, bool) else v
     return aj
 
 
+def _centro_valido(valor):
+    """
+    Centro del encuadre tal como viene de la web o del JSON: [fx, fy], fracciones
+    (0..1) del ancho y del alto de la imagen completa del FITS. None = el centro
+    del campo (lo de siempre). Se guardan con 4 decimales (0,3 px en 3008 px).
+    """
+    if valor in (None, "", False):
+        return None
+    try:
+        fx, fy = float(valor[0]), float(valor[1])
+    except (TypeError, ValueError, IndexError, KeyError):
+        return None
+    if not (math.isfinite(fx) and math.isfinite(fy)):
+        return None
+    return [round(min(max(fx, 0.0), 1.0), 4), round(min(max(fy, 0.0), 1.0), 4)]
+
+
 def _ajustes_para_json(aj):
     """Solo lo que tiene sentido guardar en el JSON hermano (sin los valores del estilo que no se tocan)."""
     guardar = {"estilo": aj["estilo"], "estirado": aj["estirado"], "zoom": aj["zoom"], "bordes": aj.get("bordes", 0),
-               "giro": aj.get("giro", 0.0), "espejo": bool(aj.get("espejo")), "firma": bool(aj["firma"]),
-               "curva": str(aj.get("curva") or "gamma").lower()}
+               "giro": aj.get("giro", 0.0), "espejo": bool(aj.get("espejo")), "centro": aj.get("centro"),
+               "firma": bool(aj["firma"]), "curva": str(aj.get("curva") or "gamma").lower()}
     for k in CLAVES_FLOAT:
         guardar[k] = aj.get(k)
     for k in CLAVES_BOOL:
@@ -280,7 +301,7 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
     cubo, n, exposicion, zona, balance = cargar_cubo(ruta_fits)
     fraccion = (100 - aj["zoom"]) / 100.0
     recorte, _ = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=aj.get("bordes", 0) / 100.0,
-                                       espejo=bool(aj.get("espejo")))
+                                       espejo=bool(aj.get("espejo")), centro=aj.get("centro"))
     escala = 1.0 if completa or fraccion <= 0.5 else 0.5
     rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso, balance=balance)
     imagen = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
@@ -346,6 +367,134 @@ def giro_norte(nombre):
         return norte
     finally:
         _lock_norte.release()
+
+
+# ── Centro del encuadre ─────────────────────────────────────────────────────
+def _matriz_encuadre(nombre, opciones):
+    """
+    (M, ancho, alto, W, H): la afín 2×3 del píxel del FITS completo (W × H) al
+    recorte de ancho × alto que sale con los ajustes `opciones` (los de la
+    vista previa que se está viendo), con la misma zona útil que usa procesar_foto.
+    """
+    _, _, ruta_fits, _ = rutas(nombre)
+    aj = ajustes_desde(opciones)
+    cubo, _, _, zona, _ = cargar_cubo(ruta_fits)
+    H, W = cubo.shape[1], cubo.shape[2]
+    if not zona:
+        zona = procesado.zona_automatica(cubo)
+    M, ancho, alto = procesado.matriz_campo(W, H, (100 - aj["zoom"]) / 100.0, aj.get("giro", 0.0), zona,
+                                            aj.get("bordes", 0) / 100.0, bool(aj.get("espejo")), centro=aj.get("centro"))
+    return M, ancho, alto, W, H
+
+
+def centro_desde_toque(nombre, opciones, u, v):
+    """
+    Centro del encuadre [fx, fy] que deja en el centro el punto tocado en la vista
+    previa hecha con `opciones`: (u, v) son fracciones (0..1) del ancho y del alto
+    de la imagen que se ve (el recorte procesado, a la escala que sea). Se deshace
+    la geometría del encuadre para saber qué píxel del FITS se tocó.
+    """
+    try:
+        u, v = float(u), float(v)
+    except (TypeError, ValueError):
+        raise ErrorEditor("Toque no válido")
+    if not (math.isfinite(u) and math.isfinite(v)):
+        raise ErrorEditor("Toque no válido")
+    M, ancho, alto, W, H = _matriz_encuadre(nombre, opciones)
+    px, py = min(max(u, 0.0), 1.0) * ancho - 0.5, min(max(v, 0.0), 1.0) * alto - 0.5
+    A, b = M[:, :2], M[:, 2]
+    try:
+        x, y = np.linalg.solve(A, np.array([px, py]) - b)
+    except np.linalg.LinAlgError:
+        raise ErrorEditor("No se pudo deshacer el encuadre")
+    return _centro_valido([(x + 0.5) / W, (y + 0.5) / H])
+
+
+def _ra_dec_grados(ra, dec):
+    """OBJCTRA/OBJCTDEC ('17 17 07.4', '+43 08 09') o números (horas, grados) -> (ra_deg, dec_deg) o None."""
+    try:
+        if isinstance(ra, (int, float)) and isinstance(dec, (int, float)):
+            return float(ra) * 15.0, float(dec)
+        nr = re.findall(r"\d+(?:\.\d+)?", str(ra or ""))
+        nd = re.findall(r"\d+(?:\.\d+)?", str(dec or ""))
+        if not nr or not nd:
+            return None
+        nr, nd = [float(x) for x in nr[:3]] + [0.0] * (3 - len(nr[:3])), [float(x) for x in nd[:3]] + [0.0] * (3 - len(nd[:3]))
+        ra_deg = (nr[0] + nr[1] / 60.0 + nr[2] / 3600.0) * 15.0
+        dec_deg = nd[0] + nd[1] / 60.0 + nd[2] / 3600.0
+        if str(dec).strip().startswith("-"):
+            dec_deg = -dec_deg
+        if not (0.0 <= ra_deg < 360.0 and -90.0 <= dec_deg <= 90.0):
+            return None
+        return ra_deg, dec_deg
+    except (TypeError, ValueError):
+        return None
+
+
+def centro_objeto(nombre):
+    """
+    Centro del encuadre [fx, fy] que deja el objeto de la foto en el centro, con el
+    plate solving de la foto (el mismo que usan las anotaciones de la galería; se
+    guarda, así que solo la primera vez tarda). Dónde está el objeto:
+      1. por su nombre en el catálogo local (coordenadas J2000 exactas);
+      2. si no está, las coordenadas de la cabecera (OBJCTRA/OBJCTDEC) son las de
+         la montura al hacer la foto, en JNow y con el error de apuntado (a unos
+         20' del objeto): se toma el objeto de catálogo del campo más cercano a
+         ellas y, si no hay ninguno, esas mismas coordenadas.
+    Devuelve (centro, mensaje). ErrorEditor si no hay con qué, no resuelve o cae
+    fuera de la foto.
+    """
+    import galeria_anotada
+    import anotaciones
+    import catalogo_offline
+    _, ruta_jpg, ruta_fits, _ = rutas(nombre)
+    meta = firma.meta_de_archivo(ruta_jpg)
+    objeto = " ".join(str(meta.get("objeto") or partes_nombre(nombre)[0].replace("_", " ")).split())
+    solucion, _ = galeria_anotada.solucion_de(ruta_fits)
+    wcs = galeria_anotada._wcs(solucion)
+    W, H = int(solucion["ancho"]), int(solucion["alto"])
+
+    def pixel(ra_deg, dec_deg):
+        try:
+            x, y = (float(v) for v in wcs.all_world2pix([[float(ra_deg), float(dec_deg)]], 0)[0])
+        except Exception:
+            return None
+        return (x, y) if math.isfinite(x) and math.isfinite(y) and 0 <= x < W and 0 <= y < H else None
+
+    def resultado(p, texto):
+        log.info("Centro del encuadre de %s: %s, píxel (%.0f, %.0f) de %dx%d", nombre, texto, p[0], p[1], W, H)
+        return _centro_valido([(p[0] + 0.5) / W, (p[1] + 0.5) / H]), texto
+
+    # 1. El objeto por su nombre
+    ficha = catalogo_offline.buscar(objeto)
+    if ficha:
+        p = pixel(float(ficha["ra"]) * 15.0, float(ficha["dec"]))
+        if p:
+            return resultado(p, f"{ficha.get('name') or objeto} centrado")
+    k = catalogo_offline.clave(objeto)
+    candidatos = anotaciones.objetos_catalogo_en_campo(wcs, W, H, margen=0.0)
+    for o in candidatos:
+        if k and len(k) >= 2 and k in catalogo_offline.clave(o["nombre"]):
+            p = pixel(o["ra"], o["dec"])
+            if p:
+                return resultado(p, f"{o['nombre']} centrado")
+    # 2. Lo más cercano a las coordenadas de la montura
+    coords = _ra_dec_grados(meta.get("ra"), meta.get("dec"))
+    if coords is None:
+        raise ErrorEditor(f"«{objeto}» no está en el catálogo y la foto no tiene coordenadas; toca la foto para elegir el centro")
+    if not candidatos:
+        candidatos = anotaciones.objetos_ngc_en_campo(wcs, W, H)
+    cerca = [(float(anotaciones._separacion_deg(coords[0], coords[1], o["ra"], o["dec"])), o) for o in candidatos]
+    cerca = [c for c in cerca if c[0] <= 0.75]
+    if cerca:
+        _, o = min(cerca, key=lambda c: c[0])
+        p = pixel(o["ra"], o["dec"])
+        if p:
+            return resultado(p, f"{o['nombre']} centrado (lo más cercano a donde apuntaba la montura)")
+    p = pixel(*coords)
+    if p is None:
+        raise ErrorEditor("Las coordenadas de la foto caen fuera del campo; toca la foto para elegir el centro")
+    return resultado(p, "centrado donde apuntaba la montura (puede desviarse unos minutos del objeto)")
 
 
 # ── Guardar / restaurar ─────────────────────────────────────────────────────
