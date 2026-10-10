@@ -42,6 +42,7 @@ import foto_dia
 import foto_actual
 import giro_camara
 import orientacion_camara
+import enfoque
 
 log = logging.getLogger("scopepower.vivo")
 
@@ -49,6 +50,7 @@ FPS_CAMARA = 5                 # FrameLimit de la cámara: no más fotogramas de
 ANCHO_JPG = 900
 CALIDAD_JPG = 72
 EXPOSICION_MAXIMA_S = 0.5      # en vivo no tiene sentido esperar más por foto
+EXPOSICION_MAXIMA_ENFOQUE_S = 2.0   # con el modo enfoque (de noche, Bahtinov sobre una estrella) se permite más
 CADA_BALANCE_S = 2.0           # el color se recalcula cada 2 s (sin parpadeos ni gastar CPU)
 SIN_MIRAR_S = 120
 BLANCO = 65535.0               # RAW16 del SDK, alineado a 16 bits como el de ASCOM
@@ -169,6 +171,7 @@ class TrabajoVivo:
         self.nivel = None
         self.balance = None
         self.fotogramas = 0
+        self.enfoque = None            # medida de la estrella con el modo enfoque (enfoque.py)
         self._ultimo_visto = time.time()
 
     def estado(self):
@@ -178,7 +181,7 @@ class TrabajoVivo:
                     "campo": self.campo, "fps": round(self.fps, 1), "exposicion": self.exposicion,
                     "exposicion_texto": foto_dia.formatear_exposicion(self.exposicion),
                     "nivel": self.nivel, "color": foto_dia.texto_balance(self.balance),
-                    "fotogramas": self.fotogramas, "version": self.version}
+                    "fotogramas": self.fotogramas, "version": self.version, "enfoque": self.enfoque}
 
     def imagen(self, despues=None, espera=3.0):
         """
@@ -300,6 +303,10 @@ class TrabajoVivo:
         except Exception as e:
             log.warning("En vivo: no se pudieron leer los límites de la cámara: %s", e)
         maxima_s = min(conf["maxima"], EXPOSICION_MAXIMA_S)
+        if enfoque.activo():
+            # Enfocar de noche con la Bahtinov: hasta 2 s por fotograma y la ganancia de las fotos de noche
+            maxima_s = max(maxima_s, EXPOSICION_MAXIMA_ENFOQUE_S)
+            ganancia = _ganancia_noche(ganancia)
         exposicion = max(minima_s, min(maxima_s, float(_ultima_exposicion(self.objetivo) or conf["inicial"])))
 
         roi = int(round(self.campo * min(ancho_sensor, alto_sensor)))
@@ -336,7 +343,11 @@ class TrabajoVivo:
                 continue
 
             conf_n = foto_dia.con_compensacion(conf, compensacion)
-            nueva, nivel = nueva_exposicion(exposicion, cfa, conf_n["nivel"], minima_s, maxima_s)
+            modo_enfoque = enfoque.activo()
+            if modo_enfoque:
+                nueva, nivel = enfoque.nueva_exposicion_estrella(exposicion, cfa, minima_s, maxima_s, BLANCO)
+            else:
+                nueva, nivel = nueva_exposicion(exposicion, cfa, conf_n["nivel"], minima_s, maxima_s)
             if nueva != exposicion:
                 exposicion = nueva
                 cam.exposicion(exposicion * 1000.0)
@@ -349,7 +360,13 @@ class TrabajoVivo:
                 ultimo_balance = ahora
 
             imagen = revelar_vivo(cfa, patron, negro, balance, orientacion, paso, ev=conf_n["ev"])
-            girada, encuadre = giro_camara.girar(imagen)      # el giro de Cámara; se anota sin girar (disco.py la mide así)
+            info_enfoque = None
+            if modo_enfoque:
+                # Solo el verde, con la estrella más brillante ampliada (enfoque.py); foto_actual sigue con la de color
+                girada, encuadre, info_enfoque = enfoque.imagen_vivo(cfa, patron, paso, lambda im: a_orientacion_ascom(im, orientacion),
+                                                                     giro_camara.girar)
+            else:
+                girada, encuadre = giro_camara.girar(imagen)      # el giro de Cámara; se anota sin girar (disco.py la mide así)
             jpg = jpg_web(girada)
             foto_actual.registrar("vivo", ancho_ascom, alto_ascom, 1, campo_visto, imagen=imagen,
                                   objetivo=self.objetivo, exposicion=exposicion, ev=conf_n["ev"], encuadre=encuadre)
@@ -360,9 +377,25 @@ class TrabajoVivo:
                 self._nuevo.notify_all()
                 self.fotogramas += 1
                 self.exposicion, self.nivel, self.balance = exposicion, round(nivel, 3), balance
+                self.enfoque = info_enfoque
                 if ahora - t_fps >= 2.0:
                     self.fps = n_fps / (ahora - t_fps)
                     t_fps, n_fps = ahora, 0
+
+
+def _ganancia_noche(defecto, ruta_config="config.ini"):
+    """Ganancia de las fotos de noche (ganancia_camara del config), para enfocar estrellas en vivo; `defecto` si no hay."""
+    import configparser
+    cfg = configparser.ConfigParser()
+    cfg.read(ruta_config)
+    for seccion in cfg.sections():
+        v = cfg[seccion].get("ganancia_camara", "")
+        if str(v).strip():
+            try:
+                return int(float(v))
+            except ValueError:
+                break
+    return defecto
 
 
 def _ultima_exposicion(objetivo, ruta_config="config.ini"):

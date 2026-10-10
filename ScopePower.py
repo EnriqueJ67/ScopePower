@@ -59,6 +59,7 @@ import foto_dia
 import foto_actual
 import giro_camara
 import vivo_dia
+import enfoque
 import camara_sdk
 import disco
 import espacio_disco
@@ -2072,6 +2073,15 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         estado_captura.poner_fase("Revelando la foto")
         sin_girar = revelar_foto_noche(imagen_fits, patron_bayer)
         imagen_web, encuadre = giro_camara.girar(sin_girar)      # el giro de Cámara; el FITS queda sin girar
+        info_enfoque = None
+        if enfoque.activo() and imagen_fits.ndim == 2:
+            # Modo enfoque (enfoque.py): solo el verde en gris, con la estrella más brillante ampliada
+            try:
+                rgb_lineal = debayer_rgb(imagen_fits, patron_bayer).astype(np.float32)
+                imagen_web, encuadre, info_enfoque = enfoque.imagen_foto_noche(rgb_lineal, giro_camara.girar)
+                print(f"🔍 Enfoque: {enfoque.texto_info(info_enfoque)}")
+            except Exception as e:
+                log.warning("Modo enfoque: %s", e)
         guardar_jpg_web(RUTA_IMAGEN_WEB, imagen_web)
         # La foto que se ve ahora en Cámara está en static/captura.fits (para "Apunta aquí" y la galería)
         foto_actual.registrar("noche", imagen_fits.shape[1], imagen_fits.shape[0], BINNING,
@@ -2084,7 +2094,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
 
         return {"ok": True, "mensaje": f"Captura de {EXPOSICION:g} s guardada", "ruta": ruta_guardada,
                 "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia,
-                "hora": ULTIMA_CAPTURA.get("hora")}
+                "hora": ULTIMA_CAPTURA.get("hora"), "enfoque": info_enfoque}
 
     except Exception as e:
         log.exception("Error al procesar la captura")
@@ -4198,6 +4208,16 @@ def vivo_parar():
 @app.route('/vivo/estado')
 def vivo_estado():
     return jsonify(vivo_dia.trabajo_vivo.estado())
+
+
+@app.route('/enfoque', methods=["GET", "POST"])
+def enfoque_modo():
+    """Modo «solo verde» para enfocar con la Bahtinov (enfoque.py): GET → {activo}; POST {activo} lo cambia."""
+    if request.method == "POST":
+        datos = request.get_json(silent=True) or {}
+        enfoque.poner(bool(datos.get("activo")))
+        print(f"🔍 Modo enfoque (solo verde) {'activado' if enfoque.activo() else 'desactivado'}")
+    return jsonify({"activo": enfoque.activo()})
 
 
 @app.route('/vivo/imagen')

@@ -94,6 +94,12 @@
                 </span>
             </div>
             <div id="exposicion-ayuda" class="texto-3" style="font-size: 12.5px;"></div>
+            <!-- Modo enfoque (enfoque.py): solo el canal verde, con la estrella más brillante ampliada, para la máscara de Bahtinov -->
+            <div class="fila mt-2" id="fila-enfoque" style="justify-content: space-between;">
+                <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-enfoque" onchange="cambiarModoEnfoque()"> Enfoque: solo verde (Bahtinov)</label>
+                <span class="texto-3" style="font-size: 12.5px;">foto de prueba y modo en vivo</span>
+            </div>
+            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche.</div>
             <!-- Modo continuo: una foto tras otra en el servidor hasta que se pare (ver foto_continua.py).
                  Cada foto puede guardarse en JPG (revelada, pocos MB) o FITS (en bruto, 18 MB) para no llenar el disco sin querer. -->
             <div id="fila-continuo" class="fila mt-2" style="justify-content: space-between;">
@@ -1015,7 +1021,7 @@
             est.className = "estado mt-2";
             est.innerHTML = e.fase === "en vivo"
                 ? `<span class="spinner"></span>En vivo · ${e.fps || 0} fotos/s · ${e.exposicion_texto}` + (e.nivel !== null && e.nivel !== undefined ? ` · nivel ${Math.round(100 * e.nivel)} %` : "")
-                  + (e.color ? ` · ${e.color}` : "")
+                  + (e.color ? ` · ${e.color}` : "") + (e.enfoque && e.enfoque.fwhm_g ? " · " + textoEnfoque(e.enfoque) : "")
                 : `<span class="spinner"></span>${e.mensaje}`;
             if (!antes) { versionVivo = -1; cancelarCargaFoto(); pedirFotoVivo(); }
         } else if (antes || e.terminado) {
@@ -1033,6 +1039,33 @@
     }
     // Al abrir la página: engancharse a un modo en vivo en marcha
     fetch("/vivo/estado").then(r => r.json()).then(e => { if (e.en_curso && pintarVivo(e) && !sondeoVivo) sondeoVivo = setInterval(sondearVivo, 1000); }).catch(() => {});
+
+    // ——— Modo enfoque: solo verde (enfoque.py) ———
+    function textoEnfoque(i) {
+        const f = v => (v === null || v === undefined || !isFinite(v)) ? null : v.toFixed(1).replace(".", ",");
+        let s = "FWHM verde " + f(i.fwhm_g) + " px";
+        if (f(i.fwhm_r) !== null) s += " · rojo " + f(i.fwhm_r);
+        if (f(i.fwhm_b) !== null) s += " · azul " + f(i.fwhm_b);
+        return s;
+    }
+    function pintarModoEnfoque(activo) {
+        document.getElementById("modo-enfoque").checked = !!activo;
+        document.getElementById("enfoque-ayuda").hidden = !activo;
+    }
+    function cambiarModoEnfoque() {
+        const activo = document.getElementById("modo-enfoque").checked;
+        fetch("/enfoque", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activo }) })
+            .then(r => r.json()).then(d => {
+                pintarModoEnfoque(d.activo);
+                // En vivo se reinicia para que tome la exposición y la ganancia del modo
+                if (vivoActivo) {
+                    pararVivo();
+                    let intentos = 0;
+                    const t = setInterval(() => { if (!vivoActivo || ++intentos > 20) { clearInterval(t); if (!vivoActivo) alternarVivo(); } }, 500);
+                }
+            }).catch(() => {});
+    }
+    fetch("/enfoque").then(r => r.json()).then(d => pintarModoEnfoque(d.activo)).catch(() => {});
 
     // ——— Modo continuo ———
     let modoContinuo = false, guardarContinuo = "no", sondeoContinuo = null, ultimaVersionContinuo = -1, continuoActivo = false;
@@ -1187,7 +1220,8 @@
                 if (d.ok) {
                     est.className = "estado ok mt-2";
                     est.textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "")
-                        + (d.ganancia !== null && d.ganancia !== undefined ? ` · ganancia ${d.ganancia}` : "");
+                        + (d.ganancia !== null && d.ganancia !== undefined ? ` · ganancia ${d.ganancia}` : "")
+                        + (d.enfoque && d.enfoque.fwhm_g ? " · " + textoEnfoque(d.enfoque) : "");
                     cargarFoto("/imagen-capturada?" + Date.now(), { hora: d.hora, alTerminar: info => { est.textContent += textoLlegada(info); } });
                     fotoMostrada(true);
                 } else {
