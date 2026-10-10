@@ -60,6 +60,8 @@ GRUPO_DE_EVENTO = {
     "foto_guardada": "exito",
     "foto_descartada": "tars",
     "foto_sustituye": "exito",
+    "foto_mejor": "exito",
+    "foto_peor": "tars",
     "referencia_fijada": "proceso",
     "apilado_inicio": "proceso",
     "apilado_fin": "exito",

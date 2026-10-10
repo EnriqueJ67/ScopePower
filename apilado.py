@@ -153,6 +153,11 @@ def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
 # ———————————
 # Calidad de fotograma y apilado con memoria acotada
 # ———————————
+def _hablado(x):
+    """Puntuación para la voz: dos decimales y coma, que SAPI lee bien en español."""
+    return f"{x:.2f}".replace(".", ",")
+
+
 def calcular_puntuacion(plano):
     """
     Puntúa la calidad de un fotograma a partir de sus estrellas.
@@ -647,8 +652,47 @@ class ApiladorEnTiempoReal:
         # Mejores puntuaciones vistas (para el umbral relativo) y umbral actual
         self.mejores_puntuaciones = []
         self.umbral = None
+        # Récords de la noche: mejor y peor puntuación de las fotos que han entrado.
+        # Se anuncian por voz solo cuando ya hay fotos de referencia suficientes.
+        self.record_mejor = None
+        self.record_peor = None
+        self.aceptadas = 0
 
         self.ref_info = None
+
+    def _record(self, puntuacion, n_referencia):
+        """Apunta la foto aceptada en los récords de la noche. Devuelve ("mejor" | "peor" | None,
+        récord anterior). Mientras no hayan entrado n_referencia fotos (las que fijan el nivel
+        de la noche) solo se anota, sin anunciar."""
+        with self.lock:
+            self.aceptadas += 1
+            mejor, peor = self.record_mejor, self.record_peor
+            if mejor is None or puntuacion > mejor:
+                self.record_mejor = puntuacion
+            if peor is None or puntuacion < peor:
+                self.record_peor = puntuacion
+            if self.aceptadas <= n_referencia:
+                return None, None
+        if puntuacion > mejor:
+            return "mejor", mejor
+        if puntuacion < peor:
+            return "peor", peor
+        return None, None
+
+    def _anunciar_entrada(self, base, puntuacion, n_referencia, evento_humor=None):
+        """Voz de una foto que entra en el apilado: el aviso normal y, si bate el récord de
+        la noche (mejor o peor), se dice en serio y detrás va la frase de humor del caso."""
+        tipo, anterior = self._record(puntuacion, n_referencia)
+        if tipo == "mejor":
+            voz.decir(f"{base}. Es la mejor foto de la noche: {_hablado(puntuacion)} frente a {_hablado(anterior)}")
+            humor.decir("foto_mejor", n=self.total)
+        elif tipo == "peor":
+            voz.decir(f"{base}. Es la peor que ha entrado hasta ahora: {_hablado(puntuacion)}, la anterior {_hablado(anterior)}")
+            humor.decir("foto_peor", n=self.total)
+        else:
+            voz.decir(base)
+            if evento_humor:
+                humor.decir(evento_humor)
 
     def _fase(self, nombre):
         ahora = time.time()
@@ -1247,7 +1291,7 @@ class ApiladorEnTiempoReal:
                 print(f"📚 {self.ultimo_mensaje}; fondo {suma['nivel']:+.0f} ADU, ruido ×{suma['ruido']:.2f}")
                 if suma["rechazado"] > 0.2:
                     print("⚠️ Más del 20 % de la foto no se parece a la referencia (¿nubes, alineado, enfoque?)")
-                voz.decir(f"Foto añadida, {self.total} apiladas")
+                self._anunciar_entrada(f"Foto añadida, {self.total} apiladas", puntuacion, n_referencia)
                 self._publicar_apilado(acumulador.imagen(), zona_cobertura(*acumulador.cobertura()),
                                        ruta_fits, EXPOSICION, ObjetosAnotados)
                 return
@@ -1339,9 +1383,8 @@ class ApiladorEnTiempoReal:
                     return
             else:
                 print(f"📚 {self.ultimo_mensaje}")
-                voz.decir("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas")
-                if sustituida:
-                    humor.decir("foto_sustituye")
+                self._anunciar_entrada("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas",
+                                       puntuacion, n_referencia, "foto_sustituye" if sustituida else None)
 
             self._fase("apilando")
             if incremental and len(fotogramas_actuales) >= n_referencia:
@@ -1460,6 +1503,9 @@ def reiniciar_apilado_global():
             apilador_global.desplazamientos.clear()
             apilador_global.mejores_puntuaciones.clear()
             apilador_global.umbral = None
+            apilador_global.record_mejor = None
+            apilador_global.record_peor = None
+            apilador_global.aceptadas = 0
             apilador_global.version_preview += 1   # la web debe olvidar la imagen anterior
 
             # Miniaturas de la tira de evolución del apilado anterior

@@ -26,6 +26,8 @@
 #   foto_guardada         foto guardada en la galería
 #   foto_descartada       el apilado descarta una foto por mala puntuación
 #   foto_sustituye        una foto nueva sustituye a una peor en el apilado
+#   foto_mejor            entra la mejor foto de la noche (ya con las de referencia hechas)
+#   foto_peor             entra la peor foto hasta ahora (ya con las de referencia hechas)
 #   referencia_fijada     imagen de referencia del apilado establecida
 #   apilado_inicio        empieza el apilado (bucle de capturas)
 #   apilado_fin           el apilado se detiene ({n} = fotos apiladas)
@@ -420,3 +422,20 @@ tars;95;Llevas tres años con este hobby y sigues preguntándote por qué las es
 tars;100;Nivel de humor al máximo y honestidad al máximo: la culpa nunca es del telescopio, del cielo ni del software. Piénsalo.
 nivel_humor;85;Humor al {nivel} por ciento. A partir de aquí, tus fotos son objetivo legítimo.
 nivel_humor;95;Humor al {nivel} por ciento. Tú lo has pedido. Luego no llores.
+# ══════════════════════════════════════════════════════════════════════════════
+# Récords de la noche: la mejor y la peor foto que entran en el apilado
+# ══════════════════════════════════════════════════════════════════════════════
+foto_mejor;40;Nuevo récord. Apunta la hora: esto no pasa todas las noches.
+foto_mejor;50;La mejor de la noche. El seeing ha parpadeado un segundo y lo hemos pillado.
+foto_mejor;60;Récord de la noche. No toques nada. En serio, nada.
+foto_mejor;70;La mejor hasta ahora. Si hubieras enfocado así desde el principio, ya habríamos acabado.
+foto_mejor;75;Nuevo récord. Un Seestar también lo celebraría, pero sin decirte la puntuación.
+foto_mejor;85;La mejor foto de la noche. Mérito del cielo. Tú solo estabas delante.
+foto_mejor;95;Récord. Disfrútalo: estadísticamente, la próxima será peor. Como casi todas las tuyas.
+foto_peor;40;La peor hasta ahora. Ha entrado, pero por los pelos.
+foto_peor;50;Nuevo mínimo de la noche. ¿Nubes, viento, o alguien ha respirado cerca del trípode?
+foto_peor;60;La peor que ha entrado. El apilado la absorberá, pero que conste en acta.
+foto_peor;70;Mínimo histórico de la sesión. Si la siguiente es peor, empezaré a sospechar del rocío.
+foto_peor;75;La peor de la noche. Un Dwarf la habría puesto de portada.
+foto_peor;85;Récord por abajo. No ha sido el cielo: el cielo lleva toda la noche igual.
+foto_peor;95;La peor foto que ha entrado hasta ahora. Y aun así entra, que ya dice bastante del resto.
