@@ -201,6 +201,32 @@ def calcular_puntuacion(plano):
     return puntuacion, n_estrellas, nitidez
 
 
+def fwhm_estrellas(plano, maximo=60):
+    """
+    Anchura a media altura (px) de las estrellas de una foto: mediana de hasta
+    `maximo` estrellas brillantes sin saturar y aisladas, medida por el segundo
+    momento de la luz (enfoque.fwhm) sobre el canal verde a resolución completa.
+    Sirve para ver si el foco se va a lo largo de la noche (la temperatura mueve
+    el enfoque del tubo): la nitidez (pico/flujo) lo nota, pero la anchura en
+    píxeles se entiende de un vistazo. NaN si no hay estrellas que medir.
+    """
+    import enfoque
+    img = np.asarray(plano, dtype=np.float32)
+    suav = cv2.GaussianBlur(img, (0, 0), 1.2)
+    fondo = float(np.median(suav[::8, ::8]))
+    mad = float(np.median(np.abs(suav[::8, ::8] - fondo))) * 1.4826 + 1e-3
+    dil = cv2.dilate(suav, np.ones((15, 15), np.uint8))
+    cand = np.argwhere((suav == dil) & (suav - fondo > 20.0 * mad) & (img < 55000))
+    if len(cand) == 0:
+        return float("nan")
+    h, w = img.shape
+    cand = [(suav[y, x], y, x) for y, x in cand if 10 < y < h - 10 and 10 < x < w - 10]
+    cand.sort(reverse=True)
+    anchos = [enfoque.fwhm(img, x, y) for _, y, x in cand[:maximo]]
+    anchos = [a for a in anchos if np.isfinite(a)]
+    return float(np.median(anchos)) if anchos else float("nan")
+
+
 def calcular_puntuacion_photutils(plano, fwhm_px=2.5, umbral_sigma=4.0):
     """
     Métrica de calidad de la versión de junio (AnalizaFits.py), portada:
@@ -649,6 +675,7 @@ class ApiladorEnTiempoReal:
         # Desplazamiento (dx, dy) en px de cada foto alineada respecto a la
         # referencia: sirve para ver cuánto "dithering natural" da la montura
         self.desplazamientos = []
+        self.fwhms = []                 # anchura de las estrellas (px) de cada foto medida, para ver si se va el foco
         # Mejores puntuaciones vistas (para el umbral relativo) y umbral actual
         self.mejores_puntuaciones = []
         self.umbral = None
@@ -1126,6 +1153,13 @@ class ApiladorEnTiempoReal:
                 puntuacion, n_estrellas, nitidez = calcular_puntuacion(g)
             # Fondo de cielo: mediana del verde (ADU de 16 bits), submuestreado para que sea instantáneo
             fondo = float(np.median(g[::8, ::8]))
+            # Anchura de las estrellas (px): el foco a lo largo de la noche
+            try:
+                fwhm_foto = fwhm_estrellas(g)
+            except Exception as e:
+                print(f"⚠️ No se pudo medir la anchura de las estrellas: {e}")
+                fwhm_foto = float("nan")
+            fwhm_foto = round(fwhm_foto, 2) if np.isfinite(fwhm_foto) else None
             # Un rastro de avión o una linterna no bajan las estrellas ni la
             # nitidez (el rastro hasta suma "estrellas"), pero se quedan en el
             # apilado: la puntuación se hunde y la foto no entra
@@ -1139,14 +1173,20 @@ class ApiladorEnTiempoReal:
                 self.ultima_detalle = {
                     "nombre": nombre_fits, "hora": datetime.now().strftime("%H:%M:%S"),
                     "puntuacion": round(puntuacion, 3), "estrellas": n_estrellas,
-                    "nitidez": round(nitidez, 3), "fondo": round(fondo),
+                    "nitidez": round(nitidez, 3), "fondo": round(fondo), "fwhm": fwhm_foto,
                     "exposicion": EXPOSICION, "desplazamiento": None,
                     "resultado": "midiendo", "motivo": "",
                     "defecto": defecto[0] if defecto else "",
                     "puntuacion_sin_defecto": round(puntuacion_limpia, 3) if defecto else None,
                 }
             print(f"⭐ {nombre_fits}: {n_estrellas} estrellas, nitidez {nitidez:.3f}, puntuación {puntuacion:.3f}"
+                  + (f", FWHM {fwhm_foto:.1f} px" if fwhm_foto else "")
                   + (f" ({defecto[0]}; sin él {puntuacion_limpia:.3f})" if defecto else ""))
+            if fwhm_foto:
+                with self.lock:
+                    self.fwhms.append(fwhm_foto)
+                    if len(self.fwhms) > 1000:
+                        self.fwhms.pop(0)
 
             if n_estrellas == 0:
                 self._descartar(f"{nombre_fits}: sin estrellas detectables (¿nubes, tapa, desenfoque?)",
@@ -1644,6 +1684,14 @@ def obtener_estado_apilado():
                  round(float(np.std([d[1] for d in a.desplazamientos])), 1)]
                 if len(a.desplazamientos) >= 2 else None),
             "desplazamientos_n": len(a.desplazamientos),
+            # Foco: anchura de las estrellas de la última foto, de las primeras (referencia de la
+            # sesión) y la tendencia; la web avisa si se ha ensanchado (temperatura, tubo)
+            "fwhm_ultima": a.fwhms[-1] if a.fwhms else None,
+            "fwhm_inicial": round(float(np.median(a.fwhms[:5])), 2) if a.fwhms else None,
+            "fwhm_media": round(float(np.median(a.fwhms)), 2) if a.fwhms else None,
+            "fwhm_minima": round(float(min(a.fwhms)), 2) if a.fwhms else None,
+            "fwhm_n": len(a.fwhms),
+            "fwhms": [float(x) for x in a.fwhms[-60:]],
             "umbral": round(a.umbral, 3) if a.umbral is not None else None,
             "metrica": leer_config_calidad()["metrica"],
         }

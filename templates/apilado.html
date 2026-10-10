@@ -153,6 +153,7 @@
 
                 <h4 class="estadisticas-titulo">Foto apilada</h4>
                 <dl class="kv" id="datos-apilado"><dd class="texto-3" style="grid-column: 1 / -1;">Todavía no hay fotos apiladas.</dd></dl>
+                <div id="grafica-foco" class="mt-1" style="display: none;"></div>
 
                 <h4 class="estadisticas-titulo">Última foto medida</h4>
                 <dl class="kv" id="datos-ultima"><dd class="texto-3" style="grid-column: 1 / -1;">Todavía no se ha medido ninguna foto.</dd></dl>
@@ -1006,6 +1007,41 @@
         }
     }
 
+    // ——— Foco: anchura de las estrellas (FWHM) foto a foto ———
+    // La temperatura mueve el enfoque del tubo a lo largo de la noche: si la anchura
+    // de la última foto supera en un 15 % la de las primeras, se avisa.
+    function fmtPx(v) { return Number(v).toFixed(1).replace(".", ","); }
+    function textoFoco(d) {
+        if (!hayNum(d.fwhm_ultima)) return "";
+        let s = `${fmtPx(d.fwhm_ultima)} px la última · ${fmtPx(d.fwhm_inicial)} al inicio · ${fmtPx(d.fwhm_minima)} la mejor`;
+        if (d.fwhm_inicial > 0) {
+            const dif = 100 * (d.fwhm_ultima - d.fwhm_inicial) / d.fwhm_inicial;
+            if (dif >= 15) s += ` · ⚠️ un ${Math.round(dif)} % más ancha que al inicio: ¿se ha ido el foco?`;
+            else if (dif <= -15) s += ` · mejor que al inicio (${Math.round(-dif)} % más fina)`;
+        }
+        return s;
+    }
+    function claseFoco(d) {
+        return (hayNum(d.fwhm_ultima) && d.fwhm_inicial > 0 && d.fwhm_ultima >= 1.15 * d.fwhm_inicial) ? "warn" : "";
+    }
+    // Gráfica mínima (SVG) de la anchura foto a foto, debajo de las estadísticas
+    function pintarFoco(d) {
+        const cont = document.getElementById("grafica-foco");
+        if (!cont) return;
+        const v = d.fwhms || [];
+        if (v.length < 3) { cont.innerHTML = ""; cont.style.display = "none"; return; }
+        cont.style.display = "";
+        const W = 300, H = 60, m = 4;
+        const lo = Math.min(...v) * 0.9, hi = Math.max(...v) * 1.1 || 1;
+        const x = i => m + (W - 2 * m) * i / (v.length - 1);
+        const y = val => H - m - (H - 2 * m) * (val - lo) / (hi - lo);
+        const puntos = v.map((val, i) => `${x(i).toFixed(1)},${y(val).toFixed(1)}`).join(" ");
+        const ref = hayNum(d.fwhm_inicial) ? y(d.fwhm_inicial) : null;
+        cont.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width: 100%; height: 60px; display: block;">`
+            + (ref !== null ? `<line x1="${m}" y1="${ref.toFixed(1)}" x2="${W - m}" y2="${ref.toFixed(1)}" stroke="currentColor" stroke-opacity="0.25" stroke-dasharray="3 3"/>` : "")
+            + `<polyline points="${puntos}" fill="none" stroke="${claseFoco(d) ? "var(--warn, #e6a700)" : "var(--ok, #4caf50)"}" stroke-width="1.5"/></svg>`
+            + `<div class="texto-3" style="font-size: 12px;">Anchura de las estrellas (FWHM) en las últimas ${v.length} fotos: de ${fmtPx(Math.min(...v))} a ${fmtPx(Math.max(...v))} px; la línea de puntos es el inicio de la sesión.</div>`;
+    }
     let evolucionPintada = 0;
     function pintarEvolucion(lista) {
         const bloque = document.getElementById("evolucion-bloque");
@@ -1167,6 +1203,7 @@
                 ["Puntuación", hayNum(d.puntuacion_std) ? `${fmtPunt(d.puntuacion_media)} ± ${fmtPunt(d.puntuacion_std)}` : fmtPunt(d.puntuacion_media)],
                 ["Estrellas", hayNum(d.estrellas_media) ? `${Math.round(d.estrellas_media)} de media` : ""],
                 ["Nitidez", hayNum(d.nitidez_media) ? `${Number(d.nitidez_media).toFixed(3)} de media` : ""],
+                ["Foco (FWHM)", textoFoco(d), claseFoco(d)],
                 ["Fondo de cielo", hayNum(d.fondo_medio) ? `${Math.round(d.fondo_medio)} ADU` : ""],
                 ["Deriva", std ? `±${std[0]} / ±${std[1]} px (${d.desplazamientos_n} fotos)` : ""],
                 ["Descartadas", desc.length ? desc.join(" · ") : "ninguna", desc.length ? "warn" : ""],
@@ -1183,6 +1220,7 @@
 
         // Datos de la última foto medida
         const u = d.ultima_detalle;
+        pintarFoco(d);
         if (u) {
             const RESULTADO = {
                 midiendo: ["Procesando...", ""], apilada: ["✅ Apilada", "ok"],
@@ -1198,6 +1236,7 @@
                     : (d.puntuacion_media > 0 && hayNum(u.puntuacion) ? ` (${u.puntuacion >= d.puntuacion_media ? "+" : ""}${(100 * (u.puntuacion - d.puntuacion_media) / d.puntuacion_media).toFixed(0)} % sobre la media)` : ""))],
                 ["Estrellas", hayNum(u.estrellas) ? u.estrellas : ""],
                 ["Nitidez", hayNum(u.nitidez) ? Number(u.nitidez).toFixed(3) : ""],
+                ["Anchura de estrellas", hayNum(u.fwhm) ? `${fmtPx(u.fwhm)} px` + (hayNum(d.fwhm_minima) && d.fwhm_minima > 0 ? ` (mejor de la sesión ${fmtPx(d.fwhm_minima)})` : "") : ""],
                 ["Fondo de cielo", hayNum(u.fondo) ? `${u.fondo} ADU` : ""],
                 ["Desplazamiento", u.desplazamiento ? `${u.desplazamiento[0]} / ${u.desplazamiento[1]} px` : ""],
                 ["Exposición", u.exposicion ? `${u.exposicion} s` : ""],
