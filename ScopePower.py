@@ -635,6 +635,27 @@ def _es_synscan(driver):
     return "synscan" in str(driver or "").lower()
 
 
+def _desaparcar_si_hace_falta(tel):
+    """
+    Si la montura se aparcó antes de apagarla (botón «Aparcar la montura» de Cerrar o
+    apagar), se desaparca al conectar para poder mover y seguir. Con SynScan Pro hay que
+    haber contestado «Restore» a su pregunta de la hibernación al encender la montura.
+    """
+    try:
+        if not tel.AtPark:
+            return
+    except Exception:
+        return          # driver sin aparcado
+    try:
+        tel.Unpark()
+        log.warning("Montura aparcada al conectar: desaparcada")
+        print("🅿️ La montura estaba aparcada: desaparcada")
+        voz.decir("Montura desaparcada")
+    except Exception as e:
+        from hardware import _mensaje_com
+        log.warning("La montura está aparcada y no se pudo desaparcar: %s", _mensaje_com(e))
+
+
 def _activar_seguimiento(tel):
     # El driver SynScanMobile "conecta" con la app SynScan Pro aunque esta no tenga
     # enlace con la montura (apagada, sin WiFi): la conexión ASCOM tiene éxito y luego
@@ -650,6 +671,7 @@ def _activar_seguimiento(tel):
                    "comprueba que está encendida y conectada al PC, y que el driver está bien configurado "
                    "(puerto COM, dirección IP o el programa que necesite abierto)")
         raise ErrorHardware(f"la montura no responde ({_mensaje_com(e)}): {consejo}") from e
+    _desaparcar_si_hace_falta(tel)
     try:
         tel.Tracking = True
     except Exception as e:
@@ -1037,6 +1059,156 @@ def reiniciar_app():
 def apagar_estado():
     restante = max(0.0, _apagado["hasta"] - time.time()) if _apagado["accion"] else 0.0
     return jsonify({"accion": _apagado["accion"] if restante > 0 else None, "restante": round(restante)})
+
+
+# ─── Aparcar la montura antes de apagarla (cambio de batería) ─────────────
+# Para el seguimiento, lleva el tubo a altura 0 / acimut 0 y aparca. Con SynScan Pro,
+# Park es su «Hibernación»: guarda en la app la posición de los motores y, al volver
+# a conectar la montura, la app pregunta «Hibernate data present. Restore state to
+# mount?»; con «Restore» la alineación sigue valiendo aunque la montura se apagara.
+# Al conectar, ScopePower desaparca sola la montura (ver _desaparcar_si_hace_falta).
+APARCAR_TIMEOUT_S = 240
+_aparcado = {"en_curso": False, "fase": "", "resultado": None}
+
+
+def _esperar_quieta(tel, maximo_s, que):
+    inicio = time.time()
+    time.sleep(0.5)
+    while tel.Slewing:
+        if time.time() - inicio > maximo_s:
+            try:
+                tel.AbortSlew()
+            except Exception:
+                pass
+            raise ErrorHardware(f"la montura no terminó {que} en {maximo_s:.0f} s")
+        time.sleep(0.5)
+
+
+def _aparcar(tel):
+    """Se ejecuta en el hilo de la montura. Devuelve un dict con lo que se ha hecho."""
+    from hardware import _mensaje_com
+    avisos = []
+    try:
+        if tel.AtPark:
+            return {"ok": True, "ya_estaba": True, "avisos": avisos, "aparcada": True,
+                    "alt": None, "az": None}
+    except Exception:
+        pass
+    try:
+        tel.Tracking = False          # ASCOM exige el seguimiento apagado para SlewToAltAz
+    except Exception as e:
+        avisos.append(f"no se pudo parar el seguimiento ({_mensaje_com(e)})")
+
+    _aparcado["fase"] = "Llevando el tubo a altura 0°, acimut 0°..."
+    movido = False
+    if getattr(tel, "CanSlewAltAz", False):
+        try:
+            if getattr(tel, "CanSlewAltAzAsync", False):
+                tel.SlewToAltAzAsync(0.0, 0.0)      # (acimut, altura)
+            else:
+                tel.SlewToAltAz(0.0, 0.0)
+            _esperar_quieta(tel, 180, "el movimiento a altura 0 / acimut 0")
+            movido = True
+        except Exception as e:
+            avisos.append(f"no fue a altura 0 / acimut 0 ({_mensaje_com(e)}); "
+                          "mira el límite inferior de altura de SynScan Pro")
+            log.warning("Aparcar: SlewToAltAz(0, 0) falló: %s", e)
+    else:
+        avisos.append("el driver no permite mover a una altura y acimut concretos")
+
+    aparcada = False
+    if getattr(tel, "CanPark", False):
+        _aparcado["fase"] = "Aparcando (hibernación de SynScan Pro)..."
+        try:
+            # Park va a la posición de aparcado del driver (en el simulador ASCOM, 39° de
+            # altura al sur): se fija antes la actual para que el tubo se quede donde está
+            if movido and getattr(tel, "CanSetPark", False):
+                tel.SetPark()
+            tel.Park()
+            _esperar_quieta(tel, 120, "el aparcado")
+            aparcada = bool(tel.AtPark)
+        except Exception as e:
+            avisos.append(f"el driver no aceptó Park ({_mensaje_com(e)})")
+            log.warning("Aparcar: Park falló: %s", e)
+    else:
+        avisos.append("el driver no permite aparcar: la posición no queda guardada")
+    try:
+        tel.Tracking = False          # por si Park lo hubiera dejado encendido
+    except Exception:
+        pass
+    alt = az = None
+    try:
+        alt, az = float(tel.Altitude), float(tel.Azimuth)
+    except Exception:
+        pass
+    return {"ok": True, "ya_estaba": False, "aparcada": aparcada, "avisos": avisos,
+            "alt": alt, "az": az}
+
+
+def _trabajo_aparcar():
+    try:
+        try:
+            if bucle.activo:
+                bucle.detener("Aparcar la montura")
+        except Exception:
+            pass
+        _pad_parar("aparcar la montura")
+        r = montura.ejecutar(_aparcar, timeout=APARCAR_TIMEOUT_S)
+        log.warning("Montura aparcada: %s", r)
+        if r["aparcada"]:
+            voz.decir("Montura aparcada. Ya puedes apagarla")
+        else:
+            voz.decir("Seguimiento parado, pero la montura no ha quedado aparcada")
+    except Exception as e:
+        log.error("No se pudo aparcar la montura: %s", e)
+        voz.decir("No se ha podido aparcar la montura")
+        r = {"ok": False, "mensaje": str(e)}
+    _aparcado.update(en_curso=False, fase="", resultado=r)
+
+
+@app.route('/montura/aparcar', methods=['POST'])
+def montura_aparcar():
+    if _aparcado["en_curso"]:
+        return jsonify({"ok": False, "mensaje": "Ya se está aparcando la montura"}), 409
+    for nombre, trabajo in (("centrado", centrado.trabajo_centrado), ("alineación", alineacion.trabajo_alineacion),
+                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "mensaje": f"Hay un trabajo de {nombre} en marcha; páralo antes de aparcar"}), 409
+    if _plan_en_marcha():
+        return jsonify({"ok": False, "mensaje": "El plan de la noche está en marcha; páralo antes de aparcar"}), 409
+    if not montura.esta_conectado():
+        return jsonify({"ok": False, "mensaje": "La montura no está conectada"}), 409
+    _aparcado.update(en_curso=True, fase="Parando el seguimiento...", resultado=None)
+    threading.Thread(target=_trabajo_aparcar, name="aparcar", daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route('/montura/aparcar/estado')
+def montura_aparcar_estado():
+    aparcada = None
+    if montura.esta_conectado() and not _aparcado["en_curso"]:
+        try:
+            aparcada = bool(montura.ejecutar(lambda tel: tel.AtPark, timeout=5, conectar=False))
+        except Exception:
+            pass
+    return jsonify({"en_curso": _aparcado["en_curso"], "fase": _aparcado["fase"],
+                    "resultado": _aparcado["resultado"], "conectada": montura.esta_conectado(),
+                    "aparcada": aparcada})
+
+
+@app.route('/montura/desaparcar', methods=['POST'])
+def montura_desaparcar():
+    """Para seguir observando sin apagar después de aparcar."""
+    def _fn(tel):
+        tel.Unpark()
+        tel.Tracking = True
+    try:
+        montura.ejecutar(_fn, timeout=30)
+    except ErrorHardware as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 503
+    _aparcado["resultado"] = None
+    voz.decir("Montura desaparcada")
+    return jsonify({"ok": True})
 
 
 RUTA_INFO_GOTO = "static/info_objeto_goto.txt"
