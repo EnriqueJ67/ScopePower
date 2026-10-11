@@ -156,13 +156,10 @@ def resolver_astap(ruta_fits, ruta_astap):
 
 
 def matriz_desde_wcs(ref, ahora):
-    cx, cy = ref["crpix"]
-    ra, dec = ref["wcs"].all_pix2world([[cx, cy]], 0)[0]
-    x_new, y_new = ahora["wcs"].all_world2pix([[ra, dec]], 0)[0]
-    M = cv2.getRotationMatrix2D((cx, cy), ahora["angle"] - ref["angle"], 1.0)
-    M[0, 2] += cx - x_new
-    M[1, 2] += cy - y_new
-    return M
+    # La misma matriz que usa el apilado real (giro alrededor del punto
+    # emparejado, no del centro de la referencia; véase apilado.matriz_alineado)
+    from apilado import matriz_alineado
+    return matriz_alineado(ref, ahora)
 
 
 def imitar_astap(segundos):

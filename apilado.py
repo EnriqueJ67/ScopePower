@@ -96,6 +96,39 @@ def parse_ini_wcs(ruta_ini):
     angle = degrees(atan2(cd12, cd11))
     return {"wcs": wcs, "crpix": (crpix1-1, crpix2-1), "angle": angle}
 
+def matriz_alineado(ref_info, now_info, radio=None):
+    """Matriz 2×3 (la de warpAffine, foto → referencia) que lleva la foto recién
+    resuelta sobre la referencia, a partir de los dos WCS de ASTAP.
+
+    Se proyectan el centro de la referencia y cuatro puntos a su alrededor por
+    el WCS de la referencia (píxel → cielo) y por el de la foto (cielo → píxel),
+    y se ajusta por mínimos cuadrados la similitud (giro + traslación, con la
+    escala que salga) que mejor lleva unos sobre otros.
+
+    Hasta el 10-oct-2026 la matriz se construía girando alrededor del centro de
+    la REFERENCIA y sumando después el desplazamiento, con lo que el giro se
+    aplicaba sobre el punto equivocado: el error era 2·sen(giro/2)·desplazamiento
+    (unos 23 px con 9° de rotación de campo y 145 px de deriva: la Burbuja del
+    10-oct salió con rastros detrás de cada estrella). Además el giro se tomaba
+    como diferencia de los ángulos de los CD, que arrastra la convergencia de
+    meridianos (ΔAR·sen δ, 0,19° en aquella sesión a δ = +61°). Mapear puntos
+    por los dos WCS evita las dos cosas: el residuo medido con estrellas reales
+    baja de 23 px a 0,2 px."""
+    cx, cy = ref_info["crpix"]
+    if radio is None:
+        radio = max(200.0, 0.5 * min(cx, cy))
+    p_ref = np.array([[cx, cy], [cx + radio, cy], [cx - radio, cy],
+                      [cx, cy + radio], [cx, cy - radio]], dtype=np.float64)
+    p_new = np.asarray(now_info["wcs"].all_world2pix(
+        ref_info["wcs"].all_pix2world(p_ref, 0), 0), dtype=np.float64)
+    # p_ref = [a -b; b a]·p_new + (tx, ty), resuelto por mínimos cuadrados
+    A = np.zeros((2 * len(p_ref), 4)); y = p_ref.reshape(-1)
+    A[0::2, 0] = p_new[:, 0]; A[0::2, 1] = -p_new[:, 1]; A[0::2, 2] = 1.0
+    A[1::2, 0] = p_new[:, 1]; A[1::2, 1] = p_new[:, 0];  A[1::2, 3] = 1.0
+    a, b, tx, ty = np.linalg.lstsq(A, y, rcond=None)[0]
+    return np.array([[a, -b, tx], [b, a, ty]], dtype=np.float64)
+
+
 def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
     mono      = ruta_fits.replace(".fits", "_mono.fits")
     ini       = mono.replace(".fits", ".ini")
@@ -115,18 +148,7 @@ def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
         rotacion_camara.anotar_ini(ini, "apilado")   # el giro de la cámara, para el planetario
 
         # Leemos resultados y calculamos la matriz de transformación
-        now = parse_ini_wcs(ini)
-        cx, cy = ref_info["crpix"]
-        ra, dec = ref_info["wcs"].all_pix2world([[cx, cy]], 0)[0]
-        x_new, y_new = now["wcs"].all_world2pix([[ra, dec]], 0)[0]
-        dx, dy = cx - x_new, cy - y_new
-        rot = now["angle"] - ref_info["angle"]
-
-        M = cv2.getRotationMatrix2D((cx, cy), rot, 1.0)
-        M[0,2] += dx
-        M[1,2] += dy
-
-        return M, "ASTAP"
+        return matriz_alineado(ref_info, parse_ini_wcs(ini)), "ASTAP"
 
     except subprocess.TimeoutExpired:
         return None, f"ASTAP no terminó en {ASTAP_TIMEOUT} s"
@@ -1275,7 +1297,7 @@ class ApiladorEnTiempoReal:
                     self._descartar(f"{nombre_fits}: {metodo}", aviso="Foto descartada: no se ha podido alinear")
                     return
                 # Desplazamiento real de esta foto respecto a la referencia (px):
-                # la rotación es alrededor del centro, así que el centro solo se traslada
+                # a dónde va a parar el centro de la foto una vez alineada
                 cx, cy = self.ref_info["crpix"]
                 dx = float(M[0, 0] * cx + M[0, 1] * cy + M[0, 2] - cx)
                 dy = float(M[1, 0] * cx + M[1, 1] * cy + M[1, 2] - cy)
