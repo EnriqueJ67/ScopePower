@@ -303,10 +303,12 @@ class TrabajoVivo:
         except Exception as e:
             log.warning("En vivo: no se pudieron leer los límites de la cámara: %s", e)
         maxima_s = min(conf["maxima"], EXPOSICION_MAXIMA_S)
-        if enfoque.activo():
+        if enfoque.activo() and not enfoque.es_disco(self.objetivo):
             # Enfocar de noche con la Bahtinov: hasta 2 s por fotograma y la ganancia de las fotos de noche
+            # (con el Sol o la Luna la exposición y la ganancia son las de día: se mide el limbo del disco)
             maxima_s = max(maxima_s, EXPOSICION_MAXIMA_ENFOQUE_S)
             ganancia = _ganancia_noche(ganancia)
+        historial_limbo = enfoque.HistorialLimbo()      # el mejor fotograma y el mejor valor de esta sesión del vivo
         exposicion = max(minima_s, min(maxima_s, float(_ultima_exposicion(self.objetivo) or conf["inicial"])))
 
         roi = int(round(self.campo * min(ancho_sensor, alto_sensor)))
@@ -344,7 +346,8 @@ class TrabajoVivo:
 
             conf_n = foto_dia.con_compensacion(conf, compensacion)
             modo_enfoque = enfoque.activo()
-            if modo_enfoque:
+            enfoque_disco = modo_enfoque and enfoque.es_disco(self.objetivo)
+            if modo_enfoque and not enfoque_disco:
                 nueva, nivel = enfoque.nueva_exposicion_estrella(exposicion, cfa, minima_s, maxima_s, BLANCO)
             else:
                 nueva, nivel = nueva_exposicion(exposicion, cfa, conf_n["nivel"], minima_s, maxima_s)
@@ -361,7 +364,11 @@ class TrabajoVivo:
 
             imagen = revelar_vivo(cfa, patron, negro, balance, orientacion, paso, ev=conf_n["ev"])
             info_enfoque = None
-            if modo_enfoque:
+            if enfoque_disco:
+                # Solo el verde, con el limbo del Sol o la Luna ampliado y su anchura (enfoque.py)
+                girada, encuadre, info_enfoque = enfoque.imagen_vivo_disco(cfa, patron, paso, lambda im: a_orientacion_ascom(im, orientacion),
+                                                                           giro_camara.girar, historial_limbo)
+            elif modo_enfoque:
                 # Solo el verde, con la estrella más brillante ampliada (enfoque.py); foto_actual sigue con la de color
                 girada, encuadre, info_enfoque = enfoque.imagen_vivo(cfa, patron, paso, lambda im: a_orientacion_ascom(im, orientacion),
                                                                      giro_camara.girar)

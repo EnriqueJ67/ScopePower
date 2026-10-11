@@ -24,7 +24,28 @@
 #     pequeño, en rojo y azul: sin máscara sirve para comprobar que el verde es
 #     el canal más fino.
 # El estado (activado o no) vive en memoria: es cosa de la sesión, no del config.
+#
+# De día, con el Sol o la Luna (11-oct-2026): la Bahtinov no sirve en una fuente
+# extensa y a la tablet solo llega un JPG de ~750 px de un sensor de 3008, con el
+# que el borde del disco se ve igual enfocado que sin enfocar. Con el mismo
+# interruptor, si el objetivo es el Sol o la Luna:
+#   - Se localiza el disco (círculo por RANSAC sobre el borde de la zona
+#     brillante, radio libre: en una Luna en cuarto el terminador no encaja y
+#     queda fuera) y se mide la anchura del limbo: la anchura a media altura del
+#     pico de la derivada radial (la función de dispersión de línea), mediana de
+#     180 ángulos, solo donde el borde es limbo (contraste claro contra el cielo).
+#     El limbo real es más fino que un píxel, así que esa anchura es el
+#     desenfoque más el seeing. No vale el 10–90 % del perfil: el oscurecimiento
+#     del limbo lo infla (18 px frente a 4,4 en las fotos del 10-oct-2026).
+#   - Arriba a la derecha, el limbo ampliado ×5 a resolución completa. En vivo se
+#     enseña el recorte del fotograma más nítido de los últimos 10 (el seeing de
+#     día hace temblar la imagen) y el número es la mediana de los últimos 5,
+#     con el mejor valor de la sesión al lado: se gira el enfocador hasta el mínimo.
+#   - La exposición sigue siendo la automática de día (nivel del disco), no la
+#     de la estrella.
+import math
 import threading
+import collections
 import numpy as np
 import cv2
 
@@ -35,6 +56,13 @@ TAM_RECORTE = 48          # lado del recorte de la estrella, en píxeles del sen
 AMPLIACION = 5            # el recorte se enseña a ×5
 MARGEN = 24               # la estrella más brillante se busca lejos de los bordes
 NIVEL_PICO_OBJETIVO = 0.6 # en vivo: el pico de la estrella al 60 % del rango (sin saturar)
+
+OBJETIVOS_DISCO = ("sol", "luna")
+ANGULOS_LIMBO = 180       # perfiles radiales por fotograma
+VENTANA_LIMBO = 8         # ± píxeles del plano alrededor del radio ajustado
+PASO_PERFIL = 0.25        # muestreo del perfil radial (px del plano)
+ULTIMOS_FOTOGRAMAS = 10   # en vivo: el recorte es el del fotograma más nítido de estos
+MEDIANA_FOTOGRAMAS = 5    # en vivo: el número es la mediana de los últimos 5
 
 
 def activo():
@@ -134,9 +162,20 @@ def texto_info(info, para_imagen=False):
     Línea corta: «FWHM verde 3,8 px · rojo 4,2 · azul 4,4». Para dibujarla en la
     imagen (cv2.putText solo tiene ASCII) va con «|» y un aviso corto de saturación.
     """
-    if not info or not np.isfinite(info.get("fwhm_g", float("nan"))):
+    if not info:
         return ""
     sep = "  |  " if para_imagen else " · "
+    if "limbo" in info:
+        if info.get("limbo") is None:
+            return "limbo: " + str(info.get("motivo") or "no se ve el disco")
+        partes = [f"Limbo {info['limbo']:.1f} px"]
+        if info.get("mejor") is not None:
+            partes.append(f"mejor {info['mejor']:.1f}")
+        if not para_imagen and info.get("n"):
+            partes.append(f"{info['n']} ángulos")
+        return sep.join(partes).replace(".", ",")
+    if not np.isfinite(info.get("fwhm_g", float("nan"))):
+        return ""
     partes = [f"FWHM verde {info['fwhm_g']:.1f} px".replace(".", ",")]
     partes += [f"{n} {info[k]:.1f}".replace(".", ",") for k, n in (("fwhm_r", "rojo"), ("fwhm_b", "azul")) if np.isfinite(info.get(k, float("nan")))]
     if info.get("saturada"):
@@ -185,6 +224,240 @@ def componer(gris8, recorte, info, pulsado=None):
     if pulsado is not None:
         cv2.circle(base, (int(pulsado[0]), int(pulsado[1])), max(10, lado // 90), (80, 200, 80), max(1, lado // 1000), cv2.LINE_AA)
     return base
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Sol y Luna: el disco y la anchura del limbo
+# ─────────────────────────────────────────────────────────────────────────────
+def es_disco(objetivo):
+    return str(objetivo or "").lower() in OBJETIVOS_DISCO
+
+
+def revelar_gris_disco(plano):
+    """Verde lineal → gris uint8 lineal, negro en el cielo y blanco en lo más brillante del disco (sin gamma: se ve el limbo tal cual)."""
+    x = np.asarray(plano, dtype=np.float32)
+    sub = x[::4, ::4]
+    negro, blanco = float(np.percentile(sub, 0.5)), float(np.percentile(sub, 99.9))
+    blanco = max(blanco, negro + 1.0)
+    alfa = 255.0 / (blanco - negro)
+    return cv2.convertScaleAbs(x, alpha=alfa, beta=-negro * alfa)      # recorta a 0–255 él solo
+
+
+def _circulo_3_puntos(a, b, c):
+    ax, ay = a; bx, by = b; cx, cy = c
+    d = 2.0 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if abs(d) < 1e-6:
+        return None
+    a2, b2, c2 = ax * ax + ay * ay, bx * bx + by * by, cx * cx + cy * cy
+    ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / d
+    uy = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d
+    return ux, uy, math.hypot(ax - ux, ay - uy)
+
+
+def circulo_disco(plano, semilla=0, reduccion=2):
+    """
+    (cx, cy, r) del disco brillante, en píxeles del plano, o None. Borde de la zona
+    brillante y RANSAC de tres puntos con el radio libre: en una Luna en cuarto el
+    terminador no encaja en el círculo y se queda fuera; después se afina con los
+    puntos que encajan. Se trabaja sobre el plano reducido `reduccion` veces (basta:
+    el limbo se busca luego en una ventana de ±VENTANA_LIMBO px alrededor del radio).
+    """
+    k = max(1, int(reduccion))
+    x = np.asarray(plano, dtype=np.float32)[::k, ::k]
+    h, w = x.shape
+    suave = cv2.GaussianBlur(x, (0, 0), 1.0)
+    sub = suave[::4, ::4]
+    bajo, alto = float(np.percentile(sub, 2)), float(np.percentile(sub, 99.5))
+    if alto - bajo < 0.05 * max(alto, 1.0):
+        return None
+    mascara = (suave > bajo + 0.25 * (alto - bajo)).astype(np.uint8)
+    n, etiquetas, stats, _ = cv2.connectedComponentsWithStats(mascara, 8)
+    if n <= 1:
+        return None
+    mayor = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+    if stats[mayor, cv2.CC_STAT_AREA] < 400:
+        return None
+    comp = (etiquetas == mayor).astype(np.uint8)
+    contornos, _ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    p = max(contornos, key=len).reshape(-1, 2).astype(np.float64)
+    p = p[(p[:, 0] > 1) & (p[:, 0] < w - 2) & (p[:, 1] > 1) & (p[:, 1] < h - 2)]    # el borde de la imagen no es limbo
+    if len(p) < 30:
+        return None
+    rng = np.random.default_rng(semilla)
+    if len(p) > 1500:
+        p = p[rng.choice(len(p), 1500, replace=False)]
+    mejor, mejor_n = None, 0
+    for _ in range(300):
+        a, b, c = p[rng.choice(len(p), 3, replace=False)]
+        circ = _circulo_3_puntos(a, b, c)
+        if circ is None or circ[2] < 10 or circ[2] > 2 * max(h, w):
+            continue
+        cx, cy, r = circ
+        n_in = int(np.sum(np.abs(np.hypot(p[:, 0] - cx, p[:, 1] - cy) - r) < max(1.5, 0.01 * r)))
+        if n_in > mejor_n:
+            mejor, mejor_n = circ, n_in
+    if mejor is None or mejor_n < 0.3 * len(p):
+        return None
+    cx, cy, r = mejor
+    inl = p[np.abs(np.hypot(p[:, 0] - cx, p[:, 1] - cy) - r) < max(1.5, 0.01 * r)]
+    A = np.c_[2 * inl[:, 0], 2 * inl[:, 1], np.ones(len(inl))]
+    sol, *_ = np.linalg.lstsq(A, inl[:, 0] ** 2 + inl[:, 1] ** 2, rcond=None)
+    cx, cy = float(sol[0]), float(sol[1])
+    r = float(math.sqrt(max(sol[2] + cx * cx + cy * cy, 1.0)))
+    # Coordenadas del plano entero: el píxel (i) del reducido es el (k·i) del entero, centrado en k·i + (k−1)/2
+    return k * cx + (k - 1) / 2.0, k * cy + (k - 1) / 2.0, k * r
+
+
+def anchura_limbo(plano, cx, cy, r, n_ang=ANGULOS_LIMBO, ventana=VENTANA_LIMBO, paso=PASO_PERFIL):
+    """
+    Anchura a media altura del pico de la derivada radial en el limbo, por ángulo
+    (px del plano). Solo cuentan los ángulos donde hay limbo: dentro claramente
+    más brillante que fuera y el pico entero dentro de la ventana (en la Luna, el
+    terminador y la parte en sombra quedan fuera). Devuelve (anchuras, ángulos,
+    radio del pico) de los ángulos válidos.
+    """
+    x = np.asarray(plano, dtype=np.float32)
+    h, w = x.shape
+    rs = np.arange(r - ventana, r + ventana + paso / 2, paso, dtype=np.float32)
+    angs = np.linspace(0, 2 * np.pi, n_ang, endpoint=False).astype(np.float32)
+    mx = (cx + rs[None, :] * np.cos(angs)[:, None]).astype(np.float32)
+    my = (cy + rs[None, :] * np.sin(angs)[:, None]).astype(np.float32)
+    perfiles = cv2.remap(x, mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=-1.0)
+    dentro_img = (mx.min(axis=1) >= 1) & (my.min(axis=1) >= 1) & (mx.max(axis=1) <= w - 2) & (my.max(axis=1) <= h - 2)
+    k_lado = max(2, int(round(3.0 / paso)))
+    deriv = -np.gradient(perfiles, paso, axis=1)
+    anchuras, validos, radios = [], [], []
+    for i in range(n_ang):
+        if not dentro_img[i]:
+            continue
+        p, dp = perfiles[i], deriv[i]
+        dentro, fuera = float(np.median(p[:k_lado])), float(np.median(p[-k_lado:]))
+        if dentro <= 0 or dentro - fuera < 0.25 * dentro:
+            continue
+        k = int(np.argmax(dp))
+        pico = dp[k]
+        if pico <= 0 or k < 2 or k > len(dp) - 3:
+            continue
+        a = k
+        while a > 0 and dp[a] > pico / 2:
+            a -= 1
+        b = k
+        while b < len(dp) - 1 and dp[b] > pico / 2:
+            b += 1
+        if a == 0 or b == len(dp) - 1:
+            continue
+        xa = a + (pico / 2 - dp[a]) / (dp[a + 1] - dp[a])
+        xb = b - (pico / 2 - dp[b]) / (dp[b - 1] - dp[b])
+        anchura = (xb - xa) * paso
+        if not (0 < anchura < 2 * ventana):
+            continue
+        anchuras.append(anchura)
+        validos.append(float(angs[i]))
+        radios.append(float(rs[k]))
+    return np.array(anchuras), np.array(validos), np.array(radios)
+
+
+def medir_disco(verde, escala_px=1.0, n_ang=ANGULOS_LIMBO):
+    """
+    Disco en el plano verde y anchura de su limbo en píxeles del sensor
+    (`escala_px` = píxeles del sensor por píxel del plano; 2 con el superpíxel).
+    Devuelve un dict para la web: limbo (None si no se mide, con `motivo`), n
+    (ángulos medidos), arco (fracción del contorno que es limbo), x, y (punto del
+    limbo para el recorte, px del plano) y el círculo (cx, cy, r).
+    """
+    c = circulo_disco(verde)
+    if c is None:
+        return {"limbo": None, "motivo": "no se ve el disco"}
+    cx, cy, r = c
+    anch, angs, radios = anchura_limbo(verde, cx, cy, r, n_ang=n_ang)
+    info = {"cx": round(cx, 1), "cy": round(cy, 1), "r": round(r, 1)}
+    if len(anch) < 12:
+        info.update({"limbo": None, "motivo": "el limbo no se ve bien (¿nubes, saturado, casi fuera de campo?)"})
+        return info
+    # El recorte: el punto del limbo más cercano a «arriba» del plano (el borde queda horizontal, cielo arriba)
+    d = np.abs((angs + np.pi / 2 + np.pi) % (2 * np.pi) - np.pi)
+    k = int(np.argmin(d))
+    info.update({"limbo": round(float(np.median(anch)) * escala_px, 2), "n": int(len(anch)),
+                 "arco": round(len(anch) / float(n_ang), 2),
+                 "x": int(round(cx + radios[k] * math.cos(angs[k]))), "y": int(round(cy + radios[k] * math.sin(angs[k])))})
+    return info
+
+
+class HistorialLimbo:
+    """
+    En vivo: el recorte que se enseña es el del fotograma más nítido de los
+    últimos ULTIMOS_FOTOGRAMAS (el seeing de día hace temblar la imagen), el
+    número es la mediana de los últimos MEDIANA_FOTOGRAMAS y se guarda el mejor
+    de la sesión para saber si se ha pasado el foco.
+    """
+    def __init__(self):
+        self.ultimos = collections.deque(maxlen=ULTIMOS_FOTOGRAMAS)
+        self.mejor = None
+
+    def anotar(self, anchura, recorte):
+        if anchura is not None and np.isfinite(anchura):
+            self.ultimos.append((float(anchura), recorte))
+
+    def resumen(self):
+        """(anchura actual, mejor de la sesión, recorte más nítido) o (None, None, None)."""
+        if not self.ultimos:
+            return None, self.mejor, None
+        anchuras = [a for a, _ in self.ultimos]
+        actual = float(np.median(anchuras[-MEDIANA_FOTOGRAMAS:]))
+        if self.mejor is None or actual < self.mejor:
+            self.mejor = actual
+        return actual, self.mejor, min(self.ultimos, key=lambda t: t[0])[1]
+
+
+def _punto_en_vista(x, y, forma, paso, orientar, girar):
+    """Dónde cae el punto (x, y) del plano en la imagen que se enseña (reducida, orientada y girada): se gira una marca."""
+    marca = np.zeros((forma[0] // paso + (1 if forma[0] % paso else 0), forma[1] // paso + (1 if forma[1] % paso else 0)), np.uint8)
+    yy, xx = min(marca.shape[0] - 1, int(y) // paso), min(marca.shape[1] - 1, int(x) // paso)
+    marca[yy, xx] = 255
+    girada, _ = girar(orientar(np.ascontiguousarray(marca)))
+    iy, ix = np.unravel_index(int(np.argmax(girada)), girada.shape[:2])
+    return int(ix), int(iy)
+
+
+def imagen_vivo_disco(cfa, patron, paso, orientar, girar, historial):
+    """
+    Fotograma del vivo con el Sol o la Luna: el verde en gris, el limbo ampliado
+    (el del fotograma más nítido de los últimos) y la anchura del limbo.
+    `historial`: HistorialLimbo de esta sesión del vivo. Devuelve (BGR, encuadre, info).
+    """
+    verde = verde_superpixel(cfa, patron, 1)
+    info = medir_disco(verde, escala_px=2.0)
+    gris = revelar_gris_disco(verde)
+    pulsado = None
+    if info.get("limbo") is not None:
+        historial.anotar(info["limbo"], recorte_estrella(gris, info["x"], info["y"]))
+        pulsado = _punto_en_vista(info["x"], info["y"], gris.shape, paso, orientar, girar)
+    actual, mejor, recorte = historial.resumen()
+    if actual is not None:
+        info["limbo_foto"] = info.get("limbo")
+        info["limbo"] = round(actual, 2)
+        info["mejor"] = round(mejor, 2)
+        info.pop("motivo", None)
+    vista = gris[::paso, ::paso] if paso > 1 else gris
+    girada, encuadre = girar(orientar(np.ascontiguousarray(vista)))
+    return componer(girada, recorte, info, pulsado=pulsado), encuadre, info
+
+
+def imagen_foto_dia_disco(cfa, patron, girar):
+    """
+    Foto suelta de día del Sol o la Luna con el modo activado: el verde en gris
+    (superpíxel, mitad de resolución), el limbo ampliado y su anchura. `cfa` en la
+    orientación de ASCOM. Devuelve (BGR, encuadre, info).
+    """
+    verde = verde_superpixel(cfa, patron, 1)
+    info = medir_disco(verde, escala_px=2.0)
+    gris = revelar_gris_disco(verde)
+    recorte, pulsado = None, None
+    if info.get("limbo") is not None:
+        recorte = recorte_estrella(gris, info["x"], info["y"])
+        pulsado = _punto_en_vista(info["x"], info["y"], gris.shape, 1, lambda im: im, girar)
+    girada, encuadre = girar(gris)
+    return componer(girada, recorte, info, pulsado=pulsado), encuadre, info
 
 
 def imagen_foto_noche(rgb_lineal, girar):

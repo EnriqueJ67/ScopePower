@@ -22,6 +22,7 @@ import numpy as np
 
 from hardware import capturar_frame, CapturaCancelada, ErrorHardware, estado_captura
 import giro_camara
+import enfoque
 
 log = logging.getLogger("scopepower.foto_dia")
 
@@ -757,6 +758,15 @@ class TrabajoFotoDia:
             instante = time.time()
             imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo, ev=conf["ev"])
             girada, encuadre = giro_camara.girar(imagen)      # el giro de Cámara; el FITS queda sin girar
+            info_enfoque = None
+            if enfoque.activo() and enfoque.es_disco(objetivo):
+                # Modo enfoque (enfoque.py): solo el verde, con el limbo ampliado y su anchura; la foto de color sigue en foto_actual
+                try:
+                    girada, encuadre, info_enfoque = enfoque.imagen_foto_dia_disco(
+                        recortar_centro(frame, campo), _patron(prep["sensor_type"]), giro_camara.girar)
+                    log.info("Enfoque de día: %s", enfoque.texto_info(info_enfoque))
+                except Exception as e:
+                    log.warning("Modo enfoque de día: %s", e)
             if ruta_fits:
                 guardar_fits(frame, exposicion, prep, binning, ruta_fits, extra=cabecera_revelado(objetivo, campo, info, instante))
             if ruta_web:
@@ -776,6 +786,8 @@ class TrabajoFotoDia:
                 texto += " · " + texto_balance(info["balance"])
             if saturada:
                 texto += " (sigue saturada con la exposición mínima: hace falta filtro o menos luz)"
+            if info_enfoque is not None:
+                texto += " · " + enfoque.texto_info(info_enfoque)
             self._msg(texto, fase="final")
             if voz:
                 voz.decir("Foto de día terminada")

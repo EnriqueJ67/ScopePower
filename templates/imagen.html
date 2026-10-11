@@ -96,10 +96,10 @@
             <div id="exposicion-ayuda" class="texto-3" style="font-size: 12.5px;"></div>
             <!-- Modo enfoque (enfoque.py): solo el canal verde, con la estrella más brillante ampliada, para la máscara de Bahtinov -->
             <div class="fila mt-2" id="fila-enfoque" style="justify-content: space-between;">
-                <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-enfoque" onchange="cambiarModoEnfoque()"> Enfoque: solo verde (Bahtinov)</label>
+                <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-enfoque" onchange="cambiarModoEnfoque()"> Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)</label>
                 <span class="texto-3" style="font-size: 12.5px;">foto de prueba y modo en vivo</span>
             </div>
-            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche.</div>
+            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco y se mide su anchura en píxeles (cuanto menor, mejor foco); en vivo se enseña el fotograma más nítido de los últimos y el mejor valor de la sesión, para girar el enfocador hasta el mínimo.</div>
             <!-- Modo continuo: una foto tras otra en el servidor hasta que se pare (ver foto_continua.py).
                  Cada foto puede guardarse en JPG (revelada, pocos MB) o FITS (en bruto, 18 MB) para no llenar el disco sin querer. -->
             <div id="fila-continuo" class="fila mt-2" style="justify-content: space-between;">
@@ -1021,7 +1021,7 @@
             est.className = "estado mt-2";
             est.innerHTML = e.fase === "en vivo"
                 ? `<span class="spinner"></span>En vivo · ${e.fps || 0} fotos/s · ${e.exposicion_texto}` + (e.nivel !== null && e.nivel !== undefined ? ` · nivel ${Math.round(100 * e.nivel)} %` : "")
-                  + (e.color ? ` · ${e.color}` : "") + (e.enfoque && e.enfoque.fwhm_g ? " · " + textoEnfoque(e.enfoque) : "")
+                  + (e.color ? ` · ${e.color}` : "") + (hayEnfoque(e.enfoque) ? " · " + textoEnfoque(e.enfoque) : "")
                 : `<span class="spinner"></span>${e.mensaje}`;
             if (!antes) { versionVivo = -1; cancelarCargaFoto(); pedirFotoVivo(); }
         } else if (antes || e.terminado) {
@@ -1041,8 +1041,16 @@
     fetch("/vivo/estado").then(r => r.json()).then(e => { if (e.en_curso && pintarVivo(e) && !sondeoVivo) sondeoVivo = setInterval(sondearVivo, 1000); }).catch(() => {});
 
     // ——— Modo enfoque: solo verde (enfoque.py) ———
+    function hayEnfoque(i) { return !!i && (!!i.fwhm_g || ("limbo" in i)); }
     function textoEnfoque(i) {
         const f = v => (v === null || v === undefined || !isFinite(v)) ? null : v.toFixed(1).replace(".", ",");
+        if ("limbo" in i) {
+            if (f(i.limbo) === null) return "limbo: " + (i.motivo || "no se ve el disco");
+            let t = "limbo " + f(i.limbo) + " px";
+            if (f(i.mejor) !== null) t += " · mejor " + f(i.mejor);
+            if (i.n) t += ` · ${i.n} ángulos`;
+            return t;
+        }
         let s = "FWHM verde " + f(i.fwhm_g) + " px";
         if (f(i.fwhm_r) !== null) s += " · rojo " + f(i.fwhm_r);
         if (f(i.fwhm_b) !== null) s += " · azul " + f(i.fwhm_b);
@@ -1221,7 +1229,7 @@
                     est.className = "estado ok mt-2";
                     est.textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "")
                         + (d.ganancia !== null && d.ganancia !== undefined ? ` · ganancia ${d.ganancia}` : "")
-                        + (d.enfoque && d.enfoque.fwhm_g ? " · " + textoEnfoque(d.enfoque) : "");
+                        + (hayEnfoque(d.enfoque) ? " · " + textoEnfoque(d.enfoque) : "");
                     cargarFoto("/imagen-capturada?" + Date.now(), { hora: d.hora, alTerminar: info => { est.textContent += textoLlegada(info); } });
                     fotoMostrada(true);
                 } else {
