@@ -105,8 +105,9 @@
             <div id="estado-asentamiento" class="estado mb-2"></div>
             <p class="card-sub">
                 La app SynScan guarda las sincronizaciones y el modelo de apuntado de sesiones anteriores.
-                Se borran solos al conectar (opción <code>limpiar_sync_al_conectar</code> en config.ini); este botón
-                lo hace a mano. Después, la Alineación Automática o el primer Centrado crean el modelo nuevo.
+                Al conectar se conservan (si apagas el equipo para cambiar la batería no se pierde la alineación);
+                se borran al iniciar la Alineación Automática o con este botón. Después, la Alineación Automática
+                o el primer Centrado crean el modelo nuevo.
             </p>
             <div class="fila entre">
                 <button type="button" class="btn btn-secondary" onclick="limpiarSync()">Borrar sincronizaciones de SynScan</button>

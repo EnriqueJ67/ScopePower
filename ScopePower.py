@@ -662,15 +662,9 @@ def _activar_seguimiento(tel):
         print(f"⚠️ No se pudo leer EquatorialSystem de la montura ({e}); se asume J2000")
     voz.decir("Telescopio conectado")
     humor.decir("conexion_ok")
-
-    cfg = configparser.ConfigParser()
-    cfg.read("config.ini")
-    # ClearSyncTo solo existe en el driver de SynScan: con otras monturas se fallaba (y se
-    # anunciaba por voz) en cada conexión
-    if synscan and cfg.get("Montura", "limpiar_sync_al_conectar", fallback="true").lower() == "true":
-        ok, msg = limpiar_sincronizaciones(tel)
-        voz.decir("Sincronizaciones anteriores borradas" if ok
-                  else "No se han podido borrar las sincronizaciones anteriores")
+    # Al conectar NO se borran las sincronizaciones de SynScan Pro: si se apaga el equipo
+    # para cambiar la batería, la alineación de la noche se conserva. Solo se borran al
+    # iniciar la Alineación automática (opción de su pantalla) o con el botón de Configuración.
 
 # El driver se lee de config.ini al conectar: cambiarlo en Configuración y pulsar
 # "Reconectar equipo" basta, sin reiniciar la app.
