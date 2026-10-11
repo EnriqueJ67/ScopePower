@@ -19,10 +19,10 @@
 <div class="apagar-montura">
     <button class="tile" id="btn-aparcar" onclick="aparcar()">
         <span class="tile-ico ok"><svg><use href="#i-home"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Aparcar la montura</span><span class="tile-desc">Antes de apagar para cambiar la batería: para el seguimiento, lleva el tubo a altura 0° y acimut 0° y guarda la posición en SynScan Pro</span></span>
+        <span class="tile-texto"><span class="tile-titulo">Aparcar la montura</span><span class="tile-desc">Antes de apagar para cambiar la batería: para el seguimiento y deja el tubo donde estaba al encender la montura (el cero de los motores), horizontal y hacia el norte</span></span>
     </button>
     <div id="estado-aparcar" class="estado mt-2"></div>
-    <button type="button" id="btn-desaparcar" class="btn btn-secondary mt-2" onclick="desaparcar()" hidden>Seguir observando sin apagar</button>
+    <button type="button" id="btn-reanudar" class="btn btn-secondary mt-2" onclick="reanudar()" hidden>Seguir observando sin apagar</button>
 </div>
 
 <div class="apagar-botones">
@@ -95,16 +95,17 @@
     // ── Aparcar la montura ────────────────────────────────────────────
     const estadoAparcar = document.getElementById("estado-aparcar");
     const btnAparcar = document.getElementById("btn-aparcar");
-    const btnDesaparcar = document.getElementById("btn-desaparcar");
-    let aparcada = null, monturaConectada = false, sondeoAparcar = null;
+    const btnReanudar = document.getElementById("btn-reanudar");
+    let enCero = null, monturaConectada = false, sondeoAparcar = null;
 
-    function grados(v) { return v == null ? "?" : v.toFixed(1).replace(".", ",") + "°"; }
+    function grados(v) { return v == null ? "?" : (Math.abs(v) < 0.05 ? 0 : v).toFixed(1).replace(".", ",") + "°"; }
+    function minutos(v) { return (v * 60).toFixed(1).replace(".", ",") + "′"; }
 
     function pintarAparcado(d) {
         monturaConectada = d.conectada;
-        aparcada = d.aparcada;
-        btnAparcar.disabled = d.en_curso;
-        btnDesaparcar.hidden = !(d.conectada && d.aparcada) || d.en_curso;
+        enCero = d.en_cero;
+        btnAparcar.disabled = d.en_curso || !d.conectada;
+        btnReanudar.hidden = !(d.conectada && d.resultado && d.resultado.ok) || d.en_curso;
         if (d.en_curso) {
             estadoAparcar.innerHTML = '<span class="spinner"></span>' + (d.fase || "Aparcando...");
             return;
@@ -112,21 +113,20 @@
         const r = d.resultado;
         if (r && !r.ok) {
             estadoAparcar.textContent = "❌ " + r.mensaje;
-        } else if (r && r.ya_estaba) {
-            estadoAparcar.innerHTML = "🅿️ La montura ya estaba aparcada. Puedes apagarla.";
         } else if (r) {
             const avisos = (r.avisos || []).length ? "<br>⚠️ " + r.avisos.join("<br>⚠️ ") : "";
-            estadoAparcar.innerHTML = (r.aparcada
-                ? "🅿️ <b>Montura aparcada</b> (altura " + grados(r.alt) + ", acimut " + grados(r.az) + ") y seguimiento parado. "
-                  + "Ya puedes apagar la montura y cambiar la batería sin moverla. Al encenderla, contesta <b>Restore</b> "
-                  + "a la pregunta de SynScan Pro («Hibernate data present») y conecta el equipo desde Inicio."
-                : "⚠️ Seguimiento parado, pero la montura <b>no ha quedado aparcada</b> (altura " + grados(r.alt)
-                  + ", acimut " + grados(r.az) + ").") + avisos;
-        } else if (d.conectada && d.aparcada) {
-            estadoAparcar.innerHTML = "🅿️ La montura está aparcada.";
+            estadoAparcar.innerHTML = (r.en_cero
+                ? "🅿️ <b>Montura aparcada en el cero de los motores</b> (desfase " + minutos(Math.abs(r.desfase[0]))
+                  + " / " + minutos(Math.abs(r.desfase[1])) + ") y seguimiento parado. Ya puedes apagar la montura y "
+                  + "cambiar la batería <b>sin moverla</b>. Al encenderla, conecta el equipo desde Inicio: SynScan Pro "
+                  + "carga solo la alineación de antes."
+                : "⚠️ Seguimiento parado y tubo en altura " + grados(r.alt) + ", acimut " + grados(r.az)
+                  + ", pero <b>no en el cero de los motores</b>: si apagas la montura, al encenderla apuntará "
+                  + "desviada (el centrado con plate solving lo corrige en el primer GoTo).") + avisos;
         } else if (!d.conectada) {
             estadoAparcar.textContent = "La montura no está conectada.";
-            btnAparcar.disabled = true;
+        } else if (d.en_cero) {
+            estadoAparcar.innerHTML = "🅿️ La montura está en el cero de los motores.";
         } else {
             estadoAparcar.textContent = "";
         }
@@ -141,7 +141,7 @@
     }
 
     function aparcar() {
-        if (!confirm("¿Aparcar la montura? Se detiene lo que esté en marcha (apilado, pad), se para el seguimiento y el tubo va a altura 0° y acimut 0° (horizontal, mirando al norte).")) return;
+        if (!confirm("¿Aparcar la montura? Se detiene lo que esté en marcha (apilado, pad), se para el seguimiento y el tubo vuelve a donde estaba al encender la montura (horizontal, hacia el norte).")) return;
         estadoAparcar.innerHTML = '<span class="spinner"></span>Parando el seguimiento...';
         btnAparcar.disabled = true;
         fetch("/montura/aparcar", { method: "POST" })
@@ -154,15 +154,14 @@
             .catch(err => { estadoAparcar.textContent = "❌ " + err; btnAparcar.disabled = false; });
     }
 
-    function desaparcar() {
-        estadoAparcar.innerHTML = '<span class="spinner"></span>Desaparcando...';
-        fetch("/montura/desaparcar", { method: "POST" })
+    function reanudar() {
+        estadoAparcar.innerHTML = '<span class="spinner"></span>Poniendo el seguimiento...';
+        fetch("/montura/reanudar", { method: "POST" })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { estadoAparcar.textContent = "❌ " + d.mensaje; return; }
-                estadoAparcar.textContent = "✅ Montura desaparcada y seguimiento en marcha.";
-                btnDesaparcar.hidden = true;
-                aparcada = false;
+                estadoAparcar.textContent = "✅ Seguimiento en marcha. Para seguir, haz un GoTo.";
+                btnReanudar.hidden = true;
             })
             .catch(err => estadoAparcar.textContent = "❌ " + err);
     }
@@ -175,8 +174,8 @@
         let texto = accion === "apagar"
             ? "¿Apagar el equipo? Se desconectarán la cámara y la montura y Windows se cerrará."
             : "¿Reiniciar el equipo? Se desconectarán la cámara y la montura y Windows se reiniciará.";
-        if (accion === "apagar" && monturaConectada && aparcada === false)
-            texto = "La montura NO está aparcada: si la apagas se perderá la alineación.\n\n" + texto;
+        if (accion === "apagar" && monturaConectada && enCero === false)
+            texto = "La montura NO está aparcada en el cero de los motores: si la apagas, al encenderla apuntará desviada.\n\n" + texto;
         if (!confirm(texto)) return;
         estado.textContent = "⏳ Desconectando el equipo...";
         fetch("/apagar/equipo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accion }) })

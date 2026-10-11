@@ -79,6 +79,7 @@ import coordenadas
 import recorridos
 import montura_ejes
 import seguimiento
+import aparcado
 import vigilante_seguimiento
 import plan_sesion
 
@@ -636,11 +637,7 @@ def _es_synscan(driver):
 
 
 def _desaparcar_si_hace_falta(tel):
-    """
-    Si la montura se aparcó antes de apagarla (botón «Aparcar la montura» de Cerrar o
-    apagar), se desaparca al conectar para poder mover y seguir. Con SynScan Pro hay que
-    haber contestado «Restore» a su pregunta de la hibernación al encender la montura.
-    """
+    """Si la montura se aparcó (p. ej. desde SynScan Pro), se desaparca para poder moverla y seguir."""
     try:
         if not tel.AtPark:
             return
@@ -650,10 +647,28 @@ def _desaparcar_si_hace_falta(tel):
         tel.Unpark()
         log.warning("Montura aparcada al conectar: desaparcada")
         print("🅿️ La montura estaba aparcada: desaparcada")
-        voz.decir("Montura desaparcada")
     except Exception as e:
         from hardware import _mensaje_com
         log.warning("La montura está aparcada y no se pudo desaparcar: %s", _mensaje_com(e))
+
+
+def _anotar_codificadores_al_conectar():
+    """
+    Deja en el log dónde están los motores al conectar. Justo tras encender la montura
+    deben marcar 0x800000 (el cero que usa «Aparcar la montura»); sirve para comprobarlo.
+    """
+    def _leer():
+        try:
+            lector = aparcado.LectorCodificadores(*_conf_udp(), timeout_s=0.4)
+            try:
+                crudos, d = lector.crudos(), lector.desfase()
+            finally:
+                lector.cerrar()
+            log.info("Codificadores al conectar: %06X / %06X (desfase del cero de los motores %+.3f° / %+.3f°)",
+                     crudos[0], crudos[1], d[0], d[1])
+        except Exception as e:
+            log.info("Codificadores al conectar: no se pueden leer por UDP (%s)", e)
+    threading.Thread(target=_leer, name="codificadores", daemon=True).start()
 
 
 def _activar_seguimiento(tel):
@@ -672,6 +687,8 @@ def _activar_seguimiento(tel):
                    "(puerto COM, dirección IP o el programa que necesite abierto)")
         raise ErrorHardware(f"la montura no responde ({_mensaje_com(e)}): {consejo}") from e
     _desaparcar_si_hace_falta(tel)
+    if synscan:
+        _anotar_codificadores_al_conectar()
     try:
         tel.Tracking = True
     except Exception as e:
@@ -1062,13 +1079,44 @@ def apagar_estado():
 
 
 # ─── Aparcar la montura antes de apagarla (cambio de batería) ─────────────
-# Para el seguimiento, lleva el tubo a altura 0 / acimut 0 y aparca. Con SynScan Pro,
-# Park es su «Hibernación»: guarda en la app la posición de los motores y, al volver
-# a conectar la montura, la app pregunta «Hibernate data present. Restore state to
-# mount?»; con «Restore» la alineación sigue valiendo aunque la montura se apagara.
-# Al conectar, ScopePower desaparca sola la montura (ver _desaparcar_si_hace_falta).
-APARCAR_TIMEOUT_S = 240
-_aparcado = {"en_curso": False, "fase": "", "resultado": None}
+# Para el seguimiento y lleva la montura al cero de sus motores (ver aparcado.py): al
+# encenderla de nuevo los codificadores vuelven a 0x800000 en esa misma posición y SynScan
+# Pro, que al reconectar carga solo su último modelo de apuntado, sigue alineado. No se usa
+# Park (la «Hibernación» de SynScan Pro pregunta en la ventana del mini PC al reconectar).
+# Sin acceso UDP a la montura (otro driver, simulador) se queda en altura 0 / acimut 0.
+APARCAR_TIMEOUT_S = 600
+_aparcado = {"en_curso": False, "fase": "", "resultado": None, "lector": None, "sin_udp_hasta": 0.0}
+
+
+def _conf_udp():
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    return (cfg.get("Seguimiento", "udp_host", fallback="192.168.4.1") or "192.168.4.1",
+            cfg.getint("Seguimiento", "udp_puerto", fallback=11880))
+
+
+def _lector_codificadores():
+    """LectorCodificadores reutilizado entre consultas (lee los pasos por vuelta una vez)."""
+    if _aparcado["lector"] is None:
+        # Sin respuesta hace poco (otro driver, montura apagada): no esperar otra vez en cada consulta
+        if time.time() < _aparcado["sin_udp_hasta"]:
+            raise ErrorHardware("la montura no contesta por UDP")
+        host, puerto = _conf_udp()
+        try:
+            _aparcado["lector"] = aparcado.LectorCodificadores(host, puerto, timeout_s=0.4)
+        except Exception:
+            _aparcado["sin_udp_hasta"] = time.time() + 30
+            raise
+    return _aparcado["lector"]
+
+
+def _soltar_lector():
+    lector, _aparcado["lector"] = _aparcado["lector"], None
+    if lector is not None:
+        try:
+            lector.cerrar()
+        except Exception:
+            pass
 
 
 def _esperar_quieta(tel, maximo_s, que):
@@ -1084,65 +1132,74 @@ def _esperar_quieta(tel, maximo_s, que):
         time.sleep(0.5)
 
 
+def _mover_altaz(tel, az, alt, esperar_quieta):
+    """
+    GoTo a una altura/acimut. Si el driver no admite SlewToAltAz, se convierte a AR/Dec
+    con la hora y el lugar de ahora (como «Apunta aquí») y se apaga el seguimiento al llegar.
+    """
+    if getattr(tel, "CanSlewAltAz", False):
+        aparcado.mover_altaz(tel, az, alt, esperar_quieta)
+        return
+    marco = AltAz(obstime=Time.now(), location=EarthLocation(lat=LATITUD_OBSERVATORIO * u.deg, lon=LONGITUD_OBSERVATORIO * u.deg,
+                                                               height=ALTITUD_OBSERVATORIO * u.m))
+    destino = SkyCoord(az=(az % 360.0) * u.deg, alt=alt * u.deg, frame=marco).icrs
+    ra, dec = coordenadas.a_montura(float(destino.ra.hour), float(destino.dec.deg))
+    tel.Tracking = True           # ASCOM exige seguimiento para un GoTo en AR/Dec
+    try:
+        if getattr(tel, "CanSlewAsync", False):
+            tel.SlewToCoordinatesAsync(ra, dec)
+        else:
+            tel.SlewToCoordinates(ra, dec)
+        esperar_quieta(tel, 180, "el movimiento")
+    finally:
+        tel.Tracking = False
+
+
 def _aparcar(tel):
     """Se ejecuta en el hilo de la montura. Devuelve un dict con lo que se ha hecho."""
     from hardware import _mensaje_com
     avisos = []
     try:
-        if tel.AtPark:
-            return {"ok": True, "ya_estaba": True, "avisos": avisos, "aparcada": True,
-                    "alt": None, "az": None}
+        if tel.AtPark:      # aparcada desde SynScan Pro: hay que desaparcar para poder moverla
+            tel.Unpark()
     except Exception:
         pass
+    tel.Tracking = False          # ASCOM exige el seguimiento apagado para SlewToAltAz
+
+    _aparcado["sin_udp_hasta"] = 0.0          # al aparcar se intenta siempre
     try:
-        tel.Tracking = False          # ASCOM exige el seguimiento apagado para SlewToAltAz
+        lector = _lector_codificadores()
     except Exception as e:
-        avisos.append(f"no se pudo parar el seguimiento ({_mensaje_com(e)})")
+        lector = None
+        _soltar_lector()
+        avisos.append(f"no se pueden leer los motores por la wifi de la montura ({e}): "
+                      "queda en altura 0 / acimut 0, que no es exactamente el cero de los motores")
+        log.warning("Aparcar: sin lectura UDP de los codificadores: %s", e)
 
-    _aparcado["fase"] = "Llevando el tubo a altura 0°, acimut 0°..."
-    movido = False
-    if getattr(tel, "CanSlewAltAz", False):
-        try:
-            if getattr(tel, "CanSlewAltAzAsync", False):
-                tel.SlewToAltAzAsync(0.0, 0.0)      # (acimut, altura)
-            else:
-                tel.SlewToAltAz(0.0, 0.0)
-            _esperar_quieta(tel, 180, "el movimiento a altura 0 / acimut 0")
-            movido = True
-        except Exception as e:
-            avisos.append(f"no fue a altura 0 / acimut 0 ({_mensaje_com(e)}); "
-                          "mira el límite inferior de altura de SynScan Pro")
-            log.warning("Aparcar: SlewToAltAz(0, 0) falló: %s", e)
-    else:
-        avisos.append("el driver no permite mover a una altura y acimut concretos")
+    if lector is None:
+        _aparcado["fase"] = "Llevando el tubo a altura 0°, acimut 0°..."
+        _mover_altaz(tel, 0.0, 0.0, _esperar_quieta)
+        return {"ok": True, "en_cero": False, "sin_udp": True, "avisos": avisos,
+                "alt": float(tel.Altitude), "az": float(tel.Azimuth), "desfase": None}
 
-    aparcada = False
-    if getattr(tel, "CanPark", False):
-        _aparcado["fase"] = "Aparcando (hibernación de SynScan Pro)..."
-        try:
-            # Park va a la posición de aparcado del driver (en el simulador ASCOM, 39° de
-            # altura al sur): se fija antes la actual para que el tubo se quede donde está
-            if movido and getattr(tel, "CanSetPark", False):
-                tel.SetPark()
-            tel.Park()
-            _esperar_quieta(tel, 120, "el aparcado")
-            aparcada = bool(tel.AtPark)
-        except Exception as e:
-            avisos.append(f"el driver no aceptó Park ({_mensaje_com(e)})")
-            log.warning("Aparcar: Park falló: %s", e)
-    else:
-        avisos.append("el driver no permite aparcar: la posición no queda guardada")
+    signos = aparcado.leer_signos()
     try:
-        tel.Tracking = False          # por si Park lo hubiera dejado encendido
+        r = aparcado.ir_al_cero(tel, lector, _esperar_quieta, signos=signos, mover=_mover_altaz,
+                                fase=lambda texto: _aparcado.update(fase=texto))
+    except Exception:
+        _soltar_lector()
+        raise
+    if None not in r["signos"] and r["signos"] != signos:
+        aparcado.guardar_signos(r["signos"])
+    if not r["en_cero"]:
+        avisos.append("no ha llegado del todo al cero de los motores (desfase "
+                      f"{r['desfase'][0] * 60:+.1f}′ en acimut, {r['desfase'][1] * 60:+.1f}′ en altura)")
+    try:
+        tel.Tracking = False
     except Exception:
         pass
-    alt = az = None
-    try:
-        alt, az = float(tel.Altitude), float(tel.Azimuth)
-    except Exception:
-        pass
-    return {"ok": True, "ya_estaba": False, "aparcada": aparcada, "avisos": avisos,
-            "alt": alt, "az": az}
+    r.update(ok=True, sin_udp=False, avisos=avisos)
+    return r
 
 
 def _trabajo_aparcar():
@@ -1155,10 +1212,10 @@ def _trabajo_aparcar():
         _pad_parar("aparcar la montura")
         r = montura.ejecutar(_aparcar, timeout=APARCAR_TIMEOUT_S)
         log.warning("Montura aparcada: %s", r)
-        if r["aparcada"]:
+        if r["en_cero"]:
             voz.decir("Montura aparcada. Ya puedes apagarla")
         else:
-            voz.decir("Seguimiento parado, pero la montura no ha quedado aparcada")
+            voz.decir("Seguimiento parado, pero la montura no ha llegado al cero de los motores")
     except Exception as e:
         log.error("No se pudo aparcar la montura: %s", e)
         voz.decir("No se ha podido aparcar la montura")
@@ -1185,29 +1242,33 @@ def montura_aparcar():
 
 @app.route('/montura/aparcar/estado')
 def montura_aparcar_estado():
-    aparcada = None
+    """
+    Estado del aparcado y, si se puede leer por UDP, si la montura está ahora en el cero
+    de los motores (en_cero: True/False; None si no se sabe). Lo usa Cerrar o apagar para
+    avisar antes de apagar el equipo con la montura fuera del cero.
+    """
+    en_cero = desfase = None
     if montura.esta_conectado() and not _aparcado["en_curso"]:
         try:
-            aparcada = bool(montura.ejecutar(lambda tel: tel.AtPark, timeout=5, conectar=False))
+            d = _lector_codificadores().desfase()
+            desfase = [round(d[0], 3), round(d[1], 3)]
+            en_cero = max(abs(d[0]), abs(d[1])) <= aparcado.TOLERANCIA_GRADOS * 2
         except Exception:
-            pass
+            _soltar_lector()
     return jsonify({"en_curso": _aparcado["en_curso"], "fase": _aparcado["fase"],
                     "resultado": _aparcado["resultado"], "conectada": montura.esta_conectado(),
-                    "aparcada": aparcada})
+                    "en_cero": en_cero, "desfase": desfase})
 
 
-@app.route('/montura/desaparcar', methods=['POST'])
-def montura_desaparcar():
-    """Para seguir observando sin apagar después de aparcar."""
-    def _fn(tel):
-        tel.Unpark()
-        tel.Tracking = True
+@app.route('/montura/reanudar', methods=['POST'])
+def montura_reanudar():
+    """Seguir observando sin apagar después de aparcar: vuelve a poner el seguimiento."""
     try:
-        montura.ejecutar(_fn, timeout=30)
+        montura.ejecutar(lambda tel: setattr(tel, "Tracking", True), timeout=15)
     except ErrorHardware as e:
         return jsonify({"ok": False, "mensaje": str(e)}), 503
     _aparcado["resultado"] = None
-    voz.decir("Montura desaparcada")
+    voz.decir("Seguimiento en marcha")
     return jsonify({"ok": True})
 
 
