@@ -367,7 +367,7 @@ class TrabajoVivo:
             if enfoque_disco:
                 # Solo el verde, con el limbo del Sol o la Luna ampliado y su anchura (enfoque.py)
                 girada, encuadre, info_enfoque = enfoque.imagen_vivo_disco(cfa, patron, paso, lambda im: a_orientacion_ascom(im, orientacion),
-                                                                           giro_camara.girar, historial_limbo)
+                                                                           giro_camara.girar, historial_limbo, objetivo=self.objetivo)
             elif modo_enfoque:
                 # Solo el verde, con la estrella más brillante ampliada (enfoque.py); foto_actual sigue con la de color
                 girada, encuadre, info_enfoque = enfoque.imagen_vivo(cfa, patron, paso, lambda im: a_orientacion_ascom(im, orientacion),

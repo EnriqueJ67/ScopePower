@@ -763,7 +763,7 @@ class TrabajoFotoDia:
                 # Modo enfoque (enfoque.py): solo el verde, con el limbo ampliado y su anchura; la foto de color sigue en foto_actual
                 try:
                     girada, encuadre, info_enfoque = enfoque.imagen_foto_dia_disco(
-                        recortar_centro(frame, campo), _patron(prep["sensor_type"]), giro_camara.girar)
+                        recortar_centro(frame, campo), _patron(prep["sensor_type"]), giro_camara.girar, objetivo=objetivo)
                     log.info("Enfoque de día: %s", enfoque.texto_info(info_enfoque))
                 except Exception as e:
                     log.warning("Modo enfoque de día: %s", e)

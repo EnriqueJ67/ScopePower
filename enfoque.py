@@ -37,10 +37,13 @@
 #     El limbo real es más fino que un píxel, así que esa anchura es el
 #     desenfoque más el seeing. No vale el 10–90 % del perfil: el oscurecimiento
 #     del limbo lo infla (18 px frente a 4,4 en las fotos del 10-oct-2026).
-#   - Arriba a la derecha, el limbo ampliado ×5 a resolución completa. En vivo se
-#     enseña el recorte del fotograma más nítido de los últimos 10 (el seeing de
-#     día hace temblar la imagen) y el número es la mediana de los últimos 5,
-#     con el mejor valor de la sesión al lado: se gira el enfocador hasta el mínimo.
+#   - Arriba a la derecha, el limbo ampliado ×5 a resolución completa; en la Luna,
+#     el terminador (cráteres y sombras: mucho más detalle que el limbo para el
+#     ojo), que es la parte del borde de la zona iluminada que no cae en el
+#     círculo. En vivo se enseña el recorte del fotograma más nítido de los
+#     últimos 10 (el seeing de día hace temblar la imagen) y el número es la
+#     mediana de los últimos 5, con el mejor valor de la sesión al lado: se gira
+#     el enfocador hasta el mínimo.
 #   - La exposición sigue siendo la automática de día (nivel del disco), no la
 #     de la estrella.
 import math
@@ -254,13 +257,15 @@ def _circulo_3_puntos(a, b, c):
     return ux, uy, math.hypot(ax - ux, ay - uy)
 
 
-def circulo_disco(plano, semilla=0, reduccion=2):
+def circulo_disco(plano, semilla=0, reduccion=2, con_borde=False):
     """
     (cx, cy, r) del disco brillante, en píxeles del plano, o None. Borde de la zona
     brillante y RANSAC de tres puntos con el radio libre: en una Luna en cuarto el
     terminador no encaja en el círculo y se queda fuera; después se afina con los
     puntos que encajan. Se trabaja sobre el plano reducido `reduccion` veces (basta:
     el limbo se busca luego en una ventana de ±VENTANA_LIMBO px alrededor del radio).
+    Con `con_borde` devuelve además los puntos del borde (px del plano) para buscar
+    el terminador.
     """
     k = max(1, int(reduccion))
     x = np.asarray(plano, dtype=np.float32)[::k, ::k]
@@ -305,7 +310,28 @@ def circulo_disco(plano, semilla=0, reduccion=2):
     cx, cy = float(sol[0]), float(sol[1])
     r = float(math.sqrt(max(sol[2] + cx * cx + cy * cy, 1.0)))
     # Coordenadas del plano entero: el píxel (i) del reducido es el (k·i) del entero, centrado en k·i + (k−1)/2
+    if con_borde:
+        return k * cx + (k - 1) / 2.0, k * cy + (k - 1) / 2.0, k * r, p * k + (k - 1) / 2.0
     return k * cx + (k - 1) / 2.0, k * cy + (k - 1) / 2.0, k * r
+
+
+def punto_terminador(cx, cy, r, borde):
+    """
+    (x, y) del terminador de la Luna para el recorte, o None si no lo hay (llena, o
+    el Sol). Terminador = puntos del borde de la zona iluminada que quedan claramente
+    dentro del círculo; se toma el más cercano al centro del disco (en cuarto es el
+    centro; en creciente o gibosa, el medio del arco).
+    """
+    if borde is None or len(borde) < 20:
+        return None
+    dist = np.hypot(borde[:, 0] - cx, borde[:, 1] - cy)
+    tol = max(3.0, 0.03 * r)
+    dentro = borde[dist < r - tol]
+    if len(dentro) < 20:
+        return None
+    d2 = np.hypot(dentro[:, 0] - cx, dentro[:, 1] - cy)
+    p = dentro[int(np.argmin(d2))]
+    return int(round(p[0])), int(round(p[1]))
 
 
 def anchura_limbo(plano, cx, cy, r, n_ang=ANGULOS_LIMBO, ventana=VENTANA_LIMBO, paso=PASO_PERFIL):
@@ -357,18 +383,19 @@ def anchura_limbo(plano, cx, cy, r, n_ang=ANGULOS_LIMBO, ventana=VENTANA_LIMBO, 
     return np.array(anchuras), np.array(validos), np.array(radios)
 
 
-def medir_disco(verde, escala_px=1.0, n_ang=ANGULOS_LIMBO):
+def medir_disco(verde, escala_px=1.0, n_ang=ANGULOS_LIMBO, terminador=False):
     """
     Disco en el plano verde y anchura de su limbo en píxeles del sensor
     (`escala_px` = píxeles del sensor por píxel del plano; 2 con el superpíxel).
     Devuelve un dict para la web: limbo (None si no se mide, con `motivo`), n
-    (ángulos medidos), arco (fracción del contorno que es limbo), x, y (punto del
-    limbo para el recorte, px del plano) y el círculo (cx, cy, r).
+    (ángulos medidos), arco (fracción del contorno que es limbo), x, y (punto para
+    el recorte, px del plano), recorte («limbo» o «terminador») y el círculo
+    (cx, cy, r). Con `terminador` (la Luna) el recorte va al terminador si lo hay.
     """
-    c = circulo_disco(verde)
+    c = circulo_disco(verde, con_borde=True)
     if c is None:
         return {"limbo": None, "motivo": "no se ve el disco"}
-    cx, cy, r = c
+    cx, cy, r, borde = c
     anch, angs, radios = anchura_limbo(verde, cx, cy, r, n_ang=n_ang)
     info = {"cx": round(cx, 1), "cy": round(cy, 1), "r": round(r, 1)}
     if len(anch) < 12:
@@ -378,8 +405,12 @@ def medir_disco(verde, escala_px=1.0, n_ang=ANGULOS_LIMBO):
     d = np.abs((angs + np.pi / 2 + np.pi) % (2 * np.pi) - np.pi)
     k = int(np.argmin(d))
     info.update({"limbo": round(float(np.median(anch)) * escala_px, 2), "n": int(len(anch)),
-                 "arco": round(len(anch) / float(n_ang), 2),
+                 "arco": round(len(anch) / float(n_ang), 2), "recorte": "limbo",
                  "x": int(round(cx + radios[k] * math.cos(angs[k]))), "y": int(round(cy + radios[k] * math.sin(angs[k])))})
+    if terminador:
+        pt = punto_terminador(cx, cy, r, borde)
+        if pt is not None:
+            info.update({"x": pt[0], "y": pt[1], "recorte": "terminador"})
     return info
 
 
@@ -419,14 +450,15 @@ def _punto_en_vista(x, y, forma, paso, orientar, girar):
     return int(ix), int(iy)
 
 
-def imagen_vivo_disco(cfa, patron, paso, orientar, girar, historial):
+def imagen_vivo_disco(cfa, patron, paso, orientar, girar, historial, objetivo=None):
     """
     Fotograma del vivo con el Sol o la Luna: el verde en gris, el limbo ampliado
-    (el del fotograma más nítido de los últimos) y la anchura del limbo.
-    `historial`: HistorialLimbo de esta sesión del vivo. Devuelve (BGR, encuadre, info).
+    (el del fotograma más nítido de los últimos; en la Luna, el terminador) y la
+    anchura del limbo. `historial`: HistorialLimbo de esta sesión del vivo.
+    Devuelve (BGR, encuadre, info).
     """
     verde = verde_superpixel(cfa, patron, 1)
-    info = medir_disco(verde, escala_px=2.0)
+    info = medir_disco(verde, escala_px=2.0, terminador=(str(objetivo or "").lower() == "luna"))
     gris = revelar_gris_disco(verde)
     pulsado = None
     if info.get("limbo") is not None:
@@ -443,14 +475,14 @@ def imagen_vivo_disco(cfa, patron, paso, orientar, girar, historial):
     return componer(girada, recorte, info, pulsado=pulsado), encuadre, info
 
 
-def imagen_foto_dia_disco(cfa, patron, girar):
+def imagen_foto_dia_disco(cfa, patron, girar, objetivo=None):
     """
     Foto suelta de día del Sol o la Luna con el modo activado: el verde en gris
-    (superpíxel, mitad de resolución), el limbo ampliado y su anchura. `cfa` en la
-    orientación de ASCOM. Devuelve (BGR, encuadre, info).
+    (superpíxel, mitad de resolución), el limbo ampliado (en la Luna, el terminador)
+    y la anchura del limbo. `cfa` en la orientación de ASCOM. Devuelve (BGR, encuadre, info).
     """
     verde = verde_superpixel(cfa, patron, 1)
-    info = medir_disco(verde, escala_px=2.0)
+    info = medir_disco(verde, escala_px=2.0, terminador=(str(objetivo or "").lower() == "luna"))
     gris = revelar_gris_disco(verde)
     recorte, pulsado = None, None
     if info.get("limbo") is not None:
