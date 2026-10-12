@@ -75,6 +75,7 @@ import catalogo_offline
 import editor_fotos
 import galeria_anotada
 import anuncio_ip
+import punto_acceso
 import coordenadas
 import recorridos
 import montura_ejes
@@ -6383,6 +6384,8 @@ if __name__ == '__main__':
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
     # Espacio en disco: aviso por voz si baja del umbral de Configuración y pausa con menos de 1 GB
     espacio_disco.vigilante.iniciar(voz, al_quedar_sin_espacio=_pausar_por_disco_lleno)
+    # Punto de acceso de Windows para la tablet (siempre 192.168.137.1): [Red] punto_acceso
+    punto_acceso.iniciar(config)
     # Si la app se cerró con el plan de la noche a medias, devolver a config.ini sus valores
     plan_sesion.restaurar_pendiente(_guardar_en_config)
     # Stellarium tarda en arrancar: lanzarlo ya, en un hilo, para que esté listo

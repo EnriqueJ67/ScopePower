@@ -73,7 +73,8 @@ def direcciones_ip():
                     encontradas.append((ip, "host"))
         except Exception as e:
             log.warning("No se pudo resolver el nombre de host: %s", e)
-    encontradas.sort(key=lambda x: (_prioridad_adaptador(x[1]), _prioridad(x[0])))
+    # La del punto de acceso de Windows (punto_acceso.py) es la que usa la tablet
+    encontradas.sort(key=lambda x: (x[0] != "192.168.137.1", _prioridad_adaptador(x[1]), _prioridad(x[0])))
     return encontradas
 
 

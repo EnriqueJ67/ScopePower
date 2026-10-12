@@ -10,12 +10,15 @@
 # tiene. Por la API de Windows (NetworkOperatorTetheringManager) se puede
 # compartir cualquier red conectada, tenga Internet o no.
 #
-#   powershell -ExecutionPolicy Bypass -File herramientas\punto_acceso.ps1 [estado|encender|apagar]
+#   powershell -ExecutionPolicy Bypass -File herramientas\punto_acceso.ps1 [estado|encender|apagar|diagnostico]
+#   ... punto_acceso.ps1 vigilar -Padre <pid>   (lo lanza punto_acceso.py: lo mantiene
+#       encendido mientras viva ScopePower y escribe una linea por cada cambio)
 #
 # Nombre, contrasena y banda se cambian en Configuracion > Zona con cobertura
 # inalambrica movil > Editar (eso si deja hacerlo sin Internet).
 
-param([ValidateSet('estado', 'encender', 'apagar', 'diagnostico')][string]$Accion = 'estado')
+param([ValidateSet('estado', 'encender', 'apagar', 'diagnostico', 'vigilar')][string]$Accion = 'estado',
+      [int]$Padre = 0, [int]$Intervalo = 15)
 $ErrorActionPreference = 'Stop'
 
 if ($Accion -eq 'diagnostico') {
@@ -59,6 +62,51 @@ function Esperar($operacion, [Type]$tipo) {
 $NI = [Windows.Networking.Connectivity.NetworkInformation, Windows.Networking.Connectivity, ContentType = WindowsRuntime]
 $TM = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager, Windows.Networking.NetworkOperators, ContentType = WindowsRuntime]
 $RES = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringOperationResult, Windows.Networking.NetworkOperators, ContentType = WindowsRuntime]
+
+function Origen {
+    $o = $NI::GetInternetConnectionProfile()
+    if (-not $o) {
+        $o = @($NI::GetConnectionProfiles() | Where-Object { $_.GetNetworkConnectivityLevel().ToString() -ne 'None' }) |
+            Select-Object -First 1
+    }
+    $o
+}
+
+if ($Accion -eq 'vigilar') {
+    # Cada $Intervalo s: si el punto de acceso esta apagado, encenderlo. Solo se escribe
+    # una linea cuando algo cambia (encendido, red de origen, clientes, errores), que
+    # punto_acceso.py pasa al log de ScopePower. Termina cuando muere el proceso $Padre.
+    [Console]::OutputEncoding = [Text.Encoding]::UTF8
+    $mutex = New-Object System.Threading.Mutex($false, 'Global\ScopePowerPuntoAcceso')
+    if (-not $mutex.WaitOne(60000)) { Write-Output "Ya hay otro vigilante del punto de acceso"; exit 3 }
+    $antes = ''; $intentoAntes = ''
+    while ($true) {
+        if ($Padre -and -not (Get-Process -Id $Padre -ErrorAction SilentlyContinue)) { break }
+        try {
+            $o = Origen
+            if (-not $o) {
+                $ahora = 'Sin red que compartir (el wifi no esta conectado a ninguna red)'
+            } else {
+                $g = $TM::CreateFromConnectionProfile($o)
+                if ($g.TetheringOperationalState.ToString() -ne 'On') {
+                    $r = Esperar ($g.StartTetheringAsync()) ($RES)
+                    $intento = "Punto de acceso apagado: encender -> {0} {1}" -f $r.Status, $r.AdditionalErrorMessage
+                    if ($intento -ne $intentoAntes) { Write-Output $intento; $intentoAntes = $intento }
+                } else {
+                    $intentoAntes = ''
+                }
+                $ahora = "Punto de acceso {0}: red {1}, compartiendo {2}, {3} cliente(s)" -f $g.TetheringOperationalState,
+                    $g.GetCurrentAccessPointConfiguration().Ssid, $o.ProfileName, $g.ClientCount
+            }
+        } catch {
+            $ahora = "Error: " + $_.Exception.Message
+        }
+        if ($ahora -ne $antes) { Write-Output $ahora; $antes = $ahora }
+        Start-Sleep -Seconds $Intervalo
+    }
+    $mutex.ReleaseMutex()
+    exit 0
+}
 
 # Red que se "comparte": la de Internet si la hay; si no, cualquier red conectada
 # (en el campo, la del modulo del SynScan).
