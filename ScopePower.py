@@ -656,18 +656,27 @@ def _anotar_codificadores_al_conectar():
     """
     Deja en el log dónde están los motores al conectar. Justo tras encender la montura
     deben marcar 0x800000 (el cero que usa «Aparcar la montura»); sirve para comprobarlo.
+    Justo al conectar SynScan Pro tiene ocupado el módulo wifi y no contesta a nadie más
+    (12-oct-2026: tres fallos al conectar con 0,4 s de espera; la misma consulta con
+    SynScan Pro ya tranquilo, 20/20 a 44 ms): se espera un poco y se reintenta.
     """
     def _leer():
-        try:
-            lector = aparcado.LectorCodificadores(*_conf_udp(), timeout_s=0.4)
+        time.sleep(5)
+        error = None
+        for intento in range(1, 4):
             try:
-                crudos, d = lector.crudos(), lector.desfase()
-            finally:
-                lector.cerrar()
-            log.info("Codificadores al conectar: %06X / %06X (desfase del cero de los motores %+.3f° / %+.3f°)",
-                     crudos[0], crudos[1], d[0], d[1])
-        except Exception as e:
-            log.info("Codificadores al conectar: no se pueden leer por UDP (%s)", e)
+                lector = aparcado.LectorCodificadores(*_conf_udp(), timeout_s=1.0)
+                try:
+                    crudos, d = lector.crudos(), lector.desfase()
+                finally:
+                    lector.cerrar()
+                log.info("Codificadores al conectar: %06X / %06X (desfase del cero de los motores %+.3f° / %+.3f°, "
+                         "intento %d)", crudos[0], crudos[1], d[0], d[1], intento)
+                return
+            except Exception as e:
+                error = e
+                time.sleep(3)
+        log.info("Codificadores al conectar: no se pueden leer por UDP tras 3 intentos (%s)", error)
     threading.Thread(target=_leer, name="codificadores", daemon=True).start()
 
 
