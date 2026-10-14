@@ -559,6 +559,8 @@ def combinar(rutas, ra_c_h, dec_c_deg, conf=None, progreso=None, orden_angulo=No
             if a or b or c0:
                 img_w[..., c] += a * xn + b * yn + c0
         offsets.append([round(float(pl[c][2]), 1) for c in range(3)])
+        log.info("Mosaico: tesela %d (%s) plano de fondo por canal [a·x + b·y + c, x e y de -0,5 a 0,5]: %s",
+                 k + 1, os.path.basename(t["ruta"]), [[round(float(v), 1) for v in pl[c]] for c in range(3)])
         acc += img_w * peso_w[..., None]
         wsum += peso_w
         cuenta += (peso_w > 0.0).astype(np.uint8)
@@ -1045,6 +1047,7 @@ class TrabajoMosaico:
         self._tesela(i, estado="en_curso", motivo="")
         self._set(actual=i, fotos=0, fase="goto")
         rotulo = f"{self.nombre} · tesela {i + 1}/{n}"
+        t_inicio = time.time()
         self._evento(f"Tesela {i + 1}/{n} (fila {t['fila'] + 1}, columna {t['col'] + 1}): GoTo",
                      decir=f"Tesela {i + 1} de {n}")
         r = deps.goto_sincrono(rotulo, t["ra_h"], t["dec_deg"], "Mosaico", centrar=self.conf["centrar"],
@@ -1084,6 +1087,11 @@ class TrabajoMosaico:
                 self._tesela(i, estado="hecha", fotos=total, archivo=os.path.basename(archivo),
                              motivo="" if motivo == "completa" else motivo,
                              ra_real_h=float(centro[0]) / 15.0, dec_real_deg=float(centro[1]))
+                # Para el log del campo: error de apuntado (previsto frente al WCS real), giro de la cámara y duración
+                d_ra = ((float(centro[0]) - t["ra_h"] * 15.0 + 180.0) % 360.0 - 180.0) * math.cos(math.radians(t["dec_deg"]))
+                error_arcmin = math.hypot(d_ra, float(centro[1]) - t["dec_deg"]) * 60.0
+                log.info("Mosaico: tesela %d/%d apuntada a %.1f' del centro previsto, cámara a %.1f°, %.0f s (GoTo+centrado+%d fotos)",
+                         i + 1, n, error_arcmin, angulo_de(cd_de(self._ultimo_wcs)), time.time() - t_inicio, total)
                 self._evento(f"Tesela {i + 1} hecha: {total} fotos" + ("" if motivo == "completa" else f" ({motivo})"))
             except Exception as e:
                 log.exception("Mosaico: no se pudo guardar la tesela")
