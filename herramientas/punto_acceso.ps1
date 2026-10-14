@@ -41,6 +41,13 @@ if ($Accion -eq 'diagnostico') {
         Get-Service icssvc, WlanSvc, SharedAccess -ErrorAction SilentlyContinue | Format-Table -AutoSize Name, Status, StartType | Out-String
         "`n== Registro icssvc =="
         Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Services\icssvc\Settings' -ErrorAction SilentlyContinue | Out-String
+        "`n== Energia: wifi (0 = maximo rendimiento) y boton de encendido (3 = apagar) =="
+        powercfg /query SCHEME_CURRENT 19cbb8fa-5279-450e-9fac-8a3d5fedd0c1 12bbebe6-58d6-4636-95bb-3217ef867c1a
+        powercfg /query SCHEME_CURRENT 4f971e89-eebd-4455-a8de-9e59040e7347 7648efa3-dd9c-4e3e-b566-50f929386280
+        "`n== Energia de los adaptadores (el equipo puede apagarlos) =="
+        Get-NetAdapterPowerManagement -IncludeHidden -ErrorAction SilentlyContinue |
+            Where-Object { $_.InterfaceDescription -match 'Wi-?Fi|Wireless|Direct' } |
+            Format-List Name, InterfaceDescription, AllowComputerToTurnOffDevice, DeviceSleepOnDisconnect, SelectiveSuspend | Out-String
         "`n== Radios (modo avion) =="
         Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\RadioManagement\SystemRadioState' -ErrorAction SilentlyContinue | Out-String
     } *>&1 | Out-File -FilePath $ruta -Encoding utf8
