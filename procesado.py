@@ -37,11 +37,11 @@ log = logging.getLogger("scopepower.procesado")
 ESTILOS = {
     #            gradiente ruido  contraste saturacion scnr  + estirado (fondo_objetivo, agresividad, compresion, recuperacion)
     "natural":  {"gradiente": True, "aplanar": False, "ruido": 0.30, "contraste": 0.25, "saturacion": 1.3, "scnr": 0.5, "scnr_estrellas": True,
-                 "saturacion_estrellas": 1.0, "color_estrellas_uniforme": True, "fondo_objetivo": 0.10, "agresividad": 0.6, "compresion": 0.3, "recuperacion": 1.0},
+                 "saturacion_estrellas": 1.0, "color_estrellas_uniforme": True, "fondo_objetivo": 0.10, "agresividad": 0.6, "compresion": 0.3, "recuperacion": 1.0, "nitidez": 0.0},
     "seestar":  {"gradiente": True, "aplanar": False, "ruido": 0.55, "contraste": 0.50, "saturacion": 1.7, "scnr": 0.8, "scnr_estrellas": True,
-                 "saturacion_estrellas": 1.2, "color_estrellas_uniforme": True, "fondo_objetivo": 0.13, "agresividad": 0.7, "compresion": 0.3, "recuperacion": 1.0},
+                 "saturacion_estrellas": 1.2, "color_estrellas_uniforme": True, "fondo_objetivo": 0.13, "agresividad": 0.7, "compresion": 0.3, "recuperacion": 1.0, "nitidez": 0.0},
     "agresivo": {"gradiente": True, "aplanar": False, "ruido": 0.80, "contraste": 0.80, "saturacion": 2.1, "scnr": 1.0, "scnr_estrellas": True,
-                 "saturacion_estrellas": 1.2, "color_estrellas_uniforme": True, "fondo_objetivo": 0.16, "agresividad": 0.8, "compresion": 0.2, "recuperacion": 1.1},
+                 "saturacion_estrellas": 1.2, "color_estrellas_uniforme": True, "fondo_objetivo": 0.16, "agresividad": 0.8, "compresion": 0.2, "recuperacion": 1.1, "nitidez": 0.0},
     # saturacion_estrellas: la saturación general multiplica también los halos de las
     # estrellas, y en un doblete con cámara de color el halo es rojo + azul (los dos
     # enfocan fuera del verde; medido en la Pacman: halo R/G 1,04 y B/G 1,89 frente a
@@ -96,7 +96,7 @@ def leer_config():
 PRESETS_RUTA = "presets_procesado.json"
 CLAVES_PRESET = ("estilo", "estirado", "curva", "fondo_objetivo", "compresion", "brillo", "temperatura",
                  "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "scnr_estrellas", "color_estrellas_uniforme",
-                 "gradiente", "aplanar")
+                 "gradiente", "aplanar", "nitidez")
 _lock_presets = threading.Lock()
 
 
@@ -1047,6 +1047,142 @@ def reducir_ruido(rgb, fuerza, progreso=None):
 ESCALA_FONDO_PX = 1024.0
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  3b. Nitidez: deconvolución Richardson-Lucy
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Tanteo del 14-oct-2026 con cuatro apilados reales (M13, Pacman, Triángulo,
+# Pléyades; comparaciones/deconvolucion_2026-10-14): Richardson-Lucy por canal
+# con PSF gaussiana medida en las estrellas de la propia foto, 8 iteraciones,
+# baja la FWHM de 4,4 a 2,9 px y resuelve M13 en estrellas sin subir el ruido
+# del cielo. Lo que NO funcionó: Wiener y la máscara de desenfoque (anillan),
+# 20 iteraciones o una PSF empírica (anillo oscuro alrededor de las estrellas
+# medias y brillantes). Las estrellas brillantes se dejan como están (su perfil
+# no es la PSF de las medias y es donde salen los anillos) y el cielo también
+# (solo amplificaría el ruido).
+ITERACIONES_NITIDEZ_MAX = 12          # nitidez 1,0 = 12 iteraciones; 0,65 = las 8 del tanteo
+FACTOR_PSF_NITIDEZ = 0.85             # PSF algo más estrecha que la FWHM medida (menos anillos)
+UMBRAL_ESTRELLA_PROTEGIDA = 12000.0   # ADU sobre el cielo: por encima, la estrella no se toca
+
+
+def _estrellas_medibles(plano, maximo=80):
+    """(y, x) de hasta `maximo` estrellas brillantes sin saturar, aisladas y lejos del borde."""
+    img = np.asarray(plano, dtype=np.float32)
+    suav = cv2.GaussianBlur(img, (0, 0), 1.2)
+    sub = suav[::8, ::8]
+    fondo = float(np.median(sub))
+    mad = float(np.median(np.abs(sub - fondo))) * 1.4826 + 1e-3
+    dil = cv2.dilate(suav, np.ones((15, 15), np.uint8))
+    cand = np.argwhere((suav == dil) & (suav - fondo > 20.0 * mad) & (img < 50000))
+    h, w = img.shape
+    cand = [(float(suav[y, x]), int(y), int(x)) for y, x in cand if 20 < y < h - 20 and 20 < x < w - 20]
+    cand.sort(reverse=True)
+    return [(y, x) for _, y, x in cand[:maximo]]
+
+
+def _fwhm_momentos(p, x, y, radio=7):
+    """FWHM (px) por el segundo momento de la luz alrededor de (x, y), con el fondo del borde restado (como enfoque.fwhm)."""
+    y0, y1, x0, x1 = max(0, y - radio), min(p.shape[0], y + radio + 1), max(0, x - radio), min(p.shape[1], x + radio + 1)
+    c = p[y0:y1, x0:x1]
+    if c.size < 9:
+        return float("nan")
+    borde = np.concatenate([c[0], c[-1], c[:, 0], c[:, -1]])
+    w = np.clip(c - float(np.median(borde)), 0, None)
+    if w.sum() <= 0:
+        return float("nan")
+    yy, xx = np.mgrid[y0:y1, x0:x1]
+    cx, cy = (xx * w).sum() / w.sum(), (yy * w).sum() / w.sum()
+    s2 = (((xx - cx) ** 2 + (yy - cy) ** 2) * w).sum() / w.sum() / 2.0
+    return float(2.355 * np.sqrt(max(s2, 1e-3)))
+
+
+def fwhm_canales(rgb, maximo=80):
+    """
+    FWHM mediana (px) de cada canal, medida en las estrellas encontradas en el
+    verde; NaN donde no se pueda medir. En un doblete R y B salen más anchos que
+    G, y cada canal se deconvoluciona con su propia PSF.
+    """
+    rgb = np.asarray(rgb, dtype=np.float32)
+    cand = _estrellas_medibles(rgb[..., 1], maximo)
+    if len(cand) < 5:
+        return [float("nan")] * 3
+    salida = []
+    for c in range(3):
+        anchos = [_fwhm_momentos(rgb[..., c], x, y) for y, x in cand]
+        anchos = [a for a in anchos if np.isfinite(a)]
+        salida.append(float(np.median(anchos)) if anchos else float("nan"))
+    return salida
+
+
+def _mascara_nitidez(rgb, fwhm_px, escala=1.0):
+    """
+    Dónde se aplica la deconvolución (0..1): la señal por encima de 3 sigmas del
+    cielo (fuera de ahí solo se amplificaría el ruido) menos las estrellas
+    brillantes y su entorno (3 FWHM). El umbral de brillo baja con la escala:
+    a media resolución el pico de una estrella queda repartido en 4 píxeles.
+    """
+    L = rgb.mean(axis=2)
+    Ls = cv2.GaussianBlur(L, (0, 0), 1.5)
+    sub = Ls[::4, ::4]
+    med = float(np.median(sub))
+    s = float(np.median(np.abs(sub - med))) * 1.4826 + 1e-6
+    senal = np.clip((Ls - med) / (3.0 * s) - 1.0, 0, 1).astype(np.float32)   # 0 en 3 s, 1 en 6 s
+    senal = cv2.dilate(senal, np.ones((5, 5), np.uint8))
+    senal = cv2.GaussianBlur(senal, (0, 0), 2.0)
+    pico = rgb.max(axis=2)
+    umbral = UMBRAL_ESTRELLA_PROTEGIDA * float(np.sqrt(max(escala, 0.05)))
+    brillantes = (pico - float(np.median(pico[::8, ::8])) > umbral).astype(np.uint8)
+    r = max(3, int(round(3.0 * fwhm_px)))
+    brillantes = cv2.dilate(brillantes, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1)))
+    brillantes = cv2.GaussianBlur(brillantes.astype(np.float32), (0, 0), max(1.0, fwhm_px / 2.0))
+    return senal * (1.0 - brillantes)
+
+
+def deconvolucionar(rgb, fuerza, progreso=None, escala=1.0):
+    """
+    rgb: (H, W, 3) float lineal (ADU), ya sin gradiente y con el ruido reducido.
+    fuerza 0..1: número de iteraciones de Richardson-Lucy (hasta ITERACIONES_NITIDEZ_MAX).
+    La PSF es una gaussiana por canal con la FWHM medida en las estrellas de la
+    propia imagen (× FACTOR_PSF_NITIDEZ); así se adapta sola al foco de la noche
+    y a la resolución (la vista previa va a la mitad). progreso(fraccion): opcional.
+    Devuelve float32 (H, W, 3) lineal.
+    """
+    fuerza = float(np.clip(fuerza, 0, 1))
+    rgb = np.asarray(rgb, dtype=np.float32)
+    h, w = rgb.shape[:2]
+    iteraciones = int(round(ITERACIONES_NITIDEZ_MAX * fuerza))
+    if iteraciones <= 0 or min(h, w) < 64:
+        return rgb
+    fwhm = fwhm_canales(rgb)
+    if not all(np.isfinite(f) and f > 0 for f in fwhm):
+        log.warning("nitidez: no hay estrellas que medir; no se deconvoluciona")
+        return rgb
+    log.debug("nitidez: %d iteraciones, FWHM R/G/B %.2f/%.2f/%.2f px", iteraciones, *fwhm)
+    mascara = _mascara_nitidez(rgb, float(np.mean(fwhm)), escala)[..., None]
+    salida = np.empty_like(rgb)
+    paso = 0
+    total = 3 * iteraciones
+    for c in range(3):
+        y = rgb[..., c]
+        piso = float(np.percentile(y[::8, ::8], 1.0))
+        y = np.clip(y - piso, 1e-3, None) + 1e-3          # RL exige datos positivos
+        sigma = max(fwhm[c] * FACTOR_PSF_NITIDEZ, 1.0) / 2.355
+        x = y.copy()
+        for _ in range(iteraciones):
+            est = cv2.GaussianBlur(x, (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
+            # cociente acotado: un píxel aislado de ruido no dispara la corrección
+            ratio = np.clip(y / np.maximum(est, 1e-6), 0.2, 5.0)
+            x *= cv2.GaussianBlur(ratio, (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
+            paso += 1
+            if progreso:
+                try:
+                    progreso(paso / total)
+                except Exception:
+                    pass
+        salida[..., c] = x + piso
+    return (rgb + mascara * (salida - rgb)).astype(np.float32)
+
+
 def mtf(x, mt):
     """Midtones transfer function de PixInsight: x en [0, 1], mt = balance de medios."""
     x = np.clip(np.asarray(x, dtype=np.float32), 0, 1)
@@ -1384,22 +1520,34 @@ def scnr_verde(rgbf, factor, estrellas=None):
     return np.clip(f, 0, 1).astype(np.float32)
 
 
-def color_estrellas_uniforme(rgbf, estrellas, sigma_px=4.0):
+def color_estrellas_uniforme(rgbf, estrellas, sigma_px=4.0, cociente=False):
     """
     Dentro de las estrellas (máscara 0..1) sustituye el color de cada píxel por el
     promedio local ponderado por la luz sobre el fondo (al cuadrado: manda el
     núcleo): el núcleo y el halo comparten el color medio de la estrella, que es
     el que tiene su luz integrada. Fuera de la máscara no cambia nada.
+
+    cociente: el color se comparte como RGB / luminancia en vez de como
+    diferencia. Tras deconvolucionar, el halo queda 10 veces más débil que el
+    núcleo y al sumarle la croma absoluta del núcleo salía un anillo violeta
+    exagerado y recortado (Pacman, 14-oct-2026: R/G del halo 3,0 frente a 1,2
+    en el original); con el cociente el halo toma el tono del núcleo a su propio
+    brillo (1,3). Solo se usa con nitidez > 0 para no cambiar las fotos de siempre.
     """
     f = np.clip(np.asarray(rgbf, dtype=np.float32), 0, 1)
     L = f.mean(axis=2, keepdims=True)
     fondo = float(np.median(L))
-    C = f - L
     w = np.clip(L[..., 0] - fondo, 0, None) ** 2 * estrellas
-    num = cv2.GaussianBlur(C * w[..., None], (0, 0), sigma_px)
     den = cv2.GaussianBlur(w, (0, 0), sigma_px)[..., None]
-    Cm = np.where(den > 1e-8, num / np.maximum(den, 1e-8), C)
     mezcla = estrellas[..., None]
+    if cociente:
+        R = f / np.maximum(L, 1e-4)
+        num = cv2.GaussianBlur(R * w[..., None], (0, 0), sigma_px)
+        Rm = np.where(den > 1e-8, num / np.maximum(den, 1e-8), R)
+        return np.clip(L * (R * (1.0 - mezcla) + Rm * mezcla), 0, 1).astype(np.float32)
+    C = f - L
+    num = cv2.GaussianBlur(C * w[..., None], (0, 0), sigma_px)
+    Cm = np.where(den > 1e-8, num / np.maximum(den, 1e-8), C)
     return np.clip(L + C * (1.0 - mezcla) + Cm * mezcla, 0, 1).astype(np.float32)
 
 
@@ -1467,7 +1615,11 @@ def color(rgb, ajustes):
     if not isinstance(uniforme, bool):
         uniforme = str(uniforme).lower() == "true"
     if uniforme:
-        f = color_estrellas_uniforme(f, pequenas)
+        try:
+            con_nitidez = float(ajustes.get("nitidez", 0) or 0) > 0
+        except (TypeError, ValueError):
+            con_nitidez = False
+        f = color_estrellas_uniforme(f, pequenas, cociente=con_nitidez)
     f = saturar(f, ajustes.get("saturacion", 1.5), pequenas, ajustes.get("saturacion_estrellas"))
     return np.clip(f * 255.0 + 0.5, 0, 255).astype(np.uint8)
 
@@ -1479,7 +1631,7 @@ def color(rgb, ajustes):
 # Sub-fases del procesado y la fracción del tiempo total que se lleva cada una
 # (medidas en la vista previa; la reducción de ruido es la que manda). Sirven
 # para que la web pinte el progreso dentro de la fase "estirando" del apilador.
-SUBFASES = (("gradiente", 0.05), ("ruido", 0.40), ("estirando", 0.20), ("contraste", 0.15), ("color", 0.20))
+SUBFASES = (("gradiente", 0.05), ("ruido", 0.35), ("nitidez", 0.10), ("estirando", 0.20), ("contraste", 0.12), ("color", 0.18))
 
 
 def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, balance="auto"):
@@ -1540,6 +1692,16 @@ def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, ba
 
     avisar("ruido")
     rgb = reducir_ruido(rgb, ajustes.get("ruido", 0.5), progreso=lambda f: avisar("ruido", f))
+
+    # Nitidez (deconvolución) en lineal, con el ruido ya reducido y antes de
+    # estirar; 0 (lo normal) no hace nada
+    avisar("nitidez")
+    try:
+        nitidez = float(ajustes.get("nitidez", 0) or 0)
+    except (TypeError, ValueError):
+        nitidez = 0.0
+    if nitidez > 0:
+        rgb = deconvolucionar(rgb, nitidez, progreso=lambda f: avisar("nitidez", f), escala=escala)
 
     # Neutralización + estirado, en coma flotante; de aquí al final todo sigue
     # así y se cuantiza a 8 bits una sola vez, al salir de color()

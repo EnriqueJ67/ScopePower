@@ -197,6 +197,11 @@
                     <input type="range" id="c-contraste" data-clave="contraste" min="0" max="1" step="0.05">
                 </div>
                 <div class="campo">
+                    <div class="rango-titulo"><span>Nitidez (deconvolución)</span><span id="v-nitidez"></span></div>
+                    <input type="range" id="c-nitidez" data-clave="nitidez" min="0" max="1" step="0.05">
+                    <small class="ayuda">Recupera detalle y afila las estrellas deshaciendo el desenfoque medido en las estrellas de la propia foto (Richardson-Lucy). 0 = apagada; 0,65 son las 8 pasadas probadas con M13 y la Pacman (la anchura de las estrellas baja de 4,4 a 2,9 px). Las estrellas brillantes y el cielo no se tocan. Al guardar añade unos 10 s en el mini PC.</small>
+                </div>
+                <div class="campo">
                     <div class="rango-titulo"><span>Saturación</span><span id="v-saturacion"></span></div>
                     <input type="range" id="c-saturacion" data-clave="saturacion" min="0.5" max="3" step="0.1">
                 </div>
@@ -306,7 +311,7 @@
     }
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
-    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes"];
+    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes"];
     let urlNueva = null;           // objectURL de la última vista previa
     let hayNueva = false;
     let preparando = false, pendiente = false;
@@ -318,6 +323,7 @@
             const c = document.getElementById("c-" + k);
             if (a[k] !== undefined && a[k] !== null) c.value = a[k];
             else if (inicial && (k === "brillo" || k === "temperatura" || k === "bordes")) c.value = 0;
+            else if (k === "nitidez") c.value = 0;                 // foto o preset de antes de que existiera el control: apagada
             else if (k === "saturacion_estrellas") c.value = 1;    // foto o preset de antes de que existiera el control
             document.getElementById("v-" + k).textContent = c.value;
         }

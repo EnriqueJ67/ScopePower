@@ -2108,7 +2108,7 @@ def revelar_foto_noche(imagen_fits, patron_bayer):
 
 
 # Nombre en la web de cada paso del procesado (procesado.SUBFASES)
-FASES_REVELADO = {"gradiente": "Quitando el gradiente", "estirando": "Estirando", "ruido": "Reduciendo el ruido",
+FASES_REVELADO = {"gradiente": "Quitando el gradiente", "estirando": "Estirando", "ruido": "Reduciendo el ruido", "nitidez": "Afilando (deconvolución)",
                   "contraste": "Contraste local", "color": "Color"}
 
 
