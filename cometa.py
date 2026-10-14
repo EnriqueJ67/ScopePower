@@ -420,6 +420,98 @@ class AcumuladorCometa:
         return self.cuenta, max(1.0, apilado_incremental.COBERTURA_ZONA * self.n)
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# Composición cometa + estrellas fijas (editor de la galería)
+# ═════════════════════════════════════════════════════════════════════════════
+ANCHO_RASTROS = 25          # px del disco que borra los rastros de estrellas en el apilado del cometa (con sus alas)
+ANCHO_ESTRELLAS = 15        # px del disco que separa las estrellas (y sus halos) del fondo en el apilado normal
+SIGMAS_RASTRO = 3.0         # un píxel es rastro si sobresale de su entorno más de tantos sigmas
+PLUMA = 0.5                 # fracción del radio del cometa en la que se funde la máscara
+
+
+def _disco(diametro):
+    k = max(3, int(diametro) | 1)
+    return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+
+
+def _mascara_cometa(alto, ancho, nucleo, desplazamiento, radio):
+    """
+    Máscara suave (0..1) de la zona del cometa: un disco de `radio` alrededor del
+    núcleo y, si se sabe cuánto se movió, la cápsula entre el núcleo y su posición
+    final (en el apilado por estrellas el cometa queda corrido a lo largo de ella).
+    """
+    yy, xx = np.mgrid[0:alto, 0:ancho].astype(np.float32)
+    x0, y0 = float(nucleo[0]), float(nucleo[1])
+    if desplazamiento and (abs(desplazamiento[0]) > 0.5 or abs(desplazamiento[1]) > 0.5):
+        dx, dy = float(desplazamiento[0]), float(desplazamiento[1])
+        t = np.clip(((xx - x0) * dx + (yy - y0) * dy) / (dx * dx + dy * dy), 0.0, 1.0)
+        dist = np.hypot(xx - (x0 + t * dx), yy - (y0 + t * dy))
+    else:
+        dist = np.hypot(xx - x0, yy - y0)
+    pluma = max(1.0, PLUMA * radio)
+    return np.clip((radio + pluma - dist) / pluma, 0.0, 1.0).astype(np.float32)
+
+
+def componer(cubo_estrellas, cubo_cometa, nucleo, desplazamiento=None, radio=40, progreso=None):
+    """
+    Cubo lineal (3, H, W) con el cometa fijo Y las estrellas fijas, a partir de
+    los dos apilados de la misma sesión (mismos píxeles: el apilado por el núcleo
+    es el normal con una traslación por foto).
+
+    - Capa del cometa: el apilado por el núcleo sin los rastros de las estrellas.
+      Una apertura con un disco de ANCHO_RASTROS px borra todo lo más estrecho
+      que el disco (los rastros: 3-4 px de ancho en el núcleo de la estrella, pero
+      con las alas de las brillantes llegan a 10-15 px; con 9 px quedaban restos
+      de 600 ADU); los píxeles que sobresalen de esa versión más de SIGMAS_RASTRO
+      se sustituyen por ella, salvo dentro del radio del cometa, donde se respeta
+      todo (ahí está el núcleo, que también es estrecho). Una cola real es más
+      ancha que el disco y se queda.
+    - Capa de las estrellas: el apilado normal menos su apertura con un disco de
+      ANCHO_ESTRELLAS px (queda lo pequeño: estrellas y halos; se va el cielo, las
+      nebulosas y el cometa corrido), tapada en la cápsula que recorrió el cometa.
+    - Resultado: capa del cometa (lleva el cielo) + capa de las estrellas.
+    """
+    est = np.asarray(cubo_estrellas, dtype=np.float32)
+    com = np.asarray(cubo_cometa, dtype=np.float32)
+    if est.shape != com.shape:
+        raise ValueError("Los dos apilados no tienen el mismo tamaño")
+    _, alto, ancho = est.shape
+    mascara = _mascara_cometa(alto, ancho, nucleo, desplazamiento, float(radio))
+    salida = np.empty_like(est)
+    d_rastros, d_estrellas = _disco(ANCHO_RASTROS), _disco(ANCHO_ESTRELLAS)
+    for c in range(3):
+        if progreso:
+            progreso("componiendo", c / 3.0)
+        # Capa del cometa sin rastros
+        plano = com[c]
+        fondo = cv2.morphologyEx(plano, cv2.MORPH_OPEN, d_rastros)
+        fondo = cv2.GaussianBlur(fondo, (0, 0), 2.0)
+        # La apertura va por debajo del cielo (se queda con los mínimos del ruido):
+        # lo que sobra tiene un nivel propio (mediana) que no es rastro
+        sobra = plano - fondo
+        muestra = sobra[::4, ::4]
+        nivel = float(np.median(muestra))
+        ruido = 1.4826 * float(np.median(np.abs(muestra - nivel))) + 1e-6
+        sobra -= nivel
+        rastro = (sobra > SIGMAS_RASTRO * ruido).astype(np.uint8)
+        rastro = cv2.dilate(rastro, np.ones((3, 3), np.uint8)).astype(np.float32) * (1.0 - mascara)
+        capa_cometa = plano - sobra * rastro
+        # Capa de las estrellas: lo pequeño del apilado normal, fuera del recorrido del
+        # cometa. Solo donde hay estrella (por encima del ruido, con 2 px de margen y
+        # el borde fundido): la apertura va por debajo del ruido y, sumada entera,
+        # aclaraba el cielo unos 13 ADU fuera del radio del cometa (anillo oscuro)
+        estrellas = est[c] - cv2.morphologyEx(est[c], cv2.MORPH_OPEN, d_estrellas)
+        muestra = estrellas[::4, ::4]
+        nivel_e = float(np.median(muestra))
+        ruido_e = 1.4826 * float(np.median(np.abs(muestra - nivel_e))) + 1e-6
+        estrellas -= nivel_e
+        hay = cv2.dilate((estrellas > SIGMAS_RASTRO * ruido_e).astype(np.uint8), np.ones((5, 5), np.uint8)).astype(np.float32)
+        hay = cv2.GaussianBlur(hay, (0, 0), 1.0)
+        np.maximum(estrellas, 0.0, out=estrellas)
+        salida[c] = capa_cometa + estrellas * hay * (1.0 - mascara)
+    return salida
+
+
 def matriz_nucleo(M, dx, dy):
     """Matriz de estrellas (2×3, foto → referencia) más la traslación (dx, dy) del núcleo."""
     Mc = np.array(M if M is not None else np.eye(2, 3), dtype=np.float64)

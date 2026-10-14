@@ -1236,6 +1236,14 @@ class ApiladorEnTiempoReal:
             if seguidor.nucleo_ref:
                 hdr["NUCLEOX"] = (round(seguidor.nucleo_ref[0], 1), "Nucleo del cometa en la referencia: x")
                 hdr["NUCLEOY"] = (round(seguidor.nucleo_ref[1], 1), "Nucleo del cometa en la referencia: y")
+            # Lo que recorrió el núcleo (px de la referencia) y su velocidad: el editor
+            # tapa ese recorrido en el apilado normal al componer cometa + estrellas
+            resumen = seguidor.resumen()
+            if len(seguidor.medidas) >= 2:
+                hdr["COMETDX"] = (round(seguidor.medidas[-1][1] - seguidor.medidas[0][1], 1), "Recorrido del nucleo en x (px)")
+                hdr["COMETDY"] = (round(seguidor.medidas[-1][2] - seguidor.medidas[0][2], 1), "Recorrido del nucleo en y (px)")
+            if resumen.get("velocidad_px_min") is not None:
+                hdr["COMETVEL"] = (resumen["velocidad_px_min"], "Velocidad del nucleo (px/min)")
             if zona:
                 hdr["ZONAX0"] = (zona[0], "Zona cubierta por las fotos: x0")
                 hdr["ZONAY0"] = (zona[1], "Zona cubierta por las fotos: y0")

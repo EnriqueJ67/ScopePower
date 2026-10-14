@@ -223,6 +223,33 @@
             </div>
         </section>
 
+        {% if info.cometa %}
+        <section class="card panel" data-panel="cometa">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title">☄️ Cometa</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="segmentado" id="composicion-seg" style="width: 100%;">
+                    <button type="button" data-composicion="estrellas" onclick="elegirComposicion('estrellas')" style="flex: 1;">Estrellas</button>
+                    <button type="button" data-composicion="cometa" onclick="elegirComposicion('cometa')" style="flex: 1;">Cometa</button>
+                    <button type="button" data-composicion="compuesta" onclick="elegirComposicion('compuesta')" style="flex: 1;" {% if not info.cometa.hay_nucleo %}disabled title="El apilado del cometa no lleva la posición del núcleo"{% endif %}>Composición</button>
+                </div>
+                <small class="ayuda">Esta sesión tiene los dos apilados: por las estrellas (el cometa sale corrido) y por el núcleo (las estrellas salen como rastros). «Composición» junta el cometa fijo del segundo con las estrellas fijas del primero.</small>
+                <div class="campo mt-2" id="controles-composicion">
+                    <div class="rango-titulo"><span>Radio del cometa</span><span id="v-radio_cometa"></span></div>
+                    <input type="range" id="c-radio_cometa" data-clave="radio_cometa" min="10" max="300" step="5">
+                    <small class="ayuda">Píxeles alrededor del núcleo (y a lo largo de su recorrido) donde manda el apilado del cometa: dentro no se tocan los rastros ni se añaden estrellas. Súbelo si la coma o la cola se ven cortadas; bájalo si quedan rastros alrededor.</small>
+                </div>
+                <div id="estado-composicion" class="estado"></div>
+            </div>
+        </section>
+        {% endif %}
+
         <section class="card panel" data-panel="firma">
             <div class="panel-header" onclick="alternarPanel(this)">
                 <h3 class="card-title"><svg class="ico"><use href="#i-guardar"/></svg>Firma y nombre</h3>
@@ -312,6 +339,21 @@
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
     const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes"];
+    const COMETA = {{ info.cometa|tojson }};      // pareja de apilados (estrellas + núcleo) o null
+    let composicion = COMETA ? (COMETA.es_nucleo ? "cometa" : "estrellas") : "";
+
+    function elegirComposicion(cual, refrescar = true) {
+        if (!COMETA) return;
+        if (cual === "compuesta" && !COMETA.hay_nucleo) cual = composicion;
+        composicion = cual;
+        document.querySelectorAll("#composicion-seg button").forEach(b => b.classList.toggle("activo", b.dataset.composicion === cual));
+        document.getElementById("controles-composicion").style.display = cual === "compuesta" ? "" : "none";
+        document.getElementById("estado-composicion").textContent =
+            cual === "compuesta" ? "Cometa fijo y estrellas fijas (unos segundos más la primera vez)" :
+            cual === "cometa" ? "Apilado por el núcleo: el cometa fijo, las estrellas como rastros" :
+            "Apilado por las estrellas: el cometa sale corrido";
+        if (refrescar) programarVistaPrevia();
+    }
     let urlNueva = null;           // objectURL de la última vista previa
     let hayNueva = false;
     let preparando = false, pendiente = false;
@@ -340,6 +382,14 @@
         if (a.estirado) elegirEstirado(a.estirado, false);
         if (a.curva !== undefined) document.getElementById("c-curva").value = a.curva || "gamma";
         else if (inicial) document.getElementById("c-curva").value = "gamma";
+        if (COMETA) {
+            const r = document.getElementById("c-radio_cometa");
+            if (a.radio_cometa !== undefined && a.radio_cometa !== null) r.value = a.radio_cometa;
+            else if (inicial) r.value = 40;
+            document.getElementById("v-radio_cometa").textContent = r.value + " px";
+            if (a.composicion) elegirComposicion(a.composicion, false);
+            else if (inicial) elegirComposicion(composicion, false);
+        }
     }
 
     function aplicarEstilo() {
@@ -487,6 +537,10 @@
             firma: document.getElementById("c-firma").checked,
             objeto: document.getElementById("c-objeto").value.trim()
         };
+        if (COMETA) {
+            a.composicion = composicion;
+            a.radio_cometa = parseInt(document.getElementById("c-radio_cometa").value) || 40;
+        }
         for (const k of CLAVES_RANGO) a[k] = parseFloat(document.getElementById("c-" + k).value);
         a.bordes = parseInt(document.getElementById("c-bordes").value) || 0;
         return a;
@@ -604,6 +658,11 @@
     }
     for (const id of ["c-gradiente", "c-aplanar", "c-scnr_estrellas", "c-color_estrellas_uniforme", "c-zoom", "c-firma", "c-giro-fino", "c-espejo", "c-curva"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
     document.getElementById("c-giro-fino").addEventListener("input", pintarValorGiro);
+    if (COMETA) {
+        const r = document.getElementById("c-radio_cometa");
+        r.addEventListener("input", () => document.getElementById("v-radio_cometa").textContent = r.value + " px");
+        r.addEventListener("change", programarVistaPrevia);
+    }
     document.getElementById("c-objeto").addEventListener("change", () => { if (document.getElementById("c-firma").checked) programarVistaPrevia(); });
 
     // ——— Presets (compartidos con la pantalla de Apilado) ———

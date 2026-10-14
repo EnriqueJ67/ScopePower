@@ -15,7 +15,11 @@
 #     plate solving) en vez del centro del campo;
 #   - nombre del objeto: cambia el rótulo de la firma y, si se guarda, el nombre
 #     de los tres ficheros (JPG, FITS y JSON), que es de donde la galería saca el
-#     nombre y la fecha.
+#     nombre y la fecha;
+#   - cometa: si la foto tiene hermana (<objeto>_<fecha> y <objeto>_<fecha>_nucleo,
+#     los dos apilados de la misma sesión), se puede procesar el apilado por las
+#     estrellas, el del núcleo o la composición de los dos (cometa.componer:
+#     cometa fijo y estrellas fijas).
 #
 # Vista previa: procesado a media resolución (como en el apilado), síncrono, con
 # un cerrojo para que solo haya una en marcha. Guardar: a resolución completa en
@@ -41,6 +45,11 @@ from unidecode import unidecode
 
 import firma
 import procesado
+import cometa
+
+SUFIJO_NUCLEO = "_nucleo"
+COMPOSICIONES = ("estrellas", "cometa", "compuesta")
+RADIO_COMETA = (10, 300, 40)      # mínimo, máximo y valor por defecto (px) del radio del cometa al componer
 
 log = logging.getLogger("scopepower.editor")
 
@@ -65,6 +74,8 @@ _lock_cubo = threading.Lock()
 _cache_cubo = {"ruta": None, "mtime": None, "cubo": None, "n": 0, "exposicion": 0.0, "zona": None, "balance": None}
 _lock_norte = threading.Lock()
 _cache_norte = {}      # (ruta_fits, mtime) -> (giro, espejo) que dejan el norte arriba y el este a la izquierda
+_lock_compuesto = threading.Lock()
+_cache_compuesto = {"clave": None, "cubo": None}
 
 
 class ErrorEditor(Exception):
@@ -88,8 +99,14 @@ def rutas(nombre):
 
 
 def partes_nombre(nombre):
-    """'Lagoon_Nebula_20260911_234515.jpg' -> ('Lagoon_Nebula', '20260911_234515'); sin fecha -> (base, '')."""
+    """
+    'Lagoon_Nebula_20260911_234515.jpg' -> ('Lagoon_Nebula', '20260911_234515'); sin
+    fecha -> (base, ''). El sufijo del apilado por el núcleo del cometa
+    ('..._nucleo') no forma parte ni del objeto ni de la fecha.
+    """
     base = os.path.splitext(os.path.basename(nombre))[0]
+    if base.endswith(SUFIJO_NUCLEO):
+        base = base[:-len(SUFIJO_NUCLEO)]
     m = re.fullmatch(r"(.+)_(\d{8}_\d{6})", base)
     return (m.group(1), m.group(2)) if m else (base, "")
 
@@ -106,6 +123,37 @@ def nombre_archivo_objeto(objeto):
 
 def ruta_original(base):
     return os.path.join(CARPETA_ORIGINALES, os.path.basename(base) + ".jpg")
+
+
+def pareja_cometa(nombre):
+    """
+    Si la foto forma pareja con su apilado hermano de la misma sesión
+    (<objeto>_<fecha>.fits por las estrellas y <objeto>_<fecha>_nucleo.fits por el
+    núcleo del cometa), devuelve {"estrellas": ruta_fits, "cometa": ruta_fits,
+    "es_nucleo": bool, "hermano": nombre_jpg, "nucleo": [x, y] o None,
+    "desplazamiento": [dx, dy] o None}; si no, None.
+    """
+    base, _, ruta_fits, _ = rutas(nombre)
+    if base.endswith(SUFIJO_NUCLEO):
+        base_est, base_com, es_nucleo = base[:-len(SUFIJO_NUCLEO)], base, True
+    else:
+        base_est, base_com, es_nucleo = base, base + SUFIJO_NUCLEO, False
+    f_est, f_com = base_est + ".fits", base_com + ".fits"
+    if not (os.path.isfile(f_est) and os.path.isfile(f_com)):
+        return None
+    hermano = (base_est if es_nucleo else base_com) + ".jpg"
+    nucleo = desplazamiento = None
+    try:
+        h = fits.getheader(f_com)
+        if "NUCLEOX" in h and "NUCLEOY" in h:
+            nucleo = [float(h["NUCLEOX"]), float(h["NUCLEOY"])]
+        if "COMETDX" in h and "COMETDY" in h:
+            desplazamiento = [float(h["COMETDX"]), float(h["COMETDY"])]
+    except Exception as e:
+        log.warning("No se pudo leer la cabecera del apilado del cometa %s: %s", f_com, e)
+    return {"estrellas": f_est, "cometa": f_com, "es_nucleo": es_nucleo,
+            "hermano": os.path.basename(hermano) if os.path.isfile(hermano) else "",
+            "nucleo": nucleo, "desplazamiento": desplazamiento}
 
 
 def info_foto(nombre):
@@ -134,8 +182,14 @@ def info_foto(nombre):
                    "ancho": int(h.get("NAXIS1", 0) or 0), "alto": int(h.get("NAXIS2", 0) or 0)}
         except Exception as e:
             log.warning("No se pudo leer la cabecera de %s: %s", ruta_fits, e)
+    pareja = pareja_cometa(nombre)
+    if pareja and "composicion" not in ajustes:
+        completos["composicion"] = "cometa" if pareja["es_nucleo"] else "estrellas"
     return {
         "nombre": os.path.basename(ruta_jpg),
+        "cometa": ({"hermano": pareja["hermano"], "es_nucleo": pareja["es_nucleo"], "nucleo": pareja["nucleo"],
+                    "desplazamiento": pareja["desplazamiento"], "hay_nucleo": pareja["nucleo"] is not None}
+                   if pareja else None),
         "objeto": meta.get("objeto") or partes_nombre(nombre)[0].replace("_", " "),
         "fecha": meta.get("fecha", ""),
         "n_fotos": meta.get("n_fotos") or hdr.get("n_fotos", 0),
@@ -197,6 +251,13 @@ def ajustes_desde(datos):
     aj["centro"] = _centro_valido(datos.get("centro"))
     v = datos.get("firma", True)
     aj["firma"] = (str(v).lower() == "true") if not isinstance(v, bool) else v
+    # Cometa: qué apilado se procesa (solo cuenta si la foto tiene hermana)
+    composicion = str(datos.get("composicion", "") or "").lower()
+    aj["composicion"] = composicion if composicion in COMPOSICIONES else ""
+    try:
+        aj["radio_cometa"] = int(min(max(float(datos.get("radio_cometa", RADIO_COMETA[2]) or RADIO_COMETA[2]), RADIO_COMETA[0]), RADIO_COMETA[1]))
+    except (TypeError, ValueError):
+        aj["radio_cometa"] = RADIO_COMETA[2]
     return aj
 
 
@@ -222,6 +283,9 @@ def _ajustes_para_json(aj):
     guardar = {"estilo": aj["estilo"], "estirado": aj["estirado"], "zoom": aj["zoom"], "bordes": aj.get("bordes", 0),
                "giro": aj.get("giro", 0.0), "espejo": bool(aj.get("espejo")), "centro": aj.get("centro"),
                "firma": bool(aj["firma"]), "curva": str(aj.get("curva") or "gamma").lower()}
+    if aj.get("composicion"):
+        guardar["composicion"] = aj["composicion"]
+        guardar["radio_cometa"] = aj.get("radio_cometa", RADIO_COMETA[2])
     for k in CLAVES_FLOAT:
         guardar[k] = aj.get(k)
     for k in CLAVES_BOOL:
@@ -262,6 +326,47 @@ def cargar_cubo(ruta_fits):
         return c["cubo"], c["n"], c["exposicion"], c["zona"], c["balance"]
 
 
+def cargar_cubo_compuesto(pareja, radio, progreso=None):
+    """
+    Cubo lineal con el cometa fijo y las estrellas fijas (cometa.componer) a partir
+    de la pareja de apilados; n, exposición, zona y balance del apilado por las
+    estrellas. El último se guarda en memoria (cambiar un deslizador del estirado
+    no debe volver a componer: unos segundos en el mini PC).
+    """
+    if pareja["nucleo"] is None:
+        raise ErrorEditor("El apilado del cometa no lleva la posición del núcleo; no se puede componer")
+    try:
+        clave = (pareja["estrellas"], os.path.getmtime(pareja["estrellas"]),
+                 pareja["cometa"], os.path.getmtime(pareja["cometa"]), int(radio))
+    except OSError:
+        raise ErrorEditor("Falta uno de los dos apilados de la pareja")
+    cubo_est, n, exposicion, zona_est, balance = cargar_cubo(pareja["estrellas"])
+    with _lock_compuesto:
+        if _cache_compuesto["clave"] != clave or _cache_compuesto["cubo"] is None:
+            with fits.open(pareja["cometa"]) as hdul:
+                datos = hdul[0].data
+                if datos is None or datos.ndim != 3:
+                    raise ErrorEditor("El FITS del cometa no es un apilado RGB de ScopePower")
+                cubo_com = np.ascontiguousarray(datos.astype(np.float32))
+                if cubo_com.shape[0] != 3:
+                    cubo_com = np.ascontiguousarray(np.transpose(cubo_com, (2, 0, 1)))
+                zona_com = procesado.leer_zona(hdul[0].header)
+            if cubo_com.shape != cubo_est.shape:
+                raise ErrorEditor("Los dos apilados no tienen el mismo tamaño")
+            cubo = cometa.componer(cubo_est, cubo_com, pareja["nucleo"], pareja["desplazamiento"], radio, progreso=progreso)
+            # Zona cubierta: la común a los dos apilados
+            zona = zona_est
+            if zona_est and zona_com:
+                x0, y0 = max(zona_est[0], zona_com[0]), max(zona_est[1], zona_com[1])
+                x1 = min(zona_est[0] + zona_est[2], zona_com[0] + zona_com[2])
+                y1 = min(zona_est[1] + zona_est[3], zona_com[1] + zona_com[3])
+                zona = (x0, y0, max(x1 - x0, 1), max(y1 - y0, 1))
+            elif zona_com:
+                zona = zona_com
+            _cache_compuesto.update({"clave": clave, "cubo": cubo, "zona": zona})
+        return _cache_compuesto["cubo"], n, exposicion, _cache_compuesto["zona"], balance
+
+
 def _meta_firma(ruta_jpg, ruta_fits, objeto, n, exposicion):
     meta = firma.meta_de_archivo(ruta_jpg)
     # Autor y lugar: los del config actual, pero sin borrar los que la foto ya
@@ -298,7 +403,20 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
         raise ErrorEditor("Esta foto no tiene FITS guardado; no se puede reprocesar")
     aj = ajustes_desde(opciones)
     objeto = " ".join(str(opciones.get("objeto", "")).split())[:60] or partes_nombre(nombre)[0].replace("_", " ")
-    cubo, n, exposicion, zona, balance = cargar_cubo(ruta_fits)
+    # Cometa: la pareja de apilados permite procesar el otro o la composición de los dos
+    pareja = pareja_cometa(nombre)
+    if pareja is None:
+        aj["composicion"] = ""
+    elif not aj["composicion"]:
+        aj["composicion"] = "cometa" if pareja["es_nucleo"] else "estrellas"
+    if aj["composicion"] == "compuesta":
+        cubo, n, exposicion, zona, balance = cargar_cubo_compuesto(pareja, aj["radio_cometa"], progreso=progreso)
+    elif aj["composicion"] == "cometa":
+        cubo, n, exposicion, zona, balance = cargar_cubo(pareja["cometa"])
+    elif aj["composicion"] == "estrellas":
+        cubo, n, exposicion, zona, balance = cargar_cubo(pareja["estrellas"])
+    else:
+        cubo, n, exposicion, zona, balance = cargar_cubo(ruta_fits)
     fraccion = (100 - aj["zoom"]) / 100.0
     recorte, _ = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=aj.get("bordes", 0) / 100.0,
                                        espejo=bool(aj.get("espejo")), centro=aj.get("centro"))
@@ -311,6 +429,9 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
     meta["firmada"] = bool(aj["firma"])
     meta["ajustes"] = _ajustes_para_json(aj)
     meta["editada"] = True
+    if aj["composicion"]:
+        meta["composicion"] = aj["composicion"]
+        meta["cometa_nucleo"] = aj["composicion"] == "cometa"
     return imagen, meta
 
 
@@ -513,29 +634,44 @@ def _renombrar(base, objeto_nuevo):
     """
     Si el nombre del objeto cambia, renombra JPG, FITS, JSON (y el original
     apartado) a Objeto_AAAAMMDD_HHMMSS conservando la fecha. Devuelve el nombre
-    nuevo del JPG (o el mismo si no cambia).
+    nuevo del JPG (o el mismo si no cambia). La pareja del cometa (la foto y su
+    '_nucleo') se renombra junta, para que no se pierda la pareja; el rótulo
+    "· núcleo" del apilado por el núcleo no cuenta como parte del nombre.
     """
     nombre_actual = os.path.basename(base)
+    sufijo = SUFIJO_NUCLEO if nombre_actual.endswith(SUFIJO_NUCLEO) else ""
+    base_comun = base[:-len(sufijo)] if sufijo else base
     parte_objeto, fecha = partes_nombre(nombre_actual)
+    if sufijo:
+        objeto_nuevo = re.sub(r"\s*[·\-–]?\s*n[uú]cleo\s*$", "", str(objeto_nuevo or ""), flags=re.I)
     nuevo_objeto = nombre_archivo_objeto(objeto_nuevo)
     if nuevo_objeto == parte_objeto:
         return nombre_actual + ".jpg"
     if not fecha:
         fecha = datetime.fromtimestamp(os.path.getmtime(base + ".jpg")).strftime("%Y%m%d_%H%M%S")
-    nueva_base = os.path.join(CARPETA_FOTOS, f"{nuevo_objeto}_{fecha}")
-    if any(os.path.exists(nueva_base + ext) for ext in (".jpg", ".fits", ".json")):
-        raise ErrorEditor(f"Ya existe una foto llamada {os.path.basename(nueva_base)}")
-    for ext in (".jpg", ".fits", ".json"):
-        if os.path.isfile(base + ext):
-            os.replace(base + ext, nueva_base + ext)
-    orig = ruta_original(base)
-    if os.path.isfile(orig):
-        os.replace(orig, ruta_original(nueva_base))
-        orig_json = os.path.splitext(orig)[0] + ".json"
-        if os.path.isfile(orig_json):
-            os.replace(orig_json, os.path.splitext(ruta_original(nueva_base))[0] + ".json")
-    log.info("Foto renombrada: %s -> %s", nombre_actual, os.path.basename(nueva_base))
-    return os.path.basename(nueva_base) + ".jpg"
+    nueva_comun = os.path.join(CARPETA_FOTOS, f"{nuevo_objeto}_{fecha}")
+    # La foto y, si existe, su pareja del cometa
+    def existe(b):
+        return any(os.path.isfile(b + ext) for ext in (".jpg", ".fits", ".json"))
+    parejas = [(base, nueva_comun + sufijo)]
+    otra = base_comun if sufijo else base + SUFIJO_NUCLEO
+    if existe(otra):
+        parejas.append((otra, nueva_comun if sufijo else nueva_comun + SUFIJO_NUCLEO))
+    for _, nueva in parejas:
+        if any(os.path.exists(nueva + ext) for ext in (".jpg", ".fits", ".json")):
+            raise ErrorEditor(f"Ya existe una foto llamada {os.path.basename(nueva)}")
+    for vieja, nueva in parejas:
+        for ext in (".jpg", ".fits", ".json"):
+            if os.path.isfile(vieja + ext):
+                os.replace(vieja + ext, nueva + ext)
+        orig = ruta_original(vieja)
+        if os.path.isfile(orig):
+            os.replace(orig, ruta_original(nueva))
+            orig_json = os.path.splitext(orig)[0] + ".json"
+            if os.path.isfile(orig_json):
+                os.replace(orig_json, os.path.splitext(ruta_original(nueva))[0] + ".json")
+        log.info("Foto renombrada: %s -> %s", os.path.basename(vieja), os.path.basename(nueva))
+    return os.path.basename(nueva_comun + sufijo) + ".jpg"
 
 
 def guardar(nombre, opciones):
