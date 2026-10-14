@@ -79,6 +79,12 @@
             <div class="visor-overlay">
                 <span class="chip"><svg class="ico-sm"><use href="#i-apilado"/></svg><span id="contador-apilado">0</span><span id="maximo-apilado-sep">&nbsp;/ </span><span id="maximo-apilado">-</span> fotos</span>
                 <span class="chip" id="chip-ultima">Última: <span id="ultima-captura">Ninguna</span></span>
+                <!-- Cometa: el apilado se hace dos veces (por las estrellas y por el núcleo);
+                     estos chips eligen cuál se ve. Solo aparecen cuando el objeto es un cometa. -->
+                <span id="vistas-apilado" class="vistas-apilado" style="display: none;">
+                    <button type="button" class="chip chip-vista activo" data-vista="estrellas" onclick="elegirVista('estrellas')" title="Alineado por las estrellas (el cometa sale corrido)">✦ Estrellas</button>
+                    <button type="button" class="chip chip-vista" data-vista="cometa" onclick="elegirVista('cometa')" title="Alineado por el núcleo del cometa (las estrellas salen como rastros)">☄️ Cometa</button>
+                </span>
                 <!-- Progreso del ciclo: anillo discreto arriba a la derecha que se completa con
                      la exposición (segundos dentro) o con las fases del procesado. La banda inferior
                      de la imagen lleva la firma (logo, autor · fecha y objeto) y no hay que
@@ -1006,10 +1012,41 @@
         });
     }
 
+    // Vista del visor: "estrellas" (apilado normal) o "cometa" (por el núcleo, cometa.py)
+    let vistaApilado = "estrellas";
+    let versionCometaMostrada = null;
+    function elegirVista(vista) {
+        if (vista === vistaApilado) return;
+        vistaApilado = vista;
+        document.querySelectorAll("#vistas-apilado .chip-vista").forEach(b => b.classList.toggle("activo", b.dataset.vista === vista));
+        actualizarImagen();
+    }
     function actualizarImagen() {
         const img = document.getElementById("preview");
         img.onerror = () => console.warn("❌ Error cargando imagen apilada");
-        img.src = `/resultado-apilado?${Date.now()}`;
+        img.src = (vistaApilado === "cometa" ? "/resultado-cometa?" : "/resultado-apilado?") + Date.now();
+    }
+    function textoCometa(c) {
+        if (!c) return "";
+        if (!c.activo) return `${c.nombre}: ${c.motivo || "no se apila por el núcleo"}`;
+        const partes = [`${c.fotos} foto${c.fotos === 1 ? "" : "s"} por el núcleo`];
+        if (c.nucleo_ref) partes.push(`núcleo en (${Math.round(c.nucleo_ref[0])}, ${Math.round(c.nucleo_ref[1])})`);
+        if (hayNum(c.desplazamiento_px) && c.minutos >= 0.5) {
+            let s = `se ha movido ${fmtPx(c.desplazamiento_px)} px en ${fmtPx(c.minutos)} min`;
+            if (hayNum(c.velocidad_px_min)) s += ` (${fmtPx(c.velocidad_px_min)} px/min` + (hayNum(c.velocidad_arcsec_min) ? ` = ${fmtPx(c.velocidad_arcsec_min)}″/min` : "") + ")";
+            partes.push(s);
+        }
+        partes.push(c.efemeride ? "efeméride del MPC" : "sin efeméride: seguido foto a foto");
+        const u = c.ultimo;
+        if (u && u.usada === "prevision") partes.push("⚠️ en la última foto no se ve el núcleo (se usa la previsión)");
+        return partes.join(" · ");
+    }
+    function textoNucleoUltima(c) {
+        const u = c && c.ultimo;
+        if (!u) return "";
+        if (u.usada === "medida") return `medido en (${Math.round(u.medido[0])}, ${Math.round(u.medido[1])}) · señal ${u.snr} σ` + (u.previsto ? ` · previsto (${Math.round(u.previsto[0])}, ${Math.round(u.previsto[1])})` : "");
+        if (u.usada === "prevision") return `no se ve; se usa la previsión (${Math.round(u.previsto[0])}, ${Math.round(u.previsto[1])})`;
+        return "no se ve y no hay previsión: la foto no entra en el apilado del cometa";
     }
 
     function actualizarUltimaToma(info) {
@@ -1225,6 +1262,7 @@
                 ["Recorte", d.zona_comun ? `${d.zona_comun[2]} × ${d.zona_comun[3]} px (zona con ${d.referencia_fijada ? "al menos la mitad de" : "todas"} las fotos)` : (d.dimensiones ? "sin recortar" : "")],
                 ["Giro", textoEncuadre(d.encuadre)],
                 ["Referencia", d.referencia_nombre || ""],
+                ["☄️ Cometa", textoCometa(d.cometa), d.cometa && d.cometa.ultimo && d.cometa.ultimo.usada !== "medida" ? "warn" : ""],
             ]);
         } else {
             const dl = document.getElementById("datos-apilado");
@@ -1255,6 +1293,7 @@
                 ["Desplazamiento", u.desplazamiento ? `${u.desplazamiento[0]} / ${u.desplazamiento[1]} px` : ""],
                 ["Exposición", u.exposicion ? `${u.exposicion} s` : ""],
                 ["Píxeles rechazados", hayNum(u.rechazado) ? `${Number(u.rechazado).toFixed(1)} %` + (hayNum(u.cambio_fondo) ? ` · fondo ${u.cambio_fondo > 0 ? "+" : ""}${u.cambio_fondo} ADU` : "") : ""],
+                ["Núcleo del cometa", d.cometa ? textoNucleoUltima(d.cometa) : "", d.cometa && d.cometa.ultimo && d.cometa.ultimo.usada !== "medida" ? "warn" : ""],
             ]);
         }
         // El máximo del apilado, la primera vez que llega (después manda el usuario)
@@ -1448,7 +1487,16 @@
             // La versión sube solo cuando el JPG del apilado ya está escrito
             if (estado.version !== versionMostrada) {
                 versionMostrada = estado.version;
-                actualizarImagen();
+                if (vistaApilado === "estrellas") actualizarImagen();
+            }
+            // Cometa: los chips para elegir vista aparecen cuando hay apilado por el núcleo
+            const c = estado.cometa;
+            const hayCometa = !!(c && c.activo && c.fotos > 0);
+            document.getElementById("vistas-apilado").style.display = hayCometa ? "" : "none";
+            if (!hayCometa && vistaApilado === "cometa") elegirVista("estrellas");
+            if (hayCometa && c.version !== versionCometaMostrada) {
+                versionCometaMostrada = c.version;
+                if (vistaApilado === "cometa") actualizarImagen();
             }
             const toma = estado.ultima_toma || {};
             if (toma.version !== versionTomaMostrada) {

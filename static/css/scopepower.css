@@ -377,6 +377,10 @@ details[open] > .proc-mas-titulo::before { content: "▾ "; }
 .visor-overlay .chip { background: rgba(0,0,0,0.45); backdrop-filter: blur(6px); border-color: rgba(255,255,255,0.12); color: #fff; }
 .visor-overlay .chip.chip-ok { color: var(--ok); }
 .visor-overlay .chip.chip-warn { color: var(--warn); }
+/* Cometa: chips-botón para ver el apilado por las estrellas o por el núcleo */
+.vistas-apilado { display: inline-flex; gap: 4px; pointer-events: auto; }
+.visor-overlay .chip-vista { cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; opacity: 0.75; }
+.visor-overlay .chip-vista.activo { opacity: 1; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .visor-pie { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px; background: linear-gradient(0deg, rgba(0,0,0,0.7), transparent); color: #fff; font-size: 13px; pointer-events: none; }
 .visor-pie .progress { background: rgba(255,255,255,0.15); border-color: transparent; margin-top: 6px; }
 /* Anillo de progreso de la exposición sobre la foto (esquina superior derecha, porcentaje dentro) */

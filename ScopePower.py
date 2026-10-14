@@ -34,6 +34,7 @@ from apilado import iniciar_hilo_apilado
 from apilado import pausar_apilado, reanudar_apilado, esta_pausado
 from apilado import aumentar_saturacion #, subir_imagen_ftp_async
 import apilado
+import cometa
 import firma
 import rotacion_camara
 import io
@@ -4208,6 +4209,29 @@ def mostrar_apilado():
         return send_file("static/esperando.png", mimetype="image/png")
 
 
+@app.route('/resultado-cometa')
+def mostrar_cometa():
+    """Vista previa del apilado por el núcleo del cometa (cometa.py)."""
+    if not os.path.exists(cometa.RUTA_PREVIEW):
+        return send_file("static/esperando.png", mimetype="image/png")
+    try:
+        response = send_file(cometa.RUTA_PREVIEW, mimetype="image/jpeg")
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+    except Exception as e:
+        print(f"❌ Error al enviar el apilado del cometa: {e}")
+        return send_file("static/esperando.png", mimetype="image/png")
+
+
+@app.route('/descargar-fits-cometa')
+def descargar_fits_cometa():
+    if os.path.exists(cometa.RUTA_FITS):
+        return send_file(cometa.RUTA_FITS, as_attachment=True)
+    return "❌ No hay apilado por el núcleo del cometa.", 404
+
+
 @app.route('/ultima-captura')
 def mostrar_ultima_captura():
     """Miniatura de la última toma individual (se regenera en cada captura)."""
@@ -5169,6 +5193,34 @@ def guardar_apilado_en_galeria():
             meta["encuadre"] = {"zoom": int(round((1.0 - encuadre["fraccion"]) * 100)), "giro": encuadre["giro"],
                                 "espejo": encuadre["espejo"]}
             firma.guardar_meta(destino, meta)
+            # Cometa: el apilado por el núcleo se guarda como una segunda foto
+            # (<objeto>_<fecha>_nucleo), con el mismo encuadre y color
+            a = apilado.apilador_global
+            if a is not None and a.cometa and a.cometa.get("activo") and os.path.exists(cometa.RUTA_FITS):
+                try:
+                    base_nucleo = f"{nombre_objeto}_{timestamp}_nucleo"
+                    destino_nucleo = os.path.join(carpeta_destino, base_nucleo + ".jpg")
+                    shutil.copy(cometa.RUTA_FITS, os.path.join(carpeta_destino, base_nucleo + ".fits"))
+                    with fits.open(cometa.RUTA_FITS) as hdul:
+                        cubo_c = hdul[0].data.astype(np.float32)
+                        n_c = int(hdul[0].header.get("NSTACK", 1))
+                        exp_c = float(hdul[0].header.get("EXPTOT", 0) or 0)
+                        zona_c = procesado.leer_zona(hdul[0].header)
+                    cubo_c, _ = procesado.girar_campo(cubo_c, encuadre["fraccion"], encuadre["giro"], zona_c, espejo=encuadre["espejo"])
+                    rgb8_c = procesado.procesar(cubo_c, n_c, procesado.leer_config(), escala=1.0, balance=balance)
+                    imagen_c = cv2.cvtColor(rgb8_c, cv2.COLOR_RGB2BGR)
+                    meta_c = apilado.metadatos_firma(None, destinoFits, n_c, round(exp_c / n_c, 3) if n_c and exp_c else 0)
+                    meta_c["objeto"] = f"{meta_c['objeto']} · núcleo"
+                    if meta_c["activa"]:
+                        imagen_c = firma.firmar(imagen_c, meta_c)
+                    cv2.imwrite(destino_nucleo, imagen_c, [cv2.IMWRITE_JPEG_QUALITY, 92])
+                    meta_c["firmada"] = bool(meta_c["activa"])
+                    meta_c["encuadre"] = dict(meta["encuadre"])
+                    meta_c["cometa_nucleo"] = True
+                    firma.guardar_meta(destino_nucleo, meta_c)
+                    print(f"☄️ Apilado por el núcleo guardado como {base_nucleo}.jpg")
+                except Exception as e:
+                    log.exception("Error guardando el apilado por el núcleo del cometa")
             GUARDADO.update({"ok": True, "mensaje": f"✅ Imagen guardada como {nombre_archivo} (y su FITS)"})
             voz.decir("Imagen guardada en la galería")
             humor.decir("foto_guardada")

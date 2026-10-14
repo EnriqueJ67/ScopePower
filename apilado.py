@@ -25,6 +25,7 @@ import firma
 import rotacion_camara
 import rastros
 import apilado_incremental
+import cometa
 import cv2
 
 import subprocess
@@ -617,9 +618,9 @@ def aumentar_saturacion(rgb, factor=1.0):
 # Fases del procesado de cada foto, en el orden en que las recorre el apilador,
 # y una duración orientativa de cada una (segundos en el mini PC de campo) para
 # la cuenta atrás de la web mientras no hay historial de la sesión.
-FASES = ("leyendo", "puntuando", "resolviendo", "alineando", "apilando", "estirando", "anotando", "guardando")
+FASES = ("leyendo", "puntuando", "resolviendo", "alineando", "apilando", "estirando", "anotando", "guardando", "cometa")
 DURACION_SEMILLA = {"leyendo": 1.0, "puntuando": 1.0, "resolviendo": 10.0, "alineando": 2.0,
-                    "apilando": 3.0, "estirando": 8.0, "anotando": 3.0, "guardando": 1.0}
+                    "apilando": 3.0, "estirando": 8.0, "anotando": 3.0, "guardando": 1.0, "cometa": 6.0}
 
 
 class ApiladorEnTiempoReal:
@@ -708,6 +709,15 @@ class ApiladorEnTiempoReal:
         self.aceptadas = 0
 
         self.ref_info = None
+
+        # Apilado por el núcleo del cometa (cometa.py), en paralelo al normal: el
+        # seguidor sabe dónde cae el núcleo en cada foto y el acumulador suma las
+        # fotos alineadas por él. Solo cuando el objeto del GoTo es un cometa.
+        self.seguidor_cometa = None
+        self.acumulador_cometa = None
+        self.cometa = None              # {"nombre", "activo", "motivo"} para la web
+        self.version_cometa = 0
+        self.balance_vista = None       # balance de color de la última vista previa (se reutiliza)
 
     def _record(self, puntuacion, n_referencia):
         """Apunta la foto aceptada en los récords de la noche. Devuelve ("mejor" | "peor" | None,
@@ -972,6 +982,7 @@ class ApiladorEnTiempoReal:
             self.encuadre = encuadre
         # El color se calibra con las estrellas del campo completo, antes del recorte de zoom
         balance = procesado.balance_estrellas(rgb_cube, zona)
+        self.balance_vista = balance
         rgb_cube, matriz = procesado.girar_campo(rgb_cube, fraccion, encuadre["giro"], zona, espejo=encuadre["espejo"])
         escala = 0.5 if fraccion > 0.5 else 1.0
         rgb_mtf = procesado.procesar(rgb_cube, num_imagenes_preview, procesado.leer_config(), escala=escala,
@@ -1112,6 +1123,182 @@ class ApiladorEnTiempoReal:
 
         # Limpiar imágenes FITS antiguas en disco
         self.limpiar_fits_antiguos()
+
+        # Apilado por el núcleo del cometa, si lo hay
+        if self.acumulador_cometa is not None:
+            self._publicar_cometa(ruta_fits, EXPOSICION)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Cometa: apilado por el núcleo (cometa.py)
+    # ─────────────────────────────────────────────────────────────────────────
+    def _iniciar_cometa(self, ancho, alto):
+        """
+        Al fijar la referencia: si el objeto del GoTo es un cometa, arranca el
+        seguidor del núcleo (efeméride del MPC si está en las listas) y el acumulador.
+        """
+        self.seguidor_cometa = None
+        self.acumulador_cometa = None
+        try:
+            conf = cometa.leer_config()
+            nombre = nombre_objeto_goto()
+            if not cometa.es_cometa(nombre, tipo_objeto_goto(nombre), conf):
+                with self.lock:
+                    self.cometa = None
+                return
+            seguidor = cometa.SeguidorNucleo(nombre, self.ref_info["wcs"], ancho, alto, conf)
+            with self.lock:
+                self.seguidor_cometa = seguidor
+                self.acumulador_cometa = None
+                self.cometa = {"nombre": nombre, "activo": True, "fotos": 0,
+                               "motivo": ("efeméride del MPC" if seguidor.efemeride.disponible
+                                          else "sin efeméride: se sigue el núcleo foto a foto")}
+            print(f"☄️ Apilado por el núcleo del cometa {nombre} ({self.cometa['motivo']})")
+            voz.decir("Cometa: se apilará también por el núcleo")
+        except Exception as e:
+            print(f"⚠️ No se pudo preparar el apilado del cometa: {e}")
+            with self.lock:
+                self.cometa = {"nombre": nombre_objeto_goto(), "activo": False, "fotos": 0, "motivo": f"error: {e}"}
+
+    def _alinear_por_nucleo(self, crudos, g_alineado, M, metodo, ruta_fits):
+        """
+        Planos (r, g, b, Mc) de la foto alineados por el núcleo del cometa, o None si
+        no se ha podido situar el núcleo. crudos: planos sin alinear; g_alineado: el
+        verde ya alineado por las estrellas, donde se mide el núcleo.
+        """
+        seguidor = self.seguidor_cometa
+        if seguidor is None:
+            return None
+        try:
+            t = cometa.instante_medio(ruta_fits)
+            x, y, detalle = seguidor.medir(g_alineado, t)
+            if detalle.get("usada") == "ninguna":
+                print("☄️ Núcleo del cometa no encontrado y sin efeméride: esta foto no entra en el apilado del cometa")
+                return None
+            dx, dy = seguidor.traslacion(x, y)
+            texto = (f"medido en ({x:.0f}, {y:.0f}), señal {detalle['snr']}σ" if detalle.get("medido")
+                     else f"no se ve, se usa la previsión ({x:.0f}, {y:.0f})")
+            print(f"☄️ Núcleo del cometa {texto}; traslación ({dx:+.1f}, {dy:+.1f}) px [{detalle['modo']}]")
+            if metodo == "REF" or (abs(dx) < 1e-3 and abs(dy) < 1e-3 and np.allclose(M, np.eye(2, 3))):
+                return (crudos[0], crudos[1], crudos[2], None)
+            Mc = cometa.matriz_nucleo(M, dx, dy)
+            alto, ancho = crudos[1].shape
+            planos = tuple(cv2.warpAffine(p, Mc, (ancho, alto), flags=cv2.INTER_LINEAR) for p in crudos)
+            return (planos[0], planos[1], planos[2], Mc)
+        except Exception as e:
+            print(f"⚠️ No se pudo alinear por el núcleo del cometa: {e}")
+            return None
+
+    def _sumar_cometa(self, planos_cometa):
+        """Suma al acumulador del cometa los planos alineados por el núcleo (si los hay)."""
+        if planos_cometa is None or self.seguidor_cometa is None:
+            return
+        try:
+            r, g, b, Mc = planos_cometa
+            acumulador = self.acumulador_cometa
+            if acumulador is None:
+                acumulador = cometa.AcumuladorCometa(g.shape[1], g.shape[0])
+            res = acumulador.anadir(r, g, b, Mc)
+            with self.lock:
+                if self.seguidor_cometa is None:
+                    return      # reiniciado mientras tanto
+                self.acumulador_cometa = acumulador
+                if self.cometa is not None:
+                    self.cometa["fotos"] = acumulador.n
+            print(f"☄️ Foto sumada al apilado del cometa ({acumulador.n} fotos; fondo {res['nivel']:+.0f} ADU)")
+        except Exception as e:
+            print(f"⚠️ No se pudo sumar la foto al apilado del cometa: {e}")
+
+    def _publicar_cometa(self, ruta_fits, EXPOSICION):
+        """
+        FITS y vista previa del apilado por el núcleo (static/resultado_cometa.*),
+        con el mismo encuadre, estilo y firma que el apilado normal.
+        """
+        acumulador = self.acumulador_cometa
+        seguidor = self.seguidor_cometa
+        if acumulador is None or seguidor is None:
+            return
+        try:
+            self._fase("cometa")
+            t_inicio = time.time()
+            planos = acumulador.imagen()
+            zona = zona_cobertura(*acumulador.cobertura())
+            n = acumulador.n
+            with fits.open(ruta_fits) as hdul:
+                hdr = hdul[0].header.copy()
+            for clave in ("BAYERPAT", "CFA", "NAXIS", "NAXIS1", "NAXIS2", "NAXIS3", "BITPIX",
+                          "ZONAX0", "ZONAY0", "ZONAW", "ZONAH", "NORTEGIR", "NORTEESP"):
+                hdr.pop(clave, None)
+            hdr["NSTACK"] = (n, "Numero de imagenes apiladas")
+            hdr["EXPTOT"] = (n * EXPOSICION, "Tiempo total de exposicion (s)")
+            hdr["DATE"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            hdr["CREATOR"] = ("ScopePower", "Real-time Power for Your Telescope")
+            hdr["COMETA"] = (str(seguidor.nombre)[:60], "Apilado alineado por el nucleo del cometa")
+            if seguidor.nucleo_ref:
+                hdr["NUCLEOX"] = (round(seguidor.nucleo_ref[0], 1), "Nucleo del cometa en la referencia: x")
+                hdr["NUCLEOY"] = (round(seguidor.nucleo_ref[1], 1), "Nucleo del cometa en la referencia: y")
+            if zona:
+                hdr["ZONAX0"] = (zona[0], "Zona cubierta por las fotos: x0")
+                hdr["ZONAY0"] = (zona[1], "Zona cubierta por las fotos: y0")
+                hdr["ZONAW"] = (zona[2], "Zona cubierta por las fotos: ancho")
+                hdr["ZONAH"] = (zona[3], "Zona cubierta por las fotos: alto")
+            rgb_cube = np.stack(planos, axis=0).astype(np.float32)
+            del planos
+            hdr["BITPIX"] = -32
+            hdr["NAXIS"] = 3
+            hdr["NAXIS1"] = rgb_cube.shape[2]
+            hdr["NAXIS2"] = rgb_cube.shape[1]
+            hdr["NAXIS3"] = rgb_cube.shape[0]
+            wcs_ref = self.ref_info.get("wcs") if self.ref_info else None
+            norte = anotaciones.norte_arriba(wcs_ref, rgb_cube.shape[2], rgb_cube.shape[1]) if wcs_ref is not None else None
+            if norte:
+                hdr["NORTEGIR"] = (norte[0], "Giro horario (grados) que deja el norte arriba")
+                hdr["NORTEESP"] = (bool(norte[1]), "Espejo previo para dejar el este a la izquierda")
+            PrimaryHDU(data=rgb_cube, header=hdr).writeto(cometa.RUTA_FITS, overwrite=True)
+            t_fits = time.time() - t_inicio
+
+            # Vista previa: mismo encuadre y estilo que la del apilado normal; el color
+            # con el balance de las estrellas de aquella (aquí están arrastradas). En el
+            # mini PC cuesta varios segundos: [Cometa] vista_previa_cada la espacia
+            nuevo_config = configparser.ConfigParser()
+            nuevo_config.read("config.ini")
+            cada = cometa.leer_config(nuevo_config)["vista_previa_cada"]
+            if cada > 1 and n > 1 and n % cada != 0:
+                print(f"☄️ FITS del cometa actualizado ({n} fotos, {t_fits:.1f} s); la vista previa, cada {cada} fotos")
+                return
+            encuadre = procesado.encuadre_vista(nuevo_config, hdr)
+            fraccion = encuadre["fraccion"]
+            balance = self.balance_vista if self.balance_vista is not None else "auto"
+            rgb_cube, _ = procesado.girar_campo(rgb_cube, fraccion, encuadre["giro"], zona, espejo=encuadre["espejo"])
+            escala = 0.5 if fraccion > 0.5 else 1.0
+            rgb_mtf = procesado.procesar(rgb_cube, n, procesado.leer_config(), escala=escala,
+                                         progreso=self._subfase, balance=balance)
+            imagen_bgr = cv2.cvtColor(rgb_mtf, cv2.COLOR_RGB2BGR)
+            try:
+                meta = metadatos_firma(nuevo_config, ruta_fits, n, EXPOSICION)
+                if meta["activa"]:
+                    meta["objeto"] = f"{meta['objeto']} · núcleo"
+                    imagen_bgr = firma.firmar(imagen_bgr, meta)
+            except Exception as e:
+                print(f"⚠️ No se pudo firmar la vista previa del cometa: {e}")
+            cv2.imwrite(ruta_absoluta(cometa.RUTA_PREVIEW), imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            with self.lock:
+                self.version_cometa += 1
+            print(f"☄️ Apilado del cometa actualizado ({n} fotos; FITS {t_fits:.1f} s, vista previa {time.time() - t_inicio - t_fits:.1f} s)")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"⚠️ Error publicando el apilado del cometa: {e}")
+
+    def estado_cometa(self):
+        """Estado del apilado por el núcleo para la web (llamar con self.lock cogido)."""
+        if self.cometa is None:
+            return None
+        e = dict(self.cometa)
+        e["version"] = self.version_cometa
+        e["fotos"] = self.acumulador_cometa.n if self.acumulador_cometa is not None else 0
+        if self.seguidor_cometa is not None:
+            e.update(self.seguidor_cometa.resumen())
+        return e
 
     def procesar_imagen_fits(self, ruta_fits, ObjetosAnotados=False):
         try:
@@ -1289,6 +1476,7 @@ class ApiladorEnTiempoReal:
                     return
                 voz.decir("Imagen de referencia establecida")
                 humor.decir("referencia_fijada")
+                self._iniciar_cometa(r.shape[1], r.shape[0])
                 # El fotograma de referencia no necesita transformación
                 M, metodo = np.eye(2, 3, dtype=np.float32), "REF"
             else:
@@ -1310,11 +1498,16 @@ class ApiladorEnTiempoReal:
 
             esquinas = esquinas_transformadas(M, r.shape[1], r.shape[0])
 
+            crudos = (r, g, b) if self.seguidor_cometa is not None else None
             if metodo != "REF":
                 self._fase("alineando")
                 r = self.aplicar_transformacion(r, M, metodo)
                 g = self.aplicar_transformacion(g, M, metodo)
                 b = self.aplicar_transformacion(b, M, metodo)
+            # Cometa: la misma matriz más la traslación del núcleo (medido en la foto
+            # ya alineada por las estrellas). Los planos se suman cuando la foto entra.
+            planos_cometa = self._alinear_por_nucleo(crudos, g, M, metodo, ruta_fits) if crudos is not None else None
+            del crudos
 
             fotograma = {
                 "nombre": nombre_fits,
@@ -1339,6 +1532,10 @@ class ApiladorEnTiempoReal:
                 self._fase("apilando")
                 suma = acumulador.anadir(r, g, b, None if metodo == "REF" else M)
                 del r, g, b
+                with self.lock:
+                    if self.acumulador is not acumulador:
+                        return      # el apilado se ha reiniciado mientras tanto
+                self._sumar_cometa(planos_cometa)
                 with self.lock:
                     if self.acumulador is not acumulador:
                         return      # el apilado se ha reiniciado mientras tanto
@@ -1445,8 +1642,10 @@ class ApiladorEnTiempoReal:
                     return
             else:
                 print(f"📚 {self.ultimo_mensaje}")
+                self._sumar_cometa(planos_cometa)
                 self._anunciar_entrada("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas",
                                        puntuacion, n_referencia, "foto_sustituye" if sustituida else None)
+            del planos_cometa
 
             self._fase("apilando")
             if incremental and len(fotogramas_actuales) >= n_referencia:
@@ -1569,6 +1768,11 @@ def reiniciar_apilado_global():
             apilador_global.record_peor = None
             apilador_global.aceptadas = 0
             apilador_global.version_preview += 1   # la web debe olvidar la imagen anterior
+            apilador_global.seguidor_cometa = None
+            apilador_global.acumulador_cometa = None
+            apilador_global.cometa = None
+            apilador_global.balance_vista = None
+            apilador_global.version_cometa += 1
 
             # Miniaturas de la tira de evolución del apilado anterior
             carpeta_evo = ruta_absoluta(CARPETA_EVOLUCION)
@@ -1595,6 +1799,8 @@ def reiniciar_apilado_global():
                 "static/resultado_apilado_preview.jpg",
                 "static/resultado_apilado.fits",
                 "static/apilado_info.txt",
+                cometa.RUTA_FITS,
+                cometa.RUTA_PREVIEW,
                 "objetos_filtrados.csv",
                 "objetos_descartados.csv"
             ]:
@@ -1716,5 +1922,7 @@ def obtener_estado_apilado():
             "fwhms": [float(x) for x in a.fwhms[-60:]],
             "umbral": round(a.umbral, 3) if a.umbral is not None else None,
             "metrica": leer_config_calidad()["metrica"],
+            # Apilado por el núcleo del cometa (None si el objeto no es un cometa)
+            "cometa": a.estado_cometa(),
         }
 
