@@ -41,11 +41,38 @@
     <button type="button" class="btn" id="btn-centro" title="Elegir el centro del mapa (donde está el rectángulo de la cámara) para ir a ese punto aunque no haya ningún objeto"><svg><use href="#i-goto"/></svg><span class="oculto-movil">Centro</span></button>
     <label class="switch" title="El mapa sigue a la montura"><input type="checkbox" id="seguir"> Seguir</label>
     <label class="switch" title="Chinchetas con los objetos recomendados de Esta noche"><input type="checkbox" id="chinchetas" checked> Esta noche</label>
+    <button type="button" class="btn" id="btn-mosaico" title="Mosaico: rejilla de teselas sobre el cielo (se apilan una a una y se funden en una imagen)">🧩<span class="oculto-movil"> Mosaico</span></button>
 </div>
 
 <div class="atlas-marco">
     <div id="atlas" class="atlas"></div>
     <div id="capa-noche" class="capa-noche" aria-label="Objetos recomendados esta noche"></div>
+    <!-- Mosaico: huellas de las teselas (mosaico.py) proyectadas como las chinchetas, a cada fotograma -->
+    <svg id="capa-mosaico" class="capa-mosaico" hidden aria-label="Teselas del mosaico"></svg>
+    <div id="panel-mosaico-atlas" class="panel panel-mosaico" hidden>
+        <div class="panel-cab">
+            <div>
+                <div class="panel-nombre">🧩 Mosaico</div>
+                <div class="panel-datos texto-2" id="ma-centro"></div>
+            </div>
+            <button type="button" class="btn btn-icono" id="ma-cerrar" title="Cerrar"><svg><use href="#i-cerrar"/></svg></button>
+        </div>
+        <div class="ma-form">
+            <label>Filas × columnas</label>
+            <div class="fila" style="gap: 4px;">
+                <input type="number" id="ma-filas" min="1" max="6" step="1" value="2"><span class="texto-3">×</span><input type="number" id="ma-columnas" min="1" max="6" step="1" value="2">
+            </div>
+            <label for="ma-solape">Solape (%)</label><input type="number" id="ma-solape" min="5" max="60" step="1" value="20">
+            <label for="ma-fotos">Fotos por tesela</label><input type="number" id="ma-fotos" min="1" max="999" step="1" value="20">
+        </div>
+        <div class="panel-datos texto-3" id="ma-info"></div>
+        <div class="panel-acciones">
+            <button type="button" class="btn btn-primary" id="ma-empezar"><svg><use href="#i-play"/></svg>Empezar mosaico</button>
+            <button type="button" class="btn btn-danger" id="ma-detener" hidden>⏹ Detener</button>
+            <a class="btn" href="/apilado" title="Seguir el mosaico en la pantalla Apilado"><svg><use href="#i-apilado"/></svg>Apilado</a>
+        </div>
+        <div class="panel-datos" id="ma-estado"></div>
+    </div>
     <div id="marca-punto" class="marca-punto" hidden aria-hidden="true"></div>
     <div id="estado" class="estado-atlas"><span class="spinner"></span> Cargando el cielo…</div>
     <div id="panel" class="panel" hidden>
@@ -126,6 +153,18 @@
     .marca-punto::after { top: 50%; left: -9px; right: -9px; height: 2px; margin-top: -1px; }
     .marca-punto[hidden] { display: none; }
     .ficha-icono { font-size: 22px; line-height: 1; }
+    /* Mosaico: capa SVG con las huellas de las teselas y su panel */
+    .capa-mosaico { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .capa-mosaico[hidden] { display: none; }
+    .capa-mosaico polygon { fill: rgba(255, 200, 60, 0.10); stroke: var(--warn); stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .capa-mosaico polygon.en_curso { fill: rgba(80, 160, 255, 0.18); stroke: var(--accent); stroke-dasharray: none; stroke-width: 2; }
+    .capa-mosaico polygon.hecha { fill: rgba(60, 200, 120, 0.18); stroke: var(--ok); stroke-dasharray: none; }
+    .capa-mosaico polygon.fallida { fill: rgba(220, 60, 60, 0.15); stroke: #e55; }
+    .capa-mosaico text { fill: var(--text); font-size: 12px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: #000; stroke-width: 3px; }
+    .panel-mosaico { bottom: auto; top: 44px; }
+    @media (min-width: 700px) { .panel-mosaico { left: 8px; right: auto; width: 320px; } }
+    .ma-form { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; font-size: 13.5px; margin-top: 8px; }
+    .ma-form input[type=number] { width: 58px; padding: 4px 6px; }
     .modal-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
     .credito { font-size: 12px; margin: 8px 2px 0; }
     .credito a { color: inherit; text-decoration: underline; }
@@ -284,6 +323,7 @@
     // ——— Selección y GoTo ———
     function mostrarPanel(t) {
         seleccionado = t || null;
+        if (window.mosaicoAtlas) mosaicoAtlas.centroCambiado();
         const p = $("panel");
         const c = coordsDe(t);
         // La marca solo se pinta para puntos elegidos a dedo; los objetos ya los recuadra el motor
@@ -451,7 +491,8 @@
     function recolocarChinchetas(t) {
         requestAnimationFrame(recolocarChinchetas);
         const hayChinchetas = !capa.hidden && chinchetas.length > 0;
-        if (!viewer || (!hayChinchetas && !puntoLibre) || t - ultimaRecolocacion < 80) return;   // ~12 veces por segundo basta
+        const hayMosaico = !$("capa-mosaico").hidden;
+        if (!viewer || (!hayChinchetas && !puntoLibre && !hayMosaico) || t - ultimaRecolocacion < 80) return;   // ~12 veces por segundo basta
         ultimaRecolocacion = t;
         const w = $("atlas").clientWidth, h = $("atlas").clientHeight;
         if (!w || !h) return;
@@ -468,6 +509,7 @@
             marca.hidden = !visible;
             if (visible) marca.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
         }
+        if (hayMosaico) recolocarMosaico(vista, ahora, w, h);
         if (!hayChinchetas) return;
         const conEtiqueta = vista.fovDeg <= 100;
         for (const { o, el } of chinchetas) {
@@ -570,6 +612,178 @@
     document.addEventListener("visibilitychange", sincronizarVisibilidad);
     window.addEventListener("resize", sincronizarVisibilidad);
     document.addEventListener("fullscreenchange", () => setTimeout(sincronizarVisibilidad, 100));
+
+    // ——— Mosaico: rejilla de teselas sobre el cielo (mosaico.py, rutas /mosaico/*) ———
+    // Las huellas de las teselas las calcula el PC (/mosaico/previsualizar: campo de la cámara y
+    // su giro previsto) y aquí se proyectan a cada fotograma como las chinchetas. El centro es el
+    // objeto o punto seleccionado; sin selección, el centro del mapa (arrastrando el mapa se mueve
+    // la rejilla). Con un mosaico en marcha se pintan sus teselas de verdad con su estado.
+    const capaMosaico = $("capa-mosaico"), panelMosaico = $("panel-mosaico-atlas");
+    const mosaicoAtlas = window.mosaicoAtlas = {};
+    const svgNS = "http://www.w3.org/2000/svg";
+    let teselasMosaico = [], centroMosaico = null, estadoMosaico = null, configMosaico = null;
+    let claveMosaico = "", pidiendoMosaico = false, pendienteMosaico = false, timerCentroMosaico = null, timerEstadoMosaico = null;
+
+    function centroActualMosaico() {
+        if (estadoMosaico?.en_curso) return { raDeg: estadoMosaico.ra_h * 15, decDeg: estadoMosaico.dec_deg, nombre: estadoMosaico.nombre, fuente: "mosaico en marcha" };
+        const c = coordsDe(seleccionado);
+        if (c) {
+            const { objeto } = nombreParaGoto(seleccionado);
+            return { raDeg: c.raDeg, decDeg: c.decDeg, nombre: objeto, tipo: seleccionado.libre ? "" : (tipos[seleccionado.typeCode] || tipos[seleccionado.type] || ""),
+                     fuente: seleccionado.libre ? "punto elegido" : "objeto seleccionado" };
+        }
+        const v = viewer.getView().center;
+        return { raDeg: v.raDeg, decDeg: v.decDeg, nombre: `Campo ${horasCortas(v.raDeg)} ${gradosCortos(v.decDeg)}`, fuente: "centro del mapa" };
+    }
+    function pedirTeselas(forzar) {
+        if (!viewer || panelMosaico.hidden) return;
+        const c = centroActualMosaico();
+        const filas = +$("ma-filas").value || 2, columnas = +$("ma-columnas").value || 2, solape = +$("ma-solape").value || 20;
+        const clave = `${c.raDeg.toFixed(3)}|${c.decDeg.toFixed(3)}|${filas}|${columnas}|${solape}`;
+        if (!forzar && clave === claveMosaico) return;
+        if (pidiendoMosaico) { pendienteMosaico = true; return; }
+        pidiendoMosaico = true;
+        claveMosaico = clave;
+        fetch("/mosaico/previsualizar", { method: "POST", headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ ra_h: c.raDeg / 15, dec_deg: c.decDeg, nombre: c.nombre, tipo: c.tipo || "", filas, columnas, solape_pct: solape }) })
+            .then(r => r.json()).then(d => {
+                pidiendoMosaico = false;
+                if (!d.ok) { $("ma-info").textContent = "⚠️ " + (d.error || "No se pudo calcular la rejilla"); return; }
+                centroMosaico = c;
+                teselasMosaico = d.teselas;
+                pintarTeselasSvg();
+                const tam = d.tamano_deg || [0, 0];
+                $("ma-centro").textContent = `Centro: ${c.nombre} (${c.fuente}) · RA ${horas(c.raDeg)} · Dec ${grados(c.decDeg)}`;
+                $("ma-info").textContent = `${filas}×${columnas} teselas de ${d.campo.ancho_deg.toFixed(2)}°: ${tam[0].toFixed(2)}° × ${tam[1].toFixed(2)}° · cámara a ${Math.round(d.angulo_deg)}° (${d.origen_angulo})`;
+                if (pendienteMosaico) { pendienteMosaico = false; pedirTeselas(true); }
+            }).catch(e => { pidiendoMosaico = false; $("ma-info").textContent = "⚠️ " + e; });
+    }
+    function pintarTeselasSvg() {
+        capaMosaico.innerHTML = "";
+        for (const t of teselasMosaico) {
+            const g = document.createElementNS(svgNS, "g");
+            const poly = document.createElementNS(svgNS, "polygon");
+            const txt = document.createElementNS(svgNS, "text");
+            txt.textContent = String(t.i + 1);
+            g.appendChild(poly); g.appendChild(txt);
+            g.setAttribute("visibility", "hidden");
+            capaMosaico.appendChild(g);
+            t.el = g; t.poly = poly; t.txt = txt;
+        }
+        aplicarEstadoTeselas();
+    }
+    function aplicarEstadoTeselas() {
+        const porIndice = {};
+        if (estadoMosaico?.en_curso || (estadoMosaico?.teselas || []).some(t => t.estado && t.estado !== "pendiente"))
+            for (const t of estadoMosaico.teselas || []) porIndice[t.i] = t;
+        for (const t of teselasMosaico) {
+            const e = porIndice[t.i];
+            if (t.poly) t.poly.setAttribute("class", e && e.estado !== "pendiente" ? e.estado : "");
+            if (t.txt) t.txt.textContent = String(t.i + 1) + (e && e.fotos ? ` · ${e.fotos}` : "");
+        }
+    }
+    function recolocarMosaico(vista, ahora, w, h) {
+        // Sin selección y sin mosaico en marcha, la rejilla sigue al centro del mapa (con retardo)
+        if (!estadoMosaico?.en_curso && !coordsDe(seleccionado) && centroMosaico) {
+            const v = vista.center;
+            if (Math.hypot((v.raDeg - centroMosaico.raDeg) * Math.cos(v.decDeg * Math.PI / 180), v.decDeg - centroMosaico.decDeg) > 0.02) {
+                clearTimeout(timerCentroMosaico);
+                timerCentroMosaico = setTimeout(() => pedirTeselas(false), 300);
+            }
+        }
+        if (capaMosaico.getAttribute("width") !== String(w)) { capaMosaico.setAttribute("width", w); capaMosaico.setAttribute("height", h); }
+        for (const t of teselasMosaico) {
+            if (!t.el) continue;
+            const pts = [];
+            let ok = true;
+            for (const [raDeg, decDeg] of t.esquinas) {
+                let p = null;
+                try { p = projectEquatorial({ raDeg, decDeg, frame: "ICRS" }, vista, w, h); } catch (e) {}
+                if (!p || !isFinite(p.x) || !isFinite(p.y) || Math.abs(p.x) > 4 * w || Math.abs(p.y) > 4 * h) { ok = false; break; }
+                pts.push(p);
+            }
+            // Una tesela bajo el horizonte o detrás del observador no se pinta
+            if (ok && vista.fovDeg > 120) {
+                const lados = pts.map((p, i) => Math.hypot(p.x - pts[(i + 1) % 4].x, p.y - pts[(i + 1) % 4].y));
+                if (Math.max(...lados) > 3 * Math.min(...lados) + 50) ok = false;
+            }
+            if (!ok) { t.el.setAttribute("visibility", "hidden"); continue; }
+            t.el.setAttribute("visibility", "visible");
+            t.poly.setAttribute("points", pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "));
+            const cx = pts.reduce((a, p) => a + p.x, 0) / 4, cy = pts.reduce((a, p) => a + p.y, 0) / 4;
+            t.txt.setAttribute("x", cx.toFixed(1)); t.txt.setAttribute("y", cy.toFixed(1));
+            t.txt.setAttribute("visibility", Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) > 28 ? "visible" : "hidden");
+        }
+    }
+    async function refrescarEstadoMosaico() {
+        if (panelMosaico.hidden) return;
+        try { estadoMosaico = await (await fetch("/mosaico/estado")).json(); } catch (e) { return; }
+        const e = estadoMosaico;
+        const enCurso = !!e.en_curso;
+        for (const id of ["ma-filas", "ma-columnas", "ma-solape", "ma-fotos"]) $(id).disabled = enCurso;
+        $("ma-empezar").hidden = enCurso;
+        $("ma-detener").hidden = !enCurso;
+        const fases = { goto: "moviendo el telescopio", centrando: "centrando", apilando: "apilando", combinando: "combinando", guardando: "guardando", pausado: "en pausa", terminado: "terminado" };
+        if (enCurso) {
+            const n = e.teselas.length;
+            $("ma-estado").innerHTML = `<b>${e.nombre}</b> ${e.filas}×${e.columnas} · tesela ${e.actual !== null ? e.actual + 1 : "-"}/${n}` +
+                (e.fase === "apilando" ? ` (${e.fotos}/${e.fotos_por_tesela} fotos)` : "") + ` · ${e.pausado ? "en pausa" : (fases[e.fase] || e.fase)}` +
+                (e.mensaje ? `<br><span class="texto-3">${e.mensaje}</span>` : "");
+            if (e.filas) { $("ma-filas").value = e.filas; $("ma-columnas").value = e.columnas; $("ma-solape").value = e.solape_pct; $("ma-fotos").value = e.fotos_por_tesela; }
+        } else if (e.fase === "terminado" && e.mensaje) {
+            $("ma-estado").innerHTML = `<span class="texto-2">${e.mensaje}</span>`;
+        } else $("ma-estado").textContent = "";
+        pedirTeselas(false);
+        aplicarEstadoTeselas();
+    }
+    mosaicoAtlas.centroCambiado = () => { if (!panelMosaico.hidden) setTimeout(() => pedirTeselas(false), 50); };
+    mosaicoAtlas.abrir = async (abrir) => {
+        panelMosaico.hidden = !abrir;
+        capaMosaico.hidden = !abrir;
+        $("btn-mosaico").classList.toggle("btn-primary", abrir);
+        clearInterval(timerEstadoMosaico); timerEstadoMosaico = null;
+        if (!abrir) return;
+        $("panel").hidden = true;   // el panel del objeto y el del mosaico ocupan el mismo sitio en el móvil
+        if (!configMosaico) {
+            try {
+                const d = await (await fetch("/mosaico")).json();
+                configMosaico = d.config || {};
+                $("ma-filas").value = configMosaico.filas; $("ma-columnas").value = configMosaico.columnas;
+                $("ma-solape").value = configMosaico.solape_pct; $("ma-fotos").value = configMosaico.fotos_por_tesela;
+            } catch (e) { configMosaico = {}; }
+        }
+        await refrescarEstadoMosaico();
+        pedirTeselas(true);
+        timerEstadoMosaico = setInterval(refrescarEstadoMosaico, 3000);
+    };
+    $("btn-mosaico").onclick = () => mosaicoAtlas.abrir(panelMosaico.hidden);
+    $("ma-cerrar").onclick = () => mosaicoAtlas.abrir(false);
+    for (const id of ["ma-filas", "ma-columnas", "ma-solape"]) $(id).addEventListener("input", () => pedirTeselas(false));
+    $("ma-empezar").onclick = async () => {
+        if (!centroMosaico) { pedirTeselas(true); return; }
+        const c = centroMosaico;
+        const cuerpo = { nombre: c.nombre, ra_h: c.raDeg / 15, dec_deg: c.decDeg, tipo: c.tipo || "",
+                         filas: +$("ma-filas").value || 2, columnas: +$("ma-columnas").value || 2, solape_pct: +$("ma-solape").value || 20,
+                         fotos_por_tesela: +$("ma-fotos").value || 20, centrar: configMosaico?.centrar !== false, guardar_galeria: configMosaico?.guardar_galeria !== false };
+        if (cuerpo.filas * cuerpo.columnas < 2) { $("ma-estado").textContent = "⚠️ El mosaico necesita al menos 2 teselas"; return; }
+        $("ma-empezar").disabled = true;
+        $("ma-estado").innerHTML = `<span class="spinner"></span> Arrancando el mosaico de <b>${c.nombre}</b>…`;
+        try {
+            const r = await (await fetch("/mosaico/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })).json();
+            if (!r.ok) $("ma-estado").textContent = "❌ " + (r.error || "No se pudo empezar");
+            else { $("seguir").checked = true; viewer.setMountFollow(true); await refrescarEstadoMosaico(); }
+        } catch (e) { $("ma-estado").textContent = "❌ " + e; }
+        $("ma-empezar").disabled = false;
+    };
+    $("ma-detener").onclick = async () => {
+        if (!confirm("¿Detener el mosaico? Las teselas ya apiladas se conservan.")) return;
+        try { await fetch("/mosaico/detener", { method: "POST" }); } catch (e) {}
+        refrescarEstadoMosaico();
+    };
+    if (new URLSearchParams(location.search).get("mosaico")) {
+        // Abierto desde el panel Mosaico de Apilado: enseñar la rejilla en cuanto el cielo esté listo
+        const esperar = setInterval(() => { if (viewer) { clearInterval(esperar); mosaicoAtlas.abrir(true); } }, 300);
+    }
 
     iniciar();
 </script>

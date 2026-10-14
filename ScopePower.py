@@ -84,6 +84,7 @@ import seguimiento
 import aparcado
 import vigilante_seguimiento
 import plan_sesion
+import mosaico
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -542,6 +543,9 @@ def _plan_en_marcha():
     t = plan_sesion.trabajo_plan
     if t.en_curso and not t.pausado:
         return "El plan de la noche está en marcha; páusalo o detenlo antes."
+    m = mosaico.trabajo_mosaico
+    if m.en_curso and not m.pausado:
+        return "El mosaico está en marcha; páusalo o detenlo antes."
     return None
 
 
@@ -599,6 +603,8 @@ def apilado_detener():
     # El botón Detener de la cabecera para también el plan de la noche (guarda lo apilado del objeto en curso)
     if plan_sesion.trabajo_plan.en_curso:
         plan_sesion.trabajo_plan.detener()
+    if mosaico.trabajo_mosaico.en_curso:
+        mosaico.trabajo_mosaico.detener()
     bucle.detener()
     pausar_apilado()
     return jsonify({"ok": True, "bucle": bucle.estado()})
@@ -4254,6 +4260,7 @@ def estado_apilado():
     estado["bucle"] = bucle.estado()
     estado["ultima_toma"] = dict(ULTIMA_CAPTURA)
     estado["plan"] = plan_sesion.trabajo_plan.estado()
+    estado["mosaico"] = mosaico.trabajo_mosaico.estado()
     import procesado
     estado["preset_automatico"] = dict(procesado.PRESET_AUTOMATICO)
     return jsonify(estado)
@@ -6258,6 +6265,321 @@ def _config_anuncio_ip():
 
 
 anunciador = anuncio_ip.AnunciadorIP(PUERTO_WEB, voz.decir, intervalo_s=_config_anuncio_ip()["intervalo_s"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Modo Mosaico (ver mosaico.py): una región por teselas, apiladas y fundidas en una imagen
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _deps_mosaico():
+    """Las piezas de ScopePower que necesita el hilo del mosaico (como _deps_plan)."""
+    from types import SimpleNamespace
+    base = _deps_plan()
+    return SimpleNamespace(
+        lugar=base.lugar,
+        goto_sincrono=goto_sincrono,
+        arrancar_apilado=base.arrancar_apilado,
+        detener_apilado=base.detener_apilado,
+        estado_apilado=base.estado_apilado,
+        reiniciar_apilado=base.reiniciar_apilado,
+        leer_dispositivos=base.leer_dispositivos,
+        guardar_config=_guardar_en_config,
+        anotar_objeto=lambda nombre, ra, dec, tipo: guardar_info_goto(nombre, {"type": tipo} if tipo else None, ra, dec, "Mosaico"),
+        guardar_galeria=guardar_mosaico_en_galeria,
+        esperar_guardado=esperar_guardado,
+        otro_trabajo_en_curso=_trabajos_en_curso,
+        plan_en_marcha=lambda: ("El plan de la noche está en marcha; detenlo antes." if plan_sesion.trabajo_plan.en_curso else None),
+        cancelar_centrado=lambda: centrado.trabajo_centrado.cancelar(),
+        bucle=bucle,
+        decir=voz.decir,
+    )
+
+
+def _posicion_montura_j2000():
+    """(ra_h, dec_deg) J2000 de donde apunta la montura, o None si no se puede leer."""
+    if not montura.esta_conectado():
+        return None
+    try:
+        ra_m, dec_m = montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=5, conectar=False)
+        return coordenadas.desde_montura(ra_m, dec_m)
+    except Exception as e:
+        log.warning("Mosaico: no se pudo leer la posición de la montura: %s", e)
+        return None
+
+
+def _centro_mosaico(datos):
+    """
+    Centro del mosaico a partir de lo que manda la web: coordenadas explícitas, un nombre
+    que resolver (misma cadena que el plan), el último GoTo o la posición de la montura.
+    Devuelve {nombre, ra_h, dec_deg, tipo, fuente} o lanza ValueError.
+    """
+    nombre = " ".join(str(datos.get("nombre") or "").split())
+    ra, dec = datos.get("ra_h"), datos.get("dec_deg")
+    if ra is not None and dec is not None:
+        tipo = str(datos.get("tipo") or "")
+        if not tipo and nombre:
+            ficha = catalogo_offline.buscar(nombre)
+            tipo = (ficha or {}).get("type") or ""
+        return {"nombre": nombre or "Mosaico", "ra_h": float(ra), "dec_deg": float(dec), "tipo": tipo, "fuente": "coordenadas"}
+    if nombre:
+        ficha = _resolver_nombre_plan(nombre)
+        if not ficha:
+            raise ValueError(f"No se encuentra «{nombre}» en los catálogos")
+        return {"nombre": ficha["nombre"], "ra_h": ficha["ra_h"], "dec_deg": ficha["dec_deg"], "tipo": ficha.get("tipo") or "", "fuente": "nombre"}
+    if ULTIMO_GOTO:
+        # El GoTo de una tesela lleva el sufijo "· tesela k/N": el centro es el objeto, no la tesela
+        objeto = re.sub(r"\s*·\s*tesela \d+/\d+$", "", str(ULTIMO_GOTO.get("objeto") or "")).strip() or "Mosaico"
+        return {"nombre": objeto, "ra_h": float(ULTIMO_GOTO["ra"]), "dec_deg": float(ULTIMO_GOTO["dec"]),
+                "tipo": apilado.tipo_objeto_goto(objeto), "fuente": "último GoTo"}
+    pos = _posicion_montura_j2000()
+    if pos is None:
+        raise ValueError("No hay centro para el mosaico: apunta a un objeto, escribe un nombre o conecta la montura")
+    return {"nombre": "Mosaico", "ra_h": pos[0], "dec_deg": pos[1], "tipo": "", "fuente": "posición de la montura"}
+
+
+def _previsualizar_mosaico(centro, filas, columnas, solape_pct):
+    """Teselas previstas (centros y esquinas en grados) para dibujarlas en el planetario y en el panel."""
+    campo = mosaico.campo_camara()
+    t = mosaico.trabajo_mosaico
+    wcs_ultimo = getattr(t, "_ultimo_wcs", None) if t.en_curso else None
+    if wcs_ultimo is not None:
+        wcs = mosaico.wcs_tangente(centro["ra_h"] * 15.0, centro["dec_deg"], mosaico.cd_de(wcs_ultimo), campo["ancho_px"], campo["alto_px"])
+        origen = "WCS de la tesela anterior"
+    else:
+        wcs, origen = mosaico.wcs_previsto(centro["ra_h"], centro["dec_deg"], campo,
+                                           (LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO))
+    teselas = mosaico.calcular_teselas(wcs, campo["ancho_px"], campo["alto_px"], filas, columnas, solape_pct)
+    w, h = campo["ancho_px"], campo["alto_px"]
+    for te in teselas:
+        cx, cy = wcs.wcs.crpix[0] - 1.0 + te["dx_px"], wcs.wcs.crpix[1] - 1.0 + te["dy_px"]
+        esquinas = [[cx - w / 2.0, cy - h / 2.0], [cx + w / 2.0, cy - h / 2.0], [cx + w / 2.0, cy + h / 2.0], [cx - w / 2.0, cy + h / 2.0]]
+        te["esquinas"] = [[round(float(a), 5), round(float(b), 5)] for a, b in wcs.all_pix2world(esquinas, 0)]
+    return {"teselas": teselas, "angulo_deg": round(mosaico.angulo_de(mosaico.cd_de(wcs)), 1), "origen_angulo": origen,
+            "campo": campo, "tamano_deg": mosaico.tamano_mosaico(campo, filas, columnas, solape_pct)}
+
+
+def _datos_rejilla(datos):
+    conf = mosaico.leer_config()
+    try:
+        filas = int(datos.get("filas") or conf["filas"])
+        columnas = int(datos.get("columnas") or conf["columnas"])
+        solape = float(str(datos.get("solape_pct") or conf["solape_pct"]).replace(",", "."))
+    except (TypeError, ValueError):
+        raise ValueError("Filas, columnas y solape tienen que ser números")
+    if not (1 <= filas <= 6 and 1 <= columnas <= 6):
+        raise ValueError("Filas y columnas: de 1 a 6")
+    return filas, columnas, min(60.0, max(5.0, solape))
+
+
+@app.route('/mosaico')
+def mosaico_ver():
+    """Configuración, campo de la cámara, centro propuesto y estado del mosaico."""
+    conf = mosaico.leer_config()
+    try:
+        centro = _centro_mosaico({})
+    except ValueError as e:
+        centro = {"error": str(e)}
+    return jsonify({"config": conf, "campo": mosaico.campo_camara(), "centro": centro,
+                    "estado": mosaico.trabajo_mosaico.estado(),
+                    "tamano_deg": mosaico.tamano_mosaico(mosaico.campo_camara(), conf["filas"], conf["columnas"], conf["solape_pct"])})
+
+
+@app.route('/mosaico/estado')
+def mosaico_estado():
+    return jsonify(mosaico.trabajo_mosaico.estado())
+
+
+@app.route('/mosaico/previsualizar', methods=['POST'])
+def mosaico_previsualizar():
+    """Teselas previstas para un centro y una rejilla (sin mover nada): las pinta el planetario."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        centro = _centro_mosaico(datos)
+        filas, columnas, solape = _datos_rejilla(datos)
+        r = _previsualizar_mosaico(centro, filas, columnas, solape)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        log.exception("Error previsualizando el mosaico")
+        return jsonify({"ok": False, "error": str(e)}), 500
+    r.update({"ok": True, "centro": centro, "filas": filas, "columnas": columnas, "solape_pct": solape})
+    return jsonify(r)
+
+
+@app.route('/mosaico/iniciar', methods=['POST'])
+def mosaico_iniciar():
+    """
+    Arranca el mosaico. JSON: {nombre?, ra_h?, dec_deg?, tipo?, filas, columnas, solape_pct,
+    fotos_por_tesela, usar_dark, centrar, guardar_galeria}. Los ajustes se guardan en [Mosaico].
+    """
+    datos = request.get_json(silent=True) or {}
+    motivo = _sin_espacio_en_disco()
+    if motivo:
+        return jsonify({"ok": False, "error": motivo}), 409
+    try:
+        centro = _centro_mosaico(datos)
+        filas, columnas, solape = _datos_rejilla(datos)
+        cambios = {"filas": filas, "columnas": columnas, "solape_pct": f"{solape:g}"}
+        if datos.get("fotos_por_tesela") is not None:
+            cambios["fotos_por_tesela"] = max(1, int(datos["fotos_por_tesela"]))
+        for clave in ("centrar", "guardar_galeria"):
+            if clave in datos:
+                cambios[clave] = bool(datos[clave])
+        conf = mosaico.guardar_config(cambios)
+        mosaico.trabajo_mosaico.iniciar(_deps_mosaico(), centro["nombre"], centro["ra_h"], centro["dec_deg"], filas, columnas, solape,
+                                        conf["fotos_por_tesela"], usar_dark=bool(datos.get("usar_dark", True)),
+                                        tipo=centro.get("tipo", ""), centrar=conf["centrar"])
+    except (ValueError, RuntimeError) as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    except Exception as e:
+        log.exception("Error arrancando el mosaico")
+        return jsonify({"ok": False, "error": str(e)}), 500
+    log.info("Mosaico iniciado: %s %d×%d, solape %.0f %%, centro %s", centro["nombre"], filas, columnas, solape, centro["fuente"])
+    return jsonify({"ok": True, "centro": centro, "estado": mosaico.trabajo_mosaico.estado()})
+
+
+@app.route('/mosaico/pausar', methods=['POST'])
+def mosaico_pausar():
+    t = mosaico.trabajo_mosaico
+    if not t.en_curso:
+        return jsonify({"ok": False, "error": "No hay ningún mosaico en marcha"}), 409
+    t.pausar()
+    return jsonify({"ok": True, "estado": t.estado()})
+
+
+@app.route('/mosaico/reanudar', methods=['POST'])
+def mosaico_reanudar():
+    t = mosaico.trabajo_mosaico
+    if not t.en_curso:
+        return jsonify({"ok": False, "error": "No hay ningún mosaico en marcha"}), 409
+    motivo = _sin_espacio_en_disco()
+    if motivo:
+        return jsonify({"ok": False, "error": motivo}), 409
+    t.reanudar()
+    return jsonify({"ok": True, "estado": t.estado()})
+
+
+@app.route('/mosaico/saltar', methods=['POST'])
+def mosaico_saltar():
+    t = mosaico.trabajo_mosaico
+    if not t.en_curso:
+        return jsonify({"ok": False, "error": "No hay ningún mosaico en marcha"}), 409
+    t.saltar()
+    return jsonify({"ok": True})
+
+
+@app.route('/mosaico/detener', methods=['POST'])
+def mosaico_detener():
+    t = mosaico.trabajo_mosaico
+    if not t.en_curso:
+        return jsonify({"ok": False, "error": "No hay ningún mosaico en marcha"}), 409
+    t.detener()
+    return jsonify({"ok": True})
+
+
+@app.route('/mosaico/combinar', methods=['POST'])
+def mosaico_combinar():
+    """Vuelve a fundir las teselas que hay en disco (tras cambiar ajustes, o un mosaico a medias)."""
+    t = mosaico.trabajo_mosaico
+    if t.combinando:
+        return jsonify({"ok": False, "error": "Ya se está combinando"}), 409
+    if not mosaico.teselas_en_disco():
+        return jsonify({"ok": False, "error": "No hay teselas apiladas"}), 404
+    if t.en_curso:
+        t._combinar_en_segundo_plano()
+    else:
+        threading.Thread(target=t.combinar_ahora, name="mosaico-recombinar", daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route('/mosaico/guardar', methods=['POST'])
+def mosaico_guardar():
+    r = guardar_mosaico_en_galeria()
+    codigo = r.pop("codigo", 200)
+    return jsonify(r), codigo
+
+
+@app.route('/resultado-mosaico')
+def mostrar_mosaico():
+    if not os.path.exists(mosaico.RUTA_PREVIEW):
+        return send_file("static/esperando.png", mimetype="image/png")
+    response = send_file(mosaico.RUTA_PREVIEW, mimetype="image/jpeg")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+@app.route('/descargar-fits-mosaico')
+def descargar_fits_mosaico():
+    if os.path.exists(mosaico.RUTA_FITS):
+        return send_file(mosaico.RUTA_FITS, as_attachment=True)
+    return "❌ No hay mosaico.", 404
+
+
+def guardar_mosaico_en_galeria():
+    """
+    Guarda el mosaico en la galería (<objeto>_<fecha>_mosaico.jpg y su FITS): el JPG se
+    procesa a resolución completa en segundo plano, como guardar_apilado_en_galeria.
+    """
+    if GUARDADO["en_curso"]:
+        return {"ok": False, "error": "⏳ Ya hay un guardado en curso", "codigo": 409}
+    if not os.path.exists(mosaico.RUTA_FITS):
+        return {"ok": False, "error": "❌ No hay ningún mosaico que guardar.", "codigo": 404}
+    e = mosaico.trabajo_mosaico.estado()
+    nombre_objeto = e.get("nombre") or "Mosaico"
+    rejilla = f"{e.get('filas') or 0}×{e.get('columnas') or 0}"
+    nombre_objeto = re.sub(r'[^A-Za-z0-9\-]', '_', unidecode(nombre_objeto)).strip('_') or "Mosaico"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base = f"{nombre_objeto}_{timestamp}_mosaico"
+    carpeta_destino = os.path.join("static", "fotos")
+    os.makedirs(carpeta_destino, exist_ok=True)
+    destino = os.path.join(carpeta_destino, base + ".jpg")
+    destino_fits = os.path.join(carpeta_destino, base + ".fits")
+    import shutil
+    shutil.copy(mosaico.RUTA_FITS, destino_fits)
+    GUARDADO.update({"en_curso": True, "ok": None, "archivo": base + ".jpg", "mensaje": "⏳ Procesando el mosaico a resolución completa..."})
+
+    def _procesar_y_guardar():
+        import procesado
+        try:
+            with fits.open(destino_fits) as hdul:
+                cubo = hdul[0].data.astype(np.float32)
+                hdr = hdul[0].header
+                n = int(hdr.get("NSTACK", 1) or 1)
+                n_teselas = int(hdr.get("NTESELAS", 1) or 1)
+                exp_total = float(hdr.get("EXPTOT", 0) or 0)
+                zona = procesado.leer_zona(hdr)
+                encuadre = procesado.encuadre_vista(header=hdr)
+            balance = procesado.balance_estrellas(cubo, zona)
+            cubo, _ = procesado.girar_campo(cubo, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
+            rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0, balance=balance)
+            imagen_bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
+            n_fotos = n * n_teselas
+            meta = apilado.metadatos_firma(None, destino_fits, n_fotos, round(exp_total / n_fotos, 3) if n_fotos and exp_total else 0)
+            meta["objeto"] = f"{e.get('nombre') or 'Mosaico'} · mosaico {rejilla}"
+            if meta["activa"]:
+                imagen_bgr = firma.firmar(imagen_bgr, meta)
+            cv2.imwrite(destino, imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92])
+            meta["firmada"] = bool(meta["activa"])
+            meta["encuadre"] = {"zoom": int(round((1.0 - encuadre["fraccion"]) * 100)), "giro": encuadre["giro"], "espejo": encuadre["espejo"]}
+            meta["mosaico"] = rejilla
+            firma.guardar_meta(destino, meta)
+            GUARDADO.update({"ok": True, "mensaje": f"✅ Mosaico guardado como {base}.jpg (y su FITS)"})
+            voz.decir("Mosaico guardado en la galería")
+            humor.decir("foto_guardada")
+        except Exception as ex:
+            log.exception("Error procesando el mosaico para la galería")
+            try:
+                shutil.copy(mosaico.RUTA_PREVIEW, destino)
+            except Exception:
+                pass
+            GUARDADO.update({"ok": False, "mensaje": f"❌ Error al procesar; guardada la vista previa: {ex}"})
+        finally:
+            GUARDADO["en_curso"] = False
+
+    threading.Thread(target=_procesar_y_guardar, name="guardar-mosaico", daemon=True).start()
+    return {"ok": True, "mensaje": GUARDADO["mensaje"], "archivo": base + ".jpg", "en_curso": True, "codigo": 200}
 
 
 @app.route("/red/estado")

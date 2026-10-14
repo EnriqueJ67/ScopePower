@@ -1100,6 +1100,24 @@ class ApiladorEnTiempoReal:
         if norte:
             hdr_out["NORTEGIR"] = (norte[0], "Giro horario (grados) que deja el norte arriba")
             hdr_out["NORTEESP"] = (bool(norte[1]), "Espejo previo para dejar el este a la izquierda")
+        # WCS de la referencia (ASTAP): el apilado está en su mismo marco, así que vale
+        # tal cual. Lo usa el modo Mosaico (mosaico.py) para proyectar cada tesela.
+        for clave in ("CRPIX1", "CRPIX2", "CRVAL1", "CRVAL2", "CD1_1", "CD1_2", "CD2_1", "CD2_2",
+                      "CTYPE1", "CTYPE2", "CUNIT1", "CUNIT2"):
+            hdr_out.pop(clave, None)
+        if wcs_ref is not None:
+            try:
+                w = wcs_ref.wcs
+                cd = w.cd if w.has_cd() else np.diag(w.cdelt) @ w.get_pc()
+                hdr_out["CTYPE1"], hdr_out["CTYPE2"] = "RA---TAN", "DEC--TAN"
+                hdr_out["CUNIT1"], hdr_out["CUNIT2"] = "deg", "deg"
+                hdr_out["CRPIX1"], hdr_out["CRPIX2"] = float(w.crpix[0]), float(w.crpix[1])
+                hdr_out["CRVAL1"], hdr_out["CRVAL2"] = float(w.crval[0]), float(w.crval[1])
+                hdr_out["CD1_1"], hdr_out["CD1_2"] = float(cd[0][0]), float(cd[0][1])
+                hdr_out["CD2_1"], hdr_out["CD2_2"] = float(cd[1][0]), float(cd[1][1])
+                hdr_out["COMMENT"] = "WCS de la foto de referencia del alineado (ASTAP)"
+            except Exception as e:
+                print(f"⚠️ No se pudo escribir el WCS en el FITS apilado: {e}")
 
         hdu = PrimaryHDU(data=rgb_cube, header=hdr_out)
         hdu.writeto("static/resultado_apilado.fits", overwrite=True)

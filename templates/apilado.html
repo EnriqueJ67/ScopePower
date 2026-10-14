@@ -84,6 +84,7 @@
                 <span id="vistas-apilado" class="vistas-apilado" style="display: none;">
                     <button type="button" class="chip chip-vista activo" data-vista="estrellas" onclick="elegirVista('estrellas')" title="Alineado por las estrellas (el cometa sale corrido)">✦ Estrellas</button>
                     <button type="button" class="chip chip-vista" data-vista="cometa" onclick="elegirVista('cometa')" title="Alineado por el núcleo del cometa (las estrellas salen como rastros)">☄️ Cometa</button>
+                    <button type="button" class="chip chip-vista" data-vista="mosaico" onclick="elegirVista('mosaico')" title="Las teselas apiladas fundidas en una sola imagen (mosaico.py)" hidden>🧩 Mosaico</button>
                 </span>
                 <!-- Progreso del ciclo: anillo discreto arriba a la derecha que se completa con
                      la exposición (segundos dentro) o con las fases del procesado. La banda inferior
@@ -253,6 +254,55 @@
                     <div id="plan-aj-nota" class="texto-3 mt-1" style="font-size: 12.5px;"></div>
                     <button type="button" class="btn btn-sm btn-ghost mt-2" onclick="Plan.reiniciarResultados()">Reiniciar resultados (todo a pendiente)</button>
                 </details>
+            </div>
+        </section>
+
+        <section class="card panel" data-panel="mosaico" id="panel-mosaico">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title">🧩 Mosaico</h3>
+                <span id="mosaico-sub" class="panel-sub"></span>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <!-- Una región mayor que el campo, por teselas que se apilan una a una y se funden
+                     en una sola imagen (mosaico.py, static/js/mosaico.js). La rejilla también se
+                     puede dibujar sobre el cielo en el planetario. -->
+                <div id="mosaico-centro-texto" class="texto-2" style="font-size: 13px; line-height: 1.45;"></div>
+                <div id="mosaico-form" class="mosaico-form">
+                    <label for="mosaico-nombre">Centro</label>
+                    <input type="text" id="mosaico-nombre" placeholder="Objeto apuntado" autocomplete="off" title="Vacío: el objeto del último GoTo (o donde apunta la montura). O escribe un objeto: M31, NGC 7000…">
+                    <label for="mosaico-filas">Filas × columnas</label>
+                    <div class="fila" style="gap: 4px;">
+                        <input type="number" id="mosaico-filas" class="corto" min="1" max="6" step="1" style="width: 56px;">
+                        <span class="texto-3">×</span>
+                        <input type="number" id="mosaico-columnas" class="corto" min="1" max="6" step="1" style="width: 56px;">
+                    </div>
+                    <label for="mosaico-solape">Solape entre teselas (%)</label><input type="number" id="mosaico-solape" class="corto" min="5" max="60" step="1">
+                    <label for="mosaico-fotos">Fotos por tesela</label><input type="number" id="mosaico-fotos" class="corto" min="1" max="999" step="1">
+                    <label class="switch"><input type="checkbox" id="mosaico-centrar"> Centrar por plate solving en cada tesela</label>
+                    <label class="switch"><input type="checkbox" id="mosaico-guardar"> Guardar el mosaico en la galería al terminar</label>
+                </div>
+                <div id="mosaico-previa" class="texto-3" style="font-size: 12.5px; margin-top: 6px;"></div>
+                <div class="acciones-grid dos mt-2">
+                    <button type="button" id="mosaico-btn-empezar" class="btn btn-primary" onclick="Mosaico.iniciar()" title="GoTo, centrado y apilado de cada tesela, una tras otra; al final se funden en una imagen"><svg><use href="#i-play"/></svg>Empezar mosaico</button>
+                    <a class="btn btn-secondary" href="/planetario?mosaico=1" title="Ver y ajustar la rejilla de teselas sobre el cielo"><svg><use href="#i-planetario"/></svg>Ver en el planetario</a>
+                    <button type="button" id="mosaico-btn-pausar" class="btn btn-warning" onclick="Mosaico.pausar()" hidden>⏸ Pausar mosaico</button>
+                    <button type="button" id="mosaico-btn-reanudar" class="btn btn-success" onclick="Mosaico.reanudar()" hidden>▶ Reanudar mosaico</button>
+                    <button type="button" id="mosaico-btn-saltar" class="btn btn-ghost" onclick="Mosaico.saltar()" hidden>⏭ Siguiente tesela</button>
+                    <button type="button" id="mosaico-btn-detener" class="btn btn-danger" onclick="Mosaico.detener()" hidden>⏹ Detener mosaico</button>
+                </div>
+                <div id="mosaico-estado" class="aviso aviso-info plan-estado" hidden></div>
+                <div id="mosaico-rejilla" class="mosaico-rejilla" hidden></div>
+                <div id="mosaico-error" class="estado mt-1" style="font-size: 13px;"></div>
+                <div class="fila plan-herramientas mt-1">
+                    <button type="button" id="mosaico-btn-recombinar" class="btn btn-sm btn-secondary" onclick="Mosaico.recombinar()" title="Vuelve a fundir las teselas que hay (p. ej. un mosaico a medias)" disabled>Recombinar</button>
+                    <button type="button" id="mosaico-btn-guardar" class="btn btn-sm btn-secondary" onclick="Mosaico.guardar()" disabled><svg><use href="#i-guardar"/></svg>Guardar en la galería</button>
+                    <a id="mosaico-btn-fits" class="btn btn-sm btn-ghost" href="/descargar-fits-mosaico">Descargar FITS</a>
+                </div>
             </div>
         </section>
 
@@ -453,6 +503,19 @@
     .apilado-layout { align-items: start; }
     /* Aviso de tablet sin conexión con el mini PC: visible incluso donde se oculta el subtítulo */
     .pagina-sub.sin-conexion { color: var(--warn); font-weight: 600; display: block !important; }
+    .mosaico-form { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; font-size: 14px; margin-top: 8px; }
+    .mosaico-form input[type=number] { width: 90px; }
+    .mosaico-form input[type=text] { width: 100%; min-width: 0; }
+    .mosaico-form .switch { grid-column: 1 / -1; }
+    .mosaico-rejilla { display: grid; gap: 4px; margin-top: 8px; max-width: 260px; }
+    .mosaico-rejilla .tesela { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 6px;
+                               border: 1px solid var(--border-2); background: var(--surface-2); font-size: 14px; font-weight: 700; color: var(--text-2); line-height: 1.1; }
+    .mosaico-rejilla .tesela small { font-size: 10.5px; font-weight: 500; color: var(--text-3); }
+    .mosaico-rejilla .tesela.prevista { border-style: dashed; }
+    .mosaico-rejilla .tesela.en_curso { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); color: var(--text); }
+    .mosaico-rejilla .tesela.hecha { background: color-mix(in srgb, var(--ok) 25%, var(--surface-2)); border-color: var(--ok); color: var(--text); }
+    .mosaico-rejilla .tesela.fallida { background: color-mix(in srgb, var(--danger, #c33) 25%, var(--surface-2)); border-color: var(--danger, #c33); }
+    .btn.deshabilitado { opacity: 0.45; pointer-events: none; }
     .panel-inicio { padding: 10px 12px; }
     .panel-inicio-cabecera { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .panel-inicio-toggle { flex: 1 1 200px; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 4px; margin: 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 10px; }
@@ -497,7 +560,8 @@
     //     nada hasta que el usuario pulsa Empezar (así abrir la página no
     //     destruye un apilado en curso) ———
     let bucleActivo = false;      // el bucle de capturas está en marcha
-    let modoPlan = false;         // el plan de la noche lleva el apilado (static/js/plan.js)
+    let modoPlan = false;         // el plan de la noche o el mosaico llevan el apilado (static/js/plan.js, mosaico.js)
+    let trabajoEnCurso = "";      // "plan" | "mosaico" mientras modoPlan
     let usarDark = true;          // se pasa a /capturar-imagen como &dark=0/1
     let apiladoNuevo = true;      // Empezar nuevo (reinicia) o continuar
     let sondeoDarks = null;
@@ -765,7 +829,7 @@
     }
 
     function detenerApilado() {
-        if (modoPlan) { Plan.detener(); return; }
+        if (modoPlan) { (trabajoEnCurso === "mosaico" ? Mosaico : Plan).detener(); return; }
         if (!confirm("¿Detener el apilado? Las capturas se paran; el resultado actual se conserva.")) return;
         fetch('/apilado/detener', { method: 'POST' })
             .then(r => r.json())
@@ -1015,6 +1079,7 @@
     // Vista del visor: "estrellas" (apilado normal) o "cometa" (por el núcleo, cometa.py)
     let vistaApilado = "estrellas";
     let versionCometaMostrada = null;
+    let versionMosaicoMostrada = null, autoCambiadoMosaico = false;
     function elegirVista(vista) {
         if (vista === vistaApilado) return;
         vistaApilado = vista;
@@ -1024,7 +1089,8 @@
     function actualizarImagen() {
         const img = document.getElementById("preview");
         img.onerror = () => console.warn("❌ Error cargando imagen apilada");
-        img.src = (vistaApilado === "cometa" ? "/resultado-cometa?" : "/resultado-apilado?") + Date.now();
+        const rutasVista = { cometa: "/resultado-cometa?", mosaico: "/resultado-mosaico?" };
+        img.src = (rutasVista[vistaApilado] || "/resultado-apilado?") + Date.now();
     }
     function textoCometa(c) {
         if (!c) return "";
@@ -1438,7 +1504,7 @@
     }
 
     function confirmarReinicio() {
-        if (modoPlan) { alert("El plan de la noche está en marcha: detenlo antes de reiniciar el apilado."); return false; }
+        if (modoPlan) { alert((trabajoEnCurso === "mosaico" ? "El mosaico" : "El plan de la noche") + " está en marcha: detenlo antes de reiniciar el apilado."); return false; }
         return confirm("¿Seguro que quieres reiniciar el apilado?");
     }
 
@@ -1456,21 +1522,27 @@
             const b = estado.bucle || {};
             const carga = document.getElementById("estado-carga");
             if (window.Plan) Plan.actualizarEstado(estado.plan);
-            const planEnCurso = !!(estado.plan && estado.plan.en_curso);
+            if (window.Mosaico) Mosaico.actualizarEstado(estado.mosaico);
+            // El mosaico lleva el apilado igual que el plan (GoTo y apilado de cada tesela)
+            const mosaicoEnCurso = !!(estado.mosaico && estado.mosaico.en_curso);
+            const planEnCurso = !!(estado.plan && estado.plan.en_curso) || mosaicoEnCurso;
             if (planEnCurso) {
                 // El plan arranca y para el bucle entre objetos: la cabecera sigue al plan, no al bucle
                 if (!modoPlan) { modoPlan = true; document.getElementById("panel-inicio").style.display = "none"; }
-                const pausado = !!estado.plan.pausado;
+                trabajoEnCurso = mosaicoEnCurso ? "mosaico" : "plan";
+                const pausado = mosaicoEnCurso ? !!estado.mosaico.pausado : !!estado.plan.pausado;
                 document.getElementById("boton-pausa").style.display = pausado ? "none" : "inline-flex";
                 document.getElementById("boton-reanudar").style.display = pausado ? "inline-flex" : "none";
                 document.getElementById("boton-detener").style.display = "inline-flex";
-                carga.textContent = Plan.textoCabecera();
+                carga.textContent = mosaicoEnCurso ? Mosaico.textoCabecera() : Plan.textoCabecera();
                 bucleActivo = !!b.activo;
             } else if (modoPlan) {
                 // El plan ha terminado: volver a la pantalla normal
                 modoPlan = false;
                 mostrarComoDetenido(null);
-                if (estado.plan && estado.plan.mensaje) carga.textContent = "🗓️ " + estado.plan.mensaje;
+                if (trabajoEnCurso === "mosaico" && estado.mosaico && estado.mosaico.mensaje) carga.textContent = "🧩 " + estado.mosaico.mensaje;
+                else if (estado.plan && estado.plan.mensaje) carga.textContent = "🗓️ " + estado.plan.mensaje;
+                trabajoEnCurso = "";
                 prepararInicio();
             } else if (b.activo) {
                 if (!bucleActivo) mostrarComoActivo(b);
@@ -1492,11 +1564,21 @@
             // Cometa: los chips para elegir vista aparecen cuando hay apilado por el núcleo
             const c = estado.cometa;
             const hayCometa = !!(c && c.activo && c.fotos > 0);
-            document.getElementById("vistas-apilado").style.display = hayCometa ? "" : "none";
+            const mo = estado.mosaico;
+            const hayMosaico = !!(mo && mo.existe);
+            document.getElementById("vistas-apilado").style.display = (hayCometa || hayMosaico) ? "" : "none";
+            document.querySelector('#vistas-apilado [data-vista="cometa"]').hidden = !hayCometa;
+            document.querySelector('#vistas-apilado [data-vista="mosaico"]').hidden = !hayMosaico;
             if (!hayCometa && vistaApilado === "cometa") elegirVista("estrellas");
             if (hayCometa && c.version !== versionCometaMostrada) {
                 versionCometaMostrada = c.version;
                 if (vistaApilado === "cometa") actualizarImagen();
+            }
+            if (!hayMosaico && vistaApilado === "mosaico") elegirVista("estrellas");
+            if (hayMosaico && mo.version_mosaico !== versionMosaicoMostrada) {
+                versionMosaicoMostrada = mo.version_mosaico;
+                if (vistaApilado === "mosaico") actualizarImagen();
+                else if (mo.en_curso && !autoCambiadoMosaico) { autoCambiadoMosaico = true; elegirVista("mosaico"); }   // la primera combinación se enseña
             }
             const toma = estado.ultima_toma || {};
             if (toma.version !== versionTomaMostrada) {
@@ -1521,7 +1603,7 @@
     }
 
     function pausarApilado() {
-        if (modoPlan) { Plan.pausar(); return; }
+        if (modoPlan) { (trabajoEnCurso === "mosaico" ? Mosaico : Plan).pausar(); return; }
         fetch("/pausar-apilado", { method: "POST" })
             .then(() => {
                 document.getElementById("boton-pausa").style.display = "none";
@@ -1531,7 +1613,7 @@
     }
 
     function reanudarApilado() {
-        if (modoPlan) { Plan.reanudar(); return; }
+        if (modoPlan) { (trabajoEnCurso === "mosaico" ? Mosaico : Plan).reanudar(); return; }
         fetch("/reanudar-apilado", { method: "POST" })
             .then(async r => {
                 // 409 = el servidor no deja reanudar (disco casi lleno): se queda en pausa con el motivo
@@ -1612,6 +1694,7 @@
         .addEventListener("change", toggleObjetosAnotados);
 </script>
 <script src="{{ url_for('static', filename='js/plan.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mosaico.js') }}"></script>
 
 
     {% endblock %}
