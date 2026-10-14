@@ -4,9 +4,18 @@
 #
 # El dark se resta a cada foto individual en el momento de capturarla (antes
 # del debayer y del alineado, ver /capturar-imagen en ScopePower.py). Este
-# módulo solo se ocupa de FABRICAR el fichero calibraciones/dark_<exp>s.fits.
+# módulo fabrica los ficheros de la biblioteca de darks y elige el que casa
+# con cada foto.
+#
+# Biblioteca: un dark maestro por combinación de exposición, ganancia y
+# binning, en calibraciones/dark_<exp>s_g<ganancia>_b<binning>.fits (sin el
+# tramo _g si la ganancia no se fija desde la app). Los ficheros antiguos
+# dark_<exp>s.fits siguen valiendo mientras su cabecera no contradiga la
+# ganancia ni el binning pedidos.
 
 import os
+import glob
+import re
 import threading
 import logging
 from datetime import datetime
@@ -23,19 +32,110 @@ CARPETA = "calibraciones"
 _MAP_BAYER = {2: 'RGGB', 3: 'CMYG', 4: 'CMYG2', 5: 'LRGB'}
 
 
-def ruta_dark(exposicion):
-    return os.path.join(CARPETA, f"dark_{float(exposicion):.2f}s.fits")
+_RE_NOMBRE = re.compile(r"^dark_(\d+(?:\.\d+)?)s(?:_g(\d+))?(?:_b(\d+))?\.fits$")
 
 
-def info_dark(exposicion):
-    """Datos del dark maestro guardado para esa exposición (o existe=False)."""
-    ruta = ruta_dark(exposicion)
-    if not os.path.exists(ruta):
-        return {"existe": False, "exposicion": float(exposicion)}
+def nombre_dark(exposicion, ganancia=None, binning=1):
+    """Nombre del fichero: dark_25.00s_g300_b1.fits (sin _g si la ganancia es None)."""
+    partes = [f"dark_{float(exposicion):.2f}s"]
+    if ganancia is not None:
+        partes.append(f"g{int(ganancia)}")
+    partes.append(f"b{int(binning)}")
+    return "_".join(partes) + ".fits"
+
+
+def ruta_dark(exposicion, ganancia=None, binning=1):
+    return os.path.join(CARPETA, nombre_dark(exposicion, ganancia, binning))
+
+
+def _num_cabecera(hdr, clave):
+    v = hdr.get(clave)
+    try:
+        return None if v is None else float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _cabecera_compatible(ruta, ganancia, binning):
+    """Un fichero antiguo (sin ganancia ni binning en el nombre) sirve si su cabecera no lo desmiente."""
+    try:
+        hdr = fits.getheader(ruta)
+    except Exception:
+        return False
+    g, b = _num_cabecera(hdr, "GAIN"), _num_cabecera(hdr, "XBINNING")
+    if ganancia is not None and g is not None and int(round(g)) != int(ganancia):
+        return False
+    if b is not None and int(round(b)) != int(binning):
+        return False
+    return True
+
+
+def buscar_dark(exposicion, ganancia=None, binning=1):
+    """
+    Ruta del dark maestro que casa con la exposición, la ganancia y el binning,
+    o None si no hay ninguno. Mira primero el nombre de la biblioteca y, si no
+    está, el fichero antiguo dark_<exp>s.fits con cabecera compatible.
+    """
+    ruta = ruta_dark(exposicion, ganancia, binning)
+    if os.path.exists(ruta):
+        return ruta
+    antigua = os.path.join(CARPETA, f"dark_{float(exposicion):.2f}s.fits")
+    if os.path.exists(antigua) and _cabecera_compatible(antigua, ganancia, binning):
+        return antigua
+    return None
+
+
+def listar_darks():
+    """
+    Biblioteca de darks: una entrada por fichero de calibraciones/, ordenada por
+    exposición, ganancia y binning. Los valores salen del nombre y, si faltan,
+    de la cabecera FITS (ficheros antiguos).
+    """
+    biblioteca = []
+    for ruta in glob.glob(os.path.join(CARPETA, "dark_*.fits")):
+        m = _RE_NOMBRE.match(os.path.basename(ruta))
+        if not m:
+            continue
+        exposicion = float(m.group(1))
+        ganancia = int(m.group(2)) if m.group(2) else None
+        binning = int(m.group(3)) if m.group(3) else None
+        fecha = datetime.fromtimestamp(os.path.getmtime(ruta))
+        ndarks = temperatura = None
+        try:
+            hdr = fits.getheader(ruta)
+            if ganancia is None and _num_cabecera(hdr, "GAIN") is not None:
+                ganancia = int(round(_num_cabecera(hdr, "GAIN")))
+            if binning is None:
+                binning = int(_num_cabecera(hdr, "XBINNING") or 1)
+            ndarks = _num_cabecera(hdr, "NDARKS")
+            temperatura = _num_cabecera(hdr, "CCD-TEMP")
+            if hdr.get("DATE-OBS"):
+                try:
+                    fecha = datetime.fromisoformat(str(hdr["DATE-OBS"]))
+                except ValueError:
+                    pass
+        except Exception as e:
+            log.warning("No se pudo leer %s: %s", ruta, e)
+        biblioteca.append({
+            "nombre": os.path.basename(ruta), "ruta": ruta,
+            "exposicion": exposicion, "gain": ganancia, "binning": binning or 1,
+            "antiguo": not (m.group(2) or m.group(3)),
+            "fecha": fecha.strftime("%Y-%m-%d %H:%M"), "ndarks": ndarks, "temperatura": temperatura,
+        })
+    biblioteca.sort(key=lambda d: (d["exposicion"], -1 if d["gain"] is None else d["gain"], d["binning"]))
+    return biblioteca
+
+
+def info_dark(exposicion, ganancia=None, binning=1):
+    """Datos del dark maestro que casa con exposición, ganancia y binning (o existe=False)."""
+    pedido = {"exposicion": float(exposicion), "ganancia": ganancia, "binning": int(binning)}
+    ruta = buscar_dark(exposicion, ganancia, binning)
+    if ruta is None:
+        return {"existe": False, **pedido}
     try:
         hdr = fits.getheader(ruta)
     except Exception as e:
-        return {"existe": False, "exposicion": float(exposicion), "error": str(e)}
+        return {"existe": False, "error": str(e), **pedido}
 
     fecha = datetime.fromtimestamp(os.path.getmtime(ruta))
     for clave in ("DATE-OBS", "DATE"):
@@ -57,7 +157,9 @@ def info_dark(exposicion):
     return {
         "existe": True,
         "ruta": ruta,
+        "nombre": os.path.basename(ruta),
         "exposicion": float(exposicion),
+        "ganancia": ganancia,
         "fecha": fecha.strftime("%Y-%m-%d %H:%M"),
         "antiguedad_min": antiguedad_min,
         "binning": _num("XBINNING"),
@@ -80,6 +182,8 @@ class TrabajoDarks:
         self.completadas = 0
         self.total = 0
         self.exposicion = 0.0
+        self.ganancia = None
+        self.binning = 1
         self.error = ""
         self.mensaje = ""
         self.ruta = ""
@@ -102,7 +206,8 @@ class TrabajoDarks:
         Lanza la captura de `n` darks en el hilo de la cámara. Devuelve al
         instante; el progreso se consulta con estado(). Lanza RuntimeError si
         ya hay un trabajo en curso o la cámara está ocupada.
-        `ganancia`: la de config.ini, para que el dark case con los lights.
+        `ganancia`: la de config.ini, para que el dark case con los lights
+        (y forme parte del nombre del fichero, junto con la exposición y el binning).
         """
         n = max(1, int(n))
         exposicion = float(exposicion)
@@ -115,6 +220,8 @@ class TrabajoDarks:
             self.en_curso = True
             self.total = n
             self.exposicion = exposicion
+            self.ganancia = None if ganancia is None else int(ganancia)
+            self.binning = int(binning)
             self.mensaje = "Preparando la cámara..."
 
         def tarea(cam):
@@ -152,7 +259,7 @@ class TrabajoDarks:
             master = np.clip(master, 0, 65535).astype(np.uint16)
 
             os.makedirs(CARPETA, exist_ok=True)
-            ruta = ruta_dark(self.exposicion)
+            ruta = ruta_dark(self.exposicion, self.ganancia, binning)
             hdu = fits.PrimaryHDU(master)
             hdu.header["IMAGETYP"] = "DARK"
             hdu.header["EXPOSURE"] = (self.exposicion, "Exposicion en segundos")

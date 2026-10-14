@@ -15,11 +15,12 @@
 
 <div class="card card-centrada">
     <div id="dark-ultimo" class="aviso aviso-info">Consultando el último dark...</div>
+    <div id="dark-biblioteca" class="texto-3 mb-2" style="font-size: 13px;"></div>
 
     <div id="dark-preparar">
         <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>Tapa el telescopio completamente y pulsa Generar.</div>
         <div class="fila entre mb-2">
-            <span class="texto-2">Exposición: <b id="dark-exposicion" style="color: var(--text);">-</b> s</span>
+            <span class="texto-2">Exposición: <b id="dark-exposicion" style="color: var(--text);">-</b> s · <span id="dark-ganancia">-</span> · bin <b id="dark-binning" style="color: var(--text);">-</b></span>
             <span class="fila"><label for="dark-n" style="margin: 0;">Número de darks</label>
                 <input type="number" id="dark-n" class="corto" min="1" max="50" value="10"></span>
         </div>
@@ -39,21 +40,35 @@
 <script>
     let sondeoDarks = null;
 
+    function etiquetaGanancia(g) { return (g === null || g === undefined) ? "ganancia del driver" : `ganancia ${Math.round(g)}`; }
     function describirUltimo(u) {
-        if (!u || !u.existe) return "ℹ️ No hay ningún dark guardado para " + (u ? u.exposicion : "?") + " s.";
-        let s = `🌑 Último dark: ${u.exposicion} s, hecho el ${u.fecha}`;
+        if (!u || !u.existe) return `ℹ️ No hay ningún dark guardado para ${u ? u.exposicion : "?"} s · ${etiquetaGanancia(u && u.ganancia)} · bin ${u && u.binning ? u.binning : "?"}. Se generará uno nuevo con esos valores.`;
+        // Ganancia de la cabecera FITS; si el driver no la informa, la que se pidió (va en el nombre del fichero)
+        let s = `🌑 Dark de ${u.exposicion} s · ${etiquetaGanancia(u.gain !== null && u.gain !== undefined ? u.gain : u.ganancia)} · bin ${u.binning || 1}, hecho el ${u.fecha}`;
         if (u.antiguedad_min !== undefined) {
             const h = Math.floor(u.antiguedad_min / 60), m = u.antiguedad_min % 60;
             s += ` (hace ${h > 0 ? h + " h " : ""}${m} min)`;
         }
         if (u.temperatura !== null && u.temperatura !== undefined) s += ` · sensor a ${u.temperatura.toFixed(1)} °C`;
         if (u.ndarks) s += ` · ${u.ndarks} tomas`;
+        s += " (generar de nuevo lo sustituye)";
         return s;
+    }
+    function describirBiblioteca(lista, actual) {
+        if (!lista || !lista.length) return "";
+        const partes = lista.map(d => {
+            const t = `${d.exposicion} s · ${etiquetaGanancia(d.gain)} · bin ${d.binning} (${d.fecha.slice(0, 10)})`;
+            return (actual && actual.existe && actual.nombre === d.nombre) ? `<b>${t}</b>` : t;
+        });
+        return `📚 Biblioteca: un dark por exposición, ganancia y binning. Guardados (${lista.length}): ${partes.join(" &nbsp;|&nbsp; ")}`;
     }
 
     function pintarEstado(d) {
         document.getElementById("dark-ultimo").textContent = describirUltimo(d.ultimo);
+        document.getElementById("dark-biblioteca").innerHTML = describirBiblioteca(d.biblioteca, d.ultimo);
         document.getElementById("dark-exposicion").textContent = d.config.exposicion;
+        document.getElementById("dark-ganancia").textContent = etiquetaGanancia(d.config.ganancia);
+        document.getElementById("dark-binning").textContent = d.config.binning || 1;
         const t = d.trabajo;
         if (t.en_curso) {
             document.getElementById("dark-preparar").style.display = "none";

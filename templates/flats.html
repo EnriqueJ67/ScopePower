@@ -54,8 +54,8 @@
     const NOMBRE_FASE = { exposicion: "Ajustando exposición", flats: "Capturando flats", esperando_tapa: "Esperando", flat_darks: "Darks de flat", combinando: "Combinando" };
 
     function describirUltimo(u) {
-        if (!u || !u.existe) return "ℹ️ No hay ningún flat maestro guardado.";
-        let s = `🟦 Último flat: hecho el ${u.fecha}`;
+        if (!u || !u.existe) return `ℹ️ No hay ningún flat maestro guardado para bin ${u && u.binning_pedido ? u.binning_pedido : "?"}.`;
+        let s = `🟦 Flat maestro (bin ${u.binning || u.binning_pedido || 1}): hecho el ${u.fecha}`;
         if (u.exposicion !== null) s += ` · ${u.exposicion} s`;
         if (u.nflats) s += ` · ${u.nflats} tomas`;
         if (u.nflatdk) s += ` + ${u.nflatdk} darks de flat`;

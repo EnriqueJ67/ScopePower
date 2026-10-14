@@ -13,7 +13,10 @@
 #      exposición, para restar el pedestal del sensor.
 #   4. Combinar con sigma-clipping, restar el dark de flat y normalizar cada
 #      canal del mosaico Bayer a media 1, para que el flat no altere el
-#      balance de color. Se guarda como float32 en calibraciones/flat.fits.
+#      balance de color. Se guarda como float32 en
+#      calibraciones/flat_b<binning>.fits (el flat normalizado no depende de la
+#      exposición ni de la ganancia, pero sí del binning). El fichero antiguo
+#      calibraciones/flat.fits sigue valiendo si su cabecera no lleva otro binning.
 #
 # La captura aplica el flat después del dark: foto = (foto - dark) / flat.
 
@@ -33,7 +36,26 @@ from apilado import apilar_sigma_clip
 log = logging.getLogger("scopepower.flats")
 
 CARPETA = "calibraciones"
-RUTA_FLAT = os.path.join(CARPETA, "flat.fits")
+RUTA_FLAT_ANTIGUA = os.path.join(CARPETA, "flat.fits")
+
+
+def ruta_flat(binning=1):
+    return os.path.join(CARPETA, f"flat_b{int(binning)}.fits")
+
+
+def buscar_flat(binning=1):
+    """Ruta del flat maestro para ese binning (o el flat.fits antiguo compatible), o None."""
+    ruta = ruta_flat(binning)
+    if os.path.exists(ruta):
+        return ruta
+    if os.path.exists(RUTA_FLAT_ANTIGUA):
+        try:
+            b = fits.getheader(RUTA_FLAT_ANTIGUA).get("XBINNING")
+            if b is None or int(float(b)) == int(binning):
+                return RUTA_FLAT_ANTIGUA
+        except Exception:
+            pass
+    return None
 _MAP_BAYER = {2: 'RGGB', 3: 'CMYG', 4: 'CMYG2', 5: 'LRGB'}
 
 
@@ -57,15 +79,18 @@ def leer_config():
     }
 
 
-def info_flat():
-    """Datos del flat maestro guardado (o existe=False)."""
-    if not os.path.exists(RUTA_FLAT):
-        return {"existe": False}
+def info_flat(binning=None):
+    """Datos del flat maestro guardado para ese binning (el de config.ini si es None), o existe=False."""
+    if binning is None:
+        binning = leer_config()["binning"]
+    ruta = buscar_flat(binning)
+    if ruta is None:
+        return {"existe": False, "binning_pedido": int(binning)}
     try:
-        hdr = fits.getheader(RUTA_FLAT)
+        hdr = fits.getheader(ruta)
     except Exception as e:
-        return {"existe": False, "error": str(e)}
-    fecha = datetime.fromtimestamp(os.path.getmtime(RUTA_FLAT))
+        return {"existe": False, "binning_pedido": int(binning), "error": str(e)}
+    fecha = datetime.fromtimestamp(os.path.getmtime(ruta))
     try:
         if hdr.get("DATE-OBS"):
             fecha = datetime.fromisoformat(str(hdr["DATE-OBS"]))
@@ -79,7 +104,7 @@ def info_flat():
             return None
 
     return {
-        "existe": True, "ruta": RUTA_FLAT,
+        "existe": True, "ruta": ruta, "nombre": os.path.basename(ruta), "binning_pedido": int(binning),
         "fecha": fecha.strftime("%Y-%m-%d %H:%M"),
         "antiguedad_min": int((datetime.now() - fecha).total_seconds() // 60),
         "exposicion": _num("EXPOSURE"), "nflats": _num("NFLATS"), "nflatdk": _num("NFLATDK"),
@@ -285,11 +310,12 @@ class TrabajoFlats:
             hdu.header["BAYERPAT"] = (patron, "Patron CFA; normalizado por canal a media 1")
             hdu.header["DATE-OBS"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
             hdu.header["CREATOR"] = "ScopePower"
-            hdu.writeto(RUTA_FLAT, overwrite=True)
+            ruta = ruta_flat(conf["binning"])
+            hdu.writeto(ruta, overwrite=True)
             with self._lock:
-                self.ruta, self.vinyeteo = RUTA_FLAT, vinyeteo
+                self.ruta, self.vinyeteo = ruta, vinyeteo
             self._msg(f"Flat maestro guardado ({len(flats)} flats, viñeteo {vinyeteo:.0f} %)", fase="")
-            log.info("Flat maestro guardado en %s", RUTA_FLAT)
+            log.info("Flat maestro guardado en %s", ruta)
             self._decir(voz, "Flat maestro guardado. Ya puedes destapar el telescopio")
         except (FlatsCancelado, CapturaCancelada):
             error = "Generación de flats cancelada"

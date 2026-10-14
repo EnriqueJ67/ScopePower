@@ -38,6 +38,7 @@
 
             <div id="panel-inicio-cuerpo" class="panel-inicio-cuerpo" hidden>
                 <div id="darks-ultimo" class="estado mb-1">Consultando...</div>
+                <div id="darks-biblioteca" class="texto-3 mb-1" style="font-size: 13px;"></div>
                 <div id="flat-info" class="texto-3 mb-2" style="font-size: 13px;"></div>
 
                 <label class="opcion"><input type="radio" name="opcion-dark" value="ultimo" id="opcion-dark-ultimo"> Usar el último dark</label>
@@ -568,18 +569,30 @@
         return !!(u && u.existe && conf && conf.ganancia !== null && conf.ganancia !== undefined
                   && u.gain !== null && u.gain !== undefined && Math.round(u.gain) !== conf.ganancia);
     }
+    function etiquetaGanancia(g) { return (g === null || g === undefined) ? "ganancia del driver" : `ganancia ${Math.round(g)}`; }
     function describirUltimoDark(u, conf) {
-        if (!u || !u.existe) return `ℹ️ No hay ningún dark guardado para ${u ? u.exposicion : "?"} s de exposición.`;
-        let s = `🌑 Último dark: ${u.exposicion} s, hecho el ${u.fecha}`;
+        if (!u || !u.existe) return `ℹ️ No hay ningún dark guardado para ${u ? u.exposicion : "?"} s · ${etiquetaGanancia(u && u.ganancia)} · bin ${u && u.binning ? u.binning : "?"}.`;
+        let s = `🌑 Dark de ${u.exposicion} s · bin ${u.binning || 1}, hecho el ${u.fecha}`;
         if (u.antiguedad_min !== undefined) {
             const h = Math.floor(u.antiguedad_min / 60), m = u.antiguedad_min % 60;
             s += ` (hace ${h > 0 ? h + " h " : ""}${m} min)`;
         }
         if (u.temperatura !== null && u.temperatura !== undefined) s += ` · sensor a ${u.temperatura.toFixed(1)} °C`;
-        if (u.gain !== null && u.gain !== undefined) s += ` · ganancia ${Math.round(u.gain)}`;
+        // Ganancia de la cabecera FITS; si el driver no la informa, la que se pidió (va en el nombre del fichero)
+        const g = (u.gain !== null && u.gain !== undefined) ? u.gain : u.ganancia;
+        if (g !== null && g !== undefined) s += ` · ganancia ${Math.round(g)}`;
         if (u.ndarks) s += ` · ${u.ndarks} tomas`;
         if (darkNoCasa(u, conf)) s += ` ⚠️ La cámara está ahora a ganancia ${conf.ganancia}: este dark no sirve, genera darks nuevos.`;
         return s;
+    }
+    // Biblioteca de darks: uno por exposición, ganancia y binning (el que casa con la configuración va en negrita)
+    function describirBiblioteca(lista, actual) {
+        if (!lista || !lista.length) return "";
+        const partes = lista.map(d => {
+            const t = `${d.exposicion} s · ${etiquetaGanancia(d.gain)} · bin ${d.binning}`;
+            return (actual && actual.existe && actual.nombre === d.nombre) ? `<b>${t}</b>` : t;
+        });
+        return `📚 Biblioteca de darks (${lista.length}): ${partes.join(" &nbsp;|&nbsp; ")}`;
     }
 
     function prepararInicio() {
@@ -589,10 +602,11 @@
         ]).then(([d, estado]) => {
             document.getElementById("darks-ultimo").textContent = describirUltimoDark(d.ultimo, d.config);
             document.getElementById("darks-ultimo").classList.toggle("err", darkNoCasa(d.ultimo, d.config));
+            document.getElementById("darks-biblioteca").innerHTML = describirBiblioteca(d.biblioteca, d.ultimo);
             const fl = d.flat || {};
             document.getElementById("flat-info").innerHTML = fl.existe
-                ? `🟦 Flat maestro del ${fl.fecha} (viñeteo ${fl.vinyeteo} %): se aplicará a cada foto`
-                : `ℹ️ Sin flat maestro: viñeteo y sombras de polvo no se corrigen. <a href="/flats">Generar flat</a>`;
+                ? `🟦 Flat maestro (bin ${fl.binning || fl.binning_pedido || 1}) del ${fl.fecha} (viñeteo ${fl.vinyeteo} %): se aplicará a cada foto`
+                : `ℹ️ Sin flat maestro para bin ${fl.binning_pedido || 1}: viñeteo y sombras de polvo no se corrigen. <a href="/flats">Generar flat</a>`;
             document.getElementById("darks-n").value = d.config.numero_darks || 10;
             // Un dark con otra ganancia cuenta como "no hay dark": se propone generar nuevos
             const hayDark = d.ultimo && d.ultimo.existe && !darkNoCasa(d.ultimo, d.config);

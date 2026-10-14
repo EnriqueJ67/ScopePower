@@ -1511,7 +1511,7 @@ def aplicar_flat_maestro(imagen_fits, ruta_flat):
     Aplica un flat maestro a una imagen FITS RGB (formato (3, H, W)).
     Devuelve la imagen corregida y un booleano que indica si se aplicó.
     """
-    if not os.path.exists(ruta_flat):
+    if not ruta_flat or not os.path.exists(ruta_flat):
         print("ℹ️ No se encontró flat maestro.")
         return imagen_fits, False
 
@@ -2214,10 +2214,10 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
 
     try:
         estado_captura.poner_fase("Restando el dark y el flat")
-        # ───── Aplicar dark maestro ─────
-        ruta_dark = f"calibraciones/dark_{EXPOSICION:.2f}s.fits"
+        # ───── Aplicar dark maestro (el de la biblioteca que casa con exposición, ganancia y binning) ─────
+        ruta_dark = darks.buscar_dark(EXPOSICION, GANANCIA, BINNING)
         dark_aplicado = False
-        if usar_dark and os.path.exists(ruta_dark):
+        if usar_dark and ruta_dark:
             print(f"🌑 Aplicando dark maestro: {ruta_dark}")
             with fits.open(ruta_dark) as hdul_dark:
                 dark_data = hdul_dark[0].data.astype(np.float32)
@@ -2228,11 +2228,11 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
                     dark_aplicado = True
                 else:
                     print(f"⚠️ Tamaño del dark no coincide. Saltando corrección.")
-        else:
-            print("ℹ️ No se encontró dark maestro para esta exposición.")
+        elif usar_dark:
+            print(f"ℹ️ No hay dark maestro para {EXPOSICION:.2f} s, ganancia {GANANCIA}, binning {BINNING}.")
 
-        # ───── Aplicar flat maestro ─────
-        ruta_flat = "calibraciones/flat.fits"
+        # ───── Aplicar flat maestro (el del binning actual) ─────
+        ruta_flat = flats.buscar_flat(BINNING)
         imagen_fits, flat_aplicado = aplicar_flat_maestro(imagen_fits, ruta_flat)
 
 
@@ -4963,12 +4963,13 @@ def _config_darks():
 
 @app.route('/darks/estado')
 def darks_estado():
-    """Trabajo de darks en curso + datos del último dark para la exposición actual."""
+    """Trabajo de darks en curso, el dark que casa con exposición/ganancia/binning actuales y la biblioteca."""
     conf = _config_darks()
     return jsonify({
         "trabajo": darks.trabajo_darks.estado(),
-        "ultimo": darks.info_dark(conf["exposicion"]),
-        "flat": flats.info_flat(),
+        "ultimo": darks.info_dark(conf["exposicion"], conf["ganancia"], conf["binning"]),
+        "biblioteca": darks.listar_darks(),
+        "flat": flats.info_flat(conf["binning"]),
         "captura": estado_captura.como_dict(),
         "camara_ocupada": camara.ocupado,
         "config": conf,
@@ -5008,8 +5009,9 @@ def vista_flats():
 
 @app.route('/flats/estado')
 def flats_estado():
-    return jsonify({"trabajo": flats.trabajo_flats.estado(), "ultimo": flats.info_flat(),
-                    "config": flats.leer_config(), "camara_ocupada": camara.ocupado})
+    conf = flats.leer_config()
+    return jsonify({"trabajo": flats.trabajo_flats.estado(), "ultimo": flats.info_flat(conf["binning"]),
+                    "config": conf, "camara_ocupada": camara.ocupado})
 
 
 @app.route('/flats/iniciar', methods=["POST"])
@@ -5051,7 +5053,7 @@ def procesar_dark():
     """Compatibilidad con el formulario antiguo: lanza el trabajo y vuelve a dark.html."""
     conf = _config_darks()
     try:
-        darks.trabajo_darks.iniciar(camara, conf["exposicion"], conf["binning"], conf["numero_darks"])
+        darks.trabajo_darks.iniciar(camara, conf["exposicion"], conf["binning"], conf["numero_darks"], ganancia=conf["ganancia"])
     except RuntimeError as e:
         return render_template("dark.html", mensaje=f"❌ {e}", mostrar_volver=True)
     return render_template("dark.html", mostrar_volver=True)

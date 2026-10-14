@@ -429,7 +429,7 @@
             } else if (g.conectada) {
                 s += " Este driver no permite cambiar la ganancia desde la app.";
             }
-            s += " Si la cambias, genera darks nuevos: un dark hecho con otra ganancia no sirve.";
+            s += " La biblioteca guarda un dark por exposición, ganancia y binning: si cambias la ganancia se usa el dark de esa ganancia, y si no lo hay toca generarlo.";
             ayuda.textContent = s;
         }).catch(() => {});
     }
