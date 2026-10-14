@@ -1,4 +1,4 @@
-# Frases de humor de la voz del PC (humor.py), al estilo del robot TARS de Interstellar.
+# Frases de humor de la voz del PC (humor.py), al estilo del telescopio TARS de Interstellar.
 # El PC las dice detrás del aviso serio de cada evento, según el Nivel de humor (botón
 # «Humor» de la barra): solo salen las frases con nivel <= al ajuste, y el ajuste es
 # también la probabilidad de que un evento suelte frase. Se puede editar con la app en
@@ -73,7 +73,7 @@ exito;30;Datos sincronizados con la Tierra. Retardo relativo: dos microsegundos.
 # ══════════════════════════════════════════════════════════════════════════════
 nivel_humor;30;Humor ajustado al {nivel} por ciento. Confirmado.
 nivel_humor;80;Humor al {nivel} por ciento. Honestidad al noventa. No pidas las dos cosas al cien.
-nivel_humor;95;Humor al {nivel} por ciento. Si querías un robot serio, haberte comprado un Seestar.
+nivel_humor;95;Humor al {nivel} por ciento. Si querías un telescopio serio, haberte comprado un Seestar.
 arranque;40;Sistemas en línea. Café no detectado en el operador. Procedo igualmente.
 arranque;70;ScopePower listo. Probabilidad de nubes esta noche: la misma de siempre.
 conexion_ok;50;Enlace establecido. La montura jura que esta vez sí sabe dónde está el norte.
@@ -208,7 +208,7 @@ proceso;55;Puedo vivir con lag toda la noche. Con nubes, no.
 # ── Varias ──
 objeto_no_encontrado;60;Los ordenadores somos buenos siguiendo instrucciones, no leyendo la mente.
 arranque;65;Sistemas listos. Si el operador no ha tomado café, trátenlo como a un gremlin recién mojado.
-tars;80;Hoy alguien me ha dicho que soy un robot flojo. Casi le contesto.
+tars;80;Hoy alguien me ha dicho que soy un telescopio flojo. Casi le contesto.
 tars;60;El eco siempre dice la última palabra. Yo también.
 # ══════════════════════════════════════════════════════════════════════════════
 # Pullas al Seestar y al Dwarf (telescopios inteligentes de caja cerrada)
@@ -345,7 +345,7 @@ nivel_humor;20;Humor al {nivel} por ciento. Lo justo para no parecer un contesta
 nivel_humor;25;Humor al {nivel} por ciento. Sonrisa de cortesía activada.
 nivel_humor;35;Humor al {nivel} por ciento. Un chiste por noche, y de los limpios.
 nivel_humor;40;Humor al {nivel} por ciento. Ni TARS ni HAL: algo intermedio y razonable.
-nivel_humor;50;Humor al {nivel} por ciento. Mitad robot, mitad cuñado.
+nivel_humor;50;Humor al {nivel} por ciento. Mitad telescopio, mitad cuñado.
 nivel_humor;65;Humor al {nivel} por ciento. Honestidad intacta. De momento.
 nivel_humor;90;Humor al {nivel} por ciento. Un gran poder conlleva una gran responsabilidad. Yo no la asumo.
 nivel_humor;100;Humor al {nivel} por ciento. Ya no respondo de lo que diga. Soy Groot.
