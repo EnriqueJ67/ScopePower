@@ -1,0 +1,4 @@
+#titulo:Spring sky
+#descripcion:The spring sky (March to June in the northern hemisphere) is a fascinating transition between the winter and summer constellations. The sky becomes clearer and steadier, which makes it an excellent season for observing.
+Galaxies abound, especially in the region of Virgo and Coma Berenices, ideal for telescopes.
+#lista:Leo;Virgo;Coma Berenices;Bootes;Canes Venatici;Hercules

@@ -201,7 +201,8 @@ try:
             fallo("Con el idioma en inglés _('Inicio') no se traduce (¿falta compilar?)")
     if idioma.fmt_num(3.25, 2) != "3.25" or idioma.fmt_fecha(datetime(2026, 10, 15, 21, 30)) != "2026-10-15 21:30":
         fallo("Formatos en inglés incorrectos")
-    if idioma.ngettext("{n} foto", "{n} fotos", 3) not in ("3 fotos", "3 photos"):
+    plural = idioma.ngettext("{n} foto", "{n} fotos", 3)
+    if "3" not in plural or "{n}" in plural:
         fallo("ngettext no rellena {n}")
     if idioma._("Hola {x}", x=1, y=2) != "Hola 1" or idioma._("Sin {hueco}") != "Sin {hueco}":
         fallo("_() no rellena bien los marcadores")
@@ -262,6 +263,10 @@ for ruta in sorted(glob.glob("*.py")):
             primero = nodo.args[0]
             if isinstance(primero, ast.JoinedStr):
                 fallo(f"{ruta}:{nodo.lineno}: f-string dentro de {nodo.func.id}(): usar marcadores {{nombre}} y argumentos")
+            elif isinstance(primero, ast.Subscript) and any(isinstance(n, ast.Constant) and isinstance(n.value, str)
+                                                            for n in ast.walk(primero.slice)):
+                fallo(f"{ruta}:{nodo.lineno}: {nodo.func.id}(x[\"clave\"]): Babel toma la clave por un texto; "
+                      "pásalo antes a una variable")
             elif isinstance(primero, ast.BinOp):
                 fallo(f"{ruta}:{nodo.lineno}: texto compuesto con + o % dentro de {nodo.func.id}(): no se puede extraer")
             if nodo.func.id == "ngettext" and len(nodo.args) >= 2 and isinstance(nodo.args[1], ast.JoinedStr):
@@ -273,6 +278,8 @@ REGLAS_JS = [
     (re.compile(r"(?<![\w$.])_\(\s*`"), "plantilla `...` dentro de _(): usar comillas y {marcadores}"),
     (re.compile(r"(?<![\w$.])(?:_|ngettext)\(\s*(\"[^\"\n]*\"|'[^'\n]*')\s*\+"), "texto concatenado con + dentro de _()"),
     (re.compile(r"\(\s*_\s*[,)]|(?<![\w$.])_\s*=>|,\s*_\s*\)\s*=>"), "«_» usado como parámetro: tapa la traducción"),
+    (re.compile(r"(?<![\w$.])_\(\s*[\w$.]+\[\s*[\"']"), "_(x[\"clave\"]): Babel toma la clave por un texto; pásalo antes a una variable"),
+    (re.compile(r"\$\{\s*(?:_|ngettext|N_)\("), "_() dentro de ${...}: Babel no siempre lo extrae; sácalo con + o a una variable"),
     (re.compile(r"\{%-?\s*trans\b"), "{% trans %}: usar {{ _(\"...\") }} (marcadores {nombre})"),
 ]
 ficheros_js = (glob.glob("static/js/*.js") + glob.glob("static/*.js") + glob.glob("templates/*.html"))

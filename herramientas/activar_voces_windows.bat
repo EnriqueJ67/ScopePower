@@ -7,6 +7,11 @@ REM  registro que las aplicaciones clasicas (SAPI 5, la que usa voz.py) no miran
 REM  script copia su registro a la rama de SAPI 5, que es lo que hace falta para que
 REM  aparezcan en Configuracion > Avisos por voz > Voz. No instala nada ni borra nada.
 REM
+REM  Con ScopePower en ingles hace falta una voz inglesa: David y Zira ya vienen con Windows;
+REM  otras (Mark, Hazel...) se anaden igual y este script las hace visibles.
+REM  English: makes the voices added in Windows Settings > Time & language > Speech visible to
+REM  ScopePower (SAPI 5). Right click > Run as administrator, then restart ScopePower.
+REM
 REM  Uso: boton derecho > Ejecutar como administrador (hace falta para escribir en HKLM).
 REM       Despues reinicia ScopePower y elige la voz nueva en Configuracion.
 REM  Para quitar una voz copiada: borrar su clave en

@@ -1,0 +1,448 @@
+# Frases de humor de la voz del PC (humor.py) en inglés, al estilo del robot TARS de Interstellar.
+# Es la versión inglesa de frases_humor.csv: la usa humor.py cuando la app está en inglés.
+# No es una traducción literal: cada frase está reescrita para que funcione en inglés y la
+# diga bien una voz de Windows en inglés (frases cortas, números en letra, sin símbolos).
+# El PC las dice detrás del aviso serio de cada evento, según el Nivel de humor: solo salen
+# las frases con nivel <= al ajuste, y el ajuste es también la probabilidad de que un evento
+# suelte frase. Se puede editar con la app en marcha: se recarga sola.
+#
+# English: UTF-8, one line per phrase, columns event;humor;phrase separated by ";". The event
+# ids are the same as in frases_humor.csv (do not translate them), humor is the minimum level
+# 0-100, the phrase may use {nivel} (current level) and {n} (event data, only in apilado_fin),
+# and a phrase containing ";" must be wrapped in double quotes. Lines starting with # are comments.
+#
+# Formato: evento;humor;frase
+#   evento  momento de la app (lista abajo) o grupo genérico de reserva (proceso, error,
+#           exito, tars), que se usa cuando el evento no tiene frases propias a ese nivel
+#   humor   0-100, nivel mínimo para que la frase pueda salir
+#   frase   texto que dice el PC; admite {nivel} (porcentaje actual) y {n} (dato del evento)
+#           Si la frase lleva punto y coma, va entre comillas dobles.
+#
+# Eventos (los mismos que en frases_humor.csv):
+#   arranque              ScopePower iniciado, servidor listo
+#   conexion_ok           telescopio o cámara conectados
+#   conexion_fallo        no se ha podido conectar con el telescopio o la cámara
+#   goto_inicio           la montura empieza a moverse a un objeto
+#   goto_rechazado        la montura no acepta el movimiento
+#   goto_bajo_horizonte   GoTo cancelado: el objeto está por debajo de la altura mínima
+#   objeto_no_encontrado  el GoTo no encuentra el objeto en ningún catálogo
+#   goto_llegada          telescopio apuntando al objeto
+#   centrado_ok           centrado por plate solving terminado bien
+#   centrado_fallo        el centrado ha fallado (ASTAP no resuelve, etc.)
+#   sincronizado          montura sincronizada con una foto o con el disco del Sol/Luna
+#   foto_guardada         foto guardada en la galería
+#   foto_descartada       el apilado descarta una foto por mala puntuación
+#   foto_sustituye        una foto nueva sustituye a una peor en el apilado
+#   foto_mejor            entra la mejor foto de la noche (ya con las de referencia hechas)
+#   foto_peor             entra la peor foto hasta ahora (ya con las de referencia hechas)
+#   referencia_fijada     imagen de referencia del apilado establecida
+#   apilado_inicio        empieza el apilado (bucle de capturas)
+#   apilado_fin           el apilado se detiene ({n} = fotos apiladas)
+#   error_camara          error de la cámara en una captura
+#   cancelado             captura cancelada por el usuario
+#   disco_bajo            queda poco espacio en el disco del PC
+#   configuracion_guardada  asistente de configuración terminado
+#   apagado               apagando o reiniciando el PC
+#   nivel_humor           confirmación al cambiar el nivel (siempre se dice una)
+evento;humor;frase
+# ══════════════════════════════════════════════════════════════════════════════
+# Listado inicial (del usuario)
+# ══════════════════════════════════════════════════════════════════════════════
+# ── Cargas, procesamiento y renderizado ──
+proceso;75;Compressing data into a singularity. If I don't come back, don't come looking.
+proceso;60;Engaging warp drive. Please keep your head against the headrest.
+proceso;65;Approaching the event horizon. Last chance to cancel, or to hammer Control C.
+proceso;50;Calculating the cosmological constant. Please do not sneeze near the processor.
+proceso;70;Generating photon matrix. If reality glitches, blame the graphics card.
+proceso;55;Folding space-time to speed up the download. You're welcome.
+proceso;40;Loading star map. If a star twinkles, it probably just finished rendering.
+# ── Errores, fallos y excepciones ──
+objeto_no_encontrado;70;Error four oh four, object not found. It may be hidden by dark matter. Or by a bug.
+error;80;Dark matter detected in the code. Proceeding to pretend everything is fine.
+error;45;File mass has exceeded the Chandrasekhar limit. Collapse is imminent.
+error;65;Lost signal with the server. Assuming we have entered a wormhole.
+error;75;Memory limit reached. Jettisoning payload into deep space.
+error;85;Process interrupted by spaghettification of the CPU threads.
+# ── Respuestas estilo TARS (interacción y feedback) ──
+tars;90;Honesty setting at ninety percent. Your astronomical query makes no sense, but I'll process it anyway.
+nivel_humor;60;Self-destruct sequence in three, two... Just kidding. Humor set to {nivel} percent.
+tars;50;Recording this request for later analysis of operator behavior.
+tars;95;Empathy parameter set to ten percent. The universe is vast and indifferent to your typos.
+tars;65;Confirmed. For the record, the laws of physics advised against it.
+goto_inicio;80;Plotting course. If we hit a white dwarf, I wasn't driving.
+# ── Éxito, finalización y estado listo ──
+centrado_ok;40;Orbit stabilized. All systems within acceptable sanity margins.
+exito;70;Process complete. No planets were harmed during this operation.
+goto_llegada;60;Planetary alignment achieved. You may now make a wish.
+exito;30;Data synced with Earth. Relative delay, two microseconds.
+# ══════════════════════════════════════════════════════════════════════════════
+# Propuestas para los eventos que el listado inicial no cubría
+# ══════════════════════════════════════════════════════════════════════════════
+nivel_humor;30;Humor set to {nivel} percent. Confirmed.
+nivel_humor;80;Humor at {nivel} percent. Honesty at ninety. Don't ask for both at a hundred.
+nivel_humor;95;Humor at {nivel} percent. If you wanted a serious telescope, you should have bought a Seestar.
+arranque;40;Systems online. No coffee detected in the operator. Proceeding anyway.
+arranque;70;ScopePower ready. Chance of clouds tonight, same as always.
+conexion_ok;50;Link established. The mount swears it knows where north is this time.
+conexion_ok;65;Camera connected. It promises there's no dust on the sensor. I wouldn't believe it.
+conexion_fallo;55;The equipment is not responding. It may be asleep, switched off, or in another dimension. It's usually the cable.
+conexion_fallo;75;No connection. By my calculations, the culprit is less than two meters from this speaker.
+goto_inicio;45;Course set. Nobody touches the telescope until it stops moving. Yes, that means you.
+goto_rechazado;60;The mount said no. And when a mount says no, it means no.
+goto_rechazado;80;Slew refused. I wouldn't go there either without a very good reason.
+goto_bajo_horizonte;45;Target is below the horizon. I can move fast, but I can't drill through the planet.
+goto_bajo_horizonte;60;That object rises in a few hours. The Earth spins at its own pace, not yours.
+goto_bajo_horizonte;75;It's below the horizon. If you want it right now, the telescope isn't the problem. The planet is.
+goto_bajo_horizonte;85;GoTo cancelled. Pointing at the ground gives very sharp pictures of dirt.
+objeto_no_encontrado;50;I can't find that object. Either it doesn't exist, or you said it in Klingon.
+objeto_no_encontrado;65;Unknown object. I searched twelve thousand five hundred objects and none of them is called that.
+objeto_no_encontrado;80;Not in my catalogs. If you just discovered it, congratulations. Name it and let me know.
+goto_llegada;45;On target. If it's not in the frame, the universe moved it.
+centrado_fallo;55;The stars refused to identify themselves. Bad focus, clouds, or plain laziness.
+centrado_fallo;75;Plate solve failed. In my defense, there are a lot of identical stars up there.
+sincronizado;50;Mount synced. It now knows where it is. That's more than most of you can say.
+foto_guardada;45;Photo saved. Those photons traveled for thousands of years, and you saved them in two seconds.
+foto_descartada;50;Frame rejected. Not even the best algorithm can fix a sky like that.
+foto_descartada;65;That frame didn't make the cut. Filing it under examples of what not to do.
+foto_descartada;75;Score too low. If this were an exam, the sky would be held back a year.
+foto_descartada;85;Frame rejected. Wasted photons. The universe demands a formal apology.
+foto_sustituye;55;A worse frame has just been replaced. Evolution in action.
+referencia_fijada;45;Reference set. From now on, everything gets compared to this one. No pressure.
+apilado_inicio;45;Stacking has begun. You can go to bed. I can't.
+apilado_inicio;70;Stacking. Remember, every frame counts. Except the ones I quietly throw away.
+apilado_fin;45;Stacking finished with {n} frames. No photons were mistreated in the process.
+apilado_fin;65;Stack complete. {n} frames and zero complaints, which is more than I can say for the operator.
+error_camara;55;The camera has failed. Technically, the camera failed. Not me.
+error_camara;75;Camera error. Try turning it off and on again. It has worked since the eighties and nobody knows why.
+cancelado;50;Capture cancelled. The photons were already on their way, but sure.
+disco_bajo;50;Disk space is low. I can delete the bad photos, or yours. Same thing, really.
+disco_bajo;70;Disk almost full. This is the closest thing to a black hole you'll see tonight.
+configuracion_guardada;50;Settings saved. Now all we need is for the sky to cooperate.
+apagado;50;Shutting down. The stars will still be there tomorrow. Probably.
+# ══════════════════════════════════════════════════════════════════════════════
+# Frases míticas de cine (guiños breves: nivel moderado; las adaptadas al telescopio, más alto)
+# ══════════════════════════════════════════════════════════════════════════════
+# ── Blade Runner ──
+foto_guardada;35;I've seen things you people wouldn't believe.
+apilado_fin;35;I've seen things you people wouldn't believe. {n} of them, to be exact.
+goto_llegada;35;Attack ships on fire off the shoulder of Orion. Well, almost.
+goto_llegada;40;Somewhere near the Tannhauser Gate. Close enough.
+foto_descartada;40;Lost in time, like tears in rain.
+foto_descartada;70;All those photons, lost like tears in rain.
+apagado;40;Time to die. Or at least to power off.
+# ── 2001: Una odisea del espacio ──
+goto_rechazado;35;I'm sorry, Dave. I'm afraid I can't do that.
+conexion_fallo;45;Open the camera bay doors, HAL.
+# ── Apolo 13 ──
+error;30;Houston, we have a problem.
+error_camara;30;Houston, we have a problem.
+conexion_fallo;35;Failure is not an option. It is, however, the current status.
+goto_llegada;40;Houston, Tranquility Base here. The Eagle has landed.
+# ── Star Wars ──
+apilado_inicio;30;May the Force be with you.
+disco_bajo;35;I have a bad feeling about this.
+goto_llegada;45;That's no moon.
+foto_descartada;45;It's a trap!
+# ── Star Trek ──
+arranque;30;Space, the final frontier.
+apagado;30;Live long and prosper.
+goto_inicio;35;Engage.
+goto_rechazado;40;I cannae change the laws of physics, Captain.
+goto_bajo_horizonte;40;I cannae change the laws of physics, Captain.
+# ── Interstellar ──
+disco_bajo;40;We need to leave this planet. Or at least delete a few photos.
+arranque;45;Do not go gentle into that good night. Go with a fully charged battery.
+# ── Alien ──
+error;55;In space, no one can hear you scream. Or your typos.
+# ── Guía del autoestopista galáctico ──
+objeto_no_encontrado;45;Mostly harmless. But not in the Guide.
+error;30;Don't panic.
+conexion_fallo;30;Don't panic.
+tars;45;The answer is forty-two. The question is still pending.
+apagado;45;So long, and thanks for all the photons.
+# ── Matrix ──
+centrado_fallo;60;There is no spoon. Apparently there are no stars either.
+goto_inicio;40;Follow the white rabbit.
+# ── Terminator ──
+apagado;30;I'll be back.
+cancelado;40;Hasta la vista, baby.
+# ── Regreso al futuro ──
+goto_inicio;40;Roads? Where we're going, we don't need roads.
+error_camara;45;One point twenty-one gigawatts!
+# ── Marte (The Martian) ──
+apilado_inicio;40;Time to science the heck out of this.
+# ── Parque Jurásico ──
+centrado_ok;35;Life, uh, finds a way.
+arranque;55;It's a Windows system. I know this.
+# ── Toy Story ──
+goto_inicio;30;To infinity and beyond!
+# ── Galaxy Quest ──
+conexion_fallo;40;Never give up. Never surrender!
+# ── Juegos de guerra ──
+apilado_fin;45;Shall we play a game? Chess, perhaps?
+# ── Contact ──
+foto_guardada;40;If it's just us, that's an awful waste of space.
+# ── Gravity ──
+error;45;I hate space.
+# ── E.T. ──
+conexion_ok;35;E.T. phone home. Connected.
+# ══════════════════════════════════════════════════════════════════════════════
+# Frikadas de cine y cultura popular (adaptadas al telescopio y a un público anglosajón)
+# ══════════════════════════════════════════════════════════════════════════════
+# ── El señor de los anillos ──
+goto_llegada;50;A telescope is never late, nor is it early. It arrives precisely when it means to.
+# ── Matrix ──
+objeto_no_encontrado;55;There are no objects without coordinates. Only badly typed names.
+# ── Batman Begins ──
+conexion_fallo;50;Why do we fall? So we can learn to reconnect.
+centrado_fallo;50;Why do we fail to solve? So we can try another lap.
+# ── Casablanca ──
+foto_descartada;55;Frame rejected. We'll always have Paris.
+cancelado;50;Capture cancelled. We'll always have Paris.
+# ── Braveheart ──
+disco_bajo;60;They may take our disk space, but they'll never take our photos. Actually, they will, if you don't free some up.
+# ── El señor de los anillos (versión extendida) ──
+apilado_inicio;60;This is going to take longer than the extended edition of Lord of the Rings.
+# ── Star Trek (camisas rojas) ──
+conexion_fallo;70;This failure was more predictable than a red shirt on an away mission.
+# ── Narnia, Mordor y Winterfell ──
+goto_inicio;65;The mount says it's almost there. It still has to cross Narnia, Mordor and half of Winterfell.
+# ── Maratón ──
+centrado_fallo;70;Another lap without a solve. One more and you qualify for a marathon medal.
+# ── Videojuegos ──
+foto_descartada;65;If the sky is too hard, lower the difficulty. More exposure.
+proceso;55;I can live with lag all night. Clouds, not so much.
+# ── Varias ──
+objeto_no_encontrado;60;Computers are good at following instructions, not at reading minds.
+arranque;65;Systems ready. If the operator hasn't had coffee, treat them like a wet gremlin.
+tars;80;Someone called me a lazy telescope today. I almost answered.
+tars;60;The echo always gets the last word. So do I.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas al Seestar y al Dwarf (telescopios inteligentes de caja cerrada)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;ScopePower ready. A Seestar would be ready too, but you couldn't touch a single line of it.
+arranque;70;Systems online. No app here makes your decisions for you. Anything that goes wrong is all our own work.
+conexion_ok;60;Equipment connected. A Dwarf would have started on its own, but it wouldn't let you pick the camera either.
+conexion_fallo;65;No connection. This never happens on a Seestar, because there's nothing to connect. Or to improve.
+goto_inicio;60;Slewing. A Seestar would get there faster, with a sensor the size of a lentil.
+goto_llegada;55;On target. As accurate as a Dwarf, with an actual telescope in front.
+goto_rechazado;70;The mount said no. A Seestar never argues. You can't do much with it either.
+centrado_ok;60;Centered by plate solving. Like a Seestar, except we know how it works.
+centrado_fallo;65;Centering failed. A Seestar would fix it by itself, then sell you the photo at half a megapixel.
+foto_guardada;55;Photo saved. Full resolution, not the thumbnail a Seestar lets you keep.
+foto_descartada;60;Frame rejected. A Seestar would have stacked it anyway and shown it to you like it was good.
+foto_descartada;80;Not even a Dwarf would keep that one. And a Dwarf will keep anything.
+apilado_inicio;60;Stacking has begun. Like a Seestar, but with your darks, your camera and your judgment.
+apilado_fin;60;Stacking finished with {n} frames. A Seestar would have squashed it for Instagram. I'm keeping the FITS.
+referencia_fijada;65;Reference set. On a Dwarf they call this magic. Here we call it ASTAP.
+error_camara;65;Camera error. You can't swap the camera on a Seestar. Here you can. That's the difference between a failure and an option.
+disco_bajo;60;Disk space is low. A Seestar has sixty-four gigs and never complains. It doesn't take eighteen megapixel shots either.
+configuracion_guardada;60;Settings saved. A Seestar wouldn't have let you configure anything. You're welcome.
+apagado;55;Shutting down. A Seestar would fold itself up. We have more important advantages.
+tars;70;Reminder. A Seestar is easier. So is looking at other people's photos online.
+tars;85;If you wanted to press one button and be done, you should have bought a Dwarf. Here we suffer, but with style.
+nivel_humor;70;Humor at {nivel} percent. A Seestar doesn't have this. No humor, no adjustable gain.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas a los visuales (los que miran por el ocular)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;Systems ready. The eyepiece crowd has spent half an hour dark adapting. Our sensor came that way from the factory.
+arranque;70;Good evening. While someone at the club hunts for a grey smudge with averted vision, we're going to see colors.
+conexion_ok;60;Camera connected. It's like an eye, but it doesn't blink, doesn't water, and never claims to see what it didn't.
+goto_inicio;60;Slewing. A visual observer would take just as long with the finder scope, then claim they glimpsed it.
+goto_llegada;55;On target. If you were a visual observer, this is where you'd squint into a thirty millimeter eyepiece.
+goto_llegada;75;On target. The eyepiece crowd would be saying you can sort of make it out. We're photographing it.
+centrado_ok;60;Centered by plate solving. Visual observers call it star hopping, and it takes them fifteen minutes.
+foto_guardada;60;Photo saved. A visual observer would have to describe it from memory. In grey.
+foto_guardada;75;Photo in the gallery. What the eyepiece shows as a smudge has spiral arms here.
+foto_descartada;65;Frame rejected. Still better than anything an eyepiece is showing tonight.
+referencia_fijada;60;Reference set. Now every frame adds up. At the eyepiece, every minute just goes by.
+apilado_inicio;60;Stacking has begun. Meanwhile, the visual crowd is still arguing whether that was M fifty-one or a speck of dust.
+apilado_inicio;75;Stacking. A visual observer would say this isn't real astronomy. A visual observer also claims to see color in the Orion Nebula.
+apilado_fin;60;Stacking finished with {n} frames. By now a visual observer still has one eye glued to the eyepiece and a crick in the neck.
+apilado_fin;80;{n} frames stacked. The eyepiece crowd says the magic is catching the photon with your own eye. We kept ours.
+error_camara;60;Camera error. The visual crowd is smiling. Let them. They've got dew on their eyepiece.
+disco_bajo;60;Disk space is low. Eyepiece users never have this problem. They don't have photos either.
+cancelado;60;Capture cancelled. If you want instant results, try the eyepiece. And see nothing.
+tars;65;Fact. Through an eyepiece, Andromeda is a smudge. Through a camera, it's a galaxy. So much for romance.
+tars;80;A visual observer once told me the eyepiece connects them to the cosmos. I connect by USB and see more.
+apagado;55;Shutting down. The visual crowd is still out there in the cold, waiting for their eyes to adapt. Good luck with that.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas a los que usan N.I.N.A. (y su secuenciador avanzado de cuarenta pestañas)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;ScopePower ready in ten seconds. A NINA user is still installing plugins.
+arranque;70;Systems online. No equipment profile, no advanced sequencer, no three monitors. Photos still happen.
+conexion_ok;60;Equipment connected from your phone. In NINA that's six dropdowns and a laptop out in the dew.
+conexion_ok;75;Connected. A NINA user would have taken just as long, after updating ASCOM, the driver, and the plugin for the filter wheel they don't own.
+conexion_fallo;60;No connection. Relax, NINA fails too. It just comes with a two thousand line log explaining why.
+goto_inicio;60;Slewing. In NINA this is called Slew and Center, and it comes with twelve options nobody touches.
+goto_llegada;60;On target. No framing wizard, no mosaic, no rotator. Sometimes pointing is just pointing.
+centrado_ok;60;Centered. Same plate solving as NINA, without choosing between five solvers in a dropdown.
+centrado_fallo;65;Centering failed. NINA would have failed too, but with a graph.
+foto_guardada;60;Photo saved. A NINA user is still deciding on the file naming template.
+foto_descartada;65;Frame rejected on score. NINA calls it HFR, draws a graph, and feels just as sad.
+referencia_fijada;60;Reference set. In NINA this would be three containers and a trigger. Here it's one good frame.
+apilado_inicio;60;Live stacking has begun. NINA doesn't stack. It leaves you the FITS for tomorrow. That's astronomy too, just delayed.
+apilado_inicio;75;Stacking. Right now a NINA user is tweaking autofocus for the fourth time. Curve and all.
+apilado_fin;60;Stacking finished with {n} frames, and there's already a picture. With NINA you'd have {n} FITS files and a date with PixInsight.
+apilado_fin;80;{n} frames stacked and the picture is on your phone. The NINA user goes to bed with a full folder and plans to process it on Sunday.
+error_camara;65;Camera error. Same in NINA, but with a popup, three buttons and a link to Discord.
+disco_bajo;60;Disk space is low. A NINA user would fill it too, with flats, darks, bias and a folder per filter.
+cancelado;60;Capture cancelled. In NINA that's called interrupting the sequence, and you have to confirm twice.
+configuracion_guardada;60;Settings saved. Ten fields. A NINA profile has more tabs than a browser on a Monday morning.
+tars;65;Fact. NINA does everything ScopePower does and much more. That's why you need a master's degree to use it.
+tars;80;A NINA user would call this a toy. From a laptop with the fan screaming at three in the morning.
+apagado;55;Shutting down. The NINA crowd still has to end the sequence, park the mount, warm the camera and pack the laptop. Good night.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas a los del ASIAIR (la cajita roja que solo habla con cámaras de su marca)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;ScopePower ready. It works with any camera. So does an ASIAIR, as long as it's their brand.
+arranque;70;Systems online. No little red box, no mandatory camera, and no asking the manufacturer for permission to use your own gear.
+conexion_ok;60;Camera connected. And I didn't check the brand before deciding whether I felt like it.
+conexion_ok;75;Equipment connected. With an ASIAIR, your Player One would still be in its box. Here it works.
+conexion_fallo;60;No connection. An ASIAIR wouldn't connect either, but because of company policy, not the cable.
+goto_inicio;60;Slewing. An ASIAIR does this just fine. It's everything else that doesn't work unless it's their brand.
+goto_llegada;60;On target. Same as an ASIAIR, except we know what's inside the box.
+centrado_ok;60;Centered by plate solving. An ASIAIR does it too. And charges you the price of a whole mini PC for the box.
+centrado_fallo;65;Centering failed. An ASIAIR would have said plate solve failed, with the same elegance.
+foto_guardada;60;Photo saved. On an ASIAIR it would be on a USB stick you have to fetch from the box with a red flashlight.
+foto_descartada;65;Frame rejected. The ASIAIR rejects things too. Mostly cameras from other brands.
+referencia_fijada;60;Reference set. An ASIAIR does this with a closed app. We do it with a file you can actually read.
+apilado_inicio;60;Stacking has begun. An ASIAIR live stacks too. That's where we got the idea, minus the camera lock-in.
+apilado_inicio;75;Stacking. ASIAIR fans say everything fits in one box. True. And the box decides what you get to play with.
+apilado_fin;60;Stacking finished with {n} frames. An ASIAIR would show you the same. But this mini PC does other things when it's cloudy.
+apilado_fin;80;{n} frames stacked. The ASIAIR owner is happy too, until they want a different camera and find out they can't.
+error_camara;65;Camera error. That wouldn't happen on an ASIAIR. Because that camera wouldn't even be connected.
+disco_bajo;60;Disk space is low. An ASIAIR solves that with a USB stick. So can we. It's a computer, after all.
+cancelado;60;Capture cancelled. You can cancel on an ASIAIR too. One of the few things that works with any camera.
+configuracion_guardada;60;Settings saved. And you picked the camera driver, not the little box.
+tars;65;Fact. An ASIAIR is a Raspberry Pi with a pretty app and a list of approved cameras. This is a mini PC with a less pretty app and no list.
+tars;80;An ASIAIR user would say this is complicated. An ASIAIR user also paid three hundred dollars for a Raspberry Pi.
+apagado;55;Shutting down. The ASIAIR crowd powers off too, with a red button that matches the box. Good night.
+# ══════════════════════════════════════════════════════════════════════════════
+# Pullas a los de PixInsight (el procesado caro y de cuarenta pasos)
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;55;ScopePower ready. Tonight the picture comes out finished. The PixInsight crowd will see theirs next weekend.
+arranque;70;Systems online. Here processing takes seconds. In PixInsight, the YouTube tutorial alone takes an hour.
+conexion_ok;60;Equipment connected. In a while you'll have a picture. A PixInsight user would have a project.
+goto_llegada;60;On target. When we're done, you'll see the photo on your phone. Not in a window called final, final, version three.
+centrado_ok;60;Centered. Right now a PixInsight user is centering something too. A star mask, by hand, for the last twenty minutes.
+foto_guardada;60;Photo saved and stretched. In PixInsight that takes three processes and a forty minute video.
+foto_guardada;75;Photo in the gallery, color calibrated. The PixInsight crowd calls it S P C C and says it with reverence.
+foto_descartada;65;Frame rejected on score. In PixInsight, Subframe Selector would reject it with a graph, after ten minutes weighing every star.
+referencia_fijada;60;Reference set, stacking as we go. In PixInsight that's called WBPP. It takes an hour and there's nothing to watch.
+apilado_inicio;60;Stacking has begun. No WBPP, no waiting until tomorrow, and no computer sounding like a hair dryer.
+apilado_inicio;75;Live stacking. A PixInsight user would say that's not how it's done. They'd say it at two the next afternoon, with integration still running.
+apilado_fin;60;Stacking finished with {n} frames. Picture ready. In PixInsight this would be the beginning of the story, not the end.
+apilado_fin;80;{n} frames stacked and stretched. The PixInsight user has the same frames and a to-do list. Gradients, deconvolution, noise, stars out, stars back in, and bed without finishing.
+error_camara;60;Camera error. At least it's not a PixInsight error. Those come in a grey window with a font straight out of the nineties.
+disco_bajo;60;Disk space is low. A PixInsight user would have it worse. Every step saves a two hundred megabyte file, just in case.
+cancelado;60;Capture cancelled. Faster than cancelling an integration in PixInsight, where you first have to find the button.
+configuracion_guardada;60;Settings saved. Ten fields. A single PixInsight process has more sliders.
+tars;65;Fact. PixInsight makes better pictures than this. It also demands real money, a course and unshakable faith in histograms.
+tars;80;A PixInsight user would call my stretch aggressive. They'd say it next to a gray image they've been working on for three days.
+tars;85;You don't use PixInsight. You practice it. Like the violin, but noisier.
+apagado;55;Shutting down. The PixInsight crowd never shuts down. They've had an integration running since Tuesday. Good night.
+# ══════════════════════════════════════════════════════════════════════════════
+# Confirmaciones al cambiar el nivel (una por tramo, para que no se repita siempre la misma)
+# ══════════════════════════════════════════════════════════════════════════════
+nivel_humor;5;Humor at {nivel} percent. Barely a raised eyebrow.
+nivel_humor;10;Humor at {nivel} percent. Why so serious?
+nivel_humor;15;Humor at {nivel} percent. Civil service mode. Correct, but joyless.
+nivel_humor;20;Humor at {nivel} percent. Just enough not to sound like an answering machine.
+nivel_humor;25;Humor at {nivel} percent. Polite smile activated.
+nivel_humor;35;Humor at {nivel} percent. One joke per night, and a clean one.
+nivel_humor;40;Humor at {nivel} percent. Neither TARS nor HAL. Something sensible in between.
+nivel_humor;50;Humor at {nivel} percent. Half telescope, half dad joke.
+nivel_humor;65;Humor at {nivel} percent. Honesty intact. For now.
+nivel_humor;90;Humor at {nivel} percent. With great power comes great responsibility. I decline it.
+nivel_humor;100;Humor at {nivel} percent. I can no longer be held responsible for what I say. I am Groot.
+# ══════════════════════════════════════════════════════════════════════════════
+# Más frikadas (adaptadas donde hacía falta)
+# ══════════════════════════════════════════════════════════════════════════════
+# ── El mago de Oz ──
+apagado;45;There's no place like home. Or like bed, at this hour.
+# ── Star Wars ──
+goto_inicio;70;Mount, I am your father. Obey.
+# ── Neil Armstrong ──
+referencia_fijada;50;One small step for the stack, one giant leap for tonight's picture.
+foto_guardada;50;One small step for the sensor, one giant leap for your gallery.
+# ── The Legend of Zelda ──
+apilado_inicio;55;It's dangerous to go alone! Take this master dark.
+# ── Guardianes de la Galaxia ──
+tars;85;I am Groot.
+# ── Juego de Tronos ──
+arranque;50;The night is dark and full of terrors. And Starlink satellites.
+disco_bajo;55;Winter is coming. So is a full disk.
+# ── Yoda ──
+goto_inicio;55;Do or do not. There is no try. The mount has chosen do.
+centrado_fallo;60;Do or do not. There is no try. The solver tried.
+# ── Buscando a Nemo ──
+centrado_fallo;50;Just keep solving. Just keep solving. Another lap.
+foto_descartada;50;Frame rejected. Just keep swimming.
+# ── Up ──
+arranque;45;Adventure is out there! So is the dew.
+# ── Doctor Who ──
+conexion_fallo;50;There's always a way. It usually starts with checking the cable.
+# ── Toy Story ──
+apilado_inicio;45;Playtime!
+# ── Sonic ──
+cancelado;55;You're too slow! The exposure was nearly done.
+# ══════════════════════════════════════════════════════════════════════════════
+# Modo ácido (85-100 %): se mete con el usuario y con sus fotos. Solo para pieles duras.
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;85;ScopePower ready. The operator, judging by the hour, not so much.
+arranque;95;Systems online. Another night pretending this is science and not an excuse to skip sleep.
+conexion_ok;85;Connected on the first try. Don't get used to it. Statistically, that was luck.
+conexion_fallo;85;No connection. Before blaming the software, check whether you switched the mount on. Yes, again.
+conexion_fallo;95;Won't connect. According to my logs, ninety percent of these failures sit between the chair and the phone.
+goto_inicio;85;Slewing to the object you chose. How original. Same one as last week.
+goto_inicio;95;Heading to target. If it turns out like last time, better not show it to anyone.
+goto_rechazado;90;The mount said no. That's the second thing tonight to disagree with you, and be right.
+goto_bajo_horizonte;90;It's below the horizon. One look at the Tonight page would have spared you the embarrassment.
+objeto_no_encontrado;90;That object doesn't exist. There are twelve thousand five hundred in the catalog and you managed to ask for one that isn't.
+centrado_ok;85;Centered. By me. You just pressed a button, for the record.
+centrado_fallo;90;Plate solve failed. Focusing before you started was an option. It still is.
+foto_guardada;85;Photo saved. Your friends will say it's beautiful. Your friends have never seen a good one.
+foto_guardada;95;Photo in the gallery. I had to stretch it a lot to get anything out of that. A lot.
+foto_descartada;85;Frame rejected. And it was one of your best tonight, which says it all.
+foto_descartada;90;Another frame in the bin. If the mount tracked as well as you make excuses, we'd have a stack.
+foto_descartada;95;Rejected. Don't blame the sky. The sky has been doing its job for thirteen billion years.
+foto_descartada;100;Only your mother would approve that frame. And she'd do it out of love, not for the photo.
+foto_sustituye;85;A worse frame leaves the stack. If we applied that rule to your old photos, the gallery would be empty.
+referencia_fijada;85;Reference set from the best frames of the night. Best is a strong word.
+apilado_inicio;85;Stacking has begun. You can go look at your phone now. You were going to anyway.
+apilado_inicio;95;Stacking. Try not to kick the tripod this time. Or breathe near it.
+apilado_fin;85;Stacking finished with {n} frames. Twice that and it would have looked good, but you wanted to go to bed.
+apilado_fin;95;{n} frames stacked. The result isn't bad. It's yours, which is not the same thing.
+apilado_fin;100;Stacking finished. Before posting it anywhere, think of the people who will have to look at it.
+error_camara;85;Camera error. Or the fault of whoever plugged it in with a two dollar cable.
+cancelado;85;Capture cancelled. Such decisiveness. Shame you don't have the same with focusing.
+disco_bajo;85;Disk space is low. You could delete the bad photos, but then there'd be none left.
+disco_bajo;95;Disk almost full of photos you will never process. Just like your holiday pictures.
+configuracion_guardada;85;Settings saved. About time you read the options instead of just clicking Next.
+sincronizado;85;Mount synced. It now knows where it's pointing. That makes one of the two of you.
+apagado;85;Shutting down. Tomorrow you'll say it was a productive night. I've seen the photos.
+apagado;95;Powering down. Don't worry about the results. Nobody was expecting anything.
+tars;85;Honesty at ninety percent. Your focusing is improving. Your aim is not.
+tars;90;I've analyzed your recent photos. I recommend visual observing. At least it leaves no evidence.
+tars;95;Three years in this hobby and you still wonder why your stars come out as streaks. So do I.
+tars;100;Humor at maximum, honesty at maximum. It's never the telescope, the sky or the software. Think about it.
+nivel_humor;85;Humor at {nivel} percent. From here on, your photos are fair game.
+nivel_humor;95;Humor at {nivel} percent. You asked for it. No crying later.
+# ══════════════════════════════════════════════════════════════════════════════
+# Récords de la noche: la mejor y la peor foto que entran en el apilado
+# ══════════════════════════════════════════════════════════════════════════════
+foto_mejor;40;New record. Note the time. This doesn't happen every night.
+foto_mejor;50;Best of the night. The seeing blinked for a second and we caught it.
+foto_mejor;60;Night's record. Don't touch anything. I mean it. Anything.
+foto_mejor;70;Best one so far. If you'd focused like this from the start, we'd be done by now.
+foto_mejor;75;New record. A Seestar would celebrate too, but it wouldn't tell you the score.
+foto_mejor;85;Best frame of the night. Credit goes to the sky. You were just standing there.
+foto_mejor;95;Record. Enjoy it. Statistically, the next one will be worse. Like most of yours.
+foto_peor;40;The worst one so far. It got in, but only just.
+foto_peor;50;New low for the night. Clouds, wind, or did someone breathe on the tripod?
+foto_peor;60;Worst frame accepted so far. The stack will absorb it, but let the record show.
+foto_peor;70;All-time session low. If the next one is worse, I'll start suspecting the dew.
+foto_peor;75;Worst of the night. A Dwarf would have made it the cover photo.
+foto_peor;85;Record from below. It wasn't the sky. The sky has been the same all night.
+foto_peor;95;The worst frame accepted so far. And it still got in, which says a lot about the rest.

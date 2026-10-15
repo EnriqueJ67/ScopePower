@@ -1,19 +1,23 @@
 # ScopePower
 
+*[Read in English](README_en.md)*
+
 Control de un telescopio y apilado de fotos en tiempo real desde el móvil. Un mini PC junto
 a la montura ejecuta un servidor web (Flask) y habla con la montura y la cámara por ASCOM o por el
 SDK nativo del fabricante; desde el móvil o la tablet, en la misma wifi, se apunta, se enfoca, se
 apila y se revela sin tocar el PC.
 
-> **English summary.** ScopePower turns a small Windows PC next to the mount into a web server
+> **English summary.** The app speaks English too (setup wizard, Settings > Language): see
+> [README_en.md](README_en.md). ScopePower turns a small Windows PC next to the mount into a web server
 > you control from your phone: voice GoTo with automatic plate-solve centring (ASTAP), live
 > stacking with darks and flats, an offline planetarium, a night planner, mosaics, comet stacking,
 > solar/lunar guiding and object tracking. It targets Sky-Watcher SynScan mounts (ASCOM or direct
 > UDP) and Player One, ZWO, QHY, ToupTek-family and webcam cameras (ASCOM or native SDK). Windows
-> only, Spanish UI. Licensed under the GPL-3.0; see [Licencia](#licencia) for third-party data.
+> only, English and Spanish UI. Licensed under the GPL-3.0; see [Licencia](#licencia) for third-party data.
 
 Proyecto personal, probado en el campo con una montura Sky-Watcher AZ GoTo, un Evoguide 50 y una
-cámara Player One Saturn-C. Toda la interfaz, el código y los comentarios están en español.
+cámara Player One Saturn-C. La app habla **español e inglés** (pantallas y voz del PC); el código y
+los comentarios están en español.
 
 ![Nebulosa de la Laguna: 30 fotos de 20 s apiladas en vivo y reveladas en ScopePower](docs/capturas/resultado-lagoon.webp)
 
@@ -45,6 +49,14 @@ Más capturas en [docs/capturas](docs/capturas).
   del seguimiento sidéreo, acceso directo por UDP al SynScan Wi-Fi además de ASCOM.
 - **Avisos por voz** en el PC (con un nivel de humor ajustable), anuncio de la IP al arrancar,
   aviso de espacio en disco y punto de acceso wifi propio para el campo.
+
+## Idioma
+
+El primer paso del asistente de configuración pregunta el idioma, y se puede cambiar cuando se
+quiera en **Configuración > Idioma** (o con `[Interfaz] idioma = es | en` en `config.ini`). Vale para
+todos los móviles y tablets conectados y para la voz del PC, que usa la primera voz de Windows del
+idioma elegido. Las traducciones están en `traducciones/`; cómo añadir textos o mejorar la
+traducción, en [CONTRIBUTING.md](CONTRIBUTING.md#textos-de-la-interfaz-y-traducción).
 
 ## Requisitos
 
@@ -105,6 +117,7 @@ carpeta con su propio `config.ini`: la app escribe resultados en `static/`, `cap
 | Planetario y catálogos | `static/atlas/`, `catalogo_offline.py`, `esta_noche.py`, `plan_sesion.py` |
 | Modos especiales | `mosaico.py`, `cometa.py`, `seguimiento.py`, `disco.py`, `foto_dia.py`, `vivo_dia.py` |
 | Interfaz | `templates/`, `static/css/`, `static/js/` |
+| Idioma y traducciones | `idioma.py`, `static/js/i18n.js`, `traducciones/` |
 | Herramientas de prueba y medida | `herramientas/` |
 
 La configuración vive en `config.ini` (plantilla en `config.example.ini`) y los secretos
@@ -134,7 +147,9 @@ Incluye componentes de terceros con sus propias licencias:
   estrellas HYG v4.1 (CC-BY-SA 4.0), OpenNGC (CC-BY-SA 4.0), elementos de cometas del Minor Planet
   Center y líneas de constelaciones de Stellarium. Detalle en `static/atlas/ORIGEN.md` y
   `static/atlas/THIRD_PARTY_NOTICES.md`.
-- `catalogo_objetos.csv`: coordenadas y magnitudes derivadas de OpenNGC (Mattia Verga,
-  CC-BY-SA 4.0); los nombres y descripciones son propios.
+- `catalogo_objetos.csv` y `catalogo_objetos_en.csv`: coordenadas y magnitudes derivadas de OpenNGC
+  (Mattia Verga, CC-BY-SA 4.0); los nombres y descripciones son propios.
+- `info_objetos/` y los textos de las constelaciones de `constelaciones/`: resúmenes de Wikipedia
+  (CC-BY-SA 4.0) que descarga la propia app.
 
 Los datos de catálogo conservan su licencia CC-BY-SA aunque el código sea GPL.

@@ -5,6 +5,15 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.1.0 · sin fecha (en preparación)
 
+- **ScopePower en inglés.** La app habla español o inglés (pantallas, voz del PC, humor, descripciones
+  de objetos y constelaciones). Se elige en el primer paso del asistente de configuración, en la
+  página de bienvenida o en Configuración > Idioma, y vale para todos los dispositivos conectados.
+  Traducciones en `traducciones/` (gettext); reglas para añadir textos en CONTRIBUTING.md y
+  `README_en.md` para quien llega desde fuera. *ScopePower now speaks English: choose it in the
+  setup wizard or in Settings > Language.*
+- La voz del PC elige sola una voz del idioma de la app y Configuración avisa si no hay ninguna instalada.
+- Los resúmenes de Wikipedia vuelven a descargarse: la Wikipedia rechazaba la identificación por
+  defecto de la librería `wikipedia`.
 - Humor de la voz escondido de serie: se habilita con la casilla «Comentarios de a bordo» de Avisos por voz
   en Configuración (arranca al 50 %); hasta entonces el botón «Humor» no aparece y no se dice ninguna frase.
 - Actualizar desde GitHub: `actualizar_desde_github.bat` en el mini PC (última release o `/master`, 

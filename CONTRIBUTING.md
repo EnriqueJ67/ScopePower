@@ -29,6 +29,7 @@ marcado:
 | Constante de módulo | `TIPOS = {"galaxy": N_("Galaxia")}` y `_(TIPOS[k])` al mostrarla |
 | Plantilla (HTML) | `{{ _("Guardar") }}`, en atributos `title="{{ _('Cerrar') }}"`, con marcadores `{{ _("Quedan {n}", n=x) }}` |
 | JavaScript (también en los `<script>` de las plantillas) | `_("Guardando...")` · `_("Quedan {n} fotos", { n: 3 })` · `ngettext("{n} foto", "{n} fotos", n)` |
+| Tabla en JavaScript | `const TIPOS = { gx: N_("Galaxia") }` y `_(TIPOS[c])` al pintarla |
 
 Reglas:
 

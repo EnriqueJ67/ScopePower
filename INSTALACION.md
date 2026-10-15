@@ -1,5 +1,12 @@
 # Instalar ScopePower en un PC nuevo
 
+> *In English:* this guide is in Spanish. The short version is in [README_en.md](README_en.md#installation-in-three-steps):
+> run `instalar_scopepower.bat` as administrator, start ScopePower from the desktop shortcut and
+> choose English on the welcome page and in the first step of the setup wizard. For the PC voice
+> in English, Windows already includes the David and Zira voices; voices added from Windows
+> Settings > Time & language > Speech need `herramientas\activar_voces_windows.bat` (run as
+> administrator) before ScopePower can see them.
+
 ## 1. Copiar la carpeta
 
 Copia la carpeta `ScopePower` completa al PC (por OneDrive o a mano). No hace
@@ -47,7 +54,7 @@ con internet:
 | Cámara sin ASCOM (opcional) | En Configuración aparecen las Player One, ZWO ASI, QHYCCD, ToupTek (y su familia: Altair, Ogma, Risingcam, SVBony, Omegon, MallinCam) y webcams conectadas como «por SDK nativo (sin ASCOM)»: más rápidas que por ASCOM y necesarias para el modo en vivo y el seguimiento. La DLL de cada marca no viene con ScopePower: se usa la del driver ASCOM de la marca, N.I.N.A., SharpCap o ASIStudio (otra ruta: `[CamaraSDK] dll_zwo`, `dll_qhy` o `dll_touptek` en config.ini; las QHY necesitan además el driver USB «All-in-One» de QHY). Webcams: por DirectShow, sin instalar nada; tamaño de píxel en `[CamaraSDK] pixel_webcam_um` (3,0 por defecto) | — |
 | ASTAP + base de datos D50 | Plate solving y alineado del apilado | Lo instalan `instalar_scopepower.bat` o el asistente de configuración de la web (en `%LOCALAPPDATA%\ScopePower\astap`); a mano: https://www.hnsky.org/astap.htm (en `C:\Program Files\Astap`) |
 | Stellarium (ya no hace falta) | El GoTo resuelve los nombres con el catálogo local (`static/atlas` + `alias_objetos.csv`). Solo si `lanzar_stellarium_al_arrancar = true` | https://stellarium.org |
-| Voz en español | Avisos hablados y, según el nivel de humor (casilla «Comentarios de a bordo» de Avisos por voz y botón «Humor» de la barra), frases de `frases_humor.csv` | Configuración de Windows > Hora e idioma > Voz > Añadir voces > Español. Las voces añadidas así (Pablo, Laura, Sabina...) no las ve SAPI hasta ejecutar `herramientas\activar_voces_windows.bat` como administrador |
+| Voz en español (o en inglés) | Avisos hablados y, según el nivel de humor (casilla «Comentarios de a bordo» de Avisos por voz y botón «Humor» de la barra), frases de `frases_humor.csv` | Configuración de Windows > Hora e idioma > Voz > Añadir voces > Español. Las voces añadidas así (Pablo, Laura, Sabina...) no las ve SAPI hasta ejecutar `herramientas\activar_voces_windows.bat` como administrador. Con la app en inglés se usa una voz inglesa: David y Zira vienen con Windows |
 
 ## 4. Arrancar
 
@@ -56,7 +63,7 @@ ventana que se abre es la consola del servidor; el log está en `logs\scopepower
 Al arrancar, el PC dicta por el altavoz la dirección a escribir en el móvil.
 
 **Primera vez (config.ini recién creado):** la app abre sola el navegador del PC; la web pide crear el usuario y la contraseña y abre
-el **asistente de configuración**, que guía paso a paso: focal del telescopio, driver de la montura
+el **asistente de configuración**, que guía paso a paso: idioma (español o inglés, se aplica al momento), focal del telescopio, driver de la montura
 y de la cámara (con una prueba de conexión real), exposición y ganancia, ASTAP con su catálogo de
 estrellas (si falta, lo descarga de SourceForge y lo instala sin permisos de administrador en
 `%LOCALAPPDATA%\ScopePower\astap`) y la ubicación del observatorio. Se puede volver a pasar cuando

@@ -74,10 +74,20 @@ def _sin_jinja(texto):
     return _RE_JINJA.sub(lambda m: re.sub(r"[^\n]", " ", m.group()), texto)
 
 
+# Sin JSX: con él, Babel toma el /> de una expresión regular (.replace(/>/g, ...)) por una
+# etiqueta y se salta el resto del fichero
+OPCIONES_JS = {"jsx": False}
+
+
+def extraer_js(fileobj, keywords, comment_tags, options):
+    from babel.messages.extract import extract_javascript
+    yield from extract_javascript(fileobj, keywords, comment_tags, OPCIONES_JS)
+
+
 def _extraer_js_de(codigo, desplazamiento, keywords, comment_tags):
     from babel.messages.extract import extract_javascript
     for lineno, funcion, mensajes, comentarios in extract_javascript(
-            io.BytesIO(codigo.encode("utf-8")), keywords, comment_tags, {}):
+            io.BytesIO(codigo.encode("utf-8")), keywords, comment_tags, OPCIONES_JS):
         yield lineno + desplazamiento, funcion, mensajes, list(comentarios) + [MARCA_JS]
 
 
@@ -110,7 +120,7 @@ METODOS = [
     ("logs/**", "ignore"),
     ("traducciones/**", "ignore"),
     ("**.py", extraer_python),
-    ("static/**.js", "javascript"),
+    ("static/**.js", extraer_js),
     ("templates/**.html", extraer_plantilla),
 ]
 OPCIONES = {"**.py": {"encoding": "utf-8"}}

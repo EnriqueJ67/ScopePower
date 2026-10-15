@@ -118,7 +118,7 @@ def _cadenas_js(codigo, desplazamiento=0):
         crudo = m.group()
         contenido = crudo[1:-1]
         antes = codigo[max(0, m.start() - 60):m.start()]
-        if re.search(r"(?<![\w$.])(_|ngettext)\(\s*$", antes):
+        if re.search(r"(?<![\w$.])(_|N_|ngettext)\(\s*$", antes):
             continue
         if re.search(r"(?<![\w$.])ngettext\(\s*(\"[^\"]*\"|'[^']*')\s*,\s*$", antes):
             continue
@@ -189,7 +189,7 @@ def textos_marcados(ruta):
     if ruta.endswith(".py"):
         metodo = T.extraer_python
     elif ruta.endswith(".js"):
-        metodo = "javascript"
+        metodo = T.extraer_js
     elif ruta.endswith(".html"):
         metodo = T.extraer_plantilla
     else:
