@@ -9,7 +9,7 @@ __pycache__/
 config.ini
 
 # Datos de captura y calibración (grandes, se regeneran)
-capturas/
+/capturas/
 calibraciones/
 *.fits
 *.wcs

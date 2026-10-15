@@ -15,7 +15,17 @@ apila y se revela sin tocar el PC.
 Proyecto personal, probado en el campo con una montura Sky-Watcher AZ GoTo, un Evoguide 50 y una
 cámara Player One Saturn-C. Toda la interfaz, el código y los comentarios están en español.
 
-<!-- TODO: capturas de pantalla en docs/capturas/ (portada, GoTo, apilado en vivo, planetario) -->
+![Nebulosa de la Laguna: 30 fotos de 20 s apiladas en vivo y reveladas en ScopePower](docs/capturas/resultado-lagoon.webp)
+
+| Apilado en tiempo real | Plan de la noche |
+|---|---|
+| ![Apilado en vivo](docs/capturas/apilado-en-vivo.webp) | ![Plan de la noche](docs/capturas/plan-de-la-noche.webp) |
+| **Editor de la galería** | **Enfoque con máscara de Bahtinov** |
+| ![Editor](docs/capturas/editor-galeria.webp) | ![Enfoque](docs/capturas/camara-enfoque-bahtinov.webp) |
+| **Cámara de día: el Sol** | **Estadísticas y opciones del apilado** |
+| ![Modo día](docs/capturas/camara-modo-dia-sol.webp) | ![Estadísticas](docs/capturas/apilado-estadisticas.webp) |
+
+Más capturas en [docs/capturas](docs/capturas).
 
 ## Qué hace
 
