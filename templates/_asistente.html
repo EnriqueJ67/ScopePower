@@ -9,8 +9,21 @@
             <button type="button" class="btn btn-sm btn-ghost btn-icono" onclick="cerrarAsistente()" aria-label="Cerrar el asistente" title="Cerrar"><svg><use href="#i-cerrar"/></svg></button>
         </div>
 
+        <!-- 0. Idioma: se aplica al momento (la página se recarga y el asistente sigue en la bienvenida).
+             Los textos van en los dos idiomas a propósito: aún no se sabe cuál lee quien llega -->
+        <section class="asis-paso" data-paso="idioma">
+            <div class="modal-titulo"><svg class="ico"><use href="#i-idioma"/></svg>Idioma · Language</div>
+            <p class="modal-texto">Elige el idioma de las pantallas y de la voz del PC.<br>Choose the language for the screens and the PC voice.</p>
+            <div class="asis-idiomas">
+                {% for codigo, nombre in idioma.IDIOMAS.items() %}
+                <button type="button" class="btn {{ 'btn-primary' if codigo == idioma.idioma_actual() else 'btn-secondary' }}" onclick="asisIdioma('{{ codigo }}')">{{ nombre }}</button>
+                {% endfor %}
+            </div>
+            <small class="ayuda">Se puede cambiar más tarde en Configuración. · You can change it later in Settings.</small>
+        </section>
+
         <!-- 1. Bienvenida -->
-        <section class="asis-paso" data-paso="inicio">
+        <section class="asis-paso" data-paso="inicio" hidden>
             <div class="modal-titulo" id="asis-titulo"><svg class="ico"><use href="#i-telescopio"/></svg><span id="asis-titulo-inicio">Vamos a dejar ScopePower listo</span></div>
             <p class="modal-texto" id="asis-texto-inicio">En unos minutos configuramos tu equipo y comprobamos que todo responde:</p>
             <ol class="modal-pasos">

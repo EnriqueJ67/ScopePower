@@ -237,6 +237,21 @@
             </div>
         </div>
 
+        <!-- ─── Idioma de la app (idioma.py) ──────────────────────────── -->
+        <!-- El título va en los dos idiomas a propósito: quien lo cambie sin querer sabe volver -->
+        <div class="card" id="idioma">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-idioma"/></svg>Idioma · Language</h3></div>
+            <p class="card-sub">{{ _("Idioma de las pantallas y de la voz del PC. Vale para todos los móviles y tablets conectados.") }}</p>
+            <div class="form-group">
+                <select id="idioma-sel" class="form-control" onchange="cambiarIdioma(this.value)" aria-label="Idioma · Language">
+                    {% for codigo, nombre in idioma.IDIOMAS.items() %}
+                    <option value="{{ codigo }}"{% if codigo == idioma.idioma_actual() %} selected{% endif %}>{{ nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div id="estado-idioma" class="estado"></div>
+        </div>
+
         <!-- ─── Avisos por voz (altavoz del PC) ───────────────────────── -->
         <div class="card">
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-voz-on"/></svg>Avisos por voz</h3></div>
@@ -586,12 +601,22 @@
         }).catch(() => {});
     }
 
+    // ——— Idioma: se guarda en config.ini y la página se vuelve a pintar en el idioma nuevo ———
+    function cambiarIdioma(codigo) {
+        const est = document.getElementById("estado-idioma");
+        est.className = "estado"; est.textContent = "⏳";
+        fetch("/idioma", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idioma: codigo }) })
+            .then(r => r.json())
+            .then(d => { if (d.ok) location.reload(); else { est.className = "estado err"; est.textContent = "❌ " + d.mensaje; } })
+            .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; });
+    }
+
     function pintarVozConfig(e) {
         document.getElementById("voz-capturas").checked = !!e.anunciar_capturas;
         document.getElementById("voz-volumen").value = e.volumen;
         document.getElementById("voz-velocidad").value = e.velocidad;
         const sel = document.getElementById("voz-voz");
-        sel.innerHTML = '<option value="">(automática: primera voz en español)</option>';
+        sel.innerHTML = '<option value="">(automática: primera voz del idioma de la app)</option>';
         for (const v of (e.voces || [])) {
             const o = document.createElement("option"); o.value = v; o.textContent = v;
             if (e.voz && v.toLowerCase().includes(e.voz.toLowerCase())) o.selected = true;
@@ -599,7 +624,8 @@
         }
         let disp = "";
         if (e.disponible === false) disp = "❌ Voz no disponible en este PC: " + (e.ultimo_error || "");
-        else if (e.disponible === true) disp = "✅ Voz en uso: " + (e.voz_usada || "?");
+        else if (e.disponible === true) disp = "✅ Voz en uso: " + (e.voz_usada || "?")
+            + (e.voz_del_idioma === false ? " — ⚠️ No hay ninguna voz de este idioma instalada en Windows: añádela en Configuración de Windows > Hora e idioma > Voz y ejecuta herramientas/activar_voces_windows.bat." : "");
         else disp = "ℹ️ Aún no se ha hablado desde el arranque; pulsa Probar voz para comprobarla.";
         document.getElementById("voz-disponible").textContent = disp;
     }

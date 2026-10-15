@@ -562,6 +562,8 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .asistente-caja { max-width: 640px; }
 .asis-cabecera { display: flex; align-items: center; gap: 10px; margin: -4px 0 10px; }
 .asis-puntos { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.asis-idiomas { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.asis-idiomas .btn { flex: 1 1 140px; min-height: 52px; font-size: 1.05rem; justify-content: center; }
 .asis-puntos span { flex: 1; max-width: 42px; height: 5px; border-radius: 999px; background: var(--surface-3, var(--border)); }
 .asis-puntos span.hecho { background: var(--accent-2, var(--accent)); opacity: 0.6; }
 .asis-puntos span.actual { background: var(--accent); }

@@ -8,7 +8,7 @@
 // Rutas del PC: /asistente/datos, /asistente/probar, /asistente/restaurar-drivers,
 // /asistente/astap(/instalar|/cancelar) y /asistente/guardar (ScopePower.py).
 (function () {
-    const PASOS = ["inicio", "telescopio", "montura", "camara", "captura", "astap", "ubicacion", "resumen"];
+    const PASOS = ["idioma", "inicio", "telescopio", "montura", "camara", "captura", "astap", "ubicacion", "resumen"];
     const SALTABLES = new Set(["montura", "camara", "astap"]);
     const AVISO_SALTAR = {
         montura: "Sin montura no funcionarán el GoTo, el pad ni el centrado. Podrás elegir el driver más tarde en Configuración.",
@@ -109,7 +109,7 @@
         A.paso = Math.max(0, Math.min(PASOS.length - 1, i));
         const nombre = PASOS[A.paso];
         document.querySelectorAll("#asistente .asis-paso").forEach(s => s.hidden = s.dataset.paso !== nombre);
-        $("asis-puntos").innerHTML = PASOS.map((_, j) => `<span class="${j < A.paso ? "hecho" : j === A.paso ? "actual" : ""}"></span>`).join("");
+        $("asis-puntos").innerHTML = PASOS.map((__, j) => `<span class="${j < A.paso ? "hecho" : j === A.paso ? "actual" : ""}"></span>`).join("");
         $("asis-contador").textContent = `${A.paso + 1} / ${PASOS.length}`;
         $("asis-atras").hidden = A.paso === 0 || A.guardado;
         $("asis-saltar").hidden = !SALTABLES.has(nombre);
@@ -126,6 +126,21 @@
     }
 
     function asisAtras() { irA(A.paso - 1); }
+
+    // Primer paso: el idioma se guarda al momento y la página se recarga para pintarse entera en el
+    // idioma nuevo; al volver, el asistente se abre solo en la bienvenida (asistente_reabrir).
+    async function asisIdioma(codigo) {
+        if (codigo === (window.IDIOMA || {}).codigo) { irA(1); return; }
+        try {
+            const r = await (await fetch("/idioma", { method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ idioma: codigo }) })).json();
+            if (!r.ok) { mostrarError(r.mensaje); return; }
+            try { sessionStorage.setItem("asistente_reabrir", "1"); sessionStorage.removeItem("asistente_aparcado"); } catch (e) {}
+            location.reload();
+        } catch (e) {
+            mostrarError(_("No se pudo hablar con el PC: {e}", { e: e }));
+        }
+    }
 
     function asisSaltar() {
         const nombre = PASOS[A.paso];
@@ -495,6 +510,7 @@
     window.asisInstalarAstap = asisInstalarAstap;
     window.asisCancelarAstap = asisCancelarAstap;
     window.asisUbicacionMovil = asisUbicacionMovil;
+    window.asisIdioma = asisIdioma;
 
     // En captura: así se ve si la ayuda de la ubicación estaba abierta antes de que ayuda_voz.js la cierre
     // (entonces Escape solo cierra esa ayuda, no el asistente)
@@ -504,8 +520,13 @@
     // Configuración sin terminar: se abre solo (salvo que se haya cerrado en esta sesión del navegador)
     document.addEventListener("DOMContentLoaded", () => {
         if (modal()) modal().querySelectorAll("input").forEach(i => i.addEventListener("input", ocultarError));
-        let aparcado = false;
-        try { aparcado = sessionStorage.getItem("asistente_aparcado") === "1"; } catch (e) {}
-        if (modal() && modal().dataset.pendiente === "true" && !aparcado) abrirAsistente();
+        let aparcado = false, reabrir = false;
+        try {
+            aparcado = sessionStorage.getItem("asistente_aparcado") === "1";
+            reabrir = sessionStorage.getItem("asistente_reabrir") === "1";
+            sessionStorage.removeItem("asistente_reabrir");
+        } catch (e) {}
+        if (modal() && reabrir) { abrirAsistente(); irA(1); }     // vuelta de cambiar el idioma en el paso 1
+        else if (modal() && modal().dataset.pendiente === "true" && !aparcado) abrirAsistente();
     });
 })();

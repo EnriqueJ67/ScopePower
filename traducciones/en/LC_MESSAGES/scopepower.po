@@ -1,0 +1,178 @@
+# English translations for ScopePower.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the ScopePower project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ScopePower VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-15 00:00+0009\n"
+"PO-Revision-Date: 2026-10-15 00:00+0009\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.16.0\n"
+
+#: ScopePower.py
+msgid "Idioma cambiado a español"
+msgstr ""
+
+#: ScopePower.py
+msgid "Idioma desconocido: {codigo}"
+msgstr ""
+
+#. js
+#: humor.py
+msgid "Humor ajustado al {nivel} por ciento."
+msgstr ""
+
+#. js
+#: humor.py
+msgid "Humor desactivado. Volvemos al modo estrictamente profesional."
+msgstr ""
+
+#: humor.py
+msgid "No hay ninguna frase a este nivel. Revisa {fichero}."
+msgstr ""
+
+#: templates/base.html
+msgid "Potencia en tiempo real para tu telescopio"
+msgstr ""
+
+#: templates/base.html
+msgid "Montura"
+msgstr ""
+
+#: templates/base.html
+msgid "Cámara"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Pantalla completa"
+msgstr ""
+
+#: templates/base.html
+msgid "Cambiar entre tema noche (rojo) y oscuro"
+msgstr ""
+
+#: templates/base.html
+msgid "Ver qué ocupa"
+msgstr ""
+
+#: templates/base.html
+msgid "Cerrar aviso"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Salir de pantalla completa"
+msgstr ""
+
+#: templates/base.html
+msgid "Navegación principal"
+msgstr ""
+
+#: templates/base.html
+msgid "Inicio"
+msgstr ""
+
+#: templates/base.html
+msgid "Apilado"
+msgstr ""
+
+#: templates/base.html
+msgid "Galería"
+msgstr ""
+
+#: templates/base.html
+msgid "Avisos por voz del PC"
+msgstr ""
+
+#: templates/base.html
+msgid "Voz"
+msgstr ""
+
+#: templates/base.html
+msgid "Nivel de humor de ScopePower"
+msgstr ""
+
+#: templates/base.html
+msgid "Humor"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Voz on"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Voz off"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "El reloj del PC va adelantado {t} respecto a este móvil. Toca para ver cómo corregirlo."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "El reloj del PC va atrasado {t} respecto a este móvil. Toca para ver cómo corregirlo."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "El disco del PC está casi lleno: {libre} GB libres de {total} GB ({pct} %)."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Queda poco disco en el PC: {libre} GB libres de {total} GB ({pct} %)."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Con menos de {minimo} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Si se llena, las fotos dejarán de guardarse; con menos de {minimo} GB el apilado se pausa solo."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Conectando la montura..."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Montura conectada"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Montura sin conectar"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Conectando la cámara..."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Cámara conectada"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Cámara sin conectar"
+msgstr ""
+

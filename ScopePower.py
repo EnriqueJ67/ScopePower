@@ -30,6 +30,10 @@ import bcrypt
 # Antes que nada que lea config.ini: en un PC recién instalado se crea desde la plantilla
 import config_inicial
 config_inicial.asegurar_config()
+# Idioma de la app ([Interfaz] idioma de config.ini) antes de que nadie diga o pinte nada
+import idioma
+from idioma import _, ngettext, N_
+idioma.cargar_desde_config()
 from apilado import iniciar_hilo_apilado
 from apilado import pausar_apilado, reanudar_apilado, esta_pausado
 from apilado import aumentar_saturacion #, subir_imagen_ftp_async
@@ -99,6 +103,11 @@ app = Flask(__name__,
 # Clave de sesión: aleatoria, generada una vez y guardada en secretos.ini
 app.secret_key = secretos.obtener("flask_secret_key")
 app.jinja_env.globals["VERSION"] = version.VERSION   # {{ VERSION }} en cualquier plantilla
+# Traducción en las plantillas: {{ _("Texto") }}, {{ _("Quedan {n}", n=x) }}, {{ ngettext(...) }}.
+# Las funciones consultan el idioma en cada llamada, así que un cambio vale en la petición siguiente.
+app.jinja_env.add_extension("jinja2.ext.i18n")
+app.jinja_env.install_gettext_callables(idioma.gettext, idioma.ngettext, newstyle=False)
+app.jinja_env.globals["idioma"] = idioma            # {{ idioma.idioma_actual() }}, idioma.para_js()
 
 #from ajuste_mtf_interactivo import app_mtf
 #app.register_blueprint(app_mtf, url_prefix='/ajuste-mtf')
@@ -284,6 +293,27 @@ def preferencias():
                 valor = str(valor)[:200]
             _guardar_en_config(seccion, {clave_ini: valor})
     return jsonify(_leer_preferencias())
+
+def _cambiar_idioma(codigo):
+    """Guarda [Interfaz] idioma y lo aplica a toda la app (páginas, voz, humor, catálogo)."""
+    anterior = idioma.idioma_actual()
+    _guardar_en_config("Interfaz", {"idioma": codigo})
+    idioma.cambiar(codigo)
+    if codigo != anterior:
+        voz.decir(_("Idioma cambiado a español"))
+
+
+@app.route('/idioma', methods=['GET', 'POST'])
+def idioma_app():
+    """GET: idioma vigente y los disponibles. POST {"idioma": "en"}: cambiarlo (Configuración, asistente)."""
+    if request.method == 'POST':
+        datos = request.get_json(silent=True) or {}
+        codigo = str(datos.get("idioma", "")).strip().lower()
+        if codigo not in idioma.IDIOMAS:
+            return jsonify({"ok": False, "mensaje": _("Idioma desconocido: {codigo}", codigo=codigo)}), 400
+        _cambiar_idioma(codigo)
+    return jsonify({"ok": True, "idioma": idioma.idioma_actual(), "idiomas": idioma.IDIOMAS})
+
 
 @app.route('/pausar-apilado', methods=["POST"])
 def pausar():
@@ -3994,16 +4024,21 @@ def bienvenida():
     """
     if config_inicial.hay_usuarios():
         return redirect(url_for('login'))
+    # Conmutador Español / English de la propia página (antes de que haya usuario ni sesión)
+    codigo = (request.args.get('idioma') or '').strip().lower()
+    if codigo in idioma.IDIOMAS:
+        _cambiar_idioma(codigo)
+        return redirect(url_for('bienvenida'))
     if request.method == 'POST':
         usuario = (request.form.get('usuario') or '').strip().lower()
         clave = request.form.get('clave') or ''
         error = None
         if not re.fullmatch(r"[a-z0-9_.-]{1,30}", usuario):
-            error = "El usuario solo puede llevar letras sin acentos, números, punto, guion y guion bajo"
+            error = _("El usuario solo puede llevar letras sin acentos, números, punto, guion y guion bajo")
         elif len(clave) < 4:
-            error = "La contraseña tiene que tener al menos 4 caracteres"
+            error = _("La contraseña tiene que tener al menos 4 caracteres")
         elif clave != (request.form.get('clave2') or ''):
-            error = "Las dos contraseñas no coinciden"
+            error = _("Las dos contraseñas no coinciden")
         if error:
             return render_template('bienvenida.html', error=error, usuario=usuario), 400
         hash_nuevo = bcrypt.hashpw(clave.encode(), bcrypt.gensalt()).decode()

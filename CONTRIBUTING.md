@@ -6,9 +6,66 @@ mejorar lo que ya hay antes que añadir cosas nuevas.
 
 ## Idioma
 
-El código, los comentarios, los mensajes de la interfaz, los commits y la documentación están en
-**español** y así siguen. Los nombres de módulos y funciones también (`apilado.py`,
-`centrado.py`...). Las *issues* y los *pull requests* pueden escribirse en español o en inglés.
+El código, los comentarios, los commits y la documentación están en **español** y así siguen.
+Los nombres de módulos y funciones también (`apilado.py`, `centrado.py`...). Las *issues* y los
+*pull requests* pueden escribirse en español o en inglés.
+
+*In English:* code, comments and commits are in Spanish, but the app itself speaks Spanish and
+English (Settings > Language). Issues and pull requests are welcome in either language. To improve
+the English texts, edit `traducciones/en/LC_MESSAGES/scopepower.po` (see below).
+
+## Textos de la interfaz y traducción
+
+La app se usa en español o en inglés (`[Interfaz] idioma` de `config.ini`, ver `idioma.py`). Los
+textos se escriben **en español** en el código, marcados para traducir, y la traducción inglesa
+vive en `traducciones/en/LC_MESSAGES/scopepower.po`. Todo texto nuevo que vea u oiga el usuario
+(pantalla, voz del PC, mensajes de error que llegan a la web, texto pintado en una imagen) va
+marcado:
+
+| Dónde | Cómo |
+|---|---|
+| Python | `from idioma import _, ngettext, N_` · `voz.decir(_("Telescopio conectado"))` · `_("No conecta: {e}", e=e)` |
+| Plural | `ngettext("{n} foto", "{n} fotos", total)` (`{n}` se rellena solo) |
+| Constante de módulo | `TIPOS = {"galaxy": N_("Galaxia")}` y `_(TIPOS[k])` al mostrarla |
+| Plantilla (HTML) | `{{ _("Guardar") }}`, en atributos `title="{{ _('Cerrar') }}"`, con marcadores `{{ _("Quedan {n}", n=x) }}` |
+| JavaScript (también en los `<script>` de las plantillas) | `_("Guardando...")` · `_("Quedan {n} fotos", { n: 3 })` · `ngettext("{n} foto", "{n} fotos", n)` |
+
+Reglas:
+
+- **Marcadores siempre con llaves y nombre**: `{n}`, `{e}`, `{objeto}`. Nunca f-strings, `%`,
+  concatenaciones ni plantillas `` `...` `` dentro de `_()`: la frase entera va en un solo texto para
+  que se pueda traducir con su orden propio.
+- **Nunca `_()` en una constante de módulo**: se quedaría en el idioma del arranque. Se marca con
+  `N_()` y se traduce al usarla.
+- **`_` no puede ser una variable** en un módulo que traduce (`for _ in ...`, `a, _ = ...`): tapa la
+  función. Se usa `__` u otro nombre.
+- Los decimales que se dicen o se pintan pasan por `idioma.fmt_num(x, dec)` (coma en español, punto
+  en inglés) y las fechas por `idioma.fmt_fecha()`; en JavaScript `fmtNum()`, `fmtHora()`,
+  `fmtFecha()` e `IDIOMA.lang` para la voz del navegador.
+- Un dato que es a la vez clave y texto (tipos de objeto, nombres de proceso) sigue guardándose en
+  español; solo se traduce al pintarlo (`_(tipo)`).
+- Los registros (`log.info`, `print`) **no** se traducen: el log siempre en español.
+- No se compara en JavaScript con un texto que manda el servidor (`mensaje.startsWith("...")`): se
+  añade un campo de estado al JSON.
+
+Después de tocar textos:
+
+```bash
+python herramientas/traducciones.py extraer     # actualiza el .pot y el .po
+python herramientas/traducciones.py pendientes  # qué falta por traducir
+python herramientas/traducciones.py compilar    # .mo y static/i18n/en.js
+python herramientas/probar_traducciones.py      # lo mismo que comprueba el workflow
+```
+
+El `.po`, el `.mo` y `static/i18n/en.js` se suben al repositorio (el mini PC de campo no compila
+nada). Para buscar textos que se hayan quedado sin marcar: `python herramientas/marcar_textos.py
+listar fichero...`. Con `idioma_depurar = true` en `[Interfaz]`, lo que falta por traducir sale como
+`¿¿texto??` en pantalla y por voz. El vocabulario de la traducción inglesa está en
+[traducciones/GLOSARIO.md](traducciones/GLOSARIO.md).
+
+Los ficheros de datos con prosa tienen su versión inglesa al lado, con el mismo formato y el
+sufijo `_en`: `frases_humor_en.csv`, `descripciones_objetos_en.csv`, `catalogo_objetos_en.csv`,
+`info_objetos/*_en.txt` y `constelaciones/*_en.csv`. Si falta uno, se usa el español.
 
 ## Montar el entorno
 
