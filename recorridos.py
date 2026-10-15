@@ -7,6 +7,10 @@
 # vez y después se lee de ahí (sin internet en el campo). Los ficheros
 # constelaciones/*.txt definen recorridos de varias constelaciones para
 # sesiones guiadas ("Cielo de verano", ...).
+#
+# Con la app en inglés (idioma.py) los textos salen de la Wikipedia inglesa y se guardan con
+# el sufijo _en: info_objetos/<slug>_en.txt, constelaciones/<IAU>_en.csv (solo la línea #desc;
+# las estrellas siguen en <IAU>.csv) y constelaciones/<recorrido>_en.txt (con #titulo: propio).
 
 import os
 import re
@@ -17,10 +21,15 @@ import logging
 import numpy as np
 from unidecode import unidecode
 
+import idioma
+from idioma import _
+
 log = logging.getLogger("scopepower.recorridos")
 
 CARPETA_CONSTELACIONES = "constelaciones"
 CARPETA_INFO = "info_objetos"
+# La Wikipedia rechaza (403/429) las peticiones sin una identificación propia
+AGENTE_WIKIPEDIA = "ScopePower (https://github.com/EnriqueJ67/ScopePower)"
 SOLO_CON_NOMBRE_COMUN = True
 
 CONST_SPA_IAU = {
@@ -127,25 +136,37 @@ def clave_y_slug(raw_objeto, reemplazar_numeros=None):
 
 
 def ruta_cache_wiki(raw_objeto, reemplazar_numeros=None):
-    return os.path.join(CARPETA_INFO, f"{clave_y_slug(raw_objeto, reemplazar_numeros)[1]}.txt")
+    slug = clave_y_slug(raw_objeto, reemplazar_numeros)[1]
+    return os.path.join(CARPETA_INFO, f"{slug}{idioma.sufijo_fichero()}.txt")
+
+
+def preparar_wikipedia():
+    """Módulo wikipedia en el idioma de la app y con la identificación que exige la Wikipedia."""
+    import wikipedia
+    try:
+        import version
+        wikipedia.set_user_agent(AGENTE_WIKIPEDIA.replace("ScopePower", "ScopePower/" + version.VERSION, 1))
+    except Exception:
+        wikipedia.set_user_agent(AGENTE_WIKIPEDIA)
+    wikipedia.set_lang(idioma.wiki())
+    return wikipedia
 
 
 def obten_resumen_wiki(raw_objeto, reemplazar_numeros=None):
     """
-    Resumen en español de Wikipedia para `raw_objeto`, probando variantes y
-    resolviendo ambigüedades. Se cachea en info_objetos/<slug>.txt para que
+    Resumen de Wikipedia (en el idioma de la app) para `raw_objeto`, probando variantes y
+    resolviendo ambigüedades. Se cachea en info_objetos/<slug>[_en].txt para que
     funcione sin internet la siguiente vez. `reemplazar_numeros` (opcional)
     convierte "eme trece" en "m13".
     """
     os.makedirs(CARPETA_INFO, exist_ok=True)
     key, slug = clave_y_slug(raw_objeto, reemplazar_numeros)
-    ruta = os.path.join(CARPETA_INFO, f"{slug}.txt")
+    ruta = ruta_cache_wiki(raw_objeto, reemplazar_numeros)
     if os.path.isfile(ruta):
         with open(ruta, encoding="utf-8") as f:
             return limpiar_refs(f.read())
 
-    import wikipedia
-    wikipedia.set_lang("es")
+    wikipedia = preparar_wikipedia()
     resumen = None
     for nombre in (key, re.sub(r'([a-z])(?=\d)', r"\1 ", key)):
         try:
@@ -166,7 +187,7 @@ def obten_resumen_wiki(raw_objeto, reemplazar_numeros=None):
             with open(ruta, "w", encoding="utf-8") as f:
                 f.write(resumen)
             return resumen
-    return f"No se encontró información sobre «{raw_objeto}»."
+    return _("No se encontró información sobre «{nombre}».", nombre=raw_objeto)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -174,10 +195,23 @@ def obten_resumen_wiki(raw_objeto, reemplazar_numeros=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def cargar_csv(nombre_const):
-    """Lee constelaciones/<IAU>.csv -> (descripcion, estrellas) o None si no existe."""
+    """
+    Lee constelaciones/<IAU>.csv -> (descripcion, estrellas) o None si no existe. En inglés la
+    descripción sale de <IAU>_en.csv si lo hay (y sus estrellas, si el fichero trae tabla propia).
+    """
     ruta = os.path.join(CARPETA_CONSTELACIONES, f"{nombre_const}.csv")
     if not os.path.exists(ruta):
         return None
+    traducida = idioma.ruta_variante(ruta)
+    if traducida != ruta:
+        descripcion, estrellas = _leer_csv_constelacion(traducida)
+        if not estrellas:
+            estrellas = _leer_csv_constelacion(ruta)[1]
+        return descripcion, estrellas
+    return _leer_csv_constelacion(ruta)
+
+
+def _leer_csv_constelacion(ruta):
     descripcion, estrellas = [], []
     with open(ruta, newline='', encoding='utf-8') as f:
         while True:
@@ -206,6 +240,13 @@ def cargar_csv(nombre_const):
 def guardar_csv(nombre_const, descripcion, estrellas):
     os.makedirs(CARPETA_CONSTELACIONES, exist_ok=True)
     ruta = os.path.join(CARPETA_CONSTELACIONES, f"{nombre_const}.csv")
+    sufijo = idioma.sufijo_fichero()
+    if sufijo:
+        # En inglés la descripción va a <IAU>_en.csv y las estrellas a <IAU>.csv sin descripción
+        with open(os.path.join(CARPETA_CONSTELACIONES, f"{nombre_const}{sufijo}.csv"), "w",
+                  encoding="utf-8", newline="") as f:
+            f.write(f"#desc;{descripcion}\n")
+        descripcion = ""
     with open(ruta, "w", encoding='utf-8', newline='') as f:
         f.write(f"#desc;{descripcion}\n")
         w = csv.DictWriter(f, fieldnames=['nombre', 'nombre_tecnico', 'ra', 'dec', 'mag', 'tipo', 'infoExtra'], delimiter=';')
@@ -248,7 +289,7 @@ def generar_desde_simbad(nombre_const, maximo_estrellas=10):
     simbad.add_votable_fields('otype', 'V')
     tbl = simbad.query_criteria("Vmag<5")
     if tbl is None:
-        raise RuntimeError("SIMBAD no devolvió estrellas brillantes")
+        raise RuntimeError(_("SIMBAD no devolvió estrellas brillantes"))
 
     def _s(v):
         return v.decode('utf-8') if isinstance(v, bytes) else str(v)
@@ -330,7 +371,7 @@ def recorrido_constelacion(raw_nombre, reemplazar_numeros=None):
         return cache
     estrellas = generar_desde_simbad(nombre_const)
     if not estrellas:
-        raise RuntimeError(f"No se encontraron estrellas con nombre ni objetos Messier en '{nombre_const}'")
+        raise RuntimeError(_("No se encontraron estrellas con nombre ni objetos Messier en «{constelacion}»", constelacion=nombre_const))
     recorrido = ordenar_por_cercania(estrellas)
     descripcion = limpiar_refs(obten_resumen_wiki(f"{raw_nombre} (constelación)", reemplazar_numeros))
     for e in recorrido:
@@ -344,8 +385,28 @@ def recorrido_constelacion(raw_nombre, reemplazar_numeros=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def listar_recorridos_txt():
+    """
+    [{"fichero", "titulo"}] de los recorridos guiados. Los <nombre>_en.txt son la versión inglesa
+    de <nombre>.txt: no salen en la lista y dan el título (#titulo:) cuando la app está en inglés.
+    """
     os.makedirs(CARPETA_CONSTELACIONES, exist_ok=True)
-    return sorted(f for f in os.listdir(CARPETA_CONSTELACIONES) if f.lower().endswith('.txt'))
+    sufijos = tuple("_" + c + ".txt" for c in idioma.IDIOMAS if c != idioma.POR_DEFECTO)
+    salida = []
+    for f in sorted(os.listdir(CARPETA_CONSTELACIONES)):
+        if not f.lower().endswith('.txt') or f.lower().endswith(sufijos):
+            continue
+        ruta = idioma.ruta_variante(os.path.join(CARPETA_CONSTELACIONES, f))
+        titulo = f[:-4]
+        try:
+            with open(ruta, encoding="utf-8") as g:
+                for linea in g:
+                    if linea.startswith("#titulo:"):
+                        titulo = linea[len("#titulo:"):].strip() or titulo
+                        break
+        except OSError:
+            pass
+        salida.append({"fichero": f, "titulo": titulo})
+    return salida
 
 
 def leer_recorrido_txt(nombre_fichero):
@@ -357,6 +418,7 @@ def leer_recorrido_txt(nombre_fichero):
     ruta = os.path.join(CARPETA_CONSTELACIONES, os.path.basename(nombre_fichero))
     if not os.path.exists(ruta):
         return None
+    ruta = idioma.ruta_variante(ruta)         # versión inglesa si la app está en inglés
     descripcion, lista = [], []
     modo = None
     with open(ruta, encoding='utf-8') as f:

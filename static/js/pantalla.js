@@ -21,13 +21,13 @@
     function pintar() {
         if (!pill) return;
         if (activa) {
-            pill.textContent = "🔆 Pantalla siempre encendida";
+            pill.textContent = _("🔆 Pantalla siempre encendida");
             pill.className = "pantalla-pill activa";
         } else if (preferenciaOff()) {
-            pill.textContent = "🌙 La pantalla puede apagarse (toca para evitarlo)";
+            pill.textContent = _("🌙 La pantalla puede apagarse (toca para evitarlo)");
             pill.className = "pantalla-pill";
         } else {
-            pill.textContent = "🌙 Toca la pantalla para que no se apague";
+            pill.textContent = _("🌙 Toca la pantalla para que no se apague");
             pill.className = "pantalla-pill aviso";
         }
     }
@@ -76,7 +76,7 @@
     document.addEventListener("DOMContentLoaded", () => {
         pill = document.createElement("div");
         pill.id = "pantalla-pill";
-        pill.title = "Mantener la pantalla encendida";
+        pill.title = _("Mantener la pantalla encendida");
         pill.addEventListener("click", alternar);
         document.body.appendChild(pill);
         pintar();

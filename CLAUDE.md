@@ -26,7 +26,10 @@ Si de verdad hace falta un commit directo (por ejemplo, arreglar el propio workf
 
 ## Qué no cambia
 
-- Código, comentarios, mensajes de la interfaz, commits y documentación en **español**.
+- Código, comentarios, commits y documentación en **español**. La app habla español e inglés: todo
+  texto nuevo que vea u oiga el usuario va en español dentro de `_()` (Python, plantillas y JS) y se
+  traduce en `traducciones/en/LC_MESSAGES/scopepower.po`; antes del PR, `herramientas/traducciones.py
+  extraer` y `compilar`, y `herramientas/probar_traducciones.py` en verde. Reglas en CONTRIBUTING.md.
 - `config.ini`, `secretos.ini`, `capturas/`, `calibraciones/`, `datos/` y `logs/` no van a git.
   Una clave de configuración nueva se añade a `config.example.ini` con su comentario.
 - Nada de sistemas de activación o licencias de uso: la app es libre (GPL-3.0).

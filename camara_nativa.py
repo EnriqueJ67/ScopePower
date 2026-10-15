@@ -36,6 +36,8 @@ from ctypes import (c_int, c_long, c_double, c_char, c_char_p, c_ubyte,
 
 import numpy as np
 
+from idioma import _, ngettext
+
 log = logging.getLogger("scopepower.camara_nativa")
 
 RUTAS_DLL = (
@@ -116,7 +118,8 @@ def cargar_dll(ruta=None):
             except OSError as e:
                 ultimo_error = e
         else:
-            raise ErrorCamaraNativa(f"No se encuentra PlayerOneCamera.dll ({ultimo_error or 'ninguna ruta válida'})")
+            raise ErrorCamaraNativa(_("No se encuentra PlayerOneCamera.dll ({error})",
+                                      error=ultimo_error or _("ninguna ruta válida")))
         _declarar_prototipos(dll)
         _dll = dll
         log.info("SDK Player One %s cargado de %s", dll.POAGetSDKVersion().decode(errors="replace"), r)
@@ -213,15 +216,17 @@ class CamaraNativa:
         dll = self._dll
         n = dll.POAGetCameraCount()
         if n <= self._indice:
-            raise ErrorCamaraNativa("No hay ninguna cámara Player One conectada" if n == 0
-                                    else f"Solo hay {n} cámara(s) Player One; pedida la {self._indice}")
+            raise ErrorCamaraNativa(_("No hay ninguna cámara Player One conectada") if n == 0
+                                    else ngettext("Solo hay {n} cámara Player One; pedida la {pedida}",
+                                                  "Solo hay {n} cámaras Player One; pedida la {pedida}",
+                                                  n, pedida=self._indice))
         p = POACameraProperties()
-        self._ok(dll.POAGetCameraProperties(self._indice, byref(p)), "leer propiedades")
+        self._ok(dll.POAGetCameraProperties(self._indice, byref(p)), _("leer propiedades"))
         self.propiedades = _propiedades_a_dict(p)
         cid = int(p.cameraID)
-        self._ok(dll.POAOpenCamera(cid), "abrir la cámara (¿la tiene otra aplicación?)")
+        self._ok(dll.POAOpenCamera(cid), _("abrir la cámara (¿la tiene otra aplicación?)"))
         try:
-            self._ok(dll.POAInitCamera(cid), "inicializar la cámara")
+            self._ok(dll.POAInitCamera(cid), _("inicializar la cámara"))
         except ErrorCamaraNativa:
             dll.POACloseCamera(cid)
             raise
@@ -274,11 +279,11 @@ class CamaraNativa:
     def atributos(self):
         """Lista de ajustes que expone la cámara: nombre, índice, tipo, rango y valor por defecto."""
         n = c_int()
-        self._ok(self._dll.POAGetConfigsCount(self._id, byref(n)), "contar ajustes")
+        self._ok(self._dll.POAGetConfigsCount(self._id, byref(n)), _("contar ajustes"))
         salida = []
         for i in range(n.value):
             a = POAConfigAttributes()
-            self._ok(self._dll.POAGetConfigAttributes(self._id, i, byref(a)), "leer ajuste")
+            self._ok(self._dll.POAGetConfigAttributes(self._id, i, byref(a)), _("leer ajuste"))
             flotante = a.valueType == 1
             salida.append({
                 "nombre": a.szConfName.decode(errors="replace"), "id": int(a.configID),
@@ -293,17 +298,17 @@ class CamaraNativa:
     def poner(self, nombre, valor, auto=False):
         """Fija un ajuste entero/bool por su nombre de POAConfig (p. ej. "Gain", "Exposure" en µs)."""
         if nombre not in self.config_ids:
-            raise ErrorCamaraNativa(f"La cámara no tiene el ajuste {nombre}")
+            raise ErrorCamaraNativa(_("La cámara no tiene el ajuste {nombre}", nombre=nombre))
         v = POAConfigValue()
         v.intValue = int(valor)
-        self._ok(self._dll.POASetConfig(self._id, self.config_ids[nombre], v, 1 if auto else 0), f"fijar {nombre}")
+        self._ok(self._dll.POASetConfig(self._id, self.config_ids[nombre], v, 1 if auto else 0), _("fijar {nombre}", nombre=nombre))
 
     def leer(self, nombre):
         if nombre not in self.config_ids:
-            raise ErrorCamaraNativa(f"La cámara no tiene el ajuste {nombre}")
+            raise ErrorCamaraNativa(_("La cámara no tiene el ajuste {nombre}", nombre=nombre))
         v = POAConfigValue()
         auto = c_int()
-        self._ok(self._dll.POAGetConfig(self._id, self.config_ids[nombre], byref(v), byref(auto)), f"leer {nombre}")
+        self._ok(self._dll.POAGetConfig(self._id, self.config_ids[nombre], byref(v), byref(auto)), _("leer {nombre}", nombre=nombre))
         if nombre == "Temperature":
             return float(v.floatValue)
         return int(v.intValue)
@@ -332,17 +337,17 @@ class CamaraNativa:
         """
         dll, cid = self._dll, self._id
         if formato not in FORMATOS:
-            raise ValueError(f"Formato desconocido: {formato} (RAW8, RAW16, RGB24 o MONO8)")
+            raise ValueError(_("Formato desconocido: {formato} (RAW8, RAW16, RGB24 o MONO8)", formato=formato))
         with self._lock:
             self.parar_video()
             binning = max(1, int(binning))
             ancho, alto = int(ancho) & ~1, int(alto) & ~1
             x0, y0 = int(x0) & ~1, int(y0) & ~1
             lado = ancho          # nombre histórico en la geometría (ROI cuadrado)
-            self._ok(dll.POASetImageBin(cid, binning), "fijar binning")
-            self._ok(dll.POASetImageSize(cid, ancho, alto), "fijar tamaño de imagen")
-            self._ok(dll.POASetImageStartPos(cid, x0, y0), "fijar origen del ROI")
-            self._ok(dll.POASetImageFormat(cid, FORMATOS[formato]), "fijar formato")
+            self._ok(dll.POASetImageBin(cid, binning), _("fijar binning"))
+            self._ok(dll.POASetImageSize(cid, ancho, alto), _("fijar tamaño de imagen"))
+            self._ok(dll.POASetImageStartPos(cid, x0, y0), _("fijar origen del ROI"))
+            self._ok(dll.POASetImageFormat(cid, FORMATOS[formato]), _("fijar formato"))
             if usb_limite is not None and "USBBandWidthLimit" in self.config_ids:
                 self.poner("USBBandWidthLimit", usb_limite)
             self.poner("Exposure", int(round(float(exposicion_ms) * 1000)))
@@ -383,9 +388,9 @@ class CamaraNativa:
     # ── Vídeo ─────────────────────────────────────────────────────────────
     def iniciar_video(self):
         if self._buffer is None:
-            raise ErrorCamaraNativa("Configura la cámara antes de iniciar el vídeo")
+            raise ErrorCamaraNativa(_("Configura la cámara antes de iniciar el vídeo"))
         if not self._video:
-            self._ok(self._dll.POAStartExposure(self._id, 0), "iniciar la exposición continua")
+            self._ok(self._dll.POAStartExposure(self._id, 0), _("iniciar la exposición continua"))
             self._video = True
 
     def parar_video(self):
@@ -405,12 +410,12 @@ class CamaraNativa:
             import time
             time.sleep(0.05)
             err = self._dll.POAStartExposure(self._id, 1)
-        self._ok(err, "iniciar la exposición")
+        self._ok(err, _("iniciar la exposición"))
 
     def disparar(self):
         """Empieza una sola exposición y vuelve enseguida (hay_frame() dice cuándo está; leer_frame() la lee)."""
         if self._buffer is None:
-            raise ErrorCamaraNativa("Configura la cámara antes de disparar")
+            raise ErrorCamaraNativa(_("Configura la cámara antes de disparar"))
         self.parar_video()
         self._empezar_una()
 
@@ -423,7 +428,7 @@ class CamaraNativa:
     def foto(self, timeout_ms=None):
         """Una sola exposición (modo foto) y devuelve el fotograma (copia)."""
         if self._buffer is None:
-            raise ErrorCamaraNativa("Configura la cámara antes de disparar")
+            raise ErrorCamaraNativa(_("Configura la cámara antes de disparar"))
         self.parar_video()
         self._empezar_una()
         return self.leer_frame(timeout_ms).copy()
@@ -434,18 +439,18 @@ class CamaraNativa:
         (h×w uint8/uint16, o h×w×3 en RGB24). Es una vista: copiar para conservar.
         """
         if self._buffer is None:
-            raise ErrorCamaraNativa("Configura la cámara antes de leer fotogramas")
+            raise ErrorCamaraNativa(_("Configura la cámara antes de leer fotogramas"))
         if timeout_ms is None:
             timeout_ms = int(self._exposicion_ms + 500)
         ptr = self._buffer.ctypes.data_as(POINTER(c_ubyte))
         err = self._dll.POAGetImageData(self._id, ptr, self._bytes, int(timeout_ms))
         if err != 0:
-            raise ErrorCamaraNativa(f"leer fotograma: {self.texto_error(err)}")
+            raise ErrorCamaraNativa(_("leer fotograma") + ": " + self.texto_error(err))
         return self._buffer
 
     def hay_frame(self):
         listo = c_int()
-        self._ok(self._dll.POAImageReady(self._id, byref(listo)), "consultar fotograma")
+        self._ok(self._dll.POAImageReady(self._id, byref(listo)), _("consultar fotograma"))
         return bool(listo.value)
 
     def descartados(self):
@@ -456,7 +461,7 @@ class CamaraNativa:
 
     def estado(self):
         s = c_int()
-        self._ok(self._dll.POAGetCameraState(self._id, byref(s)), "leer estado")
+        self._ok(self._dll.POAGetCameraState(self._id, byref(s)), _("leer estado"))
         return int(s.value)
 
     # ── Errores ───────────────────────────────────────────────────────────

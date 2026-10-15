@@ -30,6 +30,7 @@ import astropy.units as u
 from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, asentamiento_montura, CapturaCancelada, ErrorHardware, estado_captura
 import coordenadas
 import rotacion_camara
+from idioma import _, ngettext, fmt_num
 
 log = logging.getLogger("scopepower.centrado")
 
@@ -206,9 +207,9 @@ class TrabajoCentrado:
         conf = conf or leer_config()
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("Ya hay un centrado en curso")
+                raise RuntimeError(_("Ya hay un centrado en curso"))
             if camara.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self._cancelar.clear()
             self.previo = None
@@ -218,7 +219,7 @@ class TrabajoCentrado:
             self.tolerancia = conf["tolerancia_arcmin"]
             self.objetivo = (float(objetivo_ra_h), float(objetivo_dec))
             self.objeto = objeto
-            self.mensaje = "Iniciando centrado..."
+            self.mensaje = _("Iniciando centrado...")
 
         hilo = threading.Thread(
             target=self._ejecutar, name="centrado", daemon=True,
@@ -237,7 +238,7 @@ class TrabajoCentrado:
                 self._comprobar_cancelacion()
 
                 # 1) Foto corta
-                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: exponiendo {conf['exposicion']:.0f} s", paso="foto")
+                self._msg(_("Vuelta {vuelta}/{max}: exponiendo {s} s", vuelta=vuelta, max=conf['max_vueltas'], s=round(conf['exposicion'])), paso="foto")
                 if self.antes_de_foto:
                     try:
                         self.antes_de_foto()
@@ -245,7 +246,7 @@ class TrabajoCentrado:
                         log.warning("Vigilante del seguimiento en el centrado: %s", e)
                 frame, sensor_type = camara.ejecutar(
                     lambda cam: (capturar_frame_con_pixel(cam, conf["exposicion"], conf["binning"],
-                                                          descripcion=f"Centrado {vuelta}/{conf['max_vueltas']}",
+                                                          descripcion=_("Centrado {vuelta}/{max}", vuelta=vuelta, max=conf['max_vueltas']),
                                                           ganancia=ganancia_configurada()),
                                  getattr(cam, "SensorType", None)),
                     timeout=conf["exposicion"] + 90)
@@ -254,53 +255,53 @@ class TrabajoCentrado:
                 self._comprobar_cancelacion()
 
                 # 2) Resolver
-                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: resolviendo la imagen (plate solving con ASTAP)", paso="resolver")
+                self._msg(_("Vuelta {vuelta}/{max}: resolviendo la imagen (plate solving con ASTAP)", vuelta=vuelta, max=conf['max_vueltas']), paso="resolver")
                 solucion = resolver(RUTA_FITS_CENTRADO)
                 if solucion is None:
-                    resultado, detalle = "error", f"No se pudo resolver la imagen en la vuelta {vuelta}"
+                    resultado, detalle = "error", _("No se pudo resolver la imagen en la vuelta {vuelta}", vuelta=vuelta)
                     return
                 ra_deg, dec_deg = solucion
                 real = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg)
 
                 if calcular_altitud is not None:
                     if calcular_altitud(ra_deg / 15.0, dec_deg) < float(altura_minima):
-                        resultado, detalle = "error", "El telescopio apunta por debajo de la altura mínima; centrado cancelado"
+                        resultado, detalle = "error", _("El telescopio apunta por debajo de la altura mínima; centrado cancelado")
                         return
 
                 # 3) Medir el error
                 error = float(objetivo.separation(real).arcmin)
                 with self._lock:
                     self.errores.append(round(error, 2))
-                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: el telescopio está a {error:.1f}' del objetivo", paso="medir")
+                self._msg(_("Vuelta {vuelta}/{max}: el telescopio está a {error}' del objetivo", vuelta=vuelta, max=conf['max_vueltas'], error=fmt_num(error, 1)), paso="medir")
 
                 if error <= conf["tolerancia_arcmin"]:
-                    resultado, detalle = "centrado", f"Centrado a {error:.1f}' del objetivo en {vuelta} vuelta(s)"
+                    resultado, detalle = "centrado", ngettext("Centrado a {error}' del objetivo en {n} vuelta", "Centrado a {error}' del objetivo en {n} vueltas", vuelta, error=fmt_num(error, 1))
                     return
                 if vuelta > 1 and error > 0.8 * self.errores[-2]:
-                    resultado, detalle = "sin_mejora", (f"Se queda a {error:.1f}' (antes {self.errores[-2]:.1f}'): "
-                                                        "la montura no mejora, probablemente por holgura")
+                    resultado, detalle = "sin_mejora", _("Se queda a {error}' (antes {antes}'): la montura no mejora, probablemente por holgura",
+                                                          error=fmt_num(error, 1), antes=fmt_num(self.errores[-2], 1))
                     return
                 if vuelta == conf["max_vueltas"]:
-                    resultado, detalle = "fuera_tolerancia", (f"Se queda a {error:.1f}' tras {vuelta} vueltas "
-                                                              f"(tolerancia {conf['tolerancia_arcmin']:.1f}')")
+                    resultado, detalle = "fuera_tolerancia", _("Se queda a {error}' tras {vuelta} vueltas (tolerancia {tol}')", error=fmt_num(error, 1),
+                                                                vuelta=vuelta, tol=fmt_num(conf['tolerancia_arcmin'], 1))
                     return
 
                 # 4) Corregir
                 self._comprobar_cancelacion()
-                self._msg(f"Vuelta {vuelta}/{conf['max_vueltas']}: moviendo la montura para corregir {error:.1f}'", paso="corregir")
+                self._msg(_("Vuelta {vuelta}/{max}: moviendo la montura para corregir {error}'", vuelta=vuelta, max=conf['max_vueltas'], error=fmt_num(error, 1)), paso="corregir")
                 self._corregir(montura, objetivo, real, sincronizar=(vuelta == 1 and conf["sync_primera_vuelta"]),
                                asentamiento=conf["asentamiento_s"],
-                               rotulo=f"Vuelta {vuelta}/{conf['max_vueltas']}")
+                               rotulo=_("Vuelta {vuelta}/{max}", vuelta=vuelta, max=conf['max_vueltas']))
 
         except CentradoCancelado:
-            resultado, detalle = "cancelado", "Centrado cancelado por el usuario"
+            resultado, detalle = "cancelado", _("Centrado cancelado por el usuario")
         except CapturaCancelada:
-            resultado, detalle = "cancelado", "Centrado cancelado por el usuario"
+            resultado, detalle = "cancelado", _("Centrado cancelado por el usuario")
         except ErrorHardware as e:
-            resultado, detalle = "error", f"Error de hardware: {e}"
+            resultado, detalle = "error", _("Error de hardware: {e}", e=e)
         except Exception as e:
             log.exception("Error en el centrado")
-            resultado, detalle = "error", f"Error inesperado: {e}"
+            resultado, detalle = "error", _("Error inesperado: {e}", e=e)
         finally:
             with self._lock:
                 self.resultado = resultado
@@ -312,7 +313,7 @@ class TrabajoCentrado:
             try:
                 import voz
                 import humor
-                voz.decir(detalle.replace("'", " minutos de arco"))
+                voz.decir(detalle.replace("'", " " + _("minutos de arco")))
                 if resultado == "centrado":
                     humor.decir("centrado_ok")
                 elif resultado == "error":
@@ -359,8 +360,9 @@ class TrabajoCentrado:
         except Exception as e:
             log.warning("No se pudo generar la vista previa del centrado: %s", e)
 
-    def _corregir(self, montura, objetivo, real, sincronizar, asentamiento, rotulo="Corrección"):
+    def _corregir(self, montura, objetivo, real, sincronizar, asentamiento, rotulo=None):
         # Error en el cielo: hacia dónde hay que mover (objetivo - real)
+        rotulo = rotulo or _("Corrección")
         d_ra = (objetivo.ra.deg - real.ra.deg + 180.0) % 360.0 - 180.0   # grados, con envoltura
         d_dec = objetivo.dec.deg - real.dec.deg
 
@@ -383,7 +385,7 @@ class TrabajoCentrado:
             time.sleep(0.5)
             while tel.Slewing:
                 if time.time() - inicio > 120:
-                    raise ErrorHardware("La montura no terminó el movimiento en 120 s")
+                    raise ErrorHardware(_("La montura no terminó el movimiento en {s} s", s=120))
                 if self._cancelar.is_set():
                     try:
                         tel.AbortSlew()
@@ -395,7 +397,7 @@ class TrabajoCentrado:
 
         montura.ejecutar(_mover, timeout=150)
         if asentamiento > 0:
-            self._msg(f"{rotulo}: esperando {asentamiento:.0f} s a que se asiente la montura", paso="asentar")
+            self._msg(_("{rotulo}: esperando {s} s a que se asiente la montura", rotulo=rotulo, s=round(asentamiento)), paso="asentar")
             fin = time.time() + asentamiento
             while time.time() < fin:
                 self._comprobar_cancelacion()

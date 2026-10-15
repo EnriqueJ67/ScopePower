@@ -30,25 +30,30 @@ import threading
 
 from unidecode import unidecode
 
+import idioma
+from idioma import N_
+
 log = logging.getLogger("scopepower.catalogo")
 
 _RAIZ = os.path.dirname(os.path.abspath(__file__))
 RUTA_ATLAS = os.path.join(_RAIZ, "static", "atlas")
 RUTA_CATALOGO_ES = os.path.join(_RAIZ, "catalogo_objetos.csv")
 RUTA_ALIAS = os.path.join(_RAIZ, "alias_objetos.csv")
+RUTA_CATALOGO_EN = os.path.join(_RAIZ, "catalogo_objetos_en.csv")
 
-FUENTE_DSO = "Catálogo local (OpenNGC, sin Internet)"
-FUENTE_ESTRELLAS = "Catálogo local (estrellas HYG, sin Internet)"
+FUENTE_DSO = N_("Catálogo local (OpenNGC, sin Internet)")
+FUENTE_ESTRELLAS = N_("Catálogo local (estrellas HYG, sin Internet)")
 
-# Tipos de OpenNGC / HYG en español (van a la ficha, al rótulo y a la voz)
+# Tipos de OpenNGC / HYG en español (van a la ficha, al rótulo y a la voz). El valor en
+# español es la clave que se guarda y se compara; se traduce solo al pintarlo: _(tipo)
 TIPOS_ES = {
-    "Galaxy": "Galaxia", "Galaxy pair": "Par de galaxias", "Galaxy triplet": "Triplete de galaxias",
-    "Galaxy group": "Grupo de galaxias", "Open cluster": "Cúmulo abierto",
-    "Globular cluster": "Cúmulo globular", "Cluster with nebulosity": "Cúmulo con nebulosa",
-    "Stellar association": "Asociación estelar", "Planetary nebula": "Nebulosa planetaria",
-    "Nebula": "Nebulosa", "Emission nebula": "Nebulosa de emisión", "Reflection nebula": "Nebulosa de reflexión",
-    "Dark nebula": "Nebulosa oscura", "H II region": "Región H II", "Supernova remnant": "Resto de supernova",
-    "Deep-sky object": "Objeto de cielo profundo", "Double star": "Estrella doble", "Star": "Estrella",
+    "Galaxy": N_("Galaxia"), "Galaxy pair": N_("Par de galaxias"), "Galaxy triplet": N_("Triplete de galaxias"),
+    "Galaxy group": N_("Grupo de galaxias"), "Open cluster": N_("Cúmulo abierto"),
+    "Globular cluster": N_("Cúmulo globular"), "Cluster with nebulosity": N_("Cúmulo con nebulosa"),
+    "Stellar association": N_("Asociación estelar"), "Planetary nebula": N_("Nebulosa planetaria"),
+    "Nebula": N_("Nebulosa"), "Emission nebula": N_("Nebulosa de emisión"), "Reflection nebula": N_("Nebulosa de reflexión"),
+    "Dark nebula": N_("Nebulosa oscura"), "H II region": N_("Región H II"), "Supernova remnant": N_("Resto de supernova"),
+    "Deep-sky object": N_("Objeto de cielo profundo"), "Double star": N_("Estrella doble"), "Star": N_("Estrella"),
 }
 
 # Prefijos escritos con palabra entera -> abreviatura del catálogo
@@ -104,7 +109,7 @@ def _leer_js(nombre, variable):
         texto = f.read()
     marca = f"window.{variable}="
     inicio = texto.index(marca) + len(marca)
-    datos, _ = json.JSONDecoder().raw_decode(texto, inicio)
+    datos, __ = json.JSONDecoder().raw_decode(texto, inicio)
     return datos
 
 
@@ -193,7 +198,7 @@ def _construir():
                 return
             ficha = {"id": id_objeto, "name": nombre_es, "name_es": nombre_es, "ra": float(ra_h),
                      "dec": float(dec_deg), "mag": mag, "type": tipo, "type_en": tipo, "aliases": [],
-                     "constellation": "", "fuente": "Catálogo de ScopePower"}
+                     "constellation": "", "fuente": N_("Catálogo de ScopePower")}
             fichas.append(ficha)
         if not ficha["name_es"]:
             ficha["name_es"] = nombre_es
@@ -215,9 +220,23 @@ def _construir():
         if r.get("nombre") and r.get("id"):
             enlazar(r["nombre"].strip(), r["id"].strip())
 
+    # 6) Nombres en inglés del catálogo propio (catalogo_objetos_en.csv): se buscan en los dos
+    #    idiomas y son los que se enseñan con la app en inglés (name_en)
+    for r in _leer_csv(RUTA_CATALOGO_EN):
+        nombre_en, id_objeto = (r.get("nombre") or "").strip(), (r.get("id") or "").strip()
+        ficha = next((indice[k] for k in _variantes(id_objeto) if k in indice), None)
+        if not nombre_en or ficha is None:
+            continue
+        ficha["name_en"] = nombre_en
+        sin_parentesis = re.sub(r"\s*\(.*?\)\s*", " ", nombre_en).strip()
+        for n in {nombre_en, sin_parentesis}:
+            for k in _variantes(n):
+                if k:
+                    indice.setdefault(k, ficha)
+
     # Textos normalizados por los que buscan las sugerencias (una sola vez, no por tecla)
     for f in fichas:
-        f["_busqueda"] = [_normalizar_patron(n) for n in [f["id"], f["name"], f["name_es"]] + f["aliases"]
+        f["_busqueda"] = [_normalizar_patron(n) for n in [f["id"], f["name"], f["name_es"], f.get("name_en", "")] + f["aliases"]
                           if n and not _alias_tecnico(n)]
 
     return indice, fichas, {"objetos": len(fichas_dso), "estrellas": n_estrellas}
@@ -285,13 +304,20 @@ def buscar(nombre):
         return None
     return {
         "id": ficha["id"],
-        "name": ficha["name_es"] or ficha["name"],
+        "name": _nombre_visible(ficha),
         "name_catalogo": ficha["name"],
         "ra": ficha["ra"], "dec": ficha["dec"],
         "mag": ficha["mag"], "type": ficha["type"],
         "constellation": _constelacion(ficha),
         "fuente": ficha["fuente"],
     }
+
+
+def _nombre_visible(ficha):
+    """Nombre para enseñar: el del catálogo propio en el idioma de la app, o el del catálogo general."""
+    if idioma.idioma_actual() != "es":
+        return ficha.get("name_en") or ficha["name"]
+    return ficha["name_es"] or ficha["name"]
 
 
 def _normalizar_patron(texto):
@@ -329,9 +355,9 @@ def buscar_patron(patron, maximo=15, excluir_ids=()):
             candidatos.append((mejor, f["mag"] is None, f["mag"] if f["mag"] is not None else 99, f))
     candidatos.sort(key=lambda t: t[:3])
     resultado = []
-    for _, _, _, f in candidatos[:maximo]:
+    for __, __, __, f in candidatos[:maximo]:
         resultado.append({
-            "id": f["id"], "name": f["name_es"] or f["name"], "name_catalogo": f["name"],
+            "id": f["id"], "name": _nombre_visible(f), "name_catalogo": f["name"],
             "ra": f["ra"], "dec": f["dec"], "mag": f["mag"], "type": f["type"], "fuente": f["fuente"],
         })
     return resultado
@@ -350,9 +376,10 @@ def _alias_tecnico(alias):
 # Luna y planetas por efemérides). La galería filtra por unas pocas familias, así
 # que aquí se reduce cualquier tipo, y si no hay tipo el propio nombre, a una de
 # ellas. Devuelve "" si no se reconoce nada.
-CATEGORIAS = ("Galaxia", "Nebulosa", "Nebulosa planetaria", "Resto de supernova", "Cúmulo abierto",
-              "Cúmulo globular", "Estrella", "Planeta", "Luna", "Sol", "Cometa", "Asteroide", "Meteoro",
-              "Satélite artificial", "Avión", "Paisaje")
+# (en español: son claves; se traducen al pintarlas, _(categoria))
+CATEGORIAS = (N_("Galaxia"), N_("Nebulosa"), N_("Nebulosa planetaria"), N_("Resto de supernova"), N_("Cúmulo abierto"),
+              N_("Cúmulo globular"), N_("Estrella"), N_("Planeta"), N_("Luna"), N_("Sol"), N_("Cometa"),
+              N_("Asteroide"), N_("Meteoro"), N_("Satélite artificial"), N_("Avión"), N_("Paisaje"))
 
 _PLANETAS = ("mercurio", "mercury", "venus", "marte", "mars", "jupiter", "saturno", "saturn",
              "urano", "uranus", "neptuno", "neptune", "pluton", "pluto")

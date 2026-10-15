@@ -31,6 +31,7 @@ import numpy as np
 import cv2
 
 from AutoStrechSTF import neutralizar_fondo
+from idioma import _
 
 log = logging.getLogger("scopepower.procesado")
 
@@ -134,7 +135,7 @@ def guardar_preset(nombre, ajustes):
     """Crea o sustituye un preset. Devuelve el diccionario completo de presets."""
     nombre = " ".join(str(nombre or "").split())[:40]
     if not nombre:
-        raise ValueError("El preset necesita un nombre")
+        raise ValueError(_("El preset necesita un nombre"))
     with _lock_presets:
         presets = leer_presets()
         presets[nombre] = _filtrar_preset(ajustes or {})
@@ -351,7 +352,7 @@ def geometria_giro(ancho, alto, fraccion, giro, espejo=False, centro=None):
     cuartos = int(round(giro / 90.0))
     resto = giro - 90.0 * cuartos
     cuartos %= 4
-    for _ in range(cuartos):                         # un cuarto en horario: (x, y) -> (alto - 1 - y, x)
+    for __ in range(cuartos):                         # un cuarto en horario: (x, y) -> (alto - 1 - y, x)
         T = np.array([[0.0, -1.0, h - 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]) @ T
         w, h = h, w
     # Centro del encuadre, llevado al espacio ya volteado y girado en cuartos; por
@@ -359,7 +360,7 @@ def geometria_giro(ancho, alto, fraccion, giro, espejo=False, centro=None):
     dx = dy = 0.0
     if centro is not None:
         try:
-            cx, cy, _ = T @ np.array([float(centro[0]), float(centro[1]), 1.0])
+            cx, cy, __ = T @ np.array([float(centro[0]), float(centro[1]), 1.0])
             if math.isfinite(cx) and math.isfinite(cy):
                 dx, dy = cx - (w - 1) / 2.0, cy - (h - 1) / 2.0
         except (TypeError, ValueError, IndexError):
@@ -603,7 +604,7 @@ def leer_zona(header):
 def _rellenar_huecos(malla):
     """Rellena los NaN de una malla (n, m, 3) con la media de sus vecinos válidos, por oleadas."""
     malla = malla.copy()
-    for _ in range(malla.shape[0] + malla.shape[1]):
+    for __ in range(malla.shape[0] + malla.shape[1]):
         nan = np.isnan(malla[..., 0])
         if not nan.any():
             break
@@ -658,7 +659,7 @@ def quitar_gradiente(rgb, rejilla=12):
 
     usar = ~np.isnan(malla[..., 0])
     modelo = None
-    for _ in range(6):
+    for __ in range(6):
         modelo = modelo_de(np.where(usar[..., None], malla, np.nan))
         resid = (malla - modelo).mean(axis=2)                          # + = más brillante que el modelo
         negativos = np.abs(resid[usar & (resid < 0)])
@@ -1077,7 +1078,7 @@ def _estrellas_medibles(plano, maximo=80):
     h, w = img.shape
     cand = [(float(suav[y, x]), int(y), int(x)) for y, x in cand if 20 < y < h - 20 and 20 < x < w - 20]
     cand.sort(reverse=True)
-    return [(y, x) for _, y, x in cand[:maximo]]
+    return [(y, x) for __, y, x in cand[:maximo]]
 
 
 def _fwhm_momentos(p, x, y, radio=7):
@@ -1168,7 +1169,7 @@ def deconvolucionar(rgb, fuerza, progreso=None, escala=1.0):
         y = np.clip(y - piso, 1e-3, None) + 1e-3          # RL exige datos positivos
         sigma = max(fwhm[c] * FACTOR_PSF_NITIDEZ, 1.0) / 2.355
         x = y.copy()
-        for _ in range(iteraciones):
+        for __ in range(iteraciones):
             est = cv2.GaussianBlur(x, (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
             # cociente acotado: un píxel aislado de ruido no dispara la corrección
             ratio = np.clip(y / np.maximum(est, 1e-6), 0.2, 5.0)
@@ -1232,7 +1233,7 @@ class CurvaFondo:
         else:
             # a por bisección en log(a): asinh_norm(x_med, a) crece al bajar a
             lo, hi = -18.0, 2.0
-            for _ in range(50):
+            for __ in range(50):
                 mid = 0.5 * (lo + hi)
                 if float(asinh_norm(np.float32(x_med), np.exp(mid))) > objetivo:
                     lo = mid

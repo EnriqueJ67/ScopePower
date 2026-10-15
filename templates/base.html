@@ -1,6 +1,6 @@
 <!-- templates/base.html -->
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ idioma.idioma_actual() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -22,7 +22,11 @@
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=11">
+    <!-- Idioma (idioma.py): window.IDIOMA, catálogo del idioma si no es el español, y _() para el JS -->
+    <script>window.IDIOMA = {{ idioma.para_js()|tojson }};</script>
+    {% if idioma.idioma_actual() != 'es' %}<script src="{{ url_for('static', filename='i18n/' ~ idioma.idioma_actual() ~ '.js') }}?v={{ VERSION }}"></script>{% endif %}
+    <script src="{{ url_for('static', filename='js/i18n.js') }}?v=1"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=12">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -72,6 +76,7 @@
     <symbol id="i-lugar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.3-6-11a6 6 0 0112 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></symbol>
     <symbol id="i-disco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 14h18"/><circle cx="16.5" cy="17" r="0.8" fill="currentColor"/><path d="M6.5 17h5"/></symbol>
     <symbol id="i-humor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="14" rx="4"/><path d="M12 2v4M8 2.5h8"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><path d="M8.5 15.5c1 1.3 2.2 1.8 3.5 1.8s2.5-.5 3.5-1.8"/></symbol>
+    <symbol id="i-idioma" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></symbol>
     <symbol id="i-sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
 </svg>
 
@@ -79,20 +84,20 @@
     <a href="{{ url_for('home') if session.get('usuario') else url_for('login') }}" class="brand" title="ScopePower">
         <span class="brand-mark"><svg><use href="#i-telescopio"/></svg></span>
         <span>ScopePower</span>
-        <span class="brand-sub">Real-time power for your telescope</span>
+        <span class="brand-sub">{{ _("Potencia en tiempo real para tu telescopio") }}</span>
     </a>
     <div class="header-titulo">{% block titulo_cabecera %}{{ self.title() }}{% endblock %}</div>
     <div class="header-estado">
         {% if session.get('usuario') %}
-        <span class="chip chip-icono" id="chip-montura" title="Montura"><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">Montura</span></span>
-        <span class="chip chip-icono" id="chip-camara" title="Cámara"><svg><use href="#i-foto"/></svg><span class="oculto-movil">Cámara</span></span>
+        <span class="chip chip-icono" id="chip-montura" title="{{ _('Montura') }}"><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">{{ _("Montura") }}</span></span>
+        <span class="chip chip-icono" id="chip-camara" title="{{ _('Cámara') }}"><svg><use href="#i-foto"/></svg><span class="oculto-movil">{{ _("Cámara") }}</span></span>
         <!-- Solo aparece si el reloj del PC difiere del móvil más de un minuto -->
         <a class="chip chip-icono chip-warn" id="chip-hora" href="/configuracion#hora" hidden><svg><use href="#i-reloj"/></svg><span class="oculto-movil" id="chip-hora-texto"></span></a>
         <!-- Solo aparece si el disco del PC baja del umbral de aviso (Configuración > Disco) -->
         <a class="chip chip-icono chip-warn" id="chip-disco" href="/configuracion#disco" hidden><svg><use href="#i-disco"/></svg><span id="chip-disco-texto"></span></a>
         {% endif %}
-        <button type="button" class="header-boton" id="btn-pantalla" onclick="alternarPantallaCompleta()" title="Pantalla completa" hidden><svg><use id="btn-pantalla-icono" href="#i-pantalla"/></svg></button>
-        <button type="button" class="header-boton" id="btn-tema" onclick="alternarTema()" title="Cambiar entre tema noche (rojo) y oscuro"><svg><use href="#i-tema"/></svg></button>
+        <button type="button" class="header-boton" id="btn-pantalla" onclick="alternarPantallaCompleta()" title="{{ _('Pantalla completa') }}" hidden><svg><use id="btn-pantalla-icono" href="#i-pantalla"/></svg></button>
+        <button type="button" class="header-boton" id="btn-tema" onclick="alternarTema()" title="{{ _('Cambiar entre tema noche (rojo) y oscuro') }}"><svg><use href="#i-tema"/></svg></button>
     </div>
 </header>
 
@@ -100,8 +105,8 @@
     {% if session.get('usuario') %}
     <div id="aviso-disco" class="aviso aviso-warn" hidden>
         <svg class="ico"><use href="#i-disco"/></svg>
-        <span style="flex: 1;"><span id="aviso-disco-texto"></span> <a href="/configuracion#disco" style="color: inherit; text-decoration: underline;">Ver qué ocupa</a></span>
-        <button type="button" class="header-boton" onclick="cerrarAvisoDisco()" title="Cerrar aviso" style="margin: -6px -6px -6px 0;"><svg><use href="#i-cerrar"/></svg></button>
+        <span style="flex: 1;"><span id="aviso-disco-texto"></span> <a href="/configuracion#disco" style="color: inherit; text-decoration: underline;">{{ _("Ver qué ocupa") }}</a></span>
+        <button type="button" class="header-boton" onclick="cerrarAvisoDisco()" title="{{ _('Cerrar aviso') }}" style="margin: -6px -6px -6px 0;"><svg><use href="#i-cerrar"/></svg></button>
     </div>
     {% endif %}
     {% block content %}{% endblock %}
@@ -140,7 +145,7 @@
         function pintar() {
             const on = enPantallaCompleta();
             document.getElementById("btn-pantalla-icono").setAttribute("href", on ? "#i-pantalla-salir" : "#i-pantalla");
-            btn.title = on ? "Salir de pantalla completa" : "Pantalla completa";
+            btn.title = on ? _("Salir de pantalla completa") : _("Pantalla completa");
         }
         function cambio() {
             pintar();
@@ -177,15 +182,15 @@
 
 {% if session.get('usuario') and request.path != '/salir' %}
 {% set actual = request.path %}
-<nav class="barra" aria-label="Navegación principal">
-    <a href="{{ url_for('home') }}" class="{{ 'activo' if actual == '/' else '' }}"><span class="nav-ico"><svg><use href="#i-home"/></svg></span>Inicio</a>
+<nav class="barra" aria-label="{{ _('Navegación principal') }}">
+    <a href="{{ url_for('home') }}" class="{{ 'activo' if actual == '/' else '' }}"><span class="nav-ico"><svg><use href="#i-home"/></svg></span>{{ _("Inicio") }}</a>
     <a href="{{ url_for('goto_objeto') }}" class="{{ 'activo' if actual.startswith('/goto') else '' }}"><span class="nav-ico"><svg><use href="#i-goto"/></svg></span>GoTo</a>
-    <a href="{{ url_for('foto_prueba') }}" class="{{ 'activo' if actual.startswith('/foto-prueba') else '' }}"><span class="nav-ico neutro"><svg><use href="#i-foto"/></svg></span>Cámara</a>
-    <a href="{{ url_for('vista_apilado') }}" class="{{ 'activo' if actual.startswith('/apilado') else '' }}"><span class="nav-ico"><svg><use href="#i-apilado"/></svg></span>Apilado</a>
-    <a href="{{ url_for('galeria') }}" class="{{ 'activo' if actual.startswith('/galeria') else '' }}"><span class="nav-ico"><svg><use href="#i-galeria"/></svg></span>Galería</a>
-    <a href="#" id="nav-voz" onclick="alternarVoz(event)" title="Avisos por voz del PC"><span class="nav-ico neutro"><svg><use id="nav-voz-icono" href="#i-voz-off"/></svg></span><span id="nav-voz-texto">Voz</span></a>
+    <a href="{{ url_for('foto_prueba') }}" class="{{ 'activo' if actual.startswith('/foto-prueba') else '' }}"><span class="nav-ico neutro"><svg><use href="#i-foto"/></svg></span>{{ _("Cámara") }}</a>
+    <a href="{{ url_for('vista_apilado') }}" class="{{ 'activo' if actual.startswith('/apilado') else '' }}"><span class="nav-ico"><svg><use href="#i-apilado"/></svg></span>{{ _("Apilado") }}</a>
+    <a href="{{ url_for('galeria') }}" class="{{ 'activo' if actual.startswith('/galeria') else '' }}"><span class="nav-ico"><svg><use href="#i-galeria"/></svg></span>{{ _("Galería") }}</a>
+    <a href="#" id="nav-voz" onclick="alternarVoz(event)" title="{{ _('Avisos por voz del PC') }}"><span class="nav-ico neutro"><svg><use id="nav-voz-icono" href="#i-voz-off"/></svg></span><span id="nav-voz-texto">{{ _("Voz") }}</span></a>
     <!-- Escondido hasta que el usuario habilita el humor en Avisos por voz (Configuración) -->
-    <a href="#" id="nav-humor" onclick="abrirHumor(event)" title="Nivel de humor de ScopePower"{% if not humor_activado %} hidden{% endif %}><span class="nav-ico neutro"><svg><use href="#i-humor"/></svg></span><span><span class="oculto-movil" id="nav-humor-prefijo"></span><span id="nav-humor-texto">Humor</span></span></a>
+    <a href="#" id="nav-humor" onclick="abrirHumor(event)" title="{{ _('Nivel de humor de ScopePower') }}"{% if not humor_activado %} hidden{% endif %}><span class="nav-ico neutro"><svg><use href="#i-humor"/></svg></span><span><span class="oculto-movil" id="nav-humor-prefijo"></span><span id="nav-humor-texto">{{ _("Humor") }}</span></span></a>
 </nav>
 <!-- Mantener la pantalla del móvil encendida (se activa con el primer toque) -->
 <script src="{{ url_for('static', filename='js/NoSleep.js') }}"></script>
@@ -202,14 +207,14 @@
 <script src="{{ url_for('static', filename='js/humor.js') }}?v=3"></script>
 <script src="{{ url_for('static', filename='js/ubicacion_movil.js') }}?v=1"></script>
 {% include '_asistente.html' %}
-<script src="{{ url_for('static', filename='js/asistente.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/asistente.js') }}?v=3"></script>
 <script>
     // ——— Interruptor de los avisos hablados por el altavoz del PC (SAPI, ver voz.py) ———
     function pintarVoz(e) {
         const on = !!e.activada;
         window.vozPCActiva = on;      // las páginas evitan repetir en el móvil lo que ya dice el PC
         document.getElementById("nav-voz-icono").setAttribute("href", on ? "#i-voz-on" : "#i-voz-off");
-        document.getElementById("nav-voz-texto").textContent = on ? "Voz on" : "Voz off";
+        document.getElementById("nav-voz-texto").textContent = on ? _("Voz on") : _("Voz off");
         document.getElementById("nav-voz").classList.toggle("encendido", on);
     }
     function alternarVoz(ev) {
@@ -234,7 +239,9 @@
         if (s < 60) { chip.hidden = true; return; }
         const texto = s >= 3600 ? Math.round(s / 3600) + " h" : Math.round(s / 60) + " min";
         document.getElementById("chip-hora-texto").textContent = texto;
-        chip.title = `El reloj del PC va ${window.desfaseHoraPC > 0 ? "adelantado" : "atrasado"} ${texto} respecto a este móvil. Toca para ver cómo corregirlo.`;
+        chip.title = window.desfaseHoraPC > 0
+            ? _("El reloj del PC va adelantado {t} respecto a este móvil. Toca para ver cómo corregirlo.", { t: texto })
+            : _("El reloj del PC va atrasado {t} respecto a este móvil. Toca para ver cómo corregirlo.", { t: texto });
         chip.hidden = false;
     }
 
@@ -250,10 +257,11 @@
         chip.hidden = nivel === 0;
         chip.className = "chip chip-icono " + (nivel === 2 ? "chip-err" : "chip-warn");
         document.getElementById("chip-disco-texto").textContent = Math.round(e.pct_libre) + " %";
-        const texto = (nivel === 2 ? "El disco del PC está casi lleno: " : "Queda poco disco en el PC: ")
-            + `${e.libre_gb} GB libres de ${e.total_gb} GB (${Math.round(e.pct_libre)} %).`
-            + (e.sin_espacio ? ` Con menos de ${e.minimo_gb} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio.`
-                : (nivel === 2 ? ` Si se llena, las fotos dejarán de guardarse; con menos de ${e.minimo_gb} GB el apilado se pausa solo.` : ""));
+        const v = { libre: fmtNum(e.libre_gb), total: fmtNum(e.total_gb), pct: Math.round(e.pct_libre), minimo: fmtNum(e.minimo_gb) };
+        const texto = (nivel === 2 ? _("El disco del PC está casi lleno: {libre} GB libres de {total} GB ({pct} %).", v)
+                                   : _("Queda poco disco en el PC: {libre} GB libres de {total} GB ({pct} %).", v))
+            + (e.sin_espacio ? " " + _("Con menos de {minimo} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio.", v)
+                : (nivel === 2 ? " " + _("Si se llena, las fotos dejarán de guardarse; con menos de {minimo} GB el apilado se pausa solo.", v) : ""));
         chip.title = texto;
         let cerrado = 0;
         try { cerrado = parseInt(sessionStorage.getItem(CLAVE_AVISO_DISCO)) || 0; } catch (err) {}
@@ -277,8 +285,8 @@
         const clase = (ok, busy) => "chip chip-icono " + (busy ? "chip-busy" : (ok ? "chip-ok" : "chip-err"));
         m.className = clase(d.montura, d.conectando && !d.montura);
         c.className = clase(d.camara, d.conectando && !d.camara);
-        m.title = d.conectando && !d.montura ? "Conectando la montura..." : (d.montura ? "Montura conectada" + (d.sistema ? " (" + d.sistema + ")" : "") : "Montura sin conectar" + (d.error_montura ? ": " + d.error_montura : ""));
-        c.title = d.conectando && !d.camara ? "Conectando la cámara..." : (d.camara ? "Cámara conectada" : "Cámara sin conectar" + (d.error_camara ? ": " + d.error_camara : ""));
+        m.title = d.conectando && !d.montura ? _("Conectando la montura...") : (d.montura ? _("Montura conectada") + (d.sistema ? " (" + d.sistema + ")" : "") : _("Montura sin conectar") + (d.error_montura ? ": " + d.error_montura : ""));
+        c.title = d.conectando && !d.camara ? _("Conectando la cámara...") : (d.camara ? _("Cámara conectada") : _("Cámara sin conectar") + (d.error_camara ? ": " + d.error_camara : ""));
     }
     let _sondeoEquipo = null;
     function refrescarEstadoEquipo() {

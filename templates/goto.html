@@ -7,11 +7,11 @@
 
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">GoTo a un objeto</h1>
-        <p class="pagina-sub">Escribe o di el nombre. Tras el movimiento, el centrado por plate solving lo deja en el centro del sensor.</p>
+        <h1 class="pagina-titulo">{{ _("GoTo a un objeto") }}</h1>
+        <p class="pagina-sub">{{ _("Escribe o di el nombre. Tras el movimiento, el centrado por plate solving lo deja en el centro del sensor.") }}</p>
     </div>
     <div class="pagina-acciones">
-        <span class="chip" id="estado_stellarium" title="Fuentes de coordenadas: catálogo local (OpenNGC y estrellas) y, si está abierto, Stellarium"><span class="dot"></span>Catálogo local</span>
+        <span class="chip" id="estado_stellarium" title="{{ _('Fuentes de coordenadas: catálogo local (OpenNGC y estrellas) y, si está abierto, Stellarium') }}"><span class="dot"></span>{{ _("Catálogo local") }}</span>
     </div>
 </div>
 
@@ -19,20 +19,20 @@
      y el estado + información del objeto a la derecha -->
 <div class="grid-2 goto-layout">
     <form id="gotoForm" class="card" onsubmit="event.preventDefault(); sendGotoRequest();">
-        <label for="objeto">Objeto</label>
+        <label for="objeto">{{ _("Objeto") }}</label>
         <div class="buscador">
             <svg class="ico"><use href="#i-goto"/></svg>
-            <input type="text" id="objeto" name="objeto" required autocomplete="off" placeholder="M31, Andrómeda, Vesta, *atlas*…" enterkeyhint="go" oninput="sugerir()">
+            <input type="text" id="objeto" name="objeto" required autocomplete="off" placeholder="{{ _('M31, Andrómeda, Vesta, *atlas*…') }}" enterkeyhint="go" oninput="sugerir()">
         </div>
         <div id="sugerencias" class="sugerencias" hidden></div>
-        <div class="ayuda-busqueda">Escribe parte del nombre y elige de la lista. <code>*</code> vale por cualquier texto: <code>*atlas*</code>, <code>c/2025*</code>, <code>12p*</code></div>
+        <div class="ayuda-busqueda">{{ _("Escribe parte del nombre y elige de la lista. <code>*</code> vale por cualquier texto: <code>*atlas*</code>, <code>c/2025*</code>, <code>12p*</code>")|safe }}</div>
 
         <button type="button" class="btn btn-primary btn-xl btn-block principal" onclick="sendGotoRequest()"><svg><use href="#i-goto"/></svg>GoTo</button>
         <div class="acciones-grid dos botones">
-            <button type="button" class="btn btn-secondary" onclick="startSpeechRecognition()"><svg><use href="#i-mic"/></svg>Decir el objeto</button>
-            <button type="button" class="btn btn-secondary" onclick="toggleContinuousRecognition()"><svg><use href="#i-mic"/></svg>Voz continua</button>
-            <button id="btnModoAutomatico" type="button" class="btn btn-secondary" onclick="lanzarModoAutomatico()" disabled><svg><use href="#i-centrar"/></svg>Centrado automático</button>
-            <button id="btnInfoAudio" type="button" class="btn btn-secondary" onclick="toggleAudio()"><svg><use href="#i-altavoz"/></svg>Hablar info</button>
+            <button type="button" class="btn btn-secondary" onclick="startSpeechRecognition()"><svg><use href="#i-mic"/></svg>{{ _("Decir el objeto") }}</button>
+            <button type="button" class="btn btn-secondary" onclick="toggleContinuousRecognition()"><svg><use href="#i-mic"/></svg>{{ _("Voz continua") }}</button>
+            <button id="btnModoAutomatico" type="button" class="btn btn-secondary" onclick="lanzarModoAutomatico()" disabled><svg><use href="#i-centrar"/></svg>{{ _("Centrado automático") }}</button>
+            <button id="btnInfoAudio" type="button" class="btn btn-secondary" onclick="toggleAudio()"><svg><use href="#i-altavoz"/></svg>{{ _("Hablar info") }}</button>
         </div>
     </form>
 
@@ -70,7 +70,7 @@
     #extraInfo li { padding: 6px 10px; background: var(--bg-2); border-radius: 8px; }
     #extraInfo li b { color: var(--text-3); font-weight: 600; margin-right: 4px; }
     .goto-info.vacia::before {
-        content: "Aquí aparecerá el estado del movimiento y la información del objeto.";
+        content: "{{ _('Aquí aparecerá el estado del movimiento y la información del objeto.') }}";
         color: var(--text-3); font-size: 14px;
     }
 
@@ -124,7 +124,7 @@
             fetch("/buscar-objetos?q=" + encodeURIComponent(q)).then(r => r.json()).then(d => {
                 caja.innerHTML = "";
                 if (!d.resultados.length) {
-                    caja.innerHTML = '<div class="nada">Sin coincidencias en los catálogos locales. GoTo lo intentará con Stellarium (si está abierto) o por Internet.</div>';
+                    caja.innerHTML = '<div class="nada">' + _("Sin coincidencias en los catálogos locales. GoTo lo intentará con Stellarium (si está abierto) o por Internet.") + '</div>';
                 } else {
                     for (const r of d.resultados) {
                         const div = document.createElement("div");
@@ -153,30 +153,30 @@
     // reconocimiento de Chrome se hace en los servidores de Google: sin Internet en
     // el móvil da "network". Aquí se explica en pantalla en vez de no hacer nada.
     const ERRORES_VOZ = {
-        "not-allowed": "El navegador no deja usar el micrófono.",
-        "service-not-allowed": "El reconocimiento de voz está desactivado en este navegador.",
-        "network": "Chrome reconoce la voz en Internet: el móvil necesita conexión de datos o wifi con salida a Internet.",
-        "no-speech": "No se ha oído nada. Vuelve a pulsar y habla enseguida.",
-        "audio-capture": "No se encuentra ningún micrófono.",
-        "aborted": "Escucha cancelada.",
-        "language-not-supported": "El navegador no reconoce español.",
+        "not-allowed": _("El navegador no deja usar el micrófono."),
+        "service-not-allowed": _("El reconocimiento de voz está desactivado en este navegador."),
+        "network": _("Chrome reconoce la voz en Internet: el móvil necesita conexión de datos o wifi con salida a Internet."),
+        "no-speech": _("No se ha oído nada. Vuelve a pulsar y habla enseguida."),
+        "audio-capture": _("No se encuentra ningún micrófono."),
+        "aborted": _("Escucha cancelada."),
+        "language-not-supported": _("El navegador no reconoce español."),
     };
 
     function crearReconocimiento() {
         const Clase = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!Clase) {
-            document.getElementById('status').innerHTML = "❌ Este navegador no tiene reconocimiento de voz. En Android usa Chrome.";
+            document.getElementById('status').innerHTML = "❌ " + _("Este navegador no tiene reconocimiento de voz. En Android usa Chrome.");
             return null;
         }
         // Sin HTTPS Chrome suele bloquear el micrófono, pero se intenta igualmente: en
         // algunos navegadores funciona. Si falla, explicarErrorVoz abre la ventana de ayuda.
         const r = new Clase();
-        r.lang = 'es-ES';
+        r.lang = IDIOMA.lang;
         return r;
     }
 
     function explicarErrorVoz(event) {
-        const msg = ERRORES_VOZ[event.error] || ("Error de reconocimiento: " + event.error);
+        const msg = ERRORES_VOZ[event.error] || _("Error de reconocimiento: {error}", { error: event.error });
         document.getElementById('status').innerHTML = "❌ " + msg;
         console.warn("Reconocimiento de voz:", event.error, event.message || "");
         explicarFalloVoz(event.error);
@@ -204,13 +204,14 @@
     function startSpeechRecognition() {
         recognition = crearReconocimiento();
         if (!recognition) return;
-        recognition.onstart = () => document.getElementById('status').innerHTML = "🎙️ Escuchando... di el nombre del objeto";
+        const escuchando = "🎙️ " + _("Escuchando... di el nombre del objeto");
+        recognition.onstart = () => document.getElementById('status').innerHTML = escuchando;
         recognition.onerror = explicarErrorVoz;
-        recognition.onend = () => { if (document.getElementById('status').innerHTML.startsWith("🎙️ Escuchando")) document.getElementById('status').innerHTML = "🎙️ No se ha entendido nada; prueba otra vez."; };
+        recognition.onend = () => { if (document.getElementById('status').innerHTML.startsWith(escuchando)) document.getElementById('status').innerHTML = "🎙️ " + _("No se ha entendido nada; prueba otra vez."); };
         try {
             recognition.start();
         } catch (e) {
-            document.getElementById('status').innerHTML = "❌ No se pudo iniciar la escucha: " + e.message;
+            document.getElementById('status').innerHTML = "❌ " + _("No se pudo iniciar la escucha: {error}", { error: e.message });
             return;
         }
 
@@ -230,7 +231,7 @@
         if (recognizing) {
             recognition.stop();
             recognizing = false;
-            document.getElementById('status').innerHTML = "🛑 Auto-GOTO desactivado.";
+            document.getElementById('status').innerHTML = "🛑 " + _("Auto-GOTO desactivado.");
             return;
         }
 
@@ -241,7 +242,7 @@
 
         recognizing = true;
 
-        document.getElementById('status').innerHTML = "🎙️ Auto-GOTO activado. Hable para mover el telescopio.";
+        document.getElementById('status').innerHTML = "🎙️ " + _("Auto-GOTO activado. Hable para mover el telescopio.");
 
         recognition.onstart = () => recognitionRunning = true;
         recognition.onend = () => {
@@ -276,7 +277,7 @@
                 sonidoClick.play();
                 sendGotoRequest();
             } else {
-                document.getElementById('status').innerHTML = `⚠️ Debe decir "<b>${palabraClave}</b>" antes del objeto.`;
+                document.getElementById('status').innerHTML = "⚠️ " + _('Debe decir "{palabra}" antes del objeto.', { palabra: "<b>" + palabraClave + "</b>" });
             }
         };
 
@@ -340,7 +341,7 @@
                     if (paso === 0) {
                         if (data.slewing) {
                             paso = 1;
-                            document.getElementById("status").innerHTML = `⏳ Telescopio en movimiento hacia <b>${objeto}</b>...`;
+                            document.getElementById("status").innerHTML = "⏳ " + _("Telescopio en movimiento hacia {objeto}...", { objeto: `<b>${objeto}</b>` });
                         } else if (intentos >= 10) {
                             paso = 1;
                         }
@@ -348,7 +349,7 @@
                     }
                     if (!data.slewing) {
                         clearInterval(interval);
-                        document.getElementById("status").innerHTML = `🧭 Telescopio en <b>${objeto}</b>`;
+                        document.getElementById("status").innerHTML = "🧭 " + _("Telescopio en {objeto}", { objeto: `<b>${objeto}</b>` });
                         // Leer la información del objeto (esperando al centrado si el PC va a hablar)
                         sendWikipediaInfo(window.tipoObjeto, true);
                         // El servidor arranca el centrado automático al llegar (centrar_tras_goto),
@@ -365,7 +366,7 @@
                 .catch(err => {
                     clearInterval(interval);
                     console.error("Error al comprobar estado del telescopio", err);
-                    document.getElementById("status").innerHTML = "❌ Fallo al monitorizar el telescopio.";
+                    document.getElementById("status").innerHTML = "❌ " + _("Fallo al monitorizar el telescopio.");
                 });
         }, 1000);
     }
@@ -392,7 +393,7 @@
     function sendGotoRequest(filtroSolar = false) {
         const objeto = document.getElementById("objeto").value.trim();
         if (!objeto) {
-            document.getElementById("status").innerHTML = "❌ Debe ingresar un objeto celeste.";
+            document.getElementById("status").innerHTML = "❌ " + _("Debe ingresar un objeto celeste.");
             return;
         }
         if (!filtroSolar && objeto.toLowerCase() === ultimoGotoObjeto && Date.now() - ultimoGotoHora < 10000) {
@@ -401,7 +402,7 @@
         }
         ultimoGotoObjeto = objeto.toLowerCase(); ultimoGotoHora = Date.now();
 
-        document.getElementById("status").innerHTML = `<span class="spinner"></span> Obteniendo datos de <b>${objeto}</b>...`;
+        document.getElementById("status").innerHTML = `<span class="spinner"></span> ` + _("Obteniendo datos de {objeto}...", { objeto: `<b>${objeto}</b>` });
         document.getElementById("extraInfo").innerHTML = "";
         olvidarCentrado("centrado");          // el resultado del GoTo anterior ya no vale
         document.getElementById("btnModoAutomatico").disabled = true;
@@ -421,10 +422,10 @@
             .then(async data => {
                 if (data.confirmar_filtro_solar) {
                     // El PC no ha movido nada: es el Sol (o algo muy cerca). Solo tras el SÍ se repite.
-                    document.getElementById("status").innerHTML = "☀️ Esperando confirmación del filtro solar…";
+                    document.getElementById("status").innerHTML = "☀️ " + _("Esperando confirmación del filtro solar…");
                     document.getElementById("btnModoAutomatico").disabled = false;
                     if (await confirmarFiltroSolar(data.confirmar_filtro_solar)) sendGotoRequest(true);
-                    else document.getElementById("status").innerHTML = "⛔ GoTo cancelado: filtro solar sin confirmar.";
+                    else document.getElementById("status").innerHTML = "⛔ " + _("GoTo cancelado: filtro solar sin confirmar.");
                     return;
                 }
                 if (data.error) {
@@ -436,29 +437,29 @@
                     // Llama a esperarFinDeMovimiento para saber cuándo se ha acabado el movimiento
                     esperarFinDeMovimiento(objeto);
                 } else {
-                    document.getElementById("status").innerHTML = "❌ Respuesta inesperada del servidor.";
+                    document.getElementById("status").innerHTML = "❌ " + _("Respuesta inesperada del servidor.");
                 }
 
                 if (data.extra_info) {
                     const info = data.extra_info;
                     const icono = getIconForType(info.type);
-                    let html = `<h3>${icono} Información del objeto</h3><ul>`;
-                    if (info.name) html += `<li><b>Nombre:</b> ${info.name}</li>`;
-                    if (info.type) html += `<li><b>Tipo:</b> ${info.type}</li>`;
+                    let html = `<h3>${icono} ` + _("Información del objeto") + `</h3><ul>`;
+                    if (info.name) html += `<li><b>` + _("Nombre:") + `</b> ${info.name}</li>`;
+                    if (info.type) html += `<li><b>` + _("Tipo:") + `</b> ` + _(info.type) + `</li>`;
                     if (info.constellation || info.iauConstellation) {
-                        html += `<li><b>Constelación:</b> ${info.constellation || info.iauConstellation}</li>`;
+                        html += `<li><b>` + _("Constelación:") + `</b> ${info.constellation || info.iauConstellation}</li>`;
                     }
                     const mag = info.mag ?? info.vmag ?? info.vmage;
                     if (mag !== undefined && mag !== null) {
-                        html += `<li><b>Magnitud aparente:</b> ${mag.toFixed(2)}</li>`;
+                        html += `<li><b>` + _("Magnitud aparente:") + `</b> ${fmtNum(mag, 2)}</li>`;
                     } else {
-                        html += `<li><b>Magnitud aparente:</b> No disponible</li>`;
+                        html += `<li><b>` + _("Magnitud aparente:") + `</b> ` + _("No disponible") + `</li>`;
                     }
-                    if (info.alt) html += `<li><b>Altitud:</b> ${info.alt.toFixed(2)}°</li>`;
-                    if (info.az) html += `<li><b>Azimut:</b> ${info.az.toFixed(2)}°</li>`;
-                    if (info.distance) html += `<li><b>Distancia:</b> ${info.distance.toFixed(2)}</li>`;
-                    if (info.phase !== null && info.phase !== undefined) html += `<li><b>Fase:</b> ${(info.phase * 100).toFixed(1)}%</li>`;
-                    if (info.illumination !== null && info.illumination !== undefined) html += `<li><b>Iluminación:</b> ${(info.illumination * 100).toFixed(1)}%</li>`;
+                    if (info.alt) html += `<li><b>` + _("Altitud:") + `</b> ${fmtNum(info.alt, 2)}°</li>`;
+                    if (info.az) html += `<li><b>` + _("Azimut:") + `</b> ${fmtNum(info.az, 2)}°</li>`;
+                    if (info.distance) html += `<li><b>` + _("Distancia:") + `</b> ${fmtNum(info.distance, 2)}</li>`;
+                    if (info.phase !== null && info.phase !== undefined) html += `<li><b>` + _("Fase:") + `</b> ${fmtNum(info.phase * 100, 1)}%</li>`;
+                    if (info.illumination !== null && info.illumination !== undefined) html += `<li><b>` + _("Iluminación:") + `</b> ${fmtNum(info.illumination * 100, 1)}%</li>`;
                     html += "</ul>";
                     document.getElementById("extraInfo").innerHTML = html;
 
@@ -494,7 +495,7 @@
                 }
             })
             .catch(error => {
-                document.getElementById("status").innerHTML = "❌ Error en la solicitud: " + error;
+                document.getElementById("status").innerHTML = "❌ " + _("Error en la solicitud: {error}", { error: error });
             });
     }
 
@@ -506,15 +507,15 @@
                 const n = data.catalogo ? data.catalogo.objetos : 0;
                 if (n > 0) {
                     div.className = "chip chip-ok";
-                    div.innerHTML = '<span class="dot"></span>Catálogo local · ' + n.toLocaleString("es-ES") + ' objetos' + (data.disponible ? ' + Stellarium' : '');
+                    div.innerHTML = '<span class="dot"></span>' + _("Catálogo local · {n} objetos", { n: n.toLocaleString(IDIOMA.locale) }) + (data.disponible ? ' + Stellarium' : '');
                 } else if (data.disponible) {
-                    div.className = "chip chip-warn"; div.innerHTML = '<span class="dot"></span>Stellarium (catálogo local no cargado)';
+                    div.className = "chip chip-warn"; div.innerHTML = '<span class="dot"></span>' + _("Stellarium (catálogo local no cargado)");
                 } else {
-                    div.className = "chip chip-err"; div.innerHTML = '<span class="dot"></span>Catálogo local no cargado';
+                    div.className = "chip chip-err"; div.innerHTML = '<span class="dot"></span>' + _("Catálogo local no cargado");
                 }
             })
             .catch(error => {
-                document.getElementById("estado_stellarium").className = "chip chip-warn"; document.getElementById("estado_stellarium").innerHTML = '<span class="dot"></span>Catálogo: sin respuesta';
+                document.getElementById("estado_stellarium").className = "chip chip-warn"; document.getElementById("estado_stellarium").innerHTML = '<span class="dot"></span>' + _("Catálogo: sin respuesta");
             });
     }
 
@@ -525,10 +526,10 @@
     function hablarSinPisarAlPC(utterance, esperarCentrado) {
         const arrancar = () => {
             if (infoUtterance !== utterance) return;               // el usuario pidió otra cosa mientras tanto
-            document.getElementById("status").innerHTML = "✅ Información obtenida, reproduciendo...";
+            document.getElementById("status").innerHTML = "✅ " + _("Información obtenida, reproduciendo...");
             speechSynthesis.cancel();                             // si había otra lectura en marcha, no se solapan
             speechSynthesis.speak(utterance);
-            document.getElementById("btnInfoAudio").innerHTML = "⏸️ Pause info";
+            document.getElementById("btnInfoAudio").innerHTML = "⏸️ " + _("Pause info");
         };
         if (!window.vozPCActiva || !esperarCentrado) { arrancar(); return; }
         let esperas = 0, vioCentrado = false;
@@ -536,7 +537,7 @@
             fetch("/centrado/estado").then(r => r.json()).then(e => {
                 if ((e.en_curso || e.previo) && esperas < 150) {   // como mucho 5 minutos (previo = aún no ha arrancado)
                     esperas++; vioCentrado = true;
-                    document.getElementById("status").innerHTML = "⏸️ El resumen se leerá cuando termine el centrado (el PC está hablando)";
+                    document.getElementById("status").innerHTML = "⏸️ " + _("El resumen se leerá cuando termine el centrado (el PC está hablando)");
                     setTimeout(comprobar, 2000);
                 } else {
                     setTimeout(arrancar, vioCentrado ? 6000 : 0);  // el PC tarda unos segundos en decir el resultado
@@ -550,7 +551,7 @@
     function sendWikipediaInfo(tipo, esperarCentrado) {
         const objeto = document.getElementById("objeto").value.trim();
         if (!objeto) {
-            document.getElementById("status").innerHTML = "❌ Debe ingresar un objeto celeste.";
+            document.getElementById("status").innerHTML = "❌ " + _("Debe ingresar un objeto celeste.");
             return;
         }
         let objetoBusqueda = objeto;
@@ -558,7 +559,7 @@
             objetoBusqueda = objeto + " (" + tipo + ")";
         }
 
-        document.getElementById("status").innerHTML = `<span class="spinner"></span> Obteniendo información de Wikipedia...`;
+        document.getElementById("status").innerHTML = `<span class="spinner"></span> ` + _("Obteniendo información de Wikipedia...");
 
         fetch("/info-wikipedia", {
             method: "POST",
@@ -576,16 +577,16 @@
                     if (!textoParaHablar) {
                         textoParaHablar = tipo ? `${objeto} (${tipo}): ${data.wikipedia_info}` : `${objeto}: ${data.wikipedia_info}`;
                     }
-                    document.getElementById("status").innerHTML = "✅ Información obtenida, reproduciendo...";
+                    document.getElementById("status").innerHTML = "✅ " + _("Información obtenida, reproduciendo...");
                     // Crear el utterance
                     var utterance = new SpeechSynthesisUtterance(textoParaHablar);
                     utterance.rate = 0.8;  // Ajusta la velocidad si es necesario
-                    utterance.lang = "es-ES";
+                    utterance.lang = IDIOMA.lang;
                     utterance.onend = function () {
-                        document.getElementById("status").innerHTML = "✅ Resumen reproducido.";
+                        document.getElementById("status").innerHTML = "✅ " + _("Resumen reproducido.");
                         // Reinicia la variable y el texto del botón al finalizar
                         infoUtterance = null;
-                        document.getElementById("btnInfoAudio").innerHTML = "📢 Hablar info";
+                        document.getElementById("btnInfoAudio").innerHTML = "📢 " + _("Hablar info");
                     };
                     // Guarda el utterance para poder gestionarlo posteriormente
                     infoUtterance = utterance;
@@ -593,7 +594,7 @@
                 }
             })
             .catch(err => {
-                document.getElementById("status").innerHTML = "❌ Error en la solicitud: " + err;
+                document.getElementById("status").innerHTML = "❌ " + _("Error en la solicitud: {error}", { error: err });
             });
     }
 
@@ -603,11 +604,11 @@
             // Si el audio está pausado, reanudarlo
             if (speechSynthesis.paused) {
                 speechSynthesis.resume();
-                document.getElementById("btnInfoAudio").innerHTML = "⏸️ Pause info";
+                document.getElementById("btnInfoAudio").innerHTML = "⏸️ " + _("Pause info");
             } else {
                 // Si el audio está sonando, pausarlo
                 speechSynthesis.pause();
-                document.getElementById("btnInfoAudio").innerHTML = "▶️ Resume info";
+                document.getElementById("btnInfoAudio").innerHTML = "▶️ " + _("Resume info");
             }
         } else {
             // Si no hay audio activo, llama a sendWikipediaInfo para iniciar la reproducción

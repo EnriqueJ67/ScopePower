@@ -53,6 +53,8 @@ from ctypes import (c_int, c_uint, c_ushort, c_short, c_float, c_ulonglong, c_wc
 
 import numpy as np
 
+from idioma import _, ngettext, N_
+
 log = logging.getLogger("scopepower.camara_toupcam")
 
 NOMBRE_MARCA = "ToupTek"
@@ -94,10 +96,10 @@ EV_IMAGE, EV_ERROR, EV_DESCONECTADA, EV_SIN_FRAMES = 0x0004, 0x0080, 0x0081, 0x0
 
 E_PENDING = 0x8000000A
 ERRORES = {
-    0x8000FFFF: "llamada inesperada", 0x80004001: "no lo admite esta cámara", 0x80070005: "acceso denegado",
-    0x8007000E: "sin memoria", 0x80070057: "argumento no válido", 0x80004003: "puntero no válido",
-    0x80004005: "error general", 0x8001010E: "hilo equivocado", 0x8007001F: "el dispositivo no responde",
-    0x800700AA: "la cámara está ocupada", E_PENDING: "no hay fotograma todavía", 0x8001011F: "tiempo agotado",
+    0x8000FFFF: N_("llamada inesperada"), 0x80004001: N_("no lo admite esta cámara"), 0x80070005: N_("acceso denegado"),
+    0x8007000E: N_("sin memoria"), 0x80070057: N_("argumento no válido"), 0x80004003: N_("puntero no válido"),
+    0x80004005: N_("error general"), 0x8001010E: N_("hilo equivocado"), 0x8007001F: N_("el dispositivo no responde"),
+    0x800700AA: N_("la cámara está ocupada"), E_PENDING: N_("no hay fotograma todavía"), 0x8001011F: N_("tiempo agotado"),
 }
 
 FORMATOS = {"RAW8": 8, "MONO8": 8, "RAW16": 16}
@@ -247,8 +249,8 @@ def cargar_sdks():
         cargados = [s for s in _sdks.values() if s is not None]
         if not cargados:
             _sdks.clear()                           # que se vuelva a buscar la próxima vez
-            raise ErrorCamaraToupcam("No se encuentra toupcam.dll ni ninguna DLL de su familia: instala el driver "
-                                     "de la marca o N.I.N.A., o indica la ruta en config.ini, [CamaraSDK] dll_touptek")
+            raise ErrorCamaraToupcam(_("No se encuentra toupcam.dll ni ninguna DLL de su familia: instala el driver "
+                                       "de la marca o N.I.N.A., o indica la ruta en config.ini, [CamaraSDK] dll_touptek"))
         return cargados
 
 
@@ -288,7 +290,8 @@ def listar_camaras():
 
 def _texto_error(err):
     err = int(err) & 0xFFFFFFFF
-    return f"{ERRORES.get(err, 'error desconocido')} ({err:#010x})"
+    texto = _(ERRORES[err]) if err in ERRORES else _("error desconocido")
+    return f"{texto} ({err:#010x})"
 
 
 class CamaraToupcam:
@@ -325,14 +328,16 @@ class CamaraToupcam:
     def abrir(self):
         camaras = _camaras()
         if len(camaras) <= self._indice:
-            raise ErrorCamaraToupcam("No hay ninguna cámara ToupTek (ni Altair, Ogma, Risingcam…) conectada"
+            raise ErrorCamaraToupcam(_("No hay ninguna cámara ToupTek (ni Altair, Ogma, Risingcam…) conectada")
                                      if not camaras else
-                                     f"Solo hay {len(camaras)} cámara(s) ToupTek; pedida la {self._indice + 1}")
+                                     ngettext("Solo hay {n} cámara ToupTek; pedida la {pedida}",
+                                              "Solo hay {n} cámaras ToupTek; pedida la {pedida}",
+                                              len(camaras), pedida=self._indice + 1))
         info = camaras[self._indice]
         self._sdk = info["_sdk"]
         h = self.f("Open")(info["id"])
         if not h:
-            raise ErrorCamaraToupcam("abrir la cámara: el SDK no la abre (¿la tiene otra aplicación?)")
+            raise ErrorCamaraToupcam(_("abrir la cámara: el SDK no la abre (¿la tiene otra aplicación?)"))
         self._h = h
         try:
             self._preparar(info)
@@ -348,12 +353,12 @@ class CamaraToupcam:
 
     def _preparar(self, info):
         f, h = self.f, self._h
-        self._ok(f("put_eSize")(h, 0), "elegir la resolución completa")
-        self._ok(f("put_Option")(h, OPT_RAW, 1), "pedir la imagen RAW")
+        self._ok(f("put_eSize")(h, 0), _("elegir la resolución completa"))
+        self._ok(f("put_Option")(h, OPT_RAW, 1), _("pedir la imagen RAW"))
         f("put_Option")(h, OPT_UPSIDE_DOWN, 0)          # orden del sensor (en Windows viene volteada)
         f("put_AutoExpoEnable")(h, 0)
         ancho, alto = c_int(), c_int()
-        self._ok(f("get_Size")(h, byref(ancho), byref(alto)), "leer el tamaño del sensor")
+        self._ok(f("get_Size")(h, byref(ancho), byref(alto)), _("leer el tamaño del sensor"))
         bits = int(f("get_MaxBitDepth")(h)) or 8
         fourcc, bpp = c_uint(), c_uint()
         patron = "MONO"
@@ -376,7 +381,7 @@ class CamaraToupcam:
         usb = _config("usb_touptek")
         if usb and "Speed" in self._caps:
             try:
-                self._ok(f("put_Speed")(h, int(self._recortar("Speed", float(usb)))), "fijar la velocidad USB")
+                self._ok(f("put_Speed")(h, int(self._recortar("Speed", float(usb)))), _("fijar la velocidad USB"))
             except (ValueError, ErrorCamaraToupcam) as e:
                 log.warning("No se pudo fijar la velocidad USB %r: %s", usb, e)
 
@@ -411,8 +416,8 @@ class CamaraToupcam:
         if evento == EV_IMAGE:
             self._evento.set()
         elif evento in (EV_ERROR, EV_DESCONECTADA, EV_SIN_FRAMES):
-            self._error_evento = {EV_ERROR: "error de la cámara", EV_DESCONECTADA: "la cámara se ha desconectado",
-                                  EV_SIN_FRAMES: "la cámara no manda fotogramas"}[evento]
+            self._error_evento = {EV_ERROR: _("error de la cámara"), EV_DESCONECTADA: _("la cámara se ha desconectado"),
+                                  EV_SIN_FRAMES: _("la cámara no manda fotogramas")}[evento]
             self._evento.set()
 
     # ── Ajustes ──────────────────────────────────────────────────────────
@@ -450,7 +455,7 @@ class CamaraToupcam:
         """Fija un ajuste por su nombre ("Gain" en %, "Exposure" en µs, "Offset"...)."""
         f, h = self.f, self._h
         if nombre not in self._caps:
-            raise ErrorCamaraToupcam(f"La cámara no tiene el ajuste {nombre}")
+            raise ErrorCamaraToupcam(_("La cámara no tiene el ajuste {nombre}", nombre=nombre))
         valor = int(round(float(valor)))
         if nombre == "Gain":
             err = f("put_ExpoAGain")(h, valor)
@@ -461,26 +466,26 @@ class CamaraToupcam:
         elif nombre == "Speed":
             err = f("put_Speed")(h, valor)
         else:
-            raise ErrorCamaraToupcam(f"El ajuste {nombre} es de solo lectura")
-        self._ok(err, f"fijar {nombre}")
+            raise ErrorCamaraToupcam(_("El ajuste {nombre} es de solo lectura", nombre=nombre))
+        self._ok(err, _("fijar {nombre}", nombre=nombre))
 
     def leer(self, nombre):
         f, h = self.f, self._h
         if nombre not in self._caps:
-            raise ErrorCamaraToupcam(f"La cámara no tiene el ajuste {nombre}")
+            raise ErrorCamaraToupcam(_("La cámara no tiene el ajuste {nombre}", nombre=nombre))
         if nombre == "Gain":
             v = c_ushort()
-            self._ok(f("get_ExpoAGain")(h, byref(v)), "leer Gain")
+            self._ok(f("get_ExpoAGain")(h, byref(v)), _("leer {nombre}", nombre="Gain"))
         elif nombre == "Exposure":
             v = c_uint()
-            self._ok(f("get_ExpoTime")(h, byref(v)), "leer Exposure")
+            self._ok(f("get_ExpoTime")(h, byref(v)), _("leer {nombre}", nombre="Exposure"))
         elif nombre == "Temperature":
             v = c_short()
-            self._ok(f("get_Temperature")(h, byref(v)), "leer Temperature")
+            self._ok(f("get_Temperature")(h, byref(v)), _("leer {nombre}", nombre="Temperature"))
             return v.value / 10.0
         elif nombre == "Offset":
             v = c_int()
-            self._ok(f("get_Option")(h, OPT_BLACKLEVEL, byref(v)), "leer Offset")
+            self._ok(f("get_Option")(h, OPT_BLACKLEVEL, byref(v)), _("leer {nombre}", nombre="Offset"))
         else:
             return self._caps[nombre]["defecto"]
         return int(v.value)
@@ -506,10 +511,11 @@ class CamaraToupcam:
         """
         f, h = self.f, self._h
         if formato not in FORMATOS:
-            raise ValueError(f"Formato desconocido: {formato} (RAW8, RAW16 o MONO8)")
+            raise ValueError(_("Formato desconocido: {formato} (RAW8, RAW16 o MONO8)", formato=formato))
         binning = max(1, int(binning))
         if binning not in self.propiedades["bins"]:
-            raise ErrorCamaraToupcam(f"La cámara no admite binning {binning} (admite {self.propiedades['bins']})")
+            raise ErrorCamaraToupcam(_("La cámara no admite binning {binning} (admite {bins})", binning=binning,
+                                       bins=self.propiedades["bins"]))
         with self._lock:
             self.abortar()
             if self._en_marcha:                      # RAW, bits y zona se cambian con la cámara parada
@@ -518,19 +524,19 @@ class CamaraToupcam:
             ancho, alto = max(16, int(ancho) & ~1), max(16, int(alto) & ~1)
             x0, y0 = int(x0) & ~1, int(y0) & ~1
             self._bits = 16 if FORMATOS[formato] == 16 and self.propiedades["bits"] > 8 else 8
-            self._ok(f("put_Option")(h, OPT_BITDEPTH, 1 if self._bits == 16 else 0), f"fijar {self._bits} bits")
+            self._ok(f("put_Option")(h, OPT_BITDEPTH, 1 if self._bits == 16 else 0), _("fijar {bits} bits", bits=self._bits))
             # 16 bits: los datos se alinean arriba en _sacar() (desplazamiento de 16 − bits del sensor)
             self._desplazar = max(0, 16 - int(self.propiedades["bits"])) if self._bits == 16 else 0
             self.max_adu = 65535 if self._bits == 16 else 255
-            self._ok(f("put_Option")(h, OPT_BINNING, 1 if binning == 1 else 0x80 | binning), f"fijar binning {binning}")
+            self._ok(f("put_Option")(h, OPT_BINNING, 1 if binning == 1 else 0x80 | binning), _("fijar binning {binning}", binning=binning))
             completo = (x0, y0) == (0, 0) and ancho * binning >= self.propiedades["ancho"] - 1 \
                 and alto * binning >= self.propiedades["alto"] - 1
             if completo:
-                self._ok(f("put_Roi")(h, 0, 0, 0, 0), "quitar la zona")
+                self._ok(f("put_Roi")(h, 0, 0, 0, 0), _("quitar la zona"))
             else:
-                self._ok(f("put_Roi")(h, x0 * binning, y0 * binning, ancho * binning, alto * binning), "fijar la zona")
-            self._ok(f("put_Option")(h, OPT_TRIGGER, 1), "poner el disparo por software")
-            self._ok(f("StartPullModeWithCallback")(h, self._callback, None), "arrancar la cámara")
+                self._ok(f("put_Roi")(h, x0 * binning, y0 * binning, ancho * binning, alto * binning), _("fijar la zona"))
+            self._ok(f("put_Option")(h, OPT_TRIGGER, 1), _("poner el disparo por software"))
+            self._ok(f("StartPullModeWithCallback")(h, self._callback, None), _("arrancar la cámara"))
             self._en_marcha = True
             fw, fh = c_int(), c_int()
             if f("get_FinalSize")(h, byref(fw), byref(fh)) >= 0 and fw.value > 0:
@@ -561,13 +567,13 @@ class CamaraToupcam:
     # ── Vídeo ─────────────────────────────────────────────────────────────
     def iniciar_video(self):
         if self._buffer is None:
-            raise ErrorCamaraToupcam("Configura la cámara antes de iniciar el vídeo")
+            raise ErrorCamaraToupcam(_("Configura la cámara antes de iniciar el vídeo"))
         if self._foto:
             self.f("Trigger")(self._h, 0)
             self._foto = False
         if not self._video:
             self._evento.clear()
-            self._ok(self.f("put_Option")(self._h, OPT_TRIGGER, 0), "iniciar el vídeo")
+            self._ok(self.f("put_Option")(self._h, OPT_TRIGGER, 0), _("iniciar el vídeo"))
             self._video = True
 
     def parar_video(self):
@@ -579,14 +585,14 @@ class CamaraToupcam:
     def disparar(self):
         """Empieza una sola exposición y vuelve enseguida (hay_frame() dice cuándo está; leer_frame() la lee)."""
         if self._buffer is None:
-            raise ErrorCamaraToupcam("Configura la cámara antes de disparar")
+            raise ErrorCamaraToupcam(_("Configura la cámara antes de disparar"))
         self.parar_video()
         if self._foto:
             log.info("Cámara %s: había una exposición en curso; se corta y se repite el disparo", self._sdk.marca)
             self.f("Trigger")(self._h, 0)
         self._evento.clear()
         self._error_evento = None
-        self._ok(self.f("Trigger")(self._h, 1), "iniciar la exposición")
+        self._ok(self.f("Trigger")(self._h, 1), _("iniciar la exposición"))
         self._foto = True
 
     def hay_frame(self):
@@ -628,9 +634,9 @@ class CamaraToupcam:
         fotograma. Devuelve el búfer interno (h×w uint8/uint16): copiar para conservar.
         """
         if self._buffer is None:
-            raise ErrorCamaraToupcam("Configura la cámara antes de leer fotogramas")
+            raise ErrorCamaraToupcam(_("Configura la cámara antes de leer fotogramas"))
         if not (self._foto or self._video):
-            raise ErrorCamaraToupcam("No hay ninguna exposición ni vídeo en marcha")
+            raise ErrorCamaraToupcam(_("No hay ninguna exposición ni vídeo en marcha"))
         if timeout_ms is None:
             timeout_ms = int(self._exposicion_ms * 2 + 500)
         espera = (self._exposicion_ms if self._foto else 0) / 1000.0 + timeout_ms / 1000.0
@@ -638,8 +644,8 @@ class CamaraToupcam:
         while True:
             restante = limite - time.monotonic()
             if restante <= 0 or not self._evento.wait(restante):
-                raise ErrorCamaraToupcam("leer fotograma: la exposición no terminó a tiempo" if self._foto
-                                         else "leer fotograma: no llega ningún fotograma del vídeo")
+                raise ErrorCamaraToupcam(_("leer fotograma: la exposición no terminó a tiempo") if self._foto
+                                         else _("leer fotograma: no llega ningún fotograma del vídeo"))
             self._evento.clear()
             if self._error_evento:
                 raise ErrorCamaraToupcam(self._error_evento)
@@ -648,7 +654,7 @@ class CamaraToupcam:
                 self._foto = False
                 return self._buffer
             if (err & 0xFFFFFFFF) != E_PENDING:
-                self._ok(err, "leer fotograma")
+                self._ok(err, _("leer fotograma"))
 
     def descartados(self):
         return -1                     # el SDK no cuenta los perdidos en modo pull

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Cerrar aplicación{% endblock %}
+{% block title %}{{ _("Cerrar aplicación") }}{% endblock %}
 
 {% block content %}
-<div class="pagina-cabecera"><div><h1 class="pagina-titulo">Salida del servidor</h1></div></div>
+<div class="pagina-cabecera"><div><h1 class="pagina-titulo">{{ _("Salida del servidor") }}</h1></div></div>
 <div class="card card-centrada">
     <p style="margin: 0;">{{ mensaje | safe }}</p>
 </div>

@@ -1,50 +1,46 @@
 {% extends "base.html" %}
 
-{% block title %}Calibración{% endblock %}
+{% block title %}{{ _("Calibración") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Calibración</h1>
+        <h1 class="pagina-titulo">{{ _("Calibración") }}</h1>
         <p class="pagina-sub">
-            Los darks quitan el ruido térmico y los píxeles calientes; los flats, el viñeteo y las sombras de polvo.
-            Se restan a cada foto antes de apilar. El apilado también ofrece hacer los darks al empezar.
-            El color, para las fotos de día: una foto de algo blanco al Sol le enseña a la app cómo ve los colores tu cámara.
+            {{ _("Los darks quitan el ruido térmico y los píxeles calientes; los flats, el viñeteo y las sombras de polvo. Se restan a cada foto antes de apilar. El apilado también ofrece hacer los darks al empezar. El color, para las fotos de día: una foto de algo blanco al Sol le enseña a la app cómo ve los colores tu cámara.") }}
         </p>
     </div>
 </div>
 
 <div class="grid-2" style="max-width: 900px;">
     <div class="card">
-        <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-calibracion"/></svg>Dark maestro</h3></div>
-        <div id="info-dark" class="estado mb-2">Consultando...</div>
-        <a href="{{ url_for('generar_dark') }}" class="btn btn-danger btn-block">Generar darks (tapar el tubo)</a>
+        <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-calibracion"/></svg>{{ _("Dark maestro") }}</h3></div>
+        <div id="info-dark" class="estado mb-2">{{ _("Consultando...") }}</div>
+        <a href="{{ url_for('generar_dark') }}" class="btn btn-danger btn-block">{{ _("Generar darks (tapar el tubo)") }}</a>
     </div>
     <div class="card" style="margin-top: 0;">
-        <div class="card-header"><h3 class="card-title"><svg class="ico" style="color: var(--info);"><use href="#i-sol"/></svg>Flat maestro</h3></div>
-        <div id="info-flat" class="estado mb-2">Consultando...</div>
-        <a href="{{ url_for('vista_flats') }}" class="btn btn-primary btn-block">Generar flats (camiseta y pantalla)</a>
+        <div class="card-header"><h3 class="card-title"><svg class="ico" style="color: var(--info);"><use href="#i-sol"/></svg>{{ _("Flat maestro") }}</h3></div>
+        <div id="info-flat" class="estado mb-2">{{ _("Consultando...") }}</div>
+        <a href="{{ url_for('vista_flats') }}" class="btn btn-primary btn-block">{{ _("Generar flats (camiseta y pantalla)") }}</a>
     </div>
 </div>
 
 <!-- Color de las fotos de día (foto_dia.TrabajoBalanceBlanco): balance de luz de día medido con un blanco -->
 <div class="card" style="max-width: 900px;">
-    <div class="card-header"><h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>Color de día (balance de blancos)</h3></div>
-    <div id="info-color" class="estado mb-2">Consultando...</div>
+    <div class="card-header"><h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>{{ _("Color de día (balance de blancos)") }}</h3></div>
+    <div id="info-color" class="estado mb-2">{{ _("Consultando...") }}</div>
     <p class="card-sub" style="margin-top: 0;">
-        Apunta a algo <b>blanco iluminado por el Sol directo</b>: una pared o fachada soleada, o un folio o una tela blanca al Sol
-        justo delante del objetivo. Da igual que salga desenfocado; solo cuenta que llene el centro de la foto.
-        A la sombra saldría azulado y con luz artificial, naranja. Se usa en las fotos de paisaje y en el Sol «Del filtro».
+        {{ _("Apunta a algo <b>blanco iluminado por el Sol directo</b>: una pared o fachada soleada, o un folio o una tela blanca al Sol justo delante del objetivo. Da igual que salga desenfocado; solo cuenta que llene el centro de la foto. A la sombra saldría azulado y con luz artificial, naranja. Se usa en las fotos de paisaje y en el Sol «Del filtro».")|safe }}
     </p>
     <div class="acciones">
-        <button type="button" id="btn-color" class="btn btn-primary" onclick="calibrarColor()"><svg><use href="#i-foto"/></svg>Calibrar el color con algo blanco</button>
-        <button type="button" id="btn-color-cancelar" class="btn btn-secondary" onclick="fetch('/cancelar-captura', {method: 'POST'})" hidden><svg><use href="#i-stop"/></svg>Cancelar</button>
-        <button type="button" id="btn-color-olvidar" class="btn btn-ghost" onclick="olvidarColor()" hidden>Olvidar la calibración</button>
+        <button type="button" id="btn-color" class="btn btn-primary" onclick="calibrarColor()"><svg><use href="#i-foto"/></svg>{{ _("Calibrar el color con algo blanco") }}</button>
+        <button type="button" id="btn-color-cancelar" class="btn btn-secondary" onclick="fetch('/cancelar-captura', {method: 'POST'})" hidden><svg><use href="#i-stop"/></svg>{{ _("Cancelar") }}</button>
+        <button type="button" id="btn-color-olvidar" class="btn btn-ghost" onclick="olvidarColor()" hidden>{{ _("Olvidar la calibración") }}</button>
     </div>
     <div id="estado-color" class="estado mt-2"></div>
     <div id="vista-color" class="mt-2" hidden>
-        <img id="img-color" alt="Blanco de referencia con el color corregido" style="display: block; width: 100%; max-width: 360px; border-radius: 12px; border: 1px solid var(--border); background: #000;">
-        <small class="ayuda">Así sale el blanco con el color corregido: debería verse gris o blanco, sin tinte.</small>
+        <img id="img-color" alt="{{ _('Blanco de referencia con el color corregido') }}" style="display: block; width: 100%; max-width: 360px; border-radius: 12px; border: 1px solid var(--border); background: #000;">
+        <small class="ayuda">{{ _("Así sale el blanco con el color corregido: debería verse gris o blanco, sin tinte.") }}</small>
     </div>
 </div>
 
@@ -54,14 +50,14 @@
     function textoFecha(iso) {
         if (!iso) return "";
         const d = new Date(iso);
-        return isNaN(d) ? iso : d.toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        return isNaN(d) ? iso : d.toLocaleString(IDIOMA.locale, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
     }
     function pintarBalance(b) {
-        const v = `R×${b.r.toFixed(2).replace(".", ",")}, B×${b.b.toFixed(2).replace(".", ",")}`;
+        const v = `R×${fmtNum(b.r, 2)}, B×${fmtNum(b.b, 2)}`;
         let texto;
-        if (b.calibrado) texto = `✅ Calibrado con un blanco el ${textoFecha(b.fecha)}: ${v}.`;
-        else if (b.origen === "Luna") texto = `Aprendido de la Luna el ${textoFecha(b.fecha)}: ${v}. Una calibración con un blanco es más fiable.`;
-        else texto = `Sin calibrar: se usa un valor típico de estos sensores (${v}).`;
+        if (b.calibrado) texto = _("✅ Calibrado con un blanco el {fecha}: {valores}.", { fecha: textoFecha(b.fecha), valores: v });
+        else if (b.origen === "Luna") texto = _("Aprendido de la Luna el {fecha}: {valores}. Una calibración con un blanco es más fiable.", { fecha: textoFecha(b.fecha), valores: v });
+        else texto = _("Sin calibrar: se usa un valor típico de estos sensores ({valores}).", { valores: v });
         document.getElementById("info-color").textContent = texto;
         document.getElementById("btn-color-olvidar").hidden = b.origen === "típico" || !b.fecha;
     }
@@ -89,38 +85,42 @@
     }
     function calibrarColor() {
         const est = document.getElementById("estado-color");
-        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Empezando...';
+        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>' + _("Empezando...");
         fetch("/color/calibrar", { method: "POST" }).then(r => r.json()).then(d => {
-            if (!d.ok) { est.className = "estado mt-2 err"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
+            if (!d.ok) { est.className = "estado mt-2 err"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); return; }
             if (!sondeoColor) sondeoColor = setInterval(sondearColor, 800);
             sondearColor();
         }).catch(err => { est.className = "estado mt-2 err"; est.textContent = "❌ " + err; });
     }
     function olvidarColor() {
-        if (!confirm("¿Olvidar el color guardado? Se volverá al valor típico hasta que calibres con un blanco (o se aprenda de la próxima Luna).")) return;
+        if (!confirm(_("¿Olvidar el color guardado? Se volverá al valor típico hasta que calibres con un blanco (o se aprenda de la próxima Luna)."))) return;
         fetch("/color/olvidar", { method: "POST" }).then(r => r.json()).then(d => {
             pintarBalance(d.balance);
             document.getElementById("vista-color").hidden = true;
             const est = document.getElementById("estado-color");
-            est.className = "estado mt-2"; est.textContent = d.ok ? "Color olvidado: se usa el valor típico." : "❌ No se pudo borrar.";
+            est.className = "estado mt-2"; est.textContent = d.ok ? _("Color olvidado: se usa el valor típico.") : _("❌ No se pudo borrar.");
         }).catch(() => {});
     }
     fetch("/color/estado").then(r => r.json()).then(d => {
         versionColor = d.trabajo.version;              // no enseñar la vista de una calibración anterior
         if (pintarColor(d) && !sondeoColor) sondeoColor = setInterval(sondearColor, 800);
-    }).catch(() => { document.getElementById("info-color").textContent = "No se pudo consultar."; });
+    }).catch(() => { document.getElementById("info-color").textContent = _("No se pudo consultar."); });
 
     fetch("/darks/estado").then(r => r.json()).then(d => {
         const u = d.ultimo || {};
         document.getElementById("info-dark").textContent = u.existe
-            ? `Último dark para ${u.exposicion} s: ${u.fecha}` + (u.temperatura != null ? ` · sensor a ${u.temperatura.toFixed(1)} °C` : "") + (u.ndarks ? ` · ${u.ndarks} tomas` : "")
-            : `No hay dark para la exposición actual (${u.exposicion} s).`;
+            ? _("Último dark para {exp} s: {fecha}", { exp: u.exposicion, fecha: u.fecha })
+              + (u.temperatura != null ? " · " + _("sensor a {t} °C", { t: fmtNum(u.temperatura, 1) }) : "")
+              + (u.ndarks ? " · " + ngettext("{n} toma", "{n} tomas", u.ndarks) : "")
+            : _("No hay dark para la exposición actual ({exp} s).", { exp: u.exposicion });
         const f = d.flat || {};
         document.getElementById("info-flat").textContent = f.existe
-            ? `Último flat: ${f.fecha}` + (f.vinyeteo != null ? ` · viñeteo ${f.vinyeteo} %` : "") + (f.nflats ? ` · ${f.nflats} tomas` : "")
-            : "No hay flat maestro.";
+            ? _("Último flat: {fecha}", { fecha: f.fecha })
+              + (f.vinyeteo != null ? " · " + _("viñeteo {v} %", { v: f.vinyeteo }) : "")
+              + (f.nflats ? " · " + ngettext("{n} toma", "{n} tomas", f.nflats) : "")
+            : _("No hay flat maestro.");
     }).catch(() => {
-        document.getElementById("info-dark").textContent = "No se pudo consultar.";
+        document.getElementById("info-dark").textContent = _("No se pudo consultar.");
         document.getElementById("info-flat").textContent = "";
     });
 </script>

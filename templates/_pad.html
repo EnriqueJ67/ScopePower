@@ -2,25 +2,25 @@
      Lo incluyen el control manual (control.html) y el panel "Mover el telescopio" de la
      Foto de prueba (imagen.html). La lógica está en static/js/pad.js; los estilos, en scopepower.css. -->
 <div class="control-velocidad">
-    <div class="seccion-titulo" style="margin-top: 0;">Velocidad máxima</div>
+    <div class="seccion-titulo" style="margin-top: 0;">{{ _("Velocidad máxima") }}</div>
     <!-- El select lo lee el script (id="speed"); el grupo de botones solo lo cambia -->
     <select id="speed" hidden>
-        <option value="0.1">Lenta (0,1°/s)</option>
-        <option value="0.5" selected>Media (0,5°/s)</option>
-        <option value="1.0">Rápida (1°/s)</option>
-        <option value="3.0">Muy rápida (3°/s)</option>
+        <option value="0.1">{{ _("Lenta (0,1°/s)") }}</option>
+        <option value="0.5" selected>{{ _("Media (0,5°/s)") }}</option>
+        <option value="1.0">{{ _("Rápida (1°/s)") }}</option>
+        <option value="3.0">{{ _("Muy rápida (3°/s)") }}</option>
     </select>
     <div class="segmentado" id="speed-seg">
-        <button type="button" data-v="0.1">0,1°/s</button>
-        <button type="button" data-v="0.5">0,5°/s</button>
+        <button type="button" data-v="0.1">{{ _("0,1°/s") }}</button>
+        <button type="button" data-v="0.5">{{ _("0,5°/s") }}</button>
         <button type="button" data-v="1.0">1°/s</button>
         <button type="button" data-v="3.0">3°/s</button>
     </div>
     <div class="invertir">
-        <label class="switch"><input type="checkbox" id="inv-x"> Invertir izq./der.</label>
-        <label class="switch"><input type="checkbox" id="inv-y"> Invertir arriba/abajo</label>
+        <label class="switch"><input type="checkbox" id="inv-x"> {{ _("Invertir izq./der.") }}</label>
+        <label class="switch"><input type="checkbox" id="inv-y"> {{ _("Invertir arriba/abajo") }}</label>
     </div>
-    <div id="pad-estado" class="pad-estado">Arrastra el dedo por el pad</div>
+    <div id="pad-estado" class="pad-estado">{{ _("Arrastra el dedo por el pad") }}</div>
 </div>
 
 <div class="control-pad">

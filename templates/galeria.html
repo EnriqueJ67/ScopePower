@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Galería{% endblock %}
+{% block title %}{{ _("Galería") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Galería</h1>
-        <p class="pagina-sub" id="galeria-resumen">{{ imagenes|length }} imágenes guardadas desde el apilado.</p>
+        <h1 class="pagina-titulo">{{ _("Galería") }}</h1>
+        <p class="pagina-sub" id="galeria-resumen">{{ ngettext("{n} imagen guardada desde el apilado.", "{n} imágenes guardadas desde el apilado.", imagenes|length) }}</p>
     </div>
     <div class="pagina-acciones">
         <!-- Fotos que el apilado descartó por un rastro (aviones, satélites, posibles meteoros) -->
-        <a class="btn btn-secondary btn-sm" href="/galeria/rastros" title="Fotos descartadas del apilado por un rastro de avión, satélite o meteoro">
-            ☄️ Rastros{% if n_rastros %} <span class="texto-3">{{ n_rastros }}</span>{% endif %}{% if n_meteoros %} · {{ n_meteoros }} meteoro{{ 's' if n_meteoros != 1 }}{% endif %}
+        <a class="btn btn-secondary btn-sm" href="/galeria/rastros" title="{{ _('Fotos descartadas del apilado por un rastro de avión, satélite o meteoro') }}">
+            ☄️ {{ _("Rastros") }}{% if n_rastros %} <span class="texto-3">{{ n_rastros }}</span>{% endif %}{% if n_meteoros %} · {{ ngettext("{n} meteoro", "{n} meteoros", n_meteoros) }}{% endif %}
         </a>
         <div class="segmentado" id="orden-seg">
-            <button type="button" class="activo" data-orden="fecha" onclick="ordenarGaleria('fecha')">Fecha</button>
-            <button type="button" data-orden="objeto" onclick="ordenarGaleria('objeto')">Objeto</button>
+            <button type="button" class="activo" data-orden="fecha" onclick="ordenarGaleria('fecha')">{{ _("Fecha") }}</button>
+            <button type="button" data-orden="objeto" onclick="ordenarGaleria('objeto')">{{ _("Objeto") }}</button>
         </div>
     </div>
 </div>
@@ -23,9 +23,9 @@
 {% if filtros|length > 1 %}
 <!-- Filtro por tipo de objeto: un chip por tipo con las fotos que hay de cada uno -->
 <div class="galeria-filtros" id="galeria-filtros">
-    <button type="button" class="chip activo" data-tipo="" onclick="filtrarGaleria('')">Todas <span class="n">{{ imagenes|length }}</span></button>
+    <button type="button" class="chip activo" data-tipo="" onclick="filtrarGaleria('')">{{ _("Todas") }} <span class="n">{{ imagenes|length }}</span></button>
     {% for tipo, n in filtros %}
-    <button type="button" class="chip" data-tipo="{{ tipo }}" onclick="filtrarGaleria('{{ tipo }}')">{{ tipo }} <span class="n">{{ n }}</span></button>
+    <button type="button" class="chip" data-tipo="{{ tipo }}" onclick="filtrarGaleria('{{ tipo }}')">{{ _(tipo) }} <span class="n">{{ n }}</span></button>
     {% endfor %}
 </div>
 {% endif %}
@@ -33,8 +33,8 @@
 {% if not imagenes %}
 <div class="card centro">
     <svg class="ico" style="width: 40px; height: 40px; color: var(--text-3);"><use href="#i-galeria"/></svg>
-    <p class="card-sub mt-2">Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí.</p>
-    <a href="/apilado" class="btn btn-primary">Ir al apilado</a>
+    <p class="card-sub mt-2">{{ _("Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí.")|safe }}</p>
+    <a href="/apilado" class="btn btn-primary">{{ _("Ir al apilado") }}</a>
 </div>
 {% endif %}
 
@@ -45,17 +45,17 @@
         <img src="{{ url_for('static', filename='fotos/' ~ nombre) }}" alt="{{ nombre }}" loading="lazy" onclick="abrirLightbox(this.src, this.closest('.foto').querySelector('.foto-nombre').textContent)">
         <div class="foto-pie">
             <div class="foto-nombre">{{ partes[0].replace('_', ' ') }}</div>
-            <div class="foto-tipo">{{ tipos[nombre] }}</div>
+            <div class="foto-tipo">{{ _(tipos[nombre]) }}</div>
             <div class="foto-fecha">
                 {% if partes|length == 3 and partes[1]|length == 8 %}
-                {{ partes[1][6:8] }}/{{ partes[1][4:6] }}/{{ partes[1][0:4] }} · {{ partes[2][0:2] }}:{{ partes[2][2:4] }}
+                {% if idioma.idioma_actual() == 'es' %}{{ partes[1][6:8] }}/{{ partes[1][4:6] }}/{{ partes[1][0:4] }}{% else %}{{ partes[1][0:4] }}-{{ partes[1][4:6] }}-{{ partes[1][6:8] }}{% endif %} · {{ partes[2][0:2] }}:{{ partes[2][2:4] }}
                 {% else %}{{ nombre }}{% endif %}
             </div>
         </div>
-        <button class="foto-borrar" onclick="eliminarImagen('{{ nombre }}')" title="Eliminar imagen">×</button>
-        <button class="foto-compartir" onclick="compartirImagen('{{ nombre }}', this)" title="Compartir o descargar la foto firmada"><svg class="ico"><use href="#i-compartir"/></svg></button>
+        <button class="foto-borrar" onclick="eliminarImagen('{{ nombre }}')" title="{{ _('Eliminar imagen') }}">×</button>
+        <button class="foto-compartir" onclick="compartirImagen('{{ nombre }}', this)" title="{{ _('Compartir o descargar la foto firmada') }}"><svg class="ico"><use href="#i-compartir"/></svg></button>
         {% if nombre in con_fits %}
-        <a class="foto-editar" href="/galeria/editar/{{ nombre }}" title="Editar: reprocesar el FITS apilado con otros ajustes, firma y nombre"><svg class="ico"><use href="#i-ajustes"/></svg></a>
+        <a class="foto-editar" href="/galeria/editar/{{ nombre }}" title="{{ _('Editar: reprocesar el FITS apilado con otros ajustes, firma y nombre') }}"><svg class="ico"><use href="#i-ajustes"/></svg></a>
         {% endif %}
     </div>
     {% endfor %}
@@ -66,14 +66,14 @@
     <img id="imagen-grande" src="" alt="">
     <!-- Objetos del campo pintados encima de la foto (/galeria/anotaciones); solo en las fotos con FITS -->
     <svg id="lightbox-anotaciones" class="lightbox-anotaciones" aria-hidden="true"></svg>
-    <label class="switch" id="lightbox-anotar" onclick="event.stopPropagation()" style="display: none;" title="Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos"><input type="checkbox" id="anotar-activo" onchange="cambiarAnotaciones()"> Anotaciones</label>
-    <button id="lightbox-compartir" class="btn btn-primary" onclick="event.stopPropagation(); compartirImagen(this.dataset.nombre, this)"><svg><use href="#i-compartir"/></svg>Compartir</button>
-    <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>Editar</a>
+    <label class="switch" id="lightbox-anotar" onclick="event.stopPropagation()" style="display: none;" title="{{ _('Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos') }}"><input type="checkbox" id="anotar-activo" onchange="cambiarAnotaciones()"> {{ _("Anotaciones") }}</label>
+    <button id="lightbox-compartir" class="btn btn-primary" onclick="event.stopPropagation(); compartirImagen(this.dataset.nombre, this)"><svg><use href="#i-compartir"/></svg>{{ _("Compartir") }}</button>
+    <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>{{ _("Editar") }}</a>
     <div class="lightbox-pie" id="lightbox-pie"></div>
 </div>
 
 <div class="card centro" id="galeria-vacia" style="display: none;">
-    <p class="card-sub">No hay fotos de este tipo.</p>
+    <p class="card-sub">{{ _("No hay fotos de este tipo.") }}</p>
 </div>
 
 <script>
@@ -93,7 +93,8 @@
         });
         document.getElementById("galeria-vacia").style.display = (visibles === 0 && TOTAL_FOTOS > 0) ? "" : "none";
         const resumen = document.getElementById("galeria-resumen");
-        if (resumen) resumen.textContent = tipo ? `${visibles} de ${TOTAL_FOTOS} imágenes · ${tipo}` : `${TOTAL_FOTOS} imágenes guardadas desde el apilado.`;
+        if (resumen) resumen.textContent = tipo ? _("{n} de {total} imágenes · {tipo}", { n: visibles, total: TOTAL_FOTOS, tipo: _(tipo) })
+            : ngettext("{n} imagen guardada desde el apilado.", "{n} imágenes guardadas desde el apilado.", TOTAL_FOTOS);
         try { localStorage.setItem("galeria_filtro_tipo", tipo); } catch (e) {}
     }
     if (document.getElementById("galeria-filtros")) {
@@ -135,7 +136,7 @@
     try { chkAnot.checked = localStorage.getItem("galeria_anotar") === "1"; } catch (e) {}
 
     function pieLightbox(extra) {
-        document.getElementById('lightbox-pie').textContent = ANOT.titulo + (extra ? " · " + extra : "") + " · toca para cerrar";
+        document.getElementById('lightbox-pie').textContent = ANOT.titulo + (extra ? " · " + extra : "") + " · " + _("toca para cerrar");
     }
     function cambiarAnotaciones() {
         try { localStorage.setItem("galeria_anotar", chkAnot.checked ? "1" : "0"); } catch (e) {}
@@ -149,10 +150,10 @@
         if (!ANOT.datos[nombre]) {
             if (ANOT.pidiendo === nombre) return;
             ANOT.pidiendo = nombre;
-            pieLightbox("resolviendo el campo…");
+            pieLightbox(_("resolviendo el campo…"));
             try {
                 const d = await (await fetch("/galeria/anotaciones/" + encodeURIComponent(nombre))).json();
-                if (!d.ok) throw new Error(d.mensaje || "no se pudo anotar");
+                if (!d.ok) throw new Error(d.mensaje || _("no se pudo anotar"));
                 ANOT.datos[nombre] = d;
             } catch (e) {
                 if (ANOT.nombre === nombre) pieLightbox(e.message);
@@ -196,7 +197,7 @@
             elipse.setAttribute("class", clase);
             svgAnot.appendChild(elipse);
             const texto = document.createElementNS(NS, "text");
-            texto.textContent = o.mag !== null ? `${o.nombre} (${o.mag.toFixed(1)})` : o.nombre;
+            texto.textContent = o.mag !== null ? `${o.nombre} (${fmtNum(o.mag, 1)})` : o.nombre;
             texto.setAttribute("class", clase);
             svgAnot.appendChild(texto);
             const tw = texto.getComputedTextLength(), th = 13, r = a + 5;
@@ -215,7 +216,7 @@
             if (!puesto) texto.remove();
         }
         const n = d.objetos.length;
-        pieLightbox(n ? `${n} objeto${n === 1 ? "" : "s"} en el campo` : "ningún objeto conocido en el campo");
+        pieLightbox(n ? ngettext("{n} objeto en el campo", "{n} objetos en el campo", n) : _("ningún objeto conocido en el campo"));
     }
     window.addEventListener("resize", pintarAnotaciones);
 
@@ -264,7 +265,7 @@
     ordenarGaleria("fecha");
 
     function eliminarImagen(nombre) {
-        if (!confirm("¿Seguro que quieres eliminar esta imagen?")) return;
+        if (!confirm(_("¿Seguro que quieres eliminar esta imagen?"))) return;
         fetch("/eliminar-imagen", {
             method: "POST",
             headers: { "Content-Type": "application/json" },

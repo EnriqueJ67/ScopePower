@@ -20,6 +20,8 @@ from unidecode import unidecode
 
 import esta_noche
 import recorridos
+import idioma
+from idioma import _, fmt_num
 
 log = logging.getLogger("scopepower.descripciones")
 
@@ -39,14 +41,20 @@ def _clave(texto):
 
 
 def _cargar_descripciones():
+    """{clave del id: texto}. En inglés, las de descripciones_objetos_en.csv tapan a las españolas
+    objeto a objeto (si falta alguna, se queda la española)."""
     textos = {}
-    if not os.path.isfile(RUTA_DESCRIPCIONES):
-        return textos
-    with open(RUTA_DESCRIPCIONES, encoding="utf-8") as f:
-        lineas = [l for l in f if not l.startswith("#")]
-    for fila in csv.DictReader(lineas, delimiter=";"):
-        if fila.get("id") and fila.get("descripcion_larga"):
-            textos[_clave(fila["id"])] = fila["descripcion_larga"].strip()
+    rutas = [RUTA_DESCRIPCIONES]
+    if idioma.ruta_variante(RUTA_DESCRIPCIONES) != RUTA_DESCRIPCIONES:
+        rutas.append(idioma.ruta_variante(RUTA_DESCRIPCIONES))
+    for ruta in rutas:
+        if not os.path.isfile(ruta):
+            continue
+        with open(ruta, encoding="utf-8") as f:
+            lineas = [l for l in f if not l.startswith("#")]
+        for fila in csv.DictReader(lineas, delimiter=";"):
+            if fila.get("id") and fila.get("descripcion_larga"):
+                textos[_clave(fila["id"])] = fila["descripcion_larga"].strip()
     return textos
 
 
@@ -58,7 +66,7 @@ def buscar_en_catalogo(nombre):
     # "Andromeda" también debe encajar con "Galaxia de Andrómeda": segundo intento por inclusión
     candidatos = esta_noche.cargar_catalogo()
     for o in candidatos:
-        if clave in (_clave(o["id"]), _clave(o["nombre"]), _clave(o["nombre_alt"])):
+        if clave in (_clave(o["id"]), _clave(o["nombre"]), _clave(o["nombre_alt"]), _clave(o.get("nombre_es"))):
             return o
     # Nombre entre paréntesis: "Cabeza de Caballo (Barnard 33)"
     for o in candidatos:
@@ -75,17 +83,23 @@ def buscar_en_catalogo(nombre):
 
 def frase_datos(o):
     """'Galaxia de Andrómeda, galaxia en Andrómeda, magnitud 3.4, unos 178 minutos de arco.'"""
-    tipo = o["tipo"].lower()
-    const = _CONSTELACIONES.get(o["constelacion"], o["constelacion"])
-    partes = [f"{o['nombre']}, {tipo}" + (f" en {const}" if const else "")]
+    tipo_es = o["tipo"]                  # el tipo del catálogo está en español (es clave)
+    tipo = _(tipo_es).lower() if tipo_es else ""
+    # Artículos para leer en voz alta: solo en español (en inglés la constelación ya viene de
+    # catalogo_objetos_en.csv, sin artículo)
+    const = _CONSTELACIONES.get(o["constelacion"], o["constelacion"]) if idioma.idioma_actual() == "es" else o["constelacion"]
+    if const:
+        partes = [_("{nombre}, {tipo} en {constelacion}", nombre=o["nombre"], tipo=tipo, constelacion=const)]
+    else:
+        partes = [f"{o['nombre']}, {tipo}"]
     if o["mag"] is not None:
-        partes.append(f"magnitud {o['mag']:g}".replace(".", ","))
+        partes.append(_("magnitud {mag}", mag=fmt_num(o["mag"])))
     if o["tamano_arcmin"]:
         t = o["tamano_arcmin"]
         if t >= 60:
-            partes.append(f"unos {t / 60:.1f} grados de tamaño".replace(".", ",").replace(",0 ", " "))
+            partes.append(_("unos {grados} grados de tamaño", grados=fmt_num(round(t / 60, 1))))
         else:
-            partes.append(f"unos {t:g} minutos de arco")
+            partes.append(_("unos {minutos} minutos de arco", minutos=fmt_num(t)))
     return ", ".join(partes) + "."
 
 
@@ -122,12 +136,13 @@ def describir(nombre, reemplazar_numeros=None):
     for q in dict.fromkeys(consultas):
         en_cache = os.path.isfile(recorridos.ruta_cache_wiki(q, reemplazar_numeros))
         resumen = recorridos.obten_resumen_wiki(q, reemplazar_numeros)
-        if resumen and not resumen.startswith("No se encontró información"):
+        # Sin resultado, obten_resumen_wiki devuelve este mismo texto (traducido)
+        if resumen and resumen != _("No se encontró información sobre «{nombre}».", nombre=q):
             texto, fuente = limpiar_wikipedia(resumen), ("cache" if en_cache else "wikipedia")
             break
     if not texto:
         if intro:
             return {"texto": intro, "texto_hablar": intro, "fuente": "catalogo", "objeto": o["nombre"]}
-        return {"texto": f"No se encontró información sobre «{nombre}».", "texto_hablar": "", "fuente": "ninguna", "objeto": nombre}
+        return {"texto": _("No se encontró información sobre «{nombre}».", nombre=nombre), "texto_hablar": "", "fuente": "ninguna", "objeto": nombre}
     hablar = f"{intro} {texto}" if intro else f"{consulta}: {texto}"
     return {"texto": texto, "texto_hablar": hablar, "fuente": fuente, "objeto": o["nombre"] if o else nombre}

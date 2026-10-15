@@ -5,9 +5,9 @@
      A propósito sin explicaciones: las frases tienen que parecer cosa de la propia app. -->
 <div id="modal-humor" class="modal" onclick="if (event.target === this) cerrarHumor()">
     <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="modal-humor-titulo">
-        <div class="modal-titulo" id="modal-humor-titulo"><svg class="ico"><use href="#i-humor"/></svg><span>Nivel de humor</span></div>
+        <div class="modal-titulo" id="modal-humor-titulo"><svg class="ico"><use href="#i-humor"/></svg><span>{{ _("Nivel de humor") }}</span></div>
         <div class="humor-nivel"><span id="humor-valor">75</span><span class="humor-pct">%</span></div>
-        <input type="range" id="humor-rango" min="0" max="100" step="5" value="75" aria-label="Nivel de humor"
+        <input type="range" id="humor-rango" min="0" max="100" step="5" value="75" aria-label="{{ _('Nivel de humor') }}"
                oninput="pintarNivelHumor(this.value)" onchange="fijarNivelHumor(this.value, 'deslizador')">
         <div class="humor-atajos">
             <button type="button" class="btn btn-sm btn-secondary" onclick="fijarNivelHumor(0, 'atajo')">0 %</button>
@@ -16,11 +16,11 @@
             <button type="button" class="btn btn-sm btn-secondary" onclick="fijarNivelHumor(75, 'atajo')">75 %</button>
             <button type="button" class="btn btn-sm btn-secondary" onclick="fijarNivelHumor(100, 'atajo')">100 %</button>
         </div>
-        <button type="button" class="btn btn-primary humor-mic" id="humor-mic" onclick="escucharNivelHumor()"><svg><use href="#i-mic"/></svg>Decírselo a ScopePower</button>
+        <button type="button" class="btn btn-primary humor-mic" id="humor-mic" onclick="escucharNivelHumor()"><svg><use href="#i-mic"/></svg>{{ _("Decírselo a ScopePower") }}</button>
         <div id="humor-estado" class="estado mt-1" aria-live="polite"></div>
         <div class="modal-acciones">
-            <button type="button" class="btn btn-secondary" onclick="probarHumor()"><svg><use href="#i-altavoz"/></svg>Probar</button>
-            <button type="button" class="btn btn-primary" onclick="cerrarHumor()">Cerrar</button>
+            <button type="button" class="btn btn-secondary" onclick="probarHumor()"><svg><use href="#i-altavoz"/></svg>{{ _("Probar") }}</button>
+            <button type="button" class="btn btn-primary" onclick="cerrarHumor()">{{ _("Cerrar") }}</button>
         </div>
     </div>
 </div>

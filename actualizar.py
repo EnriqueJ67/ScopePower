@@ -23,6 +23,7 @@ import subprocess
 import time
 
 import version
+from idioma import _
 
 log = logging.getLogger("scopepower.actualizar")
 
@@ -113,11 +114,12 @@ def ultimo_resultado():
         return None
     m = re.search(r"^\[RESULTADO\] (ok|error)(.*)$", texto, re.MULTILINE)
     if not m:
-        return {"ok": False, "fecha": fecha, "mensaje": "La actualización no llegó a terminar",
+        return {"ok": False, "fecha": fecha, "mensaje": _("La actualización no llegó a terminar"),
                 "detalle": texto[-3000:]}
     ok = m.group(1) == "ok"
-    mensaje = ("Actualizado a " + m.group(2).strip()) if ok and m.group(2).strip() and "sin cambios" not in m.group(2) \
-        else ("No había nada que actualizar" if ok else "La actualización falló")
+    mensaje = _("Actualizado a {version}", version=m.group(2).strip()) \
+        if ok and m.group(2).strip() and "sin cambios" not in m.group(2) \
+        else (_("No había nada que actualizar") if ok else _("La actualización falló"))
     # Para el fallo, las líneas de [ERROR]/[AVISO] son lo que interesa
     errores = [l.strip() for l in texto.splitlines() if "[ERROR]" in l or "[AVISO]" in l]
     return {"ok": ok, "fecha": fecha, "mensaje": mensaje, "detalle": "\n".join(errores) if errores else texto[-3000:]}
@@ -158,13 +160,13 @@ def ultima_release(etiquetas):
 def _motivo_fallo(salida):
     s = (salida or "").lower()
     if any(p in s for p in _SIN_RED):
-        return ("sin_red", "No hay Internet o no se llega a GitHub. En el campo es lo normal: "
-                           "actualiza en casa, con el mini PC en una red con salida a Internet.")
+        return ("sin_red", _("No hay Internet o no se llega a GitHub. En el campo es lo normal: "
+                             "actualiza en casa, con el mini PC en una red con salida a Internet."))
     if any(p in s for p in _SIN_PERMISO):
-        return ("sin_permiso", "GitHub no deja leer el repositorio desde este PC. Mientras sea privado hay que "
-                               "identificarse una vez ejecutando actualizar_desde_github.bat en el mini PC, "
-                               "con pantalla: Git abre el navegador para entrar en GitHub.")
-    return ("error", "git ha fallado: " + (salida or "").strip()[-400:])
+        return ("sin_permiso", _("GitHub no deja leer el repositorio desde este PC. Mientras sea privado hay que "
+                                 "identificarse una vez ejecutando actualizar_desde_github.bat en el mini PC, "
+                                 "con pantalla: Git abre el navegador para entrar en GitHub."))
+    return ("error", _("git ha fallado: {salida}", salida=(salida or "").strip()[-400:]))
 
 
 def comprobar():
@@ -176,13 +178,13 @@ def comprobar():
     """
     if not hay_git():
         return {"ok": False, "motivo": "sin_git",
-                "mensaje": "En este PC no está instalado Git. Instálalo desde https://git-scm.com/download/win "
-                           "(todas las opciones por defecto) y vuelve a comprobar."}
+                "mensaje": _("En este PC no está instalado Git. Instálalo desde https://git-scm.com/download/win "
+                             "(todas las opciones por defecto) y vuelve a comprobar.")}
     if not es_clon():
         return {"ok": False, "motivo": "no_clon",
-                "mensaje": "Esta carpeta no es un clon de GitHub (es una copia). Ejecuta una vez "
-                           "actualizar_desde_github.bat en el mini PC para convertirla; después ya se "
-                           "podrá actualizar desde aquí."}
+                "mensaje": _("Esta carpeta no es un clon de GitHub (es una copia). Ejecuta una vez "
+                             "actualizar_desde_github.bat en el mini PC para convertirla; después ya se "
+                             "podrá actualizar desde aquí.")}
     try:
         _git("remote", "set-url", "origin", REMOTO)
         r = _git("ls-remote", "--tags", "--refs", "origin", "v*", timeout=TIMEOUT_CONSULTA_S)
@@ -197,9 +199,9 @@ def comprobar():
             return {"ok": False, "motivo": motivo, "mensaje": mensaje}
     except subprocess.TimeoutExpired:
         return {"ok": False, "motivo": "sin_red",
-                "mensaje": "GitHub no ha respondido a tiempo. Comprueba la conexión a Internet del mini PC."}
+                "mensaje": _("GitHub no ha respondido a tiempo. Comprueba la conexión a Internet del mini PC.")}
     except OSError as e:
-        return {"ok": False, "motivo": "error", "mensaje": f"No se pudo ejecutar git: {e}"}
+        return {"ok": False, "motivo": "error", "mensaje": _("No se pudo ejecutar git: {e}", e=e)}
 
     ultima = ultima_release(etiquetas)
     resultado = {"ok": True, "ultima_release": ultima, "commits_release": [], "commits_master": [],
@@ -228,23 +230,23 @@ def pedir(destino):
     El que llama (ScopePower.py) para después la app con CODIGO_SALIDA_ACTUALIZAR.
     """
     if destino not in DESTINOS:
-        return False, "Destino no válido"
+        return False, _("Destino no válido")
     if not os.path.exists(BAT):
-        return False, "Falta actualizar_desde_github.bat en la carpeta de ScopePower"
+        return False, _("Falta actualizar_desde_github.bat en la carpeta de ScopePower")
     if not hay_git():
-        return False, "Git no está instalado en este PC"
+        return False, _("Git no está instalado en este PC")
     if not es_clon():
-        return False, "Esta carpeta no es un clon de GitHub: conviértela primero con actualizar_desde_github.bat"
+        return False, _("Esta carpeta no es un clon de GitHub: conviértela primero con actualizar_desde_github.bat")
     if destino == "volver" and not version_anterior():
-        return False, "No hay ninguna versión anterior guardada"
+        return False, _("No hay ninguna versión anterior guardada")
     rama = _rama_actual()
     if rama and rama != "master":
-        return False, f"La carpeta está en la rama {rama}: es una carpeta de desarrollo, actualízala con git"
+        return False, _("La carpeta está en la rama {rama}: es una carpeta de desarrollo, actualízala con git", rama=rama)
     os.makedirs(os.path.dirname(FICHERO_PENDIENTE), exist_ok=True)
     with open(FICHERO_PENDIENTE, "w", encoding="utf-8") as f:
         f.write(destino + "\n")
     log.warning("Actualización desde GitHub pedida desde la web (destino: %s)", destino)
-    return True, "ScopePower se cierra para actualizarse y vuelve a arrancar solo"
+    return True, _("ScopePower se cierra para actualizarse y vuelve a arrancar solo")
 
 
 def orden_actualizar_a_mano():

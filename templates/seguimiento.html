@@ -1,7 +1,7 @@
 <!-- templates/seguimiento.html -->
 {% extends "base.html" %}
 
-{% block title %}Seguimiento de objetos{% endblock %}
+{% block title %}{{ _("Seguimiento de objetos") }}{% endblock %}
 
 {% block content %}
 <!-- Página EXPERIMENTAL: la montura sigue un objeto en movimiento (avión, satélite,
@@ -10,127 +10,121 @@
      cuando el servidor tiene uno nuevo (wifi del campo lenta). -->
 <div class="card">
     <div class="card-header">
-        <div class="card-title"><svg class="ico"><use href="#i-goto"/></svg>Seguimiento de objetos <span class="chip chip-warn">EXPERIMENTAL</span></div>
-        <span class="chip" id="chip-fase"><span class="dot"></span><span id="chip-fase-texto">Parado</span></span>
+        <div class="card-title"><svg class="ico"><use href="#i-goto"/></svg>{{ _("Seguimiento de objetos") }} <span class="chip chip-warn">{{ _("EXPERIMENTAL") }}</span></div>
+        <span class="chip" id="chip-fase"><span class="dot"></span><span id="chip-fase-texto">{{ _("Parado") }}</span></span>
     </div>
-    <p class="card-sub">Pulsa <b>Iniciar</b> y usa la vista en directo con el pad de abajo como buscador: mueve el telescopio hasta ver el objeto
-        (o apunta por delante de él) y suelta; cuando entre algo que se mueve, el seguimiento lo adquiere solo. Para una luz fija (una prueba de día),
-        tócala en la vista. La cámara se pasa al SDK nativo mientras dura.</p>
+    <p class="card-sub">{{ _("Pulsa <b>Iniciar</b> y usa la vista en directo con el pad de abajo como buscador: mueve el telescopio hasta ver el objeto (o apunta por delante de él) y suelta; cuando entre algo que se mueve, el seguimiento lo adquiere solo. Para una luz fija (una prueba de día), tócala en la vista. La cámara se pasa al SDK nativo mientras dura.")|safe }}</p>
 
     <div class="seg-layout">
         <div class="seg-visor">
-            <img id="vista" src="/seguimiento/vista?{{ version }}" alt="Vista previa del seguimiento" onclick="elegirObjetivo(event)">
-            <div class="seg-visor-pie" id="visor-pie">Sin imagen todavía</div>
-            <div class="seg-visor-pie">La vista se estira para que se vea la escena; con exposición automática, si no encuentra nada sube la exposición hasta el máximo ({{ conf.exposicion_max_ms }} ms).</div>
+            <img id="vista" src="/seguimiento/vista?{{ version }}" alt="{{ _('Vista previa del seguimiento') }}" onclick="elegirObjetivo(event)">
+            <div class="seg-visor-pie" id="visor-pie">{{ _("Sin imagen todavía") }}</div>
+            <div class="seg-visor-pie">{{ _("La vista se estira para que se vea la escena; con exposición automática, si no encuentra nada sube la exposición hasta el máximo ({max} ms).", max=conf.exposicion_max_ms) }}</div>
             <details class="mt-3" open>
-                <summary>Mover el telescopio (buscador)</summary>
+                <summary>{{ _("Mover el telescopio (buscador)") }}</summary>
                 <div class="seg-pad mt-2">
                     {% include '_pad.html' %}
                 </div>
-                <div class="seg-visor-pie">Solo con el seguimiento iniciado: mueve por el mismo camino que el seguimiento y la vista se
-                    refresca mientras tanto. Sin límite de altura{% if conf.altura_minima_seguimiento is not none %} por debajo de {{ conf.altura_minima_seguimiento }}°{% endif %}: vale para luces lejanas.</div>
+                <div class="seg-visor-pie">{% if conf.altura_minima_seguimiento is not none %}{{ _("Solo con el seguimiento iniciado: mueve por el mismo camino que el seguimiento y la vista se refresca mientras tanto. Sin límite de altura por debajo de {alt}°: vale para luces lejanas.", alt=conf.altura_minima_seguimiento) }}{% else %}{{ _("Solo con el seguimiento iniciado: mueve por el mismo camino que el seguimiento y la vista se refresca mientras tanto. Sin límite de altura: vale para luces lejanas.") }}{% endif %}</div>
             </details>
         </div>
         <div class="seg-controles">
             <div class="fila">
-                <button type="button" class="btn btn-primary" id="btn-iniciar" onclick="iniciar()"><svg><use href="#i-play"/></svg>Iniciar</button>
-                <button type="button" class="btn btn-danger" id="btn-parar" onclick="parar()" hidden><svg><use href="#i-stop"/></svg>Parar</button>
+                <button type="button" class="btn btn-primary" id="btn-iniciar" onclick="iniciar()"><svg><use href="#i-play"/></svg>{{ _("Iniciar") }}</button>
+                <button type="button" class="btn btn-danger" id="btn-parar" onclick="parar()" hidden><svg><use href="#i-stop"/></svg>{{ _("Parar") }}</button>
             </div>
-            <div class="estado mt-2" id="estado">{{ estado.mensaje or "Listo" }}</div>
+            <div class="estado mt-2" id="estado">{{ estado.mensaje or _("Listo") }}</div>
 
             <details class="mt-3" id="opciones" open>
-                <summary>Opciones</summary>
+                <summary>{{ _("Opciones") }}</summary>
                 <div class="fila mt-2">
-                    <label for="campo">Campo</label>
+                    <label for="campo">{{ _("Campo") }}</label>
                     <select id="campo" class="input">
-                        <option value="3008" {{ 'selected' if conf.roi_px >= 3008 else '' }}>Amplio (2,5°, sensor entero)</option>
-                        <option value="1504" {{ 'selected' if 1504 <= conf.roi_px < 3008 else '' }}>Medio (1,25°)</option>
-                        <option value="1024" {{ 'selected' if conf.roi_px < 1504 else '' }}>Estrecho (0,85°)</option>
+                        <option value="3008" {{ 'selected' if conf.roi_px >= 3008 else '' }}>{{ _("Amplio (2,5°, sensor entero)") }}</option>
+                        <option value="1504" {{ 'selected' if 1504 <= conf.roi_px < 3008 else '' }}>{{ _("Medio (1,25°)") }}</option>
+                        <option value="1024" {{ 'selected' if conf.roi_px < 1504 else '' }}>{{ _("Estrecho (0,85°)") }}</option>
                     </select>
                 </div>
                 <div class="fila mt-2">
-                    <label for="backend">Montura por</label>
+                    <label for="backend">{{ _("Montura por") }}</label>
                     <select id="backend" class="input">
                         <option value="ascom" {{ 'selected' if conf.backend == 'ascom' else '' }}>ASCOM (SynScan Pro)</option>
-                        <option value="udp" {{ 'selected' if conf.backend == 'udp' else '' }}>UDP directo al módulo wifi</option>
+                        <option value="udp" {{ 'selected' if conf.backend == 'udp' else '' }}>{{ _("UDP directo al módulo wifi") }}</option>
                     </select>
                 </div>
                 <div class="fila mt-2">
-                    <label for="exposicion">Exposición (ms)</label>
+                    <label for="exposicion">{{ _("Exposición (ms)") }}</label>
                     <input id="exposicion" class="input" type="number" min="0.05" max="1000" step="1" value="{{ conf.exposicion_ms }}" style="width: 90px">
-                    <label for="ganancia">Ganancia</label>
+                    <label for="ganancia">{{ _("Ganancia") }}</label>
                     <input id="ganancia" class="input" type="number" min="0" max="600" step="10" value="{{ conf.ganancia }}" style="width: 90px">
-                    <label title="Ajusta la exposición (no la ganancia) para que el pico del objeto seguido quede en torno al 70 % de la escala, entre {{ conf.exposicion_min_ms }} y {{ conf.exposicion_max_ms }} ms"><input type="checkbox" id="exposicion-auto" {{ 'checked' if conf.exposicion_auto else '' }}> Exposición automática por el objeto</label>
+                    <label title="{{ _('Ajusta la exposición (no la ganancia) para que el pico del objeto seguido quede en torno al 70 % de la escala, entre {min} y {max} ms', min=conf.exposicion_min_ms, max=conf.exposicion_max_ms) }}"><input type="checkbox" id="exposicion-auto" {{ 'checked' if conf.exposicion_auto else '' }}> {{ _("Exposición automática por el objeto") }}</label>
                 </div>
                 <div class="fila mt-2">
                     <label for="kp">kp</label>
                     <input id="kp" class="input" type="number" min="0" max="5" step="0.05" value="{{ conf.kp }}" style="width: 80px">
                     <label for="ki">ki</label>
                     <input id="ki" class="input" type="number" min="0" max="5" step="0.05" value="{{ conf.ki }}" style="width: 80px">
-                    <label for="frecuencia">Órdenes/s</label>
+                    <label for="frecuencia">{{ _("Órdenes/s") }}</label>
                     <input id="frecuencia" class="input" type="number" min="0.5" max="20" step="0.5" value="{{ conf.frecuencia_hz }}" style="width: 80px">
                 </div>
                 <div class="fila mt-2">
-                    <label><input type="checkbox" id="grabar" {{ 'checked' if conf.grabar else '' }}> Grabar vídeo en el mini PC</label>
+                    <label><input type="checkbox" id="grabar" {{ 'checked' if conf.grabar else '' }}> {{ _("Grabar vídeo en el mini PC") }}</label>
                     <select id="formato-video" class="input">
-                        <option value="ser" {{ 'selected' if conf.formato_video == 'ser' else '' }}>SER (crudo, para apilar)</option>
-                        <option value="mp4" {{ 'selected' if conf.formato_video == 'mp4' else '' }}>MP4 (para ver)</option>
-                        <option value="ambos" {{ 'selected' if conf.formato_video in ('ambos', 'ser,mp4') else '' }}>SER y MP4</option>
+                        <option value="ser" {{ 'selected' if conf.formato_video == 'ser' else '' }}>{{ _("SER (crudo, para apilar)") }}</option>
+                        <option value="mp4" {{ 'selected' if conf.formato_video == 'mp4' else '' }}>{{ _("MP4 (para ver)") }}</option>
+                        <option value="ambos" {{ 'selected' if conf.formato_video in ('ambos', 'ser,mp4') else '' }}>{{ _("SER y MP4") }}</option>
                     </select>
                     <select id="grabar-desde" class="input">
-                        <option value="bloqueo" {{ 'selected' if conf.grabar_desde == 'bloqueo' else '' }}>desde que bloquea el objeto</option>
-                        <option value="inicio" {{ 'selected' if conf.grabar_desde == 'inicio' else '' }}>desde el inicio</option>
+                        <option value="bloqueo" {{ 'selected' if conf.grabar_desde == 'bloqueo' else '' }}>{{ _("desde que bloquea el objeto") }}</option>
+                        <option value="inicio" {{ 'selected' if conf.grabar_desde == 'inicio' else '' }}>{{ _("desde el inicio") }}</option>
                     </select>
                 </div>
                 <div class="fila mt-2">
-                    <label title="Pone la cámara a binning 1: el mismo campo, con fotogramas cuatro veces mayores (el recorte grabado es de {{ conf.video_lado }} px del fotograma)"><input type="checkbox" id="color" {{ 'checked' if conf.color else '' }}> Vídeo en color (binning 1: mismo campo, fotogramas ×4)</label>
+                    <label title="{{ _('Pone la cámara a binning 1: el mismo campo, con fotogramas cuatro veces mayores (el recorte grabado es de {lado} px del fotograma)', lado=conf.video_lado) }}"><input type="checkbox" id="color" {{ 'checked' if conf.color else '' }}> {{ _("Vídeo en color (binning 1: mismo campo, fotogramas ×4)") }}</label>
                 </div>
-                {% if conf.simulador %}<div class="estado warn mt-2">Modo simulador activado en config.ini: cámara y montura falsas.</div>{% endif %}
+                {% if conf.simulador %}<div class="estado warn mt-2">{{ _("Modo simulador activado en config.ini: cámara y montura falsas.") }}</div>{% endif %}
             </details>
 
             <details class="mt-3">
-                <summary>Calibración cámara ↔ ejes</summary>
-                <p class="seg-visor-pie mt-2">Con la cámara fija en el tubo, cualquier plate solving de cualquier noche (un GoTo con centrado,
-                    la alineación, el apilado) deja calibrado el seguimiento: la montura es altacimutal y lo único que gira es el cielo.
-                    No hace falta mover nada. Si mueves la cámara en el tubo, basta un plate solving nuevo.</p>
+                <summary>{{ _("Calibración cámara ↔ ejes") }}</summary>
+                <p class="seg-visor-pie mt-2">{{ _("Con la cámara fija en el tubo, cualquier plate solving de cualquier noche (un GoTo con centrado, la alineación, el apilado) deja calibrado el seguimiento: la montura es altacimutal y lo único que gira es el cielo. No hace falta mover nada. Si mueves la cámara en el tubo, basta un plate solving nuevo.") }}</p>
                 <div class="estado mt-2" id="calibracion-texto">
                     {% if calibracion.origen == 'astrometria' %}
-                        ✅ Por astrometría: resolución del {{ (calibracion.detalle.instante_utc or '')[:16]|replace('T', ' ') }} UTC ({{ calibracion.detalle.resolucion }}),
-                        eje x de la imagen a {{ "%.1f"|format(calibracion.angulo) }}° del acimut, {{ "%.2f"|format(calibracion.escala) }}"/px.
+                        {{ _('✅ Por astrometría: resolución del {fecha} UTC ({resolucion}), eje x de la imagen a {angulo}° del acimut, {escala}"/px.', fecha=(calibracion.detalle.instante_utc or '')[:16]|replace('T', ' '), resolucion=calibracion.detalle.resolucion, angulo=idioma.fmt_num(calibracion.angulo, 1), escala=idioma.fmt_num(calibracion.escala, 2)) }}
                     {% elif calibracion.origen == 'empirica' %}
-                        ✅ Moviendo los ejes ({{ calibracion.fecha }}), más reciente que la última astrometría.
+                        {{ _("✅ Moviendo los ejes ({fecha}), más reciente que la última astrometría.", fecha=calibracion.fecha) }}
                     {% elif calibracion.origen == 'simulador' %}
-                        Simulador: calibración de la cámara simulada.
+                        {{ _("Simulador: calibración de la cámara simulada.") }}
                     {% else %}
-                        ⚠️ Sin calibrar: no hay ninguna foto resuelta todavía. Haz un GoTo con centrado (o cualquier plate solving) y se calibra solo.
+                        {{ _("⚠️ Sin calibrar: no hay ninguna foto resuelta todavía. Haz un GoTo con centrado (o cualquier plate solving) y se calibra solo.") }}
                     {% endif %}
                 </div>
                 <div class="estado mt-2" id="sdk-texto">
-                    Imagen del SDK frente a la de ASCOM: <b>{{ sdk.transformacion }}</b>
-                    {% if sdk.verificada %}(comprobado {{ (sdk.fecha or '')[:10] }}){% else %}(supuesta, sin comprobar){% endif %}
+                    {{ _("Imagen del SDK frente a la de ASCOM:") }} <b>{{ sdk.transformacion }}</b>
+                    {% if sdk.verificada %}{{ _('(comprobado {fecha})', fecha=(sdk.fecha or '')[:10]) }}{% else %}{{ _('(supuesta, sin comprobar)') }}{% endif %}
                 </div>
                 <div class="fila mt-2">
-                    <button type="button" class="btn" onclick="calibrarAstrometria()" title="Relee la resolución más reciente que quede en disco"><svg><use href="#i-sync"/></svg>Releer la última astrometría</button>
-                    <button type="button" class="btn" id="btn-sdk" onclick="comprobarSdk()" title="Una foto ASCOM y otra del SDK de la misma escena (vale una habitación iluminada o el paisaje de día); con el seguimiento parado. Tarda unos segundos"><svg><use href="#i-foto"/></svg>Comprobar orientación del SDK</button>
-                    <button type="button" class="btn" id="btn-cal-empirica" onclick="calibrarEmpirica()" disabled title="Mueve cada eje 1 s y mide el desplazamiento de una luz fija (con el seguimiento en marcha)"><svg><use href="#i-control"/></svg>Comprobar moviendo los ejes</button>
+                    <button type="button" class="btn" onclick="calibrarAstrometria()" title="{{ _('Relee la resolución más reciente que quede en disco') }}"><svg><use href="#i-sync"/></svg>{{ _("Releer la última astrometría") }}</button>
+                    <button type="button" class="btn" id="btn-sdk" onclick="comprobarSdk()" title="{{ _('Una foto ASCOM y otra del SDK de la misma escena (vale una habitación iluminada o el paisaje de día); con el seguimiento parado. Tarda unos segundos') }}"><svg><use href="#i-foto"/></svg>{{ _("Comprobar orientación del SDK") }}</button>
+                    <button type="button" class="btn" id="btn-cal-empirica" onclick="calibrarEmpirica()" disabled title="{{ _('Mueve cada eje 1 s y mide el desplazamiento de una luz fija (con el seguimiento en marcha)') }}"><svg><use href="#i-control"/></svg>{{ _("Comprobar moviendo los ejes") }}</button>
                 </div>
                 <div class="fila mt-2">
-                    <label>Signo Az</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('az')" id="signo-az">{{ '+' if signos.az > 0 else '−' }}</button>
-                    <label>Signo Alt</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('alt')" id="signo-alt">{{ '+' if signos.alt > 0 else '−' }}</button>
-                    <span class="estado" style="font-size: 12px">Solo si, al bloquear un objeto, se aleja en vez de acercarse: invierte el signo de ese eje.</span>
+                    <label>{{ _("Signo Az") }}</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('az')" id="signo-az">{{ '+' if signos.az > 0 else '−' }}</button>
+                    <label>{{ _("Signo Alt") }}</label><button type="button" class="btn btn-secondary" onclick="cambiarSigno('alt')" id="signo-alt">{{ '+' if signos.alt > 0 else '−' }}</button>
+                    <span class="estado" style="font-size: 12px">{{ _("Solo si, al bloquear un objeto, se aleja en vez de acercarse: invierte el signo de ese eje.") }}</span>
                 </div>
             </details>
 
             <details class="mt-3" open>
-                <summary>Telemetría</summary>
+                <summary>{{ _("Telemetría") }}</summary>
                 <table class="tabla-telemetria mt-2">
-                    <tr><td>Fase</td><td id="t-fase">—</td><td>fps cámara</td><td id="t-fps">—</td></tr>
-                    <tr><td>Error (px)</td><td id="t-error">—</td><td>Manchas</td><td id="t-manchas">—</td></tr>
-                    <tr><td>Velocidad Az / Alt (°/s)</td><td id="t-v">—</td><td>Integral</td><td id="t-integral">—</td></tr>
-                    <tr><td>Objeto (px/s)</td><td id="t-vobj">—</td><td>Altura</td><td id="t-alt">—</td></tr>
-                    <tr><td>Latencia montura</td><td id="t-lat">—</td><td>Órdenes / errores</td><td id="t-ordenes">—</td></tr>
-                    <tr><td>Exposición / pico del objeto</td><td id="t-exp">—</td><td>Fotogramas perdidos</td><td id="t-desc">—</td></tr>
-                    <tr><td>Vídeo</td><td id="t-video" colspan="3">—</td></tr>
+                    <tr><td>{{ _("Fase") }}</td><td id="t-fase">—</td><td>{{ _("fps cámara") }}</td><td id="t-fps">—</td></tr>
+                    <tr><td>{{ _("Error (px)") }}</td><td id="t-error">—</td><td>{{ _("Manchas") }}</td><td id="t-manchas">—</td></tr>
+                    <tr><td>{{ _("Velocidad Az / Alt (°/s)") }}</td><td id="t-v">—</td><td>{{ _("Integral") }}</td><td id="t-integral">—</td></tr>
+                    <tr><td>{{ _("Objeto (px/s)") }}</td><td id="t-vobj">—</td><td>{{ _("Altura") }}</td><td id="t-alt">—</td></tr>
+                    <tr><td>{{ _("Latencia montura") }}</td><td id="t-lat">—</td><td>{{ _("Órdenes / errores") }}</td><td id="t-ordenes">—</td></tr>
+                    <tr><td>{{ _("Exposición / pico del objeto") }}</td><td id="t-exp">—</td><td>{{ _("Fotogramas perdidos") }}</td><td id="t-desc">—</td></tr>
+                    <tr><td>{{ _("Vídeo") }}</td><td id="t-video" colspan="3">—</td></tr>
                 </table>
             </details>
         </div>

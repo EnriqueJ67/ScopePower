@@ -32,6 +32,7 @@ from astropy.io import fits
 
 from hardware import capturar_frame, ganancia_configurada, CapturaCancelada, ErrorHardware, estado_captura
 from apilado import apilar_sigma_clip
+from idioma import _, fmt_num
 
 log = logging.getLogger("scopepower.flats")
 
@@ -189,14 +190,14 @@ class TrabajoFlats:
         conf = conf or leer_config()
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("Ya se están generando flats")
+                raise RuntimeError(_("Ya se están generando flats"))
             if camara.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self._cancelar.clear()
             self._continuar.clear()
             self.en_curso = True
-            self.mensaje = "Preparando la cámara..."
+            self.mensaje = _("Preparando la cámara...")
         hilo = threading.Thread(target=self._ejecutar, name="flats", daemon=True,
                                 args=(camara, conf, con_flat_darks, voz))
         hilo.start()
@@ -220,15 +221,16 @@ class TrabajoFlats:
             # ── 1. Exposición automática ─────────────────────────────
             objetivo = conf["nivel_objetivo"] * 65535.0
             exposicion = conf["exposicion_inicial"]
-            self._msg("Ajustando la exposición del flat...", fase="exposicion")
-            self._decir(voz, "Ajustando la exposición del flat")
+            self._msg(_("Ajustando la exposición del flat..."), fase="exposicion")
+            self._decir(voz, _("Ajustando la exposición del flat"))
             for intento in range(6):
                 self._comprobar()
-                frame = self._capturar(camara, exposicion, conf["binning"], f"Flat prueba {intento + 1}")
+                frame = self._capturar(camara, exposicion, conf["binning"], _("Flat prueba {n}", n=intento + 1))
                 mediana = float(np.median(frame))
                 with self._lock:
                     self.exposicion, self.nivel = exposicion, mediana / 65535.0
-                self._msg(f"Prueba {intento + 1}: {exposicion:.3f} s → nivel {100 * mediana / 65535:.0f} %", fase="exposicion")
+                self._msg(_("Prueba {n}: {s} s → nivel {nivel} %", n=intento + 1, s=fmt_num(exposicion, 3),
+                             nivel=round(100 * mediana / 65535)), fase="exposicion")
                 if 0.75 * objetivo <= mediana <= 1.35 * objetivo:
                     break
                 if mediana >= 60000:
@@ -243,22 +245,22 @@ class TrabajoFlats:
             else:
                 pass
             if mediana < 0.15 * 65535:
-                raise RuntimeError(f"Luz insuficiente: nivel {100 * mediana / 65535:.0f} % con {exposicion:.2f} s. "
-                                   "Acerca la pantalla o sube su brillo.")
+                raise RuntimeError(_("Luz insuficiente: nivel {nivel} % con {s} s. Acerca la pantalla o sube su brillo.",
+                                     nivel=round(100 * mediana / 65535), s=fmt_num(exposicion, 2)))
             if mediana >= 60000:
-                raise RuntimeError("Demasiada luz: el sensor satura incluso con la exposición mínima. "
-                                   "Baja el brillo de la pantalla o añade otra capa de camiseta.")
+                raise RuntimeError(_("Demasiada luz: el sensor satura incluso con la exposición mínima. "
+                                     "Baja el brillo de la pantalla o añade otra capa de camiseta."))
 
             # ── 2. Flats ─────────────────────────────────────────────
             n = conf["numero_flats"]
             with self._lock:
                 self.total, self.completadas = n, 0
             flats = []
-            self._decir(voz, f"Capturando {n} flats de {exposicion:.2f} segundos")
+            self._decir(voz, _("Capturando {n} flats de {s} segundos", n=n, s=fmt_num(exposicion, 2)))
             for i in range(n):
                 self._comprobar()
-                self._msg(f"Flat {i + 1} de {n} ({exposicion:.3f} s)", fase="flats")
-                flats.append(self._capturar(camara, exposicion, conf["binning"], f"Flat {i + 1}/{n}"))
+                self._msg(_("Flat {i} de {n} ({s} s)", i=i + 1, n=n, s=fmt_num(exposicion, 3)), fase="flats")
+                flats.append(self._capturar(camara, exposicion, conf["binning"], _("Flat {i}/{n}", i=i + 1, n=n)))
                 with self._lock:
                     self.completadas = i + 1
             sensor = None
@@ -270,8 +272,8 @@ class TrabajoFlats:
             # ── 3. Darks de flat (misma exposición, tubo tapado) ─────
             flat_darks = []
             if con_flat_darks and conf["numero_flat_darks"] > 0:
-                self._msg("Tapa el telescopio y pulsa Continuar para los darks de flat", fase="esperando_tapa")
-                self._decir(voz, "Flats capturados. Tapa el telescopio y pulsa continuar")
+                self._msg(_("Tapa el telescopio y pulsa Continuar para los darks de flat"), fase="esperando_tapa")
+                self._decir(voz, _("Flats capturados. Tapa el telescopio y pulsa continuar"))
                 while not self._continuar.wait(0.5):
                     self._comprobar()
                 self._comprobar()
@@ -280,13 +282,13 @@ class TrabajoFlats:
                     self.total, self.completadas = nd, 0
                 for i in range(nd):
                     self._comprobar()
-                    self._msg(f"Dark de flat {i + 1} de {nd}", fase="flat_darks")
-                    flat_darks.append(self._capturar(camara, exposicion, conf["binning"], f"Dark flat {i + 1}/{nd}"))
+                    self._msg(_("Dark de flat {i} de {n}", i=i + 1, n=nd), fase="flat_darks")
+                    flat_darks.append(self._capturar(camara, exposicion, conf["binning"], _("Dark flat {i}/{n}", i=i + 1, n=nd)))
                     with self._lock:
                         self.completadas = i + 1
 
             # ── 4. Combinar y normalizar ─────────────────────────────
-            self._msg("Combinando flats...", fase="combinando")
+            self._msg(_("Combinando flats..."), fase="combinando")
             master = apilar_sigma_clip(flats) if len(flats) >= 3 else np.mean([f.astype(np.float32) for f in flats], axis=0)
             if flat_darks:
                 fd = apilar_sigma_clip(flat_darks) if len(flat_darks) >= 3 else np.mean([f.astype(np.float32) for f in flat_darks], axis=0)
@@ -314,18 +316,18 @@ class TrabajoFlats:
             hdu.writeto(ruta, overwrite=True)
             with self._lock:
                 self.ruta, self.vinyeteo = ruta, vinyeteo
-            self._msg(f"Flat maestro guardado ({len(flats)} flats, viñeteo {vinyeteo:.0f} %)", fase="")
+            self._msg(_("Flat maestro guardado ({n} flats, viñeteo {v} %)", n=len(flats), v=round(vinyeteo)), fase="")
             log.info("Flat maestro guardado en %s", ruta)
-            self._decir(voz, "Flat maestro guardado. Ya puedes destapar el telescopio")
+            self._decir(voz, _("Flat maestro guardado. Ya puedes destapar el telescopio"))
         except (FlatsCancelado, CapturaCancelada):
-            error = "Generación de flats cancelada"
+            error = _("Generación de flats cancelada")
         except ErrorHardware as e:
-            error = f"Error de cámara: {e}"
+            error = _("Error de cámara: {e}", e=e)
         except RuntimeError as e:
             error = str(e)
         except Exception as e:
             log.exception("Error generando el flat maestro")
-            error = f"Error generando el flat: {e}"
+            error = _("Error generando el flat: {e}", e=e)
         finally:
             with self._lock:
                 self.error = error
@@ -333,7 +335,7 @@ class TrabajoFlats:
                     self.mensaje = error
                 self.en_curso, self.terminado = False, True
             if error:
-                self._decir(voz, error if len(error) < 80 else "Error generando los flats")
+                self._decir(voz, error if len(error) < 80 else _("Error generando los flats"))
 
 
 trabajo_flats = TrabajoFlats()

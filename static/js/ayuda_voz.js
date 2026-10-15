@@ -23,18 +23,18 @@ function mostrarModalVoz(motivo) {
     pasos.hidden = motivo !== "http";
     nota.hidden = motivo !== "http";
     if (motivo === "http") {
-        cab.textContent = "La voz no funciona todavía en este móvil";
-        txt.textContent = "No es un fallo de ScopePower: Chrome solo permite el micrófono en direcciones https, y esta va por http. Se arregla en un minuto diciéndole a Chrome que trate esta dirección como segura:";
+        cab.textContent = _("La voz no funciona todavía en este móvil");
+        txt.textContent = _("No es un fallo de ScopePower: Chrome solo permite el micrófono en direcciones https, y esta va por http. Se arregla en un minuto diciéndole a Chrome que trate esta dirección como segura:");
     } else if (motivo === "ubicacion") {
         pasos.hidden = false; nota.hidden = false;
-        cab.textContent = "La ubicación del móvil no está disponible";
-        txt.textContent = "Chrome solo da la posición GPS en direcciones https, y esta va por http. Se arregla igual que la voz, diciéndole a Chrome que trate esta dirección como segura (y aceptando el permiso de ubicación cuando lo pida):";
+        cab.textContent = _("La ubicación del móvil no está disponible");
+        txt.textContent = _("Chrome solo da la posición GPS en direcciones https, y esta va por http. Se arregla igual que la voz, diciéndole a Chrome que trate esta dirección como segura (y aceptando el permiso de ubicación cuando lo pida):");
     } else if (motivo === "red") {
-        cab.textContent = "La voz necesita Internet en el móvil";
-        txt.textContent = "Chrome reconoce la voz en los servidores de Google. El móvil está conectado a la wifi del telescopio pero sin salida a Internet: activa los datos móviles (Chrome los usará para la voz) o conéctate a una wifi con Internet.";
+        cab.textContent = _("La voz necesita Internet en el móvil");
+        txt.textContent = _("Chrome reconoce la voz en los servidores de Google. El móvil está conectado a la wifi del telescopio pero sin salida a Internet: activa los datos móviles (Chrome los usará para la voz) o conéctate a una wifi con Internet.");
     } else {
-        cab.textContent = "El micrófono está bloqueado";
-        txt.textContent = "Chrome tiene denegado el permiso del micrófono para esta dirección. Toca el candado o el icono de ajustes junto a la dirección, entra en Permisos y permite el Micrófono; después recarga la página.";
+        cab.textContent = _("El micrófono está bloqueado");
+        txt.textContent = _("Chrome tiene denegado el permiso del micrófono para esta dirección. Toca el candado o el icono de ajustes junto a la dirección, entra en Permisos y permite el Micrófono; después recarga la página.");
     }
     document.getElementById("modal-voz").classList.add("abierto");
 }
@@ -42,8 +42,8 @@ function cerrarModalVoz() { document.getElementById("modal-voz").classList.remov
 function copiarTexto(id, boton) {
     const texto = document.getElementById(id).textContent;
     (navigator.clipboard ? navigator.clipboard.writeText(texto) : Promise.reject()).then(() => {
-        boton.textContent = "Copiado"; setTimeout(() => boton.textContent = "Copiar", 1500);
-    }).catch(() => { window.prompt("Copia esta dirección:", texto); });
+        boton.textContent = _("Copiado"); setTimeout(() => boton.textContent = _("Copiar"), 1500);
+    }).catch(() => { window.prompt(_("Copia esta dirección:"), texto); });
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarModalVoz(); });
 

@@ -11,6 +11,8 @@ import time
 import logging
 from datetime import datetime, timezone
 
+from idioma import _
+
 log = logging.getLogger("scopepower.hora")
 
 ERROR_SIN_PERMISO = 1300   # ERROR_NOT_ALL_ASSIGNED: el privilegio no está en el token de este usuario
@@ -27,9 +29,9 @@ def _activar_privilegio():
     privilegio = win32security.LookupPrivilegeValue(None, "SeSystemtimePrivilege")
     win32security.AdjustTokenPrivileges(token, False, [(privilegio, win32con.SE_PRIVILEGE_ENABLED)])
     if win32api.GetLastError() == ERROR_SIN_PERMISO:
-        raise SinPermisoHora(
+        raise SinPermisoHora(_(
             "Este usuario de Windows no tiene permiso para cambiar la hora. Ejecuta instalar_scopepower.bat "
-            "en el PC (concede el permiso) y vuelve a iniciar sesión en Windows; o pon la hora a mano.")
+            "en el PC (concede el permiso) y vuelve a iniciar sesión en Windows; o pon la hora a mano."))
 
 
 def desfase_s(hora_utc_ms):

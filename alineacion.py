@@ -34,6 +34,7 @@ import astropy.units as u
 from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, asentamiento_montura, CapturaCancelada, ErrorHardware, estado_captura
 from centrado import resolver_con_astap, CentradoCancelado
 import coordenadas
+from idioma import _, ngettext, fmt_num
 
 log = logging.getLogger("scopepower.alineacion")
 
@@ -153,13 +154,13 @@ class TrabajoAlineacion:
         conf = conf or leer_config()
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("Ya hay una alineación en curso")
+                raise RuntimeError(_("Ya hay una alineación en curso"))
             if camara.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self._cancelar.clear()
             self.en_curso = True
-            self.mensaje = "Iniciando alineación automática..."
+            self.mensaje = _("Iniciando alineación automática...")
         hilo = threading.Thread(
             target=self._ejecutar, name="alineacion", daemon=True,
             args=(camara, montura, conf, limpiar_sync,
@@ -190,13 +191,13 @@ class TrabajoAlineacion:
             plan = plan_de_puntos(conf["puntos"], conf["altura_maxima"], conf["altura_minima"], az0, lejos_del_polo)
             with self._lock:
                 self.puntos = [{"n": i + 1, "alt": alt, "az": az, "estado": "pendiente", "error_arcmin": None,
-                                "nombre": f"alt {alt:.0f}° az {az:.0f}°"} for i, (alt, az) in enumerate(plan)]
+                                "nombre": _("alt {alt}° az {az}°", alt=round(alt), az=round(az))} for i, (alt, az) in enumerate(plan)]
                 self.total_pasos = len(self.puntos)
-            self._decir(voz, f"Alineación automática de {len(plan)} puntos")
+            self._decir(voz, _("Alineación automática de {n} puntos", n=len(plan)))
 
             # ── 1. Borrar modelo anterior ─────────────────────────────
             if conf["limpiar_antes"] and limpiar_sync is not None:
-                self._msg("Borrando sincronizaciones anteriores (ClearSyncTo)")
+                self._msg(_("Borrando sincronizaciones anteriores (ClearSyncTo)"))
                 ok, msg = montura.ejecutar(limpiar_sync, timeout=20)
                 if not ok:
                     log.warning("ClearSyncTo no disponible: %s", msg)
@@ -210,18 +211,18 @@ class TrabajoAlineacion:
             with self._lock:
                 s, f = self.sincronizados, self.fallidos
             if s >= 2 and f == 0:
-                resultado, detalle = "completada", f"Alineación completada con {s} puntos"
+                resultado, detalle = "completada", _("Alineación completada con {s} puntos", s=s)
             elif s >= 2:
-                resultado, detalle = "parcial", f"Alineación con {s} puntos; {f} posiciones no se pudieron resolver"
+                resultado, detalle = "parcial", _("Alineación con {s} puntos; {f} posiciones no se pudieron resolver", s=s, f=f)
             else:
-                resultado, detalle = "error", f"Solo {s} punto(s) sincronizado(s); alineación insuficiente"
+                resultado, detalle = "error", ngettext("Solo {n} punto sincronizado; alineación insuficiente", "Solo {n} puntos sincronizados; alineación insuficiente", s)
         except (CentradoCancelado, CapturaCancelada):
-            resultado, detalle = "cancelado", "Alineación cancelada por el usuario"
+            resultado, detalle = "cancelado", _("Alineación cancelada por el usuario")
         except ErrorHardware as e:
-            resultado, detalle = "error", f"Error de hardware: {e}"
+            resultado, detalle = "error", _("Error de hardware: {e}", e=e)
         except Exception as e:
             log.exception("Error en la alineación automática")
-            resultado, detalle = "error", f"Error inesperado: {e}"
+            resultado, detalle = "error", _("Error inesperado: {e}", e=e)
         finally:
             with self._lock:
                 self.resultado, self.detalle, self.mensaje = resultado, detalle, detalle
@@ -246,24 +247,24 @@ class TrabajoAlineacion:
         try:
             alt, az, lugar = destino
             self._marcar(idx, estado="moviendo")
-            self._msg(f"Punto {idx + 1}/{total}: moviendo a {nombre}")
-            self._decir(voz, f"Punto {idx + 1} de {total}")
+            self._msg(_("Punto {i}/{total}: moviendo a {nombre}", i=idx + 1, total=total, nombre=nombre))
+            self._decir(voz, _("Punto {i} de {total}", i=idx + 1, total=total))
             objetivo = self._a_icrs(alt, az, lugar)
             if abs(objetivo.dec.deg) > DEC_MAXIMA:
-                self._marcar(idx, estado="omitido", detalle="demasiado cerca del polo")
+                self._marcar(idx, estado="omitido", detalle=_("demasiado cerca del polo"))
                 return
             self._mover(montura, *coordenadas.a_montura(objetivo.ra.hour, objetivo.dec.deg))
-            self._msg(f"Punto {idx + 1}/{total}: estabilizando seguimiento ({conf['asentamiento_s']:.0f} s)")
+            self._msg(_("Punto {i}/{total}: estabilizando seguimiento ({s} s)", i=idx + 1, total=total, s=round(conf['asentamiento_s'])))
             self._esperar(conf["asentamiento_s"])
 
             self._comprobar()
             self._marcar(idx, estado="exponiendo")
-            self._msg(f"Punto {idx + 1}/{total}: exponiendo {conf['exposicion']:.0f} s")
+            self._msg(_("Punto {i}/{total}: exponiendo {s} s", i=idx + 1, total=total, s=round(conf['exposicion'])))
             # Dónde cree estar la montura: pista para ASTAP y referencia del error
             ra_m, dec_m = montura.ejecutar(lambda t: (t.RightAscension, t.Declination), timeout=10)
             frame, px, py = camara.ejecutar(
                 lambda cam: capturar_frame_con_pixel(cam, conf["exposicion"], conf["binning"],
-                                                     descripcion=f"Alineación {idx + 1}/{total}",
+                                                     descripcion=_("Alineación {i}/{total}", i=idx + 1, total=total),
                                                      ganancia=ganancia_configurada()),
                 timeout=conf["exposicion"] + 90)
             hdu = fits.PrimaryHDU(np.asarray(frame, dtype=np.uint16))
@@ -274,13 +275,13 @@ class TrabajoAlineacion:
 
             self._comprobar()
             self._marcar(idx, estado="resolviendo")
-            self._msg(f"Punto {idx + 1}/{total}: resolviendo")
+            self._msg(_("Punto {i}/{total}: resolviendo", i=idx + 1, total=total))
             solucion = resolver(RUTA_FITS_ALINEACION)
             if solucion is None:
-                self._marcar(idx, estado="fallido", detalle="no resuelta")
+                self._marcar(idx, estado="fallido", detalle=_("no resuelta"))
                 with self._lock:
                     self.fallidos += 1
-                self._decir(voz, "No se ha podido resolver este punto")
+                self._decir(voz, _("No se ha podido resolver este punto"))
                 return
             ra_deg, dec_deg = solucion
             real = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg)
@@ -297,12 +298,12 @@ class TrabajoAlineacion:
             self._marcar(idx, estado="ok")
             with self._lock:
                 self.sincronizados += 1
-            self._msg(f"Punto {idx + 1}/{total}: sincronizado (la montura se equivocaba {error:.1f}')")
+            self._msg(_("Punto {i}/{total}: sincronizado (la montura se equivocaba {error}')", i=idx + 1, total=total, error=fmt_num(error, 1)))
         except (CentradoCancelado, CapturaCancelada):
             self._marcar(idx, estado="cancelado")
             raise
         except ErrorHardware:
-            self._marcar(idx, estado="fallido", detalle="error de hardware")
+            self._marcar(idx, estado="fallido", detalle=_("error de hardware"))
             raise
 
     def _mover(self, montura, ra_h, dec_deg):
@@ -316,7 +317,7 @@ class TrabajoAlineacion:
             time.sleep(0.5)
             while tel.Slewing:
                 if time.time() - inicio > 180:
-                    raise ErrorHardware("La montura no terminó el movimiento en 180 s")
+                    raise ErrorHardware(_("La montura no terminó el movimiento en {s} s", s=180))
                 if self._cancelar.is_set():
                     try:
                         tel.AbortSlew()

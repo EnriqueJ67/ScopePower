@@ -26,6 +26,7 @@ import time
 import logging
 import threading
 from datetime import datetime
+from idioma import _
 
 log = logging.getLogger("scopepower.vigilante_seguimiento")
 
@@ -117,7 +118,7 @@ class VigilanteSeguimiento:
                         "reactivado (%d veces esta sesión)", motivo, self.reactivaciones)
             if voz is not None:
                 try:
-                    voz.decir("Seguimiento reactivado")
+                    voz.decir(_("Seguimiento reactivado"))
                 except Exception:
                     pass
             return self._anotar("reactivado")

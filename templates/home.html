@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio{% endblock %}
+{% block title %}{{ _("Inicio") }}{% endblock %}
 {% block titulo_cabecera %}{% endblock %}
 
 {% block content %}
@@ -10,12 +10,12 @@
     <div class="hero-logo"><img src="/static/logo_transparente.png" alt="ScopePower"></div>
     <div class="hero-estado">
         <div class="fila" id="hero-chips">
-            <span class="chip chip-lg chip-icono" id="hero-montura"><svg><use href="#i-telescopio"/></svg>Montura</span>
-            <span class="chip chip-lg chip-icono" id="hero-camara"><svg><use href="#i-foto"/></svg>Cámara</span>
+            <span class="chip chip-lg chip-icono" id="hero-montura"><svg><use href="#i-telescopio"/></svg>{{ _("Montura") }}</span>
+            <span class="chip chip-lg chip-icono" id="hero-camara"><svg><use href="#i-foto"/></svg>{{ _("Cámara") }}</span>
         </div>
-        <div id="estado-equipo" class="estado mt-1">Comprobando el equipo...</div>
+        <div id="estado-equipo" class="estado mt-1">{{ _("Comprobando el equipo...") }}</div>
     </div>
-    <button type="button" class="btn btn-primary" id="btn-conectar"><svg><use href="#i-conectar"/></svg><span id="btn-conectar-texto">Conectar equipo</span></button>
+    <button type="button" class="btn btn-primary" id="btn-conectar"><svg><use href="#i-conectar"/></svg><span id="btn-conectar-texto">{{ _("Conectar equipo") }}</span></button>
 </div>
 
 <!-- El menú sigue el orden de una noche: conectar, alinear, ir al objeto, apilar.
@@ -25,58 +25,58 @@
 <div class="tiles mt-3">
     <a href="/goto" class="tile tile-grande destacada clic-audio requiere-conexion">
         <span class="tile-ico"><svg><use href="#i-goto"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">GoTo a un objeto</span><span class="tile-desc">Por nombre o por voz, con centrado automático por plate solving</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("GoTo a un objeto") }}</span><span class="tile-desc">{{ _("Por nombre o por voz, con centrado automático por plate solving") }}</span></span>
         <svg class="ico flecha"><use href="#i-flecha"/></svg>
     </a>
     <a href="/apilado" class="tile tile-grande destacada clic-audio requiere-conexion">
         <span class="tile-ico"><svg><use href="#i-apilado"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Apilado en tiempo real</span><span class="tile-desc">La imagen mejora foto a foto; guarda el resultado en la galería</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Apilado en tiempo real") }}</span><span class="tile-desc">{{ _("La imagen mejora foto a foto; guarda el resultado en la galería") }}</span></span>
         <svg class="ico flecha"><use href="#i-flecha"/></svg>
     </a>
 
     <a href="/alineacion" class="tile clic-audio requiere-conexion">
         <span class="tile-ico ok"><svg><use href="#i-brujula"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Alineación automática</span><span class="tile-desc">Modelo de apuntado por plate solving</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Alineación automática") }}</span><span class="tile-desc">{{ _("Modelo de apuntado por plate solving") }}</span></span>
     </a>
     <a href="/esta-noche" class="tile clic-audio requiere-conexion">
         <span class="tile-ico warn"><svg><use href="#i-noche"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Esta noche</span><span class="tile-desc">Objetos recomendados ahora</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Esta noche") }}</span><span class="tile-desc">{{ _("Objetos recomendados ahora") }}</span></span>
     </a>
     <a href="/planetario" class="tile clic-audio">
         <span class="tile-ico info"><svg><use href="#i-planetario"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Planetario</span><span class="tile-desc">Mapa del cielo sin Internet: toca un objeto y ve a él</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Planetario") }}</span><span class="tile-desc">{{ _("Mapa del cielo sin Internet: toca un objeto y ve a él") }}</span></span>
     </a>
     <a href="/constelacion" class="tile clic-audio requiere-conexion">
         <span class="tile-ico info"><svg><use href="#i-constelacion"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Recorrido guiado</span><span class="tile-desc">Constelaciones estrella a estrella</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Recorrido guiado") }}</span><span class="tile-desc">{{ _("Constelaciones estrella a estrella") }}</span></span>
     </a>
     <a href="{{ url_for('galeria') }}" class="tile clic-audio">
         <span class="tile-ico"><svg><use href="#i-galeria"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Galería</span><span class="tile-desc">Imágenes guardadas</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Galería") }}</span><span class="tile-desc">{{ _("Imágenes guardadas") }}</span></span>
     </a>
     <a href="/control" class="tile clic-audio requiere-conexion">
         <span class="tile-ico neutro"><svg><use href="#i-control"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Control manual</span><span class="tile-desc">Pad táctil y flechas</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Control manual") }}</span><span class="tile-desc">{{ _("Pad táctil y flechas") }}</span></span>
     </a>
     <a href="/foto-prueba" class="tile clic-audio requiere-conexion">
         <span class="tile-ico neutro"><svg><use href="#i-foto"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Cámara</span><span class="tile-desc">Foto suelta o continua, de día y de noche</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Cámara") }}</span><span class="tile-desc">{{ _("Foto suelta o continua, de día y de noche") }}</span></span>
     </a>
     <a href="/seguimiento" class="tile clic-audio requiere-conexion">
         <span class="tile-ico warn"><svg><use href="#i-goto"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Seguimiento de objetos</span><span class="tile-desc">Experimental: aviones, satélites e ISS con la cámara como guía</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Seguimiento de objetos") }}</span><span class="tile-desc">{{ _("Experimental: aviones, satélites e ISS con la cámara como guía") }}</span></span>
     </a>
     <a href="/calibracion" class="tile clic-audio requiere-conexion">
         <span class="tile-ico neutro"><svg><use href="#i-calibracion"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Calibración</span><span class="tile-desc">Darks y flats</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Calibración") }}</span><span class="tile-desc">{{ _("Darks y flats") }}</span></span>
     </a>
     <a href="/configuracion" class="tile clic-audio">
         <span class="tile-ico neutro"><svg><use href="#i-ajustes"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Configuración</span><span class="tile-desc">Drivers, exposición, voz, red</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Configuración") }}</span><span class="tile-desc">{{ _("Drivers, exposición, voz, red") }}</span></span>
     </a>
     <a href="/apagar" class="tile clic-audio">
         <span class="tile-ico" style="background: var(--err-soft); color: var(--err);"><svg><use href="#i-power"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Cerrar o apagar</span><span class="tile-desc">Reiniciar la app o apagar el equipo</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Cerrar o apagar") }}</span><span class="tile-desc">{{ _("Reiniciar la app o apagar el equipo") }}</span></span>
     </a>
 </div>
 
@@ -132,21 +132,21 @@
         const clase = (bien, busy) => "chip chip-lg chip-icono " + (busy ? "chip-busy" : (bien ? "chip-ok" : "chip-err"));
         chipM.className = clase(d.montura, d.conectando && !d.montura);
         chipC.className = clase(d.camara, d.conectando && !d.camara);
-        chipM.innerHTML = `<svg><use href="#i-telescopio"/></svg>Montura${d.montura && d.sistema ? " · " + d.sistema : ""}`;
-        chipC.innerHTML = `<svg><use href="#i-foto"/></svg>Cámara`;
+        chipM.innerHTML = '<svg><use href="#i-telescopio"/></svg>' + _("Montura") + (d.montura && d.sistema ? " · " + d.sistema : "");
+        chipC.innerHTML = '<svg><use href="#i-foto"/></svg>' + _("Cámara");
 
         let txt;
         if (d.conectando) {
-            txt = "Conectando montura y cámara...";
+            txt = _("Conectando montura y cámara...");
         } else if (ok && d.camara) {
-            txt = "Equipo listo. Alinea, ve a un objeto o empieza a apilar.";
+            txt = _("Equipo listo. Alinea, ve a un objeto o empieza a apilar.");
         } else {
-            txt = ok ? "Montura conectada; la cámara no responde." : "La montura no está conectada.";
+            txt = ok ? _("Montura conectada; la cámara no responde.") : _("La montura no está conectada.");
             if (!ok && d.error_montura) txt += `<br><span class="texto-err">${d.error_montura}</span>`;
             if (!d.camara && d.error_camara) txt += `<br><span class="texto-err">${d.error_camara}</span>`;
         }
         document.getElementById('estado-equipo').innerHTML = txt;
-        document.getElementById('btn-conectar-texto').textContent = ok ? "Reconectar equipo" : "Conectar equipo";
+        document.getElementById('btn-conectar-texto').textContent = ok ? _("Reconectar equipo") : _("Conectar equipo");
     }
     // La cabecera (base.html) sondea /estado-conexion y avisa con este evento
     document.addEventListener('estado-equipo', ev => pintarConexion(ev.detail));
@@ -157,7 +157,7 @@
         sonidoClick.play().catch(() => {});
         const btn = document.getElementById('btn-conectar');
         btn.disabled = true;
-        document.getElementById('estado-equipo').innerHTML = '<span class="spinner"></span>Conectando montura y cámara...';
+        document.getElementById('estado-equipo').innerHTML = '<span class="spinner"></span>' + _("Conectando montura y cámara...");
         try {
             const d = await (await fetch('/conectar-equipo', { method: 'POST' })).json();
             pintarConexion(d);
@@ -166,7 +166,7 @@
             }
             if (window.refrescarEstadoEquipo) refrescarEstadoEquipo();
         } catch (err) {
-            document.getElementById('estado-equipo').innerHTML = '<span class="texto-err">Error al conectar: ' + err + '</span>';
+            document.getElementById('estado-equipo').innerHTML = '<span class="texto-err">' + _("Error al conectar: {e}", { e: err }) + '</span>';
         } finally {
             btn.disabled = false;
         }

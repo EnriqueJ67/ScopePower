@@ -24,7 +24,12 @@ import pythoncom
 import pywintypes
 import win32com.client
 
+from idioma import _, N_
+
 log = logging.getLogger("scopepower.hardware")
+
+# Nombre de cada TrabajadorCOM tal como se enseña en los mensajes (el interno va al log)
+NOMBRES_VISIBLES = {"montura": N_("montura"), "cámara": N_("cámara")}
 
 
 class ErrorHardware(Exception):
@@ -78,8 +83,8 @@ class TrabajadorCOM:
             except pywintypes.com_error as e:
                 # CO_E_CLASSSTRING: Windows solo decía "Cadena clase no válida"
                 if e.hresult == -2147221005:
-                    raise RuntimeError(f"el driver «{driver}» no está instalado en este PC: "
-                                       "elige otro o instala el de tu equipo") from e
+                    raise RuntimeError(_("el driver «{driver}» no está instalado en este PC: "
+                                         "elige otro o instala el de tu equipo", driver=driver)) from e
                 raise
             dispositivo.Connected = True
             if self._al_conectar:
@@ -107,6 +112,18 @@ class TrabajadorCOM:
     def esta_conectado(self):
         return self._dispositivo is not None
 
+    def _visible(self):
+        """Nombre del dispositivo en el idioma de la app, para los mensajes."""
+        nombre = NOMBRES_VISIBLES.get(self.nombre)
+        return _(nombre) if nombre else self.nombre
+
+    def _en_uso(self):
+        if self.nombre == "montura":
+            return _("la montura está en uso por {motivo}", motivo=self.reservado_por)
+        if self.nombre == "cámara":
+            return _("la cámara está en uso por {motivo}", motivo=self.reservado_por)
+        return _("{dispositivo} está en uso por {motivo}", dispositivo=self.nombre, motivo=self.reservado_por)
+
     # ── Ejecución ─────────────────────────────────────────────────────────
     def ejecutar(self, fn, timeout=30, conectar=True):
         """
@@ -118,9 +135,9 @@ class TrabajadorCOM:
         try:
             return futuro.result(timeout=timeout)
         except FuturesTimeout:
-            msg = f"{self.nombre}: la operación no respondió en {timeout} s"
+            log.error("%s: la operación no respondió en %s s", self.nombre, timeout)
+            msg = _("{dispositivo}: la operación no respondió en {s} s", dispositivo=self._visible(), s=timeout)
             self.ultimo_error = msg
-            log.error(msg)
             raise ErrorHardware(msg)
 
     def ejecutar_async(self, fn, conectar=True):
@@ -130,7 +147,7 @@ class TrabajadorCOM:
                 self.ocupado = True
             try:
                 if conectar and self.reservado_por:
-                    raise ErrorHardware(f"la {self.nombre} está en uso por {self.reservado_por}")
+                    raise ErrorHardware(self._en_uso())
                 if conectar:
                     dispositivo = self._conectar_en_hilo()
                 else:
@@ -142,13 +159,13 @@ class TrabajadorCOM:
                 raise
             except ErrorHardware as e:
                 # Ya viene con mensaje legible (p. ej. de la comprobación al conectar)
-                self.ultimo_error = f"{self.nombre}: {e}"
-                log.error(self.ultimo_error)
+                self.ultimo_error = f"{self._visible()}: {e}"
+                log.error("%s: %s", self.nombre, e)
                 raise
             except Exception as e:
-                msg = f"{self.nombre}: {_mensaje_com(e)}"
+                msg = f"{self._visible()}: {_mensaje_com(e)}"
                 self.ultimo_error = msg
-                log.error(msg)
+                log.error("%s: %s", self.nombre, _mensaje_com(e))
                 if self._dispositivo is None:
                     # Falló la propia conexión: no dejar un objeto a medias
                     self._dispositivo = None
@@ -162,16 +179,16 @@ class TrabajadorCOM:
     def reconectar(self, timeout=30):
         """Desconecta y vuelve a conectar el dispositivo."""
         if self.reservado_por:
-            raise ErrorHardware(f"la {self.nombre} está en uso por {self.reservado_por}")
+            raise ErrorHardware(self._en_uso())
 
-        def tarea(_):
+        def tarea(__):
             self._desconectar_en_hilo()
             return self._conectar_en_hilo()
         return self.ejecutar(tarea, timeout=timeout, conectar=False)
 
     def desconectar(self, timeout=15):
         try:
-            self.ejecutar(lambda _: self._desconectar_en_hilo(), timeout=timeout, conectar=False)
+            self.ejecutar(lambda __: self._desconectar_en_hilo(), timeout=timeout, conectar=False)
         except ErrorHardware:
             pass
 
@@ -380,12 +397,12 @@ def capturar_frame(camara, exposicion, binning=1, estado=None, descripcion="", l
         while not camara.ImageReady:
             if estado.cancelar.is_set():
                 _abortar(camara)
-                raise CapturaCancelada("Exposición cancelada por el usuario")
+                raise CapturaCancelada(_("Exposición cancelada por el usuario"))
             if time.time() - inicio > limite:
                 _abortar(camara)
-                raise ErrorHardware(f"La cámara no devolvió la imagen en {limite:.0f} s")
+                raise ErrorHardware(_("La cámara no devolvió la imagen en {s} s", s=round(limite)))
             time.sleep(0.2)
-        estado.poner_fase("Descargando la foto de la cámara")   # ImageArray: 1–3 s por ASCOM
+        estado.poner_fase(_("Descargando la foto de la cámara"))   # ImageArray: 1–3 s por ASCOM
         return np.array(camara.ImageArray, dtype=np.uint16)
     finally:
         estado.terminar()

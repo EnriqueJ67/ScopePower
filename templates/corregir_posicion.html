@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Sincronización{% endblock %}
+{% block title %}{{ _("Sincronización") }}{% endblock %}
 
 {% block content %}
-<div class="pagina-cabecera"><div><h1 class="pagina-titulo">Resultado de sincronización</h1></div></div>
+<div class="pagina-cabecera"><div><h1 class="pagina-titulo">{{ _("Resultado de sincronización") }}</h1></div></div>
 <div class="card card-centrada">
     <p style="margin: 0;">{{ resultado | safe }}</p>
 </div>

@@ -24,14 +24,14 @@
     var estado = null;             // estado del trabajo (de /estado-apilado)
     var versionEstado = null;
     var timerPrevia = null;
-    var fases = { goto: "moviendo el telescopio", centrando: "centrando", apilando: "apilando", combinando: "combinando las teselas",
-                  guardando: "guardando en la galería", pausado: "en pausa", terminado: "terminado" };
-    var estadosTesela = { pendiente: "pendiente", en_curso: "en curso", hecha: "hecha", fallida: "fallida" };
+    var fases = { goto: _("moviendo el telescopio"), centrando: _("centrando"), apilando: _("apilando"), combinando: _("combinando las teselas"),
+                  guardando: _("guardando en la galería"), pausado: _("en pausa"), terminado: _("terminado") };
+    var estadosTesela = { pendiente: _("pendiente"), en_curso: _("en curso"), hecha: _("hecha"), fallida: _("fallida") };
 
-    function esc(t) { return String(t === undefined || t === null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+    function esc(t) { return String(t === undefined || t === null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/[>]/g, "&gt;").replace(/"/g, "&quot;"); }
     function error(t) { $("mosaico-error").textContent = t ? "⚠️ " + t : ""; }
     function num(id, defecto) { var v = parseFloat(String($(id).value).replace(",", ".")); return isFinite(v) ? v : defecto; }
-    function grados(v) { return (Math.round(v * 10) / 10).toFixed(1).replace(".", ",") + "°"; }
+    function grados(v) { return fmtNum(Math.round(v * 10) / 10, 1) + "°"; }
     function horasCortas(raH) { var h = Math.floor(raH), m = Math.round((raH - h) * 60); return h + "h" + (m < 10 ? "0" : "") + m + "m"; }
     function gradosCortos(d) { var a = Math.abs(d), g = Math.floor(a), m = Math.round((a - g) * 60); return (d < 0 ? "-" : "+") + g + "°" + (m < 10 ? "0" : "") + m + "'"; }
 
@@ -49,8 +49,11 @@
             pintarCentro();
             if (d.estado) Mosaico.actualizarEstado(d.estado);
             Mosaico.previsualizar();
-        }).catch(function (e) { error("No se pudo leer el mosaico: " + e); });
+        }).catch(function (e) { error(_("No se pudo leer el mosaico: {e}", { e: e })); });
     };
+
+    // El servidor guarda la fuente del centro y el nombre por defecto en español: se traducen aquí
+    function nombreCentro(c) { return c.nombre === "Mosaico" ? _("Mosaico") : c.nombre; }
 
     function pintarCentro() {
         if (!datos) return;
@@ -58,10 +61,10 @@
         var campo = datos.campo || {};
         var t = "";
         if (c.error) t = c.error;
-        else t = "Centro: <b>" + esc(c.nombre) + "</b> (" + esc(c.fuente) + ") · RA " + horasCortas(c.ra_h) + " Dec " + gradosCortos(c.dec_deg);
-        if (campo.ancho_deg) t += "<br>Campo de la cámara: " + grados(campo.ancho_deg) + " × " + grados(campo.alto_deg) + " (" + esc(campo.origen) + ")";
+        else t = _("Centro: <b>{nombre}</b> ({fuente})", { nombre: esc(nombreCentro(c)), fuente: esc(_(c.fuente)) }) + " · RA " + horasCortas(c.ra_h) + " Dec " + gradosCortos(c.dec_deg);
+        if (campo.ancho_deg) t += "<br>" + _("Campo de la cámara: {ancho} × {alto} ({origen})", { ancho: grados(campo.ancho_deg), alto: grados(campo.alto_deg), origen: esc(campo.origen) });
         $("mosaico-centro-texto").innerHTML = t;
-        $("mosaico-nombre").placeholder = c.nombre ? c.nombre + " (" + c.fuente + ")" : "Objeto o coordenadas del centro";
+        $("mosaico-nombre").placeholder = c.nombre ? nombreCentro(c) + " (" + _(c.fuente) + ")" : _("Objeto o coordenadas del centro");
     }
 
     function cuerpoFormulario() {
@@ -82,9 +85,9 @@
                 if (!d.ok) { $("mosaico-previa").textContent = d.error || ""; return; }
                 var tam = d.tamano_deg || [0, 0];
                 var n = d.filas * d.columnas;
-                var t = "Mosaico " + d.filas + "×" + d.columnas + " (" + n + " teselas): " + grados(tam[0]) + " × " + grados(tam[1]) +
-                        " · cámara a " + Math.round(d.angulo_deg) + "° (" + d.origen_angulo + ")";
-                if (d.centro && cuerpo.nombre) t += " · centro " + d.centro.nombre;
+                var t = _("Mosaico {filas}×{columnas} ({n} teselas): {ancho} × {alto}", { filas: d.filas, columnas: d.columnas, n: n, ancho: grados(tam[0]), alto: grados(tam[1]) }) +
+                        " · " + _("cámara a {angulo}° ({origen})", { angulo: Math.round(d.angulo_deg), origen: d.origen_angulo });
+                if (d.centro && cuerpo.nombre) t += " · " + _("centro {nombre}", { nombre: d.centro.nombre });
                 $("mosaico-previa").textContent = t;
                 if (!estado || !estado.en_curso) pintarRejilla(d.teselas, d.filas, d.columnas);
             }).catch(function () {});
@@ -120,10 +123,10 @@
     Mosaico.textoCabecera = function () {
         if (!estado || !estado.en_curso) return "";
         var n = estado.teselas ? estado.teselas.length : 0;
-        var t = "🧩 Mosaico " + estado.filas + "×" + estado.columnas + " de " + estado.nombre;
-        if (estado.actual !== null && estado.actual !== undefined) t += " · tesela " + (estado.actual + 1) + "/" + n;
+        var t = _("🧩 Mosaico {filas}×{columnas} de {nombre}", { filas: estado.filas, columnas: estado.columnas, nombre: estado.nombre });
+        if (estado.actual !== null && estado.actual !== undefined) t += " · " + _("tesela {i}/{n}", { i: estado.actual + 1, n: n });
         if (estado.fase === "apilando") t += " " + estado.fotos + "/" + estado.fotos_por_tesela;
-        t += " · " + (estado.pausado ? "en pausa" : (fases[estado.fase] || estado.fase));
+        t += " · " + (estado.pausado ? _("en pausa") : (fases[estado.fase] || estado.fase));
         return t;
     };
 
@@ -139,7 +142,7 @@
                 var t = porPos[f + "," + c];
                 if (!t) { html += '<div class="tesela"></div>'; continue; }
                 var est = t.estado || "prevista";
-                var titulo = "Tesela " + (t.i + 1) + " · RA " + horasCortas(t.ra_h) + " Dec " + gradosCortos(t.dec_deg) +
+                var titulo = _("Tesela {i}", { i: t.i + 1 }) + " · RA " + horasCortas(t.ra_h) + " Dec " + gradosCortos(t.dec_deg) +
                              (t.estado ? " · " + (estadosTesela[t.estado] || t.estado) : "") + (t.motivo ? " · " + t.motivo : "");
                 var texto = String(t.i + 1);
                 if (t.estado === "hecha" || t.estado === "en_curso") texto += '<small>' + (t.fotos || 0) + (t.estado === "en_curso" && estado ? "/" + estado.fotos_por_tesela : "") + "</small>";
@@ -169,35 +172,35 @@
         if (enCurso) {
             var n = estado.teselas.length;
             var linea = "<b>" + esc(estado.nombre) + "</b> " + estado.filas + "×" + estado.columnas +
-                        " · tesela " + (estado.actual !== null ? estado.actual + 1 : "-") + "/" + n + " · " + esc(pausado ? "en pausa" : (fases[estado.fase] || estado.fase));
+                        " · " + _("tesela {i}/{n}", { i: estado.actual !== null ? estado.actual + 1 : "-", n: n }) + " · " + esc(pausado ? _("en pausa") : (fases[estado.fase] || estado.fase));
             var html = "<div>" + linea + "</div>";
             if (estado.fase === "apilando" || estado.fase === "pausado") {
                 var pct = Math.min(100, Math.round(100 * (estado.fotos || 0) / Math.max(1, estado.fotos_por_tesela)));
                 html += '<div class="progress"><div class="progress-bar" style="width:' + pct + '%"></div></div>';
-                html += '<div class="texto-2">' + (estado.fotos || 0) + " de " + estado.fotos_por_tesela + " fotos de esta tesela</div>";
+                html += '<div class="texto-2">' + _("{n} de {total} fotos de esta tesela", { n: estado.fotos || 0, total: estado.fotos_por_tesela }) + "</div>";
             }
             var ult = estado.eventos && estado.eventos.length ? estado.eventos[estado.eventos.length - 1] : null;
             if (ult) html += '<div class="texto-3 plan-evento">' + esc(ult.hora) + " " + esc(ult.texto) + "</div>";
-            if (estado.combinando) html += '<div class="texto-3 plan-evento">🧩 Combinando el mosaico: ' + esc(estado.mensaje_combinar || "") + "</div>";
-            else if (estado.ultimo_combinado && !estado.ultimo_combinado.error) html += '<div class="texto-3 plan-evento">🧩 Mosaico de ' + estado.ultimo_combinado.teselas + " teselas, " + estado.ultimo_combinado.ancho + "×" + estado.ultimo_combinado.alto + " px (" + esc(estado.ultimo_combinado.hora) + ")</div>";
+            if (estado.combinando) html += '<div class="texto-3 plan-evento">' + _("🧩 Combinando el mosaico: {mensaje}", { mensaje: esc(estado.mensaje_combinar || "") }) + "</div>";
+            else if (estado.ultimo_combinado && !estado.ultimo_combinado.error) html += '<div class="texto-3 plan-evento">' + _("🧩 Mosaico de {n} teselas, {ancho}×{alto} px ({hora})", { n: estado.ultimo_combinado.teselas, ancho: estado.ultimo_combinado.ancho, alto: estado.ultimo_combinado.alto, hora: esc(estado.ultimo_combinado.hora) }) + "</div>";
             caja.innerHTML = html;
             caja.hidden = false;
-            $("mosaico-sub").textContent = "tesela " + (estado.actual !== null ? estado.actual + 1 : "-") + "/" + n + " · " + (pausado ? "en pausa" : (fases[estado.fase] || ""));
+            $("mosaico-sub").textContent = _("tesela {i}/{n}", { i: estado.actual !== null ? estado.actual + 1 : "-", n: n }) + " · " + (pausado ? _("en pausa") : (fases[estado.fase] || ""));
         } else {
             var ultimo = estado && estado.eventos && estado.eventos.length ? estado.eventos[estado.eventos.length - 1] : null;
             var partes = [];
             if (ultimo && estado.fase === "terminado") partes.push('<div class="texto-2">' + esc(ultimo.hora) + " " + esc(ultimo.texto) + "</div>");
-            if (estado && estado.combinando) partes.push('<div class="texto-3 plan-evento">🧩 Combinando el mosaico: ' + esc(estado.mensaje_combinar || "") + "</div>");
+            if (estado && estado.combinando) partes.push('<div class="texto-3 plan-evento">' + _("🧩 Combinando el mosaico: {mensaje}", { mensaje: esc(estado.mensaje_combinar || "") }) + "</div>");
             else if (estado && estado.ultimo_combinado) {
                 var u = estado.ultimo_combinado;
-                partes.push('<div class="texto-3 plan-evento">' + (u.error ? "⚠️ No se pudo combinar: " + esc(u.error)
-                    : "🧩 Mosaico de " + u.teselas + " teselas, " + u.ancho + "×" + u.alto + " px, " + u.cobertura_pct + " % cubierto (" + esc(u.hora) + ", " + u.segundos + " s)") + "</div>");
+                partes.push('<div class="texto-3 plan-evento">' + (u.error ? _("⚠️ No se pudo combinar: {e}", { e: esc(u.error) })
+                    : _("🧩 Mosaico de {n} teselas, {ancho}×{alto} px, {pct} % cubierto ({hora}, {s} s)", { n: u.teselas, ancho: u.ancho, alto: u.alto, pct: u.cobertura_pct, hora: esc(u.hora), s: u.segundos })) + "</div>");
             }
             caja.innerHTML = partes.join("");
             caja.hidden = partes.length === 0;
             var hechas = estado ? estado.hechas : 0;
             $("mosaico-sub").textContent = estado && estado.nombre && estado.teselas && estado.teselas.length
-                ? estado.nombre + " " + estado.filas + "×" + estado.columnas + " · " + hechas + "/" + estado.teselas.length + " teselas" + (estado.existe ? "" : " · sin combinar")
+                ? estado.nombre + " " + estado.filas + "×" + estado.columnas + " · " + _("{n}/{total} teselas", { n: hechas, total: estado.teselas.length }) + (estado.existe ? "" : " · " + _("sin combinar"))
                 : "";
         }
         if (estado && estado.teselas && estado.teselas.length && (enCurso || estado.teselas.some(function (t) { return t.estado && t.estado !== "pendiente"; })))
@@ -210,23 +213,23 @@
         var cuerpo = cuerpoFormulario();
         cuerpo.usar_dark = (typeof usarDark !== "undefined") ? !!usarDark : true;
         var n = cuerpo.filas * cuerpo.columnas;
-        if (n < 2) { error("El mosaico necesita al menos 2 teselas"); return; }
+        if (n < 2) { error(_("El mosaico necesita al menos 2 teselas")); return; }
         $("mosaico-btn-empezar").disabled = true;
         post("/mosaico/iniciar", cuerpo).then(function (d) {
             $("mosaico-btn-empezar").disabled = false;
             if (!d.ok) { error(d.error); return; }
             if (d.estado) Mosaico.actualizarEstado(d.estado);
             if (d.centro) { datos = datos || {}; datos.centro = d.centro; pintarCentro(); }
-        }).catch(function (e) { $("mosaico-btn-empezar").disabled = false; error("Sin conexión: " + e); });
+        }).catch(function (e) { $("mosaico-btn-empezar").disabled = false; error(_("Sin conexión: {e}", { e: e })); });
     };
     Mosaico.pausar = function () { return post("/mosaico/pausar").then(function (d) { if (d.ok) Mosaico.actualizarEstado(d.estado); else error(d.error); }); };
     Mosaico.reanudar = function () { return post("/mosaico/reanudar").then(function (d) { if (d.ok) Mosaico.actualizarEstado(d.estado); else error(d.error); }); };
     Mosaico.saltar = function () {
-        if (!confirm("¿Dar por terminada la tesela actual con las fotos que tenga y pasar a la siguiente?")) return;
+        if (!confirm(_("¿Dar por terminada la tesela actual con las fotos que tenga y pasar a la siguiente?"))) return;
         post("/mosaico/saltar").then(function (d) { if (!d.ok) error(d.error); });
     };
     Mosaico.detener = function (sinConfirmar) {
-        if (!sinConfirmar && !confirm("¿Detener el mosaico? Las teselas ya apiladas se conservan y se pueden combinar.")) return Promise.resolve(false);
+        if (!sinConfirmar && !confirm(_("¿Detener el mosaico? Las teselas ya apiladas se conservan y se pueden combinar."))) return Promise.resolve(false);
         return post("/mosaico/detener").then(function (d) { if (!d.ok) error(d.error); return d.ok; });
     };
     Mosaico.recombinar = function () {
@@ -235,7 +238,7 @@
     };
     Mosaico.guardar = function () {
         var caja = $("mosaico-error");
-        caja.textContent = "⏳ Guardando el mosaico...";
+        caja.textContent = _("⏳ Guardando el mosaico...");
         post("/mosaico/guardar").then(function (d) {
             caja.textContent = d.mensaje || d.error || "";
             if (d.en_curso) {

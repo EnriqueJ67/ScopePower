@@ -1,16 +1,14 @@
 <!-- templates/alineacion.html -->
 {% extends "base.html" %}
 
-{% block title %}Alineación{% endblock %}
+{% block title %}{{ _("Alineación") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Alineación automática</h1>
+        <h1 class="pagina-titulo">{{ _("Alineación automática") }}</h1>
         <p class="pagina-sub">
-            Borra el modelo de apuntado anterior de la app SynScan y recorre varias posiciones del cielo
-            resolviendo cada una por plate solving y sincronizando la montura. Al terminar, los GoTo de toda
-            la noche salen mucho más centrados. Unos 20 segundos por punto.
+            {{ _("Borra el modelo de apuntado anterior de la app SynScan y recorre varias posiciones del cielo resolviendo cada una por plate solving y sincronizando la montura. Al terminar, los GoTo de toda la noche salen mucho más centrados. Unos 20 segundos por punto.") }}
         </p>
     </div>
 </div>
@@ -18,23 +16,22 @@
 <div id="panel-alineacion" class="card card-centrada">
     <div id="alineacion-config">
         <div class="fila entre mb-2">
-            <label for="alineacion-puntos" style="margin: 0;">Puntos a recorrer</label>
+            <label for="alineacion-puntos" style="margin: 0;">{{ _("Puntos a recorrer") }}</label>
             <input type="number" id="alineacion-puntos" class="corto" min="2" max="20" value="{{ conf.puntos }}">
         </div>
-        <label class="switch mb-2"><input type="checkbox" id="alineacion-limpiar" {% if conf.limpiar_antes %}checked{% endif %}> Borrar antes las sincronizaciones anteriores (ClearSyncTo)</label>
+        <label class="switch mb-2"><input type="checkbox" id="alineacion-limpiar" {% if conf.limpiar_antes %}checked{% endif %}> {{ _("Borrar antes las sincronizaciones anteriores (ClearSyncTo)") }}</label>
         <div class="aviso mt-2">
             <svg class="ico"><use href="#i-info"/></svg>
-            <span>Alturas entre {{ conf.altura_minima|int }}° y {{ conf.altura_maxima|int }}° (config.ini, sección [Alineacion]).
-            Antes de empezar: montura encendida en la posición de inicio (horizontal, al norte) y sin apilado en marcha.</span>
+            <span>{{ _("Alturas entre {minima}° y {maxima}° (config.ini, sección [Alineacion]). Antes de empezar: montura encendida en la posición de inicio (horizontal, al norte) y sin apilado en marcha.", minima=conf.altura_minima|int, maxima=conf.altura_maxima|int) }}</span>
         </div>
-        <button type="button" id="btn-alinear" class="btn btn-primary btn-lg btn-block" onclick="lanzarAlineacion()"><svg><use href="#i-brujula"/></svg>Empezar alineación</button>
+        <button type="button" id="btn-alinear" class="btn btn-primary btn-lg btn-block" onclick="lanzarAlineacion()"><svg><use href="#i-brujula"/></svg>{{ _("Empezar alineación") }}</button>
     </div>
 
     <div id="alineacion-progreso" style="display: none;">
         <p id="alineacion-mensaje" class="estado" style="font-size: 16px; color: var(--text);"><span class="spinner"></span></p>
         <div class="progress alta"><div id="alineacion-barra" class="progress-bar"></div></div>
         <div class="centro mt-2">
-            <button type="button" class="btn btn-ghost" onclick="cancelarAlineacion()"><svg><use href="#i-stop"/></svg>Cancelar</button>
+            <button type="button" class="btn btn-ghost" onclick="cancelarAlineacion()"><svg><use href="#i-stop"/></svg>{{ _("Cancelar") }}</button>
         </div>
     </div>
 
@@ -42,7 +39,7 @@
 
     <div class="tabla-wrap mt-2">
         <table id="alineacion-tabla" class="tabla" style="display: none;">
-            <thead><tr><th>#</th><th>Posición</th><th style="text-align:center">Estado</th><th style="text-align:center">Error previo</th></tr></thead>
+            <thead><tr><th>#</th><th>{{ _("Posición") }}</th><th style="text-align:center">{{ _("Estado") }}</th><th style="text-align:center">{{ _("Error previo") }}</th></tr></thead>
             <tbody id="alineacion-filas"></tbody>
         </table>
     </div>
@@ -51,6 +48,9 @@
 <script>
     let sondeo = null;
     const ICONO = { pendiente: "·", moviendo: "🔭", exponiendo: "📷", resolviendo: "🔍", sincronizando: "🔄", ok: "✅", fallido: "❌", omitido: "⏭️", cancelado: "⏹️" };
+    // Lo que se pinta de cada estado de punto (la clave sigue en español: viene así del servidor)
+    const NOMBRE_ESTADO = { pendiente: N_("pendiente"), moviendo: N_("moviendo"), exponiendo: N_("exponiendo"), resolviendo: N_("resolviendo"),
+                            sincronizando: N_("sincronizando"), ok: N_("ok"), fallido: N_("fallido"), omitido: N_("omitido"), cancelado: N_("cancelado") };
 
     function pintar(e) {
         const enCurso = e.en_curso;
@@ -59,7 +59,7 @@
         document.getElementById("btn-alinear").disabled = enCurso;
         if (enCurso) {
             document.getElementById("alineacion-mensaje").innerHTML = `<span class="spinner"></span>${e.mensaje}` +
-                ((e.captura && e.captura.en_curso) ? ` (quedan ${Math.ceil(e.captura.restante)} s)` : "");
+                ((e.captura && e.captura.en_curso) ? " " + _("(quedan {s} s)", { s: Math.ceil(e.captura.restante) }) : "");
             const pct = e.total_pasos ? 100 * (e.paso - 1) / e.total_pasos : 0;
             document.getElementById("alineacion-barra").style.width = pct + "%";
         }
@@ -68,8 +68,8 @@
         if (e.puntos && e.puntos.length) {
             tabla.style.display = "table";
             filas.innerHTML = e.puntos.map(p =>
-                `<tr><td>${p.n}</td><td>${p.nombre}</td><td style="text-align:center">${ICONO[p.estado] || ""} ${p.estado}</td>` +
-                `<td style="text-align:center">${p.error_arcmin !== null && p.error_arcmin !== undefined ? p.error_arcmin.toFixed(1) + "'" : ""}</td></tr>`).join("");
+                `<tr><td>${p.n}</td><td>${p.nombre}</td><td style="text-align:center">${ICONO[p.estado] || ""} ` + _(NOMBRE_ESTADO[p.estado] || p.estado) + `</td>` +
+                `<td style="text-align:center">${p.error_arcmin !== null && p.error_arcmin !== undefined ? fmtNum(p.error_arcmin, 1) + "'" : ""}</td></tr>`).join("");
         }
         const fin = document.getElementById("alineacion-final");
         if (!enCurso && e.terminado) {
@@ -94,10 +94,10 @@
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ puntos, limpiar_antes: limpiar })
         }).then(r => r.json()).then(d => {
-            if (!d.ok) { alert(d.error || "No se pudo iniciar"); return; }
+            if (!d.ok) { alert(d.error || _("No se pudo iniciar")); return; }
             if (!sondeo) sondeo = setInterval(sondear, 1000);
             sondear();
-        }).catch(err => alert("Error: " + err));
+        }).catch(err => alert(_("Error: {e}", { e: err })));
     }
 
     function cancelarAlineacion() {

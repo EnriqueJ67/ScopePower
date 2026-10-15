@@ -78,3 +78,6 @@ copiar_a_campo.destino.txt
 # Actualizar desde GitHub: version anterior para poder volver y destino pedido desde la web
 datos/version_anterior.txt
 datos/actualizar_pendiente.txt
+
+# Traducciones a medias antes de importarlas al .po (herramientas/traducciones.py importar)
+traducciones/parciales/

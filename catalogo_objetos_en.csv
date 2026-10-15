@@ -1,0 +1,176 @@
+# Textos en inglés del catálogo de objetos de ScopePower (catalogo_objetos.csv): nombre, constelación
+# y descripción corta, con el mismo id que el original. Coordenadas, magnitud, tamaño, tipo y
+# popularidad se toman siempre de catalogo_objetos.csv.
+# English names, constellations and short descriptions for catalogo_objetos.csv, matched by id.
+id;nombre;constelacion;descripcion
+Barnard 33;Horsehead Nebula (Barnard 33);Orion;The dark silhouette of the horse against IC 434.
+Caldwell 14;Double Cluster;Perseus;"h and chi Persei together in a 1° field; for wide field."
+M 101;Pinwheel Galaxy;Ursa Major;"Huge face-on spiral in Ursa Major; faint but large."
+M 104;Sombrero Galaxy;Virgo;Edge-on galaxy with a dust lane, unmistakable.
+M 13;Great Hercules Cluster;Hercules;"The most famous globular in the north; resolves into stars."
+M 16;Eagle Nebula;Serpens;Home of the Pillars of Creation, in Serpens.
+M 17;Omega Nebula;Sagittarius;Also called the Swan Nebula, bright and detailed in Sagittarius.
+M 20;Trifid Nebula;Sagittarius;Red emission and blue reflection split by dark lanes.
+M 27;Dumbbell Nebula;Vulpecula;"Large, bright planetary nebula in Vulpecula; great for beginners."
+M 31;Andromeda Galaxy;Andromeda;"The great neighbor galaxy; spans several degrees, with M32 and M110."
+M 33;Triangulum Galaxy;Triangulum;"Large, faint spiral; needs dark skies and exposure."
+M 42;Great Orion Nebula;Orion;"The brightest nebula in the sky; with M43 and the Trapezium."
+M 45;Pleiades;Taurus;"Open cluster with blue reflection nebulosity; very large."
+M 51;Whirlpool Galaxy;Canes Venatici;"Face-on spiral with its companion; very photogenic arms."
+M 57;Ring Nebula;Lyra;"Smoke ring in Lyra; small and very bright."
+M 8;Lagoon Nebula;Sagittarius;Large emission nebula in Sagittarius, red with an embedded cluster.
+M 81;Bode's Galaxy;Ursa Major;"Large spiral in Ursa Major; with M82 in the same field."
+M 82;Cigar Galaxy;Ursa Major;Starburst galaxy with red jets of hydrogen.
+NGC 2237;Rosette Nebula;Monoceros;Large emission ring in Monoceros with the cluster NGC 2244 inside.
+NGC 4565;Needle Galaxy;Coma Berenices;The prettiest edge-on galaxy in the north, in Coma Berenices.
+NGC 6960;Western Veil;Cygnus;Western arc of the Veil, next to the star 52 Cygni.
+NGC 6992;Eastern Veil;Cygnus;Filaments of the Cygnus supernova remnant, the eastern arc.
+NGC 7000;North America Nebula;Cygnus;"Huge emission nebula in Cygnus; red and shaped like the continent."
+IC 1396;Elephant's Trunk Nebula;Cepheus;Huge emission region in Cepheus with the dark trunk.
+IC 1805;Heart Nebula;Cassiopeia;"Large emission nebula in Cassiopeia; very extended."
+IC 1848;Soul Nebula;Cassiopeia;Companion of the Heart, just as extended.
+IC 434;IC 434 (Horsehead background);Orion;"Red emission band behind the Horsehead silhouette; next to the Flame."
+IC 5070;Pelican Nebula;Cygnus;Next to North America, with ionization fronts.
+M 1;Crab Nebula;Taurus;"Remnant of the 1054 supernova in Taurus; small but bright."
+M 106;M106;Canes Venatici;Bright spiral in Canes Venatici with anomalous arms.
+M 11;Wild Duck Cluster;Scutum;"Extremely dense open cluster in Scutum; spectacular."
+M 15;M15;Pegasus;Very compact globular in Pegasus.
+M 22;M22;Sagittarius;Large, bright globular in Sagittarius.
+M 3;M3;Canes Venatici;One of the most striking globulars in the north, in Canes Venatici.
+M 35;M35;Gemini;Rich open cluster in Gemini, with NGC 2158 alongside.
+M 37;M37;Auriga;The richest of the three clusters in Auriga.
+M 44;Beehive Cluster;Cancer;Huge open cluster in Cancer, visible to the naked eye.
+M 5;M5;Serpens;Bright, rich globular in Serpens.
+M 63;Sunflower Galaxy;Canes Venatici;Spiral with flocculent arms in Canes Venatici.
+M 64;Black Eye Galaxy;Coma Berenices;Spiral with a very prominent dark dust lane.
+M 76;Little Dumbbell Nebula;Perseus;Bilobed planetary nebula in Perseus.
+M 78;M78;Orion;Bluish reflection nebula in Orion.
+M 92;M92;Hercules;Bright, compact globular in Hercules, in the shadow of M13.
+M 97;Owl Nebula;Ursa Major;Round planetary with two dark eyes, in Ursa Major.
+NGC 1499;California Nebula;Perseus;"Very long emission nebula in Perseus; best with a filter."
+NGC 2024;Flame Nebula;Orion;Emission with dark lanes, next to Alnitak.
+NGC 2264;Christmas Tree and Cone;Monoceros;Cluster with nebulosity and the Cone Nebula, in Monoceros.
+NGC 253;Sculptor Galaxy;Sculptor;Large, bright spiral, low in the south.
+NGC 281;Pacman Nebula;Cassiopeia;Emission nebula shaped like Pac-Man, in Cassiopeia.
+NGC 3628;Hamburger Galaxy;Leo;Third member of the Leo Triplet, edge-on with a dust lane.
+NGC 457;E.T. Cluster;Cassiopeia;Open cluster shaped like a little figure, in Cassiopeia.
+NGC 4631;Whale Galaxy;Canes Venatici;Distorted edge-on spiral, with NGC 4656 (the Hockey Stick).
+NGC 6543;Cat's Eye Nebula;Draco;Small, very bright planetary with a halo, in Draco.
+NGC 6888;Crescent Nebula;Cygnus;Bubble blown by a Wolf-Rayet star in Cygnus.
+NGC 6946;Fireworks Galaxy;Cygnus;Face-on spiral in Cepheus, famous for its supernovae.
+NGC 7023;Iris Nebula;Cepheus;Blue reflection surrounded by dark dust, in Cepheus.
+NGC 7293;Helix Nebula;Aquarius;Large, nearby planetary in Aquarius, low from the north.
+NGC 7331;NGC 7331;Pegasus;Bright spiral in Pegasus with a group of faint galaxies alongside.
+NGC 7635;Bubble Nebula;Cassiopeia;Bubble blown by a massive star, next to M52.
+NGC 7789;Caroline's Rose;Cassiopeia;Very rich open cluster in Cassiopeia.
+NGC 891;NGC 891;Andromeda;Perfect edge-on galaxy with a dust lane, in Andromeda.
+Caldwell 41;Hyades;Taurus;"Huge open cluster around Aldebaran; wide field only."
+IC 405;Flaming Star Nebula;Auriga;Emission and reflection nebula in Auriga around AE Aurigae.
+IC 443;Jellyfish Nebula;Gemini;Filamentary supernova remnant in Gemini.
+IC 4715;Small Sagittarius Star Cloud;Sagittarius;Huge Milky Way star field.
+IC 5146;Cocoon Nebula;Cygnus;Emission with the dark nebula B168 in Cygnus.
+M 10;M10;Ophiuchus;Bright globular in Ophiuchus.
+M 108;M108;Ursa Major;Edge-on spiral in Ursa Major, next to M97.
+M 109;M109;Ursa Major;Barred spiral in Ursa Major.
+M 12;M12;Ophiuchus;Loose globular in Ophiuchus, near M10.
+M 2;M2;Aquarius;Compact, bright globular cluster in Aquarius.
+M 34;M34;Perseus;Wide open cluster in Perseus.
+M 36;M36;Auriga;Open cluster in Auriga.
+M 38;M38;Auriga;Open cluster in Auriga, near M36.
+M 4;M4;Scorpius;Large, loose globular next to Antares.
+M 41;M41;Canis Major;Bright open cluster below Sirius.
+M 43;M43;Orion;De Mairan's Nebula, right next to M42.
+M 46;M46;Puppis;Rich open cluster in Puppis with the planetary NGC 2438 inside.
+M 47;M47;Puppis;Bright open cluster next to M46.
+M 52;M52;Cassiopeia;Open cluster in Cassiopeia, next to the Bubble.
+M 53;M53;Coma Berenices;Globular in Coma Berenices.
+M 6;Butterfly Cluster;Scorpius;Wide open cluster in Scorpius, low on the horizon.
+M 65;M65;Leo;Spiral in the Leo Triplet.
+M 66;M66;Leo;Spiral in the Leo Triplet, with NGC 3628 alongside.
+M 7;Ptolemy's Cluster;Scorpius;Very large, bright open cluster, low in Scorpius.
+M 74;M74;Pisces;"Faint face-on spiral in Pisces; needs dark skies."
+M 77;M77;Cetus;Seyfert galaxy with a bright core in Cetus.
+M 83;Southern Pinwheel Galaxy;Hydra;Bright barred spiral in Hydra, low from the north.
+M 87;Virgo A;Virgo;"Giant elliptical with a jet; center of the Virgo Cluster."
+M 94;M94;Canes Venatici;Spiral with a very bright core in Canes Venatici.
+M 95;M95;Leo;Barred spiral in Leo, with M96.
+M 96;M96;Leo;Spiral in Leo.
+NGC 2175;Monkey Head Nebula;Orion;Emission nebula in Orion, next to Gemini.
+NGC 2359;Thor's Helmet;Canis Major;Helmet-shaped emission bubble in Canis Major.
+NGC 2392;Eskimo Nebula;Gemini;Small planetary with a double shell in Gemini.
+NGC 2903;NGC 2903;Leo;Bright barred spiral in Leo that Messier missed.
+NGC 4490;Cocoon Galaxy;Canes Venatici;Pair of interacting galaxies in Canes Venatici.
+NGC 4656;Hockey Stick Galaxy;Canes Venatici;Distorted galaxy next to the Whale.
+NGC 5907;Splinter Galaxy;Draco;Very thin edge-on spiral in Draco.
+NGC 6826;Blinking Planetary;Cygnus;Planetary in Cygnus that seems to blink.
+NGC 7009;Saturn Nebula;Aquarius;Planetary with handles, in Aquarius.
+NGC 7380;Wizard Nebula;Cepheus;Emission with a cluster in Cepheus.
+NGC 7662;Blue Snowball;Andromeda;Small blue planetary in Andromeda.
+NGC 869;Double Cluster (h Persei);Perseus;"With NGC 884, two open clusters side by side; gorgeous at low power."
+NGC 884;Double Cluster (chi Persei);Perseus;Second half of the Double Cluster in Perseus.
+IC 4725;M25;Sagittarius;Open cluster from the Messier catalog.
+M 100;M100;Coma Berenices;Galaxy from the Messier catalog.
+M 103;M103;Cassiopeia;Open cluster in Cassiopeia.
+M 105;M105;Leo;Elliptical in Leo.
+M 107;M107;Ophiuchus;Globular cluster from the Messier catalog.
+M 110;M110;Andromeda;Large elliptical companion of Andromeda.
+M 14;M14;Ophiuchus;Globular cluster from the Messier catalog.
+M 18;M18;Sagittarius;Open cluster from the Messier catalog.
+M 19;M19;Ophiuchus;Globular cluster from the Messier catalog.
+M 21;M21;Sagittarius;Open cluster from the Messier catalog.
+M 23;M23;Sagittarius;Open cluster from the Messier catalog.
+M 26;M26;Scutum;Open cluster from the Messier catalog.
+M 28;M28;Sagittarius;Globular cluster from the Messier catalog.
+M 29;M29;Cygnus;Small open cluster in Cygnus.
+M 30;M30;Capricornus;Globular cluster from the Messier catalog.
+M 32;M32;Andromeda;Elliptical companion of Andromeda.
+M 39;M39;Cygnus;Loose open cluster in Cygnus.
+M 48;M48;Hydra;Large open cluster in Hydra.
+M 49;M49;Virgo;Galaxy from the Messier catalog.
+M 50;M50;Monoceros;Open cluster from the Messier catalog.
+M 54;M54;Sagittarius;Globular cluster from the Messier catalog.
+M 55;M55;Sagittarius;Globular cluster from the Messier catalog.
+M 56;M56;Lyra;Small globular in Lyra.
+M 58;M58;Virgo;Galaxy from the Messier catalog.
+M 59;M59;Virgo;Galaxy from the Messier catalog.
+M 60;M60;Virgo;Galaxy from the Messier catalog.
+M 61;M61;Virgo;Galaxy from the Messier catalog.
+M 62;M62;Ophiuchus;Globular cluster from the Messier catalog.
+M 67;M67;Cancer;Old open cluster in Cancer.
+M 68;M68;Hydra;Globular cluster from the Messier catalog.
+M 69;M69;Sagittarius;Globular cluster from the Messier catalog.
+M 70;M70;Sagittarius;Globular cluster from the Messier catalog.
+M 71;M71;Sagitta;Loose globular in Sagitta.
+M 72;M72;Aquarius;Globular cluster from the Messier catalog.
+M 75;M75;Sagittarius;Globular cluster from the Messier catalog.
+M 79;M79;Lepus;Globular cluster from the Messier catalog.
+M 80;M80;Scorpius;Globular cluster from the Messier catalog.
+M 84;M84;Virgo;Galaxy from the Messier catalog.
+M 85;M85;Coma Berenices;Galaxy from the Messier catalog.
+M 86;M86;Virgo;Galaxy from the Messier catalog.
+M 88;M88;Coma Berenices;Galaxy from the Messier catalog.
+M 89;M89;Virgo;Galaxy from the Messier catalog.
+M 9;M9;Ophiuchus;Globular cluster from the Messier catalog.
+M 90;M90;Virgo;Galaxy from the Messier catalog.
+M 91;M91;Coma Berenices;Galaxy from the Messier catalog.
+M 93;M93;Puppis;Open cluster from the Messier catalog.
+M 98;M98;Coma Berenices;Galaxy from the Messier catalog.
+M 99;M99;Coma Berenices;Galaxy from the Messier catalog.
+NGC 1023;NGC 1023;Perseus;Bright lenticular in Perseus.
+NGC 1333;NGC 1333;Perseus;Reflection nebula and dust in Perseus.
+NGC 1502;NGC 1502;Camelopardalis;Open cluster at the end of Kemble's Cascade.
+NGC 246;Skull Nebula;Cetus;Large, faint planetary in Cetus.
+NGC 2683;UFO Galaxy;Lynx;Nearly edge-on spiral in Lynx.
+NGC 3115;Spindle Galaxy;Sextans;Bright edge-on lenticular in Sextans.
+NGC 3718;NGC 3718;Ursa Major;Distorted spiral in Ursa Major.
+NGC 40;Bow-Tie Nebula;Cepheus;Planetary in Cepheus.
+NGC 4244;Silver Needle Galaxy;Canes Venatici;Edge-on spiral in Canes Venatici.
+NGC 4725;NGC 4725;Coma Berenices;One-armed spiral in Coma Berenices.
+NGC 5033;NGC 5033;Canes Venatici;Spiral in Canes Venatici.
+NGC 5866;Spindle Galaxy;Draco;Edge-on lenticular in Draco (possibly M102).
+NGC 6210;NGC 6210;Hercules;Small, bright planetary in Hercules.
+NGC 663;NGC 663;Cassiopeia;Open cluster in Cassiopeia.
+NGC 6820;NGC 6820;Vulpecula;Emission nebula with a pillar in Vulpecula.
+NGC 6939;NGC 6939;Cepheus;Open cluster next to the galaxy NGC 6946.
+NGC 752;NGC 752;Andromeda;Very wide open cluster in Andromeda.
+NGC 559;NGC 559;Cassiopeia;Open cluster in Cassiopeia.

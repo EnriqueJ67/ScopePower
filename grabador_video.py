@@ -34,6 +34,7 @@ from datetime import datetime, timezone
 import numpy as np
 
 import espacio_disco
+from idioma import _, fmt_num
 
 log = logging.getLogger("scopepower.grabador_video")
 
@@ -116,7 +117,7 @@ class GrabadorMP4:
         self.frames = 0
         self._w = cv2.VideoWriter(ruta, cv2.VideoWriter_fourcc(*"mp4v"), float(fps), (int(ancho), int(alto)))
         if not self._w.isOpened():
-            raise RuntimeError(f"No se pudo abrir {ruta} para escribir MP4")
+            raise RuntimeError(_("No se pudo abrir {ruta} para escribir MP4", ruta=ruta))
 
     def escribir(self, frame, cuando=None):
         cv2 = self.cv2
@@ -148,8 +149,10 @@ class Grabacion:
         libre = espacio_libre(carpeta)
         if libre is not None and libre < disco_minimo:
             log.warning("Grabación de vídeo no iniciada: %.2f GB libres en %s", libre / 1024 ** 3, carpeta)
-            raise ValueError(f"disco casi lleno ({libre / 1024 ** 3:.1f} GB libres, hace falta al menos "
-                             f"{disco_minimo / 1024 ** 3:.0f} GB)")
+            error = ValueError(_("disco casi lleno ({libre} GB libres, hace falta al menos {minimo} GB)",
+                                 libre=fmt_num(libre / 1024 ** 3, 1), minimo=round(disco_minimo / 1024 ** 3)))
+            error.sin_espacio = True     # seguimiento.py lo avisa por voz
+            raise error
         self.nombre = nombre or f"seguimiento_{datetime.now():%Y%m%d_%H%M%S}"
         self.carpeta = carpeta
         self.rutas = {}
@@ -163,7 +166,7 @@ class Grabacion:
             self._grabadores.append(GrabadorMP4(r, ancho, alto, fps, bayer))
             self.rutas["mp4"] = r
         if not self._grabadores:
-            raise ValueError("Ningún formato de vídeo válido (ser, mp4)")
+            raise ValueError(_("Ningún formato de vídeo válido (ser, mp4)"))
         self.disco_minimo = disco_minimo
         self.frames = 0
         self.descartados = 0
@@ -211,8 +214,10 @@ class Grabacion:
                 bytes_desde_disco, t_disco = 0, time.monotonic()
                 libre = espacio_libre(self.carpeta)
                 if libre is not None and libre < self.disco_minimo:
-                    self.error = f"Disco casi lleno ({libre / 1024 ** 3:.2f} GB libres): grabación detenida"
-                    log.warning("Grabación de vídeo: %s", self.error)
+                    self.error = _("Disco casi lleno ({gb} GB libres): grabación detenida",
+                                   gb=fmt_num(libre / 1024 ** 3, 2))
+                    log.warning("Grabación de vídeo: disco casi lleno (%.2f GB libres), grabación detenida",
+                                libre / 1024 ** 3)
                     self.sin_espacio = True
                     self.activa = False
                     break
@@ -240,8 +245,8 @@ def leer_cabecera_ser(ruta):
     with open(ruta, "rb") as f:
         cab = f.read(178)
     if cab[:14] != b"LUCAM-RECORDER":
-        raise ValueError("No es un fichero SER")
-    _, color, _, ancho, alto, bits, frames = struct.unpack("<iiiiiii", cab[14:42])
+        raise ValueError(_("No es un fichero SER"))
+    __, color, ___, ancho, alto, bits, frames = struct.unpack("<iiiiiii", cab[14:42])
     tam = os.path.getsize(ruta)
     return {"color": color, "ancho": ancho, "alto": alto, "bits": bits, "frames": frames,
             "observador": cab[42:82].rstrip(b"\0").decode("latin-1"), "instrumento": cab[82:122].rstrip(b"\0").decode("latin-1"),

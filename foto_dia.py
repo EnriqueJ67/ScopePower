@@ -23,15 +23,16 @@ import numpy as np
 from hardware import capturar_frame, CapturaCancelada, ErrorHardware, estado_captura
 import giro_camara
 import enfoque
+from idioma import _, ngettext, N_, fmt_num
 
 log = logging.getLogger("scopepower.foto_dia")
 
 # nivel: fracción del blanco que debe alcanzar la zona más brillante
 # inicial/minima/maxima: exposiciones en segundos (la mínima real la dice la cámara)
 OBJETIVOS = {
-    "sol":     {"nombre": "Sol",     "nivel": 0.60, "inicial": 0.001, "minima": 0.00002, "maxima": 0.5,  "seguimiento": "solar"},
-    "luna":    {"nombre": "Luna",    "nivel": 0.65, "inicial": 0.005, "minima": 0.0001,  "maxima": 2.0,  "seguimiento": "lunar"},
-    "paisaje": {"nombre": "paisaje", "nivel": 0.75, "inicial": 0.005, "minima": 0.0001,  "maxima": 5.0,  "seguimiento": None},
+    "sol":     {"nombre": N_("Sol"),     "nivel": 0.60, "inicial": 0.001, "minima": 0.00002, "maxima": 0.5,  "seguimiento": "solar"},
+    "luna":    {"nombre": N_("Luna"),    "nivel": 0.65, "inicial": 0.005, "minima": 0.0001,  "maxima": 2.0,  "seguimiento": "lunar"},
+    "paisaje": {"nombre": N_("paisaje"), "nivel": 0.75, "inicial": 0.005, "minima": 0.0001,  "maxima": 5.0,  "seguimiento": None},
 }
 MAX_INTENTOS = 6
 # Compensación de exposición del usuario, en EV (pasos de cámara): +1 EV = zona más
@@ -63,8 +64,10 @@ def formatear_exposicion(s):
     if s < 0.001:
         return f"{s * 1e6:.0f} µs"
     if s < 1.0:
-        return f"{s * 1000:.1f} ms".replace(".0 ", " ")
-    return f"{s:.2f} s".replace(".00 ", " ")
+        v = round(s * 1000, 1)
+        return fmt_num(v, 0 if v == int(v) else 1) + " ms"
+    v = round(s, 2)
+    return fmt_num(v, 0 if v == int(v) else 2) + " s"
 
 
 def poner_seguimiento(montura, velocidad):
@@ -82,7 +85,7 @@ def poner_seguimiento(montura, velocidad):
         except Exception:
             disponibles = [0]
         if codigo not in disponibles:
-            raise RuntimeError(f"el driver no admite la velocidad {velocidad}")
+            raise RuntimeError(_("el driver no admite la velocidad {velocidad}", velocidad=velocidad))
         tel.TrackingRate = codigo
         tel.Tracking = True
         return True
@@ -161,7 +164,7 @@ def restaurar_camara(cam, prep):
             pass
 
 
-def capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos, informar=None, descripcion="Foto de día", campo=1.0):
+def capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos, informar=None, descripcion=None, campo=1.0):
     """
     Expone y corrige la exposición hasta que la zona más brillante queda cerca del
     nivel objetivo (o se agotan los intentos). Devuelve
@@ -169,6 +172,7 @@ def capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos, infor
     La medida se hace sobre el recorte central `campo` (lo que se va a ver), el
     fotograma devuelto es el completo.
     """
+    descripcion = descripcion or _("Foto de día")
     objetivo_nivel = conf["nivel"]
     blanco, minima = prep["blanco"], prep["minima"]
     exposicion = max(minima, min(conf["maxima"], float(exposicion)))
@@ -176,14 +180,14 @@ def capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos, infor
     frame, nivel = None, 0.0
     for intento in range(1, max_intentos + 1):
         if informar:
-            informar(f"{descripcion}: prueba {intento}, exponiendo {formatear_exposicion(exposicion)}")
+            informar(_("{descripcion}: prueba {intento}, exponiendo {exposicion}", descripcion=descripcion, intento=intento, exposicion=formatear_exposicion(exposicion)))
         frame = capturar_frame(cam, exposicion, binning, descripcion=f"{descripcion} {intento}")
         zona = recortar_centro(frame, campo)
         nivel = float(np.percentile(zona, 99.8)) / blanco
         saturados = float(np.mean(zona >= 0.98 * blanco))
         intentos.append({"exposicion": exposicion, "nivel": round(nivel, 3)})
         if informar:
-            informar(f"{descripcion}: prueba {intento}, {formatear_exposicion(exposicion)} → nivel {100 * nivel:.0f} %", intentos)
+            informar(_("{descripcion}: prueba {intento}, {exposicion} → nivel {nivel} %", descripcion=descripcion, intento=intento, exposicion=formatear_exposicion(exposicion), nivel=round(100 * nivel)), intentos)
         distancia = abs(nivel - objetivo_nivel)
         if saturados < 0.002 and (mejor is None or distancia < mejor[0]):
             mejor = (distancia, frame, exposicion, nivel)
@@ -199,7 +203,7 @@ def capturar_ajustando(cam, conf, binning, prep, exposicion, max_intentos, infor
             break
         exposicion = nueva
     if mejor is not None:
-        _, frame, exposicion, nivel = mejor
+        __, frame, exposicion, nivel = mejor
     return frame, exposicion, nivel, mejor is None, intentos
 
 
@@ -284,7 +288,7 @@ def leer_balance_luz_dia():
     try:
         with open(RUTA_BALANCE, encoding="utf-8") as f:
             d = json.load(f)
-        return {"r": float(d["r"]), "b": float(d["b"]), "origen": d.get("origen", "memoria"), "fecha": d.get("fecha", "")}
+        return {"r": float(d["r"]), "b": float(d["b"]), "origen": d.get("origen", N_("memoria")), "fecha": d.get("fecha", "")}
     except (OSError, ValueError, KeyError, TypeError):
         return None
 
@@ -309,7 +313,7 @@ def guardar_balance_luz_dia(balance_luna):
     if anterior and anterior.get("origen") == ORIGEN_BLANCO:
         return
     d = {"r": round(balance_luna["r"] * LUNA_A_LUZ_DE_DIA["r"], 4), "b": round(balance_luna["b"] * LUNA_A_LUZ_DE_DIA["b"], 4),
-         "origen": "Luna", "fecha": datetime.now().isoformat(timespec="seconds")}
+         "origen": N_("Luna"), "fecha": datetime.now().isoformat(timespec="seconds")}
     if anterior and abs(anterior["r"] - d["r"]) < 0.02 * d["r"] and abs(anterior["b"] - d["b"]) < 0.02 * d["b"]:
         return          # sin cambios apreciables: no reescribir en cada foto del continuo
     if _escribir_balance(d):
@@ -331,7 +335,7 @@ def olvidar_balance_luz_dia():
 
 def balance_luz_dia():
     b = leer_balance_luz_dia()
-    return b if b else dict(BALANCE_DEFECTO, origen="típico")
+    return b if b else dict(BALANCE_DEFECTO, origen=N_("típico"))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -341,7 +345,7 @@ def balance_luz_dia():
 # delante del objetivo; da igual que salga desenfocado): lo que haga falta para
 # dejarlo gris es el balance de luz de día de esta cámara con este tubo. Manda sobre
 # el aprendido de la Luna, que es algo rojiza y cambia con la altura.
-ORIGEN_BLANCO = "referencia blanca"
+ORIGEN_BLANCO = N_("referencia blanca")
 NIVEL_BLANCO = 0.6                 # la zona central se lleva al 60 % del blanco del sensor
 ZONA_BLANCO = 0.5                  # se mide la mitad central del campo
 MAX_QUEMADO_BLANCO = 0.01          # como mucho un 1 % de la zona quemada
@@ -364,12 +368,12 @@ def medir_balance_blanco(frame, patron, negro, blanco=65535.0):
     util = blanco - negro
     quemado = float(np.mean(np.maximum(np.maximum(r, g), b) >= 0.95 * util))
     if quemado > MAX_QUEMADO_BLANCO:
-        raise BlancoNoValido(f"El blanco sale quemado en un {100 * quemado:.0f} % de la zona central: "
-                             "ni con la exposición mínima baja; apunta a algo menos brillante o sin reflejos.")
+        raise BlancoNoValido(_("El blanco sale quemado en un {p} % de la zona central: ni con la exposición mínima baja; apunta a algo menos brillante o sin reflejos.",
+                               p=round(100 * quemado)))
     nivel = float(np.median(g)) / util
     if nivel < MIN_NIVEL_BLANCO:
-        raise BlancoNoValido(f"La zona central está muy oscura ({100 * nivel:.0f} %): el blanco tiene que "
-                             "estar al Sol y llenar el centro de la foto.")
+        raise BlancoNoValido(_("La zona central está muy oscura ({p} %): el blanco tiene que estar al Sol y llenar el centro de la foto.",
+                               p=round(100 * nivel)))
     # Color por trozos (6×6): si cambia mucho, en el centro hay más cosas que el blanco
     h, w = g.shape
     gr, gb = [], []
@@ -381,16 +385,16 @@ def medir_balance_blanco(frame, patron, negro, blanco=65535.0):
                 gr.append(mg / mr)
                 gb.append(mg / mb)
     if len(gr) < 20:
-        raise BlancoNoValido("No se ha podido medir el color de la zona central.")
+        raise BlancoNoValido(_("No se ha podido medir el color de la zona central."))
     dispersion = max(float(np.std(gr) / np.mean(gr)), float(np.std(gb) / np.mean(gb)))
     if dispersion > MAX_DISPERSION_BLANCO:
-        raise BlancoNoValido(f"El color del centro no es uniforme (varía un {100 * dispersion:.0f} %): "
-                             "acerca o encuadra el blanco para que llene todo el centro de la foto.")
+        raise BlancoNoValido(_("El color del centro no es uniforme (varía un {p} %): acerca o encuadra el blanco para que llene todo el centro de la foto.",
+                               p=round(100 * dispersion)))
     ganancia_r = float(np.mean(g)) / float(np.mean(r))
     ganancia_b = float(np.mean(g)) / float(np.mean(b))
     if not (0.3 <= ganancia_r <= 6.0 and 0.3 <= ganancia_b <= 6.0):
-        raise BlancoNoValido(f"Balance fuera de lo razonable (R×{ganancia_r:.2f}, B×{ganancia_b:.2f}): "
-                             "¿es blanco de verdad y está al Sol?")
+        raise BlancoNoValido(_("Balance fuera de lo razonable (R×{r}, B×{b}): ¿es blanco de verdad y está al Sol?",
+                               r=fmt_num(ganancia_r, 2), b=fmt_num(ganancia_b, 2)))
     return {"r": ganancia_r, "b": ganancia_b, "nivel": nivel, "dispersion": dispersion}
 
 
@@ -399,7 +403,7 @@ def guardar_balance_blanco(medido):
          "fecha": datetime.now().isoformat(timespec="seconds"),
          "nivel": round(medido["nivel"], 3), "dispersion": round(medido["dispersion"], 4)}
     if not _escribir_balance(d):
-        raise OSError("No se pudo guardar el balance en " + RUTA_BALANCE)
+        raise OSError(_("No se pudo guardar el balance en {ruta}", ruta=RUTA_BALANCE))
     log.info("Balance de luz de día calibrado con un blanco: R×%.2f, B×%.2f (nivel %.0f %%, color uniforme al %.1f %%)",
              d["r"], d["b"], 100 * medido["nivel"], 100 * medido["dispersion"])
     return d
@@ -433,12 +437,12 @@ class TrabajoBalanceBlanco:
     def iniciar(self, camara, binning, ruta_vista=RUTA_VISTA_BLANCO):
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("Ya se está calibrando el color")
+                raise RuntimeError(_("Ya se está calibrando el color"))
             if camara.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self.en_curso = True
-            self.mensaje = "Preparando la cámara..."
+            self.mensaje = _("Preparando la cámara...")
         hilo = threading.Thread(target=self._ejecutar, name="balance-blanco", daemon=True, args=(camara, binning, ruta_vista))
         hilo.start()
         return hilo
@@ -450,9 +454,9 @@ class TrabajoBalanceBlanco:
             def _sesion(cam):
                 prep = preparar_camara(cam, conf)
                 try:
-                    frame, exposicion, nivel, saturada, _ = capturar_ajustando(
+                    frame, exposicion, nivel, saturada, __ = capturar_ajustando(
                         cam, conf, binning, prep, conf["inicial"], MAX_INTENTOS,
-                        informar=lambda t, i=None: self._msg(t), descripcion="Blanco de referencia", campo=ZONA_BLANCO)
+                        informar=lambda t, i=None: self._msg(t), descripcion=_("Blanco de referencia"), campo=ZONA_BLANCO)
                     return frame, exposicion, prep
                 finally:
                     restaurar_camara(cam, prep)
@@ -460,29 +464,30 @@ class TrabajoBalanceBlanco:
             frame, exposicion, prep = camara.ejecutar(_sesion, timeout=180)
             patron = _patron(prep["sensor_type"])
             if patron not in ("RGGB", "BGGR", "GRBG", "GBRG"):
-                raise BlancoNoValido("La cámara no es de color: no hay balance que calibrar.")
+                raise BlancoNoValido(_("La cámara no es de color: no hay balance que calibrar."))
             negro = nivel_negro(frame, prep["blanco"])
             medido = medir_balance_blanco(frame, patron, negro, prep["blanco"])
             guardado = guardar_balance_blanco(medido)
             # Vista previa pequeña con el color ya corregido, para comprobar que el blanco sale blanco
             from AutoStrechSTF import guardar_jpg_web
-            imagen, _ = revelar(frame, prep["sensor_type"], "paisaje", balance=guardado, negro=negro, aprender=False)
+            imagen, __ = revelar(frame, prep["sensor_type"], "paisaje", balance=guardado, negro=negro, aprender=False)
             os.makedirs(os.path.dirname(ruta_vista) or ".", exist_ok=True)
             guardar_jpg_web(ruta_vista, imagen, ancho=600, calidad=85)
             with self._lock:
                 self.resultado = dict(guardado, exposicion=exposicion)
                 self.version += 1
-            self._msg(f"Color calibrado: R×{guardado['r']:.2f}, B×{guardado['b']:.2f} "
-                      f"(exposición {formatear_exposicion(exposicion)}, nivel {100 * medido['nivel']:.0f} %)")
+            self._msg(_("Color calibrado: R×{r}, B×{b} (exposición {exposicion}, nivel {nivel} %)",
+                        r=fmt_num(guardado['r'], 2), b=fmt_num(guardado['b'], 2),
+                        exposicion=formatear_exposicion(exposicion), nivel=round(100 * medido['nivel'])))
         except BlancoNoValido as e:
             error = str(e)
         except CapturaCancelada:
-            error = "Calibración cancelada"
+            error = _("Calibración cancelada")
         except ErrorHardware as e:
-            error = f"Error de cámara: {e}"
+            error = _("Error de cámara: {e}", e=e)
         except Exception as e:
             log.exception("Error calibrando el color con un blanco")
-            error = f"Error: {e}"
+            error = _("Error: {e}", e=e)
         finally:
             with self._lock:
                 self.en_curso = False
@@ -547,27 +552,29 @@ def balance_para_patron(frame, patron, objetivo, negro, blanco=65535.0, aprender
     if objetivo == "sol":
         modo = color_sol()
         if modo == "natural":
-            return dict(balance_luz_dia(), origen="Sol con el color del filtro")
+            return dict(balance_luz_dia(), origen=N_("Sol con el color del filtro"))
         medido = medir_balance_disco(frame, patron, negro, blanco)
         if medido is not None:
             # El Sol no enseña la luz de día (su color lo pone el filtro): nunca se aprende de él
             if modo == "amarillo":
                 return {"r": medido["r"] * TINTE_SOL_AMARILLO["r"], "b": medido["b"] * TINTE_SOL_AMARILLO["b"],
-                        "origen": "Sol amarillo"}
-            return {"r": medido["r"], "b": medido["b"], "origen": "disco de sol"}
+                        "origen": N_("Sol amarillo")}
+            return {"r": medido["r"], "b": medido["b"], "origen": N_("disco de sol")}
     elif objetivo == "luna":
         medido = medir_balance_disco(frame, patron, negro, blanco)
         if medido is not None:
             if aprender and medido["disco"] <= DISCO_MAXIMO_PARA_APRENDER and medido["fondo"] >= FONDO_MINIMO_PARA_APRENDER:
                 guardar_balance_luz_dia(medido)
-            return {"r": medido["r"], "b": medido["b"], "origen": "disco de luna"}
+            return {"r": medido["r"], "b": medido["b"], "origen": N_("disco de luna")}
     return balance_luz_dia()
 
 
 def texto_balance(balance):
     if not balance:
         return ""
-    return f"color: R×{balance['r']:.2f} B×{balance['b']:.2f} ({balance.get('origen', '')})"
+    origen = balance.get('origen') or ""
+    return _("color: R×{r} B×{b} ({origen})", r=fmt_num(balance['r'], 2), b=fmt_num(balance['b'], 2),
+             origen=_(origen) if origen else "")
 
 
 def revelar(frame, sensor_type, objetivo=None, balance=None, negro=None, aprender=True, ev=0.0):
@@ -715,16 +722,16 @@ class TrabajoFotoDia:
                 ruta_fits=None, ruta_web=None, al_terminar=None, voz=None, campo=1.0, compensacion=None):
         """`compensacion`: EV (número o función que lo devuelve) que corrige el nivel objetivo, ver con_compensacion()."""
         if objetivo not in OBJETIVOS:
-            raise ValueError(f"Objetivo desconocido: {objetivo}")
+            raise ValueError(_("Objetivo desconocido: {objetivo}", objetivo=objetivo))
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("Ya hay una foto de día en curso")
+                raise RuntimeError(_("Ya hay una foto de día en curso"))
             if camara.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self.en_curso = True
             self.objetivo = objetivo
-            self.mensaje = "Preparando la cámara..."
+            self.mensaje = _("Preparando la cámara...")
             self.fase = "ajustando"
         hilo = threading.Thread(target=self._ejecutar, name="foto-dia", daemon=True,
                                 args=(camara, objetivo, binning, exposicion_inicial, montura, ruta_fits, ruta_web, al_terminar, voz, campo, compensacion))
@@ -754,7 +761,7 @@ class TrabajoFotoDia:
 
             frame, exposicion, nivel, saturada, prep = camara.ejecutar(_sesion, timeout=180)
 
-            self._msg("Guardando la foto...", fase="guardando")
+            self._msg(_("Guardando la foto..."), fase="guardando")
             instante = time.time()
             imagen, info = revelar(recortar_centro(frame, campo), prep["sensor_type"], objetivo, ev=conf["ev"])
             girada, encuadre = giro_camara.girar(imagen)      # el giro de Cámara; el FITS queda sin girar
@@ -779,25 +786,25 @@ class TrabajoFotoDia:
                 self.version += 1
                 self.ruta_fits = ruta_fits or ""
                 self.exposicion, self.nivel, self.saturada = exposicion, round(nivel, 3), saturada
-            texto = f"Foto de día: {formatear_exposicion(exposicion)}, nivel {100 * nivel:.0f} %"
+            texto = _("Foto de día: {exposicion}, nivel {nivel} %", exposicion=formatear_exposicion(exposicion), nivel=round(100 * nivel))
             if conf["ev"]:
-                texto += f" ({conf['ev']:+.1f} EV)"
+                texto += " (" + ("+" if conf['ev'] > 0 else "") + fmt_num(conf['ev'], 1) + " EV)"
             if info.get("balance"):
                 texto += " · " + texto_balance(info["balance"])
             if saturada:
-                texto += " (sigue saturada con la exposición mínima: hace falta filtro o menos luz)"
+                texto += " " + _("(sigue saturada con la exposición mínima: hace falta filtro o menos luz)")
             if info_enfoque is not None:
                 texto += " · " + enfoque.texto_info(info_enfoque)
             self._msg(texto, fase="final")
             if voz:
-                voz.decir("Foto de día terminada")
+                voz.decir(_("Foto de día terminada"))
         except CapturaCancelada:
-            error = "Foto cancelada"
+            error = _("Foto cancelada")
         except ErrorHardware as e:
-            error = f"Error de cámara: {e}"
+            error = _("Error de cámara: {e}", e=e)
         except Exception as e:
             log.exception("Error en la foto de día")
-            error = f"Error: {e}"
+            error = _("Error: {e}", e=e)
         finally:
             with self._lock:
                 self.en_curso = False
@@ -875,24 +882,24 @@ class TrabajoTimelapse:
                 montura=None, al_terminar=None, voz=None, raiz=None, campo=1.0, compensacion=None):
         """`compensacion`: EV (número o función) que corrige el nivel objetivo; si es función se relee en cada foto."""
         if objetivo not in OBJETIVOS:
-            raise ValueError(f"Objetivo desconocido: {objetivo}")
+            raise ValueError(_("Objetivo desconocido: {objetivo}", objetivo=objetivo))
         total, intervalo = int(total), float(intervalo)
         if not (1 <= total <= 5000):
-            raise ValueError("El número de fotos debe estar entre 1 y 5000")
+            raise ValueError(_("El número de fotos debe estar entre 1 y 5000"))
         if not (1.0 <= intervalo <= 3600.0):
-            raise ValueError("El intervalo debe estar entre 1 y 3600 segundos")
+            raise ValueError(_("El intervalo debe estar entre 1 y 3600 segundos"))
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("Ya hay un timelapse en marcha")
+                raise RuntimeError(_("Ya hay un timelapse en marcha"))
             if camara.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self._cancelar.clear()
             self.en_curso = True
             self.objetivo, self.total, self.intervalo = objetivo, total, intervalo
             self.inicio = datetime.now().strftime("%Y%m%d_%H%M%S")
             self.carpeta = os.path.join(raiz or CARPETA_TIMELAPSE, f"{self.inicio}_{objetivo}")
-            self.mensaje = "Preparando el timelapse..."
+            self.mensaje = _("Preparando el timelapse...")
         hilo = threading.Thread(target=self._ejecutar, name="timelapse", daemon=True,
                                 args=(camara, objetivo, binning, exposicion_inicial, montura, al_terminar, voz, campo, compensacion))
         hilo.start()
@@ -914,7 +921,7 @@ class TrabajoTimelapse:
             with self._lock:
                 self.ganancia = prep["ganancia"]
             if voz:
-                voz.decir(f"Timelapse de {self.total} fotos cada {self.intervalo:.0f} segundos")
+                voz.decir(ngettext("Timelapse de {n} foto cada {s} segundos", "Timelapse de {n} fotos cada {s} segundos", self.total, s=round(self.intervalo)))
 
             exposicion = float(exposicion_inicial or conf["inicial"])
             balance_tl = None
@@ -924,15 +931,15 @@ class TrabajoTimelapse:
             try:
                 for n in range(1, self.total + 1):
                     if self._cancelar.is_set():
-                        raise CapturaCancelada("Timelapse cancelado")
+                        raise CapturaCancelada(_("Timelapse cancelado"))
                     t0 = time.time()
                     # Primera toma: búsqueda completa. Siguientes: la exposición anterior y como
                     # mucho dos correcciones, para no perder la cadencia
                     max_intentos = MAX_INTENTOS if n == 1 else 3
                     conf_n = con_compensacion(conf, compensacion)     # la compensación vale desde la siguiente foto
-                    frame, exposicion, nivel, saturada, _ = camara.ejecutar(
+                    frame, exposicion, nivel, saturada, __ = camara.ejecutar(
                         lambda cam: capturar_ajustando(cam, conf_n, binning, prep, exposicion, max_intentos,
-                                                       informar=lambda t, i=None: self._msg(f"Foto {n}/{self.total} · {t}"),
+                                                       informar=lambda t, i=None: self._msg(_("Foto {n}/{total} · {t}", n=n, total=self.total, t=t)),
                                                        descripcion=f"Timelapse {n}", campo=campo),
                         timeout=180)
                     archivo = f"foto_{n:04d}.jpg"
@@ -955,8 +962,8 @@ class TrabajoTimelapse:
                         self.exposicion, self.nivel = exposicion, round(nivel, 3)
                         self.ultima = {"archivo": archivo, "hora": hora, "exposicion": exposicion, "nivel": round(nivel, 3), "n": n}
                         self.version += 1
-                    self._msg(f"Foto {n}/{self.total}: {formatear_exposicion(exposicion)}, nivel {100 * nivel:.0f} %"
-                              + (" (saturada)" if saturada else ""))
+                    self._msg(_("Foto {n}/{total}: {exposicion}, nivel {nivel} % (saturada)", n=n, total=self.total, exposicion=formatear_exposicion(exposicion), nivel=round(100 * nivel)) if saturada
+                              else _("Foto {n}/{total}: {exposicion}, nivel {nivel} %", n=n, total=self.total, exposicion=formatear_exposicion(exposicion), nivel=round(100 * nivel)))
                     if n == self.total:
                         break
                     # Esperar al siguiente disparo (contando desde el inicio de este)
@@ -967,19 +974,19 @@ class TrabajoTimelapse:
                         if restante <= 0:
                             break
                         if self._cancelar.wait(timeout=min(0.5, restante)):
-                            raise CapturaCancelada("Timelapse cancelado")
+                            raise CapturaCancelada(_("Timelapse cancelado"))
             finally:
                 registro.close()
-            self._msg(f"Timelapse terminado: {self.hechas} fotos en {os.path.basename(carpeta)}")
+            self._msg(ngettext("Timelapse terminado: {n} foto en {carpeta}", "Timelapse terminado: {n} fotos en {carpeta}", self.hechas, carpeta=os.path.basename(carpeta)))
             if voz:
-                voz.decir("Timelapse terminado")
+                voz.decir(_("Timelapse terminado"))
         except CapturaCancelada:
-            error = f"Timelapse cancelado tras {self.hechas} fotos"
+            error = ngettext("Timelapse cancelado tras {n} foto", "Timelapse cancelado tras {n} fotos", self.hechas)
         except ErrorHardware as e:
-            error = f"Error de cámara: {e}"
+            error = _("Error de cámara: {e}", e=e)
         except Exception as e:
             log.exception("Error en el timelapse")
-            error = f"Error: {e}"
+            error = _("Error: {e}", e=e)
         finally:
             if prep is not None:
                 try:
@@ -1004,7 +1011,7 @@ class TrabajoTimelapse:
         """Junta los JPG de `carpeta` en un MP4 (en un hilo). El estado va en estado()["video"]."""
         with self._lock:
             if self.video and self.video.get("en_curso"):
-                raise RuntimeError("Ya se está montando un vídeo")
+                raise RuntimeError(_("Ya se está montando un vídeo"))
             self.video = {"en_curso": True, "ruta": "", "progreso": 0, "error": "", "carpeta": carpeta}
         threading.Thread(target=self._montar, name="timelapse-video", daemon=True, args=(carpeta, int(fps), int(ancho))).start()
 
@@ -1014,14 +1021,14 @@ class TrabajoTimelapse:
         try:
             fotos = fotos_timelapse(carpeta)
             if len(fotos) < 2:
-                raise RuntimeError("Hacen falta al menos dos fotos para montar un vídeo")
+                raise RuntimeError(_("Hacen falta al menos dos fotos para montar un vídeo"))
             primera = cv2.imread(os.path.join(carpeta, fotos[0]))
             alto = int(primera.shape[0] * ancho / primera.shape[1])
             alto -= alto % 2
             ruta = os.path.join(carpeta, "timelapse.mp4")
             salida = cv2.VideoWriter(ruta, cv2.VideoWriter_fourcc(*"mp4v"), fps, (ancho, alto))
             if not salida.isOpened():
-                raise RuntimeError("No se pudo crear el fichero de vídeo")
+                raise RuntimeError(_("No se pudo crear el fichero de vídeo"))
             for i, f in enumerate(fotos, 1):
                 img = cv2.imread(os.path.join(carpeta, f))
                 if img is None:

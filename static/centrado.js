@@ -21,31 +21,31 @@
     let sondeo = null;        // { temporizador, el, opciones, vistoEnCurso, pintado, limite }
 
     const PASOS = [
-        ["foto", "Foto"], ["resolver", "Resolver"], ["medir", "Medir"], ["corregir", "Corregir"]];
+        ["foto", N_("Foto")], ["resolver", N_("Resolver")], ["medir", N_("Medir")], ["corregir", N_("Corregir")]];
 
     function textoResultado(e) {
-        const err = e.error_final !== null && e.error_final !== undefined ? `${e.error_final.toFixed(1)}'` : "?";
+        const err = e.error_final !== null && e.error_final !== undefined ? `${fmtNum(e.error_final, 1)}'` : "?";
         switch (e.resultado) {
-            case "centrado": return { color: "var(--ok)", icono: "✅", texto: `Centrado: ${e.detalle}` };
-            case "fuera_tolerancia": return { color: "var(--warn)", icono: "🟡", texto: `Mejorado pero fuera de tolerancia: ${e.detalle}` };
-            case "sin_mejora": return { color: "var(--warn)", icono: "🟠", texto: `Sin mejora: ${e.detalle}` };
+            case "centrado": return { color: "var(--ok)", icono: "✅", texto: _("Centrado: {detalle}", { detalle: e.detalle }) };
+            case "fuera_tolerancia": return { color: "var(--warn)", icono: "🟡", texto: _("Mejorado pero fuera de tolerancia: {detalle}", { detalle: e.detalle }) };
+            case "sin_mejora": return { color: "var(--warn)", icono: "🟠", texto: _("Sin mejora: {detalle}", { detalle: e.detalle }) };
             case "cancelado": return { color: "var(--text-3)", icono: "⏹️", texto: e.detalle };
-            default: return { color: "var(--err)", icono: "❌", texto: e.detalle || ("Error (" + err + ")") };
+            default: return { color: "var(--err)", icono: "❌", texto: e.detalle || _("Error ({error})", { error: err }) };
         }
     }
 
     // Miniatura de la última foto del centrado (centrado.py la genera en cada vuelta)
     function htmlImagen(e) {
         if (!e.imagen) return "";
-        return `<div class="centrado-foto"><a href="/centrado/imagen?v=${e.imagen.version}" target="_blank" title="Abrir a tamaño completo">` +
-            `<img src="/centrado/imagen?v=${e.imagen.version}" alt="Foto del centrado"></a>` +
-            `<div class="centrado-foto-pie">Foto del centrado · vuelta ${e.imagen.vuelta} · ${e.imagen.hora}</div></div>`;
+        return `<div class="centrado-foto"><a href="/centrado/imagen?v=${e.imagen.version}" target="_blank" title="` + _("Abrir a tamaño completo") + `">` +
+            `<img src="/centrado/imagen?v=${e.imagen.version}" alt="` + _("Foto del centrado") + `"></a>` +
+            `<div class="centrado-foto-pie">` + _("Foto del centrado · vuelta {vuelta} · {hora}", { vuelta: e.imagen.vuelta, hora: e.imagen.hora }) + `</div></div>`;
     }
     function htmlSiguiente(opciones) {
         if (!opciones.siguientePaso) return "";
-        return `<div class="centrado-siguiente"><div class="seccion-titulo">Siguiente paso</div><div class="acciones">` +
-            `<a class="btn btn-primary" href="/apilado"><svg><use href="#i-apilado"/></svg>Empezar apilado</a>` +
-            `<a class="btn btn-secondary" href="/foto-prueba"><svg><use href="#i-foto"/></svg>Cámara</a></div></div>`;
+        return `<div class="centrado-siguiente"><div class="seccion-titulo">` + _("Siguiente paso") + `</div><div class="acciones">` +
+            `<a class="btn btn-primary" href="/apilado"><svg><use href="#i-apilado"/></svg>` + _("Empezar apilado") + `</a>` +
+            `<a class="btn btn-secondary" href="/foto-prueba"><svg><use href="#i-foto"/></svg>` + _("Cámara") + `</a></div></div>`;
     }
 
     // Los cuatro pasos de cada vuelta, con el que está en marcha resaltado y los
@@ -55,20 +55,20 @@
         let idx = PASOS.findIndex(p => p[0] === actual);
         return `<div class="centrado-pasos">` + PASOS.map((p, i) => {
             const clase = i === idx ? "paso activo" : (idx >= 0 && i < idx ? "paso hecho" : "paso");
-            return `<span class="${clase}">${i < idx && idx >= 0 ? "✓ " : (i + 1) + ". "}${p[1]}</span>`;
+            return `<span class="${clase}">${i < idx && idx >= 0 ? "✓ " : (i + 1) + ". "}` + _(p[1]) + `</span>`;
         }).join("") + `</div>`;
     }
 
     function pintarProgreso(el, e) {
-        const errores = e.errores.length ? " · errores: " + e.errores.map(x => x.toFixed(1) + "'").join(" → ") : "";
+        const errores = e.errores.length ? " · " + _("errores: {lista}", { lista: e.errores.map(x => fmtNum(x, 1) + "'").join(" → ") }) : "";
         let tiempo = "";
-        if (e.captura && e.captura.en_curso) tiempo = ` (quedan ${Math.ceil(e.captura.restante)} s)`;
+        if (e.captura && e.captura.en_curso) tiempo = " " + _("(quedan {n} s)", { n: Math.ceil(e.captura.restante) });
         else if (e.paso_s >= 2) tiempo = ` (${Math.round(e.paso_s)} s)`;
-        const vuelta = e.max_vueltas ? `<b>Vuelta ${e.vuelta} de ${e.max_vueltas}</b> · ` : "";
-        el.innerHTML = `<span class="spinner"></span> ${vuelta}centrando por plate solving, espera a que termine<br>` +
+        const vuelta = e.max_vueltas ? `<b>` + _("Vuelta {n} de {total}", { n: e.vuelta, total: e.max_vueltas }) + `</b> · ` : "";
+        el.innerHTML = `<span class="spinner"></span> ${vuelta}` + _("centrando por plate solving, espera a que termine") + `<br>` +
             `<span class="centrado-mensaje">${e.mensaje}${tiempo}</span>` + htmlPasos(e) +
-            `<small>Objetivo: ${e.objeto || "?"} · tolerancia ${e.tolerancia}'${errores}</small><br>` +
-            `<button type="button" class="btn btn-sm btn-ghost" onclick="cancelarCentrado()">Cancelar centrado</button>` +
+            `<small>` + _("Objetivo: {objeto} · tolerancia {tolerancia}'", { objeto: e.objeto || "?", tolerancia: e.tolerancia }) + `${errores}</small><br>` +
+            `<button type="button" class="btn btn-sm btn-ghost" onclick="cancelarCentrado()">` + _("Cancelar centrado") + `</button>` +
             htmlImagen(e);
     }
 
@@ -77,11 +77,11 @@
     function pintarPrevio(el, e) {
         const p = e.previo;
         let tiempo = "";
-        if (p.restante !== null && p.restante !== undefined) tiempo = ` (quedan ${Math.ceil(p.restante)} s)`;
+        if (p.restante !== null && p.restante !== undefined) tiempo = " " + _("(quedan {n} s)", { n: Math.ceil(p.restante) });
         else if (p.transcurrido >= 2) tiempo = ` (${Math.round(p.transcurrido)} s)`;
-        el.innerHTML = `<span class="spinner"></span> <b>Preparando el centrado</b><br>` +
+        el.innerHTML = `<span class="spinner"></span> <b>` + _("Preparando el centrado") + `</b><br>` +
             `<span class="centrado-mensaje">${p.mensaje}${tiempo}</span>` +
-            `<small>Después vendrán las vueltas de plate solving; espera a que termine.</small>`;
+            `<small>` + _("Después vendrán las vueltas de plate solving; espera a que termine.") + `</small>`;
     }
 
     function pintarOmitido(el, e) {
@@ -90,14 +90,14 @@
 
     function pintarFinal(el, e, opciones) {
         const r = textoResultado(e);
-        const errores = e.errores.length ? `<br><small>Error por vuelta: ${e.errores.map(x => x.toFixed(1) + "'").join(" → ")}</small>` : "";
+        const errores = e.errores.length ? `<br><small>` + _("Error por vuelta: {lista}", { lista: e.errores.map(x => fmtNum(x, 1) + "'").join(" → ") }) + `</small>` : "";
         el.innerHTML = `<span style="color:${r.color}; font-weight:bold;">${r.icono} ${r.texto}</span>${errores}` +
             htmlImagen(e) + htmlSiguiente(opciones);
         // El PC ya dice el resultado por su altavoz (centrado.py); el móvil solo lo
         // lee si la voz del PC está apagada (window.vozPCActiva la pone base.html)
         if (opciones.hablar && !window.vozPCActiva && "speechSynthesis" in window) {
-            const u = new SpeechSynthesisUtterance(r.texto.replace(/'/g, " minutos"));
-            u.lang = "es-ES"; u.rate = 0.9;
+            const u = new SpeechSynthesisUtterance(r.texto.replace(/'/g, " " + _("minutos")));
+            u.lang = IDIOMA.lang; u.rate = 0.9;
             speechSynthesis.speak(u);
         }
         if (opciones.alTerminar) opciones.alTerminar(e);
@@ -148,19 +148,19 @@
         opciones = opciones || {};
         const el = document.getElementById(idEstado);
         parar();
-        el.innerHTML = `<span class="spinner"></span> Iniciando centrado automático...`;
+        el.innerHTML = `<span class="spinner"></span> ` + _("Iniciando centrado automático...");
         fetch("/centrado/iniciar", { method: "POST" })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) {
-                    el.innerHTML = `<span style="color:var(--err)">❌ ${d.error || "No se pudo iniciar el centrado"}</span>`;
+                    el.innerHTML = `<span style="color:var(--err)">❌ ` + (d.error || _("No se pudo iniciar el centrado")) + `</span>`;
                     if (opciones.alTerminar) opciones.alTerminar(null);
                     return;
                 }
                 arrancarSondeo(el, opciones, true, 30);
             })
             .catch(err => {
-                el.innerHTML = `<span style="color:var(--err)">❌ Error al iniciar el centrado: ${err}</span>`;
+                el.innerHTML = `<span style="color:var(--err)">❌ ` + _("Error al iniciar el centrado: {error}", { error: err }) + `</span>`;
                 if (opciones.alTerminar) opciones.alTerminar(null);
             });
     };

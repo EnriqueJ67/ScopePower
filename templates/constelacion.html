@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Recorrido guiado{% endblock %}
+{% block title %}{{ _("Recorrido guiado") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Recorrido por constelación</h1>
-        <p class="pagina-sub">El telescopio recorre las estrellas y objetos de una constelación mientras el móvil los explica en voz alta.</p>
+        <h1 class="pagina-titulo">{{ _("Recorrido por constelación") }}</h1>
+        <p class="pagina-sub">{{ _("El telescopio recorre las estrellas y objetos de una constelación mientras el móvil los explica en voz alta.") }}</p>
     </div>
 </div>
 
@@ -14,22 +14,22 @@
     <div class="columna">
         <!-- ————— Paso 1: Selector de recorridos ————— -->
         <div class="card" id="recorrido-header">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-constelacion"/></svg>Recorridos preparados</h3></div>
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-constelacion"/></svg>{{ _("Recorridos preparados") }}</h3></div>
             <div class="campo">
                 <select id="listaRecorridos" class="form-control">
-                    <option value="">Elige un recorrido</option>
+                    <option value="">{{ _("Elige un recorrido") }}</option>
                 </select>
             </div>
-            <button type="button" id="btnIniciarRecorrido" class="btn btn-primary btn-lg btn-block" disabled><svg><use href="#i-play"/></svg>Iniciar recorrido</button>
+            <button type="button" id="btnIniciarRecorrido" class="btn btn-primary btn-lg btn-block" disabled><svg><use href="#i-play"/></svg>{{ _("Iniciar recorrido") }}</button>
         </div>
 
         <form id="formConstelacion" class="card">
-            <div class="card-header"><h3 class="card-title">Una constelación suelta</h3></div>
-            <label for="nombre_constelacion">Nombre de la constelación</label>
-            <input type="text" id="nombre_constelacion" name="nombre_constelacion" required placeholder="Orión, Casiopea, Escorpio…">
+            <div class="card-header"><h3 class="card-title">{{ _("Una constelación suelta") }}</h3></div>
+            <label for="nombre_constelacion">{{ _("Nombre de la constelación") }}</label>
+            <input type="text" id="nombre_constelacion" name="nombre_constelacion" required placeholder="{{ _('Orión, Casiopea, Escorpio…') }}">
             <div class="acciones-grid dos mt-2">
-                <button type="button" class="btn btn-secondary" onclick="reconocimientoVoz()"><svg><use href="#i-mic"/></svg>Decirla</button>
-                <button type="button" class="btn btn-primary" onclick="iniciarRecorrido()"><svg><use href="#i-play"/></svg>Preparar recorrido</button>
+                <button type="button" class="btn btn-secondary" onclick="reconocimientoVoz()"><svg><use href="#i-mic"/></svg>{{ _("Decirla") }}</button>
+                <button type="button" class="btn btn-primary" onclick="iniciarRecorrido()"><svg><use href="#i-play"/></svg>{{ _("Preparar recorrido") }}</button>
             </div>
         </form>
     </div>
@@ -40,11 +40,11 @@
             <div id="etiquetaEstrella" class="estrella-actual"></div>
             <div id="infoEstrellaExtra" class="estrella-info"></div>
             <div class="centro mt-2">
-                <button id="btnControlAudio" class="btn btn-warning btn-lg" style="display: none;" onclick="toggleAudio()">⏸️ Pausar</button>
+                <button id="btnControlAudio" class="btn btn-warning btn-lg" style="display: none;" onclick="toggleAudio()">⏸️ {{ _("Pausar") }}</button>
             </div>
         </div>
         <div class="card" id="card-lista">
-            <div class="card-header"><h3 class="card-title">Estrellas y objetos</h3></div>
+            <div class="card-header"><h3 class="card-title">{{ _("Estrellas y objetos") }}</h3></div>
             <ul id="listaEstrellas" class="lista-estrellas"></ul>
         </div>
     </div>
@@ -54,13 +54,13 @@
     .recorrido-layout { align-items: start; }
     .recorrido-layout .columna .card + .card { margin-top: 0; }
     .recorrido-estado { min-height: 120px; }
-    .recorrido-estado:has(#status:empty):has(#etiquetaEstrella:empty)::before { content: "Aquí verás el estado del recorrido, la estrella actual y su explicación."; color: var(--text-3); font-size: 14px; }
+    .recorrido-estado:has(#status:empty):has(#etiquetaEstrella:empty)::before { content: "{{ _('Aquí verás el estado del recorrido, la estrella actual y su explicación.') }}"; color: var(--text-3); font-size: 14px; }
     .estrella-actual { font-size: 34px; font-weight: 700; color: var(--warn); margin-top: 10px; line-height: 1.15; letter-spacing: -0.01em; }
     .estrella-actual:empty { display: none; }
     .estrella-info { margin-top: 8px; font-size: 16px; color: var(--text-2); }
     .lista-estrellas { list-style: none; padding: 0; margin: 0; font-size: 16px; }
     .lista-estrellas li { padding: 9px 12px; border-radius: 10px; border-left: 4px solid transparent; margin-bottom: 4px; background: var(--bg-2); transition: background .15s; }
-    .lista-estrellas:empty::before { content: "Aún no hay recorrido preparado."; color: var(--text-3); font-size: 14px; }
+    .lista-estrellas:empty::before { content: "{{ _('Aún no hay recorrido preparado.') }}"; color: var(--text-3); font-size: 14px; }
     #card-lista:has(.lista-estrellas:empty) { display: none; }
     #status:empty { display: none; }
     #status button { margin-top: 10px; }
@@ -90,54 +90,54 @@
 
     // Diccionario de información extra
     const infoExtra = {
-        "betelgeuse": "Representa el hombro de Orión. Es una supergigante roja muy cercana al final de su vida.",
-        "rigel": "Se sitúa en el pie izquierdo de Orión. Es una supergigante azul, una de las más brillantes del cielo.",
-        "bellatrix": "La 'guerrera femenina' en latín. Representa el hombro derecho de Orión.",
-        "aldebaran": "El ojo del toro en la constelación de Tauro. Es una gigante roja prominente.",
-        "sirius": "La estrella más brillante del cielo nocturno. Era clave en el calendario egipcio.",
-        "canopus": "Segunda estrella más brillante. Su nombre proviene del piloto de Menelao en la mitología griega.",
-        "arcturus": "Su nombre significa 'guardián del oso'. Pertenece a la constelación del Boyero.",
-        "vega": "Estrella alfa de Lyra. Fue la estrella polar hace miles de años y lo será de nuevo.",
-        "deneb": "Marca la cola del Cisne. Es una de las estrellas más luminosas conocidas.",
-        "altair": "Forma parte del triángulo de verano. Es una estrella rápida y cercana.",
-        "antares": "El corazón del escorpión. Su nombre significa 'rival de Marte'.",
-        "capella": "En la constelación del Cochero. Asociada a una cabra en la mitología romana.",
-        "fomalhaut": "Estrella solitaria, conocida como la 'boca del pez'. Tiene un sistema planetario observado.",
-        "spica": "Representa la espiga de trigo en Virgo. Era una estrella clave en el calendario babilónico.",
-        "pollux": "Una de las gemelas de Géminis. Es una gigante naranja con planeta confirmado.",
-        "castor": "La otra gema de Géminis. Es en realidad un sistema sextuple.",
-        "procyon": "El 'perro antes de Can Mayor'. Brilla en invierno y es parte del triángulo invernal.",
-        "achernar": "Marca el final del río Erídano. Es muy achatada por su rápida rotación.",
-        "mirach": "En Andrómeda. Usada como referencia para ubicar galaxias cercanas.",
-        "algol": "En Perseo. Su nombre significa 'estrella demonio' por su variabilidad visible a ojo desnudo.",
-        "albireo": "Situada en la cabeza del Cisne, es una de las estrellas dobles más hermosas del cielo. A través del telescopio muestra un contraste de color espectacular: una amarilla dorada y otra azul, un ejemplo clásico de estrella doble óptica.",
-        "denebola": "Ubicada en la cola del León en la constelación de Leo. En la antigüedad era una de las estrellas usadas para predecir el clima. Su nombre significa 'cola del león' en árabe.",
-        "mizar": "Es la estrella del medio en la cola de la Osa Mayor. Fue la primera estrella doble descubierta por telescopio. Junto a Alcor forma un par visible a simple vista, usado tradicionalmente como prueba de agudeza visual.",
-        "alnilam": "La estrella central del Cinturón de Orión. Es una supergigante azul.",
-        "alnitak": "La más oriental del Cinturón de Orión. Muy joven y masiva.",
-        "mintaka": "Ubicada al oeste del Cinturón de Orión. Visible desde ambos hemisferios.",
-        "alcor": "Compañera visual de Mizar. Usada tradicionalmente como prueba de visión.",
-        "rasalhague": "En Ofiuco. Su nombre significa 'la cabeza del encantador de serpientes'.",
-        "enif": "Estrella en la cabeza del caballo Pegaso. Su nombre significa 'nariz'.",
-        "zubenelgenubi": "En Libra. Su nombre significa 'pinza del sur', herencia del antiguo Escorpión.",
-        "zubeneschamali": "En Libra. Significa 'pinza del norte' y era usada por navegantes árabes.",
-        "mirfak": "Estrella principal de Perseo. Más brillante que Algol.",
-        "nunki": "En Sagitario. Nombre de origen babilónico. Usada en navegación.",
-        "kochab": "En la Osa Menor. Formó parte de la guía polar con Pherkad en la antigüedad.",
-        "pherkad": "Compañera de Kochab. Juntas rodeaban a la estrella polar anterior.",
-        "elnath": "Ubicada entre Tauro y Auriga. Es una de las pocas estrellas compartidas por dos constelaciones.",
-        "rigil kentaurus": "También conocida como Alpha Centauri. El sistema estelar más cercano al Sol.",
-        "menkar": "En Cetus. Representa la mandíbula del monstruo marino.",
-        "algieba": "En Leo. Estrella doble de colores contrastados, visible con telescopio.",
-        "polaris": "La estrella del norte. Guía principal de los navegantes.",
-        "thuban": "Fue la estrella polar hace 4.000 años, durante el antiguo Egipto.",
-        "shaula": "La segunda estrella más brillante de Escorpio. Marca el aguijón del escorpión. Su nombre significa 'aguijón' en árabe.",
-        "lesath": "Situada junto a Shaula, forma el aguijón del escorpión en la constelación de Escorpio. Su nombre proviene del árabe y significa 'la picadura'. Es una estrella azul caliente, muy brillante y joven.",
-        "etamin": "La estrella más brillante de la constelación del Dragón (Draco). Su nombre deriva del árabe y significa 'la serpiente'. Es famosa porque se encuentra casi exactamente en la dirección del polo norte celeste de Marte.",
-        "hadar": "Una de las dos estrellas más brillantes de Centauro, junto con Rigil Kentaurus. Es una estrella azul muy luminosa visible principalmente desde el hemisferio sur. Su nombre proviene del árabe y significa 'tierra' o 'presencia'.",
-        "algol": "Conocida como 'la estrella del demonio' por su brillo variable visible a simple vista. Representa la cabeza de Medusa en la constelación de Perseo. Es una estrella binaria eclipsante, cuyo brillo disminuye periódicamente cada 2,86 días. Su nombre proviene del árabe 'ra’s al-ghūl', que significa 'la cabeza del ogro'.",
-        "vindemiatrix": "Vindemiatrix significa «la vendimiadora». Con este nombre figura en las Tablas alfonsíes, habiendo prevalecido hasta nuestros días. Anteriormente, durante el Imperio romano, fue conocida como Vindemiator, Vindemitor y Provindemiator; su salida matutina a primera hora a finales de agosto marcaba el momento de empezar la cosecha de la uva.",
-        "regulus": "Es una de las cuatro estrellas reales mesopotámicas, junto a Aldebarán, Antares y Fomalhaut. El nombre más común de la estrella, Regulus, procede del latín y significa pequeño rey.",
+        "betelgeuse": _("Representa el hombro de Orión. Es una supergigante roja muy cercana al final de su vida."),
+        "rigel": _("Se sitúa en el pie izquierdo de Orión. Es una supergigante azul, una de las más brillantes del cielo."),
+        "bellatrix": _("La 'guerrera femenina' en latín. Representa el hombro derecho de Orión."),
+        "aldebaran": _("El ojo del toro en la constelación de Tauro. Es una gigante roja prominente."),
+        "sirius": _("La estrella más brillante del cielo nocturno. Era clave en el calendario egipcio."),
+        "canopus": _("Segunda estrella más brillante. Su nombre proviene del piloto de Menelao en la mitología griega."),
+        "arcturus": _("Su nombre significa 'guardián del oso'. Pertenece a la constelación del Boyero."),
+        "vega": _("Estrella alfa de Lyra. Fue la estrella polar hace miles de años y lo será de nuevo."),
+        "deneb": _("Marca la cola del Cisne. Es una de las estrellas más luminosas conocidas."),
+        "altair": _("Forma parte del triángulo de verano. Es una estrella rápida y cercana."),
+        "antares": _("El corazón del escorpión. Su nombre significa 'rival de Marte'."),
+        "capella": _("En la constelación del Cochero. Asociada a una cabra en la mitología romana."),
+        "fomalhaut": _("Estrella solitaria, conocida como la 'boca del pez'. Tiene un sistema planetario observado."),
+        "spica": _("Representa la espiga de trigo en Virgo. Era una estrella clave en el calendario babilónico."),
+        "pollux": _("Una de las gemelas de Géminis. Es una gigante naranja con planeta confirmado."),
+        "castor": _("La otra gema de Géminis. Es en realidad un sistema sextuple."),
+        "procyon": _("El 'perro antes de Can Mayor'. Brilla en invierno y es parte del triángulo invernal."),
+        "achernar": _("Marca el final del río Erídano. Es muy achatada por su rápida rotación."),
+        "mirach": _("En Andrómeda. Usada como referencia para ubicar galaxias cercanas."),
+        "algol": _("En Perseo. Su nombre significa 'estrella demonio' por su variabilidad visible a ojo desnudo."),
+        "albireo": _("Situada en la cabeza del Cisne, es una de las estrellas dobles más hermosas del cielo. A través del telescopio muestra un contraste de color espectacular: una amarilla dorada y otra azul, un ejemplo clásico de estrella doble óptica."),
+        "denebola": _("Ubicada en la cola del León en la constelación de Leo. En la antigüedad era una de las estrellas usadas para predecir el clima. Su nombre significa 'cola del león' en árabe."),
+        "mizar": _("Es la estrella del medio en la cola de la Osa Mayor. Fue la primera estrella doble descubierta por telescopio. Junto a Alcor forma un par visible a simple vista, usado tradicionalmente como prueba de agudeza visual."),
+        "alnilam": _("La estrella central del Cinturón de Orión. Es una supergigante azul."),
+        "alnitak": _("La más oriental del Cinturón de Orión. Muy joven y masiva."),
+        "mintaka": _("Ubicada al oeste del Cinturón de Orión. Visible desde ambos hemisferios."),
+        "alcor": _("Compañera visual de Mizar. Usada tradicionalmente como prueba de visión."),
+        "rasalhague": _("En Ofiuco. Su nombre significa 'la cabeza del encantador de serpientes'."),
+        "enif": _("Estrella en la cabeza del caballo Pegaso. Su nombre significa 'nariz'."),
+        "zubenelgenubi": _("En Libra. Su nombre significa 'pinza del sur', herencia del antiguo Escorpión."),
+        "zubeneschamali": _("En Libra. Significa 'pinza del norte' y era usada por navegantes árabes."),
+        "mirfak": _("Estrella principal de Perseo. Más brillante que Algol."),
+        "nunki": _("En Sagitario. Nombre de origen babilónico. Usada en navegación."),
+        "kochab": _("En la Osa Menor. Formó parte de la guía polar con Pherkad en la antigüedad."),
+        "pherkad": _("Compañera de Kochab. Juntas rodeaban a la estrella polar anterior."),
+        "elnath": _("Ubicada entre Tauro y Auriga. Es una de las pocas estrellas compartidas por dos constelaciones."),
+        "rigil kentaurus": _("También conocida como Alpha Centauri. El sistema estelar más cercano al Sol."),
+        "menkar": _("En Cetus. Representa la mandíbula del monstruo marino."),
+        "algieba": _("En Leo. Estrella doble de colores contrastados, visible con telescopio."),
+        "polaris": _("La estrella del norte. Guía principal de los navegantes."),
+        "thuban": _("Fue la estrella polar hace 4.000 años, durante el antiguo Egipto."),
+        "shaula": _("La segunda estrella más brillante de Escorpio. Marca el aguijón del escorpión. Su nombre significa 'aguijón' en árabe."),
+        "lesath": _("Situada junto a Shaula, forma el aguijón del escorpión en la constelación de Escorpio. Su nombre proviene del árabe y significa 'la picadura'. Es una estrella azul caliente, muy brillante y joven."),
+        "etamin": _("La estrella más brillante de la constelación del Dragón (Draco). Su nombre deriva del árabe y significa 'la serpiente'. Es famosa porque se encuentra casi exactamente en la dirección del polo norte celeste de Marte."),
+        "hadar": _("Una de las dos estrellas más brillantes de Centauro, junto con Rigil Kentaurus. Es una estrella azul muy luminosa visible principalmente desde el hemisferio sur. Su nombre proviene del árabe y significa 'tierra' o 'presencia'."),
+        "algol": _("Conocida como 'la estrella del demonio' por su brillo variable visible a simple vista. Representa la cabeza de Medusa en la constelación de Perseo. Es una estrella binaria eclipsante, cuyo brillo disminuye periódicamente cada 2,86 días. Su nombre proviene del árabe 'ra’s al-ghūl', que significa 'la cabeza del ogro'."),
+        "vindemiatrix": _("Vindemiatrix significa «la vendimiadora». Con este nombre figura en las Tablas alfonsíes, habiendo prevalecido hasta nuestros días. Anteriormente, durante el Imperio romano, fue conocida como Vindemiator, Vindemitor y Provindemiator; su salida matutina a primera hora a finales de agosto marcaba el momento de empezar la cosecha de la uva."),
+        "regulus": _("Es una de las cuatro estrellas reales mesopotámicas, junto a Aldebarán, Antares y Fomalhaut. El nombre más común de la estrella, Regulus, procede del latín y significa pequeño rey."),
 
     };
 
@@ -164,23 +164,23 @@
 
     // Texto para voz por tipo
     const tipoVoz = {
-        'Estrella': 'Estrella',
-        'Neb': 'Nebulosa',
-        'HII': 'Nebulosa',
-        'G': 'Galaxia',
-        'Sy2': 'Galaxia',
-        'Lin': 'Galaxia',
-        'LIN': 'Galaxia',
-        'AGN': 'Galaxia',
-        'GiG': 'Galaxia',
-        'GiP': 'Galaxia',
-        'PN': 'Nebulosa planetaria',
-        'OC': 'Cúmulo abierto',
-        'GC': 'Cúmulo globular',
-        'GlC': 'Cúmulo globular',
-        'RNe': 'Nebulosa de reflexión',
-        'SNR': 'Remanente de supernova',
-        'default': 'Objeto'
+        'Estrella': _('Estrella'),
+        'Neb': _('Nebulosa'),
+        'HII': _('Nebulosa'),
+        'G': _('Galaxia'),
+        'Sy2': _('Galaxia'),
+        'Lin': _('Galaxia'),
+        'LIN': _('Galaxia'),
+        'AGN': _('Galaxia'),
+        'GiG': _('Galaxia'),
+        'GiP': _('Galaxia'),
+        'PN': _('Nebulosa planetaria'),
+        'OC': _('Cúmulo abierto'),
+        'GC': _('Cúmulo globular'),
+        'GlC': _('Cúmulo globular'),
+        'RNe': _('Nebulosa de reflexión'),
+        'SNR': _('Remanente de supernova'),
+        'default': _('Objeto')
     };
 
     // Resetea estado para cada nuevo recorrido
@@ -197,16 +197,16 @@
 
     // Formatea la magnitud o devuelve '–'
     function formatMag(mag) {
-        return (typeof mag === "number" && !isNaN(mag)) ? mag.toFixed(1) : '–';
+        return (typeof mag === "number" && !isNaN(mag)) ? fmtNum(mag, 1) : '–';
     }
 
     // Inicia la explicación hablada y luego recorre estrellas
     function iniciarExplicacion() {
         const nombre = document.getElementById("nombre_constelacion").value.trim();
         if (descripcionConstelacion) {
-            document.getElementById("status").innerText = `🔊 Hablando sobre ${nombre}…`;
+            document.getElementById("status").innerText = "🔊 " + _("Hablando sobre {nombre}…", { nombre: nombre });
             const u = new SpeechSynthesisUtterance(`${nombre}: ${descripcionConstelacion}`);
-            u.lang = 'es-ES'; u.rate = 0.85;
+            u.lang = IDIOMA.lang; u.rate = 0.85;
             u.onend = recorrerEstrellas;
             speechSynthesis.speak(u);
         } else {
@@ -218,12 +218,12 @@
     function iniciarRecorrido() {
         const nombre = document.getElementById("nombre_constelacion").value.trim();
         if (!nombre) {
-            document.getElementById("status").innerText = '❌ Escriba una constelación válida.';
+            document.getElementById("status").innerText = '❌ ' + _('Escriba una constelación válida.');
             return;
         }
         resetRecorrido();
         const statusEl = document.getElementById("status");
-        statusEl.innerHTML = `<span class="spinner"></span> Preparando recorrido para <b>${nombre}</b>…`;
+        statusEl.innerHTML = `<span class="spinner"></span> ` + _("Preparando recorrido para {nombre}…", { nombre: `<b>${nombre}</b>` });
 
         fetch('/recorrido-constelacion', {
             method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -247,7 +247,7 @@
                     const icon = iconByTipo[e.tipo] || iconByTipo.default;
                     const magText = formatMag(e.mag);
                     li.innerHTML = `${icon} <strong>${e.nombre}</strong>`
-                        + (e.mag != null ? ` — mag ${magText}` : '');
+                        + (e.mag != null ? " — " + _("mag {mag}", { mag: magText }) : '');
                     li.setAttribute('data-index', i);
                     ul.appendChild(li);
                 });  // ← esto es clave para que veas las estrellas :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
@@ -259,16 +259,16 @@
                     iniciarExplicacion();
                 } else {
                     // Modo manual: mostramos el botón de “Iniciar explicación”
-                    statusEl.innerHTML = '✅ Estrellas preparadas.';
+                    statusEl.innerHTML = '✅ ' + _('Estrellas preparadas.');
                     const btnExp = document.createElement('button');
-                    btnExp.textContent = 'Iniciar explicación';
+                    btnExp.textContent = _('Iniciar explicación');
                     btnExp.className = 'btn btn-primary btn-lg btn-block';
                     btnExp.onclick = iniciarExplicacion;
                     statusEl.appendChild(btnExp);
                 }
             })
             .catch(err => {
-                document.getElementById("status").innerText = '❌ Error al consultar constelación: ' + err;
+                document.getElementById("status").innerText = '❌ ' + _('Error al consultar constelación: {error}', { error: err });
             });
     }
 
@@ -281,7 +281,7 @@
         if (recorridoPaused) return;
 
         if (indiceActual >= listaEstrellas.length) {
-            const msg = 'Recorrido de la constelación completado.';
+            const msg = _('Recorrido de la constelación completado.');
             document.getElementById('status').innerText = msg;
             const u = new SpeechSynthesisUtterance(msg);
 
@@ -303,7 +303,7 @@
             return;
         }
         const est = listaEstrellas[indiceActual];
-        document.getElementById('status').innerHTML = `🔭 Moviendo al objeto: <b>${est.nombre}</b>`;
+        document.getElementById('status').innerHTML = "🔭 " + _("Moviendo al objeto: {objeto}", { objeto: `<b>${est.nombre}</b>` });
         fetch('/iniciar-recorrido', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estrella: est }) })
             .then(r => r.json())
             .then(data => {
@@ -319,7 +319,7 @@
 
                     // 2) Mostramos mensaje breve de “saltado”
                     document.getElementById('status').innerHTML =
-                        `🔻 Saltada <b>${est.nombre}</b>`;
+                        "🔻 " + _("Saltada {objeto}", { objeto: `<b>${est.nombre}</b>` });
 
                     // 3) Tras 1 segundo, avanzamos al siguiente
                     setTimeout(() => {
@@ -336,7 +336,8 @@
                     if (recorridoPaused) return;
 
                     const voz = tipoVoz[est.tipo] || tipoVoz.default;
-                    full = `${voz}: ${est.nombre}` + (est.mag != null ? `, magnitud ${formatMag(est.mag)}` : '');
+                    full = est.mag != null ? _("{tipo}: {nombre}, magnitud {mag}", { tipo: voz, nombre: est.nombre, mag: formatMag(est.mag) })
+                                           : `${voz}: ${est.nombre}`;
                     const clave = est.nombre.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
                     const extra = est.infoExtra && est.infoExtra.trim() ? est.infoExtra : (infoExtra[clave] || '');
                     if (extra) full += `. ${extra}`;
@@ -346,13 +347,13 @@
                     const act = document.querySelector(`#listaEstrellas li[data-index="${indiceActual}"]`);
                     if (act) act.classList.add('estrella-activa');
                     descripcionUtterance = new SpeechSynthesisUtterance(full);
-                    descripcionUtterance.lang = 'es-ES';
+                    descripcionUtterance.lang = IDIOMA.lang;
                     descripcionUtterance.rate = 0.9;
                     descripcionUtterance.onend = () => { indiceActual++; recorrerEstrellas(); };
                     speechSynthesis.speak(descripcionUtterance);
                 }, 3000);
             })
-            .catch(err => document.getElementById('status').innerText = '❌ Error al mover telescopio: ' + err);
+            .catch(err => document.getElementById('status').innerText = '❌ ' + _('Error al mover telescopio: {error}', { error: err }));
     }
 
     // Cuando el usuario pulsa el botón
@@ -367,13 +368,13 @@
                 clearTimeout(timeoutID);
                 timeoutID = null;
             }
-            btnControlAudio.textContent = '▶️ Continuar';
+            btnControlAudio.textContent = '▶️ ' + _('Continuar');
         } else {
             // — Reanudar —
             recorridoPaused = false;
             // 1) Reanudamos la voz (si había un utterance en curso)
             speechSynthesis.resume();
-            btnControlAudio.textContent = '⏸️ Pausar';
+            btnControlAudio.textContent = '⏸️ ' + _('Pausar');
             // 2) Si no hay nada hablando, lanzamos el siguiente paso del bucle
             if (!speechSynthesis.speaking) {
                 recorrerEstrellas();
@@ -383,22 +384,24 @@
     // Reconocimiento de voz para rellenar nombre
     function reconocimientoVoz() {
         const Clase = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Clase) { document.getElementById('status').innerText = '❌ Este navegador no tiene reconocimiento de voz. En Android usa Chrome.'; return; }
-        const rec = new Clase(); rec.lang = 'es-ES';
-        document.getElementById('status').innerText = '🎙️ Escuchando... di "constelación" y el nombre';
-        try { rec.start(); } catch (e) { document.getElementById('status').innerText = '❌ No se pudo iniciar la escucha: ' + e.message; return; }
+        if (!Clase) { document.getElementById('status').innerText = '❌ ' + _('Este navegador no tiene reconocimiento de voz. En Android usa Chrome.'); return; }
+        const rec = new Clase(); rec.lang = IDIOMA.lang;
+        document.getElementById('status').innerText = '🎙️ ' + _('Escuchando... di "constelación" y el nombre');
+        try { rec.start(); } catch (e) { document.getElementById('status').innerText = '❌ ' + _('No se pudo iniciar la escucha: {error}', { error: e.message }); return; }
         rec.onresult = e => {
             let txt = e.results[0][0].transcript.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-            if (txt.startsWith('constelacion ')) {
-                const val = txt.replace('constelacion ', '').trim();
+            // Palabra clave de la orden de voz en el idioma de la app (sin tildes)
+            const clave = IDIOMA.codigo === 'es' ? 'constelacion ' : 'constellation ';
+            if (txt.startsWith(clave)) {
+                const val = txt.slice(clave.length).trim();
                 document.getElementById('nombre_constelacion').value = val;
-                document.getElementById('status').innerHTML = `✅ Constelación detectada: <b>${val}</b>`;
-            } else document.getElementById('status').innerText = '⚠️ Diga "constelación X".';
+                document.getElementById('status').innerHTML = "✅ " + _("Constelación detectada: {nombre}", { nombre: `<b>${val}</b>` });
+            } else document.getElementById('status').innerText = '⚠️ ' + _('Diga "constelación X".');
         };
         rec.onerror = e => {
-            const MENSAJES = { "not-allowed": "El navegador no deja usar el micrófono.", "network": "Sin Internet en el móvil para reconocer la voz.",
-                               "no-speech": "No se ha oído nada. Vuelve a pulsar y habla enseguida.", "audio-capture": "No se encuentra ningún micrófono.", "aborted": "Escucha cancelada." };
-            document.getElementById('status').innerText = '❌ ' + (MENSAJES[e.error] || ('Error de reconocimiento: ' + e.error));
+            const MENSAJES = { "not-allowed": _("El navegador no deja usar el micrófono."), "network": _("Sin Internet en el móvil para reconocer la voz."),
+                               "no-speech": _("No se ha oído nada. Vuelve a pulsar y habla enseguida."), "audio-capture": _("No se encuentra ningún micrófono."), "aborted": _("Escucha cancelada.") };
+            document.getElementById('status').innerText = '❌ ' + (MENSAJES[e.error] || _('Error de reconocimiento: {error}', { error: e.error }));
             explicarFalloVoz(e.error);   // abre la ventana de ayuda si tiene arreglo (static/js/ayuda_voz.js)
         };
     }
@@ -407,20 +410,20 @@
     function obtenerDescripcionFinal() {
         const nom = document.getElementById('nombre_constelacion').value.trim();
         if (!nom) return;
-        document.getElementById('status').innerText = '📚 Buscando descripción de la constelación...';
-        fetch('/info-wikipedia', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'objeto=' + encodeURIComponent(nom + ' (constelación)') })
+        document.getElementById('status').innerText = '📚 ' + _('Buscando descripción de la constelación...');
+        fetch('/info-wikipedia', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'objeto=' + encodeURIComponent(nom + (IDIOMA.codigo === 'es' ? ' (constelación)' : ' (constellation)')) })
             .then(r => r.json()).then(d => {
                 if (d.error) { document.getElementById('status').innerText = '❌ ' + d.error; return; }
-                const desc = d.wikipedia_info || 'Descripción no disponible.';
-                const u = new SpeechSynthesisUtterance(desc); u.lang = 'es-ES'; u.rate = 0.9;
+                const desc = d.wikipedia_info || _('Descripción no disponible.');
+                const u = new SpeechSynthesisUtterance(desc); u.lang = IDIOMA.lang; u.rate = 0.9;
                 speechSynthesis.speak(u);
-            }).catch(err => document.getElementById('status').innerText = '❌ Error al obtener info: ' + err);
+            }).catch(err => document.getElementById('status').innerText = '❌ ' + _('Error al obtener info: {error}', { error: err }));
     }
 
     // Batch completo: recorre cada constelación del .txt
     function startNextConstelacion() {
         if (batchIndex >= recorridoBatch.length) {
-            const cierre = "Y con esta última constelación hemos terminado el recorrido astronómico, gracias por su atención.";
+            const cierre = _("Y con esta última constelación hemos terminado el recorrido astronómico, gracias por su atención.");
             const u = new SpeechSynthesisUtterance(cierre);
             u.onend = () => {
                 document.getElementById("listaRecorridos").disabled = false;
@@ -451,14 +454,14 @@
             .then(r => r.json())
             .then(files => {
                 if (!files.length) {
-                    sel.innerHTML = '<option value="">(No hay recorridos disponibles)</option>';
+                    sel.innerHTML = '<option value="">' + _('(No hay recorridos disponibles)') + '</option>';
                     return;
                 }
-                sel.innerHTML = '<option value="">Elige un recorrido</option>';
+                sel.innerHTML = '<option value="">' + _('Elige un recorrido') + '</option>';
                 files.forEach(f => {
                     const opt = document.createElement('option');
-                    opt.value = f;
-                    opt.textContent = f.replace(/\.txt$/i, '');
+                    opt.value = f.fichero;          // {fichero, titulo}: el título va en el idioma de la app
+                    opt.textContent = f.titulo;
                     sel.appendChild(opt);
                 });
             })
@@ -483,26 +486,29 @@
 
             fetch(`/leer-txt-constelacion?file=${encodeURIComponent(file)}`)
                 .then(r => {
-                    if (!r.ok) throw new Error('No se pudo cargar el recorrido');
+                    if (!r.ok) throw new Error(_('No se pudo cargar el recorrido'));
                     return r.json();
                 })
                 .then(data => {
                     if (!data.descripcion || !Array.isArray(data.lista)) {
-                        throw new Error('Formato de fichero incorrecto');
+                        throw new Error(_('Formato de fichero incorrecto'));
                     }
                     descripcionRecorrido = data.descripcion;
                     constelacionesRecorrido = data.lista;
 
                     // Construir texto de intro
-                    let intro = `${descripcionRecorrido}. Ahora continuaremos con el recorrido empezando por ${constelacionesRecorrido[0]}`;
+                    let intro;
                     if (constelacionesRecorrido.length > 1) {
-                        intro += ` y continuando con ${constelacionesRecorrido.slice(1).join(', ')}`;
+                        intro = _('{descripcion}. Ahora continuaremos con el recorrido empezando por {primera} y continuando con {resto}. Pulse "Iniciar recorrido" para comenzar.',
+                                  { descripcion: descripcionRecorrido, primera: constelacionesRecorrido[0], resto: constelacionesRecorrido.slice(1).join(', ') });
+                    } else {
+                        intro = _('{descripcion}. Ahora continuaremos con el recorrido empezando por {primera}. Pulse "Iniciar recorrido" para comenzar.',
+                                  { descripcion: descripcionRecorrido, primera: constelacionesRecorrido[0] });
                     }
-                    intro += '. Pulse "Iniciar recorrido" para comenzar.';
 
                     // Crea el utterance y, al acabar, habilita el botón
                     const u = new SpeechSynthesisUtterance(intro);
-                    u.lang = 'es-ES';
+                    u.lang = IDIOMA.lang;
                     u.rate = 0.85;
                     u.onend = () => { btn.disabled = false; };
                     u.onerror = () => { btn.disabled = false; };

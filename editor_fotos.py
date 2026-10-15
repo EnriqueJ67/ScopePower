@@ -46,6 +46,7 @@ from unidecode import unidecode
 import firma
 import procesado
 import cometa
+from idioma import _
 
 SUFIJO_NUCLEO = "_nucleo"
 COMPOSICIONES = ("estrellas", "cometa", "compuesta")
@@ -90,10 +91,10 @@ def rutas(nombre):
     """
     nombre = str(nombre or "")
     if nombre != os.path.basename(nombre) or not re.fullmatch(r"[A-Za-z0-9_.\-]+\.jpg", nombre):
-        raise ErrorEditor("Nombre de imagen no válido")
+        raise ErrorEditor(_("Nombre de imagen no válido"))
     ruta_jpg = os.path.abspath(os.path.join(CARPETA_FOTOS, nombre))
     if os.path.dirname(ruta_jpg) != CARPETA_FOTOS:
-        raise ErrorEditor("Nombre de imagen no válido")
+        raise ErrorEditor(_("Nombre de imagen no válido"))
     base = os.path.splitext(ruta_jpg)[0]
     return base, ruta_jpg, base + ".fits", base + ".json"
 
@@ -133,7 +134,7 @@ def pareja_cometa(nombre):
     "es_nucleo": bool, "hermano": nombre_jpg, "nucleo": [x, y] o None,
     "desplazamiento": [dx, dy] o None}; si no, None.
     """
-    base, _, ruta_fits, _ = rutas(nombre)
+    base, __, ruta_fits, __ = rutas(nombre)
     if base.endswith(SUFIJO_NUCLEO):
         base_est, base_com, es_nucleo = base[:-len(SUFIJO_NUCLEO)], base, True
     else:
@@ -164,7 +165,7 @@ def info_foto(nombre):
     """
     base, ruta_jpg, ruta_fits, ruta_json = rutas(nombre)
     if not os.path.isfile(ruta_jpg):
-        raise ErrorEditor("Imagen no encontrada")
+        raise ErrorEditor(_("Imagen no encontrada"))
     meta = firma.meta_de_archivo(ruta_jpg)
     ajustes = meta.get("ajustes") or {}
     # Sin editar todavía: el procesado del config y el encuadre (zoom, giro, espejo) con que se guardó
@@ -305,13 +306,13 @@ def cargar_cubo(ruta_fits):
         try:
             mtime = os.path.getmtime(ruta_fits)
         except OSError:
-            raise ErrorEditor("Esta foto no tiene FITS guardado; no se puede reprocesar")
+            raise ErrorEditor(_("Esta foto no tiene FITS guardado; no se puede reprocesar"))
         c = _cache_cubo
         if c["ruta"] != ruta_fits or c["mtime"] != mtime or c["cubo"] is None:
             with fits.open(ruta_fits) as hdul:
                 datos = hdul[0].data
                 if datos is None or datos.ndim != 3 or 3 not in (datos.shape[0], datos.shape[-1]):
-                    raise ErrorEditor("El FITS no es un apilado RGB de ScopePower")
+                    raise ErrorEditor(_("El FITS no es un apilado RGB de ScopePower"))
                 cubo = datos.astype(np.float32)
                 if cubo.shape[0] != 3:
                     cubo = np.transpose(cubo, (2, 0, 1))
@@ -334,25 +335,25 @@ def cargar_cubo_compuesto(pareja, radio, progreso=None):
     no debe volver a componer: unos segundos en el mini PC).
     """
     if pareja["nucleo"] is None:
-        raise ErrorEditor("El apilado del cometa no lleva la posición del núcleo; no se puede componer")
+        raise ErrorEditor(_("El apilado del cometa no lleva la posición del núcleo; no se puede componer"))
     try:
         clave = (pareja["estrellas"], os.path.getmtime(pareja["estrellas"]),
                  pareja["cometa"], os.path.getmtime(pareja["cometa"]), int(radio))
     except OSError:
-        raise ErrorEditor("Falta uno de los dos apilados de la pareja")
+        raise ErrorEditor(_("Falta uno de los dos apilados de la pareja"))
     cubo_est, n, exposicion, zona_est, balance = cargar_cubo(pareja["estrellas"])
     with _lock_compuesto:
         if _cache_compuesto["clave"] != clave or _cache_compuesto["cubo"] is None:
             with fits.open(pareja["cometa"]) as hdul:
                 datos = hdul[0].data
                 if datos is None or datos.ndim != 3:
-                    raise ErrorEditor("El FITS del cometa no es un apilado RGB de ScopePower")
+                    raise ErrorEditor(_("El FITS del cometa no es un apilado RGB de ScopePower"))
                 cubo_com = np.ascontiguousarray(datos.astype(np.float32))
                 if cubo_com.shape[0] != 3:
                     cubo_com = np.ascontiguousarray(np.transpose(cubo_com, (2, 0, 1)))
                 zona_com = procesado.leer_zona(hdul[0].header)
             if cubo_com.shape != cubo_est.shape:
-                raise ErrorEditor("Los dos apilados no tienen el mismo tamaño")
+                raise ErrorEditor(_("Los dos apilados no tienen el mismo tamaño"))
             cubo = cometa.componer(cubo_est, cubo_com, pareja["nucleo"], pareja["desplazamiento"], radio, progreso=progreso)
             # Zona cubierta: la común a los dos apilados
             zona = zona_est
@@ -398,9 +399,9 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
     (imagen BGR uint8, meta de la firma). completa=False: media resolución (o
     completa si el zoom es del 50 % o más, como en el apilado); True: todo.
     """
-    base, ruta_jpg, ruta_fits, _ = rutas(nombre)
+    base, ruta_jpg, ruta_fits, __ = rutas(nombre)
     if not os.path.isfile(ruta_fits):
-        raise ErrorEditor("Esta foto no tiene FITS guardado; no se puede reprocesar")
+        raise ErrorEditor(_("Esta foto no tiene FITS guardado; no se puede reprocesar"))
     aj = ajustes_desde(opciones)
     objeto = " ".join(str(opciones.get("objeto", "")).split())[:60] or partes_nombre(nombre)[0].replace("_", " ")
     # Cometa: la pareja de apilados permite procesar el otro o la composición de los dos
@@ -418,7 +419,7 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
     else:
         cubo, n, exposicion, zona, balance = cargar_cubo(ruta_fits)
     fraccion = (100 - aj["zoom"]) / 100.0
-    recorte, _ = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=aj.get("bordes", 0) / 100.0,
+    recorte, __ = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=aj.get("bordes", 0) / 100.0,
                                        espejo=bool(aj.get("espejo")), centro=aj.get("centro"))
     escala = 1.0 if completa or fraccion <= 0.5 else 0.5
     rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso, balance=balance)
@@ -438,16 +439,16 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
 def vista_previa(nombre, opciones):
     """JPEG (bytes) de la vista previa reducida a ANCHO_PREVIEW. Solo una a la vez."""
     if not _lock_preview.acquire(blocking=False):
-        raise ErrorEditor("Hay otra vista previa en marcha; espera a que termine")
+        raise ErrorEditor(_("Hay otra vista previa en marcha; espera a que termine"))
     try:
-        imagen, _ = procesar_foto(nombre, opciones, completa=False)
+        imagen, __ = procesar_foto(nombre, opciones, completa=False)
         h, w = imagen.shape[:2]
         if max(h, w) > ANCHO_PREVIEW:
             f = ANCHO_PREVIEW / float(max(h, w))
             imagen = cv2.resize(imagen, (max(8, int(w * f)), max(8, int(h * f))), interpolation=cv2.INTER_AREA)
         ok, jpg = cv2.imencode(".jpg", imagen, [cv2.IMWRITE_JPEG_QUALITY, CALIDAD_PREVIEW])
         if not ok:
-            raise ErrorEditor("No se pudo codificar la vista previa")
+            raise ErrorEditor(_("No se pudo codificar la vista previa"))
         return jpg.tobytes()
     finally:
         _lock_preview.release()
@@ -462,13 +463,13 @@ def giro_norte(nombre):
     galería). El resultado se recuerda mientras el FITS no cambie.
     """
     import anotaciones
-    _, _, ruta_fits, _ = rutas(nombre)
+    __, __, ruta_fits, __ = rutas(nombre)
     try:
         clave = (ruta_fits, os.path.getmtime(ruta_fits))
     except OSError:
-        raise ErrorEditor("Esta foto no tiene FITS guardado; no se puede resolver")
+        raise ErrorEditor(_("Esta foto no tiene FITS guardado; no se puede resolver"))
     if not _lock_norte.acquire(blocking=False):
-        raise ErrorEditor("Ya se está resolviendo la foto; espera a que termine")
+        raise ErrorEditor(_("Ya se está resolviendo la foto; espera a que termine"))
     try:
         if clave in _cache_norte:
             return _cache_norte[clave]
@@ -478,10 +479,10 @@ def giro_norte(nombre):
             with tempfile.TemporaryDirectory(prefix="scopepower_norte_") as carpeta:
                 res = anotaciones.resolver_wcs(ruta_fits, ruta_mono=os.path.join(carpeta, "foto_mono.fits"))
             if res is None:
-                raise ErrorEditor("ASTAP no ha podido resolver la foto (¿pocas estrellas?)")
+                raise ErrorEditor(_("ASTAP no ha podido resolver la foto (¿pocas estrellas?)"))
             norte = anotaciones.norte_arriba(res[0], int(h["NAXIS1"]), int(h["NAXIS2"]))
             if norte is None:
-                raise ErrorEditor("No se pudo calcular la dirección del norte")
+                raise ErrorEditor(_("No se pudo calcular la dirección del norte"))
         norte = (round(float(norte[0]), 1), bool(norte[1]))
         _cache_norte[clave] = norte
         log.info("Norte arriba en %s: giro de %.1f°%s", nombre, norte[0], " con espejo" if norte[1] else "")
@@ -497,9 +498,9 @@ def _matriz_encuadre(nombre, opciones):
     recorte de ancho × alto que sale con los ajustes `opciones` (los de la
     vista previa que se está viendo), con la misma zona útil que usa procesar_foto.
     """
-    _, _, ruta_fits, _ = rutas(nombre)
+    __, __, ruta_fits, __ = rutas(nombre)
     aj = ajustes_desde(opciones)
-    cubo, _, _, zona, _ = cargar_cubo(ruta_fits)
+    cubo, __, __, zona, __ = cargar_cubo(ruta_fits)
     H, W = cubo.shape[1], cubo.shape[2]
     if not zona:
         zona = procesado.zona_automatica(cubo)
@@ -518,16 +519,16 @@ def centro_desde_toque(nombre, opciones, u, v):
     try:
         u, v = float(u), float(v)
     except (TypeError, ValueError):
-        raise ErrorEditor("Toque no válido")
+        raise ErrorEditor(_("Toque no válido"))
     if not (math.isfinite(u) and math.isfinite(v)):
-        raise ErrorEditor("Toque no válido")
+        raise ErrorEditor(_("Toque no válido"))
     M, ancho, alto, W, H = _matriz_encuadre(nombre, opciones)
     px, py = min(max(u, 0.0), 1.0) * ancho - 0.5, min(max(v, 0.0), 1.0) * alto - 0.5
     A, b = M[:, :2], M[:, 2]
     try:
         x, y = np.linalg.solve(A, np.array([px, py]) - b)
     except np.linalg.LinAlgError:
-        raise ErrorEditor("No se pudo deshacer el encuadre")
+        raise ErrorEditor(_("No se pudo deshacer el encuadre"))
     return _centro_valido([(x + 0.5) / W, (y + 0.5) / H])
 
 
@@ -568,10 +569,10 @@ def centro_objeto(nombre):
     import galeria_anotada
     import anotaciones
     import catalogo_offline
-    _, ruta_jpg, ruta_fits, _ = rutas(nombre)
+    __, ruta_jpg, ruta_fits, __ = rutas(nombre)
     meta = firma.meta_de_archivo(ruta_jpg)
     objeto = " ".join(str(meta.get("objeto") or partes_nombre(nombre)[0].replace("_", " ")).split())
-    solucion, _ = galeria_anotada.solucion_de(ruta_fits)
+    solucion, __ = galeria_anotada.solucion_de(ruta_fits)
     wcs = galeria_anotada._wcs(solucion)
     W, H = int(solucion["ancho"]), int(solucion["alto"])
 
@@ -591,31 +592,31 @@ def centro_objeto(nombre):
     if ficha:
         p = pixel(float(ficha["ra"]) * 15.0, float(ficha["dec"]))
         if p:
-            return resultado(p, f"{ficha.get('name') or objeto} centrado")
+            return resultado(p, _("{objeto} centrado", objeto=ficha.get('name') or objeto))
     k = catalogo_offline.clave(objeto)
     candidatos = anotaciones.objetos_catalogo_en_campo(wcs, W, H, margen=0.0)
     for o in candidatos:
         if k and len(k) >= 2 and k in catalogo_offline.clave(o["nombre"]):
             p = pixel(o["ra"], o["dec"])
             if p:
-                return resultado(p, f"{o['nombre']} centrado")
+                return resultado(p, _("{objeto} centrado", objeto=o['nombre']))
     # 2. Lo más cercano a las coordenadas de la montura
     coords = _ra_dec_grados(meta.get("ra"), meta.get("dec"))
     if coords is None:
-        raise ErrorEditor(f"«{objeto}» no está en el catálogo y la foto no tiene coordenadas; toca la foto para elegir el centro")
+        raise ErrorEditor(_("«{objeto}» no está en el catálogo y la foto no tiene coordenadas; toca la foto para elegir el centro", objeto=objeto))
     if not candidatos:
         candidatos = anotaciones.objetos_ngc_en_campo(wcs, W, H)
     cerca = [(float(anotaciones._separacion_deg(coords[0], coords[1], o["ra"], o["dec"])), o) for o in candidatos]
     cerca = [c for c in cerca if c[0] <= 0.75]
     if cerca:
-        _, o = min(cerca, key=lambda c: c[0])
+        __, o = min(cerca, key=lambda c: c[0])
         p = pixel(o["ra"], o["dec"])
         if p:
-            return resultado(p, f"{o['nombre']} centrado (lo más cercano a donde apuntaba la montura)")
+            return resultado(p, _("{objeto} centrado (lo más cercano a donde apuntaba la montura)", objeto=o['nombre']))
     p = pixel(*coords)
     if p is None:
-        raise ErrorEditor("Las coordenadas de la foto caen fuera del campo; toca la foto para elegir el centro")
-    return resultado(p, "centrado donde apuntaba la montura (puede desviarse unos minutos del objeto)")
+        raise ErrorEditor(_("Las coordenadas de la foto caen fuera del campo; toca la foto para elegir el centro"))
+    return resultado(p, _("centrado donde apuntaba la montura (puede desviarse unos minutos del objeto)"))
 
 
 # ── Guardar / restaurar ─────────────────────────────────────────────────────
@@ -657,9 +658,9 @@ def _renombrar(base, objeto_nuevo):
     otra = base_comun if sufijo else base + SUFIJO_NUCLEO
     if existe(otra):
         parejas.append((otra, nueva_comun if sufijo else nueva_comun + SUFIJO_NUCLEO))
-    for _, nueva in parejas:
+    for __, nueva in parejas:
         if any(os.path.exists(nueva + ext) for ext in (".jpg", ".fits", ".json")):
-            raise ErrorEditor(f"Ya existe una foto llamada {os.path.basename(nueva)}")
+            raise ErrorEditor(_("Ya existe una foto llamada {nombre}", nombre=os.path.basename(nueva)))
     for vieja, nueva in parejas:
         for ext in (".jpg", ".fits", ".json"):
             if os.path.isfile(vieja + ext):
@@ -680,29 +681,29 @@ def guardar(nombre, opciones):
     JSON (con los ajustes usados) y renombrado si cambia el objeto. Estado en EDICION.
     """
     if EDICION["en_curso"]:
-        raise ErrorEditor("Ya hay un guardado en curso")
+        raise ErrorEditor(_("Ya hay un guardado en curso"))
     base, ruta_jpg, ruta_fits, ruta_json = rutas(nombre)
     if not os.path.isfile(ruta_fits):
-        raise ErrorEditor("Esta foto no tiene FITS guardado; no se puede reprocesar")
+        raise ErrorEditor(_("Esta foto no tiene FITS guardado; no se puede reprocesar"))
     EDICION.update({"en_curso": True, "ok": None, "archivo": nombre, "nombre_nuevo": "",
-                    "mensaje": "Procesando a resolución completa..."})
+                    "mensaje": _("Procesando a resolución completa...")})
 
     def _trabajo():
         try:
             def progreso(subfase, fraccion):
-                EDICION["mensaje"] = f"Procesando a resolución completa ({int(fraccion * 100)} %)..."
+                EDICION["mensaje"] = _("Procesando a resolución completa ({p} %)...", p=int(fraccion * 100))
             imagen, meta = procesar_foto(nombre, opciones, completa=True, progreso=progreso)
-            EDICION["mensaje"] = "Guardando..."
+            EDICION["mensaje"] = _("Guardando...")
             _apartar_original(base, ruta_jpg, ruta_json)
             cv2.imwrite(ruta_jpg, imagen, [cv2.IMWRITE_JPEG_QUALITY, CALIDAD_GUARDADO])
             firma.guardar_meta(ruta_jpg, meta)
             nuevo = _renombrar(base, meta["objeto"])
             EDICION.update({"ok": True, "nombre_nuevo": nuevo,
-                            "mensaje": "Foto guardada" + (f" como {nuevo}" if nuevo != nombre else "")})
+                            "mensaje": _("Foto guardada como {nombre}", nombre=nuevo) if nuevo != nombre else _("Foto guardada")})
             log.info("Foto %s reprocesada desde el editor (%s)", nuevo, meta["ajustes"])
         except Exception as e:
             log.exception("Error guardando la foto editada")
-            EDICION.update({"ok": False, "mensaje": f"Error al guardar: {e}"})
+            EDICION.update({"ok": False, "mensaje": _("Error al guardar: {e}", e=e)})
         finally:
             EDICION["en_curso"] = False
 
@@ -712,10 +713,10 @@ def guardar(nombre, opciones):
 
 def restaurar(nombre):
     """Vuelve a poner el JPG y el JSON originales (los apartados la primera vez que se guardó)."""
-    base, ruta_jpg, _, ruta_json = rutas(nombre)
+    base, ruta_jpg, __, ruta_json = rutas(nombre)
     orig = ruta_original(base)
     if not os.path.isfile(orig):
-        raise ErrorEditor("Esta foto no tiene original apartado")
+        raise ErrorEditor(_("Esta foto no tiene original apartado"))
     os.replace(orig, ruta_jpg)
     orig_json = os.path.splitext(orig)[0] + ".json"
     if os.path.isfile(orig_json):
@@ -735,6 +736,6 @@ def borrar_original(base):
 
 def jpg_original(nombre):
     """Ruta del JPG que se muestra como 'original' en el editor: el apartado si lo hay, si no el actual."""
-    base, ruta_jpg, _, _ = rutas(nombre)
+    base, ruta_jpg, __, __ = rutas(nombre)
     orig = ruta_original(base)
     return orig if os.path.isfile(orig) else ruta_jpg

@@ -1,33 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}Flat maestro{% endblock %}
+{% block title %}{{ _("Flat maestro") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Generar flat maestro</h1>
+        <h1 class="pagina-titulo">{{ _("Generar flat maestro") }}</h1>
         <p class="pagina-sub">
-            El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fotografiando una
-            superficie uniformemente iluminada. La exposición se ajusta sola.
+            {{ _("El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fotografiando una superficie uniformemente iluminada. La exposición se ajusta sola.") }}
         </p>
     </div>
 </div>
 
 <div class="card card-centrada">
-    <div id="flat-ultimo" class="aviso aviso-info">Consultando el último flat...</div>
+    <div id="flat-ultimo" class="aviso aviso-info">{{ _("Consultando el último flat...") }}</div>
 
     <div id="flat-preparar">
         <ol class="pasos">
-            <li>Pon una camiseta blanca bien estirada (dos capas) sobre la boca del tubo, sin arrugas.</li>
-            <li>Apunta el telescopio a una pantalla blanca (móvil o tablet a brillo medio, pegada a la camiseta) o al cielo del crepúsculo, lejos del sol.</li>
-            <li>No cambies el enfoque ni la orientación de la cámara respecto a las fotos de la noche.</li>
+            <li>{{ _("Pon una camiseta blanca bien estirada (dos capas) sobre la boca del tubo, sin arrugas.") }}</li>
+            <li>{{ _("Apunta el telescopio a una pantalla blanca (móvil o tablet a brillo medio, pegada a la camiseta) o al cielo del crepúsculo, lejos del sol.") }}</li>
+            <li>{{ _("No cambies el enfoque ni la orientación de la cámara respecto a las fotos de la noche.") }}</li>
         </ol>
         <div class="fila entre mb-2">
-            <label for="flat-n" style="margin: 0;">Número de flats</label>
+            <label for="flat-n" style="margin: 0;">{{ _("Número de flats") }}</label>
             <input type="number" id="flat-n" class="corto" min="3" max="50" value="{{ conf.numero_flats }}">
         </div>
-        <label class="switch mb-2"><input type="checkbox" id="flat-darks" checked> Hacer también darks de flat ({{ conf.numero_flat_darks }} tomas, te pedirá tapar el tubo). Recomendado.</label>
-        <button class="btn btn-primary btn-lg btn-block" onclick="generarFlats()"><svg><use href="#i-sol"/></svg>Generar flat maestro</button>
+        <label class="switch mb-2"><input type="checkbox" id="flat-darks" checked> {{ _("Hacer también darks de flat ({n} tomas, te pedirá tapar el tubo). Recomendado.", n=conf.numero_flat_darks) }}</label>
+        <button class="btn btn-primary btn-lg btn-block" onclick="generarFlats()"><svg><use href="#i-sol"/></svg>{{ _("Generar flat maestro") }}</button>
     </div>
 
     <div id="flat-progreso" style="display: none;">
@@ -35,10 +34,10 @@
         <div class="progress alta"><div id="flat-barra" class="progress-bar info"></div></div>
         <p id="flat-cuenta" class="estado mt-1"></p>
         <div id="flat-tapar" style="display: none; margin: 10px 0;">
-            <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>Tapa el telescopio (quita la pantalla y pon la tapa) y pulsa Continuar.</div>
-            <button class="btn btn-danger btn-block" onclick="continuarFlats()">Continuar, ya está tapado</button>
+            <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>{{ _("Tapa el telescopio (quita la pantalla y pon la tapa) y pulsa Continuar.") }}</div>
+            <button class="btn btn-danger btn-block" onclick="continuarFlats()">{{ _("Continuar, ya está tapado") }}</button>
         </div>
-        <button class="btn btn-ghost btn-block mt-1" onclick="cancelarFlats()"><svg><use href="#i-stop"/></svg>Cancelar</button>
+        <button class="btn btn-ghost btn-block mt-1" onclick="cancelarFlats()"><svg><use href="#i-stop"/></svg>{{ _("Cancelar") }}</button>
     </div>
 
     <div id="flat-final" class="centro mt-2" style="display: none; font-size: 16px; font-weight: 600;"></div>
@@ -51,15 +50,15 @@
 
 <script>
     let sondeoFlats = null;
-    const NOMBRE_FASE = { exposicion: "Ajustando exposición", flats: "Capturando flats", esperando_tapa: "Esperando", flat_darks: "Darks de flat", combinando: "Combinando" };
+    const NOMBRE_FASE = { exposicion: N_("Ajustando exposición"), flats: N_("Capturando flats"), esperando_tapa: N_("Esperando"), flat_darks: N_("Darks de flat"), combinando: N_("Combinando") };
 
     function describirUltimo(u) {
-        if (!u || !u.existe) return `ℹ️ No hay ningún flat maestro guardado para bin ${u && u.binning_pedido ? u.binning_pedido : "?"}.`;
-        let s = `🟦 Flat maestro (bin ${u.binning || u.binning_pedido || 1}): hecho el ${u.fecha}`;
+        if (!u || !u.existe) return _("ℹ️ No hay ningún flat maestro guardado para bin {bin}.", { bin: u && u.binning_pedido ? u.binning_pedido : "?" });
+        let s = _("🟦 Flat maestro (bin {bin}): hecho el {fecha}", { bin: u.binning || u.binning_pedido || 1, fecha: u.fecha });
         if (u.exposicion !== null) s += ` · ${u.exposicion} s`;
-        if (u.nflats) s += ` · ${u.nflats} tomas`;
-        if (u.nflatdk) s += ` + ${u.nflatdk} darks de flat`;
-        if (u.vinyeteo !== null && u.vinyeteo !== undefined) s += ` · viñeteo ${u.vinyeteo} %`;
+        if (u.nflats) s += " · " + ngettext("{n} toma", "{n} tomas", u.nflats);
+        if (u.nflatdk) s += " + " + ngettext("{n} dark de flat", "{n} darks de flat", u.nflatdk);
+        if (u.vinyeteo !== null && u.vinyeteo !== undefined) s += " · " + _("viñeteo {v} %", { v: u.vinyeteo });
         return s;
     }
 
@@ -70,11 +69,11 @@
             document.getElementById("flat-preparar").style.display = "none";
             document.getElementById("flat-progreso").style.display = "block";
             document.getElementById("flat-final").style.display = "none";
-            document.getElementById("flat-mensaje").textContent = (NOMBRE_FASE[t.fase] ? NOMBRE_FASE[t.fase] + ": " : "") + t.mensaje;
+            document.getElementById("flat-mensaje").textContent = (NOMBRE_FASE[t.fase] ? _(NOMBRE_FASE[t.fase]) + ": " : "") + t.mensaje;
             const pct = (t.fase === "flats" || t.fase === "flat_darks") && t.total ? (100 * t.completadas / t.total) : (t.fase === "combinando" ? 100 : 0);
             document.getElementById("flat-barra").style.width = pct + "%";
             const c = d.trabajo.captura;
-            document.getElementById("flat-cuenta").textContent = (c && c.en_curso) ? `Exponiendo ${c.exposicion} s...` : "";
+            document.getElementById("flat-cuenta").textContent = (c && c.en_curso) ? _("Exponiendo {s} s...", { s: c.exposicion }) : "";
             document.getElementById("flat-tapar").style.display = t.fase === "esperando_tapa" ? "block" : "none";
         } else {
             document.getElementById("flat-progreso").style.display = "none";
@@ -83,7 +82,7 @@
                 const f = document.getElementById("flat-final");
                 f.style.display = "block";
                 f.style.color = t.error ? "var(--err)" : "var(--ok)";
-                f.textContent = t.error ? "❌ " + t.error : "✅ " + t.mensaje + ". Ya puedes destapar el telescopio.";
+                f.textContent = t.error ? "❌ " + t.error : "✅ " + _("{mensaje}. Ya puedes destapar el telescopio.", { mensaje: t.mensaje });
             }
         }
         return t.en_curso;
@@ -101,10 +100,10 @@
         document.getElementById("flat-final").style.display = "none";
         fetch("/flats/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ numero_flats: n, flat_darks }) })
             .then(r => r.json()).then(d => {
-                if (!d.ok) { alert(d.error || "No se pudo iniciar"); return; }
+                if (!d.ok) { alert(d.error || _("No se pudo iniciar")); return; }
                 if (!sondeoFlats) sondeoFlats = setInterval(sondear, 1000);
                 sondear();
-            }).catch(err => alert("Error: " + err));
+            }).catch(err => alert(_("Error: {e}", { e: err })));
     }
 
     function continuarFlats() { fetch("/flats/continuar", { method: "POST" }).catch(console.error); }

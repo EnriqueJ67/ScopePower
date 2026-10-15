@@ -1,13 +1,13 @@
 <!-- templates/imagen.html -->
 {% extends "base.html" %}
 
-{% block title %}Cámara{% endblock %}
+{% block title %}{{ _("Cámara") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Cámara</h1>
-        <p class="pagina-sub" id="sub-foto">Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.</p>
+        <h1 class="pagina-titulo">{{ _("Cámara") }}</h1>
+        <p class="pagina-sub" id="sub-foto">{{ _("Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.") }}</p>
     </div>
 </div>
 
@@ -15,7 +15,7 @@
 <div class="grid-2 ancha foto-layout">
     <div class="foto-imagen">
         <div class="visor">
-            <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" alt="Última foto">
+            <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" alt="{{ _('Última foto') }}">
             <!-- Sello: la foto que va bajando por la wifi (con su progreso) y, cuando llega, de qué hora es:
                  al enfocar se sabe si lo que se ve es la foto nueva o todavía la anterior -->
             <div id="foto-sello" class="foto-sello" hidden></div>
@@ -26,7 +26,7 @@
             <!-- Pad encima de la foto (opción del panel "Mover el telescopio"): el mismo pad del panel, movido
                  aquí por JS, para mover el telescopio viendo la foto sin plegar los demás paneles -->
             <div id="pad-flotante" class="pad-flotante" hidden>
-                <button type="button" class="pad-lado" onclick="cambiarLadoPad()" title="Pasar el pad a la otra esquina">⇆</button>
+                <button type="button" class="pad-lado" onclick="cambiarLadoPad()" title="{{ _('Pasar el pad a la otra esquina') }}">⇆</button>
             </div>
         </div>
         <!-- Progreso de la exposición DEBAJO de la foto, en un hueco de alto fijo que siempre está: si
@@ -41,76 +41,76 @@
     <div class="foto-controles" id="paneles-foto">
         <section class="card panel" data-panel="captura">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-foto"/></svg>Captura</h3>
+                <h3 class="card-title"><svg class="ico"><use href="#i-foto"/></svg>{{ _("Captura") }}</h3>
                 <span id="captura-sub" class="panel-sub"></span>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
             <div class="acciones-grid">
-                <button id="btn-foto" class="btn btn-primary btn-lg" onclick="hacerFoto()"><svg><use href="#i-foto"/></svg>Hacer foto</button>
-                <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;"><svg><use href="#i-stop"/></svg>Cancelar</button>
-                <button id="btn-continuo-parar" class="btn btn-danger btn-lg" onclick="pararContinuo()" hidden><svg><use href="#i-stop"/></svg>Parar</button>
+                <button id="btn-foto" class="btn btn-primary btn-lg" onclick="hacerFoto()"><svg><use href="#i-foto"/></svg>{{ _("Hacer foto") }}</button>
+                <button id="btn-cancelar" class="btn btn-secondary" onclick="cancelar()" style="display: none;"><svg><use href="#i-stop"/></svg>{{ _("Cancelar") }}</button>
+                <button id="btn-continuo-parar" class="btn btn-danger btn-lg" onclick="pararContinuo()" hidden><svg><use href="#i-stop"/></svg>{{ _("Parar") }}</button>
                 <!-- Modo en vivo de día (vivo_dia.py): imagen casi continua por el SDK de la cámara, para centrar y enfocar -->
                 <button id="btn-vivo" class="btn btn-secondary" onclick="alternarVivo()" hidden
-                        title="Imagen casi continua por el SDK de la cámara, para centrar y enfocar. Mientras dura, la cámara no está disponible por ASCOM."><svg><use href="#i-play"/></svg>En vivo</button>
-                <button id="btn-sync" class="btn btn-secondary" onclick="sincronizar()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-sync"/></svg>Sincronizar telescopio con la foto</button>
-                <button id="btn-puntero" class="btn btn-secondary" onclick="alternarPuntero()" disabled title="Se activa cuando hay una foto nueva"><svg><use href="#i-goto"/></svg>Apunta aquí</button>
-                <button id="btn-galeria" class="btn btn-secondary" onclick="guardarEnGaleria()" {% if not hay_foto %}disabled{% endif %} title="Guarda la foto que se ve, a resolución completa, en la galería. De noche, con el procesado y el preset de Apilado."><svg><use href="#i-guardar"/></svg>Guardar en la galería</button>
+                        title="{{ _('Imagen casi continua por el SDK de la cámara, para centrar y enfocar. Mientras dura, la cámara no está disponible por ASCOM.') }}"><svg><use href="#i-play"/></svg>{{ _("En vivo") }}</button>
+                <button id="btn-sync" class="btn btn-secondary" onclick="sincronizar()" disabled title="{{ _('Se activa cuando hay una foto nueva') }}"><svg><use href="#i-sync"/></svg>{{ _("Sincronizar telescopio con la foto") }}</button>
+                <button id="btn-puntero" class="btn btn-secondary" onclick="alternarPuntero()" disabled title="{{ _('Se activa cuando hay una foto nueva') }}"><svg><use href="#i-goto"/></svg>{{ _("Apunta aquí") }}</button>
+                <button id="btn-galeria" class="btn btn-secondary" onclick="guardarEnGaleria()" {% if not hay_foto %}disabled{% endif %} title="{{ _('Guarda la foto que se ve, a resolución completa, en la galería. De noche, con el procesado y el preset de Apilado.') }}"><svg><use href="#i-guardar"/></svg>{{ _("Guardar en la galería") }}</button>
             </div>
             <!-- Panel del puntero: se ve mientras "Apunta aquí" está activado -->
             <div id="puntero-panel" class="mt-2" hidden>
-                <p class="texto-2" style="margin: 0 0 8px; font-size: 13.5px;">Toca o arrastra sobre la foto para poner el puntero donde quieras que apunte el telescopio.<span id="puntero-info" class="texto-3"></span></p>
+                <p class="texto-2" style="margin: 0 0 8px; font-size: 13.5px;">{{ _("Toca o arrastra sobre la foto para poner el puntero donde quieras que apunte el telescopio.") }}<span id="puntero-info" class="texto-3"></span></p>
                 <!-- De día no hay estrellas: se calcula con la orientación y la escala de la cámara del último plate solving -->
                 <p id="puntero-dia" class="texto-3" style="margin: 0 0 8px; font-size: 12.5px;" hidden></p>
                 <div class="acciones">
-                    <button id="btn-centrar-puntero" class="btn btn-primary" onclick="centrarEnPuntero()"><svg><use href="#i-centrar"/></svg>Centrar el telescopio aquí</button>
-                    <button type="button" class="btn btn-ghost" onclick="ponerPunteroCentro()">Al centro</button>
+                    <button id="btn-centrar-puntero" class="btn btn-primary" onclick="centrarEnPuntero()"><svg><use href="#i-centrar"/></svg>{{ _("Centrar el telescopio aquí") }}</button>
+                    <button type="button" class="btn btn-ghost" onclick="ponerPunteroCentro()">{{ _("Al centro") }}</button>
                 </div>
             </div>
             <!-- Ganancia solo para las fotos de prueba de esta pantalla (para enfocar con
                  exposiciones cortas). No se guarda: la de noche se ajusta en Configuración. -->
             <div class="fila mt-2" id="fila-ganancia" style="justify-content: space-between;">
-                <label for="ganancia-prueba" class="texto-2" style="margin: 0; font-size: 14px;">Ganancia para esta foto</label>
+                <label for="ganancia-prueba" class="texto-2" style="margin: 0; font-size: 14px;">{{ _("Ganancia para esta foto") }}</label>
                 <span class="fila" style="flex-wrap: nowrap; gap: 6px;">
-                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarGananciaPrueba(-50)" title="50 menos">−50</button>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarGananciaPrueba(-50)" title="{{ _('50 menos') }}">−50</button>
                     <input type="number" id="ganancia-prueba" class="corto" min="0" step="1" style="width: 78px;" placeholder="config">
-                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarGananciaPrueba(50)" title="50 más">+50</button>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarGananciaPrueba(50)" title="{{ _('50 más') }}">+50</button>
                 </span>
             </div>
             <div id="ganancia-ayuda" class="texto-3" style="font-size: 12.5px;"></div>
             <!-- Exposición solo para las fotos de esta pantalla (encuadrar en segundos, no en la
                  exposición larga de la sesión). Tampoco se guarda; si hay dark de esa exposición se resta. -->
             <div class="fila mt-2" id="fila-exposicion" style="justify-content: space-between;">
-                <label for="exposicion-prueba" class="texto-2" style="margin: 0; font-size: 14px;">Exposición para esta foto</label>
+                <label for="exposicion-prueba" class="texto-2" style="margin: 0; font-size: 14px;">{{ _("Exposición para esta foto") }}</label>
                 <span class="fila" style="flex-wrap: nowrap; gap: 6px;">
-                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarExposicionPrueba(0.5)" title="La mitad">½</button>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarExposicionPrueba(0.5)" title="{{ _('La mitad') }}">½</button>
                     <input type="number" id="exposicion-prueba" class="corto" min="0.001" max="3600" step="any" style="width: 78px;" placeholder="config" inputmode="decimal">
-                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarExposicionPrueba(2)" title="El doble">×2</button>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarExposicionPrueba(2)" title="{{ _('El doble') }}">×2</button>
                     <span class="texto-3" style="font-size: 13px;">s</span>
                 </span>
             </div>
             <div id="exposicion-ayuda" class="texto-3" style="font-size: 12.5px;"></div>
             <!-- Modo enfoque (enfoque.py): solo el canal verde, con la estrella más brillante ampliada, para la máscara de Bahtinov -->
             <div class="fila mt-2" id="fila-enfoque" style="justify-content: space-between;">
-                <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-enfoque" onchange="cambiarModoEnfoque()"> Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)</label>
-                <span class="texto-3" style="font-size: 12.5px;">foto de prueba y modo en vivo</span>
+                <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-enfoque" onchange="cambiarModoEnfoque()"> {{ _("Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)") }}</label>
+                <span class="texto-3" style="font-size: 12.5px;">{{ _("foto de prueba y modo en vivo") }}</span>
             </div>
-            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras) y se mide la anchura del limbo en píxeles (cuanto menor, mejor foco); en vivo se enseña el fotograma más nítido de los últimos y el mejor valor de la sesión, para girar el enfocador hasta el mínimo.</div>
+            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>{{ _("Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras) y se mide la anchura del limbo en píxeles (cuanto menor, mejor foco); en vivo se enseña el fotograma más nítido de los últimos y el mejor valor de la sesión, para girar el enfocador hasta el mínimo.") }}</div>
             <!-- Modo continuo: una foto tras otra en el servidor hasta que se pare (ver foto_continua.py).
                  Cada foto puede guardarse en JPG (revelada, pocos MB) o FITS (en bruto, 18 MB) para no llenar el disco sin querer. -->
             <div id="fila-continuo" class="fila mt-2" style="justify-content: space-between;">
-                <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-continuo" onchange="cambiarModoContinuo()"> Modo continuo</label>
-                <span class="texto-3" style="font-size: 12.5px;">una foto tras otra hasta que pares</span>
+                <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-continuo" onchange="cambiarModoContinuo()"> {{ _("Modo continuo") }}</label>
+                <span class="texto-3" style="font-size: 12.5px;">{{ _("una foto tras otra hasta que pares") }}</span>
             </div>
             <div id="continuo-panel" hidden>
                 <div class="fila mt-1" style="justify-content: space-between;">
-                    <span class="texto-2" style="font-size: 14px;">Guardar cada foto</span>
+                    <span class="texto-2" style="font-size: 14px;">{{ _("Guardar cada foto") }}</span>
                     <div class="segmentado" id="continuo-guardar">
-                        <button type="button" data-v="no" onclick="elegirGuardarContinuo('no')">No</button>
+                        <button type="button" data-v="no" onclick="elegirGuardarContinuo('no')">{{ _("No") }}</button>
                         <button type="button" data-v="jpg" onclick="elegirGuardarContinuo('jpg')">JPG</button>
                         <button type="button" data-v="fits" onclick="elegirGuardarContinuo('fits')">FITS</button>
                     </div>
@@ -127,67 +127,65 @@
         <!-- ─── Modo día: exposición automática para Sol (con filtro), Luna y paisaje ─── -->
         <section class="card panel" data-panel="dia" id="card-dia">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>Modo día</h3>
+                <h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>{{ _("Modo día") }}</h3>
                 <!-- El interruptor va en la cabecera para poder activarlo con el panel plegado -->
-                <label class="switch" style="flex: none;" onclick="event.stopPropagation()"><input type="checkbox" id="modo-dia" onchange="cambiarModoDia()"> Activado</label>
+                <label class="switch" style="flex: none;" onclick="event.stopPropagation()"><input type="checkbox" id="modo-dia" onchange="cambiarModoDia()"> {{ _("Activado") }}</label>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div id="dia-cuerpo" class="panel-cuerpo" hidden>
-                <p class="card-sub">La app busca sola la exposición, de microsegundos a segundos, con la ganancia al mínimo y sin darks. Elige qué vas a fotografiar:</p>
+                <p class="card-sub">{{ _("La app busca sola la exposición, de microsegundos a segundos, con la ganancia al mínimo y sin darks. Elige qué vas a fotografiar:") }}</p>
                 <div class="segmentado" id="dia-objetivo">
-                    <button type="button" data-v="sol" onclick="elegirObjetivoDia('sol')">☀️ Sol</button>
-                    <button type="button" data-v="luna" onclick="elegirObjetivoDia('luna')">🌙 Luna</button>
-                    <button type="button" data-v="paisaje" onclick="elegirObjetivoDia('paisaje')">🏔️ Paisaje</button>
+                    <button type="button" data-v="sol" onclick="elegirObjetivoDia('sol')">{{ _("☀️ Sol") }}</button>
+                    <button type="button" data-v="luna" onclick="elegirObjetivoDia('luna')">{{ _("🌙 Luna") }}</button>
+                    <button type="button" data-v="paisaje" onclick="elegirObjetivoDia('paisaje')">{{ _("🏔️ Paisaje") }}</button>
                 </div>
                 <!-- Color del Sol: el disco neutro se ve blanco-azulado; lo típico es amarillo (foto_dia.COLORES_SOL) -->
                 <div id="dia-color-sol" class="fila mt-2" style="justify-content: space-between;" hidden>
-                    <span class="texto-2" style="font-size: 14px;">Color del Sol</span>
+                    <span class="texto-2" style="font-size: 14px;">{{ _("Color del Sol") }}</span>
                     <div class="segmentado" id="dia-color-sol-seg">
-                        <button type="button" data-v="amarillo" onclick="elegirColorSol('amarillo')">Amarillo</button>
-                        <button type="button" data-v="natural" onclick="elegirColorSol('natural')">Del filtro</button>
-                        <button type="button" data-v="blanco" onclick="elegirColorSol('blanco')">Blanco</button>
+                        <button type="button" data-v="amarillo" onclick="elegirColorSol('amarillo')">{{ _("Amarillo") }}</button>
+                        <button type="button" data-v="natural" onclick="elegirColorSol('natural')">{{ _("Del filtro") }}</button>
+                        <button type="button" data-v="blanco" onclick="elegirColorSol('blanco')">{{ _("Blanco") }}</button>
                     </div>
                 </div>
                 <small class="ayuda" id="dia-color-sol-ayuda" hidden></small>
                 <!-- De día no hay estrellas con que alinear: la montura se sincroniza con el disco (disco.py) -->
                 <div id="dia-disco" class="dia-disco mt-2" hidden>
                     <div class="acciones">
-                        <button type="button" id="btn-sync-disco" class="btn btn-secondary" onclick="sincronizarDisco(false)"><svg><use href="#i-sync"/></svg><span>Sincronizar con el Sol</span></button>
-                        <button type="button" id="btn-sync-centrar" class="btn btn-secondary" onclick="sincronizarDisco(true)"><svg><use href="#i-centrar"/></svg>Sincronizar y centrar</button>
+                        <button type="button" id="btn-sync-disco" class="btn btn-secondary" onclick="sincronizarDisco(false)"><svg><use href="#i-sync"/></svg><span>{{ _("Sincronizar con {nombre}", nombre=_("el Sol")) }}</span></button>
+                        <button type="button" id="btn-sync-centrar" class="btn btn-secondary" onclick="sincronizarDisco(true)"><svg><use href="#i-centrar"/></svg>{{ _("Sincronizar y centrar") }}</button>
                     </div>
                     <small class="ayuda" id="dia-disco-ayuda"></small>
                     <div class="fila mt-1" style="justify-content: space-between;">
-                        <label class="switch" style="margin: 0;"><input type="checkbox" id="guiado-disco" onchange="alternarGuiado()"> Mantener el disco centrado</label>
+                        <label class="switch" style="margin: 0;"><input type="checkbox" id="guiado-disco" onchange="alternarGuiado()"> {{ _("Mantener el disco centrado") }}</label>
                     </div>
-                    <small class="ayuda">Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de
-                        donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes.</small>
+                    <small class="ayuda">{{ _("Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes.") }}</small>
                     <div id="estado-disco" class="estado mt-1"></div>
                 </div>
                 <div id="dia-aviso-sol" class="aviso aviso-err mt-2" hidden>
                     <svg class="ico"><use href="#i-info"/></svg>
-                    <span><b>Filtro solar obligatorio</b>, delante del objetivo y bien sujeto, y tapa el buscador. Sin filtro, el Sol
-                    destroza el sensor en segundos y ciega a quien mire por el telescopio. La app no puede comprobar que el filtro está puesto.</span>
+                    <span>{{ _("<b>Filtro solar obligatorio</b>, delante del objetivo y bien sujeto, y tapa el buscador. Sin filtro, el Sol destroza el sensor en segundos y ciega a quien mire por el telescopio. La app no puede comprobar que el filtro está puesto.")|safe }}</span>
                 </div>
                 <div class="campo mt-2">
-                    <label for="dia-campo">Campo visible (recorte)</label>
+                    <label for="dia-campo">{{ _("Campo visible (recorte)") }}</label>
                     <select id="dia-campo" class="form-control" onchange="cambiarCampoDia()">
-                        <option value="100">100 % (campo completo)</option>
+                        <option value="100">{{ _("100 % (campo completo)") }}</option>
                         <option value="75">75 %</option>
                         <option value="50">50 %</option>
-                        <option value="35">35 % (Sol y Luna grandes)</option>
-                        <option value="25">25 % (objetos pequeños)</option>
+                        <option value="35">{{ _("35 % (Sol y Luna grandes)") }}</option>
+                        <option value="25">{{ _("25 % (objetos pequeños)") }}</option>
                     </select>
-                    <small class="ayuda">Recorta por los bordes la foto, las tomas del timelapse y el vídeo, y mide la exposición solo en esa zona. El FITS sigue a campo completo. Con 260 mm de focal, el Sol y la Luna ocupan un 20 % del ancho del sensor.</small>
+                    <small class="ayuda">{{ _("Recorta por los bordes la foto, las tomas del timelapse y el vídeo, y mide la exposición solo en esa zona. El FITS sigue a campo completo. Con 260 mm de focal, el Sol y la Luna ocupan un 20 % del ancho del sensor.") }}</small>
                 </div>
                 <!-- Compensación de la exposición automática, como el dial ±EV de una cámara. Se guarda en
                      config.ini y el servidor la relee en cada foto: se puede mover con el continuo o el timelapse en marcha. -->
                 <div class="campo mt-2">
-                    <div class="rango-titulo"><span>Compensación de la exposición automática</span>
-                        <span><b id="dia-comp-v"></b> <button type="button" id="dia-comp-cero" class="btn btn-sm btn-ghost" onclick="cambiarCompensacionDia(0)" hidden>Normal</button></span></div>
+                    <div class="rango-titulo"><span>{{ _("Compensación de la exposición automática") }}</span>
+                        <span><b id="dia-comp-v"></b> <button type="button" id="dia-comp-cero" class="btn btn-sm btn-ghost" onclick="cambiarCompensacionDia(0)" hidden>{{ _("Normal") }}</button></span></div>
                     <input type="range" id="dia-comp" min="-9" max="9" step="1" value="0" oninput="cambiarCompensacionDia(this.value)">
                     <small class="ayuda" id="dia-comp-ayuda"></small>
                 </div>
@@ -200,31 +198,30 @@
         <!-- ─── Timelapse (antes al final del panel Modo día, donde costaba encontrarlo). Solo de día. ─── -->
         <section class="card panel" data-panel="timelapse" id="card-timelapse" hidden>
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-reloj"/></svg>Timelapse</h3>
-                <span class="panel-sub">de día</span>
+                <h3 class="card-title"><svg class="ico"><use href="#i-reloj"/></svg>{{ _("Timelapse") }}</h3>
+                <span class="panel-sub">{{ _("de día") }}</span>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
-                <p class="card-sub">Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse
-                oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día.</p>
+                <p class="card-sub">{{ _("Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día.") }}</p>
                 <div class="dos-campos">
                     <div class="form-group">
-                        <label for="tl-fotos">Número de fotos</label>
+                        <label for="tl-fotos">{{ _("Número de fotos") }}</label>
                         <input type="number" id="tl-fotos" class="form-control" min="1" max="5000" step="1" value="100">
                     </div>
                     <div class="form-group">
-                        <label for="tl-intervalo">Cada (segundos)</label>
+                        <label for="tl-intervalo">{{ _("Cada (segundos)") }}</label>
                         <input type="number" id="tl-intervalo" class="form-control" min="1" max="3600" step="1" value="10">
                     </div>
                 </div>
                 <div id="tl-duracion" class="texto-3" style="font-size: 13px; margin-top: -4px;"></div>
                 <div class="acciones mt-2">
-                    <button type="button" id="btn-tl" class="btn btn-primary" onclick="empezarTimelapse()"><svg><use href="#i-play"/></svg>Empezar timelapse</button>
-                    <button type="button" id="btn-tl-parar" class="btn btn-danger" onclick="pararTimelapse()" hidden><svg><use href="#i-stop"/></svg>Parar</button>
+                    <button type="button" id="btn-tl" class="btn btn-primary" onclick="empezarTimelapse()"><svg><use href="#i-play"/></svg>{{ _("Empezar timelapse") }}</button>
+                    <button type="button" id="btn-tl-parar" class="btn btn-danger" onclick="pararTimelapse()" hidden><svg><use href="#i-stop"/></svg>{{ _("Parar") }}</button>
                 </div>
                 <div id="tl-progreso" class="mt-2" hidden>
                     <div class="fila entre"><span id="tl-texto" class="estado" style="color: var(--text);"></span><span id="tl-siguiente" class="texto-3" style="font-size: 13px;"></span></div>
@@ -233,8 +230,8 @@
                 <div id="tl-estado" class="estado mt-1"></div>
                 <div id="tl-video" class="mt-2" hidden>
                     <div class="fila">
-                        <button type="button" id="btn-tl-video" class="btn btn-secondary" onclick="montarVideo()"><svg><use href="#i-galeria"/></svg>Montar vídeo</button>
-                        <label style="margin: 0;">a <input type="number" id="tl-fps" class="corto" min="1" max="60" value="25" style="width: 64px;"> fotos/s</label>
+                        <button type="button" id="btn-tl-video" class="btn btn-secondary" onclick="montarVideo()"><svg><use href="#i-galeria"/></svg>{{ _("Montar vídeo") }}</button>
+                        <label style="margin: 0;">{{ _("a {campo} fotos/s", campo='<input type="number" id="tl-fps" class="corto" min="1" max="60" value="25" style="width: 64px;">')|safe }}</label>
                     </div>
                     <div id="tl-video-estado" class="estado mt-1"></div>
                 </div>
@@ -246,12 +243,12 @@
              Vale para todo lo de esta pantalla; el FITS queda sin girar ─── -->
         <section class="card panel" data-panel="giro">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-refrescar"/></svg>Giro de la foto</h3>
+                <h3 class="card-title"><svg class="ico"><use href="#i-refrescar"/></svg>{{ _("Giro de la foto") }}</h3>
                 <span class="panel-sub" id="giro-v"></span>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
@@ -261,16 +258,16 @@
                     <button type="button" data-cuartos="2" onclick="elegirCuartos(2)" style="flex: 1;">180°</button>
                     <button type="button" data-cuartos="3" onclick="elegirCuartos(3)" style="flex: 1;">270°</button>
                 </div>
-                <input type="range" id="giro-fino" min="-45" max="45" step="0.5" value="0" class="mt-2" title="Ajuste fino del giro"
+                <input type="range" id="giro-fino" min="-45" max="45" step="0.5" value="0" class="mt-2" title="{{ _('Ajuste fino del giro') }}"
                        oninput="pintarValorGiro()" onchange="programarGiro()">
-                <label class="fila-check"><input type="checkbox" id="giro-espejo" onchange="programarGiro()"> Espejo (voltear de izquierda a derecha)</label>
+                <label class="fila-check"><input type="checkbox" id="giro-espejo" onchange="programarGiro()"> {{ _("Espejo (voltear de izquierda a derecha)") }}</label>
                 <div class="fila mt-1" style="gap: 6px;">
                     <button type="button" class="btn btn-secondary btn-sm" id="btn-cenit" onclick="cenitArriba()" style="flex: 1;"
-                            title="Deja la foto como se ve a simple vista: arriba hacia el cénit y el acimut hacia la derecha">Cénit arriba</button>
-                    <button type="button" class="btn btn-ghost btn-sm" onclick="pintarGiro(0, false); programarGiro();" style="flex: 1;">Sin giro</button>
+                            title="{{ _('Deja la foto como se ve a simple vista: arriba hacia el cénit y el acimut hacia la derecha') }}">{{ _("Cénit arriba") }}</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="pintarGiro(0, false); programarGiro();" style="flex: 1;">{{ _("Sin giro") }}</button>
                 </div>
                 <div id="estado-giro" class="estado"></div>
-                <small class="ayuda">Gira en sentido horario lo que se ve y lo que se guarda en JPG desde esta pantalla (foto, continuo, modo en vivo, timelapse y galería); el FITS queda como lo da la cámara. Los cuartos de vuelta no pierden nada; con el ajuste fino se recorta lo justo para que no asomen las esquinas. «Cénit arriba» usa la orientación de la cámara del último plate solving y vale mientras no gires la cámara en el tubo. «Apunta aquí» lo tiene en cuenta.</small>
+                <small class="ayuda">{{ _("Gira en sentido horario lo que se ve y lo que se guarda en JPG desde esta pantalla (foto, continuo, modo en vivo, timelapse y galería); el FITS queda como lo da la cámara. Los cuartos de vuelta no pierden nada; con el ajuste fino se recorta lo justo para que no asomen las esquinas. «Cénit arriba» usa la orientación de la cámara del último plate solving y vale mientras no gires la cámara en el tubo. «Apunta aquí» lo tiene en cuenta.") }}</small>
             </div>
         </section>
 
@@ -278,17 +275,17 @@
              (el mismo de Control manual: templates/_pad.html y static/js/pad.js) ─── -->
         <section class="card panel" data-panel="pad">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-control"/></svg>Mover el telescopio</h3>
-                <span class="panel-sub">Sol o Luna a mano</span>
+                <h3 class="card-title"><svg class="ico"><use href="#i-control"/></svg>{{ _("Mover el telescopio") }}</h3>
+                <span class="panel-sub">{{ _("Sol o Luna a mano") }}</span>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo pad-cuerpo">
                 <div class="pad-opcion">
-                    <label class="switch" style="margin: 0;"><input type="checkbox" id="pad-sobre-foto" onchange="cambiarPadSobreFoto()"> Pad encima de la foto</label>
+                    <label class="switch" style="margin: 0;"><input type="checkbox" id="pad-sobre-foto" onchange="cambiarPadSobreFoto()"> {{ _("Pad encima de la foto") }}</label>
                     <small class="ayuda" id="pad-sobre-foto-ayuda"></small>
                 </div>
                 {% include '_pad.html' %}
@@ -297,11 +294,11 @@
 
         <section class="card panel" data-panel="vista-previa">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Revelado</h3>
+                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>{{ _("Revelado") }}</h3>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
@@ -311,14 +308,14 @@
                      revelado rápido (intensidad de color) se ajusta en Configuración. -->
                 <div id="revelar-bloque">
                     <button id="btn-revelar" class="btn btn-secondary btn-block" onclick="revelarComoApilado()" {% if not hay_foto %}disabled{% endif %}
-                            title="Reprocesa la foto que se ve con el procesado y el preset del panel de Apilado"><svg><use href="#i-refrescar"/></svg>Revelar como el apilado</button>
-                    <small class="ayuda">Vuelve a revelar la última foto de noche con el procesado y el preset de Apilado (gradiente, ruido, contraste...). Tarda unos segundos; la foto siguiente vuelve al revelado rápido.</small>
+                            title="{{ _('Reprocesa la foto que se ve con el procesado y el preset del panel de Apilado') }}"><svg><use href="#i-refrescar"/></svg>{{ _("Revelar como el apilado") }}</button>
+                    <small class="ayuda">{{ _("Vuelve a revelar la última foto de noche con el procesado y el preset de Apilado (gradiente, ruido, contraste...). Tarda unos segundos; la foto siguiente vuelve al revelado rápido.") }}</small>
                     <div id="estado-revelar" class="estado"></div>
                 </div>
             </div>
         </section>
 
-        <a href="{{ url_for('vista_calibracion') }}" class="btn btn-ghost btn-block"><svg><use href="#i-calibracion"/></svg>Calibración: darks y flats</a>
+        <a href="{{ url_for('vista_calibracion') }}" class="btn btn-ghost btn-block"><svg><use href="#i-calibracion"/></svg>{{ _("Calibración: darks y flats") }}</a>
     </div>
 </div>
 
@@ -399,15 +396,16 @@
     //     el progreso en el sello, se cambia de golpe al terminar (nunca a medio pintar) y el sello dice
     //     de qué hora es y cuánto hace que llegó. Si llega otra antes de acabar, la anterior se deja.
     let cargaFoto = null, urlFotoBlob = null, horaFoto = null, llegadaFoto = 0, destelloSello = null;
-    function kbLegible(b) { return b >= 1024 ** 2 ? (b / 1024 ** 2).toFixed(1).replace(".", ",") + " MB" : Math.round(b / 1024) + " KB"; }
+    function kbLegible(b) { return b >= 1024 ** 2 ? fmtNum(b / 1024 ** 2, 1) + " MB" : Math.round(b / 1024) + " KB"; }
     function pintarSello() {
         const sello = document.getElementById("foto-sello");
         if (cargaFoto || destelloSello) return;          // mientras baja o destella, el sello dice otra cosa
         if (!llegadaFoto || vivoActivo) { sello.hidden = true; return; }
         const s = Math.max(0, Math.round((Date.now() - llegadaFoto) / 1000));
         sello.hidden = false;
-        sello.textContent = (horaFoto ? `Foto de las ${horaFoto}` : "Foto") + " · llegó hace "
-            + (s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s / 60)} min` : "más de una hora");
+        const hace = s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s / 60)} min` : null;
+        sello.textContent = (horaFoto ? _("Foto de las {hora}", { hora: horaFoto }) : _("Foto")) + " · "
+            + (hace ? _("llegó hace {t}", { t: hace }) : _("llegó hace más de una hora"));
     }
     setInterval(pintarSello, 1000);
     function cancelarCargaFoto() {
@@ -428,8 +426,8 @@
         const pintar = (recibidos, total) => {
             if (cargaFoto !== ctrl) return;
             sello.hidden = false;
-            sello.innerHTML = '<span class="spinner"></span>' + (nueva ? "Recibiendo la foto nueva" : "Recibiendo la foto")
-                + (total ? ` · ${Math.min(100, Math.round(100 * recibidos / total))} % de ${kbLegible(total)}`
+            sello.innerHTML = '<span class="spinner"></span>' + (nueva ? _("Recibiendo la foto nueva") : _("Recibiendo la foto"))
+                + (total ? " · " + _("{pct} % de {total}", { pct: Math.min(100, Math.round(100 * recibidos / total)), total: kbLegible(total) })
                          : recibidos ? ` · ${kbLegible(recibidos)}` : "…");
         };
         pintar(0, 0);
@@ -463,11 +461,11 @@
                 if (anterior) setTimeout(() => URL.revokeObjectURL(anterior), 2000);
                 const segundos = (performance.now() - t0) / 1000;
                 if (nueva) {
-                    horaFoto = hora || new Date().toLocaleTimeString("es-ES");
+                    horaFoto = hora || fmtHora(new Date());
                     llegadaFoto = Date.now();
                     sello.hidden = false;
                     sello.classList.add("nueva");
-                    sello.textContent = `✓ Foto nueva · ${horaFoto}`;
+                    sello.textContent = _("✓ Foto nueva · {hora}", { hora: horaFoto });
                     destelloSello = setTimeout(() => { destelloSello = null; sello.classList.remove("nueva"); pintarSello(); }, 2500);
                 } else {
                     pintarSello();
@@ -482,11 +480,11 @@
                 document.getElementById("foto").src = url;
                 if (nueva) { horaFoto = hora; llegadaFoto = Date.now(); }
                 sello.hidden = false;
-                sello.textContent = "⚠️ La foto llega con problemas por la wifi: reintentando…";
+                sello.textContent = _("⚠️ La foto llega con problemas por la wifi: reintentando…");
             });
     }
     function textoLlegada(info) {
-        return ` · llegó al móvil en ${info.segundos.toFixed(1).replace(".", ",")} s (${kbLegible(info.bytes)})`;
+        return " · " + _("llegó al móvil en {s} s ({tam})", { s: fmtNum(info.segundos, 1), tam: kbLegible(info.bytes) });
     }
 
     function fotoMostrada(nueva) {
@@ -570,8 +568,8 @@
         flotante.classList.toggle("izquierda", izquierda);
         document.getElementById("pad-sobre-foto").checked = padSobreFoto;
         document.getElementById("pad-sobre-foto-ayuda").textContent = padSobreFoto
-            ? "El pad está en una esquina de la foto (⇆ lo cambia de esquina). Aquí quedan la velocidad y el sentido."
-            : "El pad está aquí abajo. Actívalo para tenerlo sobre la foto y no tener que plegar paneles.";
+            ? _("El pad está en una esquina de la foto (⇆ lo cambia de esquina). Aquí quedan la velocidad y el sentido.")
+            : _("El pad está aquí abajo. Actívalo para tenerlo sobre la foto y no tener que plegar paneles.");
     }
     function cambiarPadSobreFoto() {
         padSobreFoto = document.getElementById("pad-sobre-foto").checked;
@@ -599,7 +597,7 @@
             const hechos = Math.max(0, c.exposicion - c.restante);
             barra.style.width = (c.exposicion > 0 ? 100 * hechos / c.exposicion : 0) + "%";
             // De día las exposiciones son de milisegundos: "1 / 0.00027 s" no dice nada
-            const texto = c.exposicion >= 1 ? `Exponiendo · ${Math.ceil(hechos)} / ${c.exposicion} s` : `Exponiendo · ${formatearExp(c.exposicion)}`;
+            const texto = c.exposicion >= 1 ? _("Exponiendo · {hechos} / {total} s", { hechos: Math.ceil(hechos), total: c.exposicion }) : _("Exponiendo · {exp}", { exp: formatearExp(c.exposicion) });
             document.getElementById("estado-foto-pie").textContent = texto;
             document.getElementById("estado-foto").textContent = texto;
         }
@@ -613,7 +611,8 @@
     // ——— Modo día ———
     let modoDia = false, objetivoDia = "paisaje", solConfirmado = false, sondeoDia = null;
     let seguimientoCambiado = false;      // se puso solar/lunar: al salir del modo día se vuelve a sidéreo
-    const NOMBRE_OBJETIVO = { sol: "Sol", luna: "Luna", paisaje: "paisaje" };
+    const NOMBRE_OBJETIVO = { sol: N_("Sol"), luna: N_("Luna"), paisaje: N_("paisaje") };
+    const OBJETIVO_ART = { sol: N_("el Sol"), luna: N_("la Luna"), paisaje: N_("el paisaje") };   // dentro de una frase
 
     function pintarModoDia() {
         document.getElementById("modo-dia").checked = modoDia;
@@ -637,8 +636,8 @@
         document.getElementById("fila-exposicion").hidden = modoDia; // y la exposición la busca la app
         document.getElementById("exposicion-ayuda").hidden = modoDia;
         document.getElementById("sub-foto").textContent = modoDia
-            ? "Modo día: la exposición se ajusta sola. Apunta con GoTo (Sol, Luna) y afina con el control manual."
-            : "Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.";
+            ? _("Modo día: la exposición se ajusta sola. Apunta con GoTo (Sol, Luna) y afina con el control manual.")
+            : _("Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.");
     }
     function cambiarModoDia() {
         modoDia = document.getElementById("modo-dia").checked;
@@ -648,7 +647,7 @@
         if (!modoDia && seguimientoCambiado) {
             seguimientoCambiado = false;
             fetch("/foto-dia/seguimiento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ velocidad: "sidereo" }) })
-                .then(r => r.json()).then(d => { document.getElementById("estado-foto").textContent = d.ok ? "✅ Montura de vuelta a seguimiento sidéreo" : "⚠️ " + d.mensaje; }).catch(() => {});
+                .then(r => r.json()).then(d => { document.getElementById("estado-foto").textContent = d.ok ? _("✅ Montura de vuelta a seguimiento sidéreo") : "⚠️ " + d.mensaje; }).catch(() => {});
         }
     }
     function campoDia() { return parseInt(document.getElementById("dia-campo").value) || 100; }
@@ -658,16 +657,18 @@
     let compDia = 0, guardarCompTimer = null;               // tercios de EV: −9..+9
     function evDia() { return compDia / 3; }
     function nivelObjetivoDia() { return Math.min(0.92, Math.max(0.03, (NIVEL_OBJETIVO[objetivoDia] || 0.65) * Math.pow(2, evDia()))); }
-    function textoEv(ev) { return ev === 0 ? "0 EV" : (ev > 0 ? "+" : "−") + Math.abs(ev).toFixed(1).replace(".0", "").replace(".", ",") + " EV"; }
+    function textoEv(ev) { return ev === 0 ? "0 EV" : (ev > 0 ? "+" : "−") + Math.abs(ev).toLocaleString(IDIOMA.locale, { maximumFractionDigits: 1 }) + " EV"; }
     function pintarCompensacionDia() {
         const ev = evDia(), s = document.getElementById("dia-comp");
         if (parseInt(s.value) !== compDia) s.value = compDia;
-        document.getElementById("dia-comp-v").textContent = textoEv(ev) + (ev === 0 ? "" : ev > 0 ? " · más clara" : " · más oscura");
+        document.getElementById("dia-comp-v").textContent = textoEv(ev) + (ev === 0 ? "" : " · " + (ev > 0 ? _("más clara") : _("más oscura")));
         document.getElementById("dia-comp-cero").hidden = ev === 0;
         const normal = Math.round(100 * (NIVEL_OBJETIVO[objetivoDia] || 0.65));
         document.getElementById("dia-comp-ayuda").textContent = ev === 0
-            ? `La zona más brillante de la foto se lleva al ${normal} % del blanco (lo normal para ${NOMBRE_OBJETIVO[objetivoDia]}). Baja si ves zonas quemadas; sube si sale oscura.`
-            : `La zona más brillante irá al ${Math.round(100 * nivelObjetivoDia())} % del blanco en vez del ${normal} %, y la foto se revela ${ev > 0 ? "más clara" : "más oscura"} en la misma medida. Vale desde la siguiente foto, también con el continuo, el vivo o el timelapse en marcha.`;
+            ? _("La zona más brillante de la foto se lleva al {normal} % del blanco (lo normal para {objetivo}). Baja si ves zonas quemadas; sube si sale oscura.", { normal, objetivo: _(OBJETIVO_ART[objetivoDia]) })
+            : ev > 0
+            ? _("La zona más brillante irá al {pct} % del blanco en vez del {normal} %, y la foto se revela más clara en la misma medida. Vale desde la siguiente foto, también con el continuo, el vivo o el timelapse en marcha.", { pct: Math.round(100 * nivelObjetivoDia()), normal })
+            : _("La zona más brillante irá al {pct} % del blanco en vez del {normal} %, y la foto se revela más oscura en la misma medida. Vale desde la siguiente foto, también con el continuo, el vivo o el timelapse en marcha.", { pct: Math.round(100 * nivelObjetivoDia()), normal });
     }
     function cambiarCompensacionDia(v) {
         compDia = Math.max(-9, Math.min(9, parseInt(v) || 0));
@@ -680,15 +681,15 @@
     function pintarDisco() {
         const ver = modoDia && (objetivoDia === "sol" || objetivoDia === "luna");
         document.getElementById("dia-disco").hidden = !ver;
-        const nombre = objetivoDia === "luna" ? "la Luna" : "el Sol";
-        document.querySelector("#btn-sync-disco span").textContent = `Sincronizar con ${nombre}`;
-        document.getElementById("dia-disco-ayuda").textContent = `De día no hay estrellas: con ${nombre} en la foto (entero o casi), `
-            + "la montura aprende dónde apunta y deja de derivar. No hace falta centrarlo antes. Necesita haber hecho alguna vez un plate solving de noche.";
+        const clave = objetivoDia === "luna" ? "luna" : "sol";
+        const nombre = _(OBJETIVO_ART[clave]);
+        document.querySelector("#btn-sync-disco span").textContent = _("Sincronizar con {nombre}", { nombre });
+        document.getElementById("dia-disco-ayuda").textContent = _("De día no hay estrellas: con {nombre} en la foto (entero o casi), la montura aprende dónde apunta y deja de derivar. No hace falta centrarlo antes. Necesita haber hecho alguna vez un plate solving de noche.", { nombre });
     }
     function sincronizarDisco(centrar) {
         const est = document.getElementById("estado-disco");
         ["btn-sync-disco", "btn-sync-centrar"].forEach(id => document.getElementById(id).disabled = true);
-        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>Buscando el disco en la foto y sincronizando...';
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Buscando el disco en la foto y sincronizando...");
         fetch("/disco/sincronizar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ centrar }) })
             .then(r => r.json())
             .then(d => {
@@ -719,11 +720,11 @@
         if (guiadoActivo) {
             est.className = "estado mt-1";
             est.innerHTML = '<span class="spinner"></span>' + e.mensaje
-                + (e.correcciones ? ` · ${e.correcciones} ${e.correcciones === 1 ? "corrección" : "correcciones"}` : "")
-                + (e.deriva_arcmin_min !== null && e.deriva_arcmin_min !== undefined ? ` · deriva ${String(e.deriva_arcmin_min).replace(".", ",")}′/min` : "");
+                + (e.correcciones ? " · " + ngettext("{n} corrección", "{n} correcciones", e.correcciones) : "")
+                + (e.deriva_arcmin_min !== null && e.deriva_arcmin_min !== undefined ? " · " + _("deriva {v}′/min", { v: fmtNum(e.deriva_arcmin_min) }) : "");
         } else if (e.mensaje) {
-            est.className = "estado mt-1 " + (e.mensaje.startsWith("Guiado detenido") ? "warn" : "");
-            est.textContent = e.mensaje + (e.correcciones ? ` (${e.correcciones} correcciones)` : "");
+            est.className = "estado mt-1 " + (e.detenido ? "warn" : "");
+            est.textContent = e.mensaje + (e.correcciones ? " (" + ngettext("{n} corrección", "{n} correcciones", e.correcciones) + ")" : "");
         }
         return guiadoActivo;
     }
@@ -737,16 +738,16 @@
     // ——— Color del Sol (preferencia foto_dia_color_sol): vale desde la siguiente foto ———
     let colorSol = "amarillo";
     const AYUDA_COLOR_SOL = {
-        amarillo: "El amarillo de las fotos típicas del Sol, sea cual sea el filtro.",
-        natural: "El color que da tu filtro solar, con el balance de luz de día (el de la Luna).",
-        blanco: "El disco gris neutro: la luz del Sol sin color.",
+        amarillo: N_("El amarillo de las fotos típicas del Sol, sea cual sea el filtro."),
+        natural: N_("El color que da tu filtro solar, con el balance de luz de día (el de la Luna)."),
+        blanco: N_("El disco gris neutro: la luz del Sol sin color."),
     };
     function pintarColorSol() {
         const ver = modoDia && objetivoDia === "sol";
         document.getElementById("dia-color-sol").hidden = !ver;
         document.getElementById("dia-color-sol-ayuda").hidden = !ver;
         document.querySelectorAll("#dia-color-sol-seg button").forEach(b => b.classList.toggle("activo", b.dataset.v === colorSol));
-        document.getElementById("dia-color-sol-ayuda").textContent = AYUDA_COLOR_SOL[colorSol] + " Vale desde la siguiente foto.";
+        document.getElementById("dia-color-sol-ayuda").textContent = _(AYUDA_COLOR_SOL[colorSol]) + " " + _("Vale desde la siguiente foto.");
     }
     function elegirColorSol(v) {
         colorSol = v;
@@ -767,17 +768,18 @@
     let ultimasDia = {};
     function pintarUltimasDia() {
         const u = ultimasDia[objetivoDia];
-        document.getElementById("dia-info").textContent = u ? `Última exposición buena para ${NOMBRE_OBJETIVO[objetivoDia]}: ${u.texto}. La búsqueda empieza ahí.` : "Todavía no hay una exposición guardada para este objetivo; la búsqueda empieza desde un valor típico.";
+        document.getElementById("dia-info").textContent = u ? _("Última exposición buena para {objetivo}: {texto}. La búsqueda empieza ahí.", { objetivo: _(OBJETIVO_ART[objetivoDia]), texto: u.texto }) : _("Todavía no hay una exposición guardada para este objetivo; la búsqueda empieza desde un valor típico.");
     }
     function textoIntentos(e) {
         if (!e.intentos || !e.intentos.length) return "";
-        return "Pruebas: " + e.intentos.map(i => `${formatearExp(i.exposicion)} → ${Math.round(100 * i.nivel)} %`).join(" · ");
+        return _("Pruebas: {lista}", { lista: e.intentos.map(i => `${formatearExp(i.exposicion)} → ${Math.round(100 * i.nivel)} %`).join(" · ") });
     }
+    function numCorto(x, dec) { return Number(x).toLocaleString(IDIOMA.locale, { maximumFractionDigits: dec, useGrouping: false }); }
     function formatearExp(s) {
         if (s === null || s === undefined) return "?";
         if (s < 0.001) return Math.round(s * 1e6) + " µs";
-        if (s < 1) return (s * 1000).toFixed(1).replace(".0", "") + " ms";
-        return s.toFixed(2).replace(".00", "") + " s";
+        if (s < 1) return numCorto(s * 1000, 1) + " ms";
+        return numCorto(s, 2) + " s";
     }
 
     // ——— Timelapse ———
@@ -785,8 +787,8 @@
     function textoDuracion() {
         const n = parseInt(document.getElementById("tl-fotos").value) || 0, i = parseFloat(document.getElementById("tl-intervalo").value) || 0;
         const s = n * i;
-        const dur = s >= 3600 ? `${(s / 3600).toFixed(1)} h` : s >= 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`;
-        document.getElementById("tl-duracion").textContent = n && i ? `Durará unos ${dur}; a 25 fotos por segundo, el vídeo tendrá ${(n / 25).toFixed(1)} s.` : "";
+        const dur = s >= 3600 ? `${fmtNum(s / 3600, 1)} h` : s >= 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`;
+        document.getElementById("tl-duracion").textContent = n && i ? _("Durará unos {dur}; a 25 fotos por segundo, el vídeo tendrá {s} s.", { dur, s: fmtNum(n / 25, 1) }) : "";
     }
     ["tl-fotos", "tl-intervalo"].forEach(id => document.getElementById(id).addEventListener("input", textoDuracion));
     textoDuracion();
@@ -794,16 +796,16 @@
     function empezarTimelapse() {
         const est = document.getElementById("tl-estado");
         if (objetivoDia === "sol" && !solConfirmado) {
-            if (!confirm("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio.")) return;
+            if (!confirm(_("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio."))) return;
             solConfirmado = true;
         }
         const fotos = parseInt(document.getElementById("tl-fotos").value) || 100;
         const intervalo = parseFloat(document.getElementById("tl-intervalo").value) || 10;
-        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>Empezando el timelapse...';
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Empezando el timelapse...");
         fetch("/timelapse/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, fotos, intervalo, campo: campoDia() }) })
             .then(r => r.json())
             .then(d => {
-                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); return; }
                 carpetaTl = d.carpeta;
                 if (!sondeoTl) sondeoTl = setInterval(sondearTimelapse, 1000);
                 sondearTimelapse();
@@ -821,9 +823,9 @@
         document.getElementById("tl-progreso").hidden = !activo && !e.terminado;
         const est = document.getElementById("tl-estado");
         if (activo || e.terminado) {
-            document.getElementById("tl-texto").textContent = `${e.hechas} / ${e.total} fotos` + (e.exposicion ? ` · ${e.exposicion_texto}` + (e.nivel !== null ? ` · nivel ${Math.round(100 * e.nivel)} %` : "") : "");
+            document.getElementById("tl-texto").textContent = _("{hechas} / {total} fotos", { hechas: e.hechas, total: e.total }) + (e.exposicion ? ` · ${e.exposicion_texto}` + (e.nivel !== null ? " · " + _("nivel {pct} %", { pct: Math.round(100 * e.nivel) }) : "") : "");
             document.getElementById("tl-barra").style.width = (e.total ? 100 * e.hechas / e.total : 0) + "%";
-            document.getElementById("tl-siguiente").textContent = activo ? (e.captura && e.captura.en_curso ? "exponiendo…" : (e.siguiente_en > 0 ? `siguiente en ${Math.ceil(e.siguiente_en)} s` : "")) : "";
+            document.getElementById("tl-siguiente").textContent = activo ? (e.captura && e.captura.en_curso ? _("exponiendo…") : (e.siguiente_en > 0 ? _("siguiente en {s} s", { s: Math.ceil(e.siguiente_en) }) : "")) : "";
         }
         if (activo) { est.className = "estado mt-1"; est.innerHTML = `<span class="spinner"></span>${e.mensaje}`; }
         else if (e.terminado) { est.className = "estado " + (e.error ? "warn" : "ok") + " mt-1"; est.textContent = (e.error ? "⚠️ " : "✅ ") + e.mensaje; }
@@ -833,7 +835,7 @@
             cargarFoto(`/static/timelapse/${e.carpeta}/${e.ultima.archivo}?v=${e.version}`, { hora: e.ultima.hora });
             fotoMostrada(false);
             document.getElementById("estado-foto").className = "estado mt-2";
-            document.getElementById("estado-foto").textContent = `Timelapse: foto ${e.ultima.n} a las ${e.ultima.hora} · ${formatearExp(e.ultima.exposicion)}`;
+            document.getElementById("estado-foto").textContent = _("Timelapse: foto {n} a las {hora} · {exp}", { n: e.ultima.n, hora: e.ultima.hora, exp: formatearExp(e.ultima.exposicion) });
         }
         // vídeo: se puede montar cuando hay una serie terminada (o cancelada con fotos)
         const puedeVideo = !activo && e.carpeta && e.hechas >= 2;
@@ -841,8 +843,8 @@
         if (puedeVideo) carpetaTl = e.carpeta;
         const v = e.video;
         const ve = document.getElementById("tl-video-estado");
-        if (v && v.en_curso) { document.getElementById("btn-tl-video").disabled = true; ve.className = "estado mt-1"; ve.innerHTML = `<span class="spinner"></span>Montando el vídeo… ${v.progreso} %`; }
-        else if (v && v.ruta) { document.getElementById("btn-tl-video").disabled = false; ve.className = "estado ok mt-1"; ve.innerHTML = `✅ Vídeo listo: <a href="/static/timelapse/${v.carpeta}/timelapse.mp4" target="_blank">abrir o descargar timelapse.mp4</a>`; }
+        if (v && v.en_curso) { document.getElementById("btn-tl-video").disabled = true; ve.className = "estado mt-1"; ve.innerHTML = '<span class="spinner"></span>' + _("Montando el vídeo… {pct} %", { pct: v.progreso }); }
+        else if (v && v.ruta) { document.getElementById("btn-tl-video").disabled = false; ve.className = "estado ok mt-1"; ve.innerHTML = "✅ " + _("Vídeo listo:") + ` <a href="/static/timelapse/${v.carpeta}/timelapse.mp4" target="_blank">` + _("abrir o descargar {fichero}", { fichero: "timelapse.mp4" }) + "</a>"; }
         else if (v && v.error) { document.getElementById("btn-tl-video").disabled = false; ve.className = "estado err mt-1"; ve.textContent = "❌ " + v.error; }
         pintarAnteriores(e.anteriores || []);
         return activo || (v && v.en_curso);
@@ -850,13 +852,13 @@
     function pintarAnteriores(lista) {
         const cont = document.getElementById("tl-anteriores");
         if (!lista.length) { cont.innerHTML = ""; return; }
-        cont.innerHTML = '<div class="seccion-titulo">Timelapses guardados</div><ul class="tl-lista">' + lista.map(t => {
+        cont.innerHTML = '<div class="seccion-titulo">' + _("Timelapses guardados") + '</div><ul class="tl-lista">' + lista.map(t => {
             // Miniatura pequeña; los timelapses de antes de que existiera van sin imagen (la foto entera pesa varios MB)
             const img = t.miniatura ? `<img src="/static/timelapse/${t.carpeta}/${t.miniatura}" alt="">` : "";
-            const fecha = t.carpeta.replace(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})\d{2}_(\w+)$/, "$3/$2/$1 $4:$5 · $6");
-            const video = t.video ? `<a class="btn btn-sm btn-secondary" href="/static/timelapse/${t.carpeta}/timelapse.mp4" target="_blank">Vídeo</a>`
-                                  : `<button type="button" class="btn btn-sm btn-ghost" onclick="montarVideo('${t.carpeta}')">Montar vídeo</button>`;
-            return `<li>${img}<span class="nombre">${fecha}<small>${t.fotos} fotos</small></span>${video}</li>`;
+            const fecha = t.carpeta.replace(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})\d{2}_(\w+)$/, IDIOMA.codigo === "es" ? "$3/$2/$1 $4:$5 · $6" : "$1-$2-$3 $4:$5 · $6");
+            const video = t.video ? `<a class="btn btn-sm btn-secondary" href="/static/timelapse/${t.carpeta}/timelapse.mp4" target="_blank">` + _("Vídeo") + "</a>"
+                                  : `<button type="button" class="btn btn-sm btn-ghost" onclick="montarVideo('${t.carpeta}')">` + _("Montar vídeo") + "</button>";
+            return `<li>${img}<span class="nombre">${fecha}<small>` + ngettext("{n} foto", "{n} fotos", t.fotos) + `</small></span>${video}</li>`;
         }).join("") + "</ul>";
     }
     function montarVideo(carpeta) {
@@ -865,7 +867,7 @@
         const fps = parseInt(document.getElementById("tl-fps").value) || 25;
         document.getElementById("tl-video").hidden = false;
         const ve = document.getElementById("tl-video-estado");
-        ve.className = "estado mt-1"; ve.innerHTML = '<span class="spinner"></span>Montando el vídeo…';
+        ve.className = "estado mt-1"; ve.innerHTML = '<span class="spinner"></span>' + _("Montando el vídeo…");
         fetch("/timelapse/video", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ carpeta, fps }) })
             .then(r => r.json())
             .then(d => {
@@ -886,17 +888,17 @@
         const btn = document.getElementById("btn-foto");
         const est = document.getElementById("estado-foto");
         if (objetivoDia === "sol" && !solConfirmado) {
-            if (!confirm("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio.")) return;
+            if (!confirm(_("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio."))) return;
             solConfirmado = true;
         }
         btn.disabled = true;
         document.getElementById("btn-cancelar").style.display = "inline-flex";
-        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Preparando la cámara...';
+        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>' + _("Preparando la cámara...");
         document.getElementById("dia-intentos").textContent = "";
         fetch("/foto-dia/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, campo: campoDia() }) })
             .then(r => r.json())
             .then(d => {
-                if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); terminarFotoDia(); return; }
+                if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); terminarFotoDia(); return; }
                 if (!sondeoDia) sondeoDia = setInterval(sondearFotoDia, 700);
                 sondearFotoDia();
             })
@@ -917,7 +919,7 @@
                 if (e.error) { est.className = "estado err mt-2"; est.textContent = "❌ " + e.error; }
                 else {
                     est.className = "estado " + (e.saturada ? "warn" : "ok") + " mt-2";
-                    est.textContent = (e.saturada ? "⚠️ " : "✅ ") + e.mensaje + (e.ganancia !== null && e.ganancia !== undefined ? ` · ganancia ${e.ganancia}` : "");
+                    est.textContent = (e.saturada ? "⚠️ " : "✅ ") + e.mensaje + (e.ganancia !== null && e.ganancia !== undefined ? " · " + _("ganancia {g}", { g: e.ganancia }) : "");
                     cargarFoto("/imagen-capturada?" + Date.now(), { alTerminar: info => { est.textContent += textoLlegada(info); } });
                     fotoMostrada(false);
                     if (e.seguimiento) seguimientoCambiado = true;
@@ -961,18 +963,18 @@
     function empezarVivo() {
         const est = document.getElementById("estado-foto");
         if (objetivoDia === "sol" && !solConfirmado) {
-            if (!confirm("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio.")) return;
+            if (!confirm(_("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio."))) return;
             solConfirmado = true;
         }
-        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Pasando la cámara al modo en vivo...';
+        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>' + _("Pasando la cámara al modo en vivo...");
         document.getElementById("btn-vivo").disabled = true;
         fetch("/vivo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, campo: campoDia() }) })
             .then(r => r.json())
             .then(d => {
                 document.getElementById("btn-vivo").disabled = false;
-                if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
+                if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); return; }
                 if (d.seguimiento) seguimientoCambiado = true;
-                pintarVivo({ en_curso: true, fase: "preparando", mensaje: "Pasando la cámara al modo en vivo..." });
+                pintarVivo({ en_curso: true, fase: "preparando", mensaje: _("Pasando la cámara al modo en vivo...") });
                 if (!sondeoVivo) sondeoVivo = setInterval(sondearVivo, 1000);
                 pedirFotoVivo();
             })
@@ -1011,7 +1013,7 @@
         vivoActivo = !!e.en_curso;
         const btn = document.getElementById("btn-vivo");
         btn.className = "btn " + (vivoActivo ? "btn-danger" : "btn-secondary");
-        btn.innerHTML = vivoActivo ? '<svg><use href="#i-stop"/></svg>Parar en vivo' : '<svg><use href="#i-play"/></svg>En vivo';
+        btn.innerHTML = vivoActivo ? '<svg><use href="#i-stop"/></svg>' + _("Parar en vivo") : '<svg><use href="#i-play"/></svg>' + _("En vivo");
         if (!vivoActivo) btn.disabled = false;
         // Mientras dura, la cámara es del modo en vivo: nada de fotos, continuo, timelapse ni cambiar de modo
         ["btn-foto", "modo-continuo", "modo-dia", "btn-tl", "dia-campo"].forEach(id => document.getElementById(id).disabled = vivoActivo);
@@ -1020,14 +1022,14 @@
         if (vivoActivo) {
             est.className = "estado mt-2";
             est.innerHTML = e.fase === "en vivo"
-                ? `<span class="spinner"></span>En vivo · ${e.fps || 0} fotos/s · ${e.exposicion_texto}` + (e.nivel !== null && e.nivel !== undefined ? ` · nivel ${Math.round(100 * e.nivel)} %` : "")
+                ? '<span class="spinner"></span>' + _("En vivo · {fps} fotos/s · {exp}", { fps: fmtNum(e.fps || 0), exp: e.exposicion_texto }) + (e.nivel !== null && e.nivel !== undefined ? " · " + _("nivel {pct} %", { pct: Math.round(100 * e.nivel) }) : "")
                   + (e.color ? ` · ${e.color}` : "") + (hayEnfoque(e.enfoque) ? " · " + textoEnfoque(e.enfoque) : "")
                 : `<span class="spinner"></span>${e.mensaje}`;
             if (!antes) { versionVivo = -1; cancelarCargaFoto(); pedirFotoVivo(); }
         } else if (antes || e.terminado) {
             clearTimeout(esperaVivo);
             est.className = "estado " + (e.error ? "err" : "ok") + " mt-2";
-            est.textContent = (e.error ? "❌ " : "✅ ") + (e.mensaje || "Modo en vivo terminado");
+            est.textContent = (e.error ? "❌ " : "✅ ") + (e.mensaje || _("Modo en vivo terminado"));
             if (antes) cargarFoto("/imagen-capturada?" + Date.now(), { nueva: false });   // vuelve la última foto
         }
         return vivoActivo;
@@ -1043,17 +1045,20 @@
     // ——— Modo enfoque: solo verde (enfoque.py) ———
     function hayEnfoque(i) { return !!i && (!!i.fwhm_g || ("limbo" in i)); }
     function textoEnfoque(i) {
-        const f = v => (v === null || v === undefined || !isFinite(v)) ? null : v.toFixed(1).replace(".", ",");
+        const f = v => (v === null || v === undefined || !isFinite(v)) ? null : fmtNum(v, 1);
         if ("limbo" in i) {
-            if (f(i.limbo) === null) return "limbo: " + (i.motivo || "no se ve el disco");
-            let t = "limbo " + f(i.limbo) + " px";
-            if (f(i.mejor) !== null) t += " · mejor " + f(i.mejor);
-            if (i.n) t += ` · ${i.n} ángulos`;
+            if (f(i.limbo) === null) {
+                const motivo = i.motivo || _("no se ve el disco");
+                return _("limbo: {motivo}", { motivo });
+            }
+            let t = _("limbo {v} px", { v: f(i.limbo) });
+            if (f(i.mejor) !== null) t += " · " + _("mejor {v}", { v: f(i.mejor) });
+            if (i.n) t += " · " + ngettext("{n} ángulo", "{n} ángulos", i.n);
             return t;
         }
-        let s = "FWHM verde " + f(i.fwhm_g) + " px";
-        if (f(i.fwhm_r) !== null) s += " · rojo " + f(i.fwhm_r);
-        if (f(i.fwhm_b) !== null) s += " · azul " + f(i.fwhm_b);
+        let s = _("FWHM verde {v} px", { v: f(i.fwhm_g) });
+        if (f(i.fwhm_r) !== null) s += " · " + _("rojo {v}", { v: f(i.fwhm_r) });
+        if (f(i.fwhm_b) !== null) s += " · " + _("azul {v}", { v: f(i.fwhm_b) });
         return s;
     }
     function pintarModoEnfoque(activo) {
@@ -1078,24 +1083,24 @@
     // ——— Modo continuo ———
     let modoContinuo = false, guardarContinuo = "no", sondeoContinuo = null, ultimaVersionContinuo = -1, continuoActivo = false;
     const AYUDA_GUARDAR = {
-        no: "Solo se ve en pantalla; no se guarda nada.",
-        jpg: "Cada foto se guarda revelada a resolución completa (unos 2–4 MB) en static/continuo/. Para tener la serie sin llenar el disco.",
-        fits: "Cada foto se guarda en bruto, 16 bits (unos 18 MB con la Saturn-C), en static/continuo/. Solo si luego vas a apilarlas o medirlas: el disco se llena deprisa.",
+        no: N_("Solo se ve en pantalla; no se guarda nada."),
+        jpg: N_("Cada foto se guarda revelada a resolución completa (unos 2–4 MB) en static/continuo/. Para tener la serie sin llenar el disco."),
+        fits: N_("Cada foto se guarda en bruto, 16 bits (unos 18 MB con la Saturn-C), en static/continuo/. Solo si luego vas a apilarlas o medirlas: el disco se llena deprisa."),
     };
     function ayudaGuardar() {
         const ritmo = modoDia
-            ? " De día la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado."
-            : " Cada foto tarda la exposición elegida arriba (o la de Configuración) más unos segundos de descarga y revelado.";
-        return (AYUDA_GUARDAR[guardarContinuo] || "") + ritmo;
+            ? " " + _("De día la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado.")
+            : " " + _("Cada foto tarda la exposición elegida arriba (o la de Configuración) más unos segundos de descarga y revelado.");
+        return (AYUDA_GUARDAR[guardarContinuo] ? _(AYUDA_GUARDAR[guardarContinuo]) : "") + ritmo;
     }
     function pintarBotonFoto() {
         document.getElementById("captura-sub").textContent =
-            (modoDia ? `día · ${NOMBRE_OBJETIVO[objetivoDia]}` : "noche") + (modoContinuo ? " · continuo" : "");
+            (modoDia ? _("día · {objetivo}", { objetivo: _(NOMBRE_OBJETIVO[objetivoDia]) }) : _("noche")) + (modoContinuo ? " · " + _("continuo") : "");
         const btn = document.getElementById("btn-foto");
-        if (modoDia && modoContinuo) btn.innerHTML = `<svg><use href="#i-play"/></svg>Continuo de día: ${NOMBRE_OBJETIVO[objetivoDia]}`;
-        else if (modoDia) btn.innerHTML = `<svg><use href="#i-sol"/></svg>Foto de día: ${NOMBRE_OBJETIVO[objetivoDia]}`;
-        else if (modoContinuo) btn.innerHTML = `<svg><use href="#i-play"/></svg>Empezar modo continuo`;
-        else btn.innerHTML = `<svg><use href="#i-foto"/></svg>Hacer foto`;
+        if (modoDia && modoContinuo) btn.innerHTML = '<svg><use href="#i-play"/></svg>' + _("Continuo de día: {objetivo}", { objetivo: _(NOMBRE_OBJETIVO[objetivoDia]) });
+        else if (modoDia) btn.innerHTML = '<svg><use href="#i-sol"/></svg>' + _("Foto de día: {objetivo}", { objetivo: _(NOMBRE_OBJETIVO[objetivoDia]) });
+        else if (modoContinuo) btn.innerHTML = '<svg><use href="#i-play"/></svg>' + _("Empezar modo continuo");
+        else btn.innerHTML = '<svg><use href="#i-foto"/></svg>' + _("Hacer foto");
     }
     function pintarModoContinuo() {
         document.getElementById("modo-continuo").checked = modoContinuo;
@@ -1116,17 +1121,17 @@
     }
     function tamanoLegible(b) {
         if (!b) return "0 MB";
-        if (b >= 1024 ** 3) return (b / 1024 ** 3).toFixed(1) + " GB";
+        if (b >= 1024 ** 3) return fmtNum(b / 1024 ** 3, 1) + " GB";
         const mb = b / 1024 ** 2;
-        return (mb < 10 ? mb.toFixed(1) : Math.round(mb)) + " MB";
+        return (mb < 10 ? fmtNum(mb, 1) : Math.round(mb)) + " MB";
     }
     function empezarContinuo() {
         const est = document.getElementById("estado-foto");
         if (modoDia && objetivoDia === "sol" && !solConfirmado) {
-            if (!confirm("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio.")) return;
+            if (!confirm(_("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio."))) return;
             solConfirmado = true;
         }
-        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>Empezando el modo continuo...';
+        est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>' + _("Empezando el modo continuo...");
         document.getElementById("estado-sync").textContent = "";
         document.getElementById("dia-intentos").textContent = "";
         const g = document.getElementById("ganancia-prueba").value.trim();
@@ -1135,7 +1140,7 @@
         fetch("/continuo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
             .then(r => r.json())
             .then(d => {
-                if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); return; }
+                if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); return; }
                 if (d.seguimiento) seguimientoCambiado = true;
                 if (!sondeoContinuo) sondeoContinuo = setInterval(sondearContinuo, 1000);
                 sondearContinuo();
@@ -1180,11 +1185,11 @@
             const u = e.ultima;
             est.className = "estado mt-2";
             est.innerHTML = u
-                ? `<span class="spinner"></span>Continuo · foto ${u.n} a las ${u.hora}` + (u.exposicion ? ` · ${formatearExp(u.exposicion)}` : "")
-                  + (u.nivel !== null && u.nivel !== undefined ? ` · nivel ${Math.round(100 * u.nivel)} %` : "")
+                ? '<span class="spinner"></span>' + _("Continuo · foto {n} a las {hora}", { n: u.n, hora: u.hora }) + (u.exposicion ? ` · ${formatearExp(u.exposicion)}` : "")
+                  + (u.nivel !== null && u.nivel !== undefined ? " · " + _("nivel {pct} %", { pct: Math.round(100 * u.nivel) }) : "")
                   + (u.ev ? ` (${textoEv(u.ev)})` : "")
-                  + (u.dark ? " (dark restado)" : "") + (u.ganancia !== null && u.ganancia !== undefined ? ` · ganancia ${u.ganancia}` : "")
-                : `<span class="spinner"></span>${e.mensaje || "Empezando..."}`;
+                  + (u.dark ? " " + _("(dark restado)") : "") + (u.ganancia !== null && u.ganancia !== undefined ? " · " + _("ganancia {g}", { g: u.ganancia }) : "")
+                : '<span class="spinner"></span>' + (e.mensaje || _("Empezando..."));
         } else if (e.terminado) {
             pintarProgreso(null);
             est.className = "estado " + (e.error ? "warn" : "ok") + " mt-2";
@@ -1192,10 +1197,10 @@
         }
         const info = document.getElementById("continuo-info");
         if ((activo || e.terminado) && e.guardar && e.guardar !== "no" && e.carpeta) {
-            info.textContent = `${e.hechas} ${e.hechas === 1 ? "foto guardada" : "fotos guardadas"} · ${tamanoLegible(e.bytes)} en static/continuo/${e.carpeta}`
-                + (e.libre !== null && e.libre !== undefined ? ` · libres ${tamanoLegible(e.libre)}` : "");
+            info.textContent = ngettext("{n} foto guardada", "{n} fotos guardadas", e.hechas) + " · " + _("{tam} en {carpeta}", { tam: tamanoLegible(e.bytes), carpeta: "static/continuo/" + e.carpeta })
+                + (e.libre !== null && e.libre !== undefined ? " · " + _("libres {tam}", { tam: tamanoLegible(e.libre) }) : "");
         } else if (activo || e.terminado) {
-            info.textContent = `${e.hechas} ${e.hechas === 1 ? "foto" : "fotos"} sin guardar`;
+            info.textContent = ngettext("{n} foto sin guardar", "{n} fotos sin guardar", e.hechas);
         }
         return activo;
     }
@@ -1213,7 +1218,7 @@
         const btn = document.getElementById("btn-foto");
         btn.disabled = true;
         document.getElementById("btn-cancelar").style.display = "inline-flex";
-        document.getElementById("estado-foto").innerHTML = '<span class="spinner"></span>Preparando la cámara...';
+        document.getElementById("estado-foto").innerHTML = '<span class="spinner"></span>' + _("Preparando la cámara...");
         document.getElementById("estado-sync").textContent = "";
         document.getElementById("estado-galeria").textContent = "";
         if (!sondeo) sondeo = setInterval(sondearCaptura, 1000);
@@ -1227,14 +1232,14 @@
                 const est = document.getElementById("estado-foto");
                 if (d.ok) {
                     est.className = "estado ok mt-2";
-                    est.textContent = "✅ " + d.mensaje + (d.dark ? " (dark restado)" : "")
-                        + (d.ganancia !== null && d.ganancia !== undefined ? ` · ganancia ${d.ganancia}` : "")
+                    est.textContent = "✅ " + d.mensaje + (d.dark ? " " + _("(dark restado)") : "")
+                        + (d.ganancia !== null && d.ganancia !== undefined ? " · " + _("ganancia {g}", { g: d.ganancia }) : "")
                         + (hayEnfoque(d.enfoque) ? " · " + textoEnfoque(d.enfoque) : "");
                     cargarFoto("/imagen-capturada?" + Date.now(), { hora: d.hora, alTerminar: info => { est.textContent += textoLlegada(info); } });
                     fotoMostrada(true);
                 } else {
                     est.className = "estado err mt-2";
-                    est.textContent = "❌ " + (d.mensaje || "Error al capturar");
+                    est.textContent = "❌ " + (d.mensaje || _("Error al capturar"));
                 }
             })
             .catch(err => { clearInterval(sondeo); sondeo = null; document.getElementById("estado-foto").textContent = "❌ " + err; })
@@ -1259,9 +1264,9 @@
         if (g.conectada && g.soportada && g.minima !== null) { gananciaMin = g.minima; gananciaMax = g.maxima; campo.min = g.minima; campo.max = g.maxima; }
         const base = g.configurada !== null ? g.configurada : (g.actual !== null && g.actual !== undefined ? g.actual : null);
         if (base !== null) campo.value = base;
-        let s = g.configurada !== null ? `De noche se usa ${g.configurada} (Configuración). ` : "En Configuración no hay ganancia fijada: se usa la del driver. ";
-        if (g.conectada && g.soportada && g.minima !== null) s += `Rango ${g.minima}–${g.maxima}. `;
-        s += "Sube la ganancia para enfocar con exposiciones cortas; aquí no se guarda.";
+        let s = (g.configurada !== null ? _("De noche se usa {valor} (Configuración).", { valor: g.configurada }) : _("En Configuración no hay ganancia fijada: se usa la del driver.")) + " ";
+        if (g.conectada && g.soportada && g.minima !== null) s += _("Rango {min}–{max}.", { min: g.minima, max: g.maxima }) + " ";
+        s += _("Sube la ganancia para enfocar con exposiciones cortas; aquí no se guarda.");
         ayuda.textContent = s;
     }).catch(() => {});
 
@@ -1284,8 +1289,8 @@
         const campo = document.getElementById("exposicion-prueba");
         if (exposicionConfig) campo.value = +exposicionConfig.toPrecision(3);
         document.getElementById("exposicion-ayuda").textContent =
-            (exposicionConfig ? `De noche se usa ${formatearExp(exposicionConfig)} (Configuración). ` : "")
-            + "Baja la exposición para encuadrar y enfocar sin esperar; aquí no se guarda. Si hay un dark de esa exposición, se resta.";
+            (exposicionConfig ? _("De noche se usa {valor} (Configuración).", { valor: formatearExp(exposicionConfig) }) + " " : "")
+            + _("Baja la exposición para encuadrar y enfocar sin esperar; aquí no se guarda. Si hay un dark de esa exposición, se resta.");
     }).catch(() => {});
 
     function sincronizar() {
@@ -1293,7 +1298,7 @@
         btn.disabled = true;
         const est = document.getElementById("estado-sync");
         est.className = "estado";
-        est.innerHTML = '<span class="spinner"></span>Resolviendo la foto con ASTAP y sincronizando...';
+        est.innerHTML = '<span class="spinner"></span>' + _("Resolviendo la foto con ASTAP y sincronizando...");
         fetch("/sincronizar-foto", { method: "POST" })
             .then(r => r.json())
             .then(d => {
@@ -1322,7 +1327,7 @@
     function pintarValorGiro() {
         const giro = leerGiro(), espejo = document.getElementById("giro-espejo").checked;
         document.getElementById("giro-v").textContent = (giro || espejo)
-            ? giro.toLocaleString("es", { maximumFractionDigits: 1 }) + "°" + (espejo ? " · espejo" : "") : "sin giro";
+            ? giro.toLocaleString(IDIOMA.locale, { maximumFractionDigits: 1 }) + "°" + (espejo ? " · " + _("espejo") : "") : _("sin giro");
     }
     function elegirCuartos(cuartos) {
         document.querySelectorAll("#giro-seg button").forEach(b => b.classList.toggle("activo", parseInt(b.dataset.cuartos) === cuartos));
@@ -1347,7 +1352,7 @@
                     olvidarRevelado();
                     cargarFoto("/imagen-capturada?" + Date.now(), { nueva: false });
                 }
-                est.textContent = d.regenerada || vivoActivo || continuoActivo ? "" : "Se verá en la próxima foto.";
+                est.textContent = d.regenerada || vivoActivo || continuoActivo ? "" : _("Se verá en la próxima foto.");
             })
             .catch(err => { est.className = "estado err"; est.textContent = "❌ " + err; });
     }
@@ -1382,16 +1387,17 @@
         p.style.left = (100 * punteroX) + "%"; p.style.top = (100 * punteroY) + "%";
         const info = document.getElementById("puntero-info");
         const dx = punteroX - 0.5, dy = punteroY - 0.5;
-        if (Math.abs(dx) < 0.003 && Math.abs(dy) < 0.003) { info.textContent = " El puntero está en el centro."; return; }
+        if (Math.abs(dx) < 0.003 && Math.abs(dy) < 0.003) { info.textContent = " " + _("El puntero está en el centro."); return; }
         const partes = [];
-        if (Math.abs(dx) >= 0.003) partes.push(`${Math.round(100 * Math.abs(dx))} % a la ${dx > 0 ? "derecha" : "izquierda"}`);
-        if (Math.abs(dy) >= 0.003) partes.push(`${Math.round(100 * Math.abs(dy))} % hacia ${dy > 0 ? "abajo" : "arriba"}`);
+        if (Math.abs(dx) >= 0.003) partes.push(dx > 0 ? _("{pct} % a la derecha", { pct: Math.round(100 * Math.abs(dx)) }) : _("{pct} % a la izquierda", { pct: Math.round(100 * Math.abs(dx)) }));
+        if (Math.abs(dy) >= 0.003) partes.push(dy > 0 ? _("{pct} % hacia abajo", { pct: Math.round(100 * Math.abs(dy)) }) : _("{pct} % hacia arriba", { pct: Math.round(100 * Math.abs(dy)) }));
         let lejos = "";
         if (punteroModoDia && campoGrados) {
             const arcmin = 60 * Math.hypot(dx * campoGrados[0], dy * campoGrados[1]);
-            lejos = ` (unos ${arcmin < 10 ? arcmin.toFixed(1).replace(".", ",") : Math.round(arcmin)}′)`;
+            lejos = " " + _("(unos {v}′)", { v: arcmin < 10 ? fmtNum(arcmin, 1) : Math.round(arcmin) });
         }
-        info.textContent = " Puntero: " + partes.join(" y ") + " del centro" + lejos + ".";
+        const donde = partes.length === 2 ? _("{a} y {b}", { a: partes[0], b: partes[1] }) : partes[0];
+        info.textContent = " " + _("Puntero: {donde} del centro{lejos}.", { donde, lejos });
     }
     function ponerPunteroCentro() { punteroX = 0.5; punteroY = 0.5; pintarPuntero(); }
     function moverPunteroA(ev) {
@@ -1413,18 +1419,18 @@
         document.getElementById("puntero-panel").hidden = !punteroActivo;
         document.getElementById("btn-puntero").classList.toggle("activo", punteroActivo);
         document.getElementById("btn-puntero").innerHTML = punteroActivo
-            ? `<svg><use href="#i-cerrar"/></svg>Quitar el puntero`
-            : `<svg><use href="#i-goto"/></svg>Apunta aquí`;
+            ? '<svg><use href="#i-cerrar"/></svg>' + _("Quitar el puntero")
+            : '<svg><use href="#i-goto"/></svg>' + _("Apunta aquí");
         if (punteroActivo) { ajustarCapa(); pintarPuntero(); }
         const dia = document.getElementById("puntero-dia");
         dia.hidden = !(punteroActivo && punteroModoDia);
         if (punteroActivo && punteroModoDia) {
-            dia.textContent = "De día no hay plate solving: el movimiento se calcula con la orientación y la escala de la cámara del último que salió bien…";
+            dia.textContent = _("De día no hay plate solving: el movimiento se calcula con la orientación y la escala de la cámara del último que salió bien…");
             fetch("/apuntar-foto-dia/info").then(r => r.json()).then(d => {
                 if (!d.ok) { dia.textContent = "⚠️ " + d.mensaje; return; }
                 campoGrados = d.campo_ancho_deg ? [d.campo_ancho_deg, d.campo_alto_deg] : null;
-                dia.textContent = "Sin plate solving: se usa la orientación de la cámara del último que salió bien ("
-                    + d.orientacion + ")." + (campoGrados ? ` La foto abarca ${(60 * campoGrados[0]).toFixed(0)}′ × ${(60 * campoGrados[1]).toFixed(0)}′.` : "");
+                dia.textContent = _("Sin plate solving: se usa la orientación de la cámara del último que salió bien ({orientacion}).", { orientacion: d.orientacion })
+                    + (campoGrados ? " " + _("La foto abarca {ancho}′ × {alto}′.", { ancho: (60 * campoGrados[0]).toFixed(0), alto: (60 * campoGrados[1]).toFixed(0) }) : "");
                 pintarPuntero();
             }).catch(() => {});
         }
@@ -1441,8 +1447,8 @@
         const dia = punteroModoDia;
         btn.disabled = true; document.getElementById("btn-foto").disabled = true;
         est.className = "estado";
-        est.innerHTML = dia ? '<span class="spinner"></span>Moviendo el telescopio (sin plate solving)...'
-                            : '<span class="spinner"></span>Resolviendo la foto con ASTAP y moviendo el telescopio...';
+        est.innerHTML = '<span class="spinner"></span>' + (dia ? _("Moviendo el telescopio (sin plate solving)...")
+                            : _("Resolviendo la foto con ASTAP y moviendo el telescopio..."));
         fetch(dia ? "/apuntar-foto-dia" : "/apuntar-foto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: punteroX, y: punteroY }) })
             .then(r => r.json())
             .then(d => {
@@ -1464,11 +1470,11 @@
         const est = document.getElementById("estado-galeria");
         btn.disabled = true;
         est.className = "estado";
-        est.innerHTML = '<span class="spinner"></span>Guardando la foto a resolución completa...';
+        est.innerHTML = '<span class="spinner"></span>' + _("Guardando la foto a resolución completa...");
         const terminar = d => {
             est.className = "estado " + (d.ok ? "ok" : "err");
             est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
-            if (d.ok) est.insertAdjacentHTML("beforeend", ' · <a href="/galeria">Ver la galería</a>');
+            if (d.ok) est.insertAdjacentHTML("beforeend", ' · <a href="/galeria">' + _("Ver la galería") + '</a>');
             pintarBotonesFoto();
         };
         fetch("/foto/guardar-galeria", { method: "POST" })
@@ -1493,8 +1499,8 @@
     function pintarBotonRevelar() {
         const btn = document.getElementById("btn-revelar");
         btn.innerHTML = revelado.listo && revelado.mostrando
-            ? '<svg><use href="#i-refrescar"/></svg>Ver el revelado rápido'
-            : '<svg><use href="#i-refrescar"/></svg>' + (revelado.listo ? "Ver el revelado como el apilado" : "Revelar como el apilado");
+            ? '<svg><use href="#i-refrescar"/></svg>' + _("Ver el revelado rápido")
+            : '<svg><use href="#i-refrescar"/></svg>' + (revelado.listo ? _("Ver el revelado como el apilado") : _("Revelar como el apilado"));
     }
     function mostrarRevelado(comoApilado) {
         revelado.mostrando = comoApilado;
@@ -1513,7 +1519,7 @@
         const est = document.getElementById("estado-revelar");
         btn.disabled = true;
         est.className = "estado";
-        est.innerHTML = '<span class="spinner"></span>Revelando...';
+        est.innerHTML = '<span class="spinner"></span>' + _("Revelando...");
         const terminar = d => {
             est.className = "estado " + (d.ok ? "ok" : "err");
             est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;

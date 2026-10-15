@@ -1,17 +1,14 @@
 <!-- templates/apagar.html -->
 {% extends "base.html" %}
 
-{% block title %}Cerrar o apagar{% endblock %}
+{% block title %}{{ _("Cerrar o apagar") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Cerrar o apagar</h1>
+        <h1 class="pagina-titulo">{{ _("Cerrar o apagar") }}</h1>
         <p class="pagina-sub">
-            Reiniciar ScopePower arregla la mayoría de los atascos sin perder el acceso al mini PC.
-            Apagar o reiniciar el equipo cierra Windows de forma ordenada, sin quitarle la alimentación.
-            En los tres casos se desconectan antes la cámara y la montura. Si vas a apagar la montura (por ejemplo, para
-            cambiar la batería), apárcala antes para no perder la alineación.
+            {{ _("Reiniciar ScopePower arregla la mayoría de los atascos sin perder el acceso al mini PC. Apagar o reiniciar el equipo cierra Windows de forma ordenada, sin quitarle la alimentación. En los tres casos se desconectan antes la cámara y la montura. Si vas a apagar la montura (por ejemplo, para cambiar la batería), apárcala antes para no perder la alineación.") }}
         </p>
     </div>
 </div>
@@ -19,31 +16,31 @@
 <div class="apagar-montura">
     <button class="tile" id="btn-aparcar" onclick="aparcar()">
         <span class="tile-ico ok"><svg><use href="#i-home"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Aparcar la montura</span><span class="tile-desc">Antes de apagar para cambiar la batería: para el seguimiento y deja el tubo donde estaba al encender la montura (el cero de los motores), horizontal y hacia el norte</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Aparcar la montura") }}</span><span class="tile-desc">{{ _("Antes de apagar para cambiar la batería: para el seguimiento y deja el tubo donde estaba al encender la montura (el cero de los motores), horizontal y hacia el norte") }}</span></span>
     </button>
     <div id="estado-aparcar" class="estado mt-2"></div>
-    <button type="button" id="btn-reanudar" class="btn btn-secondary mt-2" onclick="reanudar()" hidden>Seguir observando sin apagar</button>
+    <button type="button" id="btn-reanudar" class="btn btn-secondary mt-2" onclick="reanudar()" hidden>{{ _("Seguir observando sin apagar") }}</button>
 </div>
 
 <div class="apagar-botones">
     <button class="tile" onclick="reiniciarApp()">
         <span class="tile-ico warn"><svg><use href="#i-refrescar"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Reiniciar ScopePower</span><span class="tile-desc">Solo la app; el PC sigue encendido y en unos segundos vuelve</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Reiniciar ScopePower") }}</span><span class="tile-desc">{{ _("Solo la app; el PC sigue encendido y en unos segundos vuelve") }}</span></span>
     </button>
     <button class="tile" onclick="pedir('reiniciar')">
         <span class="tile-ico info"><svg><use href="#i-refrescar"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Reiniciar el equipo</span><span class="tile-desc">Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Reiniciar el equipo") }}</span><span class="tile-desc">{{ _("Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio") }}</span></span>
     </button>
     <button class="tile" onclick="pedir('apagar')">
         <span class="tile-ico" style="background: var(--err-soft); color: var(--err);"><svg><use href="#i-power"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">Apagar el equipo</span><span class="tile-desc">Después ya se puede quitar la alimentación</span></span>
+        <span class="tile-texto"><span class="tile-titulo">{{ _("Apagar el equipo") }}</span><span class="tile-desc">{{ _("Después ya se puede quitar la alimentación") }}</span></span>
     </button>
 </div>
 
 <div id="cuenta" class="card card-centrada card-acento centro mt-3" hidden>
     <div id="cuenta-texto" style="font-size: 22px; font-weight: 700;"></div>
     <div class="progress alta mt-2 mb-3"><div id="cuenta-barra" class="progress-bar" style="width: 100%;"></div></div>
-    <button class="btn btn-success btn-xl" onclick="cancelar()">Cancelar</button>
+    <button class="btn btn-success btn-xl" onclick="cancelar()">{{ _("Cancelar") }}</button>
 </div>
 <div id="estado" class="estado centro mt-3" style="font-size: 16px;"></div>
 
@@ -63,12 +60,12 @@
     const estado = document.getElementById("estado");
 
     function reiniciarApp() {
-        if (!confirm("¿Reiniciar ScopePower? Se desconectarán la cámara y la montura y la app vuelve a arrancar en unos segundos.")) return;
-        estado.textContent = "⏳ Desconectando el equipo...";
+        if (!confirm(_("¿Reiniciar ScopePower? Se desconectarán la cámara y la montura y la app vuelve a arrancar en unos segundos."))) return;
+        estado.textContent = _("⏳ Desconectando el equipo...");
         fetch("/reiniciar-app", { method: "POST" })
             .then(r => r.json())
             .then(d => {
-                if (!d.ok) { estado.textContent = "❌ " + (d.mensaje || "Error"); return; }
+                if (!d.ok) { estado.textContent = "❌ " + (d.mensaje || _("Error")); return; }
                 document.querySelector(".apagar-botones").hidden = true;
                 esperarVuelta();
             })
@@ -78,7 +75,7 @@
     // Tras el reinicio: sondear hasta que el servidor responda y volver a Inicio
     function esperarVuelta() {
         let segundos = 0;
-        estado.innerHTML = '<span class="spinner"></span><b>ScopePower se está reiniciando.</b> Esta página volverá sola a Inicio cuando responda...';
+        estado.innerHTML = '<span class="spinner"></span>' + _("<b>ScopePower se está reiniciando.</b> Esta página volverá sola a Inicio cuando responda...");
         const t = setInterval(() => {
             segundos += 2;
             fetch("/estado-conexion", { cache: "no-store" })
@@ -86,7 +83,7 @@
                 .catch(() => {
                     if (segundos >= 90) {
                         clearInterval(t);
-                        estado.innerHTML = "⚠️ ScopePower no ha vuelto en 90 s. Prueba a recargar dentro de un rato; si no, en el mini PC ejecuta lanzar_scopepower.bat.";
+                        estado.innerHTML = _("⚠️ ScopePower no ha vuelto en 90 s. Prueba a recargar dentro de un rato; si no, en el mini PC ejecuta lanzar_scopepower.bat.");
                     }
                 });
         }, 2000);
@@ -98,8 +95,8 @@
     const btnReanudar = document.getElementById("btn-reanudar");
     let enCero = null, monturaConectada = false, sondeoAparcar = null;
 
-    function grados(v) { return v == null ? "?" : (Math.abs(v) < 0.05 ? 0 : v).toFixed(1).replace(".", ",") + "°"; }
-    function minutos(v) { return (v * 60).toFixed(1).replace(".", ",") + "′"; }
+    function grados(v) { return v == null ? "?" : fmtNum(Math.abs(v) < 0.05 ? 0 : v, 1) + "°"; }
+    function minutos(v) { return fmtNum(v * 60, 1) + "′"; }
 
     function pintarAparcado(d) {
         monturaConectada = d.conectada;
@@ -107,7 +104,7 @@
         btnAparcar.disabled = d.en_curso || !d.conectada;
         btnReanudar.hidden = !(d.conectada && d.resultado && d.resultado.ok) || d.en_curso;
         if (d.en_curso) {
-            estadoAparcar.innerHTML = '<span class="spinner"></span>' + (d.fase || "Aparcando...");
+            estadoAparcar.innerHTML = '<span class="spinner"></span>' + (d.fase || _("Aparcando..."));
             return;
         }
         const r = d.resultado;
@@ -116,17 +113,14 @@
         } else if (r) {
             const avisos = (r.avisos || []).length ? "<br>⚠️ " + r.avisos.join("<br>⚠️ ") : "";
             estadoAparcar.innerHTML = (r.en_cero
-                ? "🅿️ <b>Montura aparcada en el cero de los motores</b> (desfase " + minutos(Math.abs(r.desfase[0]))
-                  + " / " + minutos(Math.abs(r.desfase[1])) + ") y seguimiento parado. Ya puedes apagar la montura y "
-                  + "cambiar la batería <b>sin moverla</b>. Al encenderla, conecta el equipo desde Inicio: SynScan Pro "
-                  + "carga solo la alineación de antes."
-                : "⚠️ Seguimiento parado y tubo en altura " + grados(r.alt) + ", acimut " + grados(r.az)
-                  + ", pero <b>no en el cero de los motores</b>: si apagas la montura, al encenderla apuntará "
-                  + "desviada (el centrado con plate solving lo corrige en el primer GoTo).") + avisos;
+                ? _("🅿️ <b>Montura aparcada en el cero de los motores</b> (desfase {d1} / {d2}) y seguimiento parado. Ya puedes apagar la montura y cambiar la batería <b>sin moverla</b>. Al encenderla, conecta el equipo desde Inicio: SynScan Pro carga solo la alineación de antes.",
+                    { d1: minutos(Math.abs(r.desfase[0])), d2: minutos(Math.abs(r.desfase[1])) })
+                : _("⚠️ Seguimiento parado y tubo en altura {alt}, acimut {az}, pero <b>no en el cero de los motores</b>: si apagas la montura, al encenderla apuntará desviada (el centrado con plate solving lo corrige en el primer GoTo).",
+                    { alt: grados(r.alt), az: grados(r.az) })) + avisos;
         } else if (!d.conectada) {
-            estadoAparcar.textContent = "La montura no está conectada.";
+            estadoAparcar.textContent = _("La montura no está conectada.");
         } else if (d.en_cero) {
-            estadoAparcar.innerHTML = "🅿️ La montura está en el cero de los motores.";
+            estadoAparcar.innerHTML = _("🅿️ La montura está en el cero de los motores.");
         } else {
             estadoAparcar.textContent = "";
         }
@@ -141,8 +135,8 @@
     }
 
     function aparcar() {
-        if (!confirm("¿Aparcar la montura? Se detiene lo que esté en marcha (apilado, pad), se para el seguimiento y el tubo vuelve a donde estaba al encender la montura (horizontal, hacia el norte).")) return;
-        estadoAparcar.innerHTML = '<span class="spinner"></span>Parando el seguimiento...';
+        if (!confirm(_("¿Aparcar la montura? Se detiene lo que esté en marcha (apilado, pad), se para el seguimiento y el tubo vuelve a donde estaba al encender la montura (horizontal, hacia el norte)."))) return;
+        estadoAparcar.innerHTML = '<span class="spinner"></span>' + _("Parando el seguimiento...");
         btnAparcar.disabled = true;
         fetch("/montura/aparcar", { method: "POST" })
             .then(r => r.json())
@@ -155,12 +149,12 @@
     }
 
     function reanudar() {
-        estadoAparcar.innerHTML = '<span class="spinner"></span>Poniendo el seguimiento...';
+        estadoAparcar.innerHTML = '<span class="spinner"></span>' + _("Poniendo el seguimiento...");
         fetch("/montura/reanudar", { method: "POST" })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { estadoAparcar.textContent = "❌ " + d.mensaje; return; }
-                estadoAparcar.textContent = "✅ Seguimiento en marcha. Para seguir, haz un GoTo.";
+                estadoAparcar.textContent = _("✅ Seguimiento en marcha. Para seguir, haz un GoTo.");
                 btnReanudar.hidden = true;
             })
             .catch(err => estadoAparcar.textContent = "❌ " + err);
@@ -172,12 +166,12 @@
 
     function pedir(accion) {
         let texto = accion === "apagar"
-            ? "¿Apagar el equipo? Se desconectarán la cámara y la montura y Windows se cerrará."
-            : "¿Reiniciar el equipo? Se desconectarán la cámara y la montura y Windows se reiniciará.";
+            ? _("¿Apagar el equipo? Se desconectarán la cámara y la montura y Windows se cerrará.")
+            : _("¿Reiniciar el equipo? Se desconectarán la cámara y la montura y Windows se reiniciará.");
         if (accion === "apagar" && monturaConectada && enCero === false)
-            texto = "La montura NO está aparcada en el cero de los motores: si la apagas, al encenderla apuntará desviada.\n\n" + texto;
+            texto = _("La montura NO está aparcada en el cero de los motores: si la apagas, al encenderla apuntará desviada.") + "\n\n" + texto;
         if (!confirm(texto)) return;
-        estado.textContent = "⏳ Desconectando el equipo...";
+        estado.textContent = _("⏳ Desconectando el equipo...");
         fetch("/apagar/equipo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accion }) })
             .then(r => r.json())
             .then(d => {
@@ -197,7 +191,7 @@
         clearInterval(temporizador);
         const total = restante;
         const pinta = () => {
-            txt.textContent = (accion === "apagar" ? "El equipo se apaga en " : "El equipo se reinicia en ") + restante + " s";
+            txt.textContent = accion === "apagar" ? _("El equipo se apaga en {s} s", { s: restante }) : _("El equipo se reinicia en {s} s", { s: restante });
             barra.style.width = (100 * restante / total) + "%";
         };
         pinta();
@@ -207,8 +201,8 @@
                 clearInterval(temporizador);
                 caja.hidden = true;
                 estado.innerHTML = accion === "apagar"
-                    ? "🛑 <b>El equipo se está apagando.</b> Espera a que se apaguen las luces del mini PC antes de quitarle la alimentación. Ya puedes cerrar esta pestaña."
-                    : "🔄 <b>El equipo se está reiniciando.</b> En un par de minutos vuelve a abrir la app en la misma dirección.";
+                    ? _("🛑 <b>El equipo se está apagando.</b> Espera a que se apaguen las luces del mini PC antes de quitarle la alimentación. Ya puedes cerrar esta pestaña.")
+                    : _("🔄 <b>El equipo se está reiniciando.</b> En un par de minutos vuelve a abrir la app en la misma dirección.");
                 return;
             }
             pinta();
@@ -222,7 +216,7 @@
                 clearInterval(temporizador);
                 document.getElementById("cuenta").hidden = true;
                 document.querySelector(".apagar-botones").hidden = false;
-                estado.textContent = d.ok ? "✅ Cancelado. El equipo sigue encendido (hay que volver a conectar el equipo desde Inicio)." : "❌ " + d.mensaje;
+                estado.textContent = d.ok ? _("✅ Cancelado. El equipo sigue encendido (hay que volver a conectar el equipo desde Inicio).") : "❌ " + d.mensaje;
             })
             .catch(err => estado.textContent = "❌ " + err);
     }

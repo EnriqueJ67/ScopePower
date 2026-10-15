@@ -25,6 +25,7 @@ from datetime import datetime
 
 import cv2
 import numpy as np
+from idioma import N_
 
 # Rastros (en píxeles de media resolución)
 SIGMA_RASTRO = 2.0          # umbral sobre el fondo, en sigmas del ruido suavizado
@@ -44,9 +45,9 @@ SUAVIZADO = 15              # mediana a lo largo del rastro: borra las estrellas
 DESTELLOS_AVION = 3         # tramos mucho más brillantes que el resto: las luces que destellan
 IRREGULARIDAD_METEORO = 0.35   # lo que el brillo se aparta de una rampa recta, fracción del brillo medio
 TIPOS_RASTRO = {
-    "avion": {"nombre": "Avión", "icono": "✈️", "objeto": "Avión"},
-    "satelite": {"nombre": "Satélite", "icono": "🛰️", "objeto": "Satélite artificial"},
-    "meteoro": {"nombre": "Posible meteoro", "icono": "☄️", "objeto": "Meteoro"},
+    "avion": {"nombre": N_("Avión"), "icono": "✈️", "objeto": "Avión"},
+    "satelite": {"nombre": N_("Satélite"), "icono": "🛰️", "objeto": "Satélite artificial"},
+    "meteoro": {"nombre": N_("Posible meteoro"), "icono": "☄️", "objeto": "Meteoro"},
 }
 
 # Rastros guardados
@@ -89,7 +90,7 @@ def detectar_rastro(plano, peq=None):
 
     # Las estrellas sueltas son manchas pequeñas y redondas: fuera también,
     # quedan los trozos alargados (y el ruido, que no forma líneas largas)
-    n, etiquetas, stats, _ = cv2.connectedComponentsWithStats(mascara, connectivity=8)
+    n, etiquetas, stats, __ = cv2.connectedComponentsWithStats(mascara, connectivity=8)
     if n > 1:
         ancho = stats[1:, cv2.CC_STAT_WIDTH]
         alto = stats[1:, cv2.CC_STAT_HEIGHT]
@@ -211,7 +212,7 @@ def _afinar_recta(resto, t, x0, y0, ux, uy, ruido):
     if len(puntos) < 3:
         return x0, y0, ux, uy
     pt, pd = np.array(puntos).T
-    for _ in range(2):   # ajuste, fuera los puntos que se van (la otra línea de un avión), y otra vez
+    for __ in range(2):   # ajuste, fuera los puntos que se van (la otra línea de un avión), y otra vez
         b, a = np.polyfit(pt, pd, 1)
         bien = np.abs(pd - (a + b * pt)) < 3
         if bien.sum() < 3:
@@ -243,7 +244,7 @@ def clasificar_rastro(peq, rastro):
     x1, y1, x2, y2 = [v / 2.0 for v in rastro["segmento"]]
     largo = float(np.hypot(x2 - x1, y2 - y1)) or 1.0
     ux, uy = (x2 - x1) / largo, (y2 - y1) / largo
-    _, ruido = mediana_mad(peq)
+    __, ruido = mediana_mad(peq)
 
     resto, t = _franja(peq, x1, y1, ux, uy)
     if resto is None:
@@ -291,7 +292,7 @@ def clasificar_rastro(peq, rastro):
     # cercano (las luces de un avión no van todas por la misma línea), alargados
     # a lo largo del rastro: el halo de una estrella brillante es redondo
     brillante = (columnas[ini:fin] > 2.5 * max(base, 0.0) + 6.0 * ruido_columna).astype(np.uint8)
-    n, _, stats, _ = cv2.connectedComponentsWithStats(brillante, connectivity=8)
+    n, __, stats, __ = cv2.connectedComponentsWithStats(brillante, connectivity=8)
     alto = np.zeros(fin - ini, dtype=bool)
     for k in range(1, n):
         largo_k, ancho_k = stats[k, cv2.CC_STAT_HEIGHT], stats[k, cv2.CC_STAT_WIDTH]
@@ -365,10 +366,10 @@ def miniatura(r, g, b, rastro, clase):
     escala = ANCHO_MINIATURA / float(g.shape[1])
     tam = (ANCHO_MINIATURA, int(round(g.shape[0] * escala)))
     canales = [cv2.resize(np.asarray(c, dtype=np.float32), tam, interpolation=cv2.INTER_AREA) for c in (b, g, r)]
-    _, mad = mediana_mad(canales[1])
+    __, mad = mediana_mad(canales[1])
     salida = []
     for c in canales:
-        mediana, _ = mediana_mad(c)
+        mediana, __ = mediana_mad(c)
         x = np.maximum((c - mediana) / mad + 2.0, 0.0)
         salida.append(np.clip(np.arcsinh(x / 3.0) / np.arcsinh(80.0), 0, 1))
     img = (np.dstack(salida) * 255).astype(np.uint8)

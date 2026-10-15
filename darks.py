@@ -25,6 +25,7 @@ from astropy.io import fits
 
 from hardware import capturar_frame, CapturaCancelada, ErrorHardware
 from apilado import apilar_sigma_clip
+from idioma import _, ngettext
 
 log = logging.getLogger("scopepower.darks")
 
@@ -213,31 +214,31 @@ class TrabajoDarks:
         exposicion = float(exposicion)
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("Ya se están generando darks")
+                raise RuntimeError(_("Ya se están generando darks"))
             if camara.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self.en_curso = True
             self.total = n
             self.exposicion = exposicion
             self.ganancia = None if ganancia is None else int(ganancia)
             self.binning = int(binning)
-            self.mensaje = "Preparando la cámara..."
+            self.mensaje = _("Preparando la cámara...")
 
         def tarea(cam):
             frames = []
             for i in range(n):
                 with self._lock:
-                    self.mensaje = f"Capturando dark {i + 1} de {n}"
+                    self.mensaje = _("Capturando dark {i} de {n}", i=i + 1, n=n)
                 frame = capturar_frame(cam, exposicion, binning,
-                                       descripcion=f"Dark {i + 1}/{n}", light=False, ganancia=ganancia)
+                                       descripcion=_("Dark {i}/{n}", i=i + 1, n=n), light=False, ganancia=ganancia)
                 frames.append(frame)
                 with self._lock:
                     self.completadas = i + 1
                 log.info("Dark %d/%d capturado", i + 1, n)
 
             with self._lock:
-                self.mensaje = "Combinando darks..."
+                self.mensaje = _("Combinando darks...")
 
             extra = {}
             for clave, attr in (("CCD-TEMP", "CCDTemperature"), ("GAIN", "Gain"), ("OFFSET", "Offset")):
@@ -276,26 +277,26 @@ class TrabajoDarks:
 
             with self._lock:
                 self.ruta = ruta
-                self.mensaje = f"Dark maestro guardado ({len(frames)} tomas)"
+                self.mensaje = ngettext("Dark maestro guardado ({n} toma)", "Dark maestro guardado ({n} tomas)", len(frames))
             log.info("Dark maestro guardado en %s", ruta)
         except CapturaCancelada:
             with self._lock:
-                self.error = "Generación de darks cancelada"
+                self.error = _("Generación de darks cancelada")
                 self.mensaje = self.error
         except ErrorHardware as e:
             with self._lock:
-                self.error = f"Error de cámara: {e}"
+                self.error = _("Error de cámara: {e}", e=e)
                 self.mensaje = self.error
         except Exception as e:
             log.exception("Error generando el dark maestro")
             with self._lock:
-                self.error = f"Error generando el dark: {e}"
+                self.error = _("Error generando el dark: {e}", e=e)
                 self.mensaje = self.error
         finally:
             with self._lock:
                 self.en_curso = False
                 self.terminado = True
-                aviso = self.error or "Dark maestro guardado. Ya puedes destapar el telescopio"
+                aviso = self.error or _("Dark maestro guardado. Ya puedes destapar el telescopio")
             try:
                 import voz
                 voz.decir(aviso)

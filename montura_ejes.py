@@ -37,6 +37,8 @@ import logging
 import threading
 from concurrent.futures import Future
 
+from idioma import _
+
 log = logging.getLogger("scopepower.montura_ejes")
 
 SIDEREO_DEG_S = 360.0 / 86164.0905          # 0,0041781 °/s
@@ -219,7 +221,7 @@ class MonturaASCOM(MonturaEjes):
             lim = []
             for eje in (0, 1):
                 rangos = rangos_axisrates(tel, eje)
-                lim.append(max((hi for _, hi in rangos), default=4.0) or 4.0)
+                lim.append(max((hi for __, hi in rangos), default=4.0) or 4.0)
             tracking = bool(tel.Tracking)
             try:
                 pos = (float(tel.Azimuth), float(tel.Altitude))
@@ -356,7 +358,7 @@ def decodificar_24(texto):
     """'563412' → 0x123456. Admite respuestas de 2, 4 o 6 hex (bytes en orden inverso)."""
     t = texto.strip()
     if len(t) not in (2, 4, 6):
-        raise ValueError(f"Respuesta de longitud inesperada: {texto!r}")
+        raise ValueError(_("Respuesta de longitud inesperada: {respuesta}", respuesta=repr(texto)))
     pares = [t[i:i + 2] for i in range(0, len(t), 2)]
     return int("".join(reversed(pares)), 16)
 
@@ -401,7 +403,7 @@ def interpretar_estado(texto):
     """Respuesta de :f ('xyz' en hex) → dict con en_marcha, bloqueado, inicializado, modo_slew, sentido_cw, rapido."""
     t = texto.strip()
     if len(t) < 3:
-        raise ValueError(f"Estado inesperado: {texto!r}")
+        raise ValueError(_("Estado inesperado: {respuesta}", respuesta=repr(texto)))
     x, y, z = int(t[0], 16), int(t[1], 16), int(t[2], 16)
     return {"modo_slew": bool(x & 1), "sentido_cw": bool(x & 2), "rapido": bool(x & 4),
             "en_marcha": bool(y & 1), "bloqueado": bool(y & 2), "inicializado": bool(z & 1)}
@@ -434,7 +436,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
         self.freq = [0, 0]
         self.ratio = [1, 1]
         self.periodo_sidereo = [None, None]
-        self._eje = [{"v": 0.0, "dir": None, "rapido": None, "marcha": False, "T": None, "espera": None} for _ in (0, 1)]
+        self._eje = [{"v": 0.0, "dir": None, "rapido": None, "marcha": False, "T": None, "espera": None} for __ in (0, 1)]
         self.cambios_de_modo = 0
         self.cruzadas = 0
         self._signos = self._leer_signos()
@@ -494,7 +496,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
                         if resto <= 0:
                             raise socket.timeout()
                         self._sock.settimeout(resto)
-                        datos_rx, _ = self._sock.recvfrom(64)
+                        datos_rx, __ = self._sock.recvfrom(64)
                         r = datos_rx.decode("ascii", errors="replace").strip("\r\n ")
                         if r.startswith("!"):
                             break
@@ -504,13 +506,15 @@ class MonturaSkyWatcherUDP(MonturaEjes):
                     self._latencia_ms = (time.perf_counter() - t0) * 1000.0
                     self.enviadas += 1
                     if r.startswith("!"):
-                        raise ErrorMontura(f"La montura rechazó :{cmd}{canal}{datos} (error {r[1:] or '?'})")
+                        raise ErrorMontura(_("La montura rechazó {orden} (error {codigo})", orden=f":{cmd}{canal}{datos}",
+                                              codigo=r[1:] or "?"))
                     return r[1:]
                 except (socket.timeout, OSError) as e:
                     ultimo = e
                     continue
         self.errores += 1
-        raise ErrorMontura(f"Sin respuesta de la montura en {self.host}:{self.puerto} a :{cmd}{canal} ({ultimo})")
+        raise ErrorMontura(_("Sin respuesta de la montura en {direccion} a {orden} ({error})",
+                             direccion=f"{self.host}:{self.puerto}", orden=f":{cmd}{canal}", error=ultimo))
 
     def leer_24(self, cmd, canal):
         return decodificar_24(self.enviar(cmd, canal))
@@ -537,7 +541,8 @@ class MonturaSkyWatcherUDP(MonturaEjes):
                 self.enviar("F", c)
             self._pos0[i] = self.leer_24("j", c)
             if self.cpr[i] <= 0 or self.freq[i] <= 0:
-                raise ErrorMontura(f"Parámetros del motor {c} no válidos (a={self.cpr[i]}, b={self.freq[i]})")
+                raise ErrorMontura(_("Parámetros del motor {eje} no válidos (a={a}, b={b})", eje=c, a=self.cpr[i],
+                                      b=self.freq[i]))
         if not self.permitir_rapido:
             # Techo del modo lento: T mínimo de PERIODO_MINIMO ticks por micropaso
             self._limites = tuple(self.freq[i] / PERIODO_MINIMO * 360.0 / self.cpr[i] for i in (0, 1))
@@ -548,7 +553,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             try:
                 self._tracking_inicial, self._pos_ascom = self._t.ejecutar(self._leer_ascom_y_quitar_tracking, timeout=10)
             except ErrorHardware as e:
-                raise ErrorMontura(f"No se pudo desactivar el seguimiento en SynScan Pro: {e}") from e
+                raise ErrorMontura(_("No se pudo desactivar el seguimiento en SynScan Pro: {e}", e=e)) from e
         log.info("Montura UDP lista: versión %s, cpr %s, freq %s, ratio %s, límites %s °/s, tracking inicial %s",
                  self.version.get("texto"), self.cpr, self.freq, self.ratio,
                  tuple(round(v, 3) for v in self._limites), self._tracking_inicial)
@@ -628,7 +633,8 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             return {"texto": r, "raw": r}
         # Como INDI: la versión son los dos primeros bytes y el tercero es el código de montura
         mayor, menor, codigo = (v & 0xFF), (v >> 8) & 0xFF, (v >> 16) & 0xFF
-        return {"texto": f"{mayor}.{menor:02d} (montura 0x{codigo:02X})", "raw": r,
+        return {"texto": _("{version} (montura 0x{codigo})", version=f"{mayor}.{menor:02d}", codigo=f"{codigo:02X}"),
+                "raw": r,
                 "valor": (mayor << 16) | (menor << 8) | codigo, "codigo_montura": codigo}
 
     def estado(self, eje):
@@ -636,7 +642,7 @@ class MonturaSkyWatcherUDP(MonturaEjes):
 
     def parado_confirmado(self, eje, lecturas=2):
         """True solo si `lecturas` consultas seguidas de :f dicen que el eje no está en marcha."""
-        for _ in range(lecturas):
+        for __ in range(lecturas):
             try:
                 if self.estado(eje)["en_marcha"]:
                     return False
@@ -763,7 +769,8 @@ class MonturaSkyWatcherUDP(MonturaEjes):
             else:
                 sin_confirmar.append(eje)
         if sin_confirmar:
-            raise ErrorMontura(f"La montura no confirma la parada de los ejes {sin_confirmar}: comprobar a mano")
+            raise ErrorMontura(_("La montura no confirma la parada de los ejes {ejes}: comprobar a mano",
+                                ejes=sin_confirmar))
 
     def posicion_codificador(self):
         """Desplazamiento de cada eje en grados desde preparar() (según :j)."""
@@ -830,7 +837,7 @@ def crear(conf, trabajador_ascom=None):
                                     umbral_rapido=float(conf.get("udp_umbral_rapido", UMBRAL_RAPIDO_SEGUIMIENTO)),
                                     permitir_rapido=str(conf.get("udp_permitir_rapido", "false")).lower() == "true")
     if trabajador_ascom is None:
-        raise ErrorMontura("El backend ASCOM necesita el TrabajadorCOM de la montura")
+        raise ErrorMontura(_("El backend ASCOM necesita el TrabajadorCOM de la montura"))
     redondeo = conf.get("redondeo_ascom")
     return MonturaASCOM(trabajador_ascom, intervalo_min_s=float(conf.get("intervalo_ascom_s", 0.4)),
                         banda_muerta=float(conf.get("banda_muerta", 0.02)),
@@ -860,7 +867,7 @@ if __name__ == "__main__":
     assert velocidad_a_periodo(0.11, cpr, freq, ratio, rapido_actual=True, umbral=0.2)[1] is False
     # Por defecto (umbral 0) siempre rápido, también a velocidad sidérea
     assert velocidad_a_periodo(SIDEREO_DEG_S, cpr, freq, ratio)[1] is True
-    T, _ = velocidad_a_periodo(0.05, cpr, freq, ratio)
+    T, __ = velocidad_a_periodo(0.05, cpr, freq, ratio)
     assert abs(periodo_a_velocidad(T, True, cpr, freq, ratio) - 0.05) < 0.001
     # Modo lento forzado (umbral infinito): nunca rápido, y por encima del máximo se satura en T mínimo
     cpr_az, freq_az = 1_452_951, 19_531          # AZ GoTo real

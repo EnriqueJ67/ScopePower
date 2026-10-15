@@ -1,0 +1,3 @@
+#titulo:Summer sky
+#descripcion:The summer sky, from June to September in the northern hemisphere, is one of the most spectacular of the year thanks to the many bright stars and deep-sky objects on view, especially along the Milky Way. The Milky Way dominates, crossing the sky from north to south on clear nights. It is ideal for observing nebulae and open and globular clusters, above all towards the galactic center in Sagittarius. The nights are warm, perfect for spending hours outdoors observing.
+#lista:Cygnus;Lyra;Aquila;Sagittarius;Scorpius;Hercules
