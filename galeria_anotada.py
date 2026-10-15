@@ -32,6 +32,7 @@ import firma
 import procesado
 import anotaciones
 from editor_fotos import ErrorEditor, rutas
+from idioma import _
 
 log = logging.getLogger("scopepower.galeria_anotada")
 
@@ -73,7 +74,7 @@ def _resolver(ruta_fits):
     with fits.open(ruta_fits) as hdul:
         datos = hdul[0].data
         if datos is None or datos.ndim != 3 or 3 not in (datos.shape[0], datos.shape[-1]):
-            raise ErrorEditor("El FITS no es un apilado RGB de ScopePower")
+            raise ErrorEditor(_("El FITS no es un apilado RGB de ScopePower"))
         if datos.shape[0] != 3:
             datos = datos.transpose(2, 0, 1)
         alto, ancho = datos.shape[1:]
@@ -82,7 +83,7 @@ def _resolver(ruta_fits):
     with tempfile.TemporaryDirectory(prefix="scopepower_anot_") as carpeta:
         res = anotaciones.resolver_wcs(ruta_fits, ruta_mono=os.path.join(carpeta, "foto_mono.fits"))
         if res is None:
-            raise ErrorEditor("ASTAP no ha podido resolver la foto (¿pocas estrellas?)")
+            raise ErrorEditor(_("ASTAP no ha podido resolver la foto (¿pocas estrellas?)"))
         wcs, escala_arcsec, angulo_cam, ruta_ini = res
         simbad = anotaciones.objetos_simbad(ruta_ini, ruta_fits) if _hay_internet() else None
     return {"ancho": int(ancho), "alto": int(alto), "zona": [int(v) for v in zona] if zona else None,
@@ -107,10 +108,10 @@ def solucion_de(ruta_fits):
     try:
         st = os.stat(ruta_fits)
     except OSError:
-        raise ErrorEditor("Esta foto no tiene FITS guardado; no se puede anotar")
+        raise ErrorEditor(_("Esta foto no tiene FITS guardado; no se puede anotar"))
     clave = f"{st.st_size}_{st.st_mtime_ns}"
     if not _lock.acquire(blocking=False):
-        raise ErrorEditor("Ya se está resolviendo una foto; espera a que termine")
+        raise ErrorEditor(_("Ya se está resolviendo una foto; espera a que termine"))
     try:
         guardada = _leer_cache().get(clave)
         # Si se resolvió sin Internet le faltan los objetos de SIMBAD: con red, se vuelve a resolver
@@ -155,9 +156,9 @@ def objetos_foto(nombre):
     ángulo de la elipse en grados o None si es un círculo, fuente). Primero los
     del catálogo local y los grandes, que es el orden en que se rotulan.
     """
-    _, ruta_jpg, ruta_fits, _ = rutas(nombre)
+    __, ruta_jpg, ruta_fits, __ = rutas(nombre)
     if not os.path.isfile(ruta_jpg):
-        raise ErrorEditor("Imagen no encontrada")
+        raise ErrorEditor(_("Imagen no encontrada"))
     solucion, nueva = solucion_de(ruta_fits)
     wcs = _wcs(solucion)
     M, ancho, alto = _matriz_al_jpg(firma.meta_de_archivo(ruta_jpg), solucion, ruta_jpg)

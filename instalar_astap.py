@@ -22,6 +22,8 @@ import zipfile
 
 import requests
 
+from idioma import _, N_, fmt_num
+
 URL_SF = "https://downloads.sourceforge.net/project/astap-program/"
 ZIP_CLI = "windows_installer/astap_command-line_version_win64.zip"
 CARPETA_LOCAL = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "ScopePower", "astap")
@@ -30,9 +32,9 @@ URL_WEB = "https://www.hnsky.org/astap.htm"
 
 # Catálogos que se pueden instalar solos (zip) y su tamaño aproximado de descarga
 CATALOGOS = {
-    "d05": {"mb": 102, "nombre": "D05", "nota": "el más pequeño; campos de 1° o más"},
-    "d20": {"mb": 400, "nombre": "D20", "nota": "campos de 0,6° o más"},
-    "d50": {"mb": 901, "nombre": "D50", "nota": "el más usado; campos de 0,6° o más"},
+    "d05": {"mb": 102, "nombre": "D05", "nota": N_("el más pequeño; campos de 1° o más")},
+    "d20": {"mb": 400, "nombre": "D20", "nota": N_("campos de 0,6° o más")},
+    "d50": {"mb": 901, "nombre": "D50", "nota": N_("el más usado; campos de 0,6° o más")},
 }
 # Prefijos de los ficheros de catálogo que sirven para resolver (como herramientas/comprobar_equipo.py)
 PREFIJOS = ("d05", "d20", "d50", "d80", "h17", "h18", "w08", "v50", "g05")
@@ -81,6 +83,12 @@ def recomendado(campo_deg):
     return "d05"
 
 
+def _opcion(clave, datos):
+    """Un catálogo para el desplegable, con la nota en el idioma de la app."""
+    nota = datos["nota"]
+    return dict(datos, id=clave, nota=_(nota))
+
+
 def estado(ruta_config="", campo_deg=None):
     """
     {"ok", "ruta", "programa", "catalogos", "recomendado", "campo_deg", "opciones", "progreso"}
@@ -101,7 +109,7 @@ def estado(ruta_config="", campo_deg=None):
         "catalogos": catalogos,
         "recomendado": recomendado(campo_deg),
         "campo_deg": round(campo_deg, 2) if campo_deg else None,
-        "opciones": [dict(id=k, **v) for k, v in CATALOGOS.items()],
+        "opciones": [_opcion(k, v) for k, v in CATALOGOS.items()],
         "carpeta_local": CARPETA_LOCAL,
         "web": URL_WEB,
         "progreso": progreso(),
@@ -133,7 +141,7 @@ def _descargar(ruta_relativa, destino, texto):
     with requests.get(URL_SF + ruta_relativa, stream=True, timeout=(20, 60), allow_redirects=True) as r:
         r.raise_for_status()
         if "text/html" in r.headers.get("Content-Type", ""):
-            raise RuntimeError("SourceForge ha devuelto una página web en vez del fichero; prueba más tarde")
+            raise RuntimeError(_("SourceForge ha devuelto una página web en vez del fichero; prueba más tarde"))
         total = int(r.headers.get("Content-Length") or 0)
         _poner(total=total)
         hechos, t0 = 0, time.time()
@@ -145,7 +153,8 @@ def _descargar(ruta_relativa, destino, texto):
                 hechos += len(trozo)
                 _poner(bytes=hechos, mb_s=round(hechos / 1e6 / max(time.time() - t0, 0.1), 2))
     if total and hechos < total:
-        raise RuntimeError(f"descarga incompleta ({hechos // 1_000_000} de {total // 1_000_000} MB)")
+        raise RuntimeError(_("descarga incompleta ({hechos} de {total} MB)", hechos=hechos // 1_000_000,
+                                total=total // 1_000_000))
     os.replace(parcial, destino)
 
 
@@ -173,15 +182,16 @@ def instalar(base, al_terminar=None):
     """
     base = str(base or "").lower()
     if base not in CATALOGOS:
-        return False, "Ese catálogo no se puede instalar automáticamente"
+        return False, _("Ese catálogo no se puede instalar automáticamente")
     with _lock:
         if _progreso["en_curso"]:
-            return False, "Ya hay una instalación en marcha"
+            return False, _("Ya hay una instalación en marcha")
     os.makedirs(CARPETA_LOCAL, exist_ok=True)
     necesario_mb = CATALOGOS[base]["mb"] * 2.3 + 50   # zip + descomprimido (algo mayor) + margen
     libre_mb = shutil.disk_usage(CARPETA_LOCAL).free / 1e6
     if libre_mb < necesario_mb:
-        return False, f"No hay sitio en el disco: hacen falta unos {necesario_mb / 1000:.1f} GB y quedan {libre_mb / 1000:.1f} GB"
+        return False, _("No hay sitio en el disco: hacen falta unos {necesario} GB y quedan {libre} GB",
+                         necesario=fmt_num(necesario_mb / 1000, 1), libre=fmt_num(libre_mb / 1000, 1))
     with _lock:
         _progreso.update(en_curso=True, fase="empezando", texto="", bytes=0, total=0, mb_s=0.0,
                          error="", ok=False, base=base, cancelar=False)
@@ -194,22 +204,22 @@ def _tarea(base, al_terminar):
     zip_cli = os.path.join(CARPETA_LOCAL, "astap_cli.zip")
     try:
         if not os.path.isfile(CLI_LOCAL):
-            _descargar(ZIP_CLI, zip_cli, "Programa ASTAP (línea de órdenes)")
-            _descomprimir(zip_cli, CARPETA_LOCAL, "Programa ASTAP")
+            _descargar(ZIP_CLI, zip_cli, _("Programa ASTAP (línea de órdenes)"))
+            _descomprimir(zip_cli, CARPETA_LOCAL, _("Programa ASTAP"))
             os.remove(zip_cli)
             if not os.path.isfile(CLI_LOCAL):
-                raise RuntimeError("el zip de ASTAP no traía astap_cli.exe")
+                raise RuntimeError(_("el zip de ASTAP no traía astap_cli.exe"))
         nombre = CATALOGOS[base]["nombre"]
-        _descargar(f"star_databases/{base}_star_database.zip", zip_cat, f"Catálogo de estrellas {nombre}")
-        _descomprimir(zip_cat, CARPETA_LOCAL, f"Catálogo de estrellas {nombre}")
+        _descargar(f"star_databases/{base}_star_database.zip", zip_cat, _("Catálogo de estrellas {nombre}", nombre=nombre))
+        _descomprimir(zip_cat, CARPETA_LOCAL, _("Catálogo de estrellas {nombre}", nombre=nombre))
         os.remove(zip_cat)
         if base not in catalogos_en(CARPETA_LOCAL):
-            raise RuntimeError("el catálogo no ha quedado en la carpeta de ASTAP")
+            raise RuntimeError(_("el catálogo no ha quedado en la carpeta de ASTAP"))
         if al_terminar:
             al_terminar(CLI_LOCAL)
-        _poner(en_curso=False, fase="terminado", texto=f"ASTAP y el catálogo {nombre} instalados", ok=True)
+        _poner(en_curso=False, fase="terminado", texto=_("ASTAP y el catálogo {nombre} instalados", nombre=nombre), ok=True)
     except _Cancelado:
-        _poner(en_curso=False, fase="cancelado", texto="Instalación cancelada", error="")
+        _poner(en_curso=False, fase="cancelado", texto=_("Instalación cancelada"), error="")
     except Exception as e:
         _poner(en_curso=False, fase="error", error=str(e) or e.__class__.__name__)
     finally:

@@ -43,6 +43,7 @@ import foto_actual
 import giro_camara
 import orientacion_camara
 import enfoque
+from idioma import _
 
 log = logging.getLogger("scopepower.vivo")
 
@@ -122,7 +123,7 @@ def jpg_web(imagen_bgr, ancho=ANCHO_JPG, calidad=CALIDAD_JPG):
         imagen_bgr = cv2.resize(imagen_bgr, (ancho, int(h * ancho / w)), interpolation=cv2.INTER_AREA)
     ok, datos = cv2.imencode(".jpg", imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, int(calidad)])
     if not ok:
-        raise ErrorVivo("No se pudo codificar el JPG")
+        raise ErrorVivo(_("No se pudo codificar el JPG"))
     return datos.tobytes()
 
 
@@ -161,6 +162,7 @@ class TrabajoVivo:
     def _reiniciar(self):
         self.en_curso = False
         self.terminado = False
+        self.parado_sin_mirar = False
         self.fase = ""
         self.mensaje = ""
         self.error = ""
@@ -209,12 +211,12 @@ class TrabajoVivo:
         fabrica_camara(): objeto con la interfaz de CamaraNativa (el simulador en pruebas).
         """
         if objetivo not in foto_dia.OBJETIVOS:
-            raise ValueError(f"Objetivo desconocido: {objetivo}")
+            raise ValueError(_("Objetivo desconocido: {objetivo}", objetivo=objetivo))
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("El modo en vivo ya está en marcha")
+                raise RuntimeError(_("El modo en vivo ya está en marcha"))
             if camara_ascom is not None and camara_ascom.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self._parar.clear()
             self._jpg = None
@@ -222,7 +224,7 @@ class TrabajoVivo:
             self.fase = "preparando"
             self.objetivo = objetivo
             self.campo = max(0.2, min(1.0, float(campo)))
-            self.mensaje = "Pasando la cámara al SDK..."
+            self.mensaje = _("Pasando la cámara al SDK...")
         self._hilo = threading.Thread(target=self._ejecutar, name="vivo-dia", daemon=True,
                                       args=(camara_ascom, compensacion, fabrica_camara))
         self._hilo.start()
@@ -242,7 +244,7 @@ class TrabajoVivo:
         reservada = False
         try:
             if camara_ascom is not None:
-                camara_ascom.reservar("el modo en vivo")
+                camara_ascom.reservar(_("el modo en vivo"))
                 reservada = True
             if fabrica_camara:
                 cam = fabrica_camara()
@@ -270,9 +272,9 @@ class TrabajoVivo:
                 self.fase = "parado"
                 self.error = error
                 if error:
-                    self.mensaje = f"Error: {error}"
-                elif not self.mensaje.startswith("Parado"):
-                    self.mensaje = "Modo en vivo terminado"
+                    self.mensaje = _("Error: {e}", e=error)
+                elif not self.parado_sin_mirar:
+                    self.mensaje = _("Modo en vivo terminado")
 
     def _reconectar(self, camara_ascom):
         for intento in range(3):
@@ -322,7 +324,8 @@ class TrabajoVivo:
         log.info("En vivo: %s, ROI %d px (%.0f %% del campo), %s, orientación SDK→ASCOM %s, ganancia %s",
                  conf["nombre"], lado, 100 * campo_visto, patron, orientacion, ganancia)
         cam.iniciar_video()
-        self._msg(f"imagen continua de {conf['nombre']}", fase="en vivo")
+        nombre_objeto = conf['nombre']
+        self._msg(_("imagen continua de {objeto}", objeto=_(nombre_objeto)), fase="en vivo")
 
         negro, balance, ultimo_balance = None, None, 0.0
         saltar = 0                      # fotogramas a descartar tras cambiar la exposición
@@ -330,7 +333,8 @@ class TrabajoVivo:
         t_fps, n_fps = time.perf_counter(), 0
         while not self._parar.is_set():
             if time.time() - self._ultimo_visto > SIN_MIRAR_S:
-                self._msg(f"Parado: nadie ha mirado la imagen en {SIN_MIRAR_S // 60} minutos; la cámara vuelve a ASCOM")
+                self.parado_sin_mirar = True
+                self._msg(_("Parado: nadie ha mirado la imagen en {n} minutos; la cámara vuelve a ASCOM", n=SIN_MIRAR_S // 60))
                 break
             try:
                 cfa = np.array(cam.leer_frame(timeout_ms=int(exposicion * 1000 * 2) + 1500))
@@ -338,7 +342,7 @@ class TrabajoVivo:
             except Exception as e:
                 errores_seguidos += 1
                 if errores_seguidos >= 5:
-                    raise ErrorVivo(f"la cámara no entrega fotogramas ({e})")
+                    raise ErrorVivo(_("la cámara no entrega fotogramas ({e})", e=e))
                 continue
             if saltar:
                 saltar -= 1

@@ -46,6 +46,7 @@ from datetime import datetime
 
 import numpy as np
 import cv2
+from idioma import _, fmt_num
 
 log = logging.getLogger("scopepower.seguimiento")
 
@@ -275,10 +276,10 @@ class Calibracion:
         """
         A = np.array([[m[0], m[1]] for m in medidas], dtype=float)   # n×2 velocidades de eje
         B = np.array([[m[2], m[3]] for m in medidas], dtype=float)   # n×2 velocidades en px
-        M_t, *_ = np.linalg.lstsq(A, B, rcond=None)                  # B ≈ A · M_t
+        M_t, *__ = np.linalg.lstsq(A, B, rcond=None)                  # B ≈ A · M_t
         M = M_t.T
         if abs(np.linalg.det(M)) < 1e-6:
-            raise ValueError("Las medidas no permiten calibrar (ejes sin desplazamiento apreciable)")
+            raise ValueError(_("Las medidas no permiten calibrar (ejes sin desplazamiento apreciable)"))
         esc = escala
         if esc is None:
             esc = 3600.0 / math.sqrt(abs(np.linalg.det(M)))     # "/px medio
@@ -496,15 +497,15 @@ class TrabajoSeguimiento:
         """
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("El seguimiento ya está en marcha")
+                raise RuntimeError(_("El seguimiento ya está en marcha"))
             if camara_ascom is not None and camara_ascom.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self._parar.clear()
             self.en_curso = True
             self.fase = "preparando"
             self.inicio = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.mensaje = "Preparando cámara y montura..."
+            self.mensaje = _("Preparando cámara y montura...")
             self.calibracion = calibracion or elegir_calibracion(conf)
         self._conf = dict(conf)
         self._hilo = threading.Thread(target=self._ejecutar, name="seguimiento", daemon=True,
@@ -566,7 +567,7 @@ class TrabajoSeguimiento:
                      self.calibracion.fecha, self.calibracion.signos_cielo)
             cam.iniciar_video()
             if voz:
-                voz.decir("Seguimiento de objetos", categoria="capturas")
+                voz.decir(_("Seguimiento de objetos"), categoria="capturas")
             self._bucle(cam, montura, geo, conf)
         except Exception as e:
             error = str(e)
@@ -596,7 +597,7 @@ class TrabajoSeguimiento:
                 self.terminado = True
                 self.fase = "parado"
                 self.error = error
-                self.mensaje = f"Error: {error}" if error else "Seguimiento terminado"
+                self.mensaje = _("Error: {e}", e=error) if error else _("Seguimiento terminado")
                 self.version += 1
 
     def _reconectar_camara(self, camara_ascom):
@@ -608,7 +609,7 @@ class TrabajoSeguimiento:
             except Exception as e:
                 log.warning("Seguimiento: no se pudo reconectar la cámara ASCOM (%d/3): %s", intento + 1, e)
                 time.sleep(2)
-        self._msg("La cámara ASCOM no se ha podido reconectar; reconéctala desde Configuración", logging.ERROR)
+        self._msg(_("La cámara ASCOM no se ha podido reconectar; reconéctala desde Configuración"), logging.ERROR)
         return False
 
     def _bucle(self, cam, montura, geo, conf):
@@ -666,7 +667,7 @@ class TrabajoSeguimiento:
             return None
 
         self._fase("buscando")
-        self._msg("Buscando un objeto brillante (o pulsa uno en la vista previa)")
+        self._msg(_("Buscando un objeto brillante (o pulsa uno en la vista previa)"))
         while not self._parar.is_set():
             # Orden de calibración empírica
             if self._orden_calibrar is not None:
@@ -678,7 +679,7 @@ class TrabajoSeguimiento:
             try:
                 frame = cam.leer_frame()
             except Exception as e:
-                self._msg(f"Fotograma perdido: {e}", logging.WARNING)
+                self._msg(_("Fotograma perdido: {e}", e=e), logging.WARNING)
                 self._parar.wait(0.05)
                 continue
             t_frame = time.perf_counter()
@@ -695,7 +696,7 @@ class TrabajoSeguimiento:
                 if t_frame - man[2] <= 1.2 and (man[0] or man[1]):
                     en_manual = True
                     if self.fase != "manual":
-                        reiniciar_objetivo("manual", "Moviendo con el pad")
+                        reiniciar_objetivo("manual", _("Moviendo con el pad"))
                     if (man[0], man[1]) != v_ejes:
                         montura.velocidad(man[0], man[1])
                         v_ejes = (man[0], man[1])
@@ -704,7 +705,7 @@ class TrabajoSeguimiento:
                     montura.parar()
                     v_ejes = (0.0, 0.0)
                     t_calma = t_frame + asentamiento_s
-                    reiniciar_objetivo("buscando", "Pad suelto: esperando a que la montura se asiente")
+                    reiniciar_objetivo("buscando", _("Pad suelto: esperando a que la montura se asiente"))
             if n_frames % 15 == 1:
                 # Niveles del fotograma para la telemetría (diagnóstico: ¿ve algo la cámara?)
                 fondo_plano = np.median(plano)
@@ -721,10 +722,10 @@ class TrabajoSeguimiento:
                 elif self.grabacion is not None and self.grabacion.error and not self._grabacion_avisada:
                     # Se ha parado sola (disco casi lleno o error de escritura): el seguimiento sigue
                     self._grabacion_avisada = True
-                    self._msg(f"Vídeo: {self.grabacion.error}. El seguimiento continúa sin grabar", logging.WARNING)
+                    self._msg(_("Vídeo: {e}. El seguimiento continúa sin grabar", e=self.grabacion.error), logging.WARNING)
                     if self._voz:
-                        self._voz.decir("Grabación de vídeo detenida: el disco está casi lleno"
-                                        if self.grabacion.sin_espacio else "Grabación de vídeo detenida por un error")
+                        self._voz.decir(_("Grabación de vídeo detenida: el disco está casi lleno")
+                                        if self.grabacion.sin_espacio else _("Grabación de vídeo detenida por un error"))
 
             # Objetivo pedido por el usuario (fracción del ROI → píxel del plano)
             pedido = self._objetivo_pedido
@@ -732,12 +733,12 @@ class TrabajoSeguimiento:
                 self._objetivo_pedido = None
                 px, py = pedido[0] * plano.shape[1], pedido[1] * plano.shape[0]
                 m = elegir_objetivo(manchas, (px, py), radio_px=max(conf["radio_px"], plano.shape[0] * 0.1))
-                reiniciar_objetivo("buscando", "Objetivo elegido por el usuario" if m else "")
+                reiniciar_objetivo("buscando", _("Objetivo elegido por el usuario") if m else "")
                 if m:
                     objetivo_xy = (m["x"], m["y"])
                     elegido_por_usuario = True
                 else:
-                    self._msg("No hay ninguna mancha cerca del punto pulsado", logging.WARNING)
+                    self._msg(_("No hay ninguna mancha cerca del punto pulsado"), logging.WARNING)
 
             m = elegir_objetivo(manchas, objetivo_xy, conf["radio_px"]) if objetivo_xy is not None else None
             if t_frame < t_calma and not en_manual:
@@ -748,7 +749,7 @@ class TrabajoSeguimiento:
                 # Sin objetivo: adquirir automáticamente la más brillante que no se haya descartado por quieta
                 m = candidata_automatica(manchas, t_frame)
                 if m is not None:
-                    self._msg(f"Objeto adquirido en ({m['x']:.0f}, {m['y']:.0f})")
+                    self._msg(_("Objeto adquirido en ({x}, {y})", x=round(m['x']), y=round(m['y'])))
 
             # Altura para la seguridad y para la matriz (1 Hz)
             if t_frame - t_pos >= 1.0:
@@ -761,7 +762,7 @@ class TrabajoSeguimiento:
                     alt = pos[1]
                     lim = conf.get("altura_minima_seguimiento")
                     if lim is not None and alt < lim:
-                        self._msg(f"Altura {alt:.1f}° por debajo del mínimo ({lim:g}°): se para el seguimiento", logging.WARNING)
+                        self._msg(_("Altura {alt}° por debajo del mínimo ({lim}°): se para el seguimiento", alt=fmt_num(alt, 1), lim=fmt_num(lim)), logging.WARNING)
                         break
 
             if (m is None and not manchas and conf["exposicion_auto"] and t_frame - t_ultimo_ajuste >= 1.0
@@ -802,7 +803,7 @@ class TrabajoSeguimiento:
                 if t_perdido is not None:
                     t_perdido = None
                     self._fase("bloqueado")
-                    self._msg("Objetivo recuperado")
+                    self._msg(_("Objetivo recuperado"))
                 error_px = (m["x"] - centro[0], m["y"] - centro[1])
                 # Velocidad aparente del objeto en px/s sobre la ventana
                 v_obj = None
@@ -816,7 +817,7 @@ class TrabajoSeguimiento:
                         and v_ejes == (0.0, 0.0)):
                     # Mancha quieta con la montura parada (una estrella): descartarla y buscar otra
                     ignorar.append((t_frame, m["x"], m["y"]))
-                    reiniciar_objetivo("buscando", f"Mancha quieta en ({m['x']:.0f}, {m['y']:.0f}) descartada")
+                    reiniciar_objetivo("buscando", _("Mancha quieta en ({x}, {y}) descartada", x=round(m['x']), y=round(m['y'])))
                     m = None
                 elif listo and not movimiento_coherente(historia):
                     # Las posiciones no siguen una línea: es ruido o son manchas distintas; no mover la montura
@@ -827,7 +828,7 @@ class TrabajoSeguimiento:
                     v0 = (v0[0] + v_ejes[0], v0[1] + v_ejes[1])
                     pi.arrancar(v0)
                     self._fase("bloqueado")
-                    self._msg(f"Bloqueado: velocidad inicial az {v0[0]:+.3f} alt {v0[1]:+.3f} °/s")
+                    self._msg(_("Bloqueado: velocidad inicial az {az} alt {alt} °/s", az=("+" if v0[0] >= 0 else "") + fmt_num(v0[0], 3), alt=("+" if v0[1] >= 0 else "") + fmt_num(v0[1], 3)))
                     t_ultima_orden = 0.0
                 if m is not None and self.fase == "bloqueado" and t_frame - t_ultima_orden >= periodo_orden:
                     dt = periodo_orden if t_ultima_orden == 0.0 else t_frame - t_ultima_orden
@@ -842,12 +843,12 @@ class TrabajoSeguimiento:
                     if t_perdido is None:
                         t_perdido = t_frame
                         self._fase("perdido")
-                        self._msg("Objetivo perdido; se mantiene la última velocidad")
+                        self._msg(_("Objetivo perdido; se mantiene la última velocidad"))
                     elif t_frame - t_perdido > conf["perdida_s"]:
                         montura.parar()
                         v_ejes = (0.0, 0.0)
                         t_calma = t_frame + asentamiento_s
-                        reiniciar_objetivo("buscando", "Objetivo perdido: ejes parados, buscando de nuevo")
+                        reiniciar_objetivo("buscando", _("Objetivo perdido: ejes parados, buscando de nuevo"))
             if hasattr(montura, "pendiente"):
                 montura.pendiente()
 
@@ -893,15 +894,16 @@ class TrabajoSeguimiento:
                 carpeta=conf["carpeta_video"], formatos=formatos, ancho=ancho, alto=alto, fps=conf["fps_camara"],
                 bayer=bayer, bits=16 if frame.dtype == np.uint16 else 8,
                 instrumento=getattr(self, "_modelo_camara", ""), telescopio=f"focal {conf['focal_mm']:.0f} mm")
-            self._msg(f"Grabando vídeo {'en color' if bayer != 'MONO' else 'monocromo'} en {self.grabacion.nombre} ({', '.join(formatos)})")
+            self._msg(_("Grabando vídeo en color en {nombre} ({formatos})", nombre=self.grabacion.nombre, formatos=", ".join(formatos)) if bayer != 'MONO'
+                      else _("Grabando vídeo monocromo en {nombre} ({formatos})", nombre=self.grabacion.nombre, formatos=", ".join(formatos)))
         except Exception as e:
             log.error("Seguimiento: no se pudo abrir la grabación de vídeo: %s", e)
-            self._msg(f"Sin grabación de vídeo: {e}", logging.ERROR)
+            self._msg(_("Sin grabación de vídeo: {e}", e=e), logging.ERROR)
             self.error_grabacion = str(e)
             self.grabacion = None
             self._conf["grabar"] = False
-            if self._voz and "disco casi lleno" in str(e):
-                self._voz.decir("No se graba el vídeo: el disco está casi lleno")
+            if self._voz and getattr(e, "sin_espacio", False):
+                self._voz.decir(_("No se graba el vídeo: el disco está casi lleno"))
 
     def _guardar_vista(self, plano, manchas, objetivo_xy, ancho):
         try:
@@ -949,13 +951,13 @@ class TrabajoSeguimiento:
         """
         from camara_nativa import luminancia_rapida
         self._fase("calibrando")
-        self._msg(f"Calibración empírica: moviendo cada eje a {v:g} °/s durante {duracion:g} s")
+        self._msg(_("Calibración empírica: moviendo cada eje a {v} °/s durante {s} s", v=fmt_num(v), s=fmt_num(duracion)))
 
         def mancha():
             plano = luminancia_rapida(cam.leer_frame())
             ms = detectar_manchas(plano, conf["k_mad"], conf["area_min"], conf["area_max"], contraste_min=conf["contraste_min"])
             if not ms:
-                raise RuntimeError("No hay ninguna mancha con la que calibrar")
+                raise RuntimeError(_("No hay ninguna mancha con la que calibrar"))
             return ms[0]["x"], ms[0]["y"]
 
         def esperar_quieta(maximo_s=4.0):
@@ -990,10 +992,10 @@ class TrabajoSeguimiento:
                 x1, y1 = esperar_quieta()
                 m1 = montura.posicion_ahora()
                 if m0 is None or m1 is None:
-                    raise RuntimeError("La montura no informa de su posición; no se puede medir el ángulo recorrido")
+                    raise RuntimeError(_("La montura no informa de su posición; no se puede medir el ángulo recorrido"))
                 d_deg = (m1[eje] - m0[eje] + 180.0) % 360.0 - 180.0
                 if abs(d_deg) < 0.02:
-                    raise RuntimeError(f"El eje {eje} no se ha movido ({d_deg:.3f}°): ¿montura parada o sin posición?")
+                    raise RuntimeError(_("El eje {eje} no se ha movido ({g}°): ¿montura parada o sin posición?", eje=eje, g=fmt_num(d_deg, 3)))
                 d_cmd = math.copysign(abs(d_deg), v)      # grados en el sentido de la orden
                 # La matriz del controlador relaciona el movimiento RELATIVO del objeto (objeto menos
                 # montura) con la imagen: al mover la montura el objeto se desplaza al revés, de ahí el signo
@@ -1015,13 +1017,14 @@ class TrabajoSeguimiento:
             cal.guardar()
             with self._lock:
                 self.calibracion = cal
-            self._msg(f"Calibración empírica guardada (escala {cal.escala:.2f}\"/px, ángulo {cal.angulo:.1f}°, espejo {cal.espejo:+d})")
+            self._msg(_("Calibración empírica guardada (escala {escala}\"/px, ángulo {angulo}°, espejo {espejo})",
+                         escala=fmt_num(cal.escala, 2), angulo=fmt_num(cal.angulo, 1), espejo=f"{cal.espejo:+d}"))
         except Exception as e:
             try:
                 montura.parar()
             except Exception:
                 pass
-            self._msg(f"Calibración empírica fallida: {e}", logging.ERROR)
+            self._msg(_("Calibración empírica fallida: {e}", e=e), logging.ERROR)
 
 
 def _luminancia_2x2(img):
@@ -1048,9 +1051,9 @@ def comprobar_orientacion_sdk(camara_ascom, ganancia=None, ruta_dll=None):
 
     # 1) Foto por ASCOM, subiendo o bajando la exposición hasta que se vea algo
     exp, img_ascom, maximo = 0.02, None, 65535.0
-    for _ in range(6):
+    for __ in range(6):
         img_ascom, maximo = camara_ascom.ejecutar(
-            lambda c: (capturar_frame(c, exp, 1, descripcion="Orientación SDK", ganancia=ganancia),
+            lambda c: (capturar_frame(c, exp, 1, descripcion=_("Orientación SDK"), ganancia=ganancia),
                        float(getattr(c, "MaxADU", 65535) or 65535)), timeout=exp + 90)
         nivel = float(np.percentile(img_ascom, 99.5)) / maximo
         if nivel > 0.9:
@@ -1069,7 +1072,7 @@ def comprobar_orientacion_sdk(camara_ascom, ganancia=None, ruta_dll=None):
             cam.configurar(roi_px=cam.propiedades["ancho"], binning=2, formato="RAW16",
                            exposicion_ms=exp * 1000.0, ganancia=ganancia)
             cam.iniciar_video()
-            for _ in range(3):
+            for __ in range(3):
                 frame = cam.leer_frame(int(exp * 1000 + 3000)).copy()
     finally:
         for intento in range(3):
@@ -1084,7 +1087,7 @@ def comprobar_orientacion_sdk(camara_ascom, ganancia=None, ruta_dll=None):
     mejor, segunda = res[0], res[1]
     fiable = mejor[1] > 0.5 and (mejor[1] - segunda[1]) > 0.1
     conservado, medias_sdk, disp_sdk = orientacion_camara.bayer_conservado(frame)
-    _, medias_ascom, disp_ascom = orientacion_camara.bayer_conservado(img_ascom)
+    __, medias_ascom, disp_ascom = orientacion_camara.bayer_conservado(img_ascom)
     previa = orientacion_camara.leer_sdk()
     d = {"transformacion": mejor[0] if fiable else previa["transformacion"], "verificada": bool(fiable or previa.get("verificada")),
          "correlaciones": [(n, round(c, 3)) for n, c in res], "fecha": datetime.now().isoformat(timespec="seconds"),

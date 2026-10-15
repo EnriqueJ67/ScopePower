@@ -21,6 +21,7 @@ from datetime import datetime
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+from idioma import _, ngettext, fmt_num, fmt_fecha
 
 RUTA_LOGO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logo_transparente.png")
 FUENTES = {
@@ -63,10 +64,10 @@ def texto_integracion(n_fotos, exposicion):
     if n <= 0:
         return "", ""
     if exp <= 0:
-        return f"{n} foto{'s' if n != 1 else ''}", ""
+        return ngettext("{n} foto", "{n} fotos", n), ""
     if n == 1 and exp < 1:
         # Foto suelta de Cámara (de día, milisegundos): solo su exposición
-        return (f"{exp * 1e6:.0f} µs" if exp < 0.001 else f"{exp * 1000:.3g} ms"), ""
+        return (f"{exp * 1e6:.0f} µs" if exp < 0.001 else fmt_num(float(f"{exp * 1000:.3g}")) + " ms"), ""
     total = n * exp
     if total >= 3600:
         h, m = divmod(round(total / 60), 60)
@@ -74,8 +75,8 @@ def texto_integracion(n_fotos, exposicion):
     elif total >= 60:
         principal = f"{round(total / 60)} min"
     else:
-        principal = f"{total:g} s"
-    return principal, f"{n} × {exp:g} s"
+        principal = fmt_num(total) + " s"
+    return principal, f"{n} × {fmt_num(exp)} s"
 
 
 def texto_coordenadas(ra, dec):
@@ -87,12 +88,26 @@ def texto_coordenadas(ra, dec):
     if not r or not d:
         return ""
     signo = "−" if str(dec).strip().startswith("-") else "+"
-    return f"AR {int(float(r[0]))}h {int(float(r[1])):02d}m · Dec {signo}{abs(int(float(d[0])))}° {int(float(d[1])):02d}′"
+    return _("AR {h}h {m}m · Dec {signo}{g}° {mg}′", h=int(float(r[0])), m=f"{int(float(r[1])):02d}",
+             signo=signo, g=abs(int(float(d[0]))), mg=f"{int(float(d[1])):02d}")
 
 
 def texto_fecha(fecha):
+    """Fecha como se guarda en el JSON hermano (siempre dd/mm/aaaa hh:mm, sea cual sea el idioma)."""
     if isinstance(fecha, datetime):
         return fecha.strftime("%d/%m/%Y %H:%M")
+    return str(fecha or "")
+
+
+def fecha_visible(fecha):
+    """Fecha para pintarla en la foto, en el formato del idioma (acepta la del JSON hermano)."""
+    if isinstance(fecha, str):
+        try:
+            fecha = datetime.strptime(fecha.strip(), "%d/%m/%Y %H:%M")
+        except ValueError:
+            return fecha
+    if isinstance(fecha, datetime):
+        return fmt_fecha(fecha)
     return str(fecha or "")
 
 
@@ -179,7 +194,7 @@ def firmar(imagen_bgr, meta):
     # ── Bloque izquierdo: logo y autor · lugar · fecha ──
     y = h - m
     partes = [p for p in (meta.get("autor"), texto_lugar(meta.get("latitud"), meta.get("longitud")),
-                          texto_fecha(meta.get("fecha"))) if p]
+                          fecha_visible(meta.get("fecha"))) if p]
     if partes:
         _texto(draw, (m, y), "  ·  ".join(partes), _fuente(26 * s), gris, "ls", sombra)
         y -= int(26 * s + 18 * s)

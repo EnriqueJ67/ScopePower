@@ -23,6 +23,7 @@ import numpy as np
 import foto_dia
 import giro_camara
 import orientacion_camara
+from idioma import _, fmt_num, formato_fecha
 
 
 class SinDatos(Exception):
@@ -31,7 +32,7 @@ class SinDatos(Exception):
 
 def geometria_visible(vista):
     """(w, h) en píxeles del sensor (con binning) de la parte de la foto que se ve en la web."""
-    _, _, w, h = foto_dia.zona_recorte(vista["ancho"], vista["alto"], vista.get("campo", 1.0))
+    __, __, w, h = foto_dia.zona_recorte(vista["ancho"], vista["alto"], vista.get("campo", 1.0))
     return w, h
 
 
@@ -42,10 +43,10 @@ def desplazamiento(fx, fy, vista, orientacion):
     Mover el apuntado esa cantidad deja el punto en el centro.
     """
     if not vista or not vista.get("ancho"):
-        raise SinDatos("No hay ninguna foto en pantalla; haz una foto primero.")
+        raise SinDatos(_("No hay ninguna foto en pantalla; haz una foto primero."))
     if not orientacion or "H" not in orientacion:
-        raise SinDatos("Todavía no se conoce la orientación de la cámara: hace falta un plate solving "
-                       "que salga bien (centrado, alineación, apilado o foto de noche) con la cámara como está ahora.")
+        raise SinDatos(_("Todavía no se conoce la orientación de la cámara: hace falta un plate solving "
+                         "que salga bien (centrado, alineación, apilado o foto de noche) con la cámara como está ahora."))
     w, h = geometria_visible(vista)
     # El toque viene sobre la foto como se ve (con el giro de Cámara): al fotograma sin girar
     fx, fy = giro_camara.original(fx, fy, w, h, vista.get("encuadre"))
@@ -87,11 +88,16 @@ def describir_orientacion(orientacion):
     try:        # instante de la foto resuelta (UTC) en hora local
         from datetime import datetime, timezone
         utc = datetime.fromisoformat(str(orientacion.get("instante_utc"))[:19]).replace(tzinfo=timezone.utc)
-        fecha = utc.astimezone().strftime("%d/%m %H:%M")
+        fecha = utc.astimezone().strftime(formato_fecha(hora=True, corta=True))
     except ValueError:
         pass
-    return (f"{origen}{' del ' + fecha if fecha else ''}: "
-            f"{float(orientacion['escala_arcsec']):.2f}″/px, eje x de la foto a {float(orientacion['angulo_x_deg']):.0f}° del acimut")
+    escala = fmt_num(float(orientacion["escala_arcsec"]), 2)
+    angulo = round(float(orientacion["angulo_x_deg"]))
+    if fecha:
+        return _("{origen} del {fecha}: {escala}″/px, eje x de la foto a {angulo}° del acimut",
+                 origen=origen, fecha=fecha, escala=escala, angulo=angulo)
+    return _("{origen}: {escala}″/px, eje x de la foto a {angulo}° del acimut",
+             origen=origen, escala=escala, angulo=angulo)
 
 
 if __name__ == "__main__":

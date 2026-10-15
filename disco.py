@@ -31,11 +31,12 @@ import logging
 import threading
 
 import numpy as np
+from idioma import _, N_, fmt_num
 
 log = logging.getLogger("scopepower.disco")
 
 RADIO_KM = {"sol": 696000.0, "luna": 1737.4}
-NOMBRE = {"sol": "Sol", "luna": "Luna"}
+NOMBRE = {"sol": N_("Sol"), "luna": N_("Luna")}
 ANCHO_ANALISIS = 800           # la imagen se analiza a unos 800 px: sobra para centrar al píxel del sensor×4
 UMBRAL_DEFECTO_ARCMIN = 2.0    # se corrige cuando el disco se aparta más de esto ([FotoDia] guiado_umbral_arcmin)
 UMBRAL_MINIMO_ARCMIN = 0.5     # por debajo se estaría persiguiendo el propio error del GoTo de la montura
@@ -60,20 +61,20 @@ def luminancia_de_vista(f, leer_fits=None):
     import foto_dia
     import vivo_dia
     if f is None:
-        raise SinDisco("No hay ninguna foto; haz una foto (o pon el continuo o el modo en vivo).")
+        raise SinDisco(_("No hay ninguna foto; haz una foto (o pon el continuo o el modo en vivo)."))
     modo = f.get("modo")
     if modo == "vivo":
         img = f["imagen"]
         lum = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
         return lum.astype(np.float32)
     if modo != "dia":
-        raise SinDisco("Solo de día: pon el modo día y haz una foto del Sol o de la Luna.")
+        raise SinDisco(_("Solo de día: pon el modo día y haz una foto del Sol o de la Luna."))
     frame, patron = f.get("frame"), None
     if f.get("prep"):
         patron = foto_dia._patron(f["prep"].get("sensor_type"))
     if frame is None:
         if leer_fits is None:
-            raise SinDisco("La foto no está disponible.")
+            raise SinDisco(_("La foto no está disponible."))
         frame, cab = leer_fits()
         patron = str(cab.get("BAYERPAT") or "").strip().upper()
     zona = foto_dia.recortar_centro(np.asarray(frame), f.get("campo", 1.0))
@@ -97,7 +98,7 @@ def radio_esperado_arcsec(objetivo, instante, lat, lon, alt_m):
 def pixeles_por_arcsec(vista, orientacion, ancho_img):
     """Píxeles de la imagen analizada por segundo de arco."""
     import apuntado_teorico
-    w_visible, _ = apuntado_teorico.geometria_visible(vista)
+    w_visible, __ = apuntado_teorico.geometria_visible(vista)
     escala_frame = float(orientacion["escala_arcsec"]) * float(vista.get("binning", 1) or 1) / float(orientacion.get("binning_foto", 1) or 1)
     return (ancho_img / float(w_visible)) / escala_frame
 
@@ -108,13 +109,13 @@ def pixeles_por_arcsec(vista, orientacion, ancho_img):
 def _ajustar_radio_fijo(puntos, centro, radio, iteraciones=15):
     """Gauss-Newton: centro que minimiza Σ(|p−c| − R)² con R fijo."""
     c = np.array(centro, dtype=np.float64)
-    for _ in range(iteraciones):
+    for __ in range(iteraciones):
         d = puntos - c
         dist = np.hypot(d[:, 0], d[:, 1])
         dist = np.maximum(dist, 1e-6)
         residuo = dist - radio
         J = -d / dist[:, None]
-        paso, *_ = np.linalg.lstsq(J, -residuo, rcond=None)
+        paso, *__ = np.linalg.lstsq(J, -residuo, rcond=None)
         c += paso
         if np.hypot(*paso) < 1e-3:
             break
@@ -133,33 +134,33 @@ def detectar_disco(lum, radio_px, semilla=0):
     suave = cv2.GaussianBlur(lum, (0, 0), 1.2)
     bajo, alto = float(np.percentile(suave, 5)), float(np.percentile(suave, 99.5))
     if alto - bajo < 0.02 * max(alto, 1.0):
-        raise SinDisco("No se ve ningún disco: la imagen es casi uniforme (¿nubes, tapa puesta, fuera de campo?).")
+        raise SinDisco(_("No se ve ningún disco: la imagen es casi uniforme (¿nubes, tapa puesta, fuera de campo?)."))
     mascara = (suave > bajo + 0.35 * (alto - bajo)).astype(np.uint8)
     mascara = cv2.morphologyEx(mascara, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    n, etiquetas, stats, _ = cv2.connectedComponentsWithStats(mascara, 8)
+    n, etiquetas, stats, __ = cv2.connectedComponentsWithStats(mascara, 8)
     if n <= 1:
-        raise SinDisco("No se ve ningún disco brillante.")
+        raise SinDisco(_("No se ve ningún disco brillante."))
     mayor = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
     area = float(stats[mayor, cv2.CC_STAT_AREA])
     if area < math.pi * (0.2 * radio_px) ** 2:
-        raise SinDisco("La zona brillante es demasiado pequeña para ser el disco (¿casi fuera de campo o tapado?).")
+        raise SinDisco(_("La zona brillante es demasiado pequeña para ser el disco (¿casi fuera de campo o tapado?)."))
     if area > 1.15 * math.pi * radio_px ** 2 + 0.02 * h * w:
-        raise SinDisco("La zona brillante es mayor que el disco esperado: ¿es un paisaje, un cielo muy claro o está quemado?")
+        raise SinDisco(_("La zona brillante es mayor que el disco esperado: ¿es un paisaje, un cielo muy claro o está quemado?"))
     comp = (etiquetas == mayor).astype(np.uint8)
-    contornos, _ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contornos, __ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     puntos = max(contornos, key=len).reshape(-1, 2).astype(np.float64)
     # El borde de la imagen no es borde del disco
     dentro = (puntos[:, 0] > 1) & (puntos[:, 0] < w - 2) & (puntos[:, 1] > 1) & (puntos[:, 1] < h - 2)
     toca_borde = bool((~dentro).any())
     puntos = puntos[dentro]
     if len(puntos) < 30:
-        raise SinDisco("Casi todo el borde del disco queda fuera de la imagen.")
+        raise SinDisco(_("Casi todo el borde del disco queda fuera de la imagen."))
 
     # RANSAC con el radio conocido: dos puntos del borde → los dos centros posibles
     rng = np.random.default_rng(semilla)
     tolerancia = max(1.5, 0.02 * radio_px)
     mejor, mejor_n = None, 0
-    for _ in range(400):
+    for __ in range(400):
         i, j = rng.choice(len(puntos), 2, replace=False)
         p, q = puntos[i], puntos[j]
         cuerda = np.hypot(*(q - p))
@@ -173,14 +174,14 @@ def detectar_disco(lum, radio_px, semilla=0):
             if n_in > mejor_n:
                 mejor, mejor_n = c, n_in
     if mejor is None:
-        raise SinDisco("No se reconoce el borde del disco.")
+        raise SinDisco(_("No se reconoce el borde del disco."))
     inliers = puntos[np.abs(np.hypot(*(puntos - mejor).T) - radio_px) < tolerancia]
     centro = _ajustar_radio_fijo(inliers, mejor, radio_px)
     ajuste = len(inliers) / float(len(puntos))
     # Un disco entero da ~100 %; una Luna en cuarto, algo más de la mitad (el terminador no encaja)
     if ajuste < 0.3 or len(inliers) < 25:
-        raise SinDisco(f"El borde no encaja con un disco de ese tamaño (solo el {100 * ajuste:.0f} %): "
-                       "¿nubes delante, desenfocado o es otra cosa?")
+        raise SinDisco(_("El borde no encaja con un disco de ese tamaño (solo el {p} %): ¿nubes delante, desenfocado o es otra cosa?",
+                         p=round(100 * ajuste)))
     cx, cy = float(centro[0]), float(centro[1])
     return {"cx": cx, "cy": cy, "fx": (cx + 0.5) / w, "fy": (cy + 0.5) / h, "r": float(radio_px),
             "ajuste": round(ajuste, 3), "toca_borde": toca_borde, "ancho": w, "alto": h}
@@ -193,14 +194,14 @@ def localizar(f, orientacion, objetivo, observatorio, leer_fits=None):
     """
     import apuntado_teorico
     if objetivo not in RADIO_KM:
-        raise SinDisco("Elige Sol o Luna en el modo día.")
+        raise SinDisco(_("Elige Sol o Luna en el modo día."))
     lum = luminancia_de_vista(f, leer_fits)
     instante = float(f.get("instante") or time.time())
     try:
         radio_as = radio_esperado_arcsec(objetivo, instante, *observatorio)
         radio_px = radio_as * pixeles_por_arcsec(f, orientacion, lum.shape[1])
     except (KeyError, TypeError, ZeroDivisionError) as e:
-        raise SinDisco(f"No se puede calcular el tamaño del disco: {e}")
+        raise SinDisco(_("No se puede calcular el tamaño del disco: {e}", e=e))
     disco = detectar_disco(lum, radio_px)
     du, dv = apuntado_teorico.desplazamiento(disco["fx"], disco["fy"], f, orientacion)
     disco.update({"du": du, "dv": dv, "instante": instante, "radio_arcsec": radio_as,
@@ -245,6 +246,7 @@ class GuiadoDisco:
 
     def _reiniciar(self):
         self.activo = False
+        self.detenido = False        # se paró solo por perder el disco (no porque lo apagaran)
         self.objetivo = ""
         self.mensaje = ""
         self.referencia = None       # (du0, dv0): dónde debe estar el disco
@@ -261,7 +263,7 @@ class GuiadoDisco:
             return {"activo": self.activo, "objetivo": self.objetivo, "mensaje": self.mensaje,
                     "correcciones": self.correcciones, "umbral_arcmin": round(self.umbral_arcmin, 2),
                     "deriva_arcmin_min": None if self.deriva_arcmin_min is None else round(self.deriva_arcmin_min, 2),
-                    "desvio_arcmin": None if not u else round(u["desvio_ref"], 2), "perdidas": self.perdidas}
+                    "desvio_arcmin": None if not u else round(u["desvio_ref"], 2), "perdidas": self.perdidas, "detenido": self.detenido}
 
     def _msg(self, texto, nivel=logging.INFO):
         with self._lock:
@@ -277,14 +279,14 @@ class GuiadoDisco:
         """
         with self._lock:
             if self.activo:
-                raise RuntimeError("El guiado por el disco ya está activo")
+                raise RuntimeError(_("El guiado por el disco ya está activo"))
             self._reiniciar()
             self._parar.clear()
             self.activo = True
             self.objetivo = objetivo
             if umbral_arcmin:
                 self.umbral_arcmin = float(umbral_arcmin)
-            self.mensaje = "Esperando una foto nueva..."
+            self.mensaje = _("Esperando una foto nueva...")
         self._hilo = threading.Thread(target=self._bucle, name="guiado-disco", daemon=True,
                                       args=(obtener_foto, medir, mover, pad_en_uso, cada_s))
         self._hilo.start()
@@ -313,7 +315,7 @@ class GuiadoDisco:
                     with self._lock:
                         self.referencia = None      # la nueva posición del disco será la referencia
                     muestras = []
-                    self._msg("Pausado mientras se usa el pad")
+                    self._msg(_("Pausado mientras se usa el pad"))
                     continue
                 with self._lock:
                     no_antes_de = max(no_antes_de, self._nueva_ref_desde)
@@ -330,9 +332,11 @@ class GuiadoDisco:
                     with self._lock:
                         self.perdidas += 1
                         perdidas = self.perdidas
-                    self._msg(f"No se localiza el disco ({perdidas}/{PERDIDAS_MAXIMAS}): {e}", logging.WARNING)
+                    self._msg(_("No se localiza el disco ({n}/{max}): {e}", n=perdidas, max=PERDIDAS_MAXIMAS, e=e), logging.WARNING)
                     if perdidas >= PERDIDAS_MAXIMAS:
-                        self._msg(f"Guiado detenido: {PERDIDAS_MAXIMAS} fotos seguidas sin disco", logging.WARNING)
+                        with self._lock:
+                            self.detenido = True
+                        self._msg(_("Guiado detenido: {n} fotos seguidas sin disco", n=PERDIDAS_MAXIMAS), logging.WARNING)
                         break
                     continue
                 with self._lock:
@@ -353,13 +357,13 @@ class GuiadoDisco:
                 with self._lock:
                     self.ultima = dict(m, desvio_ref=desvio)
                 if desvio <= umbral:
-                    self._msg(f"Disco en su sitio (a {desvio:.1f}′; se corrige a partir de {umbral:.1f}′)")
+                    self._msg(_("Disco en su sitio (a {desvio}′; se corrige a partir de {umbral}′)", desvio=fmt_num(desvio, 1), umbral=fmt_num(umbral, 1)))
                     continue
-                self._msg(f"Corrigiendo {desvio:.1f}′...")
+                self._msg(_("Corrigiendo {desvio}′...", desvio=fmt_num(desvio, 1)))
                 try:
                     mover(ddu, ddv)
                 except Exception as e:
-                    self._msg(f"No se pudo corregir: {e}", logging.WARNING)
+                    self._msg(_("No se pudo corregir: {e}", e=e), logging.WARNING)
                     no_antes_de = time.time() + 5
                     continue
                 no_antes_de = time.time()
@@ -367,12 +371,12 @@ class GuiadoDisco:
                 with self._lock:
                     self.correcciones += 1
                     n = self.correcciones
-                self._msg(f"Corregido {desvio:.1f}′ (corrección {n})")
+                self._msg(_("Corregido {desvio}′ (corrección {n})", desvio=fmt_num(desvio, 1), n=n))
         finally:
             with self._lock:
                 self.activo = False
-                if not self.mensaje.startswith("Guiado detenido"):
-                    self.mensaje = "Guiado desactivado"
+                if not self.detenido:
+                    self.mensaje = _("Guiado desactivado")
 
 
 guiado = GuiadoDisco()

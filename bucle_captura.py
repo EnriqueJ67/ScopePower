@@ -15,6 +15,8 @@ import threading
 import logging
 from datetime import datetime
 
+from idioma import _
+
 log = logging.getLogger("scopepower.bucle")
 
 
@@ -107,7 +109,9 @@ class BucleCaptura:
             self.motivo_pausa = ""
         log.info("Bucle de captura reanudado")
 
-    def detener(self, motivo="Detenido por el usuario"):
+    def detener(self, motivo=None):
+        if motivo is None:
+            motivo = _("Detenido por el usuario")
         with self._lock:
             if not self.activo:
                 return
@@ -150,12 +154,12 @@ class BucleCaptura:
     # ── Hilo ──────────────────────────────────────────────────────────
     def _motivo_espera(self):
         if self.pausado:
-            return "pausado"
+            return _("pausado")
         for t in self._otros:
             if getattr(t, "en_curso", False):
-                return "otro trabajo usa la cámara"
+                return _("otro trabajo usa la cámara")
         if self._camara.ocupado:
-            return "cámara ocupada"
+            return _("cámara ocupada")
         return ""
 
     def _ejecutar(self):
@@ -173,7 +177,7 @@ class BucleCaptura:
             if (self.dithering and self._dither is not None and self.capturas > 0
                     and self.desde_ultimo_dither >= self.dither_cada):
                 with self._lock:
-                    self.esperando = "dithering (moviendo la montura)"
+                    self.esperando = _("dithering (moviendo la montura)")
                 try:
                     descripcion = self._dither()
                     with self._lock:
@@ -183,7 +187,7 @@ class BucleCaptura:
                 except Exception as e:
                     log.warning("Dither fallido: %s", e)
                     with self._lock:
-                        self.ultimo_dither = f"fallido: {e}"
+                        self.ultimo_dither = _("fallido: {e}", e=e)
                 with self._lock:
                     self.desde_ultimo_dither = 0
                     self.esperando = ""
@@ -194,7 +198,7 @@ class BucleCaptura:
                 resultado = self._capturar(self.usar_dark)
             except Exception as e:
                 log.exception("Error inesperado en el bucle de captura")
-                resultado = {"ok": False, "mensaje": f"Error inesperado: {e}"}
+                resultado = {"ok": False, "mensaje": _("Error inesperado: {e}", e=e)}
 
             with self._lock:
                 if resultado.get("ok"):
@@ -205,20 +209,21 @@ class BucleCaptura:
                     self.ultimo_mensaje = resultado.get("mensaje", "")
                     self.ultima_captura = datetime.now().strftime("%H:%M:%S")
                 elif resultado.get("cancelada"):
-                    self.ultimo_mensaje = resultado.get("mensaje", "Captura cancelada")
+                    self.ultimo_mensaje = resultado.get("mensaje", _("Captura cancelada"))
                 else:
                     self.errores += 1
                     self.errores_seguidos += 1
-                    self.ultimo_error = resultado.get("mensaje", "Error")
+                    self.ultimo_error = resultado.get("mensaje", _("Error"))
                     if self.errores_seguidos >= ERRORES_SEGUIDOS_MAX:
                         self.activo = False
-                        self.ultimo_mensaje = (f"Bucle detenido tras {self.errores_seguidos} errores seguidos: "
-                                               f"{self.ultimo_error}")
+                        self.ultimo_mensaje = _("Bucle detenido tras {n} errores seguidos: {error}",
+                                                n=self.errores_seguidos, error=self.ultimo_error)
                         self._parar.set()
-                        log.error(self.ultimo_mensaje)
+                        log.error("Bucle detenido tras %d errores seguidos: %s", self.errores_seguidos,
+                                  self.ultimo_error)
                         try:
                             import voz
-                            voz.decir("Apilado detenido por errores seguidos de la cámara")
+                            voz.decir(_("Apilado detenido por errores seguidos de la cámara"))
                             _humor("error_camara")
                         except Exception:
                             pass

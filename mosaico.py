@@ -63,6 +63,7 @@ import cv2
 from astropy.io import fits
 from astropy.io.fits import Header, PrimaryHDU
 from astropy.wcs import WCS
+from idioma import _, ngettext, fmt_num
 
 log = logging.getLogger("scopepower.mosaico")
 
@@ -169,7 +170,7 @@ def campo_camara(focal_mm=None):
             escala = float(o["escala_arcsec"])
             return {"ancho_px": int(o["ancho"]), "alto_px": int(o["alto"]), "escala_arcsec": round(escala, 4),
                     "ancho_deg": round(o["ancho"] * escala / 3600.0, 4), "alto_deg": round(o["alto"] * escala / 3600.0, 4),
-                    "origen": "última resolución"}
+                    "origen": _("última resolución")}
     except Exception as e:
         log.debug("campo_camara: sin orientación guardada (%s)", e)
     if not focal_mm:
@@ -182,7 +183,7 @@ def campo_camara(focal_mm=None):
     escala = 206.265 * 3.76 / float(focal_mm)
     return {"ancho_px": 3008, "alto_px": 3008, "escala_arcsec": round(escala, 4),
             "ancho_deg": round(3008 * escala / 3600.0, 4), "alto_deg": round(3008 * escala / 3600.0, 4),
-            "origen": "supuesto (Saturn-C)"}
+            "origen": _("supuesto (Saturn-C)")}
 
 
 def wcs_tangente(ra_deg, dec_deg, cd, ancho, alto):
@@ -270,7 +271,7 @@ def wcs_previsto(ra_h, dec_deg, campo, lugar=None, cuando=None):
                 # orientación puede ser de otro binning) se impone normalizando
                 cd = np.array(cols).T
                 f = escala_deg / math.sqrt(abs(np.linalg.det(cd)))
-                return wcs_tangente(ra_deg, dec_deg, (cd * f).tolist(), ancho, alto), "orientación respecto a los ejes"
+                return wcs_tangente(ra_deg, dec_deg, (cd * f).tolist(), ancho, alto), _("orientación respecto a los ejes")
     except Exception as e:
         log.warning("No se pudo prever la orientación de la cámara: %s", e)
     try:
@@ -278,10 +279,10 @@ def wcs_previsto(ra_h, dec_deg, campo, lugar=None, cuando=None):
         r = rotacion_camara.leer()
         if r and r.get("grados") is not None:
             return (wcs_tangente(ra_deg, dec_deg, cd_desde_angulo(escala_deg, float(r["grados"])), ancho, alto),
-                    f"último plate solving ({r.get('fecha', '')[:16]})")
+                    _("último plate solving ({fecha})", fecha=r.get('fecha', '')[:16]))
     except Exception as e:
         log.warning("No se pudo leer la rotación de la cámara: %s", e)
-    return wcs_tangente(ra_deg, dec_deg, cd_desde_angulo(escala_deg, 0.0), ancho, alto), "norte arriba (sin datos de la cámara)"
+    return wcs_tangente(ra_deg, dec_deg, cd_desde_angulo(escala_deg, 0.0), ancho, alto), _("norte arriba (sin datos de la cámara)")
 
 
 def calcular_teselas(wcs_centro, ancho_px, alto_px, filas, columnas, solape_pct):
@@ -331,10 +332,10 @@ def homografia(wcs_src, wcs_dst, ancho, alto, n=5):
     cielo = wcs_src.all_pix2world(src, 0)
     dst = np.asarray(wcs_dst.all_world2pix(cielo, 0), dtype=np.float64)
     if not np.all(np.isfinite(dst)):
-        raise ValueError("la tesela cae fuera del plano del mosaico")
-    H, _ = cv2.findHomography(src, dst, 0)
+        raise ValueError(_("la tesela cae fuera del plano del mosaico"))
+    H, __ = cv2.findHomography(src, dst, 0)
     if H is None:
-        raise ValueError("no se pudo ajustar la homografía")
+        raise ValueError(_("no se pudo ajustar la homografía"))
     p = cv2.perspectiveTransform(src.reshape(-1, 1, 2), H).reshape(-1, 2)
     return H, float(np.max(np.hypot(*(p - dst).T)))
 
@@ -361,11 +362,11 @@ def leer_tesela(ruta):
         hdr = hdul[0].header.copy()
         datos = hdul[0].data
         if datos is None or datos.ndim != 3 or datos.shape[0] != 3:
-            raise ValueError(f"{os.path.basename(ruta)}: no es un apilado RGB")
+            raise ValueError(_("{fichero}: no es un apilado RGB", fichero=os.path.basename(ruta)))
         cubo = np.nan_to_num(datos.astype(np.float32))
     wcs = wcs_de_cabecera(hdr)
     if wcs is None:
-        raise ValueError(f"{os.path.basename(ruta)}: el apilado no lleva WCS (ASTAP no resolvió la referencia)")
+        raise ValueError(_("{fichero}: el apilado no lleva WCS (ASTAP no resolvió la referencia)", fichero=os.path.basename(ruta)))
     import procesado
     zona = procesado.leer_zona(hdr)
     return cubo, hdr, wcs, zona
@@ -385,7 +386,7 @@ def ajustar_planos_fondo(proyecciones, ancho, alto, celda=12, minimo_celdas=6):
     y se vuelve a ajustar. Devuelve una lista de arrays (3 canales × [a, b, c]).
     """
     n = len(proyecciones)
-    planos = [np.zeros((3, 3), dtype=np.float64) for _ in range(n)]
+    planos = [np.zeros((3, 3), dtype=np.float64) for __ in range(n)]
     if n < 2:
         return planos
     filas, pesos, difs = [], [], []
@@ -427,7 +428,7 @@ def ajustar_planos_fondo(proyecciones, ancho, alto, celda=12, minimo_celdas=6):
     for c in range(3):
         usar = np.ones(len(filas), dtype=bool)
         sol = None
-        for _ in range(3):
+        for __ in range(3):
             Aw = np.vstack([A[usar] * W[usar], reg])
             bw = np.concatenate([B[usar, c] * W[usar, 0], np.zeros(3 * n)])
             sol = np.linalg.lstsq(Aw, bw, rcond=None)[0]
@@ -462,7 +463,7 @@ def combinar(rutas, ra_c_h, dec_c_deg, conf=None, progreso=None, orden_angulo=No
         except Exception as e:
             log.warning("Tesela descartada: %s", e)
     if not teselas:
-        raise ValueError("ninguna tesela utilizable")
+        raise ValueError(_("ninguna tesela utilizable"))
     ra_c = float(ra_c_h) * 15.0
 
     # ── Marco de salida: ejes de la primera tesela, centro del mosaico ──
@@ -491,13 +492,13 @@ def combinar(rutas, ra_c_h, dec_c_deg, conf=None, progreso=None, orden_angulo=No
     def marco_para(factor, lado_maximo=None):
         """(wcs, hdr, ancho, alto, factor) del marco de salida con esa reducción (subida si hace falta
         para no pasar de lado_maximo), con CRPIX tal que la esquina de las teselas caiga en el píxel 0."""
-        w, _ = marco(factor)
+        w, __ = marco(factor)
         e = esquinas_en(w)
         if lado_maximo:
             lado = max(float(e[:, 0].max() - e[:, 0].min()), float(e[:, 1].max() - e[:, 1].min()))
             if lado > lado_maximo:
                 factor *= lado / float(lado_maximo)
-                w, _ = marco(factor)
+                w, __ = marco(factor)
                 e = esquinas_en(w)
         margen = 2.0
         x_min, y_min = float(e[:, 0].min()) - margen, float(e[:, 1].min()) - margen
@@ -534,8 +535,8 @@ def combinar(rutas, ra_c_h, dec_c_deg, conf=None, progreso=None, orden_angulo=No
     # ── Pasada 1 (pequeña): un plano de fondo por tesela ajustado sobre las DIFERENCIAS
     #    en los solapes (el objeto es el mismo en las dos teselas y se cancela; lo que
     #    queda es la diferencia de fondos y gradientes, que sí es un plano) ──
-    avisar("midiendo los fondos")
-    wcs_p, _, ancho_p, alto_p, factor_p = marco_para(factor, 1200)
+    avisar(_("midiendo los fondos"))
+    wcs_p, __, ancho_p, alto_p, factor_p = marco_para(factor, 1200)
     peq = [proyectar(t, wcs_p, ancho_p, alto_p, factor_p) for t in teselas]
     planos = ajustar_planos_fondo(peq, ancho_p, alto_p)
     del peq
@@ -550,7 +551,7 @@ def combinar(rutas, ra_c_h, dec_c_deg, conf=None, progreso=None, orden_angulo=No
     yn = ((np.arange(alto, dtype=np.float32) + 0.5) / alto - 0.5)[:, None]
     residuos, offsets, nstacks, exptot = [], [], [], 0.0
     for k, t in enumerate(teselas):
-        avisar(f"tesela {k + 1}/{len(teselas)}: proyectando")
+        avisar(_("tesela {k}/{n}: proyectando", k=k + 1, n=len(teselas)))
         img_w, peso_w = proyectar(t, wcs_out, ancho, alto, factor)
         residuos.append(t["residuo"])
         pl = t["plano"]
@@ -567,7 +568,7 @@ def combinar(rutas, ra_c_h, dec_c_deg, conf=None, progreso=None, orden_angulo=No
         nstacks.append(int(t["hdr"].get("NSTACK", 1) or 1))
         exptot += float(t["hdr"].get("EXPTOT", 0) or 0)
         del img_w, peso_w
-    avisar("fundiendo")
+    avisar(_("fundiendo"))
     con_datos = wsum > 0.0
     mosaico = np.zeros_like(acc)
     mosaico[con_datos] = acc[con_datos] / wsum[con_datos][:, None]
@@ -629,13 +630,13 @@ def publicar(cubo, hdr, nombre, filas, columnas, progreso=None, cfg=None):
     if cfg is None:
         cfg = configparser.ConfigParser()
         cfg.read("config.ini", encoding="utf-8")
-    avisar("procesando la vista previa")
+    avisar(_("procesando la vista previa"))
     n = int(hdr.get("NSTACK", 1) or 1)
     exptot = float(hdr.get("EXPTOT", 0) or 0)
     zona = procesado.leer_zona(hdr)
     encuadre = procesado.encuadre_vista(cfg, hdr)
     balance = procesado.balance_estrellas(cubo, zona)
-    rec, _ = procesado.girar_campo(cubo, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
+    rec, __ = procesado.girar_campo(cubo, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
     lado = max(rec.shape[1], rec.shape[2])
     escala = 0.5 if lado > 1500 else 1.0
     rgb8 = procesado.procesar(rec, n, procesado.leer_config(), escala=escala, balance=balance)
@@ -643,7 +644,7 @@ def publicar(cubo, hdr, nombre, filas, columnas, progreso=None, cfg=None):
     try:
         n_fotos = int(hdr.get("NTESELAS", 1) or 1) * n
         meta = apilado.metadatos_firma(cfg, RUTA_FITS, n_fotos, round(exptot / n_fotos, 3) if n_fotos and exptot else 0)
-        meta["objeto"] = f"{nombre} · mosaico {filas}×{columnas}"
+        meta["objeto"] = _("{objeto} · mosaico {rejilla}", objeto=nombre, rejilla=f"{filas}×{columnas}")
         if meta["activa"]:
             imagen_bgr = firma.firmar(imagen_bgr, meta)
     except Exception as e:
@@ -745,16 +746,16 @@ class TrabajoMosaico:
         conf = leer_config()
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("Ya hay un mosaico en marcha")
+                raise RuntimeError(_("Ya hay un mosaico en marcha"))
             otro = deps.otro_trabajo_en_curso()
             if otro:
-                raise RuntimeError(f"Espera a que termine el trabajo de {otro}")
+                raise RuntimeError(_("Espera a que termine el trabajo de {otro}", otro=otro))
             plan = deps.plan_en_marcha()
             if plan:
                 raise RuntimeError(plan)
             filas, columnas = int(filas), int(columnas)
             if not (1 <= filas <= 6 and 1 <= columnas <= 6) or filas * columnas < 2:
-                raise RuntimeError("El mosaico necesita entre 2 y 36 teselas (filas × columnas de 1 a 6)")
+                raise RuntimeError(_("El mosaico necesita entre 2 y 36 teselas (filas × columnas de 1 a 6)"))
             self._reiniciar()
             self._cancelar.clear()
             self._pausa.clear()
@@ -774,7 +775,7 @@ class TrabajoMosaico:
             self.en_curso = True
             self.inicio = datetime.now()
             self.fase = "goto"
-            self.mensaje = "Preparando el mosaico..."
+            self.mensaje = _("Preparando el mosaico...")
         self._hilo = threading.Thread(target=self._ejecutar, name="mosaico", daemon=True)
         self._hilo.start()
         return self._hilo
@@ -783,13 +784,13 @@ class TrabajoMosaico:
         self._pausa.set()
         if self.fase == "apilando" and self.deps is not None:
             self.deps.bucle.pausar()
-        self._evento("Mosaico pausado")
+        self._evento(_("Mosaico pausado"))
 
     def reanudar(self):
         self._pausa.clear()
         if self.deps is not None and self.deps.bucle.activo:
             self.deps.bucle.reanudar()
-        self._evento("Mosaico reanudado")
+        self._evento(_("Mosaico reanudado"))
 
     def detener(self):
         if not self.en_curso:
@@ -911,7 +912,7 @@ class TrabajoMosaico:
         if self._ultimo_wcs is not None:
             hechas = any(t["estado"] == "hecha" for t in self.teselas)
             return (wcs_tangente(self.ra_h * 15.0, self.dec_deg, cd_de(self._ultimo_wcs), campo["ancho_px"], campo["alto_px"]),
-                    "WCS de la tesela anterior" if hechas else "plate solving en el centro")
+                    _("WCS de la tesela anterior") if hechas else _("plate solving en el centro"))
         try:
             lugar = self.deps.lugar()
         except Exception:
@@ -930,14 +931,14 @@ class TrabajoMosaico:
             return
         deps = self.deps
         self._set(fase="goto")
-        self._evento(f"GoTo al centro del mosaico ({self.nombre}) para medir el giro de la cámara")
+        self._evento(_("GoTo al centro del mosaico ({objeto}) para medir el giro de la cámara", objeto=self.nombre))
         antes = time.time()
         r = deps.goto_sincrono(self.nombre, self.ra_h, self.dec_deg, "Mosaico", centrar=True, cancelar=self._cancelar,
                                info={"type": self.tipo} if self.tipo else None, al_centrar=lambda: self._set(fase="centrando"))
         if self._cancelar.is_set():
             raise MosaicoDetenido()
         if not r.get("ok"):
-            self._evento(f"El GoTo al centro ha fallado ({r.get('motivo')}); la rejilla va con el giro previsto")
+            self._evento(_("El GoTo al centro ha fallado ({motivo}); la rejilla va con el giro previsto", motivo=r.get('motivo')))
             return
         try:
             import rotacion_camara
@@ -947,9 +948,9 @@ class TrabajoMosaico:
                 campo = self.campo
                 cd = cd_desde_angulo(campo["escala_arcsec"] / 3600.0, float(rot["grados"]))
                 self._ultimo_wcs = wcs_tangente(self.ra_h * 15.0, self.dec_deg, cd, campo["ancho_px"], campo["alto_px"])
-                self._evento(f"Giro de la cámara medido en el centro: {float(rot['grados']):.1f}°")
+                self._evento(_("Giro de la cámara medido en el centro: {g}°", g=fmt_num(float(rot['grados']), 1)))
             else:
-                self._evento("El centrado no resolvió ninguna foto; la rejilla va con el giro previsto")
+                self._evento(_("El centrado no resolvió ninguna foto; la rejilla va con el giro previsto"))
         except Exception as e:
             log.warning("Mosaico: no se pudo leer el giro medido: %s", e)
 
@@ -979,9 +980,12 @@ class TrabajoMosaico:
             self._medir_orientacion_en_el_centro()
             self._recalcular_teselas()
             tam = tamano_mosaico(self.campo, self.filas, self.columnas, self.solape_pct)
-            self._evento(f"Mosaico {self.filas}×{self.columnas} de {self.nombre}: {tam[0]:.1f}° × {tam[1]:.1f}°, "
-                         f"{self.fotos_por_tesela} fotos por tesela, cámara a {self.angulo_deg}° ({self.origen_angulo})",
-                         decir=f"Empieza el mosaico de {self.nombre}: {len(self.teselas)} teselas")
+            self._evento(ngettext("Mosaico {rejilla} de {objeto}: {ancho}° × {alto}°, {n} foto por tesela, cámara a {angulo}° ({origen})",
+                                  "Mosaico {rejilla} de {objeto}: {ancho}° × {alto}°, {n} fotos por tesela, cámara a {angulo}° ({origen})",
+                                  self.fotos_por_tesela, rejilla=f"{self.filas}×{self.columnas}", objeto=self.nombre,
+                                  ancho=fmt_num(tam[0], 1), alto=fmt_num(tam[1], 1), angulo=fmt_num(self.angulo_deg),
+                                  origen=self.origen_angulo),
+                         decir=_("Empieza el mosaico de {objeto}: {n} teselas", objeto=self.nombre, n=len(self.teselas)))
             guardar_definicion(self.definicion())
             deps.guardar_config("Dispositivos", {"numero_maximo_imagenes": self.fotos_por_tesela})
             for t in list(self.teselas):
@@ -992,7 +996,7 @@ class TrabajoMosaico:
             hechas = [t for t in self.teselas if t["estado"] == "hecha"]
             if hechas and self.conf["guardar_galeria"] and os.path.exists(RUTA_FITS):
                 self._set(fase="guardando")
-                self._evento("Guardando el mosaico en la galería")
+                self._evento(_("Guardando el mosaico en la galería"))
                 try:
                     g = deps.guardar_galeria()
                     if g.get("ok", True) and g.get("en_curso"):
@@ -1001,19 +1005,22 @@ class TrabajoMosaico:
                         self._set(archivo_galeria=g.get("archivo", ""))
                 except Exception as e:
                     log.exception("Mosaico: error guardando en la galería")
-                    self._evento(f"No se pudo guardar el mosaico en la galería: {e}")
-            texto = f"Mosaico terminado: {len(hechas)} de {len(self.teselas)} teselas"
+                    self._evento(_("No se pudo guardar el mosaico en la galería: {e}", e=e))
             if self.archivo_galeria:
-                texto += f", guardado como {self.archivo_galeria}"
-            self._evento(texto, decir=f"Mosaico de {self.nombre} terminado, {len(hechas)} teselas")
+                texto = _("Mosaico terminado: {hechas} de {n} teselas, guardado como {archivo}", hechas=len(hechas),
+                          n=len(self.teselas), archivo=self.archivo_galeria)
+            else:
+                texto = _("Mosaico terminado: {hechas} de {n} teselas", hechas=len(hechas), n=len(self.teselas))
+            self._evento(texto, decir=ngettext("Mosaico de {objeto} terminado, {n} tesela", "Mosaico de {objeto} terminado, {n} teselas",
+                                               len(hechas), objeto=self.nombre))
         except MosaicoDetenido:
             resultado = "detenido"
-            self._evento("Mosaico detenido por el usuario", decir="Mosaico detenido")
+            self._evento(_("Mosaico detenido por el usuario"), decir=_("Mosaico detenido"))
             self._esperar_combinacion()
         except Exception as e:
             resultado = "error"
             log.exception("Error en el mosaico")
-            self._evento(f"Mosaico detenido por un error: {e}", decir="Mosaico detenido por un error")
+            self._evento(_("Mosaico detenido por un error: {e}", e=e), decir=_("Mosaico detenido por un error"))
         finally:
             try:
                 if deps.bucle.activo:
@@ -1048,24 +1055,24 @@ class TrabajoMosaico:
         self._set(actual=i, fotos=0, fase="goto")
         rotulo = f"{self.nombre} · tesela {i + 1}/{n}"
         t_inicio = time.time()
-        self._evento(f"Tesela {i + 1}/{n} (fila {t['fila'] + 1}, columna {t['col'] + 1}): GoTo",
-                     decir=f"Tesela {i + 1} de {n}")
+        self._evento(_("Tesela {i}/{n} (fila {fila}, columna {col}): GoTo", i=i + 1, n=n, fila=t['fila'] + 1, col=t['col'] + 1),
+                     decir=_("Tesela {i} de {n}", i=i + 1, n=n))
         r = deps.goto_sincrono(rotulo, t["ra_h"], t["dec_deg"], "Mosaico", centrar=self.conf["centrar"],
                                cancelar=self._cancelar, info={"type": self.tipo} if self.tipo else None,
                                al_centrar=lambda: self._set(fase="centrando"))
         if self._cancelar.is_set():
             raise MosaicoDetenido()
         if not r.get("ok"):
-            motivo = r.get("motivo") or "GoTo fallido"
+            motivo = r.get("motivo") or _("GoTo fallido")
             self._tesela(i, estado="fallida", motivo=motivo)
-            self._evento(f"Tesela {i + 1}: {motivo}; se salta")
+            self._evento(_("Tesela {i}: {motivo}; se salta", i=i + 1, motivo=motivo))
             self._dormir(2)
             return
         if r.get("centrado") in ("error", "cancelado"):
             # Sin centrar también vale: el WCS de la tesela dice dónde cayó de verdad
-            self._evento(f"Tesela {i + 1}: centrado fallido ({r.get('detalle', '')}); se apila donde apunta")
+            self._evento(_("Tesela {i}: centrado fallido ({detalle}); se apila donde apunta", i=i + 1, detalle=r.get('detalle', '')))
         elif r.get("centrado"):
-            self._evento(f"Tesela {i + 1}: {r.get('detalle') or r['centrado']}")
+            self._evento(_("Tesela {i}: {detalle}", i=i + 1, detalle=r.get('detalle') or r['centrado']))
 
         self._set(fase="apilando")
         deps.arrancar_apilado(self.usar_dark)
@@ -1079,7 +1086,7 @@ class TrabajoMosaico:
             try:
                 hdr = fits.getheader(RUTA_APILADO)
                 if wcs_de_cabecera(hdr) is None:
-                    raise ValueError("el apilado no lleva WCS")
+                    raise ValueError(_("el apilado no lleva WCS"))
                 archivo = os.path.join(CARPETA, f"tesela_{i + 1:02d}.fits")
                 shutil.copy(RUTA_APILADO, archivo)
                 self._ultimo_wcs = wcs_de_cabecera(hdr)
@@ -1092,14 +1099,16 @@ class TrabajoMosaico:
                 error_arcmin = math.hypot(d_ra, float(centro[1]) - t["dec_deg"]) * 60.0
                 log.info("Mosaico: tesela %d/%d apuntada a %.1f' del centro previsto, cámara a %.1f°, %.0f s (GoTo+centrado+%d fotos)",
                          i + 1, n, error_arcmin, angulo_de(cd_de(self._ultimo_wcs)), time.time() - t_inicio, total)
-                self._evento(f"Tesela {i + 1} hecha: {total} fotos" + ("" if motivo == "completa" else f" ({motivo})"))
+                self._evento(ngettext("Tesela {i} hecha: {n} foto", "Tesela {i} hecha: {n} fotos", total, i=i + 1) if motivo == "completa"
+                             else ngettext("Tesela {i} hecha: {n} foto ({motivo})", "Tesela {i} hecha: {n} fotos ({motivo})", total,
+                                           i=i + 1, motivo=motivo))
             except Exception as e:
                 log.exception("Mosaico: no se pudo guardar la tesela")
                 self._tesela(i, estado="fallida", fotos=total, motivo=str(e))
-                self._evento(f"Tesela {i + 1}: no se pudo guardar ({e})")
+                self._evento(_("Tesela {i}: no se pudo guardar ({e})", i=i + 1, e=e))
         else:
-            self._tesela(i, estado="fallida", fotos=total, motivo=motivo or "sin fotos")
-            self._evento(f"Tesela {i + 1}: sin fotos apiladas ({motivo})")
+            self._tesela(i, estado="fallida", fotos=total, motivo=motivo or _("sin fotos"))
+            self._evento(_("Tesela {i}: sin fotos apiladas ({motivo})", i=i + 1, motivo=motivo))
         deps.reiniciar_apilado()
         if archivo:
             self._combinar_en_segundo_plano()
@@ -1116,7 +1125,7 @@ class TrabajoMosaico:
                 return "detenida"
             if self._saltar.is_set():
                 self._saltar.clear()
-                return "saltada a mano"
+                return _("saltada a mano")
             e = deps.estado_apilado()
             total = int(e.get("total") or 0)
             if total > total_visto:
@@ -1141,12 +1150,12 @@ class TrabajoMosaico:
             if not bucle.activo:
                 # Lo paró alguien (errores de cámara, botón Detener del apilado): la tesela se da por
                 # terminada con lo que tenga y el mosaico se queda en pausa para que el usuario decida
-                motivo = f"apilado detenido ({bucle.ultimo_mensaje or 'sin motivo'})"
-                self._evento(f"Tesela {i + 1}: {motivo}; mosaico en pausa", decir="Apilado detenido. Mosaico en pausa")
+                motivo = _("apilado detenido ({motivo})", motivo=bucle.ultimo_mensaje or _("sin motivo"))
+                self._evento(_("Tesela {i}: {motivo}; mosaico en pausa", i=i + 1, motivo=motivo), decir=_("Apilado detenido. Mosaico en pausa"))
                 self._pausa.set()
                 return motivo
             if time.time() - t_ultima > self.conf["minutos_sin_fotos"] * 60:
-                return f"sin fotos aceptadas en {self.conf['minutos_sin_fotos']:.0f} min"
+                return _("sin fotos aceptadas en {n} min", n=round(self.conf['minutos_sin_fotos']))
             self._cancelar.wait(2.0)
 
     def _esperar_procesado(self, timeout=120):
@@ -1188,13 +1197,13 @@ class TrabajoMosaico:
         """
         d = definicion or (self.definicion() if self.nombre else leer_definicion())
         if not d or d.get("ra_h") is None:
-            return {"error": "No hay ningún mosaico definido"}
+            return {"error": _("No hay ningún mosaico definido")}
         rutas = rutas or teselas_en_disco()
         if not rutas:
-            return {"error": "No hay teselas apiladas"}
+            return {"error": _("No hay teselas apiladas")}
         with self._lock:
             self.combinando = True
-            self.mensaje_combinar = "combinando..."
+            self.mensaje_combinar = _("combinando...")
             self.version_estado += 1
 
         def progreso(texto):

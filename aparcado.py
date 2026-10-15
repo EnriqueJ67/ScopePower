@@ -26,6 +26,7 @@ import os
 import time
 
 import montura_ejes
+from idioma import _
 
 log = logging.getLogger("scopepower.aparcado")
 
@@ -56,10 +57,10 @@ class LectorCodificadores:
             raise
         if min(self.cpr) <= 0:
             self.cerrar()
-            raise montura_ejes.ErrorMontura(f"pasos por vuelta no válidos: {self.cpr}")
+            raise montura_ejes.ErrorMontura(_("pasos por vuelta no válidos: {cpr}", cpr=self.cpr))
 
     def _mediana(self, cmd, canal, n):
-        valores = sorted(self._m.leer_24(cmd, canal) for _ in range(n))
+        valores = sorted(self._m.leer_24(cmd, canal) for __ in range(n))
         return valores[n // 2]
 
     def crudos(self):
@@ -101,7 +102,7 @@ def mover_altaz(tel, az, alt, esperar_quieta):
         tel.SlewToAltAzAsync(az % 360.0, alt)
     else:
         tel.SlewToAltAz(az % 360.0, alt)
-    esperar_quieta(tel, 180, "el movimiento")
+    esperar_quieta(tel, 180, _("el movimiento"))
 
 
 def ir_al_cero(tel, lector, esperar_quieta, signos=None, fase=lambda texto: None,
@@ -128,7 +129,7 @@ def ir_al_cero(tel, lector, esperar_quieta, signos=None, fase=lambda texto: None
                         min(ALTURA_MAX, max(ALTURA_MIN, cielo[1] - sb * d[1])))
         if n == max_movimientos:
             break
-        fase(f"Llevando el tubo al cero de los motores (movimiento {n + 1})...")
+        fase(_("Llevando el tubo al cero de los motores (movimiento {n})...", n=n + 1))
         mover(tel, objetivo[0], objetivo[1], esperar_quieta)
         nuevo_cielo, nuevo_d = leer()
         for i, (dc, de) in enumerate(((_envolver(nuevo_cielo[0] - cielo[0]), nuevo_d[0] - d[0]),

@@ -28,6 +28,9 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz, get_sun, get_body
 import astropy.units as u
 
+import idioma
+from idioma import _, N_
+
 log = logging.getLogger("scopepower.esta_noche")
 
 RUTA_CATALOGO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "catalogo_objetos.csv")
@@ -35,15 +38,25 @@ PASO_MIN = 10                       # muestreo de la altura, en minutos
 CREPUSCULO_SOL = -12.0              # anochecer/amanecer náutico: cielo ya oscuro para DSO
 CACHE_S = 300                       # se recalcula como mucho cada 5 min
 
+# El nombre y el tipo siguen en español (son claves: GoTo, filtros, galería); la web los
+# traduce al pintarlos. La descripción se traduce al servirla (obtener()).
 PLANETAS = [  # (clave astropy, nombre, tipo, popularidad, descripción)
-    ("moon", "Luna", "Luna", 4, "Cráteres y mares; con exposiciones muy cortas."),
-    ("jupiter", "Júpiter", "Planeta", 4, "Bandas y las cuatro lunas galileanas."),
-    ("saturn", "Saturno", "Planeta", 4, "Los anillos; pequeño, pide mucha focal."),
-    ("mars", "Marte", "Planeta", 3, "Disco pequeño y rojizo; mejor cerca de la oposición."),
-    ("venus", "Venus", "Planeta", 2, "Muy brillante, con fases; solo al anochecer o al amanecer."),
+    ("moon", N_("Luna"), N_("Luna"), 4, N_("Cráteres y mares; con exposiciones muy cortas.")),
+    ("jupiter", N_("Júpiter"), N_("Planeta"), 4, N_("Bandas y las cuatro lunas galileanas.")),
+    ("saturn", N_("Saturno"), N_("Planeta"), 4, N_("Los anillos; pequeño, pide mucha focal.")),
+    ("mars", N_("Marte"), N_("Planeta"), 3, N_("Disco pequeño y rojizo; mejor cerca de la oposición.")),
+    ("venus", N_("Venus"), N_("Planeta"), 2, N_("Muy brillante, con fases; solo al anochecer o al amanecer.")),
 ]
 
 _cache = {"hasta": 0.0, "clave": None, "datos": None, "lock": threading.Lock()}
+
+
+def invalidar_cache():
+    """Al cambiar el idioma: la lista de Esta noche se vuelve a calcular con los nombres nuevos."""
+    _cache["hasta"] = 0.0
+
+
+idioma.registrar_oyente(invalidar_cache)
 
 
 def cargar_catalogo(ruta=RUTA_CATALOGO):
@@ -62,7 +75,35 @@ def cargar_catalogo(ruta=RUTA_CATALOGO):
             })
         except (KeyError, ValueError) as e:
             log.warning("Fila del catálogo ignorada (%s): %s", e, r)
+    if ruta == RUTA_CATALOGO:
+        _traducir_catalogo(objetos)
     return objetos
+
+
+def _traducir_catalogo(objetos):
+    """
+    Con la app en inglés: nombre, constelación y descripción de catalogo_objetos_en.csv. El
+    nombre español pasa a nombre_alt (sigue sirviendo para buscar). El tipo NO se cambia: es
+    clave (filtros, iconos, presets) y la web lo traduce al pintarlo.
+    """
+    traducida = idioma.ruta_variante(RUTA_CATALOGO)
+    if traducida == RUTA_CATALOGO:
+        return
+    try:
+        with open(traducida, encoding="utf-8") as f:
+            filas = {r["id"]: r for r in csv.DictReader([l for l in f if not l.startswith("#")], delimiter=";")}
+    except (OSError, KeyError) as e:
+        log.warning("No se pudo leer %s: %s", traducida, e)
+        return
+    for o in objetos:
+        r = filas.get(o["id"])
+        if not r:
+            continue
+        if r.get("nombre"):
+            o["nombre_alt"], o["nombre"] = o["nombre"], r["nombre"]
+        for campo in ("constelacion", "descripcion"):
+            if r.get(campo):
+                o[campo] = r[campo]
 
 
 def ventana_nocturna(lugar, ahora=None, crepusculo=CREPUSCULO_SOL):
@@ -183,8 +224,18 @@ def obtener(lat, lon, alt_m=0.0, altura_minima=20.0):
     clave = (round(lat, 3), round(lon, 3), altura_minima)
     with _cache["lock"]:
         if _cache["datos"] is not None and _cache["clave"] == clave and time.time() < _cache["hasta"]:
-            return _cache["datos"]
+            return _traducir(_cache["datos"])
     datos = calcular(lat, lon, alt_m, altura_minima)
     with _cache["lock"]:
         _cache.update(datos=datos, clave=clave, hasta=time.time() + CACHE_S)
-    return datos
+    return _traducir(datos)
+
+
+def _traducir(datos):
+    """Copia de los datos con las descripciones de los planetas y la Luna en el idioma vigente."""
+    propias = {p[4] for p in PLANETAS}
+    objetos = []
+    for o in datos["objetos"]:
+        desc = o.get("descripcion")
+        objetos.append(dict(o, descripcion=_(desc)) if desc in propias else o)
+    return dict(datos, objetos=objetos)

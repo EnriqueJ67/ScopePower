@@ -32,7 +32,7 @@ import config_inicial
 config_inicial.asegurar_config()
 # Idioma de la app ([Interfaz] idioma de config.ini) antes de que nadie diga o pinte nada
 import idioma
-from idioma import _, ngettext, N_
+from idioma import _, ngettext, N_, fmt_num
 idioma.cargar_desde_config()
 from apilado import iniciar_hilo_apilado
 from apilado import pausar_apilado, reanudar_apilado, esta_pausado
@@ -198,7 +198,7 @@ def get_config_objetos():
         try:
             mag = max(0.0, min(18.0, float((request.get_json(silent=True) or {}).get("ngc_hasta_mag"))))
         except (TypeError, ValueError):
-            return jsonify({"ok": False, "error": "Magnitud no válida"}), 400
+            return jsonify({"ok": False, "error": _("Magnitud no válida")}), 400
         _guardar_en_config("Apilado", {"anotar_ngc_hasta_mag": f"{mag:g}"})
         return jsonify({"ok": True, "ngc_hasta_mag": mag})
     return jsonify({"objetos_anotados": apilado.OBJETOS_ANOTADOS,
@@ -281,7 +281,7 @@ def preferencias():
         datos = request.get_json(silent=True) or {}
         for clave, valor in datos.items():
             if clave not in PREFERENCIAS:
-                return jsonify({"error": f"Preferencia desconocida: {clave}"}), 400
+                return jsonify({"error": _("Preferencia desconocida: {clave}", clave=clave)}), 400
             seccion, clave_ini, tipo = PREFERENCIAS[clave]
             if tipo == "json":
                 valor = json.dumps(valor, ensure_ascii=False)
@@ -319,7 +319,7 @@ def idioma_app():
 def pausar():
     pausar_apilado()
     bucle.pausar()
-    return "⏸️ Apilado pausado"
+    return _("⏸️ Apilado pausado")
 
 @app.route('/reanudar-apilado', methods=["POST"])
 def reanudar():
@@ -328,7 +328,7 @@ def reanudar():
         return "⚠️ " + motivo, 409
     reanudar_apilado()
     bucle.reanudar()
-    return "▶️ Apilado reanudado"
+    return _("▶️ Apilado reanudado")
 
 @app.route('/estado-pausa-apilado')
 def estado_pausa_apilado():
@@ -337,11 +337,13 @@ def estado_pausa_apilado():
 
 def _trabajos_en_curso():
     """Nombre del trabajo que tiene la cámara o la montura (darks, centrado...), o None."""
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("centrado", centrado.trabajo_centrado),
-                            ("foto continua", foto_continua.trabajo_continuo),
-                            ("seguimiento", seguimiento.trabajo_seguimiento), ("alineación", alineacion.trabajo_alineacion)):
+    # El nombre solo se usa en mensajes («Espera a que termine el trabajo de ...»): se devuelve traducido
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo),
+                            (N_("centrado"), centrado.trabajo_centrado),
+                            (N_("foto continua"), foto_continua.trabajo_continuo),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento), (N_("alineación"), alineacion.trabajo_alineacion)):
         if trabajo.en_curso:
-            return nombre
+            return _(nombre)
     return None
 
 
@@ -349,17 +351,17 @@ def _plan_en_marcha():
     """Motivo por el que el plan de la noche bloquea una acción manual, o None (ver plan_sesion.py)."""
     t = plan_sesion.trabajo_plan
     if t.en_curso and not t.pausado:
-        return "El plan de la noche está en marcha; páusalo o detenlo antes."
+        return _("El plan de la noche está en marcha; páusalo o detenlo antes.")
     m = mosaico.trabajo_mosaico
     if m.en_curso and not m.pausado:
-        return "El mosaico está en marcha; páusalo o detenlo antes."
+        return _("El mosaico está en marcha; páusalo o detenlo antes.")
     return None
 
 
 def _arrancar_apilado(nuevo, usar_dark):
     """Arranca el bucle de captura (lo usan la ruta /apilado/iniciar y el plan de la noche)."""
     if nuevo:
-        bucle.detener("Reiniciado")
+        bucle.detener(_("Reiniciado"))
         reiniciar_apilado_global()
     reanudar_apilado()
     bucle.iniciar(usar_dark=usar_dark)
@@ -379,7 +381,7 @@ def apilado_iniciar():
         return jsonify({"ok": False, "error": motivo}), 409
     otro = _trabajos_en_curso()
     if otro:
-        return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {otro}"}), 409
+        return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=otro)}), 409
     _arrancar_apilado(nuevo, usar_dark)
     return jsonify({"ok": True, "bucle": bucle.estado()})
 
@@ -401,7 +403,7 @@ def apilado_dithering():
         cfg["Dithering"]["cada_n_fotos"] = str(bucle.dither_cada)
     with open("config.ini", "w") as f:
         cfg.write(f)
-    voz.decir("Dithering activado" if bucle.dithering else "Dithering desactivado")
+    voz.decir(_("Dithering activado") if bucle.dithering else _("Dithering desactivado"))
     return jsonify({"ok": True, "bucle": bucle.estado()})
 
 
@@ -438,11 +440,11 @@ def limpiar_sincronizaciones(tel):
     try:
         tel.Action("ClearSyncTo", "")
         log.info("Sincronizaciones anteriores borradas en la app SynScan (ClearSyncTo)")
-        return True, "Sincronizaciones anteriores borradas"
+        return True, _("Sincronizaciones anteriores borradas")
     except Exception as e:
         from hardware import _mensaje_com
-        msg = f"Este driver no admite ClearSyncTo o la app no respondió: {_mensaje_com(e)}"
-        log.warning(msg)
+        msg = _("Este driver no admite ClearSyncTo o la app no respondió: {e}", e=_mensaje_com(e))
+        log.warning("Este driver no admite ClearSyncTo o la app no respondió: %s", _mensaje_com(e))
         return False, msg
 
 
@@ -506,10 +508,12 @@ def _activar_seguimiento(tel):
         tel.RightAscension
     except Exception as e:
         from hardware import _mensaje_com
-        consejo = ("comprueba que está encendida y que SynScan Pro tiene enlace con ella" if synscan else
-                   "comprueba que está encendida y conectada al PC, y que el driver está bien configurado "
-                   "(puerto COM, dirección IP o el programa que necesite abierto)")
-        raise ErrorHardware(f"la montura no responde ({_mensaje_com(e)}): {consejo}") from e
+        consejo = (_("comprueba que está encendida y que SynScan Pro tiene enlace con ella") if synscan else
+                   _("comprueba que está encendida y conectada al PC, y que el driver está bien configurado "
+                     "(puerto COM, dirección IP o el programa que necesite abierto)"))
+        error = ErrorHardware(_("la montura no responde ({e}): {consejo}", e=_mensaje_com(e), consejo=consejo))
+        error.consejo = "synscan" if synscan else "general"   # el asistente añade su ayuda según esto
+        raise error from e
     _desaparcar_si_hace_falta(tel)
     if synscan:
         _anotar_codificadores_al_conectar()
@@ -523,7 +527,7 @@ def _activar_seguimiento(tel):
         print(f"🧭 Sistema de coordenadas de la montura: {sistema}")
     except Exception as e:
         print(f"⚠️ No se pudo leer EquatorialSystem de la montura ({e}); se asume J2000")
-    voz.decir("Telescopio conectado")
+    voz.decir(_("Telescopio conectado"))
     humor.decir("conexion_ok")
     # Al conectar NO se borran las sincronizaciones de SynScan Pro: si se apaga el equipo
     # para cambiar la batería, la alineación de la noche se conserva. Solo se borran al
@@ -532,7 +536,7 @@ def _activar_seguimiento(tel):
 # El driver se lee de config.ini al conectar: cambiarlo en Configuración y pulsar
 # "Reconectar equipo" basta, sin reiniciar la app.
 montura = TrabajadorCOM("montura", lambda: _dispositivos()["driver_telescopio"], al_conectar=_activar_seguimiento)
-camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_conectar=lambda cam: (voz.decir("Cámara conectada"), humor.decir("conexion_ok")),
+camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_conectar=lambda cam: (voz.decir(_("Cámara conectada")), humor.decir("conexion_ok")),
                        fabricas={camara_sdk.PREFIJO: camara_sdk.crear})    # SDK:<marca>: la cámara por su SDK, como en N.I.N.A.
 
 
@@ -602,14 +606,14 @@ def hacer_dither():
         time.sleep(0.3)
         while tel.Slewing:
             if time.time() - inicio > 60:
-                raise ErrorHardware("La montura no terminó el movimiento de dithering en 60 s")
+                raise ErrorHardware(_("La montura no terminó el movimiento de dithering en 60 s"))
             time.sleep(0.3)
 
     montura.ejecutar(_mover, timeout=90)
     time.sleep(conf["asentamiento_s"])
-    rumbos = ["E", "NE", "N", "NO", "O", "SO", "S", "SE"]
+    rumbos = ["E", "NE", "N", N_("NO"), N_("O"), N_("SO"), "S", "SE"]     # oeste = O: en inglés W
     rumbo = rumbos[int(((math.degrees(angulo) + 22.5) % 360) // 45)]
-    return f"{px:.0f} px ({arcsec:.0f}\") hacia el {rumbo}"
+    return _("{px} px ({arcsec}\") hacia el {rumbo}", px=round(px), arcsec=round(arcsec), rumbo=_(rumbo))
 
 
 # Bucle de captura del apilado en el servidor (ver bucle_captura.py). Se
@@ -617,7 +621,7 @@ def hacer_dither():
 from bucle_captura import BucleCaptura
 bucle = BucleCaptura(
     capturar=lambda usar_dark: capturar_y_guardar(apilar=True, usar_dark=usar_dark,
-                                                  generar_preview=False, descripcion="Apilado"),
+                                                  generar_preview=False, descripcion=_("Apilado")),
     camara=camara,
     otros_trabajos=(darks.trabajo_darks, centrado.trabajo_centrado, foto_continua.trabajo_continuo),
     dither=hacer_dither,
@@ -633,7 +637,7 @@ def conectar_telescopio():
         return True
     except ErrorHardware as e:
         print(f"Error al conectar telescopio: {e}")
-        voz.decir("No se ha podido conectar con el telescopio")
+        voz.decir(_("No se ha podido conectar con el telescopio"))
         humor.decir("conexion_fallo")
         return False
 
@@ -688,8 +692,8 @@ def _conectar_equipo_completo():
             montura.ejecutar(lambda tel: None, timeout=30)
         resultado["montura"] = True
     except ErrorHardware as e:
-        resultado["errores"].append(f"Montura: {e}")
-        voz.decir("No se ha podido conectar con el telescopio")
+        resultado["errores"].append(_("Montura: {e}", e=e))
+        voz.decir(_("No se ha podido conectar con el telescopio"))
         humor.decir("conexion_fallo")
     try:
         if camara.esta_conectado():
@@ -698,8 +702,8 @@ def _conectar_equipo_completo():
             camara.ejecutar(lambda cam: None, timeout=30)
         resultado["camara"] = True
     except ErrorHardware as e:
-        resultado["errores"].append(f"Cámara: {e}")
-        voz.decir("No se ha podido conectar con la cámara")
+        resultado["errores"].append(_("Cámara: {e}", e=e))
+        voz.decir(_("No se ha podido conectar con la cámara"))
         humor.decir("conexion_fallo")
     resultado["ok"] = resultado["montura"] and resultado["camara"]
     resultado["sistema"] = coordenadas.sistema() if resultado["montura"] else None
@@ -763,7 +767,7 @@ def salir():
     # 7) Renderiza la página de confirmación (después la consola desaparecerá)
     return render_template(
         'salir.html',
-        mensaje="✅ Servidor detenido y proceso finalizado",
+        mensaje=_("✅ Servidor detenido y proceso finalizado"),
         mostrar_volver=False
     )
 
@@ -789,28 +793,30 @@ def apagar_equipo():
     d = request.get_json(silent=True) or {}
     accion = d.get("accion")
     if accion not in ("apagar", "reiniciar"):
-        return jsonify({"ok": False, "mensaje": "Acción no válida"}), 400
+        return jsonify({"ok": False, "mensaje": _("Acción no válida")}), 400
     # Parar lo que haya en marcha y soltar el equipo antes de que Windows lo mate
     try:
         if bucle.activo:
-            bucle.detener("Apagado del equipo")
+            bucle.detener(_("Apagado del equipo"))
     except Exception:
         pass
     desconectar_telescopio()
     desconectar_camara()
-    voz.decir("Apagando el equipo" if accion == "apagar" else "Reiniciando el equipo")
+    voz.decir(_("Apagando el equipo") if accion == "apagar" else _("Reiniciando el equipo"))
     humor.decir("apagado")
     args = ["/s" if accion == "apagar" else "/r", "/t", str(APAGADO_ESPERA_S), "/f",
-            "/c", "ScopePower: " + ("apagado" if accion == "apagar" else "reinicio") + " pedido desde el movil"]
+            "/c", (_("ScopePower: apagado pedido desde el movil") if accion == "apagar"
+                   else _("ScopePower: reinicio pedido desde el movil"))]
     try:
         r = _ejecutar_shutdown(args)
     except Exception as e:
         log.error("No se pudo programar el %s: %s", accion, e)
-        return jsonify({"ok": False, "mensaje": f"No se pudo programar el {accion}: {e}"}), 500
+        return jsonify({"ok": False, "mensaje": (_("No se pudo programar el apagado: {e}", e=e) if accion == "apagar"
+                                                 else _("No se pudo programar el reinicio: {e}", e=e))}), 500
     if r.returncode != 0:
         detalle = (r.stderr or r.stdout or "").strip()
         log.error("shutdown devolvió %s: %s", r.returncode, detalle)
-        return jsonify({"ok": False, "mensaje": f"Windows no aceptó la orden: {detalle or r.returncode}"}), 500
+        return jsonify({"ok": False, "mensaje": _("Windows no aceptó la orden: {detalle}", detalle=detalle or r.returncode)}), 500
     _apagado.update(accion=accion, hasta=time.time() + APAGADO_ESPERA_S)
     log.warning("%s del equipo programado en %s s", "Apagado" if accion == "apagar" else "Reinicio", APAGADO_ESPERA_S)
     return jsonify({"ok": True, "accion": accion, "espera": APAGADO_ESPERA_S})
@@ -825,8 +831,8 @@ def apagar_cancelar():
     _apagado.update(accion=None, hasta=0.0)
     if r.returncode != 0:
         # 1116: no había ningún apagado en marcha (ya se canceló o ya pasó el plazo)
-        return jsonify({"ok": False, "mensaje": "No había ningún apagado pendiente"}), 409
-    voz.decir("Apagado cancelado")
+        return jsonify({"ok": False, "mensaje": _("No había ningún apagado pendiente")}), 409
+    voz.decir(_("Apagado cancelado"))
     log.warning("Apagado del equipo cancelado desde el móvil")
     return jsonify({"ok": True})
 
@@ -867,12 +873,12 @@ def _terminar_para_reiniciar():
 def reiniciar_app():
     try:
         if bucle.activo:
-            bucle.detener("Reinicio de ScopePower")
+            bucle.detener(_("Reinicio de ScopePower"))
     except Exception:
         pass
     desconectar_telescopio()
     desconectar_camara()
-    voz.decir("Reiniciando ScopePower")
+    voz.decir(_("Reiniciando ScopePower"))
     log.warning("Reinicio de ScopePower pedido desde el móvil (%s)",
                 "lo relanza lanzar_scopepower.bat" if os.environ.get("SCOPEPOWER_LANZADOR") == "1" else "se abre en una consola nueva")
     threading.Timer(0.8, _terminar_para_reiniciar).start()
@@ -924,12 +930,12 @@ def actualizar_aplicar():
         return jsonify({"ok": False, "mensaje": mensaje}), 409
     try:
         if bucle.activo:
-            bucle.detener("Actualización de ScopePower")
+            bucle.detener(_("Actualización de ScopePower"))
     except Exception:
         pass
     desconectar_telescopio()
     desconectar_camara()
-    voz.decir("Actualizando ScopePower desde GitHub. Vuelvo en un par de minutos.")
+    voz.decir(_("Actualizando ScopePower desde GitHub. Vuelvo en un par de minutos."))
     threading.Timer(0.8, _terminar_para_actualizar).start()
     # La web sondea /estado-conexion hasta que la app vuelve: git + pip pueden tardar varios minutos
     return jsonify({"ok": True, "mensaje": mensaje, "espera": 300})
@@ -957,7 +963,7 @@ def _lector_codificadores():
     if _aparcado["lector"] is None:
         # Sin respuesta hace poco (otro driver, montura apagada): no esperar otra vez en cada consulta
         if time.time() < _aparcado["sin_udp_hasta"]:
-            raise ErrorHardware("la montura no contesta por UDP")
+            raise ErrorHardware(_("la montura no contesta por UDP"))
         host, puerto = _conf_udp()
         try:
             _aparcado["lector"] = aparcado.LectorCodificadores(host, puerto, timeout_s=0.4)
@@ -985,7 +991,7 @@ def _esperar_quieta(tel, maximo_s, que):
                 tel.AbortSlew()
             except Exception:
                 pass
-            raise ErrorHardware(f"la montura no terminó {que} en {maximo_s:.0f} s")
+            raise ErrorHardware(_("la montura no terminó {que} en {s} s", que=que, s=round(maximo_s)))
         time.sleep(0.5)
 
 
@@ -1007,7 +1013,7 @@ def _mover_altaz(tel, az, alt, esperar_quieta):
             tel.SlewToCoordinatesAsync(ra, dec)
         else:
             tel.SlewToCoordinates(ra, dec)
-        esperar_quieta(tel, 180, "el movimiento")
+        esperar_quieta(tel, 180, _("el movimiento"))
     finally:
         tel.Tracking = False
 
@@ -1029,12 +1035,12 @@ def _aparcar(tel):
     except Exception as e:
         lector = None
         _soltar_lector()
-        avisos.append(f"no se pueden leer los motores por la wifi de la montura ({e}): "
-                      "queda en altura 0 / acimut 0, que no es exactamente el cero de los motores")
+        avisos.append(_("no se pueden leer los motores por la wifi de la montura ({e}): "
+                        "queda en altura 0 / acimut 0, que no es exactamente el cero de los motores", e=e))
         log.warning("Aparcar: sin lectura UDP de los codificadores: %s", e)
 
     if lector is None:
-        _aparcado["fase"] = "Llevando el tubo a altura 0°, acimut 0°..."
+        _aparcado["fase"] = _("Llevando el tubo a altura 0°, acimut 0°...")
         _mover_altaz(tel, 0.0, 0.0, _esperar_quieta)
         return {"ok": True, "en_cero": False, "sin_udp": True, "avisos": avisos,
                 "alt": float(tel.Altitude), "az": float(tel.Azimuth), "desfase": None}
@@ -1049,8 +1055,8 @@ def _aparcar(tel):
     if None not in r["signos"] and r["signos"] != signos:
         aparcado.guardar_signos(r["signos"])
     if not r["en_cero"]:
-        avisos.append("no ha llegado del todo al cero de los motores (desfase "
-                      f"{r['desfase'][0] * 60:+.1f}′ en acimut, {r['desfase'][1] * 60:+.1f}′ en altura)")
+        avisos.append(_("no ha llegado del todo al cero de los motores (desfase {az}′ en acimut, {alt}′ en altura)",
+                        az=fmt_num(r['desfase'][0] * 60, 1), alt=fmt_num(r['desfase'][1] * 60, 1)))
     try:
         tel.Tracking = False
     except Exception:
@@ -1063,19 +1069,19 @@ def _trabajo_aparcar():
     try:
         try:
             if bucle.activo:
-                bucle.detener("Aparcar la montura")
+                bucle.detener(_("Aparcar la montura"))
         except Exception:
             pass
         _pad_parar("aparcar la montura")
         r = montura.ejecutar(_aparcar, timeout=APARCAR_TIMEOUT_S)
         log.warning("Montura aparcada: %s", r)
         if r["en_cero"]:
-            voz.decir("Montura aparcada. Ya puedes apagarla")
+            voz.decir(_("Montura aparcada. Ya puedes apagarla"))
         else:
-            voz.decir("Seguimiento parado, pero la montura no ha llegado al cero de los motores")
+            voz.decir(_("Seguimiento parado, pero la montura no ha llegado al cero de los motores"))
     except Exception as e:
         log.error("No se pudo aparcar la montura: %s", e)
-        voz.decir("No se ha podido aparcar la montura")
+        voz.decir(_("No se ha podido aparcar la montura"))
         r = {"ok": False, "mensaje": str(e)}
     _aparcado.update(en_curso=False, fase="", resultado=r)
 
@@ -1083,16 +1089,17 @@ def _trabajo_aparcar():
 @app.route('/montura/aparcar', methods=['POST'])
 def montura_aparcar():
     if _aparcado["en_curso"]:
-        return jsonify({"ok": False, "mensaje": "Ya se está aparcando la montura"}), 409
-    for nombre, trabajo in (("centrado", centrado.trabajo_centrado), ("alineación", alineacion.trabajo_alineacion),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        return jsonify({"ok": False, "mensaje": _("Ya se está aparcando la montura")}), 409
+    for nombre, trabajo in ((N_("centrado"), centrado.trabajo_centrado), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "mensaje": f"Hay un trabajo de {nombre} en marcha; páralo antes de aparcar"}), 409
+            return jsonify({"ok": False, "mensaje": _("Hay un trabajo de {nombre} en marcha; páralo antes de aparcar",
+                                                      nombre=_(nombre))}), 409
     if _plan_en_marcha():
-        return jsonify({"ok": False, "mensaje": "El plan de la noche está en marcha; páralo antes de aparcar"}), 409
+        return jsonify({"ok": False, "mensaje": _("El plan de la noche está en marcha; páralo antes de aparcar")}), 409
     if not montura.esta_conectado():
-        return jsonify({"ok": False, "mensaje": "La montura no está conectada"}), 409
-    _aparcado.update(en_curso=True, fase="Parando el seguimiento...", resultado=None)
+        return jsonify({"ok": False, "mensaje": _("La montura no está conectada")}), 409
+    _aparcado.update(en_curso=True, fase=_("Parando el seguimiento..."), resultado=None)
     threading.Thread(target=_trabajo_aparcar, name="aparcar", daemon=True).start()
     return jsonify({"ok": True})
 
@@ -1125,7 +1132,7 @@ def montura_reanudar():
     except ErrorHardware as e:
         return jsonify({"ok": False, "mensaje": str(e)}), 503
     _aparcado["resultado"] = None
-    voz.decir("Seguimiento en marcha")
+    voz.decir(_("Seguimiento en marcha"))
     return jsonify({"ok": True})
 
 
@@ -1252,16 +1259,16 @@ def comprobar_que_llego(tel, ra_m, dec_m, tolerancia=1.0):
     """
     lejos = separacion_grados(tel.RightAscension, tel.Declination, ra_m, dec_m)
     if lejos > tolerancia:
-        raise ErrorHardware(f"la montura no se ha movido: sigue a {lejos:.0f}° del objetivo")
+        raise ErrorHardware(_("la montura no se ha movido: sigue a {g}° del objetivo", g=round(lejos)))
 
 
 def motivo_goto_fallido(e, altitud):
     """Mensaje del GoTo rechazado, con la pista del cenit si el objeto está muy alto."""
     texto = str(e)
     if altitud is not None and altitud >= ALTURA_GOTO_DUDOSA:
-        texto += (f". El objeto está a {altitud:.0f}° de altura: si pasa del límite de SynScan Pro "
+        texto = _("{e}. El objeto está a {alt}° de altura: si pasa del límite de SynScan Pro "
                   "(Settings > Altitude Limit > Upper Go To Limit, 75° de serie) no hace el GoTo; "
-                  "espera a que baje o sube ese límite si el tubo no choca con la base")
+                  "espera a que baje o sube ese límite si el tubo no choca con la base", e=texto, alt=round(altitud))
     return texto
 
 
@@ -1297,7 +1304,7 @@ def posicion_del_sol():
 def es_de_dia():
     """True con el Sol por encima de ALTURA_SOL_DE_DIA: el centrado por plate solving no tiene
     estrellas que resolver (y al Sol o la Luna con filtro, menos aún)."""
-    _, altura_sol = posicion_del_sol()
+    __, altura_sol = posicion_del_sol()
     return altura_sol is not None and altura_sol > ALTURA_SOL_DE_DIA
 
 def aviso_solar(nombre_objeto, ra, dec):
@@ -1529,8 +1536,8 @@ def _sin_espacio_en_disco():
     """Motivo para no empezar ni reanudar capturas (menos de 1 GB libre), o None."""
     e = espacio_disco.vigilante.estado()
     if e.get("sin_espacio"):
-        return (f"El disco está casi lleno ({e['libre_gb']} GB libres, hace falta al menos "
-                f"{e['minimo_gb']:.0f} GB). Libera espacio en el PC para seguir capturando.")
+        return _("El disco está casi lleno ({libre} GB libres, hace falta al menos {minimo} GB). "
+                 "Libera espacio en el PC para seguir capturando.", libre=fmt_num(e['libre_gb']), minimo=round(e['minimo_gb']))
     return None
 
 
@@ -1541,7 +1548,7 @@ def _pausar_por_disco_lleno(e):
     liberar espacio, las rutas de reanudar lo impiden; y si se colara, aquí se vuelve a pausar.
     Una pausa puesta por el usuario se respeta tal cual.
     """
-    motivo = f"Disco casi lleno: quedan {e['libre_gb']} GB. Libera espacio y reanuda."
+    motivo = _("Disco casi lleno: quedan {libre} GB. Libera espacio y reanuda.", libre=fmt_num(e['libre_gb']))
     pausado = False
     plan = plan_sesion.trabajo_plan
     if plan.en_curso and not plan.pausado:
@@ -1553,7 +1560,7 @@ def _pausar_por_disco_lleno(e):
         pausado = True
     if pausado:
         log.warning("Apilado pausado por falta de espacio en %s: %.2f GB libres", e["unidad"], e["libre_gb"])
-        voz.decir("Apilado pausado: queda menos de un giga libre en el disco.")
+        voz.decir(_("Apilado pausado: queda menos de un giga libre en el disco."))
 
 
 @app.route('/disco', methods=['GET', 'POST'])
@@ -1563,9 +1570,9 @@ def espacio_en_disco():
         try:
             umbral = int(round(float(datos["umbral_pct"])))
         except (KeyError, TypeError, ValueError):
-            return jsonify({"ok": False, "error": "Indica el porcentaje"}), 400
+            return jsonify({"ok": False, "error": _("Indica el porcentaje")}), 400
         if not 1 <= umbral <= 90:
-            return jsonify({"ok": False, "error": "El aviso debe estar entre 1 y 90 %"}), 400
+            return jsonify({"ok": False, "error": _("El aviso debe estar entre 1 y 90 %")}), 400
         espacio_disco.vigilante.configurar(umbral)
         _guardar_en_config("Disco", {"umbral_aviso_pct": umbral})
         log.info("Aviso de disco: por debajo del %d %% libre", umbral)
@@ -1603,9 +1610,9 @@ def nivel_humor():
         try:
             nivel = int(round(float(datos["nivel"])))
         except (KeyError, TypeError, ValueError):
-            return jsonify({"ok": False, "error": "Indica el nivel de humor"}), 400
+            return jsonify({"ok": False, "error": _("Indica el nivel de humor")}), 400
         if not 0 <= nivel <= 100:
-            return jsonify({"ok": False, "error": "El nivel de humor va de 0 a 100 %"}), 400
+            return jsonify({"ok": False, "error": _("El nivel de humor va de 0 a 100 %")}), 400
         frase = _con_voz_forzada(lambda: humor.humorista.fijar_nivel(nivel))
         _guardar_en_config("Humor", {"nivel": nivel})
         log.info("Nivel de humor cambiado al %d %% (%s)", nivel, datos.get("origen") or "web")
@@ -1635,9 +1642,9 @@ def _guardar_observatorio(datos, hablar=True, stellarium=True):
         lon = float(datos["longitud"])
         alt = float(datos.get("altitud", ALTITUD_OBSERVATORIO))
     except (KeyError, TypeError, ValueError):
-        return "Latitud y longitud deben ser números", None
+        return _("Latitud y longitud deben ser números"), None
     if not (-90 <= lat <= 90) or not (-180 <= lon <= 180) or not (-500 <= alt <= 9000):
-        return "Valores fuera de rango", None
+        return _("Valores fuera de rango"), None
     LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO = round(lat, 6), round(lon, 6), int(round(alt))
     valores = {"latitud_observatorio": LATITUD_OBSERVATORIO,
                "longitud_observatorio": LONGITUD_OBSERVATORIO,
@@ -1649,7 +1656,7 @@ def _guardar_observatorio(datos, hablar=True, stellarium=True):
         _guardar_en_config("Apilado", {"firma": "true" if datos["firma"] else "false"})
     log.info("Ubicación del observatorio cambiada: %.5f, %.5f, %d m (%s)", lat, lon, ALTITUD_OBSERVATORIO, datos.get("origen", "manual"))
     if hablar:
-        voz.decir("Ubicación del observatorio actualizada")
+        voz.decir(_("Ubicación del observatorio actualizada"))
     if not stellarium:
         return None, None
     return None, _stellarium_poner_ubicacion(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
@@ -1709,15 +1716,15 @@ def poner_pc_en_hora():
     try:
         hora_ms = float(datos["hora_utc_ms"])
     except (KeyError, TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Falta la hora del móvil"}), 400
+        return jsonify({"ok": False, "error": _("Falta la hora del móvil")}), 400
     try:
         antes = hora_sistema.poner_en_hora(hora_ms)
     except hora_sistema.SinPermisoHora as e:
         return jsonify({"ok": False, "error": str(e), "sin_permiso": True}), 403
     except Exception as e:
         log.exception("No se pudo poner el PC en hora")
-        return jsonify({"ok": False, "error": f"No se pudo cambiar la hora: {e}"}), 500
-    voz.decir("Reloj del ordenador puesto en hora")
+        return jsonify({"ok": False, "error": _("No se pudo cambiar la hora: {e}", e=e)}), 500
+    voz.decir(_("Reloj del ordenador puesto en hora"))
     return jsonify({"ok": True, "corregido_s": round(-antes, 1), "hora_utc_ms": int(time.time() * 1000),
                     "hora_local": datetime.now().strftime("%H:%M:%S"), "zona_horaria": time.strftime("%Z")})
 
@@ -1764,12 +1771,12 @@ def ascom_drivers():
 def montura_limpiar_sync():
     """Borra a mano las sincronizaciones/modelo de apuntado guardados en la app SynScan."""
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "mensaje": "Pausa o detén el apilado antes de borrar las sincronizaciones"}), 409
+        return jsonify({"ok": False, "mensaje": _("Pausa o detén el apilado antes de borrar las sincronizaciones")}), 409
     try:
         ok, msg = montura.ejecutar(limpiar_sincronizaciones, timeout=20)
     except ErrorHardware as e:
-        return jsonify({"ok": False, "mensaje": f"Montura no disponible: {e}"}), 503
-    voz.decir("Sincronizaciones anteriores borradas" if ok else "No se han podido borrar las sincronizaciones")
+        return jsonify({"ok": False, "mensaje": _("Montura no disponible: {e}", e=e)}), 503
+    voz.decir(_("Sincronizaciones anteriores borradas") if ok else _("No se han podido borrar las sincronizaciones"))
     return jsonify({"ok": ok, "mensaje": msg})
 
 
@@ -1784,9 +1791,9 @@ def montura_asentamiento():
         try:
             segundos = float(datos.get("segundos"))
         except (TypeError, ValueError):
-            return jsonify({"ok": False, "mensaje": "Indica un número de segundos"}), 400
+            return jsonify({"ok": False, "mensaje": _("Indica un número de segundos")}), 400
         if not 0 <= segundos <= 60:
-            return jsonify({"ok": False, "mensaje": "El asentamiento debe estar entre 0 y 60 s"}), 400
+            return jsonify({"ok": False, "mensaje": _("El asentamiento debe estar entre 0 y 60 s")}), 400
         cfg = configparser.ConfigParser()
         cfg.read("config.ini")
         if "Montura" not in cfg:
@@ -1800,7 +1807,7 @@ def montura_asentamiento():
         with open("config.ini", "w") as f:
             cfg.write(f)
         log.info("Asentamiento de la montura: %.1f s", segundos)
-        return jsonify({"ok": True, "segundos": asentamiento_montura(), "mensaje": f"Asentamiento guardado: {segundos:g} s"})
+        return jsonify({"ok": True, "segundos": asentamiento_montura(), "mensaje": _("Asentamiento guardado: {s} s", s=fmt_num(segundos))})
     return jsonify({"ok": True, "segundos": asentamiento_montura()})
 
 
@@ -1809,8 +1816,8 @@ def reconectar_telescopio():
     try:
         montura.reconectar()
     except ErrorHardware as e:
-        return f"❌ Error: {e}"
-    return "✅ Telescopio reconectado correctamente"
+        return _("❌ Error: {e}", e=e)
+    return _("✅ Telescopio reconectado correctamente")
 
 @app.route('/move')
 def move():
@@ -1830,7 +1837,7 @@ def move():
         elif direction == 'W' and telescope.CanMoveAxis(0):
             telescope.MoveAxis(0, -speed)
         else:
-            return "❌ Movimiento no permitido por el driver (CanMoveAxis = False)"
+            return _("❌ Movimiento no permitido por el driver (CanMoveAxis = False)")
 
         # Restaurar el estado de Tracking si era True
         if estaba_tracking and not telescope.Tracking:
@@ -1919,12 +1926,12 @@ def pad_mover():
         vx = max(-20.0, min(20.0, float(d.get("vx", 0))))
         vy = max(-20.0, min(20.0, float(d.get("vy", 0))))
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "mensaje": "Velocidades no válidas"}), 400
+        return jsonify({"ok": False, "mensaje": _("Velocidades no válidas")}), 400
     if vx == 0 and vy == 0:
         _pad_parar()
         return jsonify({"ok": True, "parado": True})
     if seguimiento.trabajo_seguimiento.en_curso:
-        return jsonify({"ok": False, "mensaje": "El seguimiento de objetos lleva la montura; páralo antes"}), 409
+        return jsonify({"ok": False, "mensaje": _("El seguimiento de objetos lleva la montura; páralo antes")}), 409
     with _pad["lock"]:
         # Latido con la misma velocidad: basta refrescar el vigilante, sin molestar a la montura
         repetido = _pad["activo"] and _pad["vx"] == vx and _pad["vy"] == vy
@@ -1971,8 +1978,8 @@ def revelar_foto_noche(imagen_fits, patron_bayer):
 
 
 # Nombre en la web de cada paso del procesado (procesado.SUBFASES)
-FASES_REVELADO = {"gradiente": "Quitando el gradiente", "estirando": "Estirando", "ruido": "Reduciendo el ruido", "nitidez": "Afilando (deconvolución)",
-                  "contraste": "Contraste local", "color": "Color"}
+FASES_REVELADO = {"gradiente": N_("Quitando el gradiente"), "estirando": N_("Estirando"), "ruido": N_("Reduciendo el ruido"),
+                  "nitidez": N_("Afilando (deconvolución)"), "contraste": N_("Contraste local"), "color": N_("Color")}
 
 
 def revelar_foto_noche_apilado(imagen_fits, patron_bayer, escala=0.5, progreso=None, encuadre=None):
@@ -1994,7 +2001,7 @@ def revelar_foto_noche_apilado(imagen_fits, patron_bayer, escala=0.5, progreso=N
     rgb = np.asarray(rgb, dtype=np.float32)
     e = encuadre or giro_camara.SIN_GIRO
     balance = procesado.balance_estrellas(rgb)                 # color: con las estrellas del campo completo
-    rgb, _ = procesado.girar_campo(rgb, procesado.fraccion_campo(), e.get("giro", 0.0),
+    rgb, __ = procesado.girar_campo(rgb, procesado.fraccion_campo(), e.get("giro", 0.0),
                                    zona=(0, 0, rgb.shape[1], rgb.shape[0]), espejo=bool(e.get("espejo")))
     rgb8 = procesado.procesar(rgb, 1, procesado.leer_config(), escala=escala, progreso=progreso, balance=balance)
     return cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
@@ -2006,7 +2013,7 @@ def _escala_revelado_vista():
     return 0.5 if procesado.fraccion_campo() > 0.5 else 1.0
 
 
-def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion="Captura", ganancia=None, copia=None,
+def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion=None, ganancia=None, copia=None,
                        exposicion=None):
     """
     Expone, calibra (dark/flat), escribe static/captura.fits y, si `apilar`,
@@ -2020,11 +2027,12 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     esta foto en una carpeta (modo continuo). El FITS es el mismo que static/captura.fits;
     el JPG es la foto revelada a resolución completa. Su ruta vuelve en "archivo".
     """
+    descripcion = descripcion or _("Captura")     # se enseña en la cabecera de Apilado y Cámara
     # Si la cámara ya está exponiendo, no encolar otra captura detrás
     if camara.ocupado:
-        return {"ok": False, "mensaje": "⏳ Ya hay una captura en curso", "ocupada": True}
+        return {"ok": False, "mensaje": _("⏳ Ya hay una captura en curso"), "ocupada": True}
     if foto_dia.trabajo_timelapse.en_curso:
-        return {"ok": False, "mensaje": "⏳ Hay un timelapse en marcha; párala antes desde Cámara", "ocupada": True}
+        return {"ok": False, "mensaje": _("⏳ Hay un timelapse en marcha; páralo antes desde Cámara"), "ocupada": True}
 
     # Antes de exponer: que la montura siga el cielo (si algo apagó el seguimiento, se reactiva y queda en el log)
     _asegurar_seguimiento(descripcion.lower() if descripcion else "la foto")
@@ -2038,28 +2046,29 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
 
     def _exponer(cam):
         print(f"📸 Iniciando exposición de {EXPOSICION} segundos...")
-        voz.decir(f"Empieza exposición de {EXPOSICION:.0f} segundos", categoria="capturas")
+        voz.decir(ngettext("Empieza exposición de {n} segundo", "Empieza exposición de {n} segundos", round(EXPOSICION)),
+                  categoria="capturas")
         frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion=descripcion, ganancia=GANANCIA)
         print("✅ Exposición finalizada.")
-        voz.decir("Exposición terminada", categoria="capturas")
+        voz.decir(_("Exposición terminada"), categoria="capturas")
         return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY, leer_ganancia(cam)["actual"]
 
     try:
         imagen_fits, sensor_type, pixel_size_x, pixel_size_y, ganancia_real = camara.ejecutar(
             _exponer, timeout=EXPOSICION + 90)
     except CapturaCancelada:
-        voz.decir("Captura cancelada")
+        voz.decir(_("Captura cancelada"))
         humor.decir("cancelado")
-        return {"ok": False, "mensaje": "⏹️ Captura cancelada", "cancelada": True}
+        return {"ok": False, "mensaje": _("⏹️ Captura cancelada"), "cancelada": True}
     except ErrorHardware as e:
-        voz.decir("Error de cámara")
+        voz.decir(_("Error de cámara"))
         humor.decir("error_camara")
-        return {"ok": False, "mensaje": f"Error: {e}"}
+        return {"ok": False, "mensaje": _("Error: {e}", e=e)}
 
     # RA/Dec solo van a la cabecera del FITS (OBJCTRA/OBJCTDEC). Si la montura no
     # contesta (SynScan sin enlace, wifi caído) la foto sigue siendo buena: se usa la
     # última posición conocida y se avisa, en vez de tirar la toma y parar el bucle.
-    estado_captura.poner_fase("Leyendo la posición de la montura")
+    estado_captura.poner_fase(_("Leyendo la posición de la montura"))
     try:
         ra_actual, dec_actual = montura.ejecutar(
             lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
@@ -2073,10 +2082,10 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             log.warning("Montura sin respuesta al leer RA/Dec (%s): la cabecera lleva el destino del último GoTo", e)
         else:
             estado_captura.poner_fase("")
-            return {"ok": False, "mensaje": f"Error: {e}"}
+            return {"ok": False, "mensaje": _("Error: {e}", e=e)}
 
     try:
-        estado_captura.poner_fase("Restando el dark y el flat")
+        estado_captura.poner_fase(_("Restando el dark y el flat"))
         # ───── Aplicar dark maestro (el de la biblioteca que casa con exposición, ganancia y binning) ─────
         ruta_dark = darks.buscar_dark(EXPOSICION, GANANCIA, BINNING)
         dark_aplicado = False
@@ -2132,7 +2141,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         if flat_aplicado:
             hdu.header['FLATFILE'] = (os.path.basename(ruta_flat), 'Archivo flat utilizado')
 
-        estado_captura.poner_fase("Guardando la foto")
+        estado_captura.poner_fase(_("Guardando la foto"))
         hdu.writeto(RUTA_IMAGEN, overwrite=True)
         ruta_guardada = RUTA_IMAGEN
 
@@ -2165,12 +2174,12 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             log.warning("No se pudo generar la miniatura de la captura: %s", e)
 
         if not generar_preview:
-            return {"ok": True, "mensaje": f"Captura de {EXPOSICION:g} s guardada", "ruta": ruta_guardada,
+            return {"ok": True, "mensaje": _("Captura de {s} s guardada", s=fmt_num(EXPOSICION)), "ruta": ruta_guardada,
                     "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia,
                     "hora": ULTIMA_CAPTURA.get("hora")}
 
         # ───   Revelado (debayer, STF, saturación) y versión reducida para la web   ───
-        estado_captura.poner_fase("Revelando la foto")
+        estado_captura.poner_fase(_("Revelando la foto"))
         sin_girar = revelar_foto_noche(imagen_fits, patron_bayer)
         imagen_web, encuadre = giro_camara.girar(sin_girar)      # el giro de Cámara; el FITS queda sin girar
         info_enfoque = None
@@ -2192,13 +2201,13 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             archivo_copia = os.path.join(copia["carpeta"], copia["nombre"] + ".jpg")
             cv2.imwrite(archivo_copia, imagen_web, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
-        return {"ok": True, "mensaje": f"Captura de {EXPOSICION:g} s guardada", "ruta": ruta_guardada,
+        return {"ok": True, "mensaje": _("Captura de {s} s guardada", s=fmt_num(EXPOSICION)), "ruta": ruta_guardada,
                 "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia,
                 "hora": ULTIMA_CAPTURA.get("hora"), "enfoque": info_enfoque}
 
     except Exception as e:
         log.exception("Error al procesar la captura")
-        return {"ok": False, "mensaje": f"❌ Error al capturar la imagen: {e}"}
+        return {"ok": False, "mensaje": _("❌ Error al capturar la imagen: {e}", e=e)}
     finally:
         estado_captura.poner_fase("")
 
@@ -2277,11 +2286,11 @@ def buscar_objetos():
         for c in cuerpos_menores.buscar_patron(q, maximo=40):
             mag = None
             try:
-                _, _, info = cuerpos_menores.coordenadas(c["nombre"], LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
+                __, __, info = cuerpos_menores.coordenadas(c["nombre"], LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
                 mag = info["mag"]
             except Exception:
                 pass
-            resultados.append({"nombre": c["nombre"], "detalle": ("Cometa" if c["tipo"] == "cometa" else "Asteroide") + (f" · mag {mag}" if mag is not None else ""),
+            resultados.append({"nombre": c["nombre"], "detalle": (_("Cometa") if c["tipo"] == "cometa" else _("Asteroide")) + (f" · mag {mag}" if mag is not None else ""),
                                "tipo": c["tipo"], "mag": mag, "_orden": 0})
     except Exception as e:
         log.warning("Búsqueda en cuerpos menores: %s", e)
@@ -2418,25 +2427,25 @@ def sincronizar_con_ultima_foto():
     minutos de arco.
     """
     if not os.path.exists(RUTA_IMAGEN):
-        return {"ok": False, "mensaje": "No hay ninguna foto que resolver; haz una foto primero."}
+        return {"ok": False, "mensaje": _("No hay ninguna foto que resolver; haz una foto primero.")}
     if bucle.activo and not bucle.pausado:
-        return {"ok": False, "mensaje": "El apilado está capturando; páusalo antes de sincronizar."}
+        return {"ok": False, "mensaje": _("El apilado está capturando; páusalo antes de sincronizar.")}
     try:
         ra_m, dec_m = montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
     except ErrorHardware as e:
-        return {"ok": False, "mensaje": f"Montura no disponible: {e}"}
+        return {"ok": False, "mensaje": _("Montura no disponible: {e}", e=e)}
 
     ruta_mono = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.fits"
     generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, ruta_mono)
     if not ejecutar_astap(ruta_mono):
-        return {"ok": False, "mensaje": "ASTAP no respondió a tiempo."}
+        return {"ok": False, "mensaje": _("ASTAP no respondió a tiempo.")}
     coords_res = extraer_coordenadas_ini(RUTA_INI)
     if coords_res is None:
-        return {"ok": False, "mensaje": "ASTAP no ha podido resolver la foto (¿pocas estrellas, desenfoque, nubes?)."}
+        return {"ok": False, "mensaje": _("ASTAP no ha podido resolver la foto (¿pocas estrellas, desenfoque, nubes?).")}
     ra_deg, dec_deg = coords_res
     ra_h = float(ra_deg) / 15.0
     if calcular_altitud(ra_h, dec_deg) < float(ALTURA_MINIMA):
-        return {"ok": False, "mensaje": "La foto apunta por debajo de la altura mínima; no se sincroniza."}
+        return {"ok": False, "mensaje": _("La foto apunta por debajo de la altura mínima; no se sincroniza.")}
 
     # Error que tenía la montura (comparado en J2000)
     ra_i, dec_i = coordenadas.desde_montura(ra_m, dec_m)
@@ -2447,12 +2456,14 @@ def sincronizar_con_ultima_foto():
     try:
         montura.ejecutar(lambda tel: tel.SyncToCoordinates(ra_s, dec_s), timeout=20)
     except ErrorHardware as e:
-        return {"ok": False, "mensaje": f"Error al sincronizar: {e}"}
+        return {"ok": False, "mensaje": _("Error al sincronizar: {e}", e=e)}
     ra_str, dec_str = formatear_ra_dec(ra_h, dec_deg)
-    voz.decir(f"Telescopio sincronizado. Se equivocaba {error:.0f} minutos de arco")
+    voz.decir(ngettext("Telescopio sincronizado. Se equivocaba {n} minuto de arco",
+                       "Telescopio sincronizado. Se equivocaba {n} minutos de arco", round(error)))
     humor.decir("sincronizado")
     log.info("Sincronizado con la foto de prueba: RA %s DEC %s (error previo %.1f')", ra_str, dec_str, error)
-    return {"ok": True, "mensaje": f"Sincronizado con la foto: RA {ra_str}, DEC {dec_str}. La montura se equivocaba {error:.1f}′.",
+    return {"ok": True, "mensaje": _("Sincronizado con la foto: RA {ra}, DEC {dec}. La montura se equivocaba {error}′.",
+                                     ra=ra_str, dec=dec_str, error=fmt_num(error, 1)),
             "ra": ra_h, "dec": dec_deg, "error_arcmin": round(error, 2)}
 
 
@@ -2478,10 +2489,10 @@ def _wcs_ultima_foto():
         ruta_mono = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.fits"
         generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, ruta_mono)
         if not ejecutar_astap(ruta_mono):
-            return "ASTAP no respondió a tiempo."
+            return _("ASTAP no respondió a tiempo.")
         res = anotaciones.wcs_desde_ini(RUTA_INI)
     if res is None:
-        return "ASTAP no ha podido resolver la foto (¿pocas estrellas, desenfoque, nubes?)."
+        return _("ASTAP no ha podido resolver la foto (¿pocas estrellas, desenfoque, nubes?).")
     return res[0], ancho, alto
 
 
@@ -2494,11 +2505,11 @@ def apuntar_a_punto_de_la_foto(fx, fy):
     mensaje (y, si fue bien, las coordenadas y la distancia recorrida).
     """
     if not os.path.exists(RUTA_IMAGEN):
-        return {"ok": False, "mensaje": "No hay ninguna foto; haz una foto primero."}
+        return {"ok": False, "mensaje": _("No hay ninguna foto; haz una foto primero.")}
     if bucle.activo and not bucle.pausado:
-        return {"ok": False, "mensaje": "El apilado está capturando; páusalo antes de mover el telescopio."}
+        return {"ok": False, "mensaje": _("El apilado está capturando; páusalo antes de mover el telescopio.")}
     if centrado.trabajo_centrado.en_curso:
-        return {"ok": False, "mensaje": "Hay un centrado automático en marcha; espera a que termine."}
+        return {"ok": False, "mensaje": _("Hay un centrado automático en marcha; espera a que termine.")}
     res = _wcs_ultima_foto()
     if isinstance(res, str):
         return {"ok": False, "mensaje": res}
@@ -2513,12 +2524,12 @@ def apuntar_a_punto_de_la_foto(fx, fy):
         ra_obj, dec_obj = (float(v) for v in wcs.all_pix2world([[px, py]], 0)[0])
         ra_cen, dec_cen = (float(v) for v in wcs.all_pix2world([[cx, cy]], 0)[0])
     except Exception as e:
-        return {"ok": False, "mensaje": f"No se pudo convertir el punto a coordenadas: {e}"}
+        return {"ok": False, "mensaje": _("No se pudo convertir el punto a coordenadas: {e}", e=e)}
     if not all(np.isfinite([ra_obj, dec_obj, ra_cen, dec_cen])):
-        return {"ok": False, "mensaje": "El punto elegido cae fuera de la proyección de la foto."}
+        return {"ok": False, "mensaje": _("El punto elegido cae fuera de la proyección de la foto.")}
     ra_obj_h, ra_cen_h = ra_obj / 15.0, ra_cen / 15.0
     if calcular_altitud(ra_obj_h, dec_obj) < float(ALTURA_MINIMA):
-        return {"ok": False, "mensaje": "El punto elegido está por debajo de la altura mínima; no se mueve el telescopio."}
+        return {"ok": False, "mensaje": _("El punto elegido está por debajo de la altura mínima; no se mueve el telescopio.")}
     salto = float(SkyCoord(ra=ra_cen * u.deg, dec=dec_cen * u.deg).separation(
         SkyCoord(ra=ra_obj * u.deg, dec=dec_obj * u.deg)).arcmin)
 
@@ -2539,18 +2550,19 @@ def apuntar_a_punto_de_la_foto(fx, fy):
         time.sleep(0.5)
         while tel.Slewing:
             if time.time() - inicio > 120:
-                raise ErrorHardware("La montura no terminó el movimiento en 120 s")
+                raise ErrorHardware(_("La montura no terminó el movimiento en 120 s"))
             time.sleep(0.5)
 
     try:
         montura.ejecutar(_mover, timeout=150)
     except ErrorHardware as e:
-        return {"ok": False, "mensaje": f"Error al mover el telescopio: {e}"}
+        return {"ok": False, "mensaje": _("Error al mover el telescopio: {e}", e=e)}
     time.sleep(asentamiento_montura())   # asentamiento antes de la siguiente foto
     ra_str, dec_str = formatear_ra_dec(ra_obj_h, dec_obj)
     log.info("Apuntado al punto (%.3f, %.3f) de la foto de prueba: RA %s DEC %s (salto %.1f')", fx, fy, ra_str, dec_str, salto)
-    voz.decir("Telescopio centrado en el punto elegido")
-    return {"ok": True, "mensaje": f"Telescopio centrado en RA {ra_str}, DEC {dec_str} (se ha movido {salto:.1f}′).",
+    voz.decir(_("Telescopio centrado en el punto elegido"))
+    return {"ok": True, "mensaje": _("Telescopio centrado en RA {ra}, DEC {dec} (se ha movido {salto}′).",
+                                     ra=ra_str, dec=dec_str, salto=fmt_num(salto, 1)),
             "ra": ra_obj_h, "dec": dec_obj, "salto_arcmin": round(salto, 2)}
 
 
@@ -2561,9 +2573,9 @@ def apuntar_foto():
     try:
         fx, fy = float(datos.get("x")), float(datos.get("y"))
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "mensaje": "Punto no válido."}), 400
+        return jsonify({"ok": False, "mensaje": _("Punto no válido.")}), 400
     if not (0.0 <= fx <= 1.0 and 0.0 <= fy <= 1.0):
-        return jsonify({"ok": False, "mensaje": "El punto tiene que estar dentro de la foto."}), 400
+        return jsonify({"ok": False, "mensaje": _("El punto tiene que estar dentro de la foto.")}), 400
     resultado = apuntar_a_punto_de_la_foto(fx, fy)
     return jsonify(resultado), (200 if resultado["ok"] else 409)
 
@@ -2615,7 +2627,7 @@ def camara_giro_guardar():
     try:
         encuadre = giro_camara.guardar(float(datos.get("giro", 0) or 0), bool(datos.get("espejo")))
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "mensaje": "Giro no válido."}), 400
+        return jsonify({"ok": False, "mensaje": _("Giro no válido.")}), 400
     regenerada = False
     try:
         f = foto_actual.actual()
@@ -2629,7 +2641,7 @@ def camara_giro_guardar():
             regenerada = True
     except Exception as e:
         log.exception("No se pudo volver a girar la foto de Cámara")
-        return jsonify({"ok": False, "mensaje": f"Giro guardado, pero no se pudo volver a girar la foto: {e}", **encuadre}), 500
+        return jsonify({"ok": False, "mensaje": _("Giro guardado, pero no se pudo volver a girar la foto: {e}", e=e), **encuadre}), 500
     log.info("Giro de Cámara: %g°%s", encuadre["giro"], " con espejo" if encuadre["espejo"] else "")
     return jsonify({"ok": True, "regenerada": regenerada, **encuadre})
 
@@ -2641,8 +2653,8 @@ def camara_giro_cenit():
     orientacion = orientacion_camara.ultima()
     cenit = giro_camara.cenit_arriba(orientacion)
     if cenit is None:
-        return jsonify({"ok": False, "mensaje": "Aún no hay ningún plate solving con esta cámara: haz uno de noche "
-                                                "(centrado, alineación, apilado o sincronizar la foto) y luego se podrá calcular."}), 409
+        return jsonify({"ok": False, "mensaje": _("Aún no hay ningún plate solving con esta cámara: haz uno de noche "
+                                                  "(centrado, alineación, apilado o sincronizar la foto) y luego se podrá calcular.")}), 409
     return jsonify({"ok": True, "giro": cenit[0] % 360.0, "espejo": cenit[1],
                     "orientacion": apuntado_teorico.describir_orientacion(orientacion)})
 
@@ -2653,11 +2665,11 @@ def _montura_ocupada():
     if motivo_plan:
         return motivo_plan
     if bucle.activo and not bucle.pausado:
-        return "El apilado está capturando; páusalo antes de mover el telescopio."
-    for nombre, trabajo in (("centrado", centrado.trabajo_centrado), ("alineación", alineacion.trabajo_alineacion),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        return _("El apilado está capturando; páusalo antes de mover el telescopio.")
+    for nombre, trabajo in ((N_("centrado"), centrado.trabajo_centrado), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
-            return f"Hay un trabajo de {nombre} en marcha; espera a que termine."
+            return _("Hay un trabajo de {nombre} en marcha; espera a que termine.", nombre=_(nombre))
     return None
 
 
@@ -2698,7 +2710,7 @@ def mover_relativo_horizonte(du, dv):
             time.sleep(0.5)
             while tel.Slewing:
                 if time.time() - inicio > 120:
-                    raise ErrorHardware("La montura no terminó el movimiento en 120 s")
+                    raise ErrorHardware(_("La montura no terminó el movimiento en 120 s"))
                 time.sleep(0.5)
         finally:
             if not seguia:
@@ -2726,18 +2738,19 @@ def apuntar_sin_plate_solving(fx, fy):
         return {"ok": False, "mensaje": str(e)}
     salto = math.hypot(du, dv) * 60.0
     if salto < 0.2:
-        return {"ok": True, "mensaje": "El punto ya está en el centro; no hace falta mover.", "salto_arcmin": 0.0, "movido": False}
+        return {"ok": True, "mensaje": _("El punto ya está en el centro; no hace falta mover."), "salto_arcmin": 0.0, "movido": False}
     try:
         altura = mover_relativo_horizonte(du, dv)
     except ErrorHardware as e:
-        return {"ok": False, "mensaje": f"Error al mover el telescopio: {e}"}
+        return {"ok": False, "mensaje": _("Error al mover el telescopio: {e}", e=e)}
     disco.guiado.nueva_referencia()      # si se está guiando por el disco, su sitio es el nuevo
     log.info("Apuntado sin plate solving al punto (%.3f, %.3f): Δaz·cos(alt) %+.1f', Δalt %+.1f' (alt %.1f°)",
              fx, fy, du * 60, dv * 60, altura)
-    voz.decir("Telescopio centrado en el punto elegido")
+    voz.decir(_("Telescopio centrado en el punto elegido"))
     return {"ok": True, "movido": True, "salto_arcmin": round(salto, 2),
-            "mensaje": f"Telescopio movido {salto:.1f}′ ({abs(du) * 60:.1f}′ en acimut, {abs(dv) * 60:.1f}′ en altura) "
-                       f"con la orientación de la cámara, sin plate solving."}
+            "mensaje": _("Telescopio movido {salto}′ ({az}′ en acimut, {alt}′ en altura) "
+                         "con la orientación de la cámara, sin plate solving.",
+                         salto=fmt_num(salto, 1), az=fmt_num(abs(du) * 60, 1), alt=fmt_num(abs(dv) * 60, 1))}
 
 
 @app.route('/apuntar-foto-dia', methods=['POST'])
@@ -2747,9 +2760,9 @@ def apuntar_foto_dia():
     try:
         fx, fy = float(datos.get("x")), float(datos.get("y"))
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "mensaje": "Punto no válido."}), 400
+        return jsonify({"ok": False, "mensaje": _("Punto no válido.")}), 400
     if not (0.0 <= fx <= 1.0 and 0.0 <= fy <= 1.0):
-        return jsonify({"ok": False, "mensaje": "El punto tiene que estar dentro de la foto."}), 400
+        return jsonify({"ok": False, "mensaje": _("El punto tiene que estar dentro de la foto.")}), 400
     resultado = apuntar_sin_plate_solving(fx, fy)
     return jsonify(resultado), (200 if resultado["ok"] else 409)
 
@@ -2760,8 +2773,8 @@ def apuntar_foto_dia_info():
     import orientacion_camara
     orientacion = orientacion_camara.ultima()
     if not orientacion:
-        return jsonify({"ok": False, "mensaje": "Aún no hay ningún plate solving con esta cámara: haz uno de noche "
-                                                "(centrado, alineación, apilado o sincronizar la foto) y luego funcionará también de día."})
+        return jsonify({"ok": False, "mensaje": _("Aún no hay ningún plate solving con esta cámara: haz uno de noche "
+                                                  "(centrado, alineación, apilado o sincronizar la foto) y luego funcionará también de día.")})
     salida = {"ok": True, "orientacion": apuntado_teorico.describir_orientacion(orientacion)}
     vista = _foto_en_pantalla()
     if vista and vista.get("ancho"):
@@ -2780,7 +2793,7 @@ def _medir_disco(foto, objetivo=None):
     import orientacion_camara
     orientacion = orientacion_camara.ultima()
     if orientacion is None:
-        raise disco.SinDisco("Todavía no se conoce la orientación de la cámara: hace falta un plate solving de noche.")
+        raise disco.SinDisco(_("Todavía no se conoce la orientación de la cámara: hace falta un plate solving de noche."))
     objetivo = objetivo or (foto or {}).get("objetivo")
     return disco.localizar(foto, orientacion, objetivo, _observatorio(), leer_fits=_leer_captura)
 
@@ -2794,7 +2807,7 @@ def sincronizar_con_disco(centrar=False):
     f = _foto_en_pantalla()
     objetivo = (f or {}).get("objetivo")
     if objetivo not in disco.RADIO_KM:
-        return {"ok": False, "mensaje": "Haz antes una foto de día del Sol o de la Luna (o pon el continuo o el modo en vivo)."}
+        return {"ok": False, "mensaje": _("Haz antes una foto de día del Sol o de la Luna (o pon el continuo o el modo en vivo).")}
     ocupada = _montura_ocupada()
     if ocupada:
         return {"ok": False, "mensaje": ocupada}
@@ -2805,9 +2818,11 @@ def sincronizar_con_disco(centrar=False):
     except disco.SinDisco as e:
         return {"ok": False, "mensaje": str(e)}
     except ErrorHardware as e:
-        return {"ok": False, "mensaje": f"Montura no disponible: {e}"}
+        return {"ok": False, "mensaje": _("Montura no disponible: {e}", e=e)}
     if alt_astro < 0:
-        return {"ok": False, "mensaje": f"El {disco.NOMBRE[objetivo]} está bajo el horizonte según las efemérides: revisa la hora del PC y la ubicación."}
+        return {"ok": False, "mensaje": (_("El Sol está bajo el horizonte según las efemérides: revisa la hora del PC y la ubicación.")
+                                         if objetivo == "sol" else
+                                         _("La Luna está bajo el horizonte según las efemérides: revisa la hora del PC y la ubicación."))}
     ra_i, dec_i = coordenadas.desde_montura(ra_m, dec_m)
     error = float(SkyCoord(ra=ra_i * u.hourangle, dec=dec_i * u.deg).separation(
         SkyCoord(ra=ra_c * u.hourangle, dec=dec_c * u.deg)).arcmin)
@@ -2815,24 +2830,25 @@ def sincronizar_con_disco(centrar=False):
     try:
         montura.ejecutar(lambda tel: tel.SyncToCoordinates(ra_s, dec_s), timeout=20)
     except ErrorHardware as e:
-        return {"ok": False, "mensaje": f"La montura no ha aceptado la sincronización: {e}"}
+        return {"ok": False, "mensaje": _("La montura no ha aceptado la sincronización: {e}", e=e)}
     nombre = disco.NOMBRE[objetivo]
     log.info("Sincronizado con el disco de %s: centro de la foto AR %.4f h Dec %.3f° (disco a %.1f', ajuste %.0f %%%s); "
              "la montura se equivocaba %.1f'", nombre, ra_c, dec_c, d["desvio_arcmin"], 100 * d["ajuste"],
              ", cortado por el borde" if d["toca_borde"] else "", error)
-    mensaje = f"Montura sincronizada con el {nombre}: se equivocaba {error:.1f}′."
+    mensaje = (_("Montura sincronizada con el Sol: se equivocaba {error}′.", error=fmt_num(error, 1)) if objetivo == "sol" else
+               _("Montura sincronizada con la Luna: se equivocaba {error}′.", error=fmt_num(error, 1)))
     if d["toca_borde"]:
-        mensaje += " El disco salía cortado por el borde: la medida es algo menos precisa."
+        mensaje += " " + _("El disco salía cortado por el borde: la medida es algo menos precisa.")
     movido = False
     if centrar and d["desvio_arcmin"] >= 0.2:
         try:
             mover_relativo_horizonte(d["du"], d["dv"])
             movido = True
             disco.guiado.nueva_referencia()
-            mensaje += f" Disco centrado (estaba a {d['desvio_arcmin']:.1f}′)."
+            mensaje += " " + _("Disco centrado (estaba a {d}′).", d=fmt_num(d['desvio_arcmin'], 1))
         except ErrorHardware as e:
-            mensaje += f" No se pudo centrar: {e}"
-    voz.decir(f"Montura sincronizada con el {nombre}")
+            mensaje += " " + _("No se pudo centrar: {e}", e=e)
+    voz.decir(_("Montura sincronizada con el Sol") if objetivo == "sol" else _("Montura sincronizada con la Luna"))
     humor.decir("sincronizado")
     return {"ok": True, "mensaje": mensaje, "error_arcmin": round(error, 2), "desvio_arcmin": round(d["desvio_arcmin"], 2),
             "movido": movido}
@@ -2871,11 +2887,11 @@ def disco_guiado():
     f = _foto_en_pantalla()
     objetivo = (f or {}).get("objetivo") or str(datos.get("objetivo") or "")
     if objetivo not in disco.RADIO_KM:
-        return jsonify({"ok": False, "mensaje": "El guiado es para el Sol o la Luna en modo día."}), 409
+        return jsonify({"ok": False, "mensaje": _("El guiado es para el Sol o la Luna en modo día.")}), 409
     import apuntado_teorico, orientacion_camara
     orientacion = orientacion_camara.ultima()
     if orientacion is None:
-        return jsonify({"ok": False, "mensaje": "Todavía no se conoce la orientación de la cámara: hace falta un plate solving de noche."}), 409
+        return jsonify({"ok": False, "mensaje": _("Todavía no se conoce la orientación de la cámara: hace falta un plate solving de noche.")}), 409
     umbral = _umbral_guiado_disco()
 
     def mover(du, dv):
@@ -2889,7 +2905,7 @@ def disco_guiado():
     except RuntimeError as e:
         return jsonify({"ok": False, "mensaje": str(e)}), 409
     log.info("Guiado por el disco de %s activado (corrige a partir de %.1f')", disco.NOMBRE[objetivo], umbral)
-    voz.decir(f"Guiado por el disco del {disco.NOMBRE[objetivo]}")
+    voz.decir(_("Guiado por el disco del Sol") if objetivo == "sol" else _("Guiado por el disco de la Luna"))
     return jsonify({"ok": True, "estado": disco.guiado.estado()})
 
 
@@ -2912,7 +2928,7 @@ def guardar_foto_en_galeria():
     """
     f = _foto_en_pantalla()
     if f is None:
-        return {"ok": False, "mensaje": "No hay ninguna foto que guardar; haz una foto primero."}
+        return {"ok": False, "mensaje": _("No hay ninguna foto que guardar; haz una foto primero.")}
     fecha = datetime.fromtimestamp(f.get("instante") or time.time())
     if f["modo"] in ("dia", "vivo"):
         objeto = foto_dia.OBJETIVOS.get(f.get("objetivo") or "", {}).get("nombre", "Foto de día")
@@ -2923,7 +2939,7 @@ def guardar_foto_en_galeria():
     ruta_jpg = os.path.join("static", "fotos", base + ".jpg")
     ruta_crudo = os.path.join(CARPETA_CRUDOS_GALERIA, base + ".fits")
     if os.path.exists(ruta_jpg):
-        return {"ok": True, "mensaje": f"Esta foto ya estaba en la galería ({base}.jpg).", "archivo": base + ".jpg"}
+        return {"ok": True, "mensaje": _("Esta foto ya estaba en la galería ({archivo}).", archivo=base + ".jpg"), "archivo": base + ".jpg"}
     os.makedirs(CARPETA_CRUDOS_GALERIA, exist_ok=True)
 
     exposicion = f.get("exposicion")
@@ -2947,7 +2963,7 @@ def guardar_foto_en_galeria():
                                   extra=foto_dia.cabecera_revelado(f.get("objetivo"), f["campo"],
                                                                    {"negro": f.get("negro") or 0, "balance": f.get("balance")},
                                                                    f.get("instante")))
-        imagen, _ = foto_dia.revelar(foto_dia.recortar_centro(frame, f["campo"]), sensor_type, f.get("objetivo"),
+        imagen, __ = foto_dia.revelar(foto_dia.recortar_centro(frame, f["campo"]), sensor_type, f.get("objetivo"),
                                      balance=f.get("balance"), negro=f.get("negro"), aprender=False, ev=f.get("ev") or 0.0)
         imagen = giro_camara.aplicar(imagen, f["encuadre"])
     else:
@@ -2957,7 +2973,7 @@ def guardar_foto_en_galeria():
         # /foto/guardar-galeria/estado. Si ese procesado falla, se guarda con el revelado
         # rápido (STF) para que la foto no se pierda.
         if GUARDADO_FOTO["en_curso"]:
-            return {"ok": False, "mensaje": "Ya se está guardando una foto; espera a que termine."}
+            return {"ok": False, "mensaje": _("Ya se está guardando una foto; espera a que termine.")}
         with fits.open(RUTA_IMAGEN) as hdul:
             datos_fits = np.asarray(hdul[0].data)
             patron = str(hdul[0].header.get("BAYERPAT") or "").strip().upper()
@@ -2974,7 +2990,7 @@ def guardar_foto_en_galeria():
 
     if imagen is not None:
         _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
-        return {"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg", "archivo": base + ".jpg"}
+        return {"ok": True, "mensaje": _("Guardada en la galería como {archivo}", archivo=base + ".jpg"), "archivo": base + ".jpg"}
     return _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base, f["encuadre"])
 
 
@@ -2985,7 +3001,7 @@ def _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base):
     meta["firmada"] = bool(meta["activa"])
     firma.guardar_meta(ruta_jpg, meta)
     log.info("Foto guardada en la galería: %s", base)
-    voz.decir("Foto guardada en la galería")
+    voz.decir(_("Foto guardada en la galería"))
     humor.decir("foto_guardada")
 
 
@@ -2998,27 +3014,29 @@ def _revelar_noche_en_galeria(datos_fits, patron, ruta_jpg, meta, base, encuadre
     el revelado rápido (STF) para que la foto no se pierda.
     """
     if GUARDADO_FOTO["en_curso"]:
-        return {"ok": False, "mensaje": "Ya se está guardando una foto; espera a que termine."}
+        return {"ok": False, "mensaje": _("Ya se está guardando una foto; espera a que termine.")}
     GUARDADO_FOTO.update({"en_curso": True, "ok": None, "archivo": base + ".jpg",
-                          "mensaje": "Revelando con el procesado del apilado..."})
+                          "mensaje": _("Revelando con el procesado del apilado...")})
 
     def _avisar(subfase, fraccion):
-        GUARDADO_FOTO["mensaje"] = f"{FASES_REVELADO.get(subfase, subfase)}... {int(fraccion * 100)} %"
+        GUARDADO_FOTO["mensaje"] = f"{_(FASES_REVELADO.get(subfase, subfase))}... {int(fraccion * 100)} %"
 
     def _fondo():
-        aviso = ""
+        aviso = False
         try:
             try:
                 imagen = revelar_foto_noche_apilado(datos_fits, patron, escala=1.0, progreso=_avisar, encuadre=encuadre)
             except Exception:
                 log.exception("Falló el procesado del apilado sobre la foto; se guarda con el revelado rápido")
                 imagen = giro_camara.aplicar(revelar_foto_noche(datos_fits, patron), encuadre or giro_camara.SIN_GIRO)
-                aviso = " (falló el procesado del apilado; guardada con el revelado rápido)"
+                aviso = True
             _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
-            GUARDADO_FOTO.update({"ok": True, "mensaje": f"Guardada en la galería como {base}.jpg{aviso}"})
+            GUARDADO_FOTO.update({"ok": True, "mensaje": (
+                _("Guardada en la galería como {archivo} (falló el procesado del apilado; guardada con el revelado rápido)",
+                  archivo=base + ".jpg") if aviso else _("Guardada en la galería como {archivo}", archivo=base + ".jpg"))})
         except Exception as e:
             log.exception("Error guardando la foto en la galería")
-            GUARDADO_FOTO.update({"ok": False, "mensaje": f"Error al guardar: {e}"})
+            GUARDADO_FOTO.update({"ok": False, "mensaje": _("Error al guardar: {e}", e=e)})
         finally:
             GUARDADO_FOTO["en_curso"] = False
 
@@ -3036,12 +3054,12 @@ RUTA_IMAGEN_REVELADA = os.path.splitext(RUTA_IMAGEN)[0] + "_apilado.jpg"
 @app.route('/foto/guardar-galeria', methods=['POST'])
 def foto_guardar_galeria():
     if not _lock_guardar_foto.acquire(blocking=False):
-        return jsonify({"ok": False, "mensaje": "Ya se está guardando una foto; espera un momento."}), 409
+        return jsonify({"ok": False, "mensaje": _("Ya se está guardando una foto; espera un momento.")}), 409
     try:
         resultado = guardar_foto_en_galeria()
     except Exception as e:
         log.exception("Error guardando la foto de Cámara en la galería")
-        resultado = {"ok": False, "mensaje": f"Error al guardar: {e}"}
+        resultado = {"ok": False, "mensaje": _("Error al guardar: {e}", e=e)}
     finally:
         _lock_guardar_foto.release()
     return jsonify(resultado), (200 if resultado["ok"] else 409)
@@ -3062,14 +3080,14 @@ def foto_revelar_apilado():
     """
     f = _foto_en_pantalla()
     if f is None or f.get("modo") != "noche" or not os.path.exists(RUTA_IMAGEN):
-        return jsonify({"ok": False, "mensaje": "Solo para fotos de noche; haz una foto primero."}), 409
+        return jsonify({"ok": False, "mensaje": _("Solo para fotos de noche; haz una foto primero.")}), 409
     if REVELADO_FOTO["en_curso"]:
-        return jsonify({"ok": False, "mensaje": "Ya se está revelando; espera a que termine."}), 409
-    REVELADO_FOTO.update({"en_curso": True, "ok": None, "mensaje": "Leyendo la foto..."})
+        return jsonify({"ok": False, "mensaje": _("Ya se está revelando; espera a que termine.")}), 409
+    REVELADO_FOTO.update({"en_curso": True, "ok": None, "mensaje": _("Leyendo la foto...")})
     encuadre = f["encuadre"]
 
     def _avisar(subfase, fraccion):
-        REVELADO_FOTO["mensaje"] = f"{FASES_REVELADO.get(subfase, subfase)}... {int(fraccion * 100)} %"
+        REVELADO_FOTO["mensaje"] = f"{_(FASES_REVELADO.get(subfase, subfase))}... {int(fraccion * 100)} %"
 
     def _fondo():
         inicio = time.time()
@@ -3081,10 +3099,10 @@ def foto_revelar_apilado():
                                                 encuadre=encuadre)
             guardar_jpg_web(RUTA_IMAGEN_REVELADA, imagen)
             REVELADO_FOTO.update({"ok": True, "version": REVELADO_FOTO["version"] + 1,
-                                  "mensaje": f"Revelada como el apilado en {time.time() - inicio:.0f} s"})
+                                  "mensaje": _("Revelada como el apilado en {s} s", s=round(time.time() - inicio))})
         except Exception as e:
             log.exception("Error revelando la foto de Cámara como el apilado")
-            REVELADO_FOTO.update({"ok": False, "mensaje": f"Error al revelar: {e}"})
+            REVELADO_FOTO.update({"ok": False, "mensaje": _("Error al revelar: {e}", e=e)})
         finally:
             REVELADO_FOTO["en_curso"] = False
 
@@ -3109,7 +3127,7 @@ def imagen_revelada():
 @app.route('/platesolve')
 def platesolve():
     if not os.path.exists(RUTA_IMAGEN):
-        mensaje_error = f"⚠️ Error: No se encontró la imagen <b>{RUTA_IMAGEN}</b>."
+        mensaje_error = _("⚠️ Error: No se encontró la imagen <b>{ruta}</b>.", ruta=RUTA_IMAGEN)
         return render_template('platesolve.html', resultado=mensaje_error, mostrar_volver=True)
 
 
@@ -3118,14 +3136,14 @@ def platesolve():
         generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, RUTA_IMAGEN_MONO)
 
         if not ejecutar_astap(RUTA_IMAGEN_MONO):
-            return render_template('platesolve.html', resultado="⏱️ ASTAP no respondió a tiempo.", mostrar_volver=True)
+            return render_template('platesolve.html', resultado=_("⏱️ ASTAP no respondió a tiempo."), mostrar_volver=True)
 
         coordenadas = extraer_coordenadas_ini(RUTA_INI)
         if coordenadas is None:
             print("⚠️ ASTAP falló. Intentando resolver con Astrometry.net...")
             #coordenadas = platesolve_astrometry(RUTA_IMAGEN_MONO)
             if coordenadas is None:
-                return render_template('platesolve.html', resultado="❌ ASTAP y Astrometry.net no pudieron resolver la imagen.", mostrar_volver=True)
+                return render_template('platesolve.html', resultado=_("❌ ASTAP y Astrometry.net no pudieron resolver la imagen."), mostrar_volver=True)
 
         ra_resuelto, dec_resuelto = coordenadas
 
@@ -3139,9 +3157,9 @@ def platesolve():
         minutos_dec = int(abs(dec_resuelto - grados) * 60)
         segundos_dec = (abs(dec_resuelto - grados) * 60 - minutos_dec) * 60
 
-        resultado_html = f"""✅ Plate Solve completado. Coordenadas resueltas: <br>
-        RA: {horas}h {minutos}m {segundos:.2f}s <br>
-        DEC: {grados}° {minutos_dec}' {segundos_dec:.2f}\""""
+        resultado_html = (_("✅ Plate Solve completado. Coordenadas resueltas:") + " <br>\n"
+                          f"        RA: {horas}h {minutos}m {segundos:.2f}s <br>\n"
+                          f"        DEC: {grados}° {minutos_dec}' {segundos_dec:.2f}\"")
 
         return render_template('platesolve.html', resultado=resultado_html, mostrar_volver=True)
 
@@ -3170,7 +3188,7 @@ def platesolve_astrometry(ruta_imagen):
         # Esperar a que se cree el job
         print(f"⌛ Esperando a que se cree job para subid={subid}")
         job_id = None
-        for _ in range(60):  # 60 intentos máx (5 min)
+        for __ in range(60):  # 60 intentos máx (5 min)
             estado = client.sub_status(subid, justdict=True)
             jobs = estado.get("jobs", [])
             for j in jobs:
@@ -3187,7 +3205,7 @@ def platesolve_astrometry(ruta_imagen):
             return None
 
         # Esperar resolución del job
-        for _ in range(60):
+        for __ in range(60):
             resultado = client.job_status(job_id, justdict=True)
             if resultado.get("status") == "success":
                 calibration = client.send_request(f"jobs/{job_id}/calibration")
@@ -3218,16 +3236,16 @@ def corregir_posicion():
         ra_inicial, dec_inicial = montura.ejecutar(
             lambda tel: (tel.RightAscension, tel.Declination), timeout=10)
     except ErrorHardware as e:
-        return render_template('corregir_posicion.html', resultado=f"❌ Error: {e}", mostrar_volver=True)
+        return render_template('corregir_posicion.html', resultado=_("❌ Error: {e}", e=e), mostrar_volver=True)
 
     if not os.path.exists(RUTA_IMAGEN):
-        return render_template('corregir_posicion.html', resultado="⚠️ No hay ninguna imagen capturada que resolver.", mostrar_volver=True)
+        return render_template('corregir_posicion.html', resultado=_("⚠️ No hay ninguna imagen capturada que resolver."), mostrar_volver=True)
 
     RUTA_IMAGEN_MONO = os.path.splitext(RUTA_IMAGEN)[0] + "_mono.fits"
     generar_fits_monocromo_para_platesolve(RUTA_IMAGEN, RUTA_IMAGEN_MONO)
 
     if not ejecutar_astap(RUTA_IMAGEN_MONO):
-        return render_template('corregir_posicion.html', resultado="⏱️ ASTAP no respondió a tiempo.", mostrar_volver=True)
+        return render_template('corregir_posicion.html', resultado=_("⏱️ ASTAP no respondió a tiempo."), mostrar_volver=True)
 
     coords_res = extraer_coordenadas_ini(RUTA_INI)   # (no llamar 'coordenadas': es el módulo)
     if coords_res is None:
@@ -3235,7 +3253,7 @@ def corregir_posicion():
         coords_res = platesolve_astrometry(RUTA_IMAGEN_MONO)
 
         if coords_res is None:
-            return render_template('corregir_posicion.html', resultado="❌ ASTAP y Astrometry.net no pudieron resolver la imagen.", mostrar_volver=True)
+            return render_template('corregir_posicion.html', resultado=_("❌ ASTAP y Astrometry.net no pudieron resolver la imagen."), mostrar_volver=True)
 
 
     ra_resuelto, dec_resuelto = coords_res
@@ -3244,7 +3262,7 @@ def corregir_posicion():
     altitud = calcular_altitud(ra_resuelto, dec_resuelto)
 
     if altitud < int(ALTURA_MINIMA):
-        return render_template('corregir_posicion.html', resultado="⚠️ Advertencia: El objeto está por debajo de altura mínima. Proceso cancelado.", mostrar_volver=True)
+        return render_template('corregir_posicion.html', resultado=_("⚠️ Advertencia: El objeto está por debajo de altura mínima. Proceso cancelado."), mostrar_volver=True)
 
     def _sincronizar(tel):
         # ra_resuelto/dec_resuelto vienen del plate solving (J2000);
@@ -3256,9 +3274,9 @@ def corregir_posicion():
     try:
         montura.ejecutar(_sincronizar, timeout=120)
     except ErrorHardware as e:
-        return render_template('corregir_posicion.html', resultado=f"❌ Error al sincronizar: {e}", mostrar_volver=True)
+        return render_template('corregir_posicion.html', resultado=_("❌ Error al sincronizar: {e}", e=e), mostrar_volver=True)
 
-    resultado_html = "✅ Telescopio sincronizado y recentrado a su posición original."
+    resultado_html = _("✅ Telescopio sincronizado y recentrado a su posición original.")
     return render_template('corregir_posicion.html', resultado=resultado_html, mostrar_volver=True)
 
 
@@ -3282,10 +3300,10 @@ def centrado_iniciar():
             ra, dec = coordenadas.desde_montura(
                 *montura.ejecutar(lambda tel: (tel.RightAscension, tel.Declination), timeout=10))
         except ErrorHardware as e:
-            return jsonify({"ok": False, "error": f"No hay GOTO previo y no se pudo leer la montura: {e}"}), 409
-        objeto, origen = "posición actual de la montura", "montura"
+            return jsonify({"ok": False, "error": _("No hay GOTO previo y no se pudo leer la montura: {e}", e=e)}), 409
+        objeto, origen = _("posición actual de la montura"), "montura"
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de centrar"}), 409
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes de centrar")}), 409
     try:
         centrado.trabajo_centrado.iniciar(
             camara, montura, ra, dec, objeto=objeto,
@@ -3308,14 +3326,14 @@ def vista_constelacion():
 def recorrido_constelacion():
     raw = request.form.get('nombre', '').strip()
     if not raw:
-        return jsonify({'error': '❌ Falta el nombre de la constelación.'}), 400
+        return jsonify({'error': _('❌ Falta el nombre de la constelación.')}), 400
     try:
         descripcion, estrellas = recorridos.recorrido_constelacion(raw, reemplazar_numeros_en_texto)
     except RuntimeError as e:
         return jsonify({'error': f"⚠️ {e}"}), 404
     except Exception as e:
         log.exception("Error preparando el recorrido de %s", raw)
-        return jsonify({'error': f"❌ Error al consultar SIMBAD: {e}"}), 500
+        return jsonify({'error': _("❌ Error al consultar SIMBAD: {e}", e=e)}), 500
     return jsonify({'descripcion': descripcion, 'estrellas': estrellas})
 
 
@@ -3340,12 +3358,12 @@ def goto_sincrono(nombre, ra, dec, fuente, centrar=True, cancelar=None, info=Non
     """
     ra, dec = float(ra), float(dec)
     if calcular_altitud(ra=ra, dec=dec) < float(ALTURA_MINIMA):
-        return {"ok": False, "motivo": "por debajo de la altura mínima"}
+        return {"ok": False, "motivo": _("por debajo de la altura mínima"), "bajo_altura_minima": True}
     ULTIMO_GOTO.clear()
     ULTIMO_GOTO.update({"ra": ra, "dec": dec, "objeto": nombre, "fuente": fuente,
                         "hora": datetime.now().isoformat(timespec="seconds")})
     guardar_info_goto(nombre, info, ra, dec, fuente)
-    voz.decir(f"Moviendo el telescopio a {nombre}")
+    voz.decir(_("Moviendo el telescopio a {nombre}", nombre=nombre))
     humor.decir("goto_inicio")
 
     def _mover(tel):
@@ -3363,32 +3381,32 @@ def goto_sincrono(nombre, ra, dec, fuente, centrar=True, cancelar=None, info=Non
                     tel.AbortSlew()
                 except Exception:
                     pass
-                raise ErrorHardware("movimiento cancelado")
+                raise ErrorHardware(_("movimiento cancelado"))
             if time.time() - inicio > 180:
-                raise ErrorHardware("La montura no terminó el movimiento en 180 s")
+                raise ErrorHardware(_("La montura no terminó el movimiento en 180 s"))
             time.sleep(0.5)
         comprobar_que_llego(tel, ra_m, dec_m)
 
     try:
         montura.ejecutar(_mover, timeout=200)
     except ErrorHardware as e:
-        voz.decir("La montura no ha aceptado el movimiento")
+        voz.decir(_("La montura no ha aceptado el movimiento"))
         humor.decir("goto_rechazado")
         try:
             altitud = calcular_altitud(ra=ra, dec=dec)
         except Exception:
             altitud = None
-        return {"ok": False, "motivo": f"error de montura: {motivo_goto_fallido(e, altitud)}"}
+        return {"ok": False, "motivo": _("error de montura: {e}", e=motivo_goto_fallido(e, altitud))}
     if not centrar:
         return {"ok": True, "centrado": None, "detalle": ""}
     if es_de_dia():
-        return {"ok": True, "centrado": None, "detalle": "de día no hay centrado (sin estrellas que resolver)"}
+        return {"ok": True, "centrado": None, "detalle": _("de día no hay centrado (sin estrellas que resolver)")}
     time.sleep(asentamiento_montura())
     # Si una exposición está acabando, esperar a que la cámara quede libre
     fin = time.time() + 30
     while camara.ocupado and time.time() < fin:
         if cancelar is not None and cancelar.is_set():
-            return {"ok": True, "centrado": "cancelado", "detalle": "cancelado"}
+            return {"ok": True, "centrado": "cancelado", "detalle": _("cancelado")}
         time.sleep(0.5)
     try:
         centrado.trabajo_centrado.iniciar(camara, montura, ra, dec, objeto=nombre,
@@ -3415,20 +3433,20 @@ def iniciar_recorrido():
     estrella = datos.get("estrella", {})
     nombre, ra, dec = estrella.get("nombre"), estrella.get("ra"), estrella.get("dec")
     if not nombre or ra is None or dec is None:
-        return jsonify({"error": "❌ Datos de estrella incompletos."})
+        return jsonify({"error": _("❌ Datos de estrella incompletos.")})
     if bucle.activo and not bucle.pausado:
-        return jsonify({"error": "El apilado está capturando; páusalo antes del recorrido."})
+        return jsonify({"error": _("El apilado está capturando; páusalo antes del recorrido.")})
     motivo_plan = _plan_en_marcha()
     if motivo_plan:
         return jsonify({"error": motivo_plan})
 
     conf = _config_recorrido()
-    r = goto_sincrono(nombre, ra, dec, "Recorrido por constelación",
+    r = goto_sincrono(nombre, ra, dec, _("Recorrido por constelación"),
                       centrar=conf["centrar"] and not camara.ocupado, espera_centrado_s=conf["espera_centrado_s"])
     if not r["ok"]:
-        if r["motivo"].startswith("por debajo"):
+        if r.get("bajo_altura_minima"):
             return jsonify({"skipped": True, "nombre": nombre})
-        return jsonify({"error": f"❌ Error durante GOTO: {r['motivo']}"})
+        return jsonify({"error": _("❌ Error durante GOTO: {motivo}", motivo=r['motivo'])})
     if r.get("centrado") == "error":
         print(f"⚠️ Centrado omitido en el recorrido: {r.get('detalle')}")
     return jsonify({"ok": True, "nombre": nombre})
@@ -3443,7 +3461,7 @@ def listar_txt_constelaciones():
 def leer_txt_constelacion():
     resultado = recorridos.leer_recorrido_txt(request.args.get('file', ''))
     if resultado is None:
-        return jsonify({"error": "Fichero no encontrado"}), 404
+        return jsonify({"error": _("Fichero no encontrado")}), 404
     descripcion, lista = resultado
     return jsonify({"descripcion": descripcion, "lista": lista})
 
@@ -3457,12 +3475,13 @@ def vista_alineacion():
 def alineacion_iniciar():
     """Alineación automática de varios puntos por plate solving (ver alineacion.py)."""
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de alinear"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("centrado", centrado.trabajo_centrado),
-                            ("foto continua", foto_continua.trabajo_continuo),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes de alinear")}), 409
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo),
+                            (N_("centrado"), centrado.trabajo_centrado),
+                            (N_("foto continua"), foto_continua.trabajo_continuo),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
     datos = request.get_json(silent=True) or {}
     conf = alineacion.leer_config()
     if "puntos" in datos:
@@ -3488,7 +3507,7 @@ def alineacion_estado():
 @app.route('/alineacion/cancelar', methods=["POST"])
 def alineacion_cancelar():
     alineacion.trabajo_alineacion.cancelar()
-    return jsonify({"mensaje": "⏹️ Cancelando alineación..."})
+    return jsonify({"mensaje": _("⏹️ Cancelando alineación...")})
 
 
 @app.route('/centrado/estado')
@@ -3499,7 +3518,7 @@ def centrado_estado():
 @app.route('/centrado/cancelar', methods=["POST"])
 def centrado_cancelar():
     centrado.trabajo_centrado.cancelar()
-    return jsonify({"mensaje": "⏹️ Cancelando centrado..."})
+    return jsonify({"mensaje": _("⏹️ Cancelando centrado...")})
 
 
 @app.route('/centrado/imagen')
@@ -3613,7 +3632,7 @@ def goto_objeto():
     if request.method == "POST":
         objeto = request.form.get("objeto", "").strip()
         if not objeto:
-            return jsonify({"error": "Debe proporcionar un nombre de objeto."})
+            return jsonify({"error": _("Debe proporcionar un nombre de objeto.")})
         motivo_plan = _plan_en_marcha()
         if motivo_plan:
             return jsonify({"error": motivo_plan})
@@ -3633,9 +3652,9 @@ def goto_objeto():
                 try:
                     ra, dec = float(ra_directa), float(dec_directa)
                     coords = (ra, dec)
-                    fuente_coords = "Catálogo de ScopePower"
+                    fuente_coords = _("Catálogo de ScopePower")
                 except ValueError:
-                    return jsonify({"error": "Coordenadas no válidas."})
+                    return jsonify({"error": _("Coordenadas no válidas.")})
             # Orden de las fuentes: planetas y Luna (efemérides), catálogo local
             # (OpenNGC + estrellas HYG, sin Internet), cometas y asteroides del MPC,
             # Stellarium si está abierto, y por último Internet (JPL Horizons, SIMBAD).
@@ -3645,7 +3664,8 @@ def goto_objeto():
                     ra, dec = ficha["ra"], ficha["dec"]
                     coords = (ra, dec)
                     info = ficha
-                    fuente_coords = ficha["fuente"]
+                    fuente_ficha = ficha["fuente"]           # catalogo_offline la guarda con N_()
+                    fuente_coords = _(fuente_ficha)
 
             if coords is None and cuerpos_menores.buscar(objeto) is None and estado_stellarium():
                 info = obtener_coords_desde_stellarium(objeto)
@@ -3683,36 +3703,37 @@ def goto_objeto():
                     dec = coords.dec.degree
                     #coords = coords_aparentes.transform_to(ICRS())  # convertir a J2000
 
-                    fuente_coords = "Efemérides planetarias (Astropy)"
+                    fuente_coords = _("Efemérides planetarias (Astropy)")
                 
                 elif cuerpos_menores.buscar(objeto) is not None:
                     # Cometa o asteroide de las listas del MPC guardadas: se calcula aquí, sin Internet
                     ra, dec, info_cm = cuerpos_menores.coordenadas(objeto, LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
                     coords = SkyCoord(ra=ra * u.hourangle, dec=dec * u.deg)
-                    fuente_coords = f"Elementos orbitales del MPC ({info_cm['tipo']}, sin Internet)"
+                    fuente_coords = (_("Elementos orbitales del MPC (cometa, sin Internet)") if info_cm['tipo'] == "cometa"
+                                     else _("Elementos orbitales del MPC (asteroide, sin Internet)"))
                     info = {"name": info_cm["nombre"], "type": info_cm["tipo"], "mag": info_cm["mag"],
                             "distance": info_cm["distancia_ua"], "alt": info_cm["alt"]}
 
                 elif '/' in objeto or objeto.lower().startswith(('c/', 'p/')):
                     ra, dec = obtener_coords_cometa(objeto)
                     if ra is None or dec is None:
-                        voz.decir(f"No encuentro el cometa {objeto}")
+                        voz.decir(_("No encuentro el cometa {objeto}", objeto=objeto))
                         humor.decir("objeto_no_encontrado")
-                        return jsonify({"error": f"No se pudo obtener coordenadas para el cometa '{objeto}' desde JPL Horizons."})
+                        return jsonify({"error": _("No se pudo obtener coordenadas para el cometa '{objeto}' desde JPL Horizons.", objeto=objeto)})
                     coords = SkyCoord(ra=ra * u.hourangle, dec=dec * u.deg)
-                    fuente_coords = "JPL Horizons (cometa)"
+                    fuente_coords = _("JPL Horizons (cometa)")
 
                 else:
                     try:
                         coords = SkyCoord.from_name(objeto)
-                        fuente_coords = "Resolución por Internet (Astropy)"
+                        fuente_coords = _("Resolución por Internet (Astropy)")
                     except Exception:
                         coords = None
 
                     if coords is None:
-                        voz.decir(f"No encuentro {objeto} en ningún catálogo")
+                        voz.decir(_("No encuentro {objeto} en ningún catálogo", objeto=objeto))
                         humor.decir("objeto_no_encontrado")
-                        return jsonify({"error": f"No se pudo obtener coordenadas para el objeto '{objeto}'. Verifica el nombre o intenta con otro método."})
+                        return jsonify({"error": _("No se pudo obtener coordenadas para el objeto '{objeto}'. Verifica el nombre o intenta con otro método.", objeto=objeto)})
 
                     ra = coords.ra.hour
                     dec = coords.dec.degree
@@ -3723,9 +3744,9 @@ def goto_objeto():
 
 
             if altitud < int(ALTURA_MINIMA):
-                voz.decir(f"{objeto} está por debajo de la altura mínima. GoTo cancelado")
+                voz.decir(_("{objeto} está por debajo de la altura mínima. GoTo cancelado", objeto=objeto))
                 humor.decir("goto_bajo_horizonte")
-                return jsonify({"warning": "El objeto está por debajo de altura mínima. GOTO cancelado."})
+                return jsonify({"warning": _("El objeto está por debajo de altura mínima. GOTO cancelado.")})
 
             # Nombre para el rótulo del apilado, los mensajes y la voz: el pedido con sus
             # mayúsculas y símbolos (M31, Vega, Campo 9h56m +69°22'), salvo que llevara
@@ -3737,10 +3758,10 @@ def goto_objeto():
             aviso = aviso_solar(nombre_objeto, float(ra), float(dec))
             if aviso and request.form.get("filtro_solar") != "si":
                 if aviso["es_sol"]:
-                    texto = "Vas a apuntar el telescopio al Sol."
+                    texto = _("Vas a apuntar el telescopio al Sol.")
                 else:
-                    texto = f"{nombre_rotulo} está a solo {aviso['separacion_deg']}° del Sol."
-                voz.decir(f"Atención. {texto} ¿Has puesto el filtro solar?")
+                    texto = _("{objeto} está a solo {g}° del Sol.", objeto=nombre_rotulo, g=fmt_num(aviso['separacion_deg']))
+                voz.decir(_("Atención. {texto} ¿Has puesto el filtro solar?", texto=texto))
                 print(f"☀️ GoTo a {nombre_rotulo} pendiente de confirmar el filtro solar ({aviso})")
                 return jsonify({"confirmar_filtro_solar": dict(aviso, objeto=nombre_rotulo, texto=texto)})
             ULTIMO_GOTO.clear()
@@ -3756,7 +3777,7 @@ def goto_objeto():
             try:
                 montura.ejecutar(_activar_tracking, timeout=15)
             except ErrorHardware as e:
-                return jsonify({"error": f"No se pudo activar el seguimiento: {e}"})
+                return jsonify({"error": _("No se pudo activar el seguimiento: {e}", e=e)})
 
             def _mover_telescopio(tel, ra=ra, dec=dec):
                 tel.Tracking = True
@@ -3767,7 +3788,7 @@ def goto_objeto():
                 else:
                     tel.SlewToCoordinates(ra_m, dec_m)
                 # Esperar hasta que comience a moverse (máx. 5 s)
-                for _ in range(10):
+                for __ in range(10):
                     if tel.Slewing:
                         break
                     time.sleep(0.5)
@@ -3785,12 +3806,12 @@ def goto_objeto():
                 futuro.add_done_callback(
                     lambda f: print(f"❌ Error al mover el telescopio: {f.exception()}") if f.exception() else None)
             except Exception as e:
-                voz.decir("La montura no ha aceptado el movimiento")
+                voz.decir(_("La montura no ha aceptado el movimiento"))
                 humor.decir("goto_rechazado")
                 print(f"❌ GoTo a {nombre_rotulo} rechazado (altura {altitud:.0f}°): {e}")
-                return jsonify({"error": f"❌ La montura no ha ido a <b>{nombre_rotulo}</b>: "
-                                         f"{motivo_goto_fallido(e, altitud)}"})
-            voz.decir(f"Moviendo el telescopio a {nombre_rotulo}")
+                return jsonify({"error": _("❌ La montura no ha ido a <b>{objeto}</b>: {motivo}",
+                                           objeto=nombre_rotulo, motivo=motivo_goto_fallido(e, altitud))})
+            voz.decir(_("Moviendo el telescopio a {nombre}", nombre=nombre_rotulo))
             humor.decir("goto_inicio")
 
             # Al terminar el movimiento (sondeo aparte, sin ocupar el hilo de la
@@ -3801,42 +3822,43 @@ def goto_objeto():
             def _al_llegar(nombre=nombre_rotulo, ra_obj=float(ra), dec_obj=float(dec), de_dia=de_dia):
                 inicio = time.time()
                 # La pantalla GoTo enseña esta fase previa hasta que arranque el centrado
-                centrado.trabajo_centrado.anunciar_previo(f"Esperando a que el telescopio llegue a {nombre}")
+                centrado.trabajo_centrado.anunciar_previo(_("Esperando a que el telescopio llegue a {nombre}", nombre=nombre))
                 time.sleep(3)
                 if futuro.done() and futuro.exception() is not None:
-                    centrado.trabajo_centrado.anunciar_omitido("La montura no aceptó el movimiento; no hay centrado")
+                    centrado.trabajo_centrado.anunciar_omitido(_("La montura no aceptó el movimiento; no hay centrado"))
                     return      # la orden falló: ni "apuntando" ni centrado
                 while time.time() - inicio < 180:
                     try:
                         if not montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=5):
                             break
                     except ErrorHardware as e:
-                        centrado.trabajo_centrado.anunciar_omitido(f"La montura no responde ({e}); no hay centrado")
+                        centrado.trabajo_centrado.anunciar_omitido(_("La montura no responde ({e}); no hay centrado", e=e))
                         return
                     time.sleep(1)
                 else:
-                    centrado.trabajo_centrado.anunciar_omitido("La montura no terminó el movimiento en 3 minutos; no hay centrado")
+                    centrado.trabajo_centrado.anunciar_omitido(_("La montura no terminó el movimiento en 3 minutos; no hay centrado"))
                     return
                 if de_dia:
                     # Al Sol (con filtro), o a lo que sea con el cielo claro: no hay estrellas
                     # que resolver, así que no se gasta una foto ni se anuncia un fallo
-                    centrado.trabajo_centrado.anunciar_omitido("De día no hay centrado automático: sin estrellas no hay plate solving")
-                    voz.decir(f"Telescopio apuntando a {nombre}. De día no hay centrado automático.")
+                    centrado.trabajo_centrado.anunciar_omitido(_("De día no hay centrado automático: sin estrellas no hay plate solving"))
+                    voz.decir(_("Telescopio apuntando a {nombre}. De día no hay centrado automático.", nombre=nombre))
                     humor.decir("goto_llegada")
                     print(f"ℹ️ Centrado tras el GOTO a {nombre} omitido: es de día, sin estrellas para resolver")
                     return
-                voz.decir(f"Telescopio apuntando a {nombre}")
+                voz.decir(_("Telescopio apuntando a {nombre}", nombre=nombre))
                 humor.decir("goto_llegada")
                 if not centrado.leer_config().get("centrar_tras_goto", True):
-                    centrado.trabajo_centrado.anunciar_omitido("El centrado tras el GoTo está desactivado en la configuración")
+                    centrado.trabajo_centrado.anunciar_omitido(_("El centrado tras el GoTo está desactivado en la configuración"))
                     return
                 if (bucle.activo and not bucle.pausado) or camara.ocupado or centrado.trabajo_centrado.en_curso:
-                    centrado.trabajo_centrado.anunciar_omitido("Centrado omitido: la cámara está ocupada o el apilado en marcha")
+                    centrado.trabajo_centrado.anunciar_omitido(_("Centrado omitido: la cámara está ocupada o el apilado en marcha"))
                     print("ℹ️ Centrado tras GOTO omitido: cámara ocupada o apilado en marcha")
                     return
                 asentamiento = asentamiento_montura()
                 centrado.trabajo_centrado.anunciar_previo(
-                    f"Telescopio en {nombre}: esperando {asentamiento:.0f} s a que se asiente la montura antes de centrar",
+                    _("Telescopio en {nombre}: esperando {s} s a que se asiente la montura antes de centrar",
+                      nombre=nombre, s=round(asentamiento)),
                     asentamiento)
                 time.sleep(asentamiento)   # asentamiento de la montura
                 try:
@@ -3845,22 +3867,35 @@ def goto_objeto():
                         calcular_altitud=calcular_altitud, altura_minima=float(ALTURA_MINIMA))
                     print(f"🎯 Centrado automático tras el GOTO a {nombre}")
                 except RuntimeError as e:
-                    centrado.trabajo_centrado.anunciar_omitido(f"No se pudo iniciar el centrado: {e}")
+                    centrado.trabajo_centrado.anunciar_omitido(_("No se pudo iniciar el centrado: {e}", e=e))
                     print(f"⚠️ No se pudo iniciar el centrado tras el GOTO: {e}")
             threading.Thread(target=_al_llegar, name="llegada-goto", daemon=True).start()
 
             # Responder inmediatamente
-            nota_dia = "<br><small>☀️ De día no hay centrado automático: sin estrellas no hay plate solving</small>" if de_dia else ""
+            nota_dia = ("<br><small>" + _("☀️ De día no hay centrado automático: sin estrellas no hay plate solving") + "</small>"
+                        if de_dia else "")
             return jsonify({
-                "message": f"✅ Moviendo el telescopio a <b>{nombre_rotulo}</b><br>📍 RA: <code>{ra_str}</code> | DEC: <code>{dec_str}</code><br><small>🔎 Fuente: <b>{fuente_coords}</b></small>{nota_dia}",
+                "message": _("✅ Moviendo el telescopio a <b>{objeto}</b>", objeto=nombre_rotulo)
+                           + f"<br>📍 RA: <code>{ra_str}</code> | DEC: <code>{dec_str}</code><br><small>"
+                           + _("🔎 Fuente: <b>{fuente}</b>", fuente=fuente_coords) + f"</small>{nota_dia}",
                 "extra_info": info
             })
 
 
         except Exception as e:
-            return jsonify({"error": f"Error durante GOTO: {e}"})
+            return jsonify({"error": _("Error durante GOTO: {e}", e=e)})
 
-    return render_template("goto.html", mostrar_volver=True, palabra_clave=PALABRA_CLAVE_GOTO)
+    return render_template("goto.html", mostrar_volver=True, palabra_clave=_palabra_clave_goto())
+
+
+def _palabra_clave_goto():
+    """Orden de voz del GoTo en el idioma de la app: [General] palabra_clave_goto («ir a») o
+    palabra_clave_goto_en («go to»)."""
+    if idioma.idioma_actual() == "es":
+        return PALABRA_CLAVE_GOTO
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    return cfg.get("General", "palabra_clave_goto_" + idioma.idioma_actual(), fallback="go to").lower().strip()
 
 @app.route("/estado_telescopio")
 def estado_telescopio():
@@ -3891,7 +3926,7 @@ def info_wikipedia():
     """
     raw_objeto = request.form.get("objeto", "").strip()
     if not raw_objeto:
-        return jsonify({"error": "Debe proporcionar un nombre de objeto."})
+        return jsonify({"error": _("Debe proporcionar un nombre de objeto.")})
     import descripciones
     d = descripciones.describir(raw_objeto, reemplazar_numeros_en_texto)
     return jsonify({"wikipedia_info": d["texto"], "texto_hablar": d["texto_hablar"], "fuente": d["fuente"], "objeto": d["objeto"]})
@@ -3957,14 +3992,41 @@ def generar_numeros_en_palabras():
 # Diccionario de números en palabras
 NUMEROS_EN_PALABRAS = generar_numeros_en_palabras()
 
+# Números dichos en inglés («messier thirty one», «NGC seven thousand», «one hundred and ten»).
+# Chrome en inglés suele devolver ya cifras; esto cubre cuando las devuelve en palabras.
+_UNIDADES_EN = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+                "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+                "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+                "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+                "seventy": 70, "eighty": 80, "ninety": 90}
+_PALABRA_NUM_EN = "(?:" + "|".join(sorted(list(_UNIDADES_EN) + ["hundred", "thousand"], key=len, reverse=True)) + ")"
+_RE_NUMERO_EN = re.compile(r"\b" + _PALABRA_NUM_EN + r"(?:(?:[\s-]+(?:and[\s-]+)?)" + _PALABRA_NUM_EN + r")*\b")
+
+
+def _numeros_en_ingles(texto):
+    def convertir(m):
+        total = actual = 0
+        for palabra in re.split(r"[\s-]+", m.group()):
+            if palabra in _UNIDADES_EN:
+                actual += _UNIDADES_EN[palabra]
+            elif palabra == "hundred":
+                actual = max(actual, 1) * 100
+            elif palabra == "thousand":
+                total += max(actual, 1) * 1000
+                actual = 0
+        return str(total + actual)
+    return _RE_NUMERO_EN.sub(convertir, texto)
+
 # Función para quitar tildes
 def quitar_tildes(texto):
     return unidecode(texto)
 
 # Función para reemplazar números en palabras por su versión numérica
 def reemplazar_numeros_en_texto(texto):
+    if idioma.idioma_actual() == "en":
+        return _numeros_en_ingles(quitar_tildes(texto.lower()))
     texto_sin_tildes = quitar_tildes(texto.lower())
-    
+
     for palabra, numero in sorted(NUMEROS_EN_PALABRAS.items(), key=lambda x: -len(x[0])):
         palabra_sin_tildes = quitar_tildes(palabra)
         texto_sin_tildes = re.sub(r'\b' + re.escape(palabra_sin_tildes) + r'\b', numero, texto_sin_tildes, flags=re.IGNORECASE)
@@ -3989,7 +4051,7 @@ def login():
         clave = request.form.get('clave') or ''
 
         if not usuario or not clave:
-            return render_template('login.html', error="Introduce usuario y contraseña"), 400
+            return render_template('login.html', error=_("Introduce usuario y contraseña")), 400
 
         # configparser guarda las claves de [Usuarios] en minúsculas
         hash_guardado = USUARIOS_HASH.get(usuario) or USUARIOS_HASH.get(usuario.lower()) or ''   # '' si no existe o está vacío
@@ -4010,7 +4072,7 @@ def login():
             iniciar_conexion()  # ← aquí arrancamos Stellarium y telescopio tras login
             return redirect(url_for('home'))
 
-        return render_template('login.html', error="Credenciales incorrectas"), 401
+        return render_template('login.html', error=_("Credenciales incorrectas")), 401
 
     return render_template('login.html')
 
@@ -4090,7 +4152,7 @@ def mostrar_cometa():
 def descargar_fits_cometa():
     if os.path.exists(cometa.RUTA_FITS):
         return send_file(cometa.RUTA_FITS, as_attachment=True)
-    return "❌ No hay apilado por el núcleo del cometa.", 404
+    return _("❌ No hay apilado por el núcleo del cometa."), 404
 
 
 @app.route('/ultima-captura')
@@ -4215,14 +4277,14 @@ def foto_dia_iniciar():
     datos = request.get_json(silent=True) or {}
     objetivo = str(datos.get("objetivo", "paisaje"))
     if objetivo not in foto_dia.OBJETIVOS:
-        return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
+        return jsonify({"ok": False, "error": _("Objetivo desconocido")}), 400
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
-                            ("foto continua", foto_continua.trabajo_continuo),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("flats"), flats.trabajo_flats), (N_("centrado"), centrado.trabajo_centrado),
+                            (N_("foto continua"), foto_continua.trabajo_continuo),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
     ultimas = _config_foto_dia()
 
     def _al_terminar(estado):
@@ -4238,7 +4300,8 @@ def foto_dia_iniciar():
                                           compensacion=_compensacion_foto_dia)
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
-    voz.decir(f"Foto de día de {foto_dia.OBJETIVOS[objetivo]['nombre']}", categoria="capturas")
+    nombre_objetivo = foto_dia.OBJETIVOS[objetivo]["nombre"]
+    voz.decir(_("Foto de día de {nombre}", nombre=_(nombre_objetivo)), categoria="capturas")
     return jsonify({"ok": True, "objetivo": objetivo, "exposicion_inicial": ultimas.get(objetivo)})
 
 
@@ -4262,18 +4325,18 @@ def _balance_actual():
 def color_calibrar():
     """Foto de algo blanco al Sol: su gris da el balance de luz de día (foto_dia.TrabajoBalanceBlanco)."""
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
-                            ("foto continua", foto_continua.trabajo_continuo), ("foto de día", foto_dia.trabajo_foto_dia),
-                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("flats"), flats.trabajo_flats), (N_("centrado"), centrado.trabajo_centrado),
+                            (N_("foto continua"), foto_continua.trabajo_continuo), (N_("foto de día"), foto_dia.trabajo_foto_dia),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
     try:
         foto_dia.trabajo_balance_blanco.iniciar(camara, _dispositivos()["binning"])
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
-    voz.decir("Calibrando el color con el blanco", categoria="capturas")
+    voz.decir(_("Calibrando el color con el blanco"), categoria="capturas")
     return jsonify({"ok": True})
 
 
@@ -4296,19 +4359,19 @@ def vivo_iniciar():
     datos = request.get_json(silent=True) or {}
     objetivo = str(datos.get("objetivo", "paisaje"))
     if objetivo not in foto_dia.OBJETIVOS:
-        return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
+        return jsonify({"ok": False, "error": _("Objetivo desconocido")}), 400
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats), ("centrado", centrado.trabajo_centrado),
-                            ("foto continua", foto_continua.trabajo_continuo), ("foto de día", foto_dia.trabajo_foto_dia),
-                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
-                            ("seguimiento", seguimiento.trabajo_seguimiento),
-                            ("calibración del color", foto_dia.trabajo_balance_blanco)):
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("flats"), flats.trabajo_flats), (N_("centrado"), centrado.trabajo_centrado),
+                            (N_("foto continua"), foto_continua.trabajo_continuo), (N_("foto de día"), foto_dia.trabajo_foto_dia),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento),
+                            (N_("calibración del color"), foto_dia.trabajo_balance_blanco)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
     if not camara_sdk.es_sdk(_dispositivos()["driver_camara"]):
-        return jsonify({"ok": False, "error": "El modo en vivo necesita la cámara por SDK: elige en Configuración "
-                                              f"un driver «{camara_sdk.NOMBRE_DRIVER}»"}), 409
+        return jsonify({"ok": False, "error": _("El modo en vivo necesita la cámara por SDK: elige en Configuración "
+                                                "un driver «{driver}»", driver=_(camara_sdk.NOMBRE_DRIVER))}), 409
     # Seguimiento solar/lunar como en la foto de día; la web lo devuelve a sidéreo al salir del modo día
     seguimiento_montura = None
     conf = foto_dia.OBJETIVOS[objetivo]
@@ -4318,7 +4381,8 @@ def vivo_iniciar():
         vivo_dia.trabajo_vivo.iniciar(camara, objetivo, _campo_foto_dia(datos), compensacion=_compensacion_foto_dia)
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
-    voz.decir(f"En vivo: {conf['nombre']}", categoria="capturas")
+    nombre_objetivo = conf["nombre"]
+    voz.decir(_("En vivo: {nombre}", nombre=_(nombre_objetivo)), categoria="capturas")
     return jsonify({"ok": True, "seguimiento": seguimiento_montura})
 
 
@@ -4368,15 +4432,15 @@ def timelapse_iniciar():
     datos = request.get_json(silent=True) or {}
     objetivo = str(datos.get("objetivo", "paisaje"))
     if objetivo not in foto_dia.OBJETIVOS:
-        return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
+        return jsonify({"ok": False, "error": _("Objetivo desconocido")}), 400
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("flats", flats.trabajo_flats),
-                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
-                            ("foto continua", foto_continua.trabajo_continuo),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("flats"), flats.trabajo_flats),
+                            (N_("centrado"), centrado.trabajo_centrado), (N_("foto de día"), foto_dia.trabajo_foto_dia),
+                            (N_("foto continua"), foto_continua.trabajo_continuo),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
     ultimas = _config_foto_dia()
 
     def _al_terminar(estado):
@@ -4409,7 +4473,7 @@ def timelapse_estado():
 @app.route('/timelapse/cancelar', methods=["POST"])
 def timelapse_cancelar():
     foto_dia.trabajo_timelapse.cancelar()
-    return jsonify({"mensaje": "⏹️ Parando el timelapse..."})
+    return jsonify({"mensaje": _("⏹️ Parando el timelapse...")})
 
 
 @app.route('/timelapse/video', methods=["POST"])
@@ -4419,7 +4483,7 @@ def timelapse_video():
     nombre = os.path.basename(str(datos.get("carpeta", "")))
     carpeta = os.path.join(ruta_absoluta(foto_dia.CARPETA_TIMELAPSE), nombre)
     if not nombre or not os.path.isdir(carpeta):
-        return jsonify({"ok": False, "error": "Carpeta de timelapse desconocida"}), 404
+        return jsonify({"ok": False, "error": _("Carpeta de timelapse desconocida")}), 404
     fps = max(1, min(60, int(datos.get("fps", 25))))
     try:
         foto_dia.trabajo_timelapse.montar_video(carpeta, fps=fps)
@@ -4446,16 +4510,16 @@ def _capturador_dia_continuo(objetivo, campo, binning):
             prep = memoria["prep"]
             max_intentos = foto_dia.MAX_INTENTOS if memoria["n"] == 0 else 3
             conf_n = foto_dia.con_compensacion(conf, _compensacion_foto_dia())   # el slider vale desde la siguiente foto
-            frame, exposicion, nivel, saturada, _ = foto_dia.capturar_ajustando(
+            frame, exposicion, nivel, saturada, __ = foto_dia.capturar_ajustando(
                 cam, conf_n, binning, prep, memoria["exposicion"], max_intentos,
-                descripcion=f"Continuo {memoria['n'] + 1}", campo=campo)
+                descripcion=_("Continuo {n}", n=memoria['n'] + 1), campo=campo)
             return frame, exposicion, nivel, saturada, prep, conf_n["ev"]
         try:
             frame, exposicion, nivel, saturada, prep, ev = camara.ejecutar(_sesion, timeout=180)
         except CapturaCancelada:
-            return {"ok": False, "mensaje": "⏹️ Captura cancelada", "cancelada": True}
+            return {"ok": False, "mensaje": _("⏹️ Captura cancelada"), "cancelada": True}
         except ErrorHardware as e:
-            return {"ok": False, "mensaje": f"Error de cámara: {e}"}
+            return {"ok": False, "mensaje": _("Error de cámara: {e}", e=e)}
         memoria["exposicion"], memoria["n"] = exposicion, memoria["n"] + 1
         try:
             instante = time.time()
@@ -4474,9 +4538,11 @@ def _capturador_dia_continuo(objetivo, campo, binning):
                 cv2.imwrite(archivo, imagen, [cv2.IMWRITE_JPEG_QUALITY, 92])
         except Exception as e:
             log.exception("Error al guardar la foto de día del modo continuo")
-            return {"ok": False, "mensaje": f"Error al guardar: {e}"}
-        return {"ok": True, "mensaje": f"Foto de día: {foto_dia.formatear_exposicion(exposicion)}, nivel {100 * nivel:.0f} %"
-                                       + (" (saturada)" if saturada else ""),
+            return {"ok": False, "mensaje": _("Error al guardar: {e}", e=e)}
+        return {"ok": True, "mensaje": (_("Foto de día: {exp}, nivel {n} % (saturada)", exp=foto_dia.formatear_exposicion(exposicion),
+                                          n=round(100 * nivel)) if saturada else
+                                        _("Foto de día: {exp}, nivel {n} %", exp=foto_dia.formatear_exposicion(exposicion),
+                                          n=round(100 * nivel))),
                 "exposicion": exposicion, "nivel": round(nivel, 3), "ganancia": prep["ganancia"], "dark": False,
                 "archivo": archivo, "ev": ev}
 
@@ -4504,24 +4570,24 @@ def continuo_iniciar():
     datos = request.get_json(silent=True) or {}
     guardar = str(datos.get("guardar", "no")).lower().strip()
     if guardar not in foto_continua.FORMATOS:
-        return jsonify({"ok": False, "error": "Formato desconocido (no, jpg o fits)"}), 400
+        return jsonify({"ok": False, "error": _("Formato desconocido (no, jpg o fits)")}), 400
     modo = "dia" if str(datos.get("modo", "noche")) == "dia" else "noche"
     objetivo = str(datos.get("objetivo", "paisaje"))
     if modo == "dia" and objetivo not in foto_dia.OBJETIVOS:
-        return jsonify({"ok": False, "error": "Objetivo desconocido"}), 400
+        return jsonify({"ok": False, "error": _("Objetivo desconocido")}), 400
     try:
         ganancia = int(datos["ganancia"]) if str(datos.get("ganancia", "")).strip() != "" else None
     except (TypeError, ValueError):
         ganancia = None
     exposicion = _exposicion_pedida(datos.get("exposicion"))
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("flats", flats.trabajo_flats),
-                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
-                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("flats"), flats.trabajo_flats),
+                            (N_("centrado"), centrado.trabajo_centrado), (N_("foto de día"), foto_dia.trabajo_foto_dia),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
     seguimiento_montura = None
     if modo == "dia":
         conf = foto_dia.OBJETIVOS[objetivo]
@@ -4531,7 +4597,7 @@ def continuo_iniciar():
         capturar, al_terminar = _capturador_dia_continuo(objetivo, _campo_foto_dia(datos), _dispositivos()["binning"])
         ganancia = None
     else:
-        capturar = lambda copia: capturar_y_guardar(descripcion="Continuo", ganancia=ganancia, exposicion=exposicion, copia=copia)
+        capturar = lambda copia: capturar_y_guardar(descripcion=_("Continuo"), ganancia=ganancia, exposicion=exposicion, copia=copia)
         al_terminar = None
     try:
         foto_continua.trabajo_continuo.iniciar(
@@ -4550,7 +4616,7 @@ def continuo_estado():
 @app.route('/continuo/parar', methods=["POST"])
 def continuo_parar():
     foto_continua.trabajo_continuo.parar()
-    return jsonify({"mensaje": "⏹️ Parando el modo continuo..."})
+    return jsonify({"mensaje": _("⏹️ Parando el modo continuo...")})
 
 
 # ─── Seguimiento de objetos en movimiento (experimental) ─────────────────
@@ -4610,13 +4676,13 @@ def seguimiento_iniciar():
     except (TypeError, ValueError):
         pass
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
-                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
-                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
-                            ("foto continua", foto_continua.trabajo_continuo), ("modo en vivo", vivo_dia.trabajo_vivo)):
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("flats"), flats.trabajo_flats),
+                            (N_("centrado"), centrado.trabajo_centrado), (N_("foto de día"), foto_dia.trabajo_foto_dia),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("foto continua"), foto_continua.trabajo_continuo), (N_("modo en vivo"), vivo_dia.trabajo_vivo)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
     _pad_parar()
     cal = None                 # la elige el trabajo: la última astrometría o la empírica, la más reciente
     fab_cam = fab_mont = None
@@ -4626,7 +4692,7 @@ def seguimiento_iniciar():
         if _sim_seguimiento["servidor"] is not None:
             _sim_seguimiento["servidor"].parar()
         conf["udp_host"] = "127.0.0.1"
-        fab_cam, fab_mont, _, _, cam_sim, servidor = simulador_seguimiento.fabricas(
+        fab_cam, fab_mont, __, __, cam_sim, servidor = simulador_seguimiento.fabricas(
             conf, udp=(conf["backend"] == "udp"), v_obj=conf["sim_v_obj"], rumbo_deg=conf["sim_rumbo"],
             angulo_deg=conf["sim_angulo"], retardo_montura_s=conf["sim_retardo_s"])
         _sim_seguimiento["servidor"] = servidor
@@ -4645,7 +4711,7 @@ def seguimiento_iniciar():
 @app.route('/seguimiento/parar', methods=["POST"])
 def seguimiento_parar():
     seguimiento.trabajo_seguimiento.parar()
-    return jsonify({"ok": True, "mensaje": "⏹️ Parando el seguimiento..."})
+    return jsonify({"ok": True, "mensaje": _("⏹️ Parando el seguimiento...")})
 
 
 @app.route('/seguimiento/estado')
@@ -4660,9 +4726,9 @@ def seguimiento_objetivo():
     try:
         fx, fy = float(d["fx"]), float(d["fy"])
     except (KeyError, TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Punto no válido"}), 400
+        return jsonify({"ok": False, "error": _("Punto no válido")}), 400
     if not seguimiento.trabajo_seguimiento.en_curso:
-        return jsonify({"ok": False, "error": "El seguimiento no está en marcha"}), 409
+        return jsonify({"ok": False, "error": _("El seguimiento no está en marcha")}), 409
     seguimiento.trabajo_seguimiento.objetivo(max(0.0, min(1.0, fx)), max(0.0, min(1.0, fy)))
     return jsonify({"ok": True})
 
@@ -4674,7 +4740,7 @@ def seguimiento_signos():
     try:
         az, alt = int(d.get("az", 1)), int(d.get("alt", 1))
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Signos no válidos"}), 400
+        return jsonify({"ok": False, "error": _("Signos no válidos")}), 400
     seguimiento.guardar_signos_manuales(az, alt)
     cal = seguimiento.trabajo_seguimiento.calibracion
     if seguimiento.trabajo_seguimiento.en_curso and cal is not None:
@@ -4689,9 +4755,9 @@ def seguimiento_mover():
     try:
         vx, vy = float(d.get("vx", 0)), float(d.get("vy", 0))
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "mensaje": "Velocidades no válidas"}), 400
+        return jsonify({"ok": False, "mensaje": _("Velocidades no válidas")}), 400
     if not seguimiento.trabajo_seguimiento.en_curso:
-        return jsonify({"ok": False, "mensaje": "Pulsa Iniciar para mover con la vista en directo"}), 409
+        return jsonify({"ok": False, "mensaje": _("Pulsa Iniciar para mover con la vista en directo")}), 409
     seguimiento.trabajo_seguimiento.mover_manual(vx, vy)
     return jsonify({"ok": True})
 
@@ -4730,48 +4796,50 @@ def seguimiento_calibrar_astrometria():
             break
     o = nueva or guardada
     if o is None:
-        return jsonify({"ok": False, "error": "No hay ninguna foto resuelta: basta cualquier plate solving (un GoTo con "
-                                              "centrado, la alineación o el apilado) de esta noche o de otra"}), 409
+        return jsonify({"ok": False, "error": _("No hay ninguna foto resuelta: basta cualquier plate solving (un GoTo con "
+                                                "centrado, la alineación o el apilado) de esta noche o de otra")}), 409
     return jsonify({"ok": True, "orientacion": o,
-                    "mensaje": f"Orientación de la cámara: eje x de la imagen a {o['angulo_x_deg']:.1f}° del acimut, "
-                               f"{o['escala_arcsec']:.2f}\"/px (resolución del {o['instante_utc'][:16].replace('T', ' ')} UTC, "
-                               f"{o.get('origen', '')}). Se usa al iniciar el seguimiento."})
+                    "mensaje": _("Orientación de la cámara: eje x de la imagen a {angulo}° del acimut, "
+                                 "{escala}\"/px (resolución del {fecha} UTC, {origen}). Se usa al iniciar el seguimiento.",
+                                 angulo=fmt_num(o['angulo_x_deg'], 1), escala=fmt_num(o['escala_arcsec'], 2),
+                                 fecha=o['instante_utc'][:16].replace('T', ' '), origen=o.get('origen', ''))})
 
 
 @app.route('/seguimiento/orientacion-sdk', methods=["POST"])
 def seguimiento_orientacion_sdk():
     """Compara una foto ASCOM y una del SDK de la misma escena (orientación de la imagen del SDK)."""
     if seguimiento.trabajo_seguimiento.en_curso:
-        return jsonify({"ok": False, "error": "Para el seguimiento antes"}), 409
+        return jsonify({"ok": False, "error": _("Para el seguimiento antes")}), 409
     if _conf_seguimiento()["simulador"]:
-        return jsonify({"ok": False, "error": "Con el simulador no hay cámara real que comparar"}), 409
+        return jsonify({"ok": False, "error": _("Con el simulador no hay cámara real que comparar")}), 409
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("flats", flats.trabajo_flats),
-                            ("centrado", centrado.trabajo_centrado), ("foto de día", foto_dia.trabajo_foto_dia),
-                            ("timelapse", foto_dia.trabajo_timelapse), ("alineación", alineacion.trabajo_alineacion),
-                            ("foto continua", foto_continua.trabajo_continuo), ("modo en vivo", vivo_dia.trabajo_vivo)):
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("flats"), flats.trabajo_flats),
+                            (N_("centrado"), centrado.trabajo_centrado), (N_("foto de día"), foto_dia.trabajo_foto_dia),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("foto continua"), foto_continua.trabajo_continuo), (N_("modo en vivo"), vivo_dia.trabajo_vivo)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
     try:
         d = seguimiento.comprobar_orientacion_sdk(camara, ganancia=_dispositivos()["ganancia"])
     except Exception as e:
         log.exception("Orientación SDK")
         return jsonify({"ok": False, "error": str(e)}), 500
     if d["fiable"]:
-        msg = f"Orientación de la imagen del SDK: {d['transformacion']} (correlación {d['correlaciones'][0][1]:.2f})"
+        msg = _("Orientación de la imagen del SDK: {t} (correlación {c})", t=d['transformacion'],
+                c=fmt_num(d['correlaciones'][0][1], 2))
     else:
-        msg = ("No se ha podido decidir (escena con poca estructura): apunta a algo con detalle, "
-               "de día o una habitación iluminada, y repite")
+        msg = _("No se ha podido decidir (escena con poca estructura): apunta a algo con detalle, "
+                "de día o una habitación iluminada, y repite")
     if d.get("bayer_en_binning") is not None:
-        msg += " · el binning 2 " + ("conserva" if d["bayer_en_binning"] else "no conserva") + " el color"
+        msg += " · " + (_("el binning 2 conserva el color") if d["bayer_en_binning"] else _("el binning 2 no conserva el color"))
     return jsonify({"ok": True, "resultado": d, "mensaje": msg})
 
 
 @app.route('/seguimiento/calibrar/empirica', methods=["POST"])
 def seguimiento_calibrar_empirica():
     if not seguimiento.trabajo_seguimiento.en_curso:
-        return jsonify({"ok": False, "error": "Inicia el seguimiento primero (con un objeto fijo a la vista)"}), 409
+        return jsonify({"ok": False, "error": _("Inicia el seguimiento primero (con un objeto fijo a la vista)")}), 409
     seguimiento.trabajo_seguimiento.calibrar_empirica()
     return jsonify({"ok": True})
 
@@ -4782,28 +4850,30 @@ def foto_dia_seguimiento():
     datos = request.get_json(silent=True) or {}
     velocidad = str(datos.get("velocidad", "sidereo"))
     if velocidad not in foto_dia.VELOCIDADES:
-        return jsonify({"ok": False, "error": "Velocidad desconocida"}), 400
+        return jsonify({"ok": False, "error": _("Velocidad desconocida")}), 400
     if not montura.esta_conectado():
-        return jsonify({"ok": False, "error": "La montura no está conectada"}), 409
+        return jsonify({"ok": False, "error": _("La montura no está conectada")}), 409
     ok = foto_dia.poner_seguimiento(montura, velocidad)
     return jsonify({"ok": ok, "velocidad": velocidad,
-                    "mensaje": f"Seguimiento {velocidad}" if ok else "El driver de la montura no admite cambiar la velocidad de seguimiento"})
+                    "mensaje": ({"sidereo": _("Seguimiento sidéreo"), "solar": _("Seguimiento solar"),
+                                 "lunar": _("Seguimiento lunar")}.get(velocidad, velocidad) if ok
+                                else _("El driver de la montura no admite cambiar la velocidad de seguimiento"))})
 
 
 @app.route('/cancelar-captura', methods=["POST"])
 def cancelar_captura():
     """Aborta la exposición en curso; la petición de captura devuelve 'cancelada'."""
     if not estado_captura.como_dict()["en_curso"]:
-        return jsonify({"mensaje": "No hay ninguna captura en curso"})
+        return jsonify({"mensaje": _("No hay ninguna captura en curso")})
     estado_captura.cancelar.set()
-    return jsonify({"mensaje": "⏹️ Cancelando captura..."})
+    return jsonify({"mensaje": _("⏹️ Cancelando captura...")})
 
 @app.route('/reiniciar-apilado', methods=["POST"])
 def reiniciar_apilado():
     if _plan_en_marcha():
         # Con el plan en marcha no se reinicia nada (la web ya lo avisa antes de enviar)
         return redirect(url_for('vista_apilado'))
-    bucle.detener("Reiniciado")
+    bucle.detener(_("Reiniciado"))
     reiniciar_apilado_global()
     return redirect(url_for('vista_apilado'))
 
@@ -4818,7 +4888,7 @@ def apilado_nombre_objeto():
     datos = request.get_json(silent=True) or {}
     nombre = " ".join(str(datos.get("nombre", "")).split())[:60]
     if not nombre:
-        return jsonify({"ok": False, "mensaje": "El nombre no puede estar vacío."}), 400
+        return jsonify({"ok": False, "mensaje": _("El nombre no puede estar vacío.")}), 400
     cambiar_nombre_objeto_goto(nombre)
     if ULTIMO_GOTO:
         ULTIMO_GOTO["objeto"] = nombre
@@ -4869,11 +4939,11 @@ def darks_generar():
     datos = request.get_json(silent=True) or {}
     n = int(datos.get("n", conf["numero_darks"]))
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes de generar darks"}), 409
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes de generar darks")}), 409
     if foto_continua.trabajo_continuo.en_curso:
-        return jsonify({"ok": False, "error": "El modo continuo de Cámara está en marcha; páralo antes"}), 409
+        return jsonify({"ok": False, "error": _("El modo continuo de Cámara está en marcha; páralo antes")}), 409
     if vivo_dia.trabajo_vivo.en_curso:
-        return jsonify({"ok": False, "error": "El modo en vivo de Cámara tiene la cámara; páralo antes"}), 409
+        return jsonify({"ok": False, "error": _("El modo en vivo de Cámara tiene la cámara; páralo antes")}), 409
     if n != conf["numero_darks"]:
         _guardar_en_config("Dispositivos", {"numero_darks": n})   # se recuerda para la próxima vez
     try:
@@ -4904,12 +4974,12 @@ def flats_estado():
 def flats_iniciar():
     """Arranca la generación del flat maestro (telescopio con la camiseta y la pantalla)."""
     if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": "El apilado está capturando; páusalo o detenlo antes"}), 409
-    for nombre, trabajo in (("darks", darks.trabajo_darks), ("modo en vivo", vivo_dia.trabajo_vivo), ("centrado", centrado.trabajo_centrado),
-                            ("alineación", alineacion.trabajo_alineacion), ("foto continua", foto_continua.trabajo_continuo),
-                            ("seguimiento", seguimiento.trabajo_seguimiento)):
+        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("centrado"), centrado.trabajo_centrado),
+                            (N_("alineación"), alineacion.trabajo_alineacion), (N_("foto continua"), foto_continua.trabajo_continuo),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
-            return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
     datos = request.get_json(silent=True) or {}
     conf = flats.leer_config()
     if "numero_flats" in datos:
@@ -4931,7 +5001,7 @@ def flats_continuar():
 @app.route('/flats/cancelar', methods=["POST"])
 def flats_cancelar():
     flats.trabajo_flats.cancelar()
-    return jsonify({"mensaje": "⏹️ Cancelando flats..."})
+    return jsonify({"mensaje": _("⏹️ Cancelando flats...")})
 
 
 @app.route('/procesar-dark', methods=["POST"])
@@ -4972,9 +5042,9 @@ def guardar_config_zoom():
             config["Dispositivos"]["norte_arriba"] = "true" if data["norte"] else "false"
         with open("config.ini", "w") as configfile:
             config.write(configfile)
-        return "✅ Zoom guardado correctamente"
+        return _("✅ Zoom guardado correctamente")
     except Exception as e:
-        return f"❌ Error al guardar zoom: {e}", 500
+        return _("❌ Error al guardar zoom: {e}", e=e), 500
 
 
 
@@ -4985,7 +5055,7 @@ def descargar_fits_apilado():
     if os.path.exists(ruta):
         return send_file(ruta, as_attachment=True)
     else:
-        return "❌ El archivo FITS aún no ha sido generado.", 404
+        return _("❌ El archivo FITS aún no ha sido generado."), 404
 
 # Guardado a resolución completa en segundo plano (tarda 20-30 s en 9 Mpx)
 GUARDADO = {"en_curso": False, "mensaje": "", "archivo": "", "ok": None}
@@ -5000,10 +5070,10 @@ def guardar_apilado_en_galeria():
     y espera el final con esperar_guardado() (GUARDADO).
     """
     if GUARDADO["en_curso"]:
-        return {"ok": False, "error": "⏳ Ya hay un guardado en curso", "codigo": 409}
+        return {"ok": False, "error": _("⏳ Ya hay un guardado en curso"), "codigo": 409}
     origenFits = "static/resultado_apilado.fits"
     if not os.path.exists(origenFits):
-        return {"ok": False, "error": "❌ Archivo FITS no encontrado.", "codigo": 404}
+        return {"ok": False, "error": _("❌ Archivo FITS no encontrado."), "codigo": 404}
 
     # Nombre a partir del objeto del último GOTO
     nombre_objeto = "Objeto"
@@ -5027,7 +5097,7 @@ def guardar_apilado_en_galeria():
     import shutil
     shutil.copy(origenFits, destinoFits)
     GUARDADO.update({"en_curso": True, "ok": None, "archivo": nombre_archivo,
-                     "mensaje": "⏳ Procesando a resolución completa..."})
+                     "mensaje": _("⏳ Procesando a resolución completa...")})
 
     def _procesar_y_guardar():
         import procesado
@@ -5041,7 +5111,7 @@ def guardar_apilado_en_galeria():
             # Mismo encuadre que la vista previa (zona cubierta por todas las fotos,
             # zoom, giro y espejo); el FITS se guarda entero y sin girar
             balance = procesado.balance_estrellas(cubo, zona)      # color: con las estrellas del campo completo
-            cubo, _ = procesado.girar_campo(cubo, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
+            cubo, __ = procesado.girar_campo(cubo, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
             rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0, balance=balance)
             imagen_bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
             # Firma (logo, autor, objeto, tiempo, coordenadas). El FITS queda limpio y
@@ -5068,11 +5138,11 @@ def guardar_apilado_en_galeria():
                         n_c = int(hdul[0].header.get("NSTACK", 1))
                         exp_c = float(hdul[0].header.get("EXPTOT", 0) or 0)
                         zona_c = procesado.leer_zona(hdul[0].header)
-                    cubo_c, _ = procesado.girar_campo(cubo_c, encuadre["fraccion"], encuadre["giro"], zona_c, espejo=encuadre["espejo"])
+                    cubo_c, __ = procesado.girar_campo(cubo_c, encuadre["fraccion"], encuadre["giro"], zona_c, espejo=encuadre["espejo"])
                     rgb8_c = procesado.procesar(cubo_c, n_c, procesado.leer_config(), escala=1.0, balance=balance)
                     imagen_c = cv2.cvtColor(rgb8_c, cv2.COLOR_RGB2BGR)
                     meta_c = apilado.metadatos_firma(None, destinoFits, n_c, round(exp_c / n_c, 3) if n_c and exp_c else 0)
-                    meta_c["objeto"] = f"{meta_c['objeto']} · núcleo"
+                    meta_c["objeto"] = _("{objeto} · núcleo", objeto=meta_c['objeto'])
                     if meta_c["activa"]:
                         imagen_c = firma.firmar(imagen_c, meta_c)
                     cv2.imwrite(destino_nucleo, imagen_c, [cv2.IMWRITE_JPEG_QUALITY, 92])
@@ -5083,8 +5153,8 @@ def guardar_apilado_en_galeria():
                     print(f"☄️ Apilado por el núcleo guardado como {base_nucleo}.jpg")
                 except Exception as e:
                     log.exception("Error guardando el apilado por el núcleo del cometa")
-            GUARDADO.update({"ok": True, "mensaje": f"✅ Imagen guardada como {nombre_archivo} (y su FITS)"})
-            voz.decir("Imagen guardada en la galería")
+            GUARDADO.update({"ok": True, "mensaje": _("✅ Imagen guardada como {archivo} (y su FITS)", archivo=nombre_archivo)})
+            voz.decir(_("Imagen guardada en la galería"))
             humor.decir("foto_guardada")
         except Exception as e:
             log.exception("Error procesando la imagen para la galería")
@@ -5093,7 +5163,7 @@ def guardar_apilado_en_galeria():
                 shutil.copy("static/resultado_apilado_preview.jpg", destino)
             except Exception:
                 pass
-            GUARDADO.update({"ok": False, "mensaje": f"❌ Error al procesar; guardada la vista previa: {e}"})
+            GUARDADO.update({"ok": False, "mensaje": _("❌ Error al procesar; guardada la vista previa: {e}", e=e)})
         finally:
             GUARDADO["en_curso"] = False
 
@@ -5178,10 +5248,10 @@ def _reprocesar_preview_en_segundo_plano():
     """
     a = apilado.apilador_global
     if REPROCESADO["en_curso"] or (a is not None and a.procesando):
-        return False, "El apilador está ocupado; espera a que termine"
+        return False, _("El apilador está ocupado; espera a que termine")
     if a is None or not os.path.exists("static/resultado_apilado.fits"):
-        return False, "No hay ningún apilado que reprocesar"
-    REPROCESADO.update({"en_curso": True, "mensaje": "Regenerando la vista previa...", "ok": None})
+        return False, _("No hay ningún apilado que reprocesar")
+    REPROCESADO.update({"en_curso": True, "mensaje": _("Regenerando la vista previa..."), "ok": None})
 
     def _reprocesar():
         try:
@@ -5189,7 +5259,7 @@ def _reprocesar_preview_en_segundo_plano():
             REPROCESADO.update({"ok": ok, "mensaje": msg})
         except Exception as e:
             log.exception("Error reprocesando la vista previa")
-            REPROCESADO.update({"ok": False, "mensaje": f"Error: {e}"})
+            REPROCESADO.update({"ok": False, "mensaje": _("Error: {e}", e=e)})
         finally:
             REPROCESADO["en_curso"] = False
 
@@ -5237,7 +5307,7 @@ def galeria():
                            n_rastros=len(lista_rastros), n_meteoros=n_meteoros)
 
 
-SIN_TIPO = "Sin tipo"
+SIN_TIPO = N_("Sin tipo")      # clave del filtro de la galería: se traduce al pintarla
 
 
 def _tipo_foto_galeria(carpeta, nombre):
@@ -5282,32 +5352,33 @@ def galeria_rastros():
 def galeria_rastros_borrar():
     """{"base": "rastro_..."} borra uno; {"menos_meteoros": true} borra aviones y satélites."""
     if 'usuario' not in session:
-        return jsonify({"ok": False, "mensaje": "No autorizado"}), 403
+        return jsonify({"ok": False, "mensaje": _("No autorizado")}), 403
     datos = request.get_json(silent=True) or {}
     if datos.get("menos_meteoros"):
         borrados = [d["base"] for d in rastros.listar() if d.get("tipo") != "meteoro"]
         for base in borrados:
             rastros.borrar(base)
-        return jsonify({"ok": True, "borrados": borrados, "mensaje": f"{len(borrados)} rastros borrados"})
+        return jsonify({"ok": True, "borrados": borrados,
+                        "mensaje": ngettext("{n} rastro borrado", "{n} rastros borrados", len(borrados))})
     base = datos.get("base")
     if not _rastro_valido(base):
-        return jsonify({"ok": False, "mensaje": "Rastro no válido"}), 400
+        return jsonify({"ok": False, "mensaje": _("Rastro no válido")}), 400
     rastros.borrar(base)
-    return jsonify({"ok": True, "borrados": [base], "mensaje": "Rastro borrado"})
+    return jsonify({"ok": True, "borrados": [base], "mensaje": _("Rastro borrado")})
 
 
 @app.route("/galeria/rastros/a-galeria", methods=["POST"])
 def galeria_rastros_a_galeria():
     """Revela el FITS del rastro como una foto de la galería (en segundo plano, como Cámara)."""
     if 'usuario' not in session:
-        return jsonify({"ok": False, "mensaje": "No autorizado"}), 403
+        return jsonify({"ok": False, "mensaje": _("No autorizado")}), 403
     base = (request.get_json(silent=True) or {}).get("base")
     if not _rastro_valido(base):
-        return jsonify({"ok": False, "mensaje": "Rastro no válido"}), 400
+        return jsonify({"ok": False, "mensaje": _("Rastro no válido")}), 400
     carpeta = rastros.CARPETA_RASTROS
     ruta_fits_rastro = os.path.join(carpeta, base + ".fits")
     if not os.path.isfile(ruta_fits_rastro):
-        return jsonify({"ok": False, "mensaje": "Este rastro se guardó sin FITS (había poco disco): solo queda la miniatura."}), 404
+        return jsonify({"ok": False, "mensaje": _("Este rastro se guardó sin FITS (había poco disco): solo queda la miniatura.")}), 404
     try:
         import json
         with open(os.path.join(carpeta, base + ".json"), "r", encoding="utf-8") as f:
@@ -5319,9 +5390,9 @@ def galeria_rastros_a_galeria():
     nombre = f"{editor_fotos.nombre_archivo_objeto(objeto)}_{fecha:%Y%m%d_%H%M%S}"
     ruta_jpg = os.path.join("static", "fotos", nombre + ".jpg")
     if os.path.exists(ruta_jpg):
-        return jsonify({"ok": True, "mensaje": f"Ya estaba en la galería ({nombre}.jpg).", "archivo": nombre + ".jpg"})
+        return jsonify({"ok": True, "mensaje": _("Ya estaba en la galería ({archivo}).", archivo=nombre + ".jpg"), "archivo": nombre + ".jpg"})
     if GUARDADO_FOTO["en_curso"]:
-        return jsonify({"ok": False, "mensaje": "Ya se está guardando una foto; espera a que termine."}), 409
+        return jsonify({"ok": False, "mensaje": _("Ya se está guardando una foto; espera a que termine.")}), 409
     # El FITS en bruto va con los de las fotos sueltas (se borra con la foto de la galería)
     os.makedirs(CARPETA_CRUDOS_GALERIA, exist_ok=True)
     ruta_crudo = os.path.join(CARPETA_CRUDOS_GALERIA, nombre + ".fits")
@@ -5339,7 +5410,7 @@ def galeria_rastros_a_galeria():
 @app.route("/eliminar-imagen", methods=["POST"])
 def eliminar_imagen():
     if 'usuario' not in session:
-        return jsonify({"error": "No autorizado"}), 403
+        return jsonify({"error": _("No autorizado")}), 403
 
     datos = request.get_json(silent=True) or {}
     nombre = str(datos.get("nombre", ""))
@@ -5347,12 +5418,12 @@ def eliminar_imagen():
     # Solo nombres de fichero simples dentro de static/fotos: nada de "..", barras
     # ni rutas absolutas (antes {"nombre": "../../config.ini"} borraba ese fichero)
     if nombre != os.path.basename(nombre) or not re.fullmatch(r"[A-Za-z0-9_.\-]+\.jpg", nombre):
-        return jsonify({"error": "Nombre de imagen no válido"}), 400
+        return jsonify({"error": _("Nombre de imagen no válido")}), 400
 
     carpeta_fotos = os.path.abspath(os.path.join("static", "fotos"))
     ruta_jpg = os.path.abspath(os.path.join(carpeta_fotos, nombre))
     if os.path.dirname(ruta_jpg) != carpeta_fotos:
-        return jsonify({"error": "Nombre de imagen no válido"}), 400
+        return jsonify({"error": _("Nombre de imagen no válido")}), 400
 
     # Se obtiene el nombre base para generar el nombre del FITS
     nombre_base, extension = os.path.splitext(nombre)
@@ -5364,22 +5435,22 @@ def eliminar_imagen():
         # Intentar eliminar el archivo JPG
         if os.path.exists(ruta_jpg):
             os.remove(ruta_jpg)
-            mensajes.append(f"Imagen '{nombre}' eliminada.")
+            mensajes.append(_("Imagen '{nombre}' eliminada.", nombre=nombre))
         else:
-            mensajes.append(f"Imagen '{nombre}' no encontrada.")
+            mensajes.append(_("Imagen '{nombre}' no encontrada.", nombre=nombre))
 
         # Intentar eliminar el archivo FITS
         if os.path.exists(ruta_fits):
             os.remove(ruta_fits)
-            mensajes.append(f"Archivo FITS '{nombre_fits}' eliminado.")
+            mensajes.append(_("Archivo FITS '{nombre}' eliminado.", nombre=nombre_fits))
         else:
-            mensajes.append(f"Archivo FITS '{nombre_fits}' no encontrado.")
+            mensajes.append(_("Archivo FITS '{nombre}' no encontrado.", nombre=nombre_fits))
 
         # FITS en bruto de una foto suelta de Cámara (static/fotos/crudos), si lo hay
         ruta_crudo = os.path.join(carpeta_fotos, "crudos", nombre_fits)
         if os.path.exists(ruta_crudo):
             os.remove(ruta_crudo)
-            mensajes.append("FITS en bruto eliminado.")
+            mensajes.append(_("FITS en bruto eliminado."))
 
         # Datos de la firma (JSON hermano), si los hay
         ruta_json = os.path.join(carpeta_fotos, f"{nombre_base}.json")
@@ -5390,7 +5461,7 @@ def eliminar_imagen():
 
         return jsonify({"ok": True, "mensaje": "✅ " + " ".join(mensajes)})
     except Exception as e:
-        return jsonify({"error": f"❌ Error al eliminar: {e}"})
+        return jsonify({"error": _("❌ Error al eliminar: {e}", e=e)})
 
 
 @app.route("/galeria/compartir/<nombre>")
@@ -5406,7 +5477,7 @@ def galeria_compartir(nombre):
     ruta_jpg = os.path.abspath(os.path.join(carpeta_fotos, nombre))
     if (nombre != os.path.basename(nombre) or not re.fullmatch(r"[A-Za-z0-9_.\-]+\.jpg", nombre)
             or os.path.dirname(ruta_jpg) != carpeta_fotos or not os.path.isfile(ruta_jpg)):
-        return "Imagen no encontrada", 404
+        return _("Imagen no encontrada"), 404
     descargar = request.args.get("descargar") == "1"
     nombre_salida = f"{os.path.splitext(nombre)[0]}_ScopePower.jpg"
     meta = firma.meta_de_archivo(ruta_jpg)
@@ -5414,12 +5485,12 @@ def galeria_compartir(nombre):
         return send_file(ruta_jpg, mimetype="image/jpeg", as_attachment=descargar, download_name=nombre_salida)
     imagen = cv2.imread(ruta_jpg)
     if imagen is None:
-        return "No se pudo leer la imagen", 500
+        return _("No se pudo leer la imagen"), 500
     meta.update(firma.datos_observatorio())
     firmada = firma.firmar(imagen, meta)
     ok, jpg = cv2.imencode(".jpg", firmada, [cv2.IMWRITE_JPEG_QUALITY, 92])
     if not ok:
-        return "No se pudo codificar la imagen", 500
+        return _("No se pudo codificar la imagen"), 500
     return send_file(io.BytesIO(jpg.tobytes()), mimetype="image/jpeg", as_attachment=descargar, download_name=nombre_salida)
 
 @app.route("/galeria/anotaciones/<nombre>")
@@ -5435,7 +5506,7 @@ def galeria_anotaciones(nombre):
         return jsonify({"ok": False, "mensaje": str(e)}), 409
     except Exception as e:
         log.exception("Error anotando la foto de la galería")
-        return jsonify({"ok": False, "mensaje": f"No se pudo anotar: {e}"}), 500
+        return jsonify({"ok": False, "mensaje": _("No se pudo anotar: {e}", e=e)}), 500
 
 
 # ─── Editor de fotos de la galería (editor_fotos.py) ─────────────────────────
@@ -5461,7 +5532,7 @@ def galeria_editar_original(nombre):
     except editor_fotos.ErrorEditor as e:
         return str(e), 404
     if not os.path.isfile(ruta):
-        return "Imagen no encontrada", 404
+        return _("Imagen no encontrada"), 404
     r = send_file(ruta, mimetype="image/jpeg")
     r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return r
@@ -5477,7 +5548,7 @@ def galeria_editar_vista(nombre):
         return jsonify({"error": str(e)}), 409
     except Exception as e:
         log.exception("Error en la vista previa del editor")
-        return jsonify({"error": f"No se pudo procesar: {e}"}), 500
+        return jsonify({"error": _("No se pudo procesar: {e}", e=e)}), 500
     r = send_file(io.BytesIO(jpg), mimetype="image/jpeg")
     r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return r
@@ -5502,7 +5573,7 @@ def galeria_editar_norte(nombre):
         return jsonify({"ok": False, "mensaje": str(e)}), 409
     except Exception as e:
         log.exception("Error buscando el norte de la foto")
-        return jsonify({"ok": False, "mensaje": f"No se pudo resolver: {e}"}), 500
+        return jsonify({"ok": False, "mensaje": _("No se pudo resolver: {e}", e=e)}), 500
 
 
 @app.route("/galeria/editar/<nombre>/centrar", methods=["POST"])
@@ -5520,12 +5591,12 @@ def galeria_editar_centrar(nombre):
             centro, mensaje = editor_fotos.centro_objeto(nombre)
             return jsonify({"ok": True, "centro": centro, "mensaje": mensaje[0].upper() + mensaje[1:]})
         centro = editor_fotos.centro_desde_toque(nombre, datos.get("ajustes") or {}, datos.get("u"), datos.get("v"))
-        return jsonify({"ok": True, "centro": centro, "mensaje": "Encuadre centrado donde has tocado"})
+        return jsonify({"ok": True, "centro": centro, "mensaje": _("Encuadre centrado donde has tocado")})
     except editor_fotos.ErrorEditor as e:
         return jsonify({"ok": False, "mensaje": str(e)}), 409
     except Exception as e:
         log.exception("Error centrando el encuadre del editor")
-        return jsonify({"ok": False, "mensaje": f"No se pudo centrar: {e}"}), 500
+        return jsonify({"ok": False, "mensaje": _("No se pudo centrar: {e}", e=e)}), 500
 
 
 @app.route("/galeria/editar-estado")
@@ -5539,7 +5610,7 @@ def galeria_editar_restaurar(nombre):
         editor_fotos.restaurar(nombre)
     except editor_fotos.ErrorEditor as e:
         return jsonify({"ok": False, "mensaje": str(e)}), 409
-    return jsonify({"ok": True, "mensaje": "Foto restaurada a su original"})
+    return jsonify({"ok": True, "mensaje": _("Foto restaurada a su original")})
 
 
 @app.route("/configuracion")
@@ -5598,11 +5669,13 @@ def guardar_config_datos():
     avisos = []
     if despues["driver_camara"] != antes["driver_camara"] and camara.esta_conectado():
         camara.desconectar()
-        avisos.append("cámara desconectada; se conectará con el driver nuevo")
+        avisos.append(_("cámara desconectada; se conectará con el driver nuevo"))
     if despues["driver_telescopio"] != antes["driver_telescopio"] and montura.esta_conectado():
         montura.desconectar()
-        avisos.append("montura desconectada; pulsa Reconectar equipo en el inicio")
-    return "✅ Configuración guardada correctamente" + (" (" + "; ".join(avisos) + ")" if avisos else "")
+        avisos.append(_("montura desconectada; pulsa Reconectar equipo en el inicio"))
+    if avisos:
+        return _("✅ Configuración guardada correctamente ({avisos})", avisos="; ".join(avisos))
+    return _("✅ Configuración guardada correctamente")
 
 
 # ───────────────────────── Asistente de configuración inicial ─────────────────────────
@@ -5681,7 +5754,7 @@ def asistente_probar():
     dispositivo = datos.get("dispositivo")
     driver = str(datos.get("driver") or "").strip()
     if dispositivo not in ("montura", "camara") or not driver:
-        return jsonify({"ok": False, "error": "Elige un driver de la lista"}), 400
+        return jsonify({"ok": False, "error": _("Elige un driver de la lista")}), 400
     if dispositivo == "montura":
         trabajador, clave, leer = montura, "driver_telescopio", _asistente_leer_montura
     else:
@@ -5694,7 +5767,8 @@ def asistente_probar():
         info = trabajador.ejecutar(leer, timeout=40)
     except ErrorHardware as e:
         log.info("Asistente: la %s no conecta con %s: %s", trabajador.nombre, driver, e)
-        return jsonify({"ok": False, "error": str(e)})
+        # consejo: el error ya trae el consejo general de _activar_seguimiento ("synscan" | "general")
+        return jsonify({"ok": False, "error": str(e), "consejo": getattr(e, "consejo", "")})
     log.info("Asistente: %s conectada con %s: %s", trabajador.nombre, driver, info)
     return jsonify({"ok": True, "datos": info})
 
@@ -5753,7 +5827,7 @@ def asistente_guardar():
             raise ValueError
         dispositivos["focal_len"] = f"{focal:g}"
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "La focal tiene que ser un número entre 50 y 5000 mm"}), 400
+        return jsonify({"ok": False, "error": _("La focal tiene que ser un número entre 50 y 5000 mm")}), 400
     if str(datos.get("exposicion", "")).strip():
         try:
             exposicion = float(datos["exposicion"])
@@ -5761,18 +5835,18 @@ def asistente_guardar():
                 raise ValueError
             dispositivos["exposicion_captura"] = f"{exposicion:g}"
         except (TypeError, ValueError):
-            return jsonify({"ok": False, "error": "La exposición tiene que estar entre 0,001 y 3600 s"}), 400
+            return jsonify({"ok": False, "error": _("La exposición tiene que estar entre 0,001 y 3600 s")}), 400
     if "ganancia_camara" in datos:
         ganancia = str(datos["ganancia_camara"]).strip()
         if ganancia and not ganancia.isdigit():
-            return jsonify({"ok": False, "error": "La ganancia tiene que ser un número entero (o vacía)"}), 400
+            return jsonify({"ok": False, "error": _("La ganancia tiene que ser un número entero (o vacía)")}), 400
         dispositivos["ganancia_camara"] = ganancia
     for clave in ("driver_telescopio", "driver_camara"):
         if str(datos.get(clave) or "").strip():
             dispositivos[clave] = str(datos[clave]).strip()
 
     if "latitud" in datos:
-        error, _ = _guardar_observatorio({k: datos[k] for k in ("latitud", "longitud", "altitud", "autor") if k in datos}
+        error, __ = _guardar_observatorio({k: datos[k] for k in ("latitud", "longitud", "altitud", "autor") if k in datos}
                                          | {"origen": "asistente"}, hablar=False, stellarium=usar_stellarium())
         if error:
             return jsonify({"ok": False, "error": error}), 400
@@ -5791,7 +5865,7 @@ def asistente_guardar():
         general["ruta_astap"] = astap["ruta"]
     _guardar_en_config("General", general)
     log.info("Asistente de configuración terminado: %s; ASTAP %s %s", dispositivos, astap["ruta"] or "no instalado", astap["catalogos"])
-    voz.decir("Configuración guardada. ScopePower está listo")
+    voz.decir(_("Configuración guardada. ScopePower está listo"))
     humor.decir("configuracion_guardada")
     return jsonify({"ok": True, "astap": astap})
 
@@ -5804,7 +5878,7 @@ def _deps_plan():
     from types import SimpleNamespace
 
     def detener_apilado():
-        bucle.detener("Plan de la noche: siguiente objeto")
+        bucle.detener(_("Plan de la noche: siguiente objeto"))
         pausar_apilado()
         if estado_captura.como_dict()["en_curso"]:
             estado_captura.cancelar.set()      # no esperar toda la exposición
@@ -5830,7 +5904,7 @@ def _deps_plan():
             return 10.0
 
     def reiniciar():
-        bucle.detener("Plan de la noche")
+        bucle.detener(_("Plan de la noche"))
         reiniciar_apilado_global()
 
     return SimpleNamespace(
@@ -5869,7 +5943,7 @@ def _resolver_nombre_plan(nombre):
     normalizado = reemplazar_numeros_en_texto(nombre)
     clave = quitar_tildes(normalizado.lower())
     if clave in ("sol", "sun"):
-        raise ValueError("Al Sol no se va con el plan: usa el GoTo con el filtro solar puesto")
+        raise ValueError(_("Al Sol no se va con el plan: usa el GoTo con el filtro solar puesto"))
     if clave in plan_sesion.CUERPOS:
         d = plan_sesion.CUERPOS[clave]
         ra, dec = plan_sesion.coordenadas_dinamicas({"dinamico": d, "ra_h": 0, "dec_deg": 0, "nombre": nombre},
@@ -5944,12 +6018,12 @@ def plan_anadir():
     datos = request.get_json(silent=True) or {}
     nombre = " ".join(str(datos.get("nombre", "")).split())
     if not nombre:
-        return jsonify({"ok": False, "error": "Falta el nombre del objeto"}), 400
+        return jsonify({"ok": False, "error": _("Falta el nombre del objeto")}), 400
     try:
         if datos.get("ra") is not None and datos.get("dec") is not None:
             clave = quitar_tildes(nombre.lower())
             if clave in ("sol", "sun"):
-                raise ValueError("Al Sol no se va con el plan: usa el GoTo con el filtro solar puesto")
+                raise ValueError(_("Al Sol no se va con el plan: usa el GoTo con el filtro solar puesto"))
             dinamico = plan_sesion.CUERPOS.get(clave)   # Luna y planetas: efemérides de cada noche
             ficha = {"nombre": plan_sesion.NOMBRES_CUERPOS[dinamico] if dinamico else nombre,
                      "ra_h": float(datos["ra"]), "dec_deg": float(datos["dec"]),
@@ -5959,13 +6033,13 @@ def plan_anadir():
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     if not ficha:
-        return jsonify({"ok": False, "error": f"No encuentro «{nombre}» en los catálogos"}), 404
+        return jsonify({"ok": False, "error": _("No encuentro «{nombre}» en los catálogos", nombre=nombre)}), 404
     try:
         o, dup = plan_sesion.anadir(ficha["nombre"], ficha["ra_h"], ficha["dec_deg"], ficha.get("tipo", ""),
                                     ficha.get("dinamico"), fotos=datos.get("fotos"), zoom=datos.get("zoom"),
                                     exposicion=datos.get("exposicion"), prioritario=bool(datos.get("prioritario")))
     except (TypeError, ValueError) as e:
-        return jsonify({"ok": False, "error": f"Datos no válidos: {e}"}), 400
+        return jsonify({"ok": False, "error": _("Datos no válidos: {e}", e=e)}), 400
     return jsonify({"ok": True, "objeto": o, "duplicado": dup, "total": plan_sesion.resumen()["total"]})
 
 
@@ -5975,9 +6049,9 @@ def plan_editar(id_):
     try:
         o = plan_sesion.editar(id_, **{k: datos[k] for k in ("fotos", "zoom", "exposicion", "nombre", "prioritario") if k in datos})
     except (TypeError, ValueError) as e:
-        return jsonify({"ok": False, "error": f"Datos no válidos: {e}"}), 400
+        return jsonify({"ok": False, "error": _("Datos no válidos: {e}", e=e)}), 400
     if o is None:
-        return jsonify({"ok": False, "error": "Ese objeto ya no está en el plan"}), 404
+        return jsonify({"ok": False, "error": _("Ese objeto ya no está en el plan")}), 404
     return jsonify({"ok": True, "objeto": o})
 
 
@@ -5999,14 +6073,14 @@ def plan_cambiar_estado(id_):
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     if o is None:
-        return jsonify({"ok": False, "error": "Ese objeto ya no está en el plan"}), 404
+        return jsonify({"ok": False, "error": _("Ese objeto ya no está en el plan")}), 404
     return jsonify({"ok": True, "objeto": o})
 
 
 @app.route('/plan/vaciar', methods=['POST'])
 def plan_vaciar():
     if plan_sesion.trabajo_plan.en_curso:
-        return jsonify({"ok": False, "error": "Detén el plan antes de vaciarlo"}), 409
+        return jsonify({"ok": False, "error": _("Detén el plan antes de vaciarlo")}), 409
     plan_sesion.vaciar()
     return jsonify({"ok": True})
 
@@ -6014,7 +6088,7 @@ def plan_vaciar():
 @app.route('/plan/reiniciar-resultados', methods=['POST'])
 def plan_reiniciar_resultados():
     if plan_sesion.trabajo_plan.en_curso:
-        return jsonify({"ok": False, "error": "Detén el plan antes de reiniciar los resultados"}), 409
+        return jsonify({"ok": False, "error": _("Detén el plan antes de reiniciar los resultados")}), 409
     plan_sesion.reiniciar_resultados()
     return jsonify({"ok": True})
 
@@ -6025,7 +6099,7 @@ def plan_ajustes():
     try:
         ajustes = plan_sesion.guardar_ajustes(datos)
     except (TypeError, ValueError) as e:
-        return jsonify({"ok": False, "error": f"Ajuste no válido: {e}"}), 400
+        return jsonify({"ok": False, "error": _("Ajuste no válido: {e}", e=e)}), 400
     return jsonify({"ok": True, "ajustes": ajustes})
 
 
@@ -6044,7 +6118,7 @@ def plan_importar():
     elif datos.get("nombres"):
         r = plan_sesion.importar(str(datos["nombres"]), _resolver_nombre_plan)
     else:
-        return jsonify({"ok": False, "error": "No hay nada que importar: un plan de ScopePower o una lista de nombres"}), 400
+        return jsonify({"ok": False, "error": _("No hay nada que importar: un plan de ScopePower o una lista de nombres")}), 400
     return jsonify({"ok": True, **r, "total": plan_sesion.resumen()["total"]})
 
 
@@ -6062,7 +6136,7 @@ def plan_iniciar():
     if motivo:
         return jsonify({"ok": False, "error": motivo}), 409
     if bucle.activo:
-        return jsonify({"ok": False, "error": "Hay un apilado en marcha: detenlo (y guárdalo si quieres) antes de empezar el plan"}), 409
+        return jsonify({"ok": False, "error": _("Hay un apilado en marcha: detenlo (y guárdalo si quieres) antes de empezar el plan")}), 409
     try:
         plan_sesion.trabajo_plan.iniciar(_deps_plan())
     except RuntimeError as e:
@@ -6074,7 +6148,7 @@ def plan_iniciar():
 def plan_pausar():
     t = plan_sesion.trabajo_plan
     if not t.en_curso:
-        return jsonify({"ok": False, "error": "El plan no está en marcha"}), 409
+        return jsonify({"ok": False, "error": _("El plan no está en marcha")}), 409
     t.pausar()
     return jsonify({"ok": True, "estado": t.estado()})
 
@@ -6083,7 +6157,7 @@ def plan_pausar():
 def plan_reanudar():
     t = plan_sesion.trabajo_plan
     if not t.en_curso:
-        return jsonify({"ok": False, "error": "El plan no está en marcha"}), 409
+        return jsonify({"ok": False, "error": _("El plan no está en marcha")}), 409
     motivo = _sin_espacio_en_disco()
     if motivo:
         return jsonify({"ok": False, "error": motivo}), 409
@@ -6095,7 +6169,7 @@ def plan_reanudar():
 def plan_detener():
     t = plan_sesion.trabajo_plan
     if not t.en_curso:
-        return jsonify({"ok": False, "error": "El plan no está en marcha"}), 409
+        return jsonify({"ok": False, "error": _("El plan no está en marcha")}), 409
     t.detener()
     return jsonify({"ok": True, "estado": t.estado()})
 
@@ -6104,7 +6178,7 @@ def plan_detener():
 def plan_saltar():
     t = plan_sesion.trabajo_plan
     if not t.en_curso:
-        return jsonify({"ok": False, "error": "El plan no está en marcha"}), 409
+        return jsonify({"ok": False, "error": _("El plan no está en marcha")}), 409
     t.saltar()
     return jsonify({"ok": True, "estado": t.estado()})
 
@@ -6146,7 +6220,7 @@ def _deps_mosaico():
         guardar_galeria=guardar_mosaico_en_galeria,
         esperar_guardado=esperar_guardado,
         otro_trabajo_en_curso=_trabajos_en_curso,
-        plan_en_marcha=lambda: ("El plan de la noche está en marcha; detenlo antes." if plan_sesion.trabajo_plan.en_curso else None),
+        plan_en_marcha=lambda: (_("El plan de la noche está en marcha; detenlo antes.") if plan_sesion.trabajo_plan.en_curso else None),
         cancelar_centrado=lambda: centrado.trabajo_centrado.cancelar(),
         bucle=bucle,
         decir=voz.decir,
@@ -6182,7 +6256,7 @@ def _centro_mosaico(datos):
     if nombre:
         ficha = _resolver_nombre_plan(nombre)
         if not ficha:
-            raise ValueError(f"No se encuentra «{nombre}» en los catálogos")
+            raise ValueError(_("No se encuentra «{nombre}» en los catálogos", nombre=nombre))
         return {"nombre": ficha["nombre"], "ra_h": ficha["ra_h"], "dec_deg": ficha["dec_deg"], "tipo": ficha.get("tipo") or "", "fuente": "nombre"}
     if ULTIMO_GOTO:
         # El GoTo de una tesela lleva el sufijo "· tesela k/N": el centro es el objeto, no la tesela
@@ -6191,7 +6265,7 @@ def _centro_mosaico(datos):
                 "tipo": apilado.tipo_objeto_goto(objeto), "fuente": "último GoTo"}
     pos = _posicion_montura_j2000()
     if pos is None:
-        raise ValueError("No hay centro para el mosaico: apunta a un objeto, escribe un nombre o conecta la montura")
+        raise ValueError(_("No hay centro para el mosaico: apunta a un objeto, escribe un nombre o conecta la montura"))
     return {"nombre": "Mosaico", "ra_h": pos[0], "dec_deg": pos[1], "tipo": "", "fuente": "posición de la montura"}
 
 
@@ -6202,7 +6276,7 @@ def _previsualizar_mosaico(centro, filas, columnas, solape_pct):
     wcs_ultimo = getattr(t, "_ultimo_wcs", None) if t.en_curso else None
     if wcs_ultimo is not None:
         wcs = mosaico.wcs_tangente(centro["ra_h"] * 15.0, centro["dec_deg"], mosaico.cd_de(wcs_ultimo), campo["ancho_px"], campo["alto_px"])
-        origen = "WCS de la tesela anterior"
+        origen = _("WCS de la tesela anterior")
     else:
         wcs, origen = mosaico.wcs_previsto(centro["ra_h"], centro["dec_deg"], campo,
                                            (LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO))
@@ -6223,9 +6297,9 @@ def _datos_rejilla(datos):
         columnas = int(datos.get("columnas") or conf["columnas"])
         solape = float(str(datos.get("solape_pct") or conf["solape_pct"]).replace(",", "."))
     except (TypeError, ValueError):
-        raise ValueError("Filas, columnas y solape tienen que ser números")
+        raise ValueError(_("Filas, columnas y solape tienen que ser números"))
     if not (1 <= filas <= 6 and 1 <= columnas <= 6):
-        raise ValueError("Filas y columnas: de 1 a 6")
+        raise ValueError(_("Filas y columnas: de 1 a 6"))
     return filas, columnas, min(60.0, max(5.0, solape))
 
 
@@ -6300,7 +6374,7 @@ def mosaico_iniciar():
 def mosaico_pausar():
     t = mosaico.trabajo_mosaico
     if not t.en_curso:
-        return jsonify({"ok": False, "error": "No hay ningún mosaico en marcha"}), 409
+        return jsonify({"ok": False, "error": _("No hay ningún mosaico en marcha")}), 409
     t.pausar()
     return jsonify({"ok": True, "estado": t.estado()})
 
@@ -6309,7 +6383,7 @@ def mosaico_pausar():
 def mosaico_reanudar():
     t = mosaico.trabajo_mosaico
     if not t.en_curso:
-        return jsonify({"ok": False, "error": "No hay ningún mosaico en marcha"}), 409
+        return jsonify({"ok": False, "error": _("No hay ningún mosaico en marcha")}), 409
     motivo = _sin_espacio_en_disco()
     if motivo:
         return jsonify({"ok": False, "error": motivo}), 409
@@ -6321,7 +6395,7 @@ def mosaico_reanudar():
 def mosaico_saltar():
     t = mosaico.trabajo_mosaico
     if not t.en_curso:
-        return jsonify({"ok": False, "error": "No hay ningún mosaico en marcha"}), 409
+        return jsonify({"ok": False, "error": _("No hay ningún mosaico en marcha")}), 409
     t.saltar()
     return jsonify({"ok": True})
 
@@ -6330,7 +6404,7 @@ def mosaico_saltar():
 def mosaico_detener():
     t = mosaico.trabajo_mosaico
     if not t.en_curso:
-        return jsonify({"ok": False, "error": "No hay ningún mosaico en marcha"}), 409
+        return jsonify({"ok": False, "error": _("No hay ningún mosaico en marcha")}), 409
     t.detener()
     return jsonify({"ok": True})
 
@@ -6340,9 +6414,9 @@ def mosaico_combinar():
     """Vuelve a fundir las teselas que hay en disco (tras cambiar ajustes, o un mosaico a medias)."""
     t = mosaico.trabajo_mosaico
     if t.combinando:
-        return jsonify({"ok": False, "error": "Ya se está combinando"}), 409
+        return jsonify({"ok": False, "error": _("Ya se está combinando")}), 409
     if not mosaico.teselas_en_disco():
-        return jsonify({"ok": False, "error": "No hay teselas apiladas"}), 404
+        return jsonify({"ok": False, "error": _("No hay teselas apiladas")}), 404
     if t.en_curso:
         t._combinar_en_segundo_plano()
     else:
@@ -6372,7 +6446,7 @@ def mostrar_mosaico():
 def descargar_fits_mosaico():
     if os.path.exists(mosaico.RUTA_FITS):
         return send_file(mosaico.RUTA_FITS, as_attachment=True)
-    return "❌ No hay mosaico.", 404
+    return _("❌ No hay mosaico."), 404
 
 
 def guardar_mosaico_en_galeria():
@@ -6381,9 +6455,9 @@ def guardar_mosaico_en_galeria():
     procesa a resolución completa en segundo plano, como guardar_apilado_en_galeria.
     """
     if GUARDADO["en_curso"]:
-        return {"ok": False, "error": "⏳ Ya hay un guardado en curso", "codigo": 409}
+        return {"ok": False, "error": _("⏳ Ya hay un guardado en curso"), "codigo": 409}
     if not os.path.exists(mosaico.RUTA_FITS):
-        return {"ok": False, "error": "❌ No hay ningún mosaico que guardar.", "codigo": 404}
+        return {"ok": False, "error": _("❌ No hay ningún mosaico que guardar."), "codigo": 404}
     e = mosaico.trabajo_mosaico.estado()
     nombre_objeto = e.get("nombre") or "Mosaico"
     rejilla = f"{e.get('filas') or 0}×{e.get('columnas') or 0}"
@@ -6396,7 +6470,7 @@ def guardar_mosaico_en_galeria():
     destino_fits = os.path.join(carpeta_destino, base + ".fits")
     import shutil
     shutil.copy(mosaico.RUTA_FITS, destino_fits)
-    GUARDADO.update({"en_curso": True, "ok": None, "archivo": base + ".jpg", "mensaje": "⏳ Procesando el mosaico a resolución completa..."})
+    GUARDADO.update({"en_curso": True, "ok": None, "archivo": base + ".jpg", "mensaje": _("⏳ Procesando el mosaico a resolución completa...")})
 
     def _procesar_y_guardar():
         import procesado
@@ -6410,12 +6484,12 @@ def guardar_mosaico_en_galeria():
                 zona = procesado.leer_zona(hdr)
                 encuadre = procesado.encuadre_vista(header=hdr)
             balance = procesado.balance_estrellas(cubo, zona)
-            cubo, _ = procesado.girar_campo(cubo, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
+            cubo, __ = procesado.girar_campo(cubo, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
             rgb8 = procesado.procesar(cubo, n, procesado.leer_config(), escala=1.0, balance=balance)
             imagen_bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
             n_fotos = n * n_teselas
             meta = apilado.metadatos_firma(None, destino_fits, n_fotos, round(exp_total / n_fotos, 3) if n_fotos and exp_total else 0)
-            meta["objeto"] = f"{e.get('nombre') or 'Mosaico'} · mosaico {rejilla}"
+            meta["objeto"] = _("{objeto} · mosaico {rejilla}", objeto=e.get('nombre') or 'Mosaico', rejilla=rejilla)
             if meta["activa"]:
                 imagen_bgr = firma.firmar(imagen_bgr, meta)
             cv2.imwrite(destino, imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92])
@@ -6423,8 +6497,8 @@ def guardar_mosaico_en_galeria():
             meta["encuadre"] = {"zoom": int(round((1.0 - encuadre["fraccion"]) * 100)), "giro": encuadre["giro"], "espejo": encuadre["espejo"]}
             meta["mosaico"] = rejilla
             firma.guardar_meta(destino, meta)
-            GUARDADO.update({"ok": True, "mensaje": f"✅ Mosaico guardado como {base}.jpg (y su FITS)"})
-            voz.decir("Mosaico guardado en la galería")
+            GUARDADO.update({"ok": True, "mensaje": _("✅ Mosaico guardado como {archivo} (y su FITS)", archivo=base + ".jpg")})
+            voz.decir(_("Mosaico guardado en la galería"))
             humor.decir("foto_guardada")
         except Exception as ex:
             log.exception("Error procesando el mosaico para la galería")
@@ -6432,7 +6506,7 @@ def guardar_mosaico_en_galeria():
                 shutil.copy(mosaico.RUTA_PREVIEW, destino)
             except Exception:
                 pass
-            GUARDADO.update({"ok": False, "mensaje": f"❌ Error al procesar; guardada la vista previa: {ex}"})
+            GUARDADO.update({"ok": False, "mensaje": _("❌ Error al procesar; guardada la vista previa: {e}", e=ex)})
         finally:
             GUARDADO["en_curso"] = False
 
@@ -6480,7 +6554,7 @@ def voz_toggle():
         activada = not voz.locutor.config["activada"]
     voz.locutor.activar(activada)
     if activada:
-        voz.decir("Avisos por voz activados")
+        voz.decir(_("Avisos por voz activados"))
     return jsonify(voz.locutor.estado())
 
 
@@ -6497,7 +6571,7 @@ def voz_config():
 @app.route("/voz/probar", methods=["POST"])
 def voz_probar():
     datos = request.get_json(silent=True) or {}
-    texto = datos.get("texto") or "ScopePower listo. Telescopio y cámara conectados."
+    texto = datos.get("texto") or _("ScopePower listo. Telescopio y cámara conectados.")
     # La prueba suena aunque los avisos estén desactivados
     activada = voz.locutor.config["activada"]
     voz.locutor.config["activada"] = True
@@ -6516,11 +6590,12 @@ def error_no_capturado(e):
         return e
     log.exception("Error no capturado atendiendo %s %s", request.method, request.path)
     return render_template_string(
-        "{% extends 'base.html' %}{% block title %}Error{% endblock %}{% block content %}"
-        "<div class='pagina-cabecera'><div><h1 class='pagina-titulo'>Error inesperado</h1></div></div>"
+        "{% extends 'base.html' %}{% block title %}{{ titulo_corto }}{% endblock %}{% block content %}"
+        "<div class='pagina-cabecera'><div><h1 class='pagina-titulo'>{{ titulo }}</h1></div></div>"
         "<div class='card card-centrada'><div class='aviso aviso-err'>{{ error }}</div>"
-        "<p class='texto-3' style='margin:0'>Los detalles están en logs/scopepower.log</p></div>{% endblock %}",
-        error=str(e)), 500
+        "<p class='texto-3' style='margin:0'>{{ detalle }}</p></div>{% endblock %}",
+        error=str(e), titulo_corto=_("Error"), titulo=_("Error inesperado"),
+        detalle=_("Los detalles están en logs/scopepower.log")), 500
 
 
 @app.route("/ascom-selector")
@@ -6592,7 +6667,7 @@ def _comprobar_instancia_unica(puerto):
         log.warning("ScopePower ya está en marcha en este equipo (puerto %d): esta segunda copia se cierra", puerto)
         print(f"\nAVISO: ScopePower ya está en marcha en este equipo: http://127.0.0.1:{puerto}\n"
               "    Esta segunda copia se cierra; usa la que ya estaba abierta.\n", flush=True)
-        voz.decir("ScopePower ya estaba en marcha. Esta segunda copia se cierra.")
+        voz.decir(_("ScopePower ya estaba en marcha. Esta segunda copia se cierra."))
         try:
             import webbrowser
             webbrowser.open(f"http://127.0.0.1:{puerto}/")
@@ -6602,7 +6677,7 @@ def _comprobar_instancia_unica(puerto):
         sys.exit(CODIGO_SALIDA_YA_EN_MARCHA)
     log.error("El puerto %d lo está usando otro programa: ScopePower no puede arrancar", puerto)
     print(f"\nERROR: El puerto {puerto} lo está usando otro programa. Ciérralo y vuelve a arrancar ScopePower.\n", flush=True)
-    voz.decir(f"El puerto {puerto} está ocupado por otro programa. ScopePower no puede arrancar.")
+    voz.decir(_("El puerto {puerto} está ocupado por otro programa. ScopePower no puede arrancar.", puerto=puerto))
     voz.esperar(timeout=8)
     sys.exit(1)
 
@@ -6636,7 +6711,7 @@ if __name__ == '__main__':
         # Dicta IP y puerto cada 30 s hasta la primera conexión desde el móvil
         anunciador.iniciar()
     else:
-        voz.decir("ScopePower iniciado. Servidor listo.")
+        voz.decir(_("ScopePower iniciado. Servidor listo."))
     humor.decir("arranque")
     # threaded=True: cada petición en su hilo. El acceso a la montura y a la
     # cámara está serializado en hardware.py, así que la web sigue respondiendo

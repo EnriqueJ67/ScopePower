@@ -20,6 +20,7 @@ import os
 import shutil
 import threading
 import time
+from idioma import _, N_, fmt_num
 
 log = logging.getLogger(__name__)
 
@@ -31,16 +32,16 @@ HISTERESIS_PCT = 2           # hay que recuperar umbral + 2 % para volver a avis
 
 # Carpetas donde la app escribe datos (relativas a la carpeta de ScopePower)
 CARPETAS_DATOS = [
-    ("capturas", "Fotos de la sesión (FITS)"),
-    (os.path.join("static", "fotos"), "Galería"),
-    (os.path.join("static", "evolucion"), "Evolución del apilado"),
-    (os.path.join("static", "continuo"), "Foto continua"),
-    (os.path.join("static", "timelapse"), "Timelapses"),
-    (os.path.join("static", "seguimiento"), "Seguimiento"),
-    ("videos", "Vídeos"),
-    ("calibraciones", "Darks y flats"),
-    ("comparaciones", "Comparaciones"),
-    ("logs", "Registros (logs)"),
+    ("capturas", N_("Fotos de la sesión (FITS)")),
+    (os.path.join("static", "fotos"), N_("Galería")),
+    (os.path.join("static", "evolucion"), N_("Evolución del apilado")),
+    (os.path.join("static", "continuo"), N_("Foto continua")),
+    (os.path.join("static", "timelapse"), N_("Timelapses")),
+    (os.path.join("static", "seguimiento"), N_("Seguimiento")),
+    ("videos", N_("Vídeos")),
+    ("calibraciones", N_("Darks y flats")),
+    ("comparaciones", N_("Comparaciones")),
+    ("logs", N_("Registros (logs)")),
 ]
 
 _GB = 1024 ** 3
@@ -83,7 +84,7 @@ class VigilanteDisco:
         """Tamaño de cada carpeta de datos (con caché: recorrer miles de FITS tarda)."""
         hora, datos = self._cache_carpetas
         if datos is not None and time.time() - hora < max_edad_s:
-            return datos
+            return _con_nombre_traducido(datos)
         salida = []
         for relativa, nombre in CARPETAS_DATOS:
             ruta = os.path.join(self.raiz, relativa)
@@ -94,7 +95,7 @@ class VigilanteDisco:
                            "gb": round(tam / _GB, 2), "ficheros": n})
         salida.sort(key=lambda c: -c["gb"])
         self._cache_carpetas = (time.time(), salida)
-        return salida
+        return _con_nombre_traducido(salida)
 
     # ── Vigilancia en segundo plano ──────────────────────────────────────
     def configurar(self, umbral_pct):
@@ -132,11 +133,11 @@ class VigilanteDisco:
             gigas = e["libre_gb"]
             if nivel == 2:
                 log.warning("Disco %s casi lleno: %.1f GB libres (%.1f %%)", e["unidad"], gigas, e["pct_libre"])
-                texto = f"Atención: el disco está casi lleno. Quedan {_gigas_hablados(gigas)}."
+                texto = _("Atención: el disco está casi lleno. Quedan {espacio}.", espacio=_gigas_hablados(gigas))
             else:
                 log.warning("Disco %s por debajo del %d %%: %.1f GB libres (%.1f %%)",
                             e["unidad"], self.umbral_pct, gigas, e["pct_libre"])
-                texto = f"Queda poco espacio en el disco: {e['pct_libre']:.0f} por ciento libre, {_gigas_hablados(gigas)}."
+                texto = _("Queda poco espacio en el disco: {p} por ciento libre, {espacio}.", p=round(e['pct_libre']), espacio=_gigas_hablados(gigas))
             if self._voz:
                 self._voz.decir(texto)
                 try:
@@ -177,10 +178,19 @@ def _tamano_carpeta(ruta):
     return total, n
 
 
+def _con_nombre_traducido(carpetas):
+    """Copia de la lista de carpetas con el nombre en el idioma de la app (la caché guarda el español)."""
+    salida = []
+    for c in carpetas:
+        nombre = c["nombre"]
+        salida.append(dict(c, nombre=_(nombre)))
+    return salida
+
+
 def _gigas_hablados(gb):
     if gb < 1:
-        return f"{int(gb * 1024)} megas"
-    return f"{gb:.0f} gigas" if gb >= 10 else f"{gb:.1f} gigas".replace(".", ",")
+        return _("{n} megas", n=int(gb * 1024))
+    return _("{n} gigas", n=fmt_num(gb, 0 if gb >= 10 else 1))
 
 
 vigilante = VigilanteDisco()

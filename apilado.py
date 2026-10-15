@@ -37,6 +37,7 @@ from ftplib import FTP
 import configparser
 import os
 import config_inicial
+from idioma import _, ngettext, fmt_num
 
 cfg = configparser.ConfigParser()
 cfg.read("config.ini")
@@ -145,20 +146,20 @@ def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
 
         # Si ASTAP no ha resuelto, devolvemos sin más
         if not ini_resuelto(ini):
-            return None, "ASTAP no resolvió el fotograma"
+            return None, _("ASTAP no resolvió el fotograma")
         rotacion_camara.anotar_ini(ini, "apilado")   # el giro de la cámara, para el planetario
 
         # Leemos resultados y calculamos la matriz de transformación
         return matriz_alineado(ref_info, parse_ini_wcs(ini)), "ASTAP"
 
     except subprocess.TimeoutExpired:
-        return None, f"ASTAP no terminó en {ASTAP_TIMEOUT} s"
+        return None, _("ASTAP no terminó en {s} s", s=ASTAP_TIMEOUT)
     except subprocess.CalledProcessError as e:
         # Si ASTAP falla internamente, podemos capturar el error
-        return None, f"ASTAP error: {e}"
+        return None, _("Error de ASTAP: {e}", e=e)
     except Exception as e:
         # Cualquier otro fallo
-        return None, f"Unexpected error: {e}"
+        return None, _("Error inesperado: {e}", e=e)
 
     finally:
         # ——— limpieza de archivos intermedios ASTAP ———
@@ -177,8 +178,8 @@ def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
 # Calidad de fotograma y apilado con memoria acotada
 # ———————————
 def _hablado(x):
-    """Puntuación para la voz: dos decimales y coma, que SAPI lee bien en español."""
-    return f"{x:.2f}".replace(".", ",")
+    """Puntuación para la voz: dos decimales (con coma en español, que SAPI lee bien; punto en inglés)."""
+    return fmt_num(x, 2)
 
 
 def calcular_puntuacion(plano):
@@ -201,7 +202,7 @@ def calcular_puntuacion(plano):
     mad = float(np.median(np.abs(peq - mediana))) * 1.4826 + 1e-3
     mascara = (peq > mediana + 5.0 * mad).astype(np.uint8)
 
-    n, etiquetas, stats, _ = cv2.connectedComponentsWithStats(mascara, connectivity=8)
+    n, etiquetas, stats, __ = cv2.connectedComponentsWithStats(mascara, connectivity=8)
     if n <= 1:
         return 0.0, 0, 0.0
 
@@ -245,7 +246,7 @@ def fwhm_estrellas(plano, maximo=60):
     h, w = img.shape
     cand = [(suav[y, x], y, x) for y, x in cand if 10 < y < h - 10 and 10 < x < w - 10]
     cand.sort(reverse=True)
-    anchos = [enfoque.fwhm(img, x, y) for _, y, x in cand[:maximo]]
+    anchos = [enfoque.fwhm(img, x, y) for __, y, x in cand[:maximo]]
     anchos = [a for a in anchos if np.isfinite(a)]
     return float(np.median(anchos)) if anchos else float("nan")
 
@@ -266,7 +267,7 @@ def calcular_puntuacion_photutils(plano, fwhm_px=2.5, umbral_sigma=4.0):
         return 0.0, 0, 0.0
     img = np.asarray(plano, dtype=np.float32)
     img = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2), interpolation=cv2.INTER_AREA)
-    _, med_bkg, std_bkg = sigma_clipped_stats(img, sigma=3.0)
+    __, med_bkg, std_bkg = sigma_clipped_stats(img, sigma=3.0)
     finder = DAOStarFinder(fwhm=max(1.5, fwhm_px / 2.0), threshold=umbral_sigma * max(std_bkg, 1e-3))
     tbl = finder(img - med_bkg)
     if tbl is None or len(tbl) == 0:
@@ -743,10 +744,10 @@ class ApiladorEnTiempoReal:
         la noche (mejor o peor), se dice en serio y detrás va la frase de humor del caso."""
         tipo, anterior = self._record(puntuacion, n_referencia)
         if tipo == "mejor":
-            voz.decir(f"{base}. Es la mejor foto de la noche: {_hablado(puntuacion)} frente a {_hablado(anterior)}")
+            voz.decir(_("{base}. Es la mejor foto de la noche: {p} frente a {anterior}", base=base, p=_hablado(puntuacion), anterior=_hablado(anterior)))
             humor.decir("foto_mejor", n=self.total)
         elif tipo == "peor":
-            voz.decir(f"{base}. Es la peor que ha entrado hasta ahora: {_hablado(puntuacion)}, la anterior {_hablado(anterior)}")
+            voz.decir(_("{base}. Es la peor que ha entrado hasta ahora: {p}, la anterior {anterior}", base=base, p=_hablado(puntuacion), anterior=_hablado(anterior)))
             humor.decir("foto_peor", n=self.total)
         else:
             voz.decir(base)
@@ -823,7 +824,8 @@ class ApiladorEnTiempoReal:
             self.ultima_detalle["resultado"] = resultado
             self.ultima_detalle["motivo"] = motivo
 
-    def _descartar(self, motivo, aviso="Foto descartada"):
+    def _descartar(self, motivo, aviso=None):
+        aviso = aviso or _("Foto descartada")
         with self.lock:
             self.descartadas += 1
             self.ultimo_error = motivo
@@ -845,12 +847,12 @@ class ApiladorEnTiempoReal:
                     self.historial_fondo = []
                     self.exposicion_fondo = exposicion
                 rejilla = rastros.rejilla_fondo(peq)
-                _, ruido = rastros.mediana_mad(peq)
+                __, ruido = rastros.mediana_mad(peq)
                 luz = rastros.detectar_luz(rejilla, self.historial_fondo, ruido)
                 self.historial_fondo = (self.historial_fondo + [rejilla])[-rastros.FOTOS_HISTORIAL:]
                 if luz:
-                    return (f"luz parásita (fondo +{luz['subida']:.1f} σ en el {luz['zona']:.0%} de la foto)",
-                            "Foto descartada: luz parásita", None, None)
+                    return (_("luz parásita (fondo +{s} σ en el {p} % de la foto)", s=fmt_num(luz['subida'], 1), p=round(100 * luz['zona'])),
+                            _("Foto descartada: luz parásita"), None, None)
             if calidad["detectar_rastros"]:
                 rastro = rastros.detectar_rastro(g, peq)
                 if rastro:
@@ -861,11 +863,13 @@ class ApiladorEnTiempoReal:
                         clase = dict(rastros.TIPOS_RASTRO["satelite"], tipo="satelite", rasgos={})
                     longitud = (clase.get("rasgos") or {}).get("longitud", rastro["longitud"])
                     if clase["tipo"] == "meteoro":
-                        texto, aviso = "posible meteoro", "¡Posible meteoro!"
+                        texto, aviso = _("posible meteoro"), _("¡Posible meteoro!")
+                    elif clase["tipo"] == "avion":
+                        texto, aviso = _("rastro de avión"), _("Foto descartada: rastro de avión")
                     else:
-                        texto = f"rastro de {clase['nombre'].lower()}"
-                        aviso = f"Foto descartada: rastro de {clase['nombre'].lower()}"
-                    return (f"{clase['icono']} {texto} ({longitud} px a {rastro['angulo']:.0f}°)",
+                        texto, aviso = _("rastro de satélite"), _("Foto descartada: rastro de satélite")
+                    return (_("{icono} {texto} ({px} px a {angulo}°)", icono=clase['icono'], texto=texto, px=longitud,
+                              angulo=round(rastro['angulo'])),
                             aviso, rastro, clase)
         except Exception as e:
             print(f"⚠️ No se pudieron buscar rastros ni luces: {e}")
@@ -943,7 +947,7 @@ class ApiladorEnTiempoReal:
             elif data.ndim == 2:
                 r = data
             else:
-                raise ValueError("Formato no compatible")
+                raise ValueError(_("Formato no compatible"))
             r = np.nan_to_num(r)
             r = (r - np.min(r)) / (np.max(r) - np.min(r) + 1e-6)
             r = (r * 255).astype(np.uint8)
@@ -1168,14 +1172,14 @@ class ApiladorEnTiempoReal:
                 self.seguidor_cometa = seguidor
                 self.acumulador_cometa = None
                 self.cometa = {"nombre": nombre, "activo": True, "fotos": 0,
-                               "motivo": ("efeméride del MPC" if seguidor.efemeride.disponible
-                                          else "sin efeméride: se sigue el núcleo foto a foto")}
+                               "motivo": (_("efeméride del MPC") if seguidor.efemeride.disponible
+                                          else _("sin efeméride: se sigue el núcleo foto a foto"))}
             print(f"☄️ Apilado por el núcleo del cometa {nombre} ({self.cometa['motivo']})")
-            voz.decir("Cometa: se apilará también por el núcleo")
+            voz.decir(_("Cometa: se apilará también por el núcleo"))
         except Exception as e:
             print(f"⚠️ No se pudo preparar el apilado del cometa: {e}")
             with self.lock:
-                self.cometa = {"nombre": nombre_objeto_goto(), "activo": False, "fotos": 0, "motivo": f"error: {e}"}
+                self.cometa = {"nombre": nombre_objeto_goto(), "activo": False, "fotos": 0, "motivo": _("error: {e}", e=e)}
 
     def _alinear_por_nucleo(self, crudos, g_alineado, M, metodo, ruta_fits):
         """
@@ -1294,7 +1298,7 @@ class ApiladorEnTiempoReal:
             encuadre = procesado.encuadre_vista(nuevo_config, hdr)
             fraccion = encuadre["fraccion"]
             balance = self.balance_vista if self.balance_vista is not None else "auto"
-            rgb_cube, _ = procesado.girar_campo(rgb_cube, fraccion, encuadre["giro"], zona, espejo=encuadre["espejo"])
+            rgb_cube, __ = procesado.girar_campo(rgb_cube, fraccion, encuadre["giro"], zona, espejo=encuadre["espejo"])
             escala = 0.5 if fraccion > 0.5 else 1.0
             rgb_mtf = procesado.procesar(rgb_cube, n, procesado.leer_config(), escala=escala,
                                          progreso=self._subfase, balance=balance)
@@ -1370,7 +1374,7 @@ class ApiladorEnTiempoReal:
 
             else:
                 print("✘ Formato inesperado.")
-                raise ValueError("El FITS no es ni CFA 2D ni RGB 3×H×W.")
+                raise ValueError(_("El FITS no es ni CFA 2D ni RGB 3×H×W."))
 
             # A partir de aquí 'r','g','b' son matrices H×W con cada canal
             # y ya puedes hacer alineación y apilado normalmente
@@ -1424,8 +1428,8 @@ class ApiladorEnTiempoReal:
                         self.fwhms.pop(0)
 
             if n_estrellas == 0:
-                self._descartar(f"{nombre_fits}: sin estrellas detectables (¿nubes, tapa, desenfoque?)",
-                                aviso="Foto descartada: no se detectan estrellas")
+                self._descartar(_("{foto}: sin estrellas detectables (¿nubes, tapa, desenfoque?)", foto=nombre_fits),
+                                aviso=_("Foto descartada: no se detectan estrellas"))
                 return
 
             # Antes del umbral relativo: la puntuación hundida no debe entrar en
@@ -1435,15 +1439,15 @@ class ApiladorEnTiempoReal:
                 if rastro and calidad["guardar_rastros"]:
                     guardado = self._guardar_rastro(ruta_fits, r, g, b, rastro, clase, EXPOSICION, calidad["max_rastros"])
                     if guardado:
-                        texto += " · guardada en Rastros"
+                        texto += " · " + _("guardada en Rastros")
                         if clase["tipo"] == "meteoro":
-                            aviso += " Foto guardada en rastros"
+                            aviso += " " + _("Foto guardada en rastros")
                 with self.lock:
                     self.descartadas_rastros += 1
                     self._anotar_resultado("descartada", texto)
                     if self.ultima_detalle is not None:
                         self.ultima_detalle["defecto"] = texto
-                    self.ultimo_mensaje = f"{nombre_fits} ({puntuacion:.2f}): {texto}; descartada"
+                    self.ultimo_mensaje = _("{foto} ({p}): {texto}; descartada", foto=nombre_fits, p=fmt_num(puntuacion, 2), texto=texto)
                 print(f"ℹ️ {self.ultimo_mensaje}")
                 voz.decir(aviso)
                 return
@@ -1461,13 +1465,14 @@ class ApiladorEnTiempoReal:
                 umbral = self.umbral
             if puntuacion < umbral:
                 with self.lock:
-                    self._anotar_resultado("descartada", f"por debajo del umbral ({umbral:.2f})")
+                    self._anotar_resultado("descartada", _("por debajo del umbral ({u})", u=fmt_num(umbral, 2)))
                 with self.lock:
                     self.descartadas_calidad += 1
-                    self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) por debajo del umbral "
-                                           f"({umbral:.2f}, {calidad['umbral_relativo']:.0%} de la media de las mejores); descartada")
+                    self.ultimo_mensaje = _("{foto} ({p}) por debajo del umbral ({u}, {pct} % de la media de las mejores); descartada",
+                                            foto=nombre_fits, p=fmt_num(puntuacion, 2), u=fmt_num(umbral, 2),
+                                            pct=round(100 * calidad['umbral_relativo']))
                 print(f"ℹ️ {self.ultimo_mensaje}")
-                voz.decir("Foto descartada por calidad")
+                voz.decir(_("Foto descartada por calidad"))
                 humor.decir("foto_descartada")
                 return
 
@@ -1497,10 +1502,10 @@ class ApiladorEnTiempoReal:
                             pass
 
                 if self.ref_info is None:
-                    self._descartar(f"{nombre_fits}: ASTAP no pudo resolver la referencia; se probará con el siguiente",
-                                    aviso="No se ha podido resolver la imagen de referencia. Se intentará con la siguiente")
+                    self._descartar(_("{foto}: ASTAP no pudo resolver la referencia; se probará con el siguiente", foto=nombre_fits),
+                                    aviso=_("No se ha podido resolver la imagen de referencia. Se intentará con la siguiente"))
                     return
-                voz.decir("Imagen de referencia establecida")
+                voz.decir(_("Imagen de referencia establecida"))
                 humor.decir("referencia_fijada")
                 self._iniciar_cometa(r.shape[1], r.shape[0])
                 # El fotograma de referencia no necesita transformación
@@ -1508,7 +1513,7 @@ class ApiladorEnTiempoReal:
             else:
                 M, metodo = compute_astap_transform(ruta_fits, self.ref_info, self.ruta_astap)
                 if M is None:
-                    self._descartar(f"{nombre_fits}: {metodo}", aviso="Foto descartada: no se ha podido alinear")
+                    self._descartar(f"{nombre_fits}: {metodo}", aviso=_("Foto descartada: no se ha podido alinear"))
                     return
                 # Desplazamiento real de esta foto respecto a la referencia (px):
                 # a dónde va a parar el centro de la foto una vez alineada
@@ -1567,8 +1572,9 @@ class ApiladorEnTiempoReal:
                         return      # el apilado se ha reiniciado mientras tanto
                     self.fotogramas.append(fotograma)
                     self.total = len(self.fotogramas)
-                    self.ultimo_mensaje = (f"{nombre_fits} añadido ({self.total} fotos; "
-                                           f"{suma['rechazado']:.1%} de píxeles rechazados)")
+                    self.ultimo_mensaje = ngettext("{foto} añadido ({n} foto; {p} % de píxeles rechazados)",
+                                                   "{foto} añadido ({n} fotos; {p} % de píxeles rechazados)", self.total,
+                                                   foto=nombre_fits, p=fmt_num(100 * suma['rechazado'], 1))
                     self._anotar_resultado("apilada")
                     if self.ultima_detalle is not None:
                         self.ultima_detalle["rechazado"] = round(100 * suma["rechazado"], 1)
@@ -1576,7 +1582,7 @@ class ApiladorEnTiempoReal:
                 print(f"📚 {self.ultimo_mensaje}; fondo {suma['nivel']:+.0f} ADU, ruido ×{suma['ruido']:.2f}")
                 if suma["rechazado"] > 0.2:
                     print("⚠️ Más del 20 % de la foto no se parece a la referencia (¿nubes, alineado, enfoque?)")
-                self._anunciar_entrada(f"Foto añadida, {self.total} apiladas", puntuacion, n_referencia)
+                self._anunciar_entrada(ngettext("Foto añadida, {n} apilada", "Foto añadida, {n} apiladas", self.total), puntuacion, n_referencia)
                 self._publicar_apilado(acumulador.imagen(), zona_cobertura(*acumulador.cobertura()),
                                        ruta_fits, EXPOSICION, ObjetosAnotados)
                 return
@@ -1601,6 +1607,7 @@ class ApiladorEnTiempoReal:
                 if quitadas:
                     print(f"✂️ Máximo bajado a {NUM_MAX}: {quitadas} foto(s) peores quitadas del apilado")
                 entra = True
+                sustituida = False
                 if incremental:
                     # La referencia se hace con fotos BUENAS: el umbral de calidad se
                     # forma con las primeras fotos, así que una mala del principio puede
@@ -1631,36 +1638,38 @@ class ApiladorEnTiempoReal:
                             print("✂️ Apartadas de la referencia (umbral {:.2f}, {:.0%} de la mejor mitad): {}".format(
                                 umbral_ref, calidad["umbral_referencia"],
                                 ", ".join(f"{f['nombre']} ({f['puntuacion']:.2f})" for f in apartadas)))
-                    self.ultimo_mensaje = (f"{nombre_fits} añadido (referencia: {len(self.fotogramas)} de "
-                                           f"{n_referencia} fotos buenas"
-                                           + (f"; {len(malas)} quitada(s) por calidad" if malas else "")
-                                           + (f"; {len(apartadas)} apartada(s), se sumarán después" if apartadas else "")
-                                           + ")")
+                    detalles = ""
+                    if malas:
+                        detalles += "; " + ngettext("{n} quitada por calidad", "{n} quitadas por calidad", len(malas))
+                    if apartadas:
+                        detalles += "; " + ngettext("{n} apartada, se sumará después", "{n} apartadas, se sumarán después", len(apartadas))
+                    self.ultimo_mensaje = _("{foto} añadido (referencia: {n} de {total} fotos buenas{detalles})",
+                                            foto=nombre_fits, n=len(self.fotogramas), total=n_referencia, detalles=detalles)
                     self._anotar_resultado("apilada")
                 elif len(self.fotogramas) < NUM_MAX:
                     self.fotogramas.append(fotograma)
-                    self.ultimo_mensaje = f"{nombre_fits} añadido ({len(self.fotogramas)}/{NUM_MAX})"
+                    self.ultimo_mensaje = _("{foto} añadido ({n}/{max})", foto=nombre_fits, n=len(self.fotogramas), max=NUM_MAX)
                     self._anotar_resultado("apilada")
                 else:
                     idx_peor = min(range(len(self.fotogramas)), key=lambda i: self.fotogramas[i]["puntuacion"])
                     peor = self.fotogramas[idx_peor]
                     if puntuacion > peor["puntuacion"]:
                         self.fotogramas[idx_peor] = fotograma
-                        self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) sustituye a "
-                                               f"{peor['nombre']} ({peor['puntuacion']:.2f})")
-                        self._anotar_resultado("sustituye", f"a {peor['nombre']} ({peor['puntuacion']:.2f})")
+                        sustituida = True
+                        self.ultimo_mensaje = _("{foto} ({p}) sustituye a {peor} ({pp})", foto=nombre_fits, p=fmt_num(puntuacion, 2),
+                                                peor=peor['nombre'], pp=fmt_num(peor['puntuacion'], 2))
+                        self._anotar_resultado("sustituye", _("a {peor} ({pp})", peor=peor['nombre'], pp=fmt_num(peor['puntuacion'], 2)))
                     else:
                         entra = False
                         self.descartadas_calidad += 1
-                        self.ultimo_mensaje = (f"{nombre_fits} ({puntuacion:.2f}) no mejora al peor "
-                                               f"almacenado ({peor['puntuacion']:.2f}); descartado")
-                        self._anotar_resultado("descartada", f"no mejora a la peor apilada ({peor['puntuacion']:.2f})")
+                        self.ultimo_mensaje = _("{foto} ({p}) no mejora al peor almacenado ({pp}); descartado",
+                                                foto=nombre_fits, p=fmt_num(puntuacion, 2), pp=fmt_num(peor['puntuacion'], 2))
+                        self._anotar_resultado("descartada", _("no mejora a la peor apilada ({pp})", pp=fmt_num(peor['puntuacion'], 2)))
                 self.total = len(self.fotogramas)
                 fotogramas_actuales = list(self.fotogramas)
-                sustituida = "sustituye" in self.ultimo_mensaje
             if not entra:
                 print(f"ℹ️ {self.ultimo_mensaje}")
-                voz.decir("Foto descartada por calidad")
+                voz.decir(_("Foto descartada por calidad"))
                 humor.decir("foto_descartada")
                 # Sin recorte no cambia nada y no hace falta reapilar; con recorte
                 # sí, para que la vista previa refleje las fotos que quedan
@@ -1669,7 +1678,8 @@ class ApiladorEnTiempoReal:
             else:
                 print(f"📚 {self.ultimo_mensaje}")
                 self._sumar_cometa(planos_cometa)
-                self._anunciar_entrada("Foto sustituye a una peor" if sustituida else f"Foto añadida, {self.total} apiladas",
+                self._anunciar_entrada(_("Foto sustituye a una peor") if sustituida
+                                       else ngettext("Foto añadida, {n} apilada", "Foto añadida, {n} apiladas", self.total),
                                        puntuacion, n_referencia, "foto_sustituye" if sustituida else None)
             del planos_cometa
 
@@ -1686,7 +1696,7 @@ class ApiladorEnTiempoReal:
                         for clave in ("r", "g", "b", "M"):
                             f.pop(clave, None)
                 print(f"📌 Referencia del apilado incremental fijada con {len(fotogramas_actuales)} fotos")
-                voz.decir("Referencia del apilado fijada")
+                voz.decir(_("Referencia del apilado fijada"))
                 humor.decir("referencia_fijada")
                 # Las apartadas del repaso pasan ahora como cualquier otra foto
                 with self.lock:
@@ -1718,7 +1728,7 @@ class ApiladorEnTiempoReal:
         except Exception as e:
             import traceback
             traceback.print_exc()
-            self._descartar(f"Error procesando {os.path.basename(ruta_fits)}: {e}")
+            self._descartar(_("Error procesando {foto}: {e}", foto=os.path.basename(ruta_fits), e=e))
 
 
 
@@ -1848,9 +1858,9 @@ def reprocesar_preview():
     a = apilador_global
     ruta = "static/resultado_apilado.fits"
     if a is None or not os.path.exists(ruta):
-        return False, "No hay ningún apilado que reprocesar"
+        return False, _("No hay ningún apilado que reprocesar")
     if a.procesando:
-        return False, "El apilador está ocupado; espera a que termine la foto actual"
+        return False, _("El apilador está ocupado; espera a que termine la foto actual")
     try:
         with fits.open(ruta) as hdul:
             cubo = hdul[0].data.astype(np.float32)
@@ -1866,10 +1876,10 @@ def reprocesar_preview():
         finally:
             a.procesando = False
             a.terminar_fases()
-        return True, "Vista previa regenerada"
+        return True, _("Vista previa regenerada")
     except Exception as e:
         print(f"❌ Error reprocesando la vista previa: {e}")
-        return False, f"Error: {e}"
+        return False, _("Error: {e}", e=e)
 
 
 def obtener_estado_apilado():

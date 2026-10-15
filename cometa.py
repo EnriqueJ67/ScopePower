@@ -47,6 +47,7 @@ import numpy as np
 import cv2
 
 import apilado_incremental
+from idioma import _
 
 log = logging.getLogger("scopepower.cometa")
 
@@ -239,7 +240,7 @@ def buscar_nucleo(plano, x0, y0, radio=80, radio_centroide=8, suavizado=4.0, min
     # Centroide ponderado por el brillo sobre el fondo, sin estrellas (dos pasadas, recentrando)
     cx, cy = float(ix), float(iy)
     yy, xx = np.mgrid[0:suave.shape[0], 0:suave.shape[1]]
-    for _ in range(2):
+    for __ in range(2):
         dentro = ((xx - cx) ** 2 + (yy - cy) ** 2) <= radio_centroide ** 2
         pesos = np.where(dentro, np.maximum(sin_estrellas, 0.0), 0.0)
         total = float(pesos.sum())
@@ -363,8 +364,8 @@ class SeguidorNucleo:
              "escala_arcsec": round(self.escala_arcsec, 2) if self.escala_arcsec else None,
              "corrimiento": [round(self.corrimiento[0], 1), round(self.corrimiento[1], 1)] if self.corrimiento else None}
         if len(self.medidas) >= 2:
-            t0, x0, y0, _ = self.medidas[0]
-            t1, x1, y1, _ = self.medidas[-1]
+            t0, x0, y0, __ = self.medidas[0]
+            t1, x1, y1, __ = self.medidas[-1]
             minutos = (t1 - t0).total_seconds() / 60.0
             desplazamiento = float(np.hypot(x1 - x0, y1 - y0))
             r["desplazamiento_px"] = round(desplazamiento, 1)
@@ -403,7 +404,7 @@ class AcumuladorCometa:
             x = np.asarray(plano, dtype=np.float32)
             if self.n > 0:
                 ref = self.suma[c] / np.maximum(self.cuenta, 1)
-                mapa, _, nivel_c = apilado_incremental.nivel_fondo(x, ref, valida & (self.cuenta > 0))
+                mapa, __, nivel_c = apilado_incremental.nivel_fondo(x, ref, valida & (self.cuenta > 0))
                 x = x - mapa
                 if c == "g":
                     nivel = nivel_c
@@ -474,8 +475,8 @@ def componer(cubo_estrellas, cubo_cometa, nucleo, desplazamiento=None, radio=40,
     est = np.asarray(cubo_estrellas, dtype=np.float32)
     com = np.asarray(cubo_cometa, dtype=np.float32)
     if est.shape != com.shape:
-        raise ValueError("Los dos apilados no tienen el mismo tamaño")
-    _, alto, ancho = est.shape
+        raise ValueError(_("Los dos apilados no tienen el mismo tamaño"))
+    __, alto, ancho = est.shape
     mascara = _mascara_cometa(alto, ancho, nucleo, desplazamiento, float(radio))
     salida = np.empty_like(est)
     d_rastros, d_estrellas = _disco(ANCHO_RASTROS), _disco(ANCHO_ESTRELLAS)

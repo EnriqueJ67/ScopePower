@@ -47,12 +47,13 @@ import configparser
 import numpy as np
 
 import orientacion_camara
+from idioma import _, N_
 
 log = logging.getLogger("scopepower.camara_sdk")
 
 PREFIJO = "SDK:"
 DRIVER_SDK = "SDK:PlayerOne"
-NOMBRE_DRIVER = "por SDK nativo (sin ASCOM)"
+NOMBRE_DRIVER = N_("por SDK nativo (sin ASCOM)")
 SENSOR_TYPE = {"MONO": 0, "RGGB": 2, "BGGR": 2, "GRBG": 2, "GBRG": 2}
 PATRONES = ("RGGB", "BGGR", "GRBG", "GBRG")
 # Desplazamiento (filas, columnas) que lleva cada patrón a RGGB, en la orientación del SDK
@@ -79,12 +80,12 @@ def leer_driver(driver):
         partes = texto[len(PREFIJO):].split(":")
         marca = next((m for m in MARCAS if m.upper() == partes[0].strip().upper()), None)
         if marca is None:
-            raise ValueError(f"Marca de cámara desconocida en el driver «{texto}» "
-                             f"(conocidas: {', '.join(MARCAS)})")
+            raise ValueError(_("Marca de cámara desconocida en el driver «{driver}» (conocidas: {marcas})",
+                               driver=texto, marcas=", ".join(MARCAS)))
         try:
             indice = max(0, int(partes[1])) if len(partes) > 1 and partes[1].strip() else 0
         except ValueError:
-            raise ValueError(f"Número de cámara no válido en el driver «{texto}»")
+            raise ValueError(_("Número de cámara no válido en el driver «{driver}»", driver=texto))
         return marca, indice
     # Driver ASCOM: el modo en vivo y el seguimiento abren la cámara por el SDK de su marca
     alto = texto.upper()
@@ -113,7 +114,7 @@ def detectar_camaras(no_tocar=()):
     `no_tocar` (la cámara está abierta por la app) no se vuelven a sondear: se usa lo último visto.
     """
     entradas = []
-    for marca, (nombre, _, _) in MARCAS.items():
+    for marca, (nombre, _modulo_marca, _clase) in MARCAS.items():
         if marca in no_tocar and marca in _ultimas:
             camaras = _ultimas[marca]
         else:
@@ -126,7 +127,8 @@ def detectar_camaras(no_tocar=()):
             _ultimas[marca] = camaras
         if not camaras:
             if marca != "Webcam":
-                entradas.append({"progid": driver_de(marca), "name": f"{nombre} {NOMBRE_DRIVER} — ninguna conectada ahora"})
+                entradas.append({"progid": driver_de(marca),
+                                 "name": _("{marca} por SDK nativo (sin ASCOM) — ninguna conectada ahora", marca=nombre)})
             continue
         for i, c in enumerate(camaras):
             modelo = str(c.get("modelo") or nombre)
@@ -134,7 +136,8 @@ def detectar_camaras(no_tocar=()):
             if marca != "Webcam" and not modelo.upper().startswith(prefijo.upper()):
                 modelo = f"{prefijo} {modelo}"
             entradas.append({"progid": driver_de(marca, i),
-                             "name": f"{modelo} (webcam, sin ASCOM)" if marca == "Webcam" else f"{modelo} {NOMBRE_DRIVER}"})
+                             "name": _("{modelo} (webcam, sin ASCOM)", modelo=modelo) if marca == "Webcam"
+                             else _("{modelo} por SDK nativo (sin ASCOM)", modelo=modelo)})
     return entradas
 
 
@@ -252,7 +255,7 @@ class CamaraSDK:
 
     def _necesita(self):
         if self._cam is None:
-            raise RuntimeError("La cámara por SDK no está conectada")
+            raise RuntimeError(_("La cámara por SDK no está conectada"))
         return self._cam
 
     # ── propiedades fijas ────────────────────────────────────────────────
@@ -432,13 +435,13 @@ class CamaraNativaSimulada:
     def leer(self, nombre):
         return self._valores.get(nombre, 0)
 
-    def configurar_area(self, x0, y0, ancho, alto, binning=1, formato="RAW16", exposicion_ms=5.0, fps_max=None, **_):
+    def configurar_area(self, x0, y0, ancho, alto, binning=1, formato="RAW16", exposicion_ms=5.0, fps_max=None, **_resto):
         self._zona = self._cfa[y0:y0 + alto, x0:x0 + ancho]
         self._exp_s = exposicion_ms / 1000.0
         self._periodo = 1.0 / (fps_max or 5)
         return {"x0": x0, "y0": y0, "lado": ancho, "ancho": ancho, "alto": alto, "binning": 1, "formato": formato}
 
-    def configurar(self, roi_px=1024, binning=1, formato="RAW16", exposicion_ms=5.0, ganancia=None, fps_max=None, **_):
+    def configurar(self, roi_px=1024, binning=1, formato="RAW16", exposicion_ms=5.0, ganancia=None, fps_max=None, **_resto):
         lado = max(8, min(int(roi_px), self._cfa.shape[0], self._cfa.shape[1])) & ~1
         y0 = ((self._cfa.shape[0] - lado) // 2) & ~1
         x0 = ((self._cfa.shape[1] - lado) // 2) & ~1

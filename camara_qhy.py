@@ -40,6 +40,8 @@ from ctypes import c_uint32, c_uint8, c_double, c_char_p, c_void_p, c_bool, POIN
 
 import numpy as np
 
+from idioma import _, ngettext
+
 log = logging.getLogger("scopepower.camara_qhy")
 
 NOMBRE_MARCA = "QHYCCD"
@@ -131,12 +133,13 @@ def cargar_dll(ruta=None):
             except (OSError, AttributeError) as e:
                 ultimo_error = e
         else:
-            raise ErrorCamaraQHY("No se encuentra qhyccd.dll: instala el driver de QHY o N.I.N.A., o indica "
-                                 f"la ruta en config.ini, [CamaraSDK] dll_qhy ({ultimo_error or 'ninguna ruta válida'})")
+            raise ErrorCamaraQHY(_("No se encuentra qhyccd.dll: instala el driver de QHY o N.I.N.A., o indica "
+                                   "la ruta en config.ini, [CamaraSDK] dll_qhy ({error})",
+                                   error=ultimo_error or _("ninguna ruta válida")))
         _declarar_prototipos(dll)
         err = dll.InitQHYCCDResource()
         if err != QHYCCD_SUCCESS:
-            raise ErrorCamaraQHY(f"No se pudo iniciar el SDK de QHY ({_texto_error(err)})")
+            raise ErrorCamaraQHY(_("No se pudo iniciar el SDK de QHY ({error})", error=_texto_error(err)))
         _dll = dll
         log.info("SDK QHYCCD %s cargado de %s", version_sdk(dll), r)
         return dll
@@ -180,8 +183,8 @@ def _declarar_prototipos(dll):
 def _texto_error(err):
     err = int(err)
     if err == QHYCCD_ERROR:
-        return "error del SDK (QHYCCD_ERROR)"
-    return f"código {err:#x}"
+        return _("error del SDK (QHYCCD_ERROR)")
+    return _("código {codigo}", codigo=f"{err:#x}")
 
 
 def _ids(dll):
@@ -238,18 +241,20 @@ class CamaraQHY:
         dll = self._dll
         ids = _ids(dll)
         if len(ids) <= self._indice:
-            raise ErrorCamaraQHY("No hay ninguna cámara QHY conectada" if not ids
-                                 else f"Solo hay {len(ids)} cámara(s) QHY; pedida la {self._indice + 1}")
+            raise ErrorCamaraQHY(_("No hay ninguna cámara QHY conectada") if not ids
+                                 else ngettext("Solo hay {n} cámara QHY; pedida la {pedida}",
+                                               "Solo hay {n} cámaras QHY; pedida la {pedida}",
+                                               len(ids), pedida=self._indice + 1))
         cid = ids[self._indice]
         h = dll.OpenQHYCCD(cid.encode())
         if not h:
-            raise ErrorCamaraQHY("abrir la cámara: el SDK no la abre (¿la tiene otra aplicación?)")
+            raise ErrorCamaraQHY(_("abrir la cámara: el SDK no la abre (¿la tiene otra aplicación?)"))
         try:
             modo = _config("modo_qhy")
             if modo:
-                self._ok(dll.SetQHYCCDReadMode(h, int(float(modo))), f"fijar el modo de lectura {modo}")
-            self._ok(dll.SetQHYCCDStreamMode(h, 0), "poner el modo foto")
-            self._ok(dll.InitQHYCCD(h), "inicializar la cámara")
+                self._ok(dll.SetQHYCCDReadMode(h, int(float(modo))), _("fijar el modo de lectura {modo}", modo=modo))
+            self._ok(dll.SetQHYCCDStreamMode(h, 0), _("poner el modo foto"))
+            self._ok(dll.InitQHYCCD(h), _("inicializar la cámara"))
         except (ErrorCamaraQHY, ValueError):
             dll.CloseQHYCCD(h)
             raise
@@ -275,7 +280,7 @@ class CamaraQHY:
         cw, ch, pw, ph = c_double(), c_double(), c_double(), c_double()
         iw, ih, bpp = c_uint32(), c_uint32(), c_uint32()
         self._ok(dll.GetQHYCCDChipInfo(h, byref(cw), byref(ch), byref(iw), byref(ih), byref(pw), byref(ph),
-                                       byref(bpp)), "leer el tamaño del sensor")
+                                       byref(bpp)), _("leer el tamaño del sensor"))
         sensor = create_string_buffer(256)
         dll.GetQHYCCDSensorName(h, sensor)
         bayer = int(dll.IsQHYCCDControlAvailable(h, CAM_COLOR))
@@ -348,16 +353,16 @@ class CamaraQHY:
     def poner(self, nombre, valor, auto=False):
         """Fija un ajuste por su nombre ("Gain", "Exposure" en µs, "Offset"...). `auto` no existe en QHY."""
         if nombre not in self._caps:
-            raise ErrorCamaraQHY(f"La cámara no tiene el ajuste {nombre}")
-        self._ok(self._dll.SetQHYCCDParam(self._h, self._caps[nombre]["id"], float(valor)), f"fijar {nombre}")
+            raise ErrorCamaraQHY(_("La cámara no tiene el ajuste {nombre}", nombre=nombre))
+        self._ok(self._dll.SetQHYCCDParam(self._h, self._caps[nombre]["id"], float(valor)), _("fijar {nombre}", nombre=nombre))
         self._valores[nombre] = float(valor)
 
     def leer(self, nombre):
         if nombre not in self._caps:
-            raise ErrorCamaraQHY(f"La cámara no tiene el ajuste {nombre}")
+            raise ErrorCamaraQHY(_("La cámara no tiene el ajuste {nombre}", nombre=nombre))
         v = float(self._dll.GetQHYCCDParam(self._h, self._caps[nombre]["id"]))
         if v == float(QHYCCD_ERROR):
-            raise ErrorCamaraQHY(f"leer {nombre}: {_texto_error(QHYCCD_ERROR)}")
+            raise ErrorCamaraQHY(_("leer {nombre}", nombre=nombre) + ": " + _texto_error(QHYCCD_ERROR))
         return v if nombre == "Temperature" else int(round(v))
 
     # ── Zona, formato y exposición ───────────────────────────────────────
@@ -380,10 +385,11 @@ class CamaraQHY:
         `usb_limite` y `fps_max` se aceptan por compatibilidad con Player One y no se usan.
         """
         if formato not in FORMATOS:
-            raise ValueError(f"Formato desconocido: {formato} (RAW8, RAW16 o MONO8)")
+            raise ValueError(_("Formato desconocido: {formato} (RAW8, RAW16 o MONO8)", formato=formato))
         binning = max(1, int(binning))
         if binning not in self.propiedades["bins"]:
-            raise ErrorCamaraQHY(f"La cámara no admite binning {binning} (admite {self.propiedades['bins']})")
+            raise ErrorCamaraQHY(_("La cámara no admite binning {binning} (admite {bins})", binning=binning,
+                                   bins=self.propiedades["bins"]))
         with self._lock:
             self.abortar()
             ancho, alto = max(8, int(ancho) & ~1), max(2, int(alto) & ~1)
@@ -405,9 +411,9 @@ class CamaraQHY:
     def _aplicar_zona(self):
         dll, h = self._dll, self._h
         x0, y0, ancho, alto, b, bits = self._zona
-        self._ok(dll.SetQHYCCDBinMode(h, b, b), f"fijar binning {b}")
-        self._ok(dll.SetQHYCCDResolution(h, x0, y0, ancho, alto), "fijar la zona")
-        self._ok(dll.SetQHYCCDBitsMode(h, bits), f"fijar {bits} bits")
+        self._ok(dll.SetQHYCCDBinMode(h, b, b), _("fijar binning {binning}", binning=b))
+        self._ok(dll.SetQHYCCDResolution(h, x0, y0, ancho, alto), _("fijar la zona"))
+        self._ok(dll.SetQHYCCDBitsMode(h, bits), _("fijar {bits} bits", bits=bits))
         largo = int(dll.GetQHYCCDMemLength(h))
         if largo in (0, QHYCCD_ERROR):
             largo = self.propiedades["ancho"] * self.propiedades["alto"] * 2
@@ -419,8 +425,8 @@ class CamaraQHY:
         if stream == self._stream:
             return
         dll, h = self._dll, self._h
-        self._ok(dll.SetQHYCCDStreamMode(h, stream), "cambiar entre foto y vídeo")
-        self._ok(dll.InitQHYCCD(h), "reinicializar la cámara")
+        self._ok(dll.SetQHYCCDStreamMode(h, stream), _("cambiar entre foto y vídeo"))
+        self._ok(dll.InitQHYCCD(h), _("reinicializar la cámara"))
         self._stream = stream
         if self.propiedades["color"]:
             dll.SetQHYCCDDebayerOnOff(h, False)
@@ -442,12 +448,12 @@ class CamaraQHY:
     # ── Vídeo ─────────────────────────────────────────────────────────────
     def iniciar_video(self):
         if self._zona is None:
-            raise ErrorCamaraQHY("Configura la cámara antes de iniciar el vídeo")
+            raise ErrorCamaraQHY(_("Configura la cámara antes de iniciar el vídeo"))
         if self._hilo is not None:
             self.abortar()
         if not self._video:
             self._cambiar_stream(1)
-            self._ok(self._dll.BeginQHYCCDLive(self._h), "iniciar el vídeo")
+            self._ok(self._dll.BeginQHYCCDLive(self._h), _("iniciar el vídeo"))
             self._video = True
 
     def parar_video(self):
@@ -461,8 +467,8 @@ class CamaraQHY:
         try:
             err = self._dll.ExpQHYCCDSingleFrame(self._h)
             if err not in (QHYCCD_SUCCESS, QHYCCD_READ_DIRECTLY):
-                raise ErrorCamaraQHY(f"iniciar la exposición: {_texto_error(err)}")
-            self._frame = self._leer_buffer(self._dll.GetQHYCCDSingleFrame, "leer la foto")
+                raise ErrorCamaraQHY(_("iniciar la exposición") + ": " + _texto_error(err))
+            self._frame = self._leer_buffer(self._dll.GetQHYCCDSingleFrame, _("leer la foto"))
         except Exception as e:
             self._error_hilo = e
 
@@ -482,7 +488,7 @@ class CamaraQHY:
     def disparar(self):
         """Empieza una sola exposición y vuelve enseguida (hay_frame() dice cuándo está; leer_frame() la lee)."""
         if self._zona is None:
-            raise ErrorCamaraQHY("Configura la cámara antes de disparar")
+            raise ErrorCamaraQHY(_("Configura la cámara antes de disparar"))
         self.parar_video()
         if self._hilo is not None:
             log.info("Cámara QHY: había una exposición en curso; se corta y se repite el disparo")
@@ -519,28 +525,28 @@ class CamaraQHY:
         fotograma. Devuelve una vista del búfer interno (h×w uint8/uint16): copiar para conservar.
         """
         if self._zona is None:
-            raise ErrorCamaraQHY("Configura la cámara antes de leer fotogramas")
+            raise ErrorCamaraQHY(_("Configura la cámara antes de leer fotogramas"))
         if timeout_ms is None:
             timeout_ms = int(self._exposicion_ms * 2 + 500)
         if self._hilo is not None:
             self._hilo.join(timeout=self._exposicion_ms / 1000.0 + timeout_ms / 1000.0)
             if self._hilo.is_alive():
-                raise ErrorCamaraQHY("leer fotograma: la exposición no terminó a tiempo")
+                raise ErrorCamaraQHY(_("leer fotograma: la exposición no terminó a tiempo"))
             self._hilo = None
             if self._error_hilo is not None:
                 raise ErrorCamaraQHY(str(self._error_hilo))
             if not isinstance(self._frame, np.ndarray):
-                raise ErrorCamaraQHY(f"leer la foto: {_texto_error(self._frame)}")
+                raise ErrorCamaraQHY(_("leer la foto") + ": " + _texto_error(self._frame))
             return self._frame
         if not self._video:
-            raise ErrorCamaraQHY("No hay ninguna exposición ni vídeo en marcha")
+            raise ErrorCamaraQHY(_("No hay ninguna exposición ni vídeo en marcha"))
         limite = time.monotonic() + timeout_ms / 1000.0
         while True:
-            frame = self._leer_buffer(self._dll.GetQHYCCDLiveFrame, "leer fotograma")
+            frame = self._leer_buffer(self._dll.GetQHYCCDLiveFrame, _("leer fotograma"))
             if isinstance(frame, np.ndarray):
                 return frame
             if time.monotonic() > limite:
-                raise ErrorCamaraQHY("leer fotograma: no llega ningún fotograma del vídeo")
+                raise ErrorCamaraQHY(_("leer fotograma: no llega ningún fotograma del vídeo"))
             time.sleep(0.002)
 
     def descartados(self):

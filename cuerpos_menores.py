@@ -22,6 +22,8 @@ import threading
 import unicodedata
 from datetime import datetime, date
 
+from idioma import _, ngettext, fmt_num
+
 log = logging.getLogger("scopepower.cuerpos_menores")
 
 CARPETA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "datos", "mpc")
@@ -59,9 +61,10 @@ def actualizar(forzar=False):
     os.makedirs(CARPETA, exist_ok=True)
     pendientes = [n for n in FUENTES if forzar or (_edad_dias(os.path.join(CARPETA, n)) or 1e9) > MAX_EDAD_DIAS]
     if not pendientes:
-        return 0, "Elementos orbitales al día"
+        return 0, _("Elementos orbitales al día")
     if not hay_internet():
-        return 0, "Sin Internet: se usan los elementos guardados" if estado()["cometas"] else "Sin Internet y sin elementos guardados"
+        return 0, (_("Sin Internet: se usan los elementos guardados") if estado()["cometas"]
+                   else _("Sin Internet y sin elementos guardados"))
     import requests
     n = 0
     for nombre in pendientes:
@@ -79,7 +82,7 @@ def actualizar(forzar=False):
             log.warning("No se pudo descargar %s: %s", url, e)
     with _lock:
         _cache["mtime"] = None          # forzar recarga
-    return n, f"{n} lista(s) de elementos actualizada(s)"
+    return n, ngettext("{n} lista de elementos actualizada", "{n} listas de elementos actualizadas", n)
 
 
 def actualizar_en_segundo_plano():
@@ -140,7 +143,7 @@ def cargar(forzar=False):
     """Lee las listas guardadas (caché en memoria hasta que cambien los ficheros)."""
     import ephem
     rutas = [(os.path.join(CARPETA, "cometas.txt"), "cometa"), (os.path.join(CARPETA, "asteroides.txt"), "asteroide")]
-    mtime = tuple(os.path.getmtime(r) if os.path.exists(r) else 0 for r, _ in rutas)
+    mtime = tuple(os.path.getmtime(r) if os.path.exists(r) else 0 for r, __ in rutas)
     with _lock:
         if not forzar and _cache["mtime"] == mtime:
             return _cache["cuerpos"]
@@ -278,8 +281,11 @@ def brillantes(lat, lon, alt_m=0.0, cuando=None, mag_max=12.0, maximo=25):
             "ra_h": float(cuerpo.a_ra) * 12.0 / ephem.pi, "dec_deg": degrees(float(cuerpo.a_dec)),
             "mag": round(mag, 1), "tamano_arcmin": None, "constelacion": "",
             "popularidad": 5 if mag < 7 else 4 if mag < 9 else 3 if mag < 11 else 2,
-            "descripcion": ("Cometa" if entrada["tipo"] == "cometa" else "Asteroide") +
-                           f" a {float(cuerpo.earth_distance):.2f} UA; magnitud prevista {mag:.1f} (elementos del MPC).",
+            "descripcion": (_("Cometa a {ua} UA; magnitud prevista {mag} (elementos del MPC).",
+                              ua=fmt_num(float(cuerpo.earth_distance), 2), mag=fmt_num(mag, 1))
+                            if entrada["tipo"] == "cometa" else
+                            _("Asteroide a {ua} UA; magnitud prevista {mag} (elementos del MPC).",
+                              ua=fmt_num(float(cuerpo.earth_distance), 2), mag=fmt_num(mag, 1))),
         })
     salida.sort(key=lambda s: s["mag"])
     return salida[:maximo]

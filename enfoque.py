@@ -51,6 +51,7 @@ import threading
 import collections
 import numpy as np
 import cv2
+from idioma import _, fmt_num
 
 _lock = threading.Lock()
 _estado = {"activo": False}
@@ -170,19 +171,22 @@ def texto_info(info, para_imagen=False):
     sep = "  |  " if para_imagen else " · "
     if "limbo" in info:
         if info.get("limbo") is None:
-            return "limbo: " + str(info.get("motivo") or "no se ve el disco")
-        partes = [f"Limbo {info['limbo']:.1f} px"]
+            return _("limbo: {motivo}", motivo=info.get("motivo") or _("no se ve el disco"))
+        partes = [_("Limbo {px} px", px=fmt_num(info['limbo'], 1))]
         if info.get("mejor") is not None:
-            partes.append(f"mejor {info['mejor']:.1f}")
+            partes.append(_("mejor {px}", px=fmt_num(info['mejor'], 1)))
         if not para_imagen and info.get("n"):
-            partes.append(f"{info['n']} ángulos")
-        return sep.join(partes).replace(".", ",")
+            partes.append(_("{n} ángulos", n=info['n']))
+        return sep.join(partes)
     if not np.isfinite(info.get("fwhm_g", float("nan"))):
         return ""
-    partes = [f"FWHM verde {info['fwhm_g']:.1f} px".replace(".", ",")]
-    partes += [f"{n} {info[k]:.1f}".replace(".", ",") for k, n in (("fwhm_r", "rojo"), ("fwhm_b", "azul")) if np.isfinite(info.get(k, float("nan")))]
+    partes = [_("FWHM verde {px} px", px=fmt_num(info['fwhm_g'], 1))]
+    if np.isfinite(info.get("fwhm_r", float("nan"))):
+        partes.append(_("rojo {px}", px=fmt_num(info["fwhm_r"], 1)))
+    if np.isfinite(info.get("fwhm_b", float("nan"))):
+        partes.append(_("azul {px}", px=fmt_num(info["fwhm_b"], 1)))
     if info.get("saturada"):
-        partes.append("SATURADA" if para_imagen else "saturada: baja la exposición o la ganancia")
+        partes.append(_("SATURADA") if para_imagen else _("saturada: baja la exposición o la ganancia"))
     return sep.join(partes)
 
 
@@ -220,7 +224,7 @@ def componer(gris8, recorte, info, pulsado=None):
         if texto:
             escala = max(0.45, min(2.0, rl / 420.0))
             g_txt = max(1, int(round(escala * 1.3)))
-            (tw, th), _ = cv2.getTextSize(texto, cv2.FONT_HERSHEY_SIMPLEX, escala, g_txt)
+            (tw, th), __ = cv2.getTextSize(texto, cv2.FONT_HERSHEY_SIMPLEX, escala, g_txt)
             ox, oy = max(2, w - m - tw), min(h - 6, m + rl + th + m)
             cv2.putText(base, texto, (ox, oy), cv2.FONT_HERSHEY_SIMPLEX, escala, (0, 0, 0), g_txt + 3, cv2.LINE_AA)
             cv2.putText(base, texto, (ox, oy), cv2.FONT_HERSHEY_SIMPLEX, escala, (120, 255, 120), g_txt, cv2.LINE_AA)
@@ -276,14 +280,14 @@ def circulo_disco(plano, semilla=0, reduccion=2, con_borde=False):
     if alto - bajo < 0.05 * max(alto, 1.0):
         return None
     mascara = (suave > bajo + 0.25 * (alto - bajo)).astype(np.uint8)
-    n, etiquetas, stats, _ = cv2.connectedComponentsWithStats(mascara, 8)
+    n, etiquetas, stats, __ = cv2.connectedComponentsWithStats(mascara, 8)
     if n <= 1:
         return None
     mayor = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
     if stats[mayor, cv2.CC_STAT_AREA] < 400:
         return None
     comp = (etiquetas == mayor).astype(np.uint8)
-    contornos, _ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contornos, __ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     p = max(contornos, key=len).reshape(-1, 2).astype(np.float64)
     p = p[(p[:, 0] > 1) & (p[:, 0] < w - 2) & (p[:, 1] > 1) & (p[:, 1] < h - 2)]    # el borde de la imagen no es limbo
     if len(p) < 30:
@@ -292,7 +296,7 @@ def circulo_disco(plano, semilla=0, reduccion=2, con_borde=False):
     if len(p) > 1500:
         p = p[rng.choice(len(p), 1500, replace=False)]
     mejor, mejor_n = None, 0
-    for _ in range(300):
+    for __ in range(300):
         a, b, c = p[rng.choice(len(p), 3, replace=False)]
         circ = _circulo_3_puntos(a, b, c)
         if circ is None or circ[2] < 10 or circ[2] > 2 * max(h, w):
@@ -306,7 +310,7 @@ def circulo_disco(plano, semilla=0, reduccion=2, con_borde=False):
     cx, cy, r = mejor
     inl = p[np.abs(np.hypot(p[:, 0] - cx, p[:, 1] - cy) - r) < max(1.5, 0.01 * r)]
     A = np.c_[2 * inl[:, 0], 2 * inl[:, 1], np.ones(len(inl))]
-    sol, *_ = np.linalg.lstsq(A, inl[:, 0] ** 2 + inl[:, 1] ** 2, rcond=None)
+    sol, *__ = np.linalg.lstsq(A, inl[:, 0] ** 2 + inl[:, 1] ** 2, rcond=None)
     cx, cy = float(sol[0]), float(sol[1])
     r = float(math.sqrt(max(sol[2] + cx * cx + cy * cy, 1.0)))
     # Coordenadas del plano entero: el píxel (i) del reducido es el (k·i) del entero, centrado en k·i + (k−1)/2
@@ -394,12 +398,12 @@ def medir_disco(verde, escala_px=1.0, n_ang=ANGULOS_LIMBO, terminador=False):
     """
     c = circulo_disco(verde, con_borde=True)
     if c is None:
-        return {"limbo": None, "motivo": "no se ve el disco"}
+        return {"limbo": None, "motivo": _("no se ve el disco")}
     cx, cy, r, borde = c
     anch, angs, radios = anchura_limbo(verde, cx, cy, r, n_ang=n_ang)
     info = {"cx": round(cx, 1), "cy": round(cy, 1), "r": round(r, 1)}
     if len(anch) < 12:
-        info.update({"limbo": None, "motivo": "el limbo no se ve bien (¿nubes, saturado, casi fuera de campo?)"})
+        info.update({"limbo": None, "motivo": _("el limbo no se ve bien (¿nubes, saturado, casi fuera de campo?)")})
         return info
     # El recorte: el punto del limbo más cercano a «arriba» del plano (el borde queda horizontal, cielo arriba)
     d = np.abs((angs + np.pi / 2 + np.pi) % (2 * np.pi) - np.pi)
@@ -433,7 +437,7 @@ class HistorialLimbo:
         """(anchura actual, mejor de la sesión, recorte más nítido) o (None, None, None)."""
         if not self.ultimos:
             return None, self.mejor, None
-        anchuras = [a for a, _ in self.ultimos]
+        anchuras = [a for a, __ in self.ultimos]
         actual = float(np.median(anchuras[-MEDIANA_FOTOGRAMAS:]))
         if self.mejor is None or actual < self.mejor:
             self.mejor = actual
@@ -445,7 +449,7 @@ def _punto_en_vista(x, y, forma, paso, orientar, girar):
     marca = np.zeros((forma[0] // paso + (1 if forma[0] % paso else 0), forma[1] // paso + (1 if forma[1] % paso else 0)), np.uint8)
     yy, xx = min(marca.shape[0] - 1, int(y) // paso), min(marca.shape[1] - 1, int(x) // paso)
     marca[yy, xx] = 255
-    girada, _ = girar(orientar(np.ascontiguousarray(marca)))
+    girada, __ = girar(orientar(np.ascontiguousarray(marca)))
     iy, ix = np.unravel_index(int(np.argmax(girada)), girada.shape[:2])
     return int(ix), int(iy)
 
@@ -505,7 +509,7 @@ def imagen_foto_noche(rgb_lineal, girar):
     recorte = recorte_estrella(gris, info["x"], info["y"])
     girada, encuadre = girar(gris)
     # La estrella en la imagen girada: se vuelve a localizar en el gris girado (barato)
-    xg, yg, _ = estrella_mas_brillante(girada)
+    xg, yg, __ = estrella_mas_brillante(girada)
     return componer(girada, recorte, info, pulsado=(xg, yg)), encuadre, info
 
 
@@ -522,7 +526,7 @@ def imagen_vivo(cfa, patron, paso, orientar, girar):
     vista = gris_completo[::paso, ::paso] if paso > 1 else gris_completo
     vista = orientar(np.ascontiguousarray(vista))
     girada, encuadre = girar(vista)
-    xg, yg, _ = estrella_mas_brillante(girada)
+    xg, yg, __ = estrella_mas_brillante(girada)
     return componer(girada, recorte, info, pulsado=(xg, yg)), encuadre, info
 
 

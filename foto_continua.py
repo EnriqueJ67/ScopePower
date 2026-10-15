@@ -22,6 +22,7 @@ import logging
 from datetime import datetime
 
 from hardware import estado_captura
+from idioma import _, ngettext
 
 log = logging.getLogger("scopepower.continuo")
 
@@ -101,12 +102,12 @@ class TrabajoContinuo:
         modo             : "noche" (exposición de Configuración) | "dia" (exposición automática)
         """
         if guardar not in FORMATOS:
-            raise ValueError(f"Formato desconocido: {guardar}")
+            raise ValueError(_("Formato desconocido: {formato}", formato=guardar))
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("El modo continuo ya está en marcha")
+                raise RuntimeError(_("El modo continuo ya está en marcha"))
             if camara.ocupado:
-                raise RuntimeError("La cámara está ocupada con otra captura")
+                raise RuntimeError(_("La cámara está ocupada con otra captura"))
             self._reiniciar()
             self._parar.clear()
             self.en_curso = True
@@ -117,7 +118,7 @@ class TrabajoContinuo:
             if guardar != "no":
                 self.carpeta = os.path.join(raiz or CARPETA_CONTINUO, self.inicio)
                 self.libre = espacio_libre(self.carpeta)
-            self.mensaje = "Empezando el modo continuo..."
+            self.mensaje = _("Empezando el modo continuo...")
         self._hilo = threading.Thread(target=self._ejecutar, name="foto-continua", daemon=True,
                                       args=(capturar, voz, al_terminar))
         self._hilo.start()
@@ -133,7 +134,7 @@ class TrabajoContinuo:
     def _ejecutar(self, capturar, voz, al_terminar=None):
         error = ""
         if voz:
-            voz.decir("Modo continuo", categoria="capturas")
+            voz.decir(_("Modo continuo"), categoria="capturas")
         try:
             while not self._parar.is_set():
                 n = self.hechas + 1
@@ -143,14 +144,14 @@ class TrabajoContinuo:
                     with self._lock:
                         self.libre = libre
                     if libre is not None and libre < DISCO_MINIMO_BYTES:
-                        error = f"Parado: queda menos de 1 GB libre en el disco ({self.hechas} fotos guardadas)"
+                        error = ngettext("Parado: queda menos de 1 GB libre en el disco ({n} foto guardada)", "Parado: queda menos de 1 GB libre en el disco ({n} fotos guardadas)", self.hechas)
                         break
                     copia = {"carpeta": self.carpeta, "formato": self.guardar, "nombre": f"foto_{n:04d}"}
                 try:
                     resultado = capturar(copia)
                 except Exception as e:
                     log.exception("Error inesperado en el modo continuo")
-                    resultado = {"ok": False, "mensaje": f"Error inesperado: {e}"}
+                    resultado = {"ok": False, "mensaje": _("Error inesperado: {e}", e=e)}
 
                 if resultado.get("ok"):
                     archivo = resultado.get("archivo")
@@ -170,7 +171,8 @@ class TrabajoContinuo:
                                        "dark": bool(resultado.get("dark")), "ganancia": resultado.get("ganancia"),
                                        "archivo": os.path.basename(archivo) if archivo else ""}
                         self.version += 1
-                    self._msg(f"Foto {n} a las {hora}" + (f" · guardada {os.path.basename(archivo)}" if archivo else ""))
+                    self._msg(_("Foto {n} a las {hora} · guardada {archivo}", n=n, hora=hora, archivo=os.path.basename(archivo)) if archivo
+                              else _("Foto {n} a las {hora}", n=n, hora=hora))
                 elif resultado.get("cancelada"):
                     # "Cancelar" (o parar()) durante la exposición: se acaba el bucle
                     break
@@ -179,9 +181,9 @@ class TrabajoContinuo:
                         self.errores += 1
                         self.errores_seguidos += 1
                         seguidos = self.errores_seguidos
-                    self._msg(f"Error en la foto {n}: {resultado.get('mensaje', 'Error')}")
+                    self._msg(_("Error en la foto {n}: {e}", n=n, e=resultado.get('mensaje') or _("Error")))
                     if seguidos >= ERRORES_SEGUIDOS_MAX:
-                        error = f"Parado tras {seguidos} errores seguidos: {resultado.get('mensaje', 'Error')}"
+                        error = _("Parado tras {n} errores seguidos: {e}", n=seguidos, e=resultado.get('mensaje') or _("Error"))
                         break
                     self._parar.wait(1.0)
                     continue
@@ -195,9 +197,9 @@ class TrabajoContinuo:
                 if error:
                     self.mensaje = error
                 elif self.guardar != "no" and self.hechas:
-                    self.mensaje = f"Modo continuo parado: {self.hechas} fotos guardadas en {os.path.basename(self.carpeta)}"
+                    self.mensaje = ngettext("Modo continuo parado: {n} foto guardada en {carpeta}", "Modo continuo parado: {n} fotos guardadas en {carpeta}", self.hechas, carpeta=os.path.basename(self.carpeta))
                 else:
-                    self.mensaje = f"Modo continuo parado tras {self.hechas} fotos"
+                    self.mensaje = ngettext("Modo continuo parado tras {n} foto", "Modo continuo parado tras {n} fotos", self.hechas)
             log.info(self.mensaje)
             if al_terminar:
                 try:
@@ -206,7 +208,7 @@ class TrabajoContinuo:
                     log.exception("Error en al_terminar del modo continuo")
             if voz:
                 try:
-                    voz.decir("Modo continuo parado", categoria="capturas")
+                    voz.decir(_("Modo continuo parado"), categoria="capturas")
                 except Exception:
                     pass
 

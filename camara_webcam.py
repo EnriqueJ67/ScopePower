@@ -30,6 +30,8 @@ import configparser
 
 import numpy as np
 
+from idioma import _
+
 log = logging.getLogger("scopepower.camara_webcam")
 
 NOMBRE_MARCA = "Webcam"
@@ -105,14 +107,15 @@ class CamaraWebcam:
         import cv2
         cap = cv2.VideoCapture(self._indice, cv2.CAP_DSHOW)
         if not cap.isOpened():
-            raise ErrorWebcam(f"No se puede abrir la webcam {self._indice + 1} (¿desconectada o en uso por otro programa?)")
+            raise ErrorWebcam(_("No se puede abrir la webcam {n} (¿desconectada o en uso por otro programa?)",
+                                 n=self._indice + 1))
         # La mayor resolución que acepte: se pide 4K y DirectShow se queda con la más cercana
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2160)
         ok, f = cap.read()
         if not ok or f is None:
             cap.release()
-            raise ErrorWebcam("La webcam se abre pero no da imagen")
+            raise ErrorWebcam(_("La webcam se abre pero no da imagen"))
         cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)       # exposición manual
         self._cap = cap
         try:
@@ -159,7 +162,7 @@ class CamaraWebcam:
 
     def _necesita(self):
         if self._cap is None:
-            raise ErrorWebcam("La webcam no está abierta")
+            raise ErrorWebcam(_("La webcam no está abierta"))
         return self._cap
 
     # ── Ajustes ──────────────────────────────────────────────────────────
@@ -182,14 +185,14 @@ class CamaraWebcam:
                 log.info("La webcam no deja cambiar la ganancia")
             self._valores["Gain"] = v
         else:
-            raise ErrorWebcam(f"La webcam no tiene el ajuste {nombre}")
+            raise ErrorWebcam(_("La webcam no tiene el ajuste {nombre}", nombre=nombre))
 
     def leer(self, nombre):
         if nombre == "Exposure":
             return int(round(self._exposicion_ms * 1000))
         if nombre in self._valores:
             return self._valores[nombre]
-        raise ErrorWebcam(f"La webcam no tiene el ajuste {nombre}")
+        raise ErrorWebcam(_("La webcam no tiene el ajuste {nombre}", nombre=nombre))
 
     # ── Zona, formato y exposición ───────────────────────────────────────
     def configurar(self, roi_px=1024, binning=1, formato="RAW16", exposicion_ms=30.0, ganancia=None, **kw):
@@ -206,7 +209,8 @@ class CamaraWebcam:
                         offset=None, usb_limite=None, fps_max=None):
         """Zona en píxeles YA con binning; el recorte y el binning se hacen aquí, sobre la imagen."""
         if formato not in FORMATOS:
-            raise ValueError(f"Formato desconocido: {formato} ({', '.join(FORMATOS)})")
+            raise ValueError(_("Formato desconocido: {formato} ({formatos})", formato=formato,
+                               formatos=", ".join(FORMATOS)))
         self._necesita()
         self.abortar()
         self._binning = max(1, int(binning))
@@ -246,7 +250,7 @@ class CamaraWebcam:
             self._descartar -= 1
         ok, f = cap.read()
         if not ok or f is None:
-            raise ErrorWebcam("La webcam no ha dado imagen (¿desconectada?)")
+            raise ErrorWebcam(_("La webcam no ha dado imagen (¿desconectada?)"))
         return f
 
     def _convertir(self, bgr, escala):
@@ -330,12 +334,12 @@ class CamaraWebcam:
             if self._error_foto:
                 raise ErrorWebcam(str(self._error_foto))
             if self._foto is None:
-                raise ErrorWebcam("La foto de la webcam no terminó a tiempo")
+                raise ErrorWebcam(_("La foto de la webcam no terminó a tiempo"))
             self._hilo_foto = None
             self._buffer = self._foto
             return self._buffer
         if not self._video:
-            raise ErrorWebcam("No hay ninguna exposición ni vídeo en marcha")
+            raise ErrorWebcam(_("No hay ninguna exposición ni vídeo en marcha"))
         self._buffer = self._convertir(self._leer_bgr(), self._escala())
         return self._buffer
 

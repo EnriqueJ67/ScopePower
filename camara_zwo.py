@@ -33,6 +33,8 @@ from ctypes import c_int, c_long, c_double, c_float, c_char, c_char_p, c_ubyte, 
 
 import numpy as np
 
+from idioma import _, ngettext, N_
+
 log = logging.getLogger("scopepower.camara_zwo")
 
 NOMBRE_MARCA = "ZWO ASI"
@@ -65,12 +67,12 @@ TIPO_CONTROL = {nombre: tipo for tipo, nombre in CONTROLES.items()}
 EXP_IDLE, EXP_TRABAJANDO, EXP_EXITO, EXP_FALLO = 0, 1, 2, 3
 
 ERRORES = {
-    1: "índice de cámara no válido", 2: "identificador de cámara no válido", 3: "ajuste no válido",
-    4: "la cámara está cerrada", 5: "la cámara se ha desconectado", 6: "ruta no válida",
-    7: "formato de archivo no válido", 8: "tamaño de imagen no válido", 9: "tipo de imagen no válido",
-    10: "la zona se sale del sensor", 11: "tiempo de espera agotado", 12: "orden de llamadas no válido",
-    13: "búfer demasiado pequeño", 14: "el vídeo está en marcha", 15: "hay una exposición en curso",
-    16: "error general", 17: "modo no válido",
+    1: N_("índice de cámara no válido"), 2: N_("identificador de cámara no válido"), 3: N_("ajuste no válido"),
+    4: N_("la cámara está cerrada"), 5: N_("la cámara se ha desconectado"), 6: N_("ruta no válida"),
+    7: N_("formato de archivo no válido"), 8: N_("tamaño de imagen no válido"), 9: N_("tipo de imagen no válido"),
+    10: N_("la zona se sale del sensor"), 11: N_("tiempo de espera agotado"), 12: N_("orden de llamadas no válido"),
+    13: N_("búfer demasiado pequeño"), 14: N_("el vídeo está en marcha"), 15: N_("hay una exposición en curso"),
+    16: N_("error general"), 17: N_("modo no válido"),
 }
 ERROR_EXPONIENDO = 15
 
@@ -141,8 +143,9 @@ def cargar_dll(ruta=None):
             except (OSError, AttributeError) as e:
                 ultimo_error = e
         else:
-            raise ErrorCamaraZWO("No se encuentra ASICamera2.dll: instala el driver de ZWO o N.I.N.A., o indica "
-                                 f"la ruta en config.ini, [CamaraSDK] dll_zwo ({ultimo_error or 'ninguna ruta válida'})")
+            raise ErrorCamaraZWO(_("No se encuentra ASICamera2.dll: instala el driver de ZWO o N.I.N.A., o indica "
+                                   "la ruta en config.ini, [CamaraSDK] dll_zwo ({error})",
+                                   error=ultimo_error or _("ninguna ruta válida")))
         _declarar_prototipos(dll)
         _dll = dll
         log.info("SDK ZWO %s cargado de %s", dll.ASIGetSDKVersion().decode(errors="replace"), r)
@@ -177,7 +180,8 @@ def _declarar_prototipos(dll):
 
 
 def _texto_error(err):
-    return f"{ERRORES.get(int(err), 'error desconocido')} ({err})"
+    texto = _(ERRORES[int(err)]) if int(err) in ERRORES else _("error desconocido")
+    return f"{texto} ({err})"
 
 
 def _info_a_dict(p):
@@ -230,15 +234,17 @@ class CamaraZWO:
         dll = self._dll
         n = dll.ASIGetNumOfConnectedCameras()
         if n <= self._indice:
-            raise ErrorCamaraZWO("No hay ninguna cámara ZWO conectada" if n == 0
-                                 else f"Solo hay {n} cámara(s) ZWO; pedida la {self._indice + 1}")
+            raise ErrorCamaraZWO(_("No hay ninguna cámara ZWO conectada") if n == 0
+                                 else ngettext("Solo hay {n} cámara ZWO; pedida la {pedida}",
+                                               "Solo hay {n} cámaras ZWO; pedida la {pedida}",
+                                               n, pedida=self._indice + 1))
         p = ASI_CAMERA_INFO()
-        self._ok(dll.ASIGetCameraProperty(byref(p), self._indice), "leer propiedades")
+        self._ok(dll.ASIGetCameraProperty(byref(p), self._indice), _("leer propiedades"))
         self.propiedades = _info_a_dict(p)
         cid = int(p.CameraID)
-        self._ok(dll.ASIOpenCamera(cid), "abrir la cámara (¿la tiene otra aplicación?)")
+        self._ok(dll.ASIOpenCamera(cid), _("abrir la cámara (¿la tiene otra aplicación?)"))
         try:
-            self._ok(dll.ASIInitCamera(cid), "inicializar la cámara")
+            self._ok(dll.ASIInitCamera(cid), _("inicializar la cámara"))
         except ErrorCamaraZWO:
             dll.ASICloseCamera(cid)
             raise
@@ -281,7 +287,7 @@ class CamaraZWO:
     # ── Ajustes ──────────────────────────────────────────────────────────
     def _leer_caps(self):
         n = c_int()
-        self._ok(self._dll.ASIGetNumOfControls(self._id, byref(n)), "contar ajustes")
+        self._ok(self._dll.ASIGetNumOfControls(self._id, byref(n)), _("contar ajustes"))
         self._caps = {}
         for i in range(n.value):
             c = ASI_CONTROL_CAPS()
@@ -310,16 +316,16 @@ class CamaraZWO:
     def poner(self, nombre, valor, auto=False):
         """Fija un ajuste por su nombre ("Gain", "Exposure" en µs, "Offset"...)."""
         if nombre not in self._caps:
-            raise ErrorCamaraZWO(f"La cámara no tiene el ajuste {nombre}")
+            raise ErrorCamaraZWO(_("La cámara no tiene el ajuste {nombre}", nombre=nombre))
         tipo = int(self._caps[nombre].ControlType)
-        self._ok(self._dll.ASISetControlValue(self._id, tipo, int(valor), 1 if auto else 0), f"fijar {nombre}")
+        self._ok(self._dll.ASISetControlValue(self._id, tipo, int(valor), 1 if auto else 0), _("fijar {nombre}", nombre=nombre))
 
     def leer(self, nombre):
         if nombre not in self._caps:
-            raise ErrorCamaraZWO(f"La cámara no tiene el ajuste {nombre}")
+            raise ErrorCamaraZWO(_("La cámara no tiene el ajuste {nombre}", nombre=nombre))
         v, auto = c_long(), c_int()
         tipo = int(self._caps[nombre].ControlType)
-        self._ok(self._dll.ASIGetControlValue(self._id, tipo, byref(v), byref(auto)), f"leer {nombre}")
+        self._ok(self._dll.ASIGetControlValue(self._id, tipo, byref(v), byref(auto)), _("leer {nombre}", nombre=nombre))
         if nombre == "Temperature":
             return v.value / 10.0
         return int(v.value)
@@ -345,16 +351,17 @@ class CamaraZWO:
         """
         dll, cid = self._dll, self._id
         if formato not in FORMATOS:
-            raise ValueError(f"Formato desconocido: {formato} (RAW8, RAW16, RGB24 o MONO8)")
+            raise ValueError(_("Formato desconocido: {formato} (RAW8, RAW16, RGB24 o MONO8)", formato=formato))
         binning = max(1, int(binning))
         if self.propiedades["bins"] and binning not in self.propiedades["bins"]:
-            raise ErrorCamaraZWO(f"La cámara no admite binning {binning} (admite {self.propiedades['bins']})")
+            raise ErrorCamaraZWO(_("La cámara no admite binning {binning} (admite {bins})", binning=binning,
+                                   bins=self.propiedades["bins"]))
         with self._lock:
             self.abortar()
             ancho, alto = max(8, int(ancho) & ~7), max(2, int(alto) & ~1)
             x0, y0 = int(x0) & ~1, int(y0) & ~1
-            self._ok(dll.ASISetROIFormat(cid, ancho, alto, binning, FORMATOS[formato]), "fijar zona y formato")
-            self._ok(dll.ASISetStartPos(cid, x0, y0), "fijar origen de la zona")     # después: SetROIFormat la centra
+            self._ok(dll.ASISetROIFormat(cid, ancho, alto, binning, FORMATOS[formato]), _("fijar zona y formato"))
+            self._ok(dll.ASISetStartPos(cid, x0, y0), _("fijar origen de la zona"))     # después: SetROIFormat la centra
             self.poner("Exposure", self._recortar("Exposure", round(float(exposicion_ms) * 1000)))
             self._exposicion_ms = float(exposicion_ms)
             if ganancia is not None:
@@ -387,12 +394,12 @@ class CamaraZWO:
     # ── Vídeo ─────────────────────────────────────────────────────────────
     def iniciar_video(self):
         if self._buffer is None:
-            raise ErrorCamaraZWO("Configura la cámara antes de iniciar el vídeo")
+            raise ErrorCamaraZWO(_("Configura la cámara antes de iniciar el vídeo"))
         if self._foto:
             self._dll.ASIStopExposure(self._id)
             self._foto = False
         if not self._video:
-            self._ok(self._dll.ASIStartVideoCapture(self._id), "iniciar el vídeo")
+            self._ok(self._dll.ASIStartVideoCapture(self._id), _("iniciar el vídeo"))
             self._video = True
 
     def parar_video(self):
@@ -404,7 +411,7 @@ class CamaraZWO:
     def disparar(self):
         """Empieza una sola exposición y vuelve enseguida (hay_frame() dice cuándo está; leer_frame() la lee)."""
         if self._buffer is None:
-            raise ErrorCamaraZWO("Configura la cámara antes de disparar")
+            raise ErrorCamaraZWO(_("Configura la cámara antes de disparar"))
         self.parar_video()
         err = self._dll.ASIStartExposure(self._id, 0)
         if err == ERROR_EXPONIENDO:
@@ -412,15 +419,15 @@ class CamaraZWO:
             self._dll.ASIStopExposure(self._id)
             time.sleep(0.05)
             err = self._dll.ASIStartExposure(self._id, 0)
-        self._ok(err, "iniciar la exposición")
+        self._ok(err, _("iniciar la exposición"))
         self._foto = True
 
     def _estado_exposicion(self):
         s = c_int()
-        self._ok(self._dll.ASIGetExpStatus(self._id, byref(s)), "consultar la exposición")
+        self._ok(self._dll.ASIGetExpStatus(self._id, byref(s)), _("consultar la exposición"))
         if s.value == EXP_FALLO:
             self._foto = False
-            raise ErrorCamaraZWO("La exposición ha fallado (la cámara la dio por perdida)")
+            raise ErrorCamaraZWO(_("La exposición ha fallado (la cámara la dio por perdida)"))
         return s.value
 
     def hay_frame(self):
@@ -448,7 +455,7 @@ class CamaraZWO:
         fotograma. Devuelve el búfer interno (h×w uint8/uint16 o h×w×3): copiar para conservar.
         """
         if self._buffer is None:
-            raise ErrorCamaraZWO("Configura la cámara antes de leer fotogramas")
+            raise ErrorCamaraZWO(_("Configura la cámara antes de leer fotogramas"))
         if timeout_ms is None:
             timeout_ms = int(self._exposicion_ms * 2 + 500)
         ptr = self._buffer.ctypes.data_as(POINTER(c_ubyte))
@@ -456,14 +463,14 @@ class CamaraZWO:
             limite = time.monotonic() + self._exposicion_ms / 1000.0 + timeout_ms / 1000.0
             while self._estado_exposicion() != EXP_EXITO:
                 if time.monotonic() > limite:
-                    raise ErrorCamaraZWO("leer fotograma: la exposición no terminó a tiempo")
+                    raise ErrorCamaraZWO(_("leer fotograma: la exposición no terminó a tiempo"))
                 time.sleep(0.01)
             self._foto = False
-            self._ok(self._dll.ASIGetDataAfterExp(self._id, ptr, self._bytes), "leer la foto")
+            self._ok(self._dll.ASIGetDataAfterExp(self._id, ptr, self._bytes), _("leer la foto"))
             return self._buffer
         if not self._video:
-            raise ErrorCamaraZWO("No hay ninguna exposición ni vídeo en marcha")
-        self._ok(self._dll.ASIGetVideoData(self._id, ptr, self._bytes, int(timeout_ms)), "leer fotograma")
+            raise ErrorCamaraZWO(_("No hay ninguna exposición ni vídeo en marcha"))
+        self._ok(self._dll.ASIGetVideoData(self._id, ptr, self._bytes, int(timeout_ms)), _("leer fotograma"))
         return self._buffer
 
     def descartados(self):

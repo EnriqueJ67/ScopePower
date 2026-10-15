@@ -14,6 +14,8 @@ import threading
 import logging
 import configparser
 
+from idioma import _, N_
+
 log = logging.getLogger("scopepower.anuncio_ip")
 
 _ADAPTADORES_IGNORAR = ("virtual", "vmware", "hyper-v", "vethernet", "bluetooth", "loopback", "tunnel", "tap-",
@@ -27,8 +29,8 @@ def _prioridad_adaptador(nombre):
     if "ethernet" in n:
         return 1
     return 2
-_DIGITOS = {"0": "cero", "1": "uno", "2": "dos", "3": "tres", "4": "cuatro",
-            "5": "cinco", "6": "seis", "7": "siete", "8": "ocho", "9": "nueve"}
+_DIGITOS = {"0": N_("cero"), "1": N_("uno"), "2": N_("dos"), "3": N_("tres"), "4": N_("cuatro"),
+            "5": N_("cinco"), "6": N_("seis"), "7": N_("siete"), "8": N_("ocho"), "9": N_("nueve")}
 
 
 def _prioridad(ip):
@@ -86,19 +88,20 @@ def dictar_ip(ip):
     """'192.168.1.23' -> 'uno nueve dos, punto, uno seis ocho, punto, uno, punto, dos tres'"""
     grupos = []
     for octeto in ip.split("."):
-        grupos.append(" ".join(_DIGITOS.get(d, d) for d in octeto))
-    return ", punto, ".join(grupos)
+        grupos.append(" ".join(_(_DIGITOS[d]) if d in _DIGITOS else d for d in octeto))
+    return _(", punto, ").join(grupos)
 
 
 def texto_anuncio(puerto, incluir_nombre=True):
     ips = direcciones_ip()
     if not ips:
-        return "ScopePower listo, pero no encuentro ninguna dirección de red. Comprueba el wifi."
-    partes = ["ScopePower listo. Para conectar, escribe en el navegador:"]
-    for ip, _ in ips[:2]:
-        partes.append(f"{dictar_ip(ip)}, dos puntos, puerto {puerto}.")
+        return _("ScopePower listo, pero no encuentro ninguna dirección de red. Comprueba el wifi.")
+    partes = [_("ScopePower listo. Para conectar, escribe en el navegador:")]
+    for ip, __ in ips[:2]:
+        partes.append(_("{ip}, dos puntos, puerto {puerto}.", ip=dictar_ip(ip), puerto=puerto))
     if incluir_nombre:
-        partes.append(f"También vale el nombre {nombre_equipo()} punto local, puerto {puerto}.")
+        partes.append(_("También vale el nombre {nombre} punto local, puerto {puerto}.", nombre=nombre_equipo(),
+                         puerto=puerto))
     return " ".join(partes)
 
 

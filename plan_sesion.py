@@ -36,6 +36,7 @@ import astropy.units as u
 from unidecode import unidecode
 
 import esta_noche
+from idioma import _, ngettext, N_, formato_fecha
 
 log = logging.getLogger("scopepower.plan")
 
@@ -50,8 +51,8 @@ ESTADOS = ("pendiente", "en_curso", "hecho", "saltado", "error")
 # Planetas y Luna que el plan sabe calcular (clave astropy); el Sol no se admite
 CUERPOS = {"luna": "moon", "mercurio": "mercury", "venus": "venus", "marte": "mars", "jupiter": "jupiter",
            "saturno": "saturn", "urano": "uranus", "neptuno": "neptune"}
-NOMBRES_CUERPOS = {"moon": "Luna", "mercury": "Mercurio", "venus": "Venus", "mars": "Marte", "jupiter": "Júpiter",
-                   "saturn": "Saturno", "uranus": "Urano", "neptune": "Neptuno"}
+NOMBRES_CUERPOS = {"moon": N_("Luna"), "mercury": N_("Mercurio"), "venus": N_("Venus"), "mars": N_("Marte"), "jupiter": N_("Júpiter"),
+                   "saturn": N_("Saturno"), "uranus": N_("Urano"), "neptune": N_("Neptuno")}
 
 AJUSTES_DEFECTO = {
     "altura_minima": 25.0,       # grados; la efectiva es max(esta, la general de config.ini)
@@ -274,7 +275,7 @@ def reiniciar_resultados():
 def cambiar_estado(id_, estado):
     """'pendiente' (repetir un objeto hecho o parcial) o 'hecho' (darlo por bueno a mano)."""
     if estado not in ("pendiente", "hecho"):
-        raise ValueError("Estado no válido")
+        raise ValueError(_("Estado no válido"))
 
     def fn(plan):
         o = _buscar(plan, id_)
@@ -282,10 +283,10 @@ def cambiar_estado(id_, estado):
             return None
         o["estado"] = estado
         o["intentos"] = 0
-        o["motivo"] = "" if estado == "pendiente" else "marcado a mano"
+        o["motivo"] = "" if estado == "pendiente" else _("marcado a mano")
         if estado == "hecho" and not o["resultado"]:
-            o["resultado"] = {"archivo": None, "fotos": None, "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                              "motivo": "marcado a mano", "parcial": False}
+            o["resultado"] = {"archivo": None, "fotos": None, "fecha": datetime.now().strftime(formato_fecha()),
+                              "motivo": _("marcado a mano"), "parcial": False}
         return o
     return _modificar(fn)
 
@@ -420,7 +421,7 @@ def messier_completo(catalogo=None):
     messier.sort(key=lambda o: int(o["id"][1:].strip()))
     anadidos = duplicados = 0
     for o in messier:
-        _, dup = anadir(o["id"], o["ra_h"], o["dec_deg"], o["tipo"])
+        __, dup = anadir(o["id"], o["ra_h"], o["dec_deg"], o["tipo"])
         if dup:
             duplicados += 1
         else:
@@ -646,7 +647,7 @@ def simular(objetos, vis, tpf_de, max_intentos=2, ahora=None):
     for o in restantes:
         v = vis.por_id.get(o["id"])
         if not v or not v["sube"]:
-            motivo = f"no sube de {v['alt_max']}° esta noche" if v else "sin datos de altura"
+            motivo = _("no sube de {alt}° esta noche", alt=v['alt_max']) if v else _("sin datos de altura")
             fp = 0
         else:
             t_ini = v["desde"] if (v["desde"] - t_ini_noche).sec > 0 else t_ini_noche
@@ -654,13 +655,18 @@ def simular(objetos, vis, tpf_de, max_intentos=2, ahora=None):
             sube_tarde = (v["desde"] - t_ini_noche).sec > 60
             if fp < o["fotos"]:
                 amanece = (fin - v["hasta"]).sec < PASO_MIN * 60
-                pre = f"sube a las {_hhmm(v['desde'])} y " if sube_tarde else ""
-                if amanece:
-                    motivo = f"{pre}amanece a las {_hhmm(fin)}: solo caben {fp} de {o['fotos']}"
+                if amanece and sube_tarde:
+                    motivo = _("sube a las {sube} y amanece a las {hora}: solo caben {fp} de {n}", sube=_hhmm(v['desde']),
+                               hora=_hhmm(fin), fp=fp, n=o['fotos'])
+                elif amanece:
+                    motivo = _("amanece a las {hora}: solo caben {fp} de {n}", hora=_hhmm(fin), fp=fp, n=o['fotos'])
+                elif sube_tarde:
+                    motivo = _("sube a las {sube} y se pone a las {hora}: solo caben {fp} de {n}", sube=_hhmm(v['desde']),
+                               hora=_hhmm(v['hasta']), fp=fp, n=o['fotos'])
                 else:
-                    motivo = f"{pre}se pone a las {_hhmm(v['hasta'])}: solo caben {fp} de {o['fotos']}"
+                    motivo = _("se pone a las {hora}: solo caben {fp} de {n}", hora=_hhmm(v['hasta']), fp=fp, n=o['fotos'])
             else:
-                motivo = "no queda hueco esta noche"
+                motivo = _("no queda hueco esta noche")
         no_programados.append({"id": o["id"], "motivo": motivo, "fotos_posibles": fp})
     return {"tramos": tramos, "esperas": esperas, "no_programados": no_programados,
             "fin_previsto": tramos[-1]["fin"] if tramos else None,
@@ -727,16 +733,17 @@ class TrabajoPlan:
     def iniciar(self, deps):
         with self._lock:
             if self.en_curso:
-                raise RuntimeError("El plan ya está en marcha")
+                raise RuntimeError(_("El plan ya está en marcha"))
             otro = deps.otro_trabajo_en_curso()
             if otro:
-                raise RuntimeError(f"Espera a que termine el trabajo de {otro}")
+                raise RuntimeError(_("Espera a que termine el trabajo de {otro}", otro=otro))
             pendientes = preparar_noche()
             if pendientes == 0:
                 r = resumen()
                 if r["total"] == 0:
-                    raise RuntimeError("El plan está vacío: añade algún objeto")
-                raise RuntimeError(f"Plan completado: {r['hechos']} objetos hechos. Reinicia los resultados para repetirlo")
+                    raise RuntimeError(_("El plan está vacío: añade algún objeto"))
+                raise RuntimeError(ngettext("Plan completado: {n} objeto hecho. Reinicia los resultados para repetirlo",
+                                             "Plan completado: {n} objetos hechos. Reinicia los resultados para repetirlo", r['hechos']))
             self._reiniciar()
             self._cancelar.clear()
             self._pausa.clear()
@@ -745,7 +752,7 @@ class TrabajoPlan:
             self.en_curso = True
             self.inicio = datetime.now()
             self.fase = "esperando"
-            self.mensaje = "Preparando la noche..."
+            self.mensaje = _("Preparando la noche...")
         self._hilo = threading.Thread(target=self._ejecutar, name="plan-noche", daemon=True)
         self._hilo.start()
         return self._hilo
@@ -754,13 +761,13 @@ class TrabajoPlan:
         self._pausa.set()
         if self.fase == "apilando" and self.deps is not None:
             self.deps.bucle.pausar()
-        self._evento("Plan pausado")
+        self._evento(_("Plan pausado"))
 
     def reanudar(self):
         self._pausa.clear()
         if self.deps is not None and self.deps.bucle.activo:
             self.deps.bucle.reanudar()
-        self._evento("Plan reanudado")
+        self._evento(_("Plan reanudado"))
 
     def detener(self):
         if not self.en_curso:
@@ -882,11 +889,11 @@ class TrabajoPlan:
             self._bucle_principal(originales)
         except PlanDetenido:
             resultado = "detenido"
-            self._evento("Plan detenido por el usuario", decir="Plan detenido")
+            self._evento(_("Plan detenido por el usuario"), decir=_("Plan detenido"))
         except Exception as e:
             resultado = "error"
             log.exception("Error en el plan de la noche")
-            self._evento(f"Plan detenido por un error: {e}", decir="Plan detenido por un error")
+            self._evento(_("Plan detenido por un error: {e}", e=e), decir=_("Plan detenido por un error"))
         finally:
             try:
                 if deps.bucle.activo:
@@ -901,7 +908,7 @@ class TrabajoPlan:
             # Un objeto que se quedó en curso vuelve a pendiente
             for o in leer()["objetos"]:
                 if o["estado"] == "en_curso":
-                    marcar(o["id"], "pendiente", "interrumpido")
+                    marcar(o["id"], "pendiente", _("interrumpido"))
             with self._lock:
                 self.en_curso = False
                 self.fase = "terminado"
@@ -917,21 +924,21 @@ class TrabajoPlan:
             plan = leer()
             vis, programa = self.calcular(plan)
             if (vis.fin - vis.ahora).sec <= 0:
-                self._terminar_noche(plan, programa, "Amanece")
+                self._terminar_noche(plan, programa, _("Amanece"))
                 return
             if not vis.de_noche:
                 self._set(fase="esperando", espera_hasta=_hhmm(vis.inicio), objeto_actual=None)
-                self._evento(f"Esperando al anochecer ({_hhmm(vis.inicio)})")
+                self._evento(_("Esperando al anochecer ({hora})", hora=_hhmm(vis.inicio)))
                 self._dormir(30)
                 continue
             if not programa["tramos"]:
-                self._terminar_noche(plan, programa, "Nada más que fotografiar esta noche")
+                self._terminar_noche(plan, programa, _("Nada más que fotografiar esta noche"))
                 return
             primero = programa["tramos"][0]
             if (primero["inicio"] - vis.ahora).sec > 60:
                 nombre = next((o["nombre"] for o in plan["objetos"] if o["id"] == primero["id"]), "?")
                 self._set(fase="esperando", espera_hasta=_hhmm(primero["inicio"]), objeto_actual=None)
-                self._evento(f"Esperando a que suba {nombre} ({_hhmm(primero['inicio'])})")
+                self._evento(_("Esperando a que suba {objeto} ({hora})", objeto=nombre, hora=_hhmm(primero['inicio'])))
                 self._dormir(30)
                 continue
             objeto = next(o for o in plan["objetos"] if o["id"] == primero["id"])
@@ -944,14 +951,23 @@ class TrabajoPlan:
         max_intentos = plan["ajustes"]["max_intentos"]
         for o in leer()["objetos"]:
             if o["estado"] == "pendiente" and o["intentos"] >= max_intentos:
-                marcar(o["id"], "saltado", f"{o['intentos']} intentos esta noche: {o['motivo'] or 'sin éxito'}")
+                marcar(o["id"], "saltado", ngettext("{n} intento esta noche: {motivo}", "{n} intentos esta noche: {motivo}", o['intentos'],
+                                                    motivo=o['motivo'] or _("sin éxito")))
         r = resumen()
         pendientes = r["total"] - r["hechos"]
-        texto = f"{motivo}. Esta noche: {self.hechos_noche} objetos hechos"
         if pendientes:
-            texto += f"; quedan {pendientes} para otra noche"
-        self._evento(texto, decir=f"Plan de esta noche terminado. {self.hechos_noche} objetos hechos"
-                     + (f", quedan {pendientes} para otra noche" if pendientes else ". Plan completo"))
+            texto = ngettext("{motivo}. Esta noche: {n} objeto hecho; quedan {p} para otra noche",
+                             "{motivo}. Esta noche: {n} objetos hechos; quedan {p} para otra noche",
+                             self.hechos_noche, motivo=motivo, p=pendientes)
+            decir = ngettext("Plan de esta noche terminado. {n} objeto hecho, quedan {p} para otra noche",
+                             "Plan de esta noche terminado. {n} objetos hechos, quedan {p} para otra noche",
+                             self.hechos_noche, p=pendientes)
+        else:
+            texto = ngettext("{motivo}. Esta noche: {n} objeto hecho", "{motivo}. Esta noche: {n} objetos hechos",
+                             self.hechos_noche, motivo=motivo)
+            decir = ngettext("Plan de esta noche terminado. {n} objeto hecho. Plan completo",
+                             "Plan de esta noche terminado. {n} objetos hechos. Plan completo", self.hechos_noche)
+        self._evento(texto, decir=decir)
         self._set(fase="terminado", espera_hasta=None, objeto_actual=None)
 
     def _fotografiar(self, plan, vis, objeto, originales):
@@ -960,7 +976,8 @@ class TrabajoPlan:
         altura_min = self._altura_efectiva(plan)
         marcar(objeto["id"], "en_curso", "")
         self._set(objeto_actual=objeto, fotos=0, espera_hasta=None)
-        self._evento(f"Siguiente objeto: {objeto['nombre']} ({objeto['fotos']} fotos)", decir=f"Siguiente objeto: {objeto['nombre']}")
+        self._evento(ngettext("Siguiente objeto: {objeto} ({n} foto)", "Siguiente objeto: {objeto} ({n} fotos)", objeto['fotos'], objeto=objeto['nombre']),
+                     decir=_("Siguiente objeto: {objeto}", objeto=objeto['nombre']))
 
         lat, lon, alt_m = deps.lugar()
         ra, dec = float(objeto["ra_h"]), float(objeto["dec_deg"])
@@ -982,13 +999,13 @@ class TrabajoPlan:
         if self._cancelar.is_set():
             raise PlanDetenido()
         if not r.get("ok"):
-            marcar(objeto["id"], "pendiente", r.get("motivo") or "GoTo fallido", sumar_intento=True)
-            self._evento(f"{objeto['nombre']}: {r.get('motivo') or 'GoTo fallido'}; se deja para más tarde")
+            marcar(objeto["id"], "pendiente", r.get("motivo") or _("GoTo fallido"), sumar_intento=True)
+            self._evento(_("{objeto}: {motivo}; se deja para más tarde", objeto=objeto['nombre'], motivo=r.get('motivo') or _("GoTo fallido")))
             self._dormir(2)
             return
         if r.get("centrado") in ("error", "cancelado"):
-            marcar(objeto["id"], "pendiente", f"centrado fallido: {r.get('detalle', '')}", sumar_intento=True)
-            self._evento(f"{objeto['nombre']}: centrado fallido ({r.get('detalle', '')}); se deja para más tarde")
+            marcar(objeto["id"], "pendiente", _("centrado fallido: {detalle}", detalle=r.get('detalle', '')), sumar_intento=True)
+            self._evento(_("{objeto}: centrado fallido ({detalle}); se deja para más tarde", objeto=objeto['nombre'], detalle=r.get('detalle', '')))
             self._dormir(2)
             return
         if r.get("centrado"):
@@ -1022,21 +1039,24 @@ class TrabajoPlan:
             if g.get("ok", True) and g.get("en_curso"):
                 g = deps.esperar_guardado()
             archivo = g.get("archivo")
-            res = {"archivo": archivo, "fotos": total, "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            res = {"archivo": archivo, "fotos": total, "fecha": datetime.now().strftime(formato_fecha()),
                    "motivo": motivo, "parcial": not completo}
             if completo:
                 marcar(objeto["id"], "hecho", "", res)
                 with self._lock:
                     self.hechos_noche += 1
-                self._evento(f"{objeto['nombre']} hecho: {total} fotos, guardado como {archivo}",
-                             decir=f"{objeto['nombre']} terminado y guardado en la galería")
+                self._evento(ngettext("{objeto} hecho: {n} foto, guardado como {archivo}", "{objeto} hecho: {n} fotos, guardado como {archivo}",
+                                      total, objeto=objeto['nombre'], archivo=archivo),
+                             decir=_("{objeto} terminado y guardado en la galería", objeto=objeto['nombre']))
             else:
                 # Detener no cuenta como intento fallido; saltar a mano sí (así pasa al final de la cola)
                 marcar(objeto["id"], "pendiente", motivo, res, sumar_intento=(motivo != "detenido"))
-                self._evento(f"{objeto['nombre']}: {motivo}; guardado parcial ({total} fotos) y queda pendiente")
+                self._evento(ngettext("{objeto}: {motivo}; guardado parcial ({n} foto) y queda pendiente",
+                                      "{objeto}: {motivo}; guardado parcial ({n} fotos) y queda pendiente", total,
+                                      objeto=objeto['nombre'], motivo=motivo))
         else:
             marcar(objeto["id"], "pendiente", motivo, sumar_intento=(motivo != "detenido"))
-            self._evento(f"{objeto['nombre']}: {motivo}; sin fotos, se deja para más tarde")
+            self._evento(_("{objeto}: {motivo}; sin fotos, se deja para más tarde", objeto=objeto['nombre'], motivo=motivo))
         deps.reiniciar_apilado()
         if motivo == "detenido":
             raise PlanDetenido()
@@ -1056,7 +1076,7 @@ class TrabajoPlan:
                 return "detenido"
             if self._saltar.is_set():
                 self._saltar.clear()
-                return "saltado a mano"
+                return _("saltado a mano")
             e = deps.estado_apilado()
             total = int(e.get("total") or 0)
             if total > total_visto:
@@ -1069,7 +1089,7 @@ class TrabajoPlan:
             # Edición en caliente del número de fotos
             actual = next((o for o in leer()["objetos"] if o["id"] == objeto["id"]), None)
             if actual is None:
-                return "saltado a mano"
+                return _("saltado a mano")
             if actual["fotos"] != fotos_objetivo:
                 fotos_objetivo = actual["fotos"]
                 objeto["fotos"] = fotos_objetivo
@@ -1079,7 +1099,7 @@ class TrabajoPlan:
             if actual["zoom"] != objeto["zoom"]:
                 objeto["zoom"] = actual["zoom"]
                 deps.guardar_config("Dispositivos", {"zoom_preview": actual["zoom"]})
-                self._evento(f"{objeto['nombre']}: zoom cambiado a {100 - actual['zoom']} % del campo")
+                self._evento(_("{objeto}: zoom cambiado a {p} % del campo", objeto=objeto['nombre'], p=100 - actual['zoom']))
                 try:
                     deps.reprocesar_preview()
                 except Exception as ex:
@@ -1101,8 +1121,9 @@ class TrabajoPlan:
             if not bucle.activo:
                 # Lo paró alguien (errores de cámara, botón Detener del apilado): el plan espera
                 self._pausa.set()
-                self._evento(f"Apilado detenido ({bucle.ultimo_mensaje or 'sin motivo'}); plan en pausa. Reanuda para reintentar {objeto['nombre']}",
-                             decir="Apilado detenido. Plan en pausa")
+                self._evento(_("Apilado detenido ({motivo}); plan en pausa. Reanuda para reintentar {objeto}",
+                               motivo=bucle.ultimo_mensaje or _("sin motivo"), objeto=objeto['nombre']),
+                             decir=_("Apilado detenido. Plan en pausa"))
                 self._esperar_reanudar()
                 if self._cancelar.is_set():
                     return "detenido"
@@ -1112,13 +1133,13 @@ class TrabajoPlan:
                 ultimo_check_altura = ahora
                 try:
                     if deps.calcular_altitud(ra, dec) < altura_min:
-                        return "se puso"
+                        return _("se puso")
                 except Exception as ex:
                     log.warning("Plan: no se pudo calcular la altura: %s", ex)
                 if deps.es_de_dia() and not ajustes.get("probar_de_dia"):
-                    return "amanece"
+                    return _("amanece")
             if ahora - t_ultima > ajustes["minutos_sin_fotos"] * 60:
-                return f"sin fotos aceptadas en {ajustes['minutos_sin_fotos']} min"
+                return _("sin fotos aceptadas en {n} min", n=ajustes['minutos_sin_fotos'])
             self._cancelar.wait(2.0)
 
     def _esperar_procesado(self, timeout=120):
