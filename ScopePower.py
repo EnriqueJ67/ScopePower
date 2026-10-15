@@ -726,7 +726,7 @@ def _activar_seguimiento(tel):
 # "Reconectar equipo" basta, sin reiniciar la app.
 montura = TrabajadorCOM("montura", lambda: _dispositivos()["driver_telescopio"], al_conectar=_activar_seguimiento)
 camara = TrabajadorCOM("cámara", lambda: _dispositivos()["driver_camara"], al_conectar=lambda cam: (voz.decir("Cámara conectada"), humor.decir("conexion_ok")),
-                       fabricas={camara_sdk.DRIVER_SDK: camara_sdk.crear})    # Player One por la DLL, como en N.I.N.A.
+                       fabricas={camara_sdk.PREFIJO: camara_sdk.crear})    # SDK:<marca>: la cámara por su SDK, como en N.I.N.A.
 
 
 def _asegurar_seguimiento(motivo):
@@ -1899,8 +1899,18 @@ def ascom_drivers():
         log.warning("No se pudo leer el perfil ASCOM (%s): %s", tipo, e)
     drivers.sort(key=lambda d: d["name"].lower())
     if tipo == "Camera":
-        # La cámara Player One también se puede usar sin ASCOM, por su DLL (camara_sdk.py)
-        drivers.insert(0, {"progid": camara_sdk.DRIVER_SDK, "name": camara_sdk.NOMBRE_DRIVER})
+        # Las cámaras que se pueden usar sin ASCOM, por el SDK de su marca (camara_sdk.py), primero.
+        # La marca de la cámara abierta ahora (conectada o en el modo en vivo) no se vuelve a sondear.
+        no_tocar = ()
+        if camara.esta_conectado() or camara.reservado_por:
+            try:
+                no_tocar = (camara_sdk.leer_driver(_dispositivos()["driver_camara"])[0],)
+            except ValueError:
+                pass
+        try:
+            drivers = camara_sdk.detectar_camaras(no_tocar=no_tocar) + drivers
+        except Exception as e:
+            log.warning("No se pudieron buscar cámaras por SDK: %s", e)
     return jsonify({"drivers": drivers})
 
 
@@ -4452,8 +4462,8 @@ def vivo_iniciar():
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": f"Espera a que termine el trabajo de {nombre}"}), 409
     if not camara_sdk.es_sdk(_dispositivos()["driver_camara"]):
-        return jsonify({"ok": False, "error": "El modo en vivo necesita la cámara por SDK: elige el driver "
-                                              f"«{camara_sdk.NOMBRE_DRIVER}» en Configuración"}), 409
+        return jsonify({"ok": False, "error": "El modo en vivo necesita la cámara por SDK: elige en Configuración "
+                                              f"un driver «{camara_sdk.NOMBRE_DRIVER}»"}), 409
     # Seguimiento solar/lunar como en la foto de día; la web lo devuelve a sidéreo al salir del modo día
     seguimiento_montura = None
     conf = foto_dia.OBJETIVOS[objetivo]

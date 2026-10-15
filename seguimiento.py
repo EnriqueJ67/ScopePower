@@ -533,10 +533,8 @@ class TrabajoSeguimiento:
 
     # ── fábricas por defecto ─────────────────────────────────────────────
     def _camara_por_defecto(self):
-        from camara_nativa import CamaraNativa
-        cam = CamaraNativa()
-        cam.abrir()
-        return cam
+        import camara_sdk
+        return camara_sdk.nativa_por_defecto()     # el SDK de la marca de la cámara configurada
 
     def _montura_por_defecto(self, montura_ascom):
         import montura_ejes

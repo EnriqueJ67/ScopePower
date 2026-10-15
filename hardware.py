@@ -45,8 +45,9 @@ class TrabajadorCOM:
     """
 
     def __init__(self, nombre, obtener_driver, al_conectar=None, fabricas=None):
-        """`fabricas`: {nombre de driver: función que crea el dispositivo} para drivers que no son
-        COM/ASCOM, como SDK:PlayerOne (camara_sdk.py). Los demás se crean con win32com."""
+        """`fabricas`: {nombre de driver: función(driver) que crea el dispositivo} para drivers que no
+        son COM/ASCOM, como SDK:ZWO (camara_sdk.py). Un nombre acabado en ":" vale para todos los
+        drivers que empiezan así. Los demás se crean con win32com."""
         self.nombre = nombre
         self._obtener_driver = obtener_driver
         self._al_conectar = al_conectar
@@ -69,9 +70,11 @@ class TrabajadorCOM:
         if self._dispositivo is None:
             driver = self._obtener_driver()
             log.info("Conectando %s con driver %s", self.nombre, driver)
-            fabrica = self._fabricas.get(str(driver).strip().upper())
+            clave = str(driver).strip().upper()
+            fabrica = self._fabricas.get(clave) or next(
+                (f for k, f in self._fabricas.items() if k.endswith(":") and clave.startswith(k)), None)
             try:
-                dispositivo = fabrica() if fabrica else win32com.client.Dispatch(driver)
+                dispositivo = fabrica(str(driver).strip()) if fabrica else win32com.client.Dispatch(driver)
             except pywintypes.com_error as e:
                 # CO_E_CLASSSTRING: Windows solo decía "Cadena clase no válida"
                 if e.hresult == -2147221005:

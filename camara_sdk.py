@@ -1,11 +1,22 @@
 # camara_sdk.py
 #
-# La cámara Player One por su SDK nativo (PlayerOneCamera.dll) con la misma cara
-# que un driver ASCOM, como en N.I.N.A.: en Configuración se elige el "driver"
-# SDK:PlayerOne en vez de ASCOM.PlayerOne.Camera y TODO lo de la app (fotos de
-# noche y de día, darks, flats, apilado, centrado, alineación, continuo,
-# timelapse) pasa por la DLL sin cambiar nada más. Si la DLL diera problemas,
-# basta volver a elegir el driver ASCOM.
+# Cámaras por su SDK nativo, sin ASCOM, con la misma cara que un driver ASCOM,
+# como en N.I.N.A.: en Configuración se elige el "driver" SDK:<marca> en vez del
+# ASCOM y TODO lo de la app (fotos de noche y de día, darks, flats, apilado,
+# centrado, alineación, continuo, timelapse, modo en vivo, seguimiento) pasa
+# por el SDK sin cambiar nada más. Si el SDK diera problemas, basta volver a
+# elegir el driver ASCOM.
+#
+# Marcas (MARCAS): Player One (camara_nativa.py), ZWO ASI (camara_zwo.py) y
+# webcams UVC (camara_webcam.py). Cada módulo da listar_camaras() y una clase
+# con la interfaz de CamaraNativa; para añadir otra marca basta escribir su
+# módulo y darla de alta en MARCAS. El driver es "SDK:<marca>" para la primera
+# cámara de esa marca y "SDK:<marca>:<n>" para la n-ésima (desde 0), y el
+# desplegable de Configuración enseña las que hay conectadas (detectar_camaras).
+#
+# Patrón Bayer: la app trabaja en RGGB. Si el sensor es BGGR, GRBG o GBRG, la
+# imagen se desplaza un píxel en la fila o la columna para que empiece en rojo
+# (se pierde solo el borde).
 #
 # Solo imita lo que usa la app de ASCOM ICamera (inventario del 28-sep-2026):
 # Connected, CameraXSize/YSize, PixelSizeX/Y, SensorType, MaxADU, BinX/BinY,
@@ -37,14 +48,88 @@ import orientacion_camara
 
 log = logging.getLogger("scopepower.camara_sdk")
 
+PREFIJO = "SDK:"
 DRIVER_SDK = "SDK:PlayerOne"
-NOMBRE_DRIVER = "Player One por SDK nativo (DLL, sin ASCOM)"
+NOMBRE_DRIVER = "por SDK nativo (sin ASCOM)"
 SENSOR_TYPE = {"MONO": 0, "RGGB": 2, "BGGR": 2, "GRBG": 2, "GBRG": 2}
 PATRONES = ("RGGB", "BGGR", "GRBG", "GBRG")
+# Desplazamiento (filas, columnas) que lleva cada patrón a RGGB, en la orientación del SDK
+A_RGGB = {"RGGB": (0, 0), "GRBG": (0, -1), "GBRG": (-1, 0), "BGGR": (-1, -1)}
+
+# Clave del driver → (nombre visible, módulo, clase). El orden es el del desplegable.
+MARCAS = {
+    "PlayerOne": ("Player One", "camara_nativa", "CamaraNativa"),
+    "ZWO": ("ZWO ASI", "camara_zwo", "CamaraZWO"),
+    "Webcam": ("Webcam", "camara_webcam", "CamaraWebcam"),
+}
 
 
 def es_sdk(driver):
-    return str(driver or "").strip().upper() == DRIVER_SDK.upper()
+    return str(driver or "").strip().upper().startswith(PREFIJO)
+
+
+def leer_driver(driver):
+    """'SDK:ZWO:1' → ('ZWO', 1). Los drivers ASCOM devuelven la marca que se les supone, con índice 0."""
+    texto = str(driver or "").strip()
+    if es_sdk(texto):
+        partes = texto[len(PREFIJO):].split(":")
+        marca = next((m for m in MARCAS if m.upper() == partes[0].strip().upper()), None)
+        if marca is None:
+            raise ValueError(f"Marca de cámara desconocida en el driver «{texto}» "
+                             f"(conocidas: {', '.join(MARCAS)})")
+        try:
+            indice = max(0, int(partes[1])) if len(partes) > 1 and partes[1].strip() else 0
+        except ValueError:
+            raise ValueError(f"Número de cámara no válido en el driver «{texto}»")
+        return marca, indice
+    # Driver ASCOM: el modo en vivo y el seguimiento abren la cámara por el SDK de su marca
+    alto = texto.upper()
+    if "ASI" in alto or "ZWO" in alto:
+        return "ZWO", 0
+    return "PlayerOne", 0
+
+
+def driver_de(marca, indice=0):
+    return f"{PREFIJO}{marca}" + (f":{indice}" if indice else "")
+
+
+def _modulo(marca):
+    import importlib
+    return importlib.import_module(MARCAS[marca][1])
+
+
+def detectar_camaras(no_tocar=()):
+    """
+    Entradas {progid, name} del desplegable: una por cámara conectada de cada marca y, si el
+    SDK de una marca está instalado pero no hay ninguna enchufada, una genérica. Las marcas de
+    `no_tocar` (la cámara está abierta por la app) no se vuelven a sondear: se usa lo último visto.
+    """
+    entradas = []
+    for marca, (nombre, _, _) in MARCAS.items():
+        if marca in no_tocar and marca in _ultimas:
+            camaras = _ultimas[marca]
+        else:
+            try:
+                camaras = _modulo(marca).listar_camaras()
+            except Exception as e:
+                log.info("Cámaras %s por SDK: no disponibles (%s)", nombre, e)
+                _ultimas.pop(marca, None)
+                continue
+            _ultimas[marca] = camaras
+        if not camaras:
+            if marca != "Webcam":
+                entradas.append({"progid": driver_de(marca), "name": f"{nombre} {NOMBRE_DRIVER} — ninguna conectada ahora"})
+            continue
+        for i, c in enumerate(camaras):
+            modelo = str(c.get("modelo") or nombre)
+            if marca != "Webcam" and not modelo.upper().startswith(nombre.split()[0].upper()):
+                modelo = f"{nombre} {modelo}"
+            entradas.append({"progid": driver_de(marca, i),
+                             "name": f"{modelo} (webcam, sin ASCOM)" if marca == "Webcam" else f"{modelo} {NOMBRE_DRIVER}"})
+    return entradas
+
+
+_ultimas = {}
 
 
 def _config(ruta="config.ini"):
@@ -77,23 +162,29 @@ def offset_deseado(ruta_config="config.ini"):
     return None, ""
 
 
-def nativa_por_defecto():
-    """CamaraNativa abierta, o la simulada si config.ini tiene [CamaraSDK] simulador_fits (pruebas)."""
-    ruta = _config().get("CamaraSDK", "simulador_fits", fallback="").strip()
+def nativa_por_defecto(driver=None):
+    """
+    La cámara del driver (por defecto el de config.ini) abierta por el SDK de su marca, o la
+    simulada si config.ini tiene [CamaraSDK] simulador_fits (pruebas).
+    """
+    cfg = _config()
+    ruta = cfg.get("CamaraSDK", "simulador_fits", fallback="").strip()
     if ruta:
         cam = CamaraNativaSimulada(ruta)
     else:
-        from camara_nativa import CamaraNativa
-        cam = CamaraNativa()
+        if driver is None:
+            driver = cfg.get("Dispositivos", "driver_camara", fallback=DRIVER_SDK)
+        marca, indice = leer_driver(driver)
+        cam = getattr(_modulo(marca), MARCAS[marca][2])(indice)
     cam.abrir()
     return cam
 
 
 class CamaraSDK:
-    """Objeto con la interfaz de ASCOM ICamera que usa la app, sobre CamaraNativa."""
+    """Objeto con la interfaz de ASCOM ICamera que usa la app, sobre la cámara nativa de cualquier marca."""
 
-    def __init__(self, fabrica_nativa=None):
-        self._fabrica = fabrica_nativa or nativa_por_defecto
+    def __init__(self, fabrica_nativa=None, driver=None):
+        self._fabrica = fabrica_nativa or (lambda: nativa_por_defecto(driver))
         self._cam = None
         self._orientacion = "traspuesta"
         self.BinX = self.BinY = 1
@@ -144,6 +235,8 @@ class CamaraSDK:
             log.warning("La orientación SDK→ASCOM %s cambia el patrón Bayer %s: los colores pueden salir cambiados",
                         self._orientacion, patron)
         self._patron = patron
+        if A_RGGB.get(patron, (0, 0)) != (0, 0):
+            log.info("Cámara por SDK: patrón %s, se desplaza la imagen un píxel para entregarla en RGGB", patron)
         log.info("Cámara por SDK conectada: %s %s, %dx%d, %s, píxel %.2f µm, imagen SDK→ASCOM %s",
                  p.get("modelo", ""), p.get("sensor", ""), self.CameraXSize_, self.CameraYSize_, patron,
                  float(p.get("pixel_um") or 0), self._orientacion)
@@ -156,7 +249,7 @@ class CamaraSDK:
     # ── propiedades fijas ────────────────────────────────────────────────
     @property
     def Name(self):
-        return f"{(self._cam.propiedades.get('modelo') if self._cam else 'Player One')} (SDK)"
+        return f"{(self._cam.propiedades.get('modelo') if self._cam else 'Cámara')} (SDK)"
 
     @property
     def CameraXSize(self):
@@ -183,7 +276,11 @@ class CamaraSDK:
         return 0
 
     BayerOffsetY = BayerOffsetX
-    MaxADU = 65535                  # RAW16 del SDK, alineado a 16 bits como el del driver ASCOM
+    @property
+    def MaxADU(self):
+        # RAW16 del SDK, alineado a 16 bits como el del driver ASCOM
+        return int(getattr(self._cam, "max_adu", 65535) or 65535)
+
     CanAbortExposure = True
     CanStopExposure = True
 
@@ -255,6 +352,9 @@ class CamaraSDK:
     def ImageArray(self):
         """El fotograma en la orientación de ASCOM (np.array(ImageArray) como con el driver ASCOM)."""
         buf = np.array(self._necesita().leer_frame(timeout_ms=5000), copy=True)
+        desplazamiento = A_RGGB.get(getattr(self, "_patron", "MONO"), (0, 0))
+        if desplazamiento != (0, 0) and int(self.BinX) == 1 and buf.ndim == 2:
+            buf = np.roll(buf, desplazamiento, axis=(0, 1))       # que la imagen empiece por el rojo
         img = np.ascontiguousarray(orientacion_camara.TRANSFORMACIONES[self._orientacion](buf))
         if self._orientacion not in ("identidad", "traspuesta"):
             b = max(1, int(self.BinX))
@@ -268,9 +368,10 @@ class CamaraSDK:
     StopExposure = AbortExposure
 
 
-def crear():
-    """Fábrica para hardware.TrabajadorCOM (driver SDK:PlayerOne)."""
-    return CamaraSDK()
+def crear(driver=DRIVER_SDK):
+    """Fábrica para hardware.TrabajadorCOM (drivers SDK:<marca>[:<n>])."""
+    leer_driver(driver)          # marca desconocida: error claro antes de intentar conectar
+    return CamaraSDK(driver=driver)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
