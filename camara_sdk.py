@@ -7,8 +7,10 @@
 # por el SDK sin cambiar nada más. Si el SDK diera problemas, basta volver a
 # elegir el driver ASCOM.
 #
-# Marcas (MARCAS): Player One (camara_nativa.py), ZWO ASI (camara_zwo.py) y
-# webcams UVC (camara_webcam.py). Cada módulo da listar_camaras() y una clase
+# Marcas (MARCAS): Player One (camara_nativa.py), ZWO ASI (camara_zwo.py),
+# QHYCCD (camara_qhy.py), la familia ToupTek con Altair, Ogma, Risingcam,
+# SVBony, Omegon y MallinCam (camara_toupcam.py) y webcams UVC
+# (camara_webcam.py). Cada módulo da listar_camaras() y una clase
 # con la interfaz de CamaraNativa; para añadir otra marca basta escribir su
 # módulo y darla de alta en MARCAS. El driver es "SDK:<marca>" para la primera
 # cámara de esa marca y "SDK:<marca>:<n>" para la n-ésima (desde 0), y el
@@ -60,6 +62,8 @@ A_RGGB = {"RGGB": (0, 0), "GRBG": (0, -1), "GBRG": (-1, 0), "BGGR": (-1, -1)}
 MARCAS = {
     "PlayerOne": ("Player One", "camara_nativa", "CamaraNativa"),
     "ZWO": ("ZWO ASI", "camara_zwo", "CamaraZWO"),
+    "QHY": ("QHYCCD", "camara_qhy", "CamaraQHY"),
+    "ToupTek": ("ToupTek (Altair, Ogma, Risingcam, SVBony…)", "camara_toupcam", "CamaraToupcam"),
     "Webcam": ("Webcam", "camara_webcam", "CamaraWebcam"),
 }
 
@@ -84,7 +88,11 @@ def leer_driver(driver):
         return marca, indice
     # Driver ASCOM: el modo en vivo y el seguimiento abren la cámara por el SDK de su marca
     alto = texto.upper()
-    if "ASI" in alto or "ZWO" in alto:
+    if "QHY" in alto:
+        return "QHY", 0
+    if any(m in alto for m in ("TOUP", "ALTAIR", "OGMA", "NNCAM", "RISING", "OMEGON", "MALLIN")):
+        return "ToupTek", 0
+    if "ASICAMERA" in alto or "ZWO" in alto:
         return "ZWO", 0
     return "PlayerOne", 0
 
@@ -122,8 +130,9 @@ def detectar_camaras(no_tocar=()):
             continue
         for i, c in enumerate(camaras):
             modelo = str(c.get("modelo") or nombre)
-            if marca != "Webcam" and not modelo.upper().startswith(nombre.split()[0].upper()):
-                modelo = f"{nombre} {modelo}"
+            prefijo = str(c.get("marca") or nombre.split()[0])        # la familia ToupTek dice su marca
+            if marca != "Webcam" and not modelo.upper().startswith(prefijo.upper()):
+                modelo = f"{prefijo} {modelo}"
             entradas.append({"progid": driver_de(marca, i),
                              "name": f"{modelo} (webcam, sin ASCOM)" if marca == "Webcam" else f"{modelo} {NOMBRE_DRIVER}"})
     return entradas
