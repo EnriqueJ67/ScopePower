@@ -184,7 +184,7 @@
     <a href="{{ url_for('vista_apilado') }}" class="{{ 'activo' if actual.startswith('/apilado') else '' }}"><span class="nav-ico"><svg><use href="#i-apilado"/></svg></span>Apilado</a>
     <a href="{{ url_for('galeria') }}" class="{{ 'activo' if actual.startswith('/galeria') else '' }}"><span class="nav-ico"><svg><use href="#i-galeria"/></svg></span>Galería</a>
     <a href="#" id="nav-voz" onclick="alternarVoz(event)" title="Avisos por voz del PC"><span class="nav-ico neutro"><svg><use id="nav-voz-icono" href="#i-voz-off"/></svg></span><span id="nav-voz-texto">Voz</span></a>
-    <!-- Escondido hasta que el usuario habilita el humor al final de Configuración -->
+    <!-- Escondido hasta que el usuario habilita el humor en Avisos por voz (Configuración) -->
     <a href="#" id="nav-humor" onclick="abrirHumor(event)" title="Nivel de humor de ScopePower"{% if not humor_activado %} hidden{% endif %}><span class="nav-ico neutro"><svg><use href="#i-humor"/></svg></span><span><span class="oculto-movil" id="nav-humor-prefijo"></span><span id="nav-humor-texto">Humor</span></span></a>
 </nav>
 <!-- Mantener la pantalla del móvil encendida (se activa con el primer toque) -->

@@ -1562,8 +1562,8 @@ def _con_voz_forzada(funcion):
 
 @app.route('/humor', methods=['GET', 'POST'])
 def nivel_humor():
-    """GET: estado. POST {"activado": bool} habilita o esconde el humor (interruptor discreto al
-    final de Configuración); POST {"nivel": 0-100} cambia el nivel y el PC lo confirma por voz."""
+    """GET: estado. POST {"activado": bool} habilita o esconde el humor (casilla discreta en
+    Avisos por voz de Configuración); POST {"nivel": 0-100} cambia el nivel y el PC lo confirma por voz."""
     if request.method == 'POST':
         datos = request.get_json(silent=True) or {}
         if "activado" in datos:
@@ -5584,7 +5584,7 @@ def _contexto_asistente():
     if not session.get('usuario'):
         return {}
     # humor_activado: el botón «Humor» de la barra solo se pinta si el usuario lo ha habilitado
-    # abajo del todo de Configuración (base.html lo esconde desde el servidor, sin parpadeo)
+    # en Avisos por voz de Configuración (base.html lo esconde desde el servidor, sin parpadeo)
     try:
         return {"asistente_pendiente": config_inicial.asistente_pendiente(),
                 "humor_activado": humor.humorista.activado}

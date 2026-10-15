@@ -32,7 +32,7 @@
     function pintarBarra(nivel, activado) {
         const a = $("nav-humor"), t = $("nav-humor-texto");
         if (!a || !t) return;
-        a.hidden = !activado;      // escondido hasta habilitarlo al final de Configuración
+        a.hidden = !activado;      // escondido hasta habilitarlo en Avisos por voz (Configuración)
         // En el móvil solo cabe el porcentaje bajo el icono; en pantallas anchas, «Humor 75 %»
         t.textContent = nivel > 0 ? `${nivel} %` : "Humor";
         const pre = $("nav-humor-prefijo");
@@ -62,7 +62,7 @@
         cargar().catch(err => estado("❌ " + err, "err"));
         $("modal-humor").classList.add("abierto");
     };
-    // Interruptor discreto de Configuración: habilita o esconde el humor y su botón
+    // Casilla discreta de Avisos por voz (Configuración): habilita o esconde el humor y su botón
     window.activarHumor = function (activado) {
         return fetch("/humor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activado: !!activado }) })
             .then(r => r.json())

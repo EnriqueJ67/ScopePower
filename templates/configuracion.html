@@ -265,16 +265,14 @@
                 <button type="button" class="btn btn-secondary" onclick="probarVoz()"><svg><use href="#i-altavoz"/></svg>Probar voz</button>
             </div>
             <div id="estado-voz" class="estado mt-1"></div>
+            <!-- Casilla discreta y sin explicar, a propósito: habilita el humor de la voz y el botón «Humor»
+                 de la barra (humor.py). Que sea una sorpresa para quien la marque. -->
+            <label class="texto-3 mt-2" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px;">
+                <input type="checkbox" id="humor-activar" onchange="cambiarHumor(this.checked)"> Comentarios de a bordo
+            </label>
         </div>
     </div>
 </div>
-
-<!-- Interruptor discreto, a propósito al final y sin explicaciones: habilita el botón «Humor» de la barra -->
-<p class="centro texto-3" style="font-size: 12.5px; margin: 28px 0 0;">
-    <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
-        <input type="checkbox" id="humor-activar" onchange="cambiarHumor(this.checked)"> Humor en la barra
-    </label>
-</p>
 
 <style>
     .config-layout { align-items: start; }

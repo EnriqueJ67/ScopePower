@@ -24,7 +24,7 @@
 #
 # Configuración en config.ini (la guarda ScopePower.py al cambiarla desde la web; aquí solo se lee):
 #     [Humor] activado = false   el humor y su botón de la barra están escondidos hasta que el
-#                                usuario lo habilita abajo del todo de Configuración
+#                                usuario marca «Comentarios de a bordo» en Avisos por voz
 #     [Humor] nivel = 50         porcentaje con el que arranca al habilitarlo
 
 import configparser
