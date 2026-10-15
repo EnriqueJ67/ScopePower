@@ -1,12 +1,12 @@
 # secretos.py
 #
 # Secretos de la aplicación fuera de config.ini: contraseña FTP, clave de la
-# API de Astrometry.net, clave de sesión de Flask y secreto de activación.
+# API de Astrometry.net y clave de sesión de Flask.
 #
 # Se guardan en secretos.ini (ignorado por git). La ruta se puede cambiar con
 # la variable de entorno SCOPEPOWER_SECRETOS para sacar el fichero de la
 # carpeta sincronizada por OneDrive, por ejemplo:
-#   set SCOPEPOWER_SECRETOS=C:\Users\Enrique\scopepower_secretos.ini
+#   set SCOPEPOWER_SECRETOS=C:\Users\<usuario>\scopepower_secretos.ini
 
 import os
 import sys
@@ -18,11 +18,9 @@ log = logging.getLogger("scopepower.secretos")
 
 SECCION = "Secretos"
 
-# Valores por defecto. El secreto de activación conserva el valor que usaba el
-# código para que las licencias ya generadas sigan siendo válidas.
+# Valores por defecto.
 _DEFECTOS = {
     "flask_secret_key": None,        # None = generar uno aleatorio
-    "activacion_secreto": "***SECRETO-ELIMINADO***",   # el de la versión de junio (generar_clave.py)
     "ftp_contrasena": "",
     "astrometry_api_key": "",
 }

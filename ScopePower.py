@@ -43,7 +43,6 @@ from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
 
 from datetime import datetime
 import cv2
-import winreg
 import logging
 from registro import configurar_logging
 log = configurar_logging()   # fichero rotativo logs/scopepower.log + consola; print() también va al log
@@ -178,231 +177,6 @@ def favicon():
                                'scopepower.ico', mimetype='image/vnd.microsoft.icon')
 
 
-#A PARTIR DE AQUI SISTEMA DE ACTIVACION
-def obtener_uuid_placa_base():
-    try:
-        resultado = subprocess.check_output("wmic csproduct get uuid", shell=True, encoding="cp1252")
-        lineas = resultado.strip().split("\n")
-        uuid = [linea.strip() for linea in lineas if linea.strip() and "UUID" not in linea]
-        return uuid[0] if uuid else "UUID_DESCONOCIDO"
-    except Exception as e:
-        print("⚠️ Error obteniendo UUID:", e)
-        return "UUID_ERROR"
-
-def obtener_id_procesador():
-    try:
-        resultado = subprocess.check_output("wmic cpu get ProcessorId", shell=True, encoding="cp1252")
-        lineas = resultado.strip().split("\n")
-        procesador_id = [l.strip() for l in lineas if l.strip() and "ProcessorId" not in l]
-        return procesador_id[0] if procesador_id else "CPU_ID_DESCONOCIDO"
-    except Exception as e:
-        print("⚠️ Error obteniendo ID del procesador:", e)
-        return "CPU_ID_ERROR"
-
-def obtener_identificador_unico():
-    uuid_placa = obtener_uuid_placa_base()
-    id_cpu = obtener_id_procesador()
-    return f"{uuid_placa}-{id_cpu}"
-
-@app.route("/identificador-cliente")
-def identificador_cliente():
-    identificador = obtener_identificador_unico()
-    return jsonify({"identificador": identificador})
-
-import hashlib
-
-# Debe ser exactamente el mismo que uses tú al generar claves; vive en secretos.ini
-SECRETO_ACTIVACION = secretos.obtener("activacion_secreto")
-
-def generar_clave_activacion(identificador, secreto):
-    return hashlib.sha256((identificador + secreto).encode()).hexdigest()
-
-
-@app.route("/activar", methods=["GET", "POST"])
-def activar():
-    identificador = obtener_identificador_unico()
-    codigo_para_usuario = base64.b64encode(identificador.encode()).decode()
-
-    # 🧪 Días de prueba restantes
-    try:
-        fecha_inicio = obtener_fecha_primer_uso()
-        dias_usados = (datetime.now() - fecha_inicio).days
-        dias_restantes = max(0, 30 - dias_usados)
-    except:
-        dias_restantes = 0
-
-    estado = estado_licencia()  # ← usa tu función
-
-    # Determinar si la licencia está expirada
-    expirada = estado == "expirado"
-
-
-    if request.method == "POST":
-        clave_introducida = request.form.get("clave", "").strip()
-        clave_esperada = generar_clave_activacion(identificador, SECRETO_ACTIVACION)
-
-        if clave_introducida == clave_esperada:
-            valor_firmado = firmar_clave(clave_introducida)
-            clave = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\\Microsoft\\Windows\\CurrentVersion\\WinUpdateTelemetry")
-            winreg.SetValueEx(clave, "ProductKey", 0, winreg.REG_SZ, valor_firmado)
-            winreg.CloseKey(clave)
-            return render_template("activar.html", correcto=True, uuid=codigo_para_usuario, dias_restantes=dias_restantes)
-
-        return render_template("activar.html", error="❌ Clave incorrecta.", uuid=codigo_para_usuario, dias_restantes=dias_restantes)
-
-    return render_template(
-    "activar.html",
-    uuid=codigo_para_usuario,
-    dias_restantes=dias_restantes,
-    activado=estado == "activado",
-    expirada=expirada
-)
-
-import base64
-
-def obtener_codigo_para_usuario():
-    identificador = obtener_identificador_unico()
-    codificado = base64.b64encode(identificador.encode()).decode()
-    return codificado
-
-def firmar_clave(clave_str):
-    firma = hashlib.sha256((clave_str + SECRETO_ACTIVACION).encode()).hexdigest()
-    return f"{clave_str}|{firma}"
-
-def activacion_requerida():
-    """[General] activacion_requerida = false desactiva por completo la activación (pruebas)."""
-    cfg = configparser.ConfigParser()
-    cfg.read("config.ini")
-    return cfg.get("General", "activacion_requerida", fallback="true").strip().lower() == "true"
-
-
-def estado_licencia():
-    if not activacion_requerida():
-        return "activado"
-    try:
-        # Verificar clave de activación
-        clave = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\\Microsoft\\Windows\\CurrentVersion\\WinUpdateTelemetry")
-        valor, _ = winreg.QueryValueEx(clave, "ProductKey")
-        winreg.CloseKey(clave)
-
-        clave_guardada, firma = valor.split("|")
-        firma_esperada = hashlib.sha256((clave_guardada + SECRETO_ACTIVACION).encode()).hexdigest()
-
-        identificador = obtener_identificador_unico()
-        clave_correcta = generar_clave_activacion(identificador, SECRETO_ACTIVACION)
-
-        if clave_guardada == clave_correcta and firma == firma_esperada:
-            return "activado"
-    except:
-        pass
-
-    try:
-        fecha_inicio = obtener_fecha_primer_uso()
-        dias_usados = (datetime.now() - fecha_inicio).days
-        if dias_usados <= 30:
-            return "prueba"
-        else:
-            return "expirado"
-    except:
-        return "expirado"
-
-def validar_licencia():
-    if not activacion_requerida():
-        return True
-    if not comprobar_reloj_no_atrasado():
-        print("⚠️ Se detectó cambio en el reloj del sistema. Bloqueando acceso.")
-        return False
-
-    try:
-        # Activación válida
-        clave = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\\Microsoft\\Windows\\CurrentVersion\\WinUpdateTelemetry")
-        valor, _ = winreg.QueryValueEx(clave, "ProductKey")
-        winreg.CloseKey(clave)
-
-        clave_guardada, firma = valor.split("|")
-        firma_esperada = hashlib.sha256((clave_guardada + SECRETO_ACTIVACION).encode()).hexdigest()
-
-        identificador = obtener_identificador_unico()
-        clave_correcta = generar_clave_activacion(identificador, SECRETO_ACTIVACION)
-
-        if clave_guardada == clave_correcta and firma == firma_esperada:
-            guardar_fecha_ultimo_uso()
-            return True
-
-    except:
-        pass
-
-    # Modo prueba
-    try:
-        fecha_inicio = obtener_fecha_primer_uso()
-        dias_usados = (datetime.now() - fecha_inicio).days
-        if dias_usados <= 30:
-            guardar_fecha_ultimo_uso()
-            return True
-    except:
-        return False
-
-    return False
-
-
-
-def firmar_fecha(fecha_str):
-    firma = hashlib.sha256((fecha_str + SECRETO_ACTIVACION).encode()).hexdigest()
-    return f"{fecha_str}|{firma}"
-
-def guardar_fecha_ultimo_uso():
-    hoy = datetime.now().strftime("%Y-%m-%d")
-    valor_firmado = firmar_fecha(hoy)
-    clave = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\\Microsoft\\Windows\\CurrentVersion\\WinUpdateTelemetry")
-    winreg.SetValueEx(clave, "LastUse", 0, winreg.REG_SZ, valor_firmado)
-    winreg.CloseKey(clave)
-
-def comprobar_reloj_no_atrasado():
-    try:
-        clave = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\\Microsoft\\Windows\\CurrentVersion\\WinUpdateTelemetry")
-        valor, _ = winreg.QueryValueEx(clave, "LastUse")
-        winreg.CloseKey(clave)
-
-        valido, fecha_str = verificar_firma(valor)
-        if not valido:
-            raise Exception("firma inválida")
-
-        fecha_ultima = datetime.strptime(fecha_str, "%Y-%m-%d")
-        hoy = datetime.now()
-
-        return hoy >= fecha_ultima  # ✅ Si la fecha actual no es anterior a la guardada
-    except:
-        return True  # Si no se puede leer → no bloquear, por si es el primer uso
-
-def verificar_firma(valor_guardado):
-    try:
-        fecha_str, firma = valor_guardado.split("|")
-        firma_esperada = hashlib.sha256((fecha_str + SECRETO_ACTIVACION).encode()).hexdigest()
-        return firma == firma_esperada, fecha_str
-    except:
-        return False, None
-
-def obtener_fecha_primer_uso():
-    try:
-        clave = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\\Microsoft\\Windows\\CurrentVersion\\WinUpdateTelemetry")
-        valor, _ = winreg.QueryValueEx(clave, "TelemetryID")
-        winreg.CloseKey(clave)
-
-        valido, fecha_str = verificar_firma(valor)
-        if not valido:
-            raise Exception("firma inválida")
-
-        return datetime.strptime(fecha_str, "%Y-%m-%d")
-
-    except:
-        hoy = datetime.now().strftime("%Y-%m-%d")
-        valor_firmado = firmar_fecha(hoy)
-        clave = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\\Microsoft\\Windows\\CurrentVersion\\WinUpdateTelemetry")
-        winreg.SetValueEx(clave, "TelemetryID", 0, winreg.REG_SZ, valor_firmado)
-        winreg.CloseKey(clave)
-        return datetime.strptime(hoy, "%Y-%m-%d")
-
-#HASTA AQUI SISTEMA DE ACTIVACION
 
 @app.route('/config-objetos', methods=['GET', 'POST'])
 def get_config_objetos():
@@ -841,9 +615,9 @@ def conectar_telescopio():
 #    if 'usuario' not in session and request.path not in rutas_publicas:
 #        return redirect(url_for('login'))
 @app.before_request
-def verificar_licencia_y_autenticacion():
+def verificar_autenticacion():
     rutas_publicas = {
-        '/login', '/logout', '/activar', '/static/', '/identificador-cliente',
+        '/login', '/logout', '/static/',
         '/bienvenida',   # alta del primer usuario; solo responde mientras no haya ninguno
     }
 
@@ -857,10 +631,6 @@ def verificar_licencia_y_autenticacion():
     # Verificar sesión iniciada
     if 'usuario' not in session:
         return redirect(url_for('login'))
-
-    # Si la licencia está expirada, solo permitimos activar
-    if estado_licencia() == "expirado":
-        return redirect(url_for('activar'))
 
 
 
@@ -926,20 +696,7 @@ def iniciar_conexion():
 def home():
     if 'usuario' not in session:
         return redirect(url_for('login'))
-
-    estado = estado_licencia()
-    dias_restantes = 0
-
-    if estado == "prueba":
-        try:
-            fecha_inicio = obtener_fecha_primer_uso()
-            dias_usados = (datetime.now() - fecha_inicio).days
-            dias_restantes = max(0, 30 - dias_usados)
-        except:
-            dias_restantes = 0
-
-  
-    return render_template("home.html", estado_licencia=estado, dias_restantes=dias_restantes)
+    return render_template("home.html")
 
 
 import threading
@@ -4162,10 +3919,6 @@ def login():
             if not bucle.activo and not plan_sesion.trabajo_plan.en_curso:
                 eliminar_info_goto()
             iniciar_conexion()  # ← aquí arrancamos Stellarium y telescopio tras login
-            # 🔐 Verificar activación aquí
-            if not validar_licencia():
-                return redirect(url_for("activar"))
-
             return redirect(url_for('home'))
 
         return render_template('login.html', error="Credenciales incorrectas"), 401
@@ -4200,8 +3953,6 @@ def bienvenida():
         session['usuario'] = usuario
         log.info("Primer usuario dado de alta desde %s: %s", request.remote_addr, usuario)
         iniciar_conexion()
-        if not validar_licencia():
-            return redirect(url_for("activar"))
         return redirect(url_for('home'))
     return render_template('bienvenida.html')
 
@@ -6794,7 +6545,7 @@ if __name__ == '__main__':
     # (estado, parar montura, cancelar) mientras hay una exposición en curso.
     # PC recién instalado (sin contraseña o con el asistente pendiente): se abre el navegador del
     # propio PC en la bienvenida / el asistente de configuración. Con la configuración hecha no se
-    # abre nada (MINIBESTIA arranca sola y se maneja desde el móvil).
+    # abre nada (el mini PC de campo arranca solo y se maneja desde el móvil).
     if not config_inicial.hay_usuarios() or config_inicial.asistente_pendiente():
         def _abrir_navegador():
             import webbrowser

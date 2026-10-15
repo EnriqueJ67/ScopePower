@@ -8,14 +8,24 @@ REM    - config.ini y secretos.ini (solo se copian si alli no existen todavia)
 REM    - calibraciones\ (darks y flats hechos con la camara de campo)
 REM    - capturas\, logs\ y static\fotos\ (fotos y galeria del PC de campo)
 REM
-REM  Uso:  copiar_a_campo.bat            -> copia a \\PC_MINIBESTIA\ScopePower
+REM  Uso:  copiar_a_campo.bat            -> copia al destino de copiar_a_campo.destino.txt
 REM        copiar_a_campo.bat D:\otra    -> copia a otra carpeta (pruebas)
+REM
+REM  El destino por defecto se lee del fichero copiar_a_campo.destino.txt (una linea,
+REM  p. ej. \\PC_CAMPO\ScopePower; no esta en git). Si no existe, hay que pasarlo.
 REM ============================================================================
 setlocal
 set "ORIGEN=%~dp0"
 set "ORIGEN=%ORIGEN:~0,-1%"
-set "DESTINO=\\PC_MINIBESTIA\ScopePower"
+set "DESTINO="
+if exist "%ORIGEN%\copiar_a_campo.destino.txt" set /p DESTINO=<"%ORIGEN%\copiar_a_campo.destino.txt"
 if not "%~1"=="" set "DESTINO=%~1"
+if "%DESTINO%"=="" (
+    echo  [ERROR] Falta el destino: pasalo como argumento o escribelo en
+    echo          copiar_a_campo.destino.txt ^(una linea, p. ej. \\PC_CAMPO\ScopePower^)
+    pause
+    exit /b 1
+)
 
 echo.
 echo  ScopePower - copia al PC de campo

@@ -80,18 +80,6 @@
     </a>
 </div>
 
-<div class="fila mt-3" style="justify-content: center;">
-    {% if estado_licencia == "activado" %}
-    <span class="chip chip-ok"><span class="dot"></span>Copia activada</span>
-    {% elif estado_licencia == "prueba" %}
-    <span class="chip chip-warn"><span class="dot"></span>Modo prueba · quedan {{ dias_restantes }} días</span>
-    <a href="{{ url_for('activar') }}" class="btn btn-sm btn-danger">Activar ahora</a>
-    {% else %}
-    <span class="chip chip-err"><span class="dot"></span>Prueba finalizada</span>
-    <a href="{{ url_for('activar') }}" class="btn btn-sm btn-danger">Activar ahora</a>
-    {% endif %}
-</div>
-
 <style>
     .hero { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: center; }
     .hero-logo img { max-width: 240px; display: block; margin: 0 auto; border-radius: 12px; }

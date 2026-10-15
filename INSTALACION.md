@@ -9,7 +9,7 @@ Ficheros que NO están en git y conviene copiar del PC antiguo:
 
 - `config.ini` (si no existe, la app lo crea desde `config.example.ini` y abre el asistente
   de configuración; ver el punto 4)
-- `secretos.ini` (contraseña FTP, clave de Astrometry, secreto de activación)
+- `secretos.ini` (contraseña FTP y clave de Astrometry)
 - `calibraciones\` (darks y flat maestros, si valen para la misma cámara)
 
 ## 2. Ejecutar el instalador
@@ -62,18 +62,10 @@ estrellas (si falta, lo descarga de SourceForge y lo instala sin permisos de adm
 `%LOCALAPPDATA%\ScopePowerstap`) y la ubicación del observatorio. Se puede volver a pasar cuando
 se quiera con el botón **Asistente de configuración** de la página Configuración.
 
-## 5. Activación
-
-La app tiene 30 días de prueba en cada PC nuevo. Para activarla: en el PC nuevo
-abre `/activar`, copia el identificador, y en el PC de desarrollo ejecuta
-
-    python herramientas\generar_clave_activacion.py
-
-que usa el `activacion_secreto` de `secretos.ini`. Pega la clave en `/activar`.
-
 ## Actualizar el PC de campo
 
-Con la carpeta del PC de campo compartida como `\\PC_MINIBESTIA\ScopePower`, basta con ejecutar
+Con la carpeta del PC de campo compartida en la red (por ejemplo `\\PC_CAMPO\ScopePower`), escribe esa
+ruta en `copiar_a_campo.destino.txt` (una línea, junto al script; no va a git) y basta con ejecutar
 `copiar_a_campo.bat` desde la carpeta de desarrollo cada vez que haya una versión nueva. Copia el
 código, plantillas y recursos, y respeta lo que es propio del PC de campo: `config.ini`,
 `secretos.ini`, `calibraciones\`, `capturas\`, `logs\`, la galería (`static\fotos\`) y el plan de la
