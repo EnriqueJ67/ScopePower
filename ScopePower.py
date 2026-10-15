@@ -85,6 +85,7 @@ import aparcado
 import vigilante_seguimiento
 import plan_sesion
 import mosaico
+import actualizar
 
 def ruta_absoluta(relativa):
     if hasattr(sys, '_MEIPASS'):
@@ -852,6 +853,56 @@ def reiniciar_app():
 def apagar_estado():
     restante = max(0.0, _apagado["hasta"] - time.time()) if _apagado["accion"] else 0.0
     return jsonify({"accion": _apagado["accion"] if restante > 0 else None, "restante": round(restante)})
+
+
+# ─── Actualizar desde GitHub (Configuración) ───────────────────────────────
+# La consulta y la petición están en actualizar.py. La actualización en sí la hace
+# actualizar_desde_github.bat con la app parada: aquí se cierra ScopePower con el código
+# de salida 5 y lanzar_scopepower.bat ejecuta el .bat y la vuelve a arrancar. Si la app
+# se lanzó a mano con python, se deja un cmd aparte que hace lo mismo y arranca el lanzador.
+@app.route('/actualizar/estado')
+def actualizar_estado():
+    return jsonify(actualizar.estado())
+
+
+@app.route('/actualizar/comprobar', methods=['POST'])
+def actualizar_comprobar():
+    return jsonify(actualizar.comprobar())
+
+
+def _terminar_para_actualizar():
+    try:
+        ctypes.windll.kernel32.FreeConsole()
+    except Exception:
+        pass
+    if os.environ.get("SCOPEPOWER_LANZADOR") == "1":
+        os._exit(actualizar.CODIGO_SALIDA_ACTUALIZAR)     # lanzar_scopepower.bat actualiza y rearranca
+    try:
+        DETACHED = 0x00000008 | 0x00000200      # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen(["cmd", "/c", actualizar.orden_actualizar_a_mano()], creationflags=DETACHED, close_fds=True)
+    except Exception as e:
+        log.error("No se pudo lanzar la actualización: %s", e)
+    os._exit(0)
+
+
+@app.route('/actualizar/aplicar', methods=['POST'])
+def actualizar_aplicar():
+    d = request.get_json(silent=True) or {}
+    destino = d.get("destino", "release")
+    ok, mensaje = actualizar.pedir(destino)
+    if not ok:
+        return jsonify({"ok": False, "mensaje": mensaje}), 409
+    try:
+        if bucle.activo:
+            bucle.detener("Actualización de ScopePower")
+    except Exception:
+        pass
+    desconectar_telescopio()
+    desconectar_camara()
+    voz.decir("Actualizando ScopePower desde GitHub. Vuelvo en un par de minutos.")
+    threading.Timer(0.8, _terminar_para_actualizar).start()
+    # La web sondea /estado-conexion hasta que la app vuelve: git + pip pueden tardar varios minutos
+    return jsonify({"ok": True, "mensaje": mensaje, "espera": 300})
 
 
 # ─── Aparcar la montura antes de apagarla (cambio de batería) ─────────────

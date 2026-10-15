@@ -14,6 +14,8 @@ REM  o cierra esta ventana. "Reiniciar ScopePower" en la web sale con codigo 3
 REM  y este bat la vuelve a arrancar sin cerrar la ventana.
 REM  Si ya habia otro ScopePower en marcha, la app sale con codigo 4 y esta
 REM  ventana se cierra sola a los 10 s.
+REM  "Actualizar desde GitHub" (Configuracion) sale con codigo 5: este bat ejecuta
+REM  actualizar_desde_github.bat con la app parada y la vuelve a arrancar.
 REM
 REM  lanzar_scopepower.bat /test  -> solo muestra que Python usaria y sale
 REM ============================================================================
@@ -59,6 +61,15 @@ set "CODIGO=%ERRORLEVEL%"
 if "%CODIGO%"=="3" (
     echo.
     echo Reiniciando ScopePower...
+    ping -n 3 127.0.0.1 >nul
+    goto arrancar
+)
+if "%CODIGO%"=="5" (
+    echo.
+    echo Actualizando ScopePower desde GitHub...
+    call actualizar_desde_github.bat /lanzador
+    echo.
+    echo Arrancando ScopePower de nuevo...
     ping -n 3 127.0.0.1 >nul
     goto arrancar
 )

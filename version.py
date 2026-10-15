@@ -5,4 +5,4 @@
 # número para cambios que rompen la configuración o los datos guardados, el
 # segundo para funciones nuevas, el tercero para arreglos.
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"

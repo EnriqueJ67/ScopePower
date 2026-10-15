@@ -74,3 +74,7 @@ datos/plan.json.tmp
 
 # Destino del PC de campo de copiar_a_campo.bat (propio de cada usuario)
 copiar_a_campo.destino.txt
+
+# Actualizar desde GitHub: version anterior para poder volver y destino pedido desde la web
+datos/version_anterior.txt
+datos/actualizar_pendiente.txt
