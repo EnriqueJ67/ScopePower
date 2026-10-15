@@ -269,6 +269,13 @@
     </div>
 </div>
 
+<!-- Interruptor discreto, a propósito al final y sin explicaciones: habilita el botón «Humor» de la barra -->
+<p class="centro texto-3" style="font-size: 12.5px; margin: 28px 0 0;">
+    <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+        <input type="checkbox" id="humor-activar" onchange="cambiarHumor(this.checked)"> Humor en la barra
+    </label>
+</p>
+
 <style>
     .config-layout { align-items: start; }
     .config-layout .columna .card + .card { margin-top: 0; }
@@ -347,6 +354,15 @@
             actMensaje((u.ok ? "✅ " : "❌ ") + u.mensaje + " <span class='texto-2'>(" + u.fecha + ")</span>" + detalle, u.ok ? "" : "err");
         }
     }
+    function cargarHumor() {
+        fetch("/humor", { cache: "no-store" }).then(r => r.json())
+            .then(d => { document.getElementById("humor-activar").checked = !!d.activado; })
+            .catch(() => {});
+    }
+    function cambiarHumor(activado) {
+        if (window.activarHumor) activarHumor(activado).catch(() => {});
+    }
+
     function cargarActualizar() {
         fetch("/actualizar/estado").then(r => r.json()).then(pintarEstadoActualizar)
             .catch(err => actMensaje("❌ " + err, "err"));
@@ -702,7 +718,7 @@
         });
     }
 
-    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); cargarDisco(); cargarActualizar(); });
+    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); cargarDisco(); cargarActualizar(); cargarHumor(); });
 </script>
 
 

@@ -5,6 +5,8 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.1.0 · sin fecha (en preparación)
 
+- Humor de la voz escondido de serie: se habilita con la casilla «Humor en la barra» al final de
+  Configuración (arranca al 50 %); hasta entonces el botón «Humor» no aparece y no se dice ninguna frase.
 - Actualizar desde GitHub: `actualizar_desde_github.bat` en el mini PC (última release o `/master`, 
   `/volver` a la versión anterior) y botón «Actualizar desde GitHub» en Configuración, que comprueba la 
   última release, enseña lo que entra y reinicia la app. `copiar_a_campo.bat` sigue valiendo sin Internet.

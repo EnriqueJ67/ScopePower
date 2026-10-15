@@ -1562,8 +1562,14 @@ def _con_voz_forzada(funcion):
 
 @app.route('/humor', methods=['GET', 'POST'])
 def nivel_humor():
+    """GET: estado. POST {"activado": bool} habilita o esconde el humor (interruptor discreto al
+    final de Configuración); POST {"nivel": 0-100} cambia el nivel y el PC lo confirma por voz."""
     if request.method == 'POST':
         datos = request.get_json(silent=True) or {}
+        if "activado" in datos:
+            activado = humor.humorista.fijar_activado(bool(datos["activado"]))
+            _guardar_en_config("Humor", {"activado": "true" if activado else "false"})
+            return jsonify({"ok": True, **humor.humorista.estado()})
         try:
             nivel = int(round(float(datos["nivel"])))
         except (KeyError, TypeError, ValueError):
@@ -5577,10 +5583,13 @@ import instalar_astap
 def _contexto_asistente():
     if not session.get('usuario'):
         return {}
+    # humor_activado: el botón «Humor» de la barra solo se pinta si el usuario lo ha habilitado
+    # abajo del todo de Configuración (base.html lo esconde desde el servidor, sin parpadeo)
     try:
-        return {"asistente_pendiente": config_inicial.asistente_pendiente()}
+        return {"asistente_pendiente": config_inicial.asistente_pendiente(),
+                "humor_activado": humor.humorista.activado}
     except Exception:
-        return {"asistente_pendiente": False}
+        return {"asistente_pendiente": False, "humor_activado": False}
 
 
 @app.route("/asistente/datos")

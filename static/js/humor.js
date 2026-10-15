@@ -29,9 +29,10 @@
     }
 
     // ——— Pintado ———
-    function pintarBarra(nivel) {
+    function pintarBarra(nivel, activado) {
         const a = $("nav-humor"), t = $("nav-humor-texto");
         if (!a || !t) return;
+        a.hidden = !activado;      // escondido hasta habilitarlo al final de Configuración
         // En el móvil solo cabe el porcentaje bajo el icono; en pantallas anchas, «Humor 75 %»
         t.textContent = nivel > 0 ? `${nivel} %` : "Humor";
         const pre = $("nav-humor-prefijo");
@@ -47,7 +48,7 @@
     // La ventana no explica de dónde salen las frases: tienen que parecer cosa de la propia app
     function aplicarEstado(d) {
         pintarNivelHumor(d.nivel);
-        pintarBarra(d.nivel);
+        pintarBarra(d.nivel, !!d.activado);
         if (d.errores_csv) console.warn(`Humor: ${d.errores_csv} filas de frases_humor.csv con errores (ver el log del PC)`);
     }
 
@@ -60,6 +61,12 @@
         estado("");
         cargar().catch(err => estado("❌ " + err, "err"));
         $("modal-humor").classList.add("abierto");
+    };
+    // Interruptor discreto de Configuración: habilita o esconde el humor y su botón
+    window.activarHumor = function (activado) {
+        return fetch("/humor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activado: !!activado }) })
+            .then(r => r.json())
+            .then(d => { if (d.ok) aplicarEstado(d); return d; });
     };
     window.cerrarHumor = function () {
         pararEscucha();
