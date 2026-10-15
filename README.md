@@ -119,9 +119,9 @@ pongas detrás de un puerto abierto en el router.
 
 ## Colaborar
 
-Las *issues* y los *pull requests* son bienvenidos. Para un fallo con la montura o la cámara,
-indica el modelo, el driver y pega el trozo de `logs/scopepower.log` del momento. El código y los
-comentarios se escriben en español.
+Las *issues* y los *pull requests* son bienvenidos: cómo montar el entorno, probar sin equipo y
+qué adjuntar en un fallo está en [CONTRIBUTING.md](CONTRIBUTING.md). El código y los comentarios
+se escriben en español. Los cambios de cada versión están en [CHANGELOG.md](CHANGELOG.md).
 
 ## Licencia
 

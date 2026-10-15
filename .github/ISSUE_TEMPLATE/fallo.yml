@@ -1,0 +1,48 @@
+name: Fallo
+description: Algo no funciona (montura, cámara, apilado, interfaz...)
+labels: ["fallo"]
+body:
+  - type: textarea
+    id: que-pasa
+    attributes:
+      label: Qué pasa
+      description: Qué hiciste, qué esperabas y qué ocurrió.
+      placeholder: Al pulsar «Hacer foto» con la cámara por SDK la página se queda en «Exponiendo» y no vuelve.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión de ScopePower
+      description: Está en la página Configuración (debajo del título).
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: montura
+    attributes:
+      label: Montura y conexión
+      description: Modelo y cómo está conectada (driver ASCOM, SynScan Pro, UDP directo, simulador).
+      placeholder: Sky-Watcher AZ GoTo por ASCOM.SynScanMobile.Telescope con SynScan Pro 2.5
+  - type: input
+    id: camara
+    attributes:
+      label: Cámara y driver
+      description: Modelo y driver (ASCOM o SDK nativo), o el simulador.
+      placeholder: Player One Saturn-C por SDK:PlayerOne
+  - type: input
+    id: windows
+    attributes:
+      label: Windows y navegador del móvil
+      placeholder: Windows 11 en un mini PC; Chrome en Android
+  - type: textarea
+    id: log
+    attributes:
+      label: Trozo de logs/scopepower.log
+      description: Desde un minuto antes del fallo. Se formatea solo como código.
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Capturas o ficheros
+      description: Capturas de pantalla, o un enlace a un FITS con el que pase (no lo pegues aquí).

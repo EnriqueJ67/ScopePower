@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Cómo instalar y probar sin equipo
+    url: https://github.com/EnriqueJ67/ScopePower/blob/master/INSTALACION.md
+    about: Antes de abrir un fallo de instalación, mira INSTALACION.md y CONTRIBUTING.md.

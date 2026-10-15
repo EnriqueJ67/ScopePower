@@ -1,0 +1,46 @@
+# Comprobación automática en cada push y pull request. No hay montura ni cámara en
+# GitHub, así que solo se comprueba lo que no necesita equipo: que todo compila, que
+# no hay nombres sin definir y que las pruebas sintéticas de herramientas/ pasan.
+name: Comprobar
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  comprobar:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyflakes
+
+      - name: Compilar todos los módulos
+        run: python -m compileall -q .
+
+      - name: Nombres sin definir (pyflakes)
+        shell: bash
+        run: |
+          # Solo los errores que rompen en ejecución; los "imported but unused" no bloquean.
+          salida=$(python -m pyflakes *.py herramientas/*.py | grep -E "undefined name|invalid syntax" || true)
+          if [ -n "$salida" ]; then echo "$salida"; exit 1; fi
+
+      - name: Prueba del mosaico (cielo sintético, sin ASTAP)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_mosaico.py
+
+      - name: Prueba del seguimiento de objetos (montura y cámara simuladas)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_seguimiento_simulado.py --segundos 10

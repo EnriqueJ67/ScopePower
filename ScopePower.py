@@ -54,6 +54,7 @@ from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
 import darks
 import flats
 import secretos
+import version
 import centrado
 import foto_dia
 import foto_actual
@@ -96,6 +97,7 @@ app = Flask(__name__,
             static_folder=ruta_absoluta("static"))
 # Clave de sesión: aleatoria, generada una vez y guardada en secretos.ini
 app.secret_key = secretos.obtener("flask_secret_key")
+app.jinja_env.globals["VERSION"] = version.VERSION   # {{ VERSION }} en cualquier plantilla
 
 #from ajuste_mtf_interactivo import app_mtf
 #app.register_blueprint(app_mtf, url_prefix='/ajuste-mtf')
@@ -6513,6 +6515,7 @@ def _comprobar_instancia_unica(puerto):
 if __name__ == '__main__':
     # Antes de arrancar hilos ni tocar config.ini: ¿ya hay un ScopePower en este equipo?
     _reserva_puerto = _comprobar_instancia_unica(PUERTO_WEB)
+    log.info("ScopePower %s arrancando en el puerto %s", version.VERSION, PUERTO_WEB)
     os.makedirs(ruta_absoluta("capturas"), exist_ok=True)
     os.makedirs(ruta_absoluta("static"), exist_ok=True)
     # Objetos anotados: lo que dejó puesto el usuario la última vez ([Apilado] objetos_anotados)

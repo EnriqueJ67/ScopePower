@@ -1,0 +1,29 @@
+name: Mejora
+description: Una función nueva o un cambio en algo que ya existe
+labels: ["mejora"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qué problema resuelve
+      description: Qué te falta o qué te estorba hoy en una sesión de observación.
+      placeholder: Con la cámara mono no puedo elegir el filtro desde el móvil y tengo que ir al PC.
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Cómo lo harías
+      description: Cómo te imaginas que funciona, en qué pantalla, con qué ajustes.
+  - type: input
+    id: equipo
+    attributes:
+      label: Con qué equipo lo usarías
+      placeholder: Montura, cámara y accesorios que tengan que ver con la mejora
+  - type: checkboxes
+    id: ayuda
+    attributes:
+      label: Colaboración
+      options:
+        - label: Puedo probarlo con mi equipo
+        - label: Puedo programarlo yo y abrir un pull request
