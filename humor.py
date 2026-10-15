@@ -22,8 +22,10 @@
 #   frase   = texto; admite {nivel} (porcentaje actual) y {n} (dato del evento)
 # Se recarga solo cuando cambia la fecha del fichero: se puede editar sin reiniciar.
 #
-# Configuración: [Humor] nivel = 75 en config.ini (lo guarda ScopePower.py al cambiarlo
-# desde la web; aquí solo se lee).
+# Configuración en config.ini (la guarda ScopePower.py al cambiarla desde la web; aquí solo se lee):
+#     [Humor] activado = false   el humor y su botón de la barra están escondidos hasta que el
+#                                usuario marca «Comentarios de a bordo» en Avisos por voz
+#     [Humor] nivel = 50         porcentaje con el que arranca al habilitarlo
 
 import configparser
 import csv
@@ -38,7 +40,8 @@ log = logging.getLogger("scopepower.humor")
 
 RUTA_FRASES = "frases_humor.csv"
 SECCION = "Humor"
-NIVEL_POR_DEFECTO = 75
+NIVEL_POR_DEFECTO = 50
+ACTIVADO_POR_DEFECTO = False
 PAUSA_S = 20          # segundos mínimos entre dos frases de humor
 SIN_REPETIR = 8       # últimas frases que no se vuelven a decir mientras haya otras
 
@@ -88,6 +91,7 @@ class Humorista:
         self.ruta = ruta
         self._lock = threading.Lock()
         self._nivel = NIVEL_POR_DEFECTO
+        self._activado = ACTIVADO_POR_DEFECTO
         self._frases = []            # [(evento, humor, frase)]
         self._mtime = None
         self._errores_csv = 0
@@ -98,7 +102,7 @@ class Humorista:
 
     # ── Configuración ─────────────────────────────────────────────────
     def cargar_nivel(self, config=None):
-        """Lee [Humor] nivel de config.ini (o del ConfigParser dado)."""
+        """Lee [Humor] activado y nivel de config.ini (o del ConfigParser dado)."""
         cfg = config
         if cfg is None:
             cfg = configparser.ConfigParser()
@@ -108,14 +112,29 @@ class Humorista:
         except (ValueError, TypeError):
             log.warning("[%s] nivel no es un número; se usa %d", SECCION, NIVEL_POR_DEFECTO)
             nivel = NIVEL_POR_DEFECTO
+        activado = str(cfg.get(SECCION, "activado", fallback=ACTIVADO_POR_DEFECTO)).strip().lower() == "true"
         with self._lock:
             self._nivel = max(0, min(100, nivel))
+            self._activado = activado
         return self._nivel
 
     @property
     def nivel(self):
         with self._lock:
             return self._nivel
+
+    @property
+    def activado(self):
+        with self._lock:
+            return self._activado
+
+    def fijar_activado(self, activado):
+        """Habilita o esconde el humor (y su botón de la barra). Guardar en config.ini es
+        cosa de quien llama."""
+        with self._lock:
+            self._activado = bool(activado)
+        log.info("Humor %s", "habilitado" if activado else "escondido")
+        return self._activado
 
     def fijar_nivel(self, nivel):
         """Cambia el nivel y lo confirma por voz (siempre, sin frecuencia ni pausa).
@@ -200,9 +219,9 @@ class Humorista:
             return frase          # llaves mal puestas en el CSV: se dice tal cual
 
     def elegir(self, evento, **datos):
-        """Frase para el evento o None (nivel 0, frecuencia, pausa o sin frases)."""
+        """Frase para el evento o None (humor escondido, nivel 0, frecuencia, pausa o sin frases)."""
         nivel = self.nivel
-        if nivel <= 0:
+        if not self.activado or nivel <= 0:
             return None
         if random.random() * 100 >= nivel:
             return None
@@ -258,6 +277,7 @@ class Humorista:
         nivel = self.nivel
         niveles = [h for ev, h, f in self._frases if ev != "nivel_humor"]
         return {
+            "activado": self.activado,
             "nivel": nivel,
             "total_frases": len(niveles),
             "disponibles": sum(1 for h in niveles if h <= nivel),

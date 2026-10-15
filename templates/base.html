@@ -22,7 +22,7 @@
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=10">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/scopepower.css') }}?v=11">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -184,7 +184,8 @@
     <a href="{{ url_for('vista_apilado') }}" class="{{ 'activo' if actual.startswith('/apilado') else '' }}"><span class="nav-ico"><svg><use href="#i-apilado"/></svg></span>Apilado</a>
     <a href="{{ url_for('galeria') }}" class="{{ 'activo' if actual.startswith('/galeria') else '' }}"><span class="nav-ico"><svg><use href="#i-galeria"/></svg></span>Galería</a>
     <a href="#" id="nav-voz" onclick="alternarVoz(event)" title="Avisos por voz del PC"><span class="nav-ico neutro"><svg><use id="nav-voz-icono" href="#i-voz-off"/></svg></span><span id="nav-voz-texto">Voz</span></a>
-    <a href="#" id="nav-humor" onclick="abrirHumor(event)" title="Nivel de humor de ScopePower"><span class="nav-ico neutro"><svg><use href="#i-humor"/></svg></span><span><span class="oculto-movil" id="nav-humor-prefijo"></span><span id="nav-humor-texto">Humor</span></span></a>
+    <!-- Escondido hasta que el usuario habilita el humor en Avisos por voz (Configuración) -->
+    <a href="#" id="nav-humor" onclick="abrirHumor(event)" title="Nivel de humor de ScopePower"{% if not humor_activado %} hidden{% endif %}><span class="nav-ico neutro"><svg><use href="#i-humor"/></svg></span><span><span class="oculto-movil" id="nav-humor-prefijo"></span><span id="nav-humor-texto">Humor</span></span></a>
 </nav>
 <!-- Mantener la pantalla del móvil encendida (se activa con el primer toque) -->
 <script src="{{ url_for('static', filename='js/NoSleep.js') }}"></script>
@@ -198,7 +199,7 @@
 <script src="{{ url_for('static', filename='js/ayuda_voz.js') }}"></script>
 <!-- Nivel de humor de la voz del PC (botón «Humor» de la barra; humor.py) -->
 {% include '_modal_humor.html' %}
-<script src="{{ url_for('static', filename='js/humor.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/humor.js') }}?v=3"></script>
 <script src="{{ url_for('static', filename='js/ubicacion_movil.js') }}?v=1"></script>
 {% include '_asistente.html' %}
 <script src="{{ url_for('static', filename='js/asistente.js') }}?v=2"></script>

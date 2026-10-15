@@ -433,6 +433,7 @@ nav.barra a:hover { color: var(--text-2); text-decoration: none; }
 nav.barra a.activo { color: var(--accent-2); }
 nav.barra a.activo .nav-ico { background: linear-gradient(145deg, var(--accent-2), var(--accent)); color: #fff; box-shadow: 0 4px 12px var(--accent-glow); }
 nav.barra a.activo::before { content: ""; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
+nav.barra a[hidden] { display: none; }   /* botón «Humor» hasta que se habilita en Configuración */
 nav.barra a.encendido { color: var(--ok); }
 nav.barra a.encendido .nav-ico { background: var(--ok-soft); color: var(--ok); }
 /* Enlace pulsado mientras llega la otra página (static/js/clic.js) */
