@@ -417,7 +417,7 @@
             fetch("/estado-conexion", { cache: "no-store" })
                 .then(r => {
                     // Hasta que la app se cierra sigue respondiendo la versión vieja: esperar a verla caer
-                    if (r.ok && caido) { clearInterval(t); window.location.href = "/configuracion#actualizar"; }
+                    if (r.ok && caido) { clearInterval(t); window.location.href = "/configuracion#actualizar"; window.location.reload(); }
                 })
                 .catch(() => {
                     caido = true;

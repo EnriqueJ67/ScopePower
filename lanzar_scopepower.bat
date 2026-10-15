@@ -67,7 +67,7 @@ if "%CODIGO%"=="3" (
 if "%CODIGO%"=="5" (
     echo.
     echo Actualizando ScopePower desde GitHub...
-    call actualizar_desde_github.bat /lanzador
+    call "%~dp0actualizar_desde_github.bat" /lanzador
     echo.
     echo Arrancando ScopePower de nuevo...
     ping -n 3 127.0.0.1 >nul
