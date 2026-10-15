@@ -71,7 +71,12 @@
                         <option value="75">{{ _("25 % (objetos pequeños)") }}</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>{{ _("Estabilización tras mover (s)") }}</label>
+                    <input type="number" id="montura-asentamiento" class="form-control" min="0" max="60" step="0.5">
+                </div>
             </div>
+            <small class="ayuda mb-2">{{ _("Estabilización tras mover: segundos que se espera tras cada movimiento de la montura (GOTO, centrado, dithering, alineación, «Apunta aquí») antes de hacer la siguiente foto, para que deje de vibrar. Súbelo si las primeras fotos tras mover salen con las estrellas movidas.") }}</small>
             <small class="ayuda mb-2">{{ _("El zoom recorta por los bordes la vista previa y el JPG de la galería; el apilado y el FITS siguen a campo completo.") }}</small>
             <div class="fila entre mt-2">
                 <button type="submit" class="btn btn-primary"><svg><use href="#i-guardar"/></svg>{{ _("Guardar configuración") }}</button>
@@ -88,29 +93,6 @@
     <div class="text-center">
         <button type="button" class="btn btn-primary" onclick="actualizarMPC()">{{ _("🔄 Actualizar elementos orbitales") }}</button>
     </div>
-
-    <!-- ─── Montura: sincronizaciones guardadas en la app SynScan Pro ── -->
-        <div class="card">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-brujula"/></svg>{{ _("Montura SynScan") }}</h3></div>
-            <div class="dos-campos">
-                <div class="form-group">
-                    <label>{{ _("Estabilización tras mover (s)") }}</label>
-                    <input type="number" id="montura-asentamiento" class="form-control" min="0" max="60" step="0.5">
-                </div>
-                <div class="form-group">
-                    <button type="button" class="btn btn-primary" style="margin-top: 26px;" onclick="guardarAsentamiento()"><svg><use href="#i-guardar"/></svg>{{ _("Guardar") }}</button>
-                </div>
-            </div>
-            <small class="ayuda mb-2">{{ _("Segundos que se espera tras cada movimiento de la montura (GOTO, centrado, dithering, alineación, «Apunta aquí») antes de hacer la siguiente foto, para que deje de vibrar. Súbelo si las primeras fotos tras mover salen con las estrellas movidas.") }}</small>
-            <div id="estado-asentamiento" class="estado mb-2"></div>
-            <p class="card-sub">
-                {{ _("La app SynScan guarda las sincronizaciones y el modelo de apuntado de sesiones anteriores. Al conectar se conservan (si apagas el equipo para cambiar la batería no se pierde la alineación); se borran al iniciar la Alineación Automática o con este botón. Después, la Alineación Automática o el primer Centrado crean el modelo nuevo.") }}
-            </p>
-            <div class="fila entre">
-                <button type="button" class="btn btn-secondary" onclick="limpiarSync()">{{ _("Borrar sincronizaciones de SynScan") }}</button>
-                <div id="estado-sync" class="estado"></div>
-            </div>
-        </div>
 
         <!-- ─── Espacio en el disco del PC ─────────────────────────────── -->
         <div class="card" id="disco">
@@ -157,7 +139,7 @@
         <div class="card" id="hora">
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-lugar"/></svg>{{ _("Ubicación y hora") }}</h3></div>
             <p class="card-sub">
-                {{ _("Con estos datos se calcula qué objetos están altos, los puntos de la alineación y la posición de cometas y asteroides. La montura tiene su propia ubicación en la app SynScan.") }}
+                {{ _("Con estos datos se calcula qué objetos están altos, los puntos de la alineación y la posición de cometas y asteroides. La montura tiene su propia ubicación, configurada en su driver, app o mando.") }}
             </p>
             <div class="dos-campos">
                 <div class="form-group">
@@ -303,24 +285,20 @@
         }).catch(err => document.getElementById("estado-mpc").textContent = "❌ " + err);
     }
 
+    // Estabilización de la montura ([Montura] asentamiento_s): vale para cualquier montura ASCOM;
+    // se guarda con «Guardar configuración» por su propia ruta
     function cargarAsentamiento() {
         fetch("/montura/asentamiento").then(r => r.json())
             .then(d => document.getElementById("montura-asentamiento").value = d.segundos)
-            .catch(err => document.getElementById("estado-asentamiento").textContent = "❌ " + err);
+            .catch(console.error);
     }
-    function guardarAsentamiento() {
-        const est = document.getElementById("estado-asentamiento");
-        const segundos = parseFloat(document.getElementById("montura-asentamiento").value);
-        if (isNaN(segundos)) { est.className = "estado err mb-2"; est.textContent = _("❌ Indica los segundos"); return; }
-        est.className = "estado mb-2"; est.textContent = _("⏳ Guardando...");
-        fetch("/montura/asentamiento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ segundos }) })
+    function guardarAsentamiento(segundos) {
+        return fetch("/montura/asentamiento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ segundos }) })
             .then(r => r.json())
             .then(d => {
-                est.className = "estado " + (d.ok ? "ok" : "err") + " mb-2";
-                est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje;
                 if (d.ok) document.getElementById("montura-asentamiento").value = d.segundos;
-            })
-            .catch(err => { est.className = "estado err mb-2"; est.textContent = "❌ " + err; });
+                return d.ok ? "" : "❌ " + d.mensaje;
+            });
     }
 
     // ——— Actualizar desde GitHub ———
@@ -494,16 +472,6 @@
             .catch(err => { est.className = "estado err mb-2"; est.textContent = "❌ " + err; });
     }
 
-    function limpiarSync() {
-        if (!confirm(_("¿Borrar en la app SynScan las sincronizaciones y el modelo de apuntado? Habrá que volver a alinear o centrar por plate solving."))) return;
-        const est = document.getElementById("estado-sync");
-        est.textContent = _("⏳ Enviando ClearSyncTo...");
-        fetch("/montura/limpiar-sync", { method: "POST" })
-            .then(r => r.json())
-            .then(d => est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje)
-            .catch(err => est.textContent = "❌ " + err);
-    }
-
     // Lista de drivers ASCOM registrados (Telescope / Camera), como en la versión de junio
     async function cargarDrivers(tipo) {
         const sel = document.getElementById(tipo === "Camera" ? "driver_camara" : "driver_telescopio");
@@ -565,12 +533,19 @@
             modo_apilado: document.getElementById("modo_apilado").value
         };
 
-        fetch("/guardar-config-datos", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(datos)
-        }).then(r => r.text())
-            .then(msg => document.getElementById("estado-guardado").textContent = msg);
+        const est = document.getElementById("estado-guardado");
+        const segundos = parseFloat(document.getElementById("montura-asentamiento").value);
+        if (isNaN(segundos)) { est.textContent = _("❌ Indica los segundos de estabilización de la montura"); return; }
+
+        Promise.all([
+            fetch("/guardar-config-datos", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(datos)
+            }).then(r => r.text()),
+            guardarAsentamiento(segundos)
+        ]).then(([msg, errAsentamiento]) => est.textContent = errAsentamiento || msg)
+            .catch(err => est.textContent = "❌ " + err);
     });
 
     // Rango real de ganancia del driver (solo si la cámara está conectada) y aviso
