@@ -157,7 +157,7 @@ def _escribir_po(ruta, catalogo):
     from babel.messages.pofile import write_po
     os.makedirs(os.path.dirname(ruta), exist_ok=True)
     with open(ruta, "wb") as f:
-        write_po(f, catalogo, width=0, sort_by_file=True, ignore_obsolete=True,
+        write_po(f, catalogo, width=0, sort_output=True, ignore_obsolete=True,   # orden estable: diffs pequeños
                  include_lineno=False, include_previous=False)
 
 
