@@ -6243,7 +6243,8 @@ def _centro_mosaico(datos):
     """
     Centro del mosaico a partir de lo que manda la web: coordenadas explícitas, un nombre
     que resolver (misma cadena que el plan), el último GoTo o la posición de la montura.
-    Devuelve {nombre, ra_h, dec_deg, tipo, fuente} o lanza ValueError.
+    Devuelve {nombre, ra_h, dec_deg, tipo, fuente} o lanza ValueError. «fuente» (y el nombre por
+    defecto «Mosaico») se guardan en español y mosaico.js los traduce al pintarlos.
     """
     nombre = " ".join(str(datos.get("nombre") or "").split())
     ra, dec = datos.get("ra_h"), datos.get("dec_deg")
@@ -6252,21 +6253,21 @@ def _centro_mosaico(datos):
         if not tipo and nombre:
             ficha = catalogo_offline.buscar(nombre)
             tipo = (ficha or {}).get("type") or ""
-        return {"nombre": nombre or "Mosaico", "ra_h": float(ra), "dec_deg": float(dec), "tipo": tipo, "fuente": "coordenadas"}
+        return {"nombre": nombre or "Mosaico", "ra_h": float(ra), "dec_deg": float(dec), "tipo": tipo, "fuente": N_("coordenadas")}
     if nombre:
         ficha = _resolver_nombre_plan(nombre)
         if not ficha:
             raise ValueError(_("No se encuentra «{nombre}» en los catálogos", nombre=nombre))
-        return {"nombre": ficha["nombre"], "ra_h": ficha["ra_h"], "dec_deg": ficha["dec_deg"], "tipo": ficha.get("tipo") or "", "fuente": "nombre"}
+        return {"nombre": ficha["nombre"], "ra_h": ficha["ra_h"], "dec_deg": ficha["dec_deg"], "tipo": ficha.get("tipo") or "", "fuente": N_("nombre")}
     if ULTIMO_GOTO:
         # El GoTo de una tesela lleva el sufijo "· tesela k/N": el centro es el objeto, no la tesela
         objeto = re.sub(r"\s*·\s*tesela \d+/\d+$", "", str(ULTIMO_GOTO.get("objeto") or "")).strip() or "Mosaico"
         return {"nombre": objeto, "ra_h": float(ULTIMO_GOTO["ra"]), "dec_deg": float(ULTIMO_GOTO["dec"]),
-                "tipo": apilado.tipo_objeto_goto(objeto), "fuente": "último GoTo"}
+                "tipo": apilado.tipo_objeto_goto(objeto), "fuente": N_("último GoTo")}
     pos = _posicion_montura_j2000()
     if pos is None:
         raise ValueError(_("No hay centro para el mosaico: apunta a un objeto, escribe un nombre o conecta la montura"))
-    return {"nombre": "Mosaico", "ra_h": pos[0], "dec_deg": pos[1], "tipo": "", "fuente": "posición de la montura"}
+    return {"nombre": "Mosaico", "ra_h": pos[0], "dec_deg": pos[1], "tipo": "", "fuente": N_("posición de la montura")}
 
 
 def _previsualizar_mosaico(centro, filas, columnas, solape_pct):

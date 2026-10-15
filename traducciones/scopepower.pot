@@ -1431,12 +1431,32 @@ msgstr ""
 msgid "El plan de la noche está en marcha; detenlo antes."
 msgstr ""
 
+#. js
+#: ScopePower.py
+msgid "coordenadas"
+msgstr ""
+
 #: ScopePower.py
 msgid "No se encuentra «{nombre}» en los catálogos"
 msgstr ""
 
+#. js
+#: ScopePower.py
+msgid "nombre"
+msgstr ""
+
+#. js
+#: ScopePower.py
+msgid "último GoTo"
+msgstr ""
+
 #: ScopePower.py
 msgid "No hay centro para el mosaico: apunta a un objeto, escribe un nombre o conecta la montura"
+msgstr ""
+
+#. js
+#: ScopePower.py
+msgid "posición de la montura"
 msgstr ""
 
 #: ScopePower.py mosaico.py
@@ -4998,6 +5018,10 @@ msgstr ""
 
 #: static/js/mosaico.js
 msgid "No se pudo leer el mosaico: {e}"
+msgstr ""
+
+#: static/js/mosaico.js templates/planetario.html
+msgid "Mosaico"
 msgstr ""
 
 #: static/js/mosaico.js
@@ -10606,10 +10630,6 @@ msgstr ""
 
 #: templates/planetario.html
 msgid "Mosaico: rejilla de teselas sobre el cielo (se apilan una a una y se funden en una imagen)"
-msgstr ""
-
-#: templates/planetario.html
-msgid "Mosaico"
 msgstr ""
 
 #: templates/planetario.html

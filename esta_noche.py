@@ -83,8 +83,9 @@ def cargar_catalogo(ruta=RUTA_CATALOGO):
 def _traducir_catalogo(objetos):
     """
     Con la app en inglés: nombre, constelación y descripción de catalogo_objetos_en.csv. El
-    nombre español pasa a nombre_alt (sigue sirviendo para buscar). El tipo NO se cambia: es
-    clave (filtros, iconos, presets) y la web lo traduce al pintarlo.
+    nombre español queda en nombre_es (sigue sirviendo para buscar) y nombre_alt se vacía si
+    repite el nombre inglés. El tipo NO se cambia: es clave (filtros, iconos, presets) y la web
+    lo traduce al pintarlo.
     """
     traducida = idioma.ruta_variante(RUTA_CATALOGO)
     if traducida == RUTA_CATALOGO:
@@ -100,7 +101,9 @@ def _traducir_catalogo(objetos):
         if not r:
             continue
         if r.get("nombre"):
-            o["nombre_alt"], o["nombre"] = o["nombre"], r["nombre"]
+            o["nombre_es"], o["nombre"] = o["nombre"], r["nombre"]
+            if o["nombre_alt"] and o["nombre_alt"].lower() in o["nombre"].lower():
+                o["nombre_alt"] = ""
         for campo in ("constelacion", "descripcion"):
             if r.get(campo):
                 o[campo] = r[campo]

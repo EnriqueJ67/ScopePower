@@ -52,16 +52,19 @@
         }).catch(function (e) { error(_("No se pudo leer el mosaico: {e}", { e: e })); });
     };
 
+    // El servidor guarda la fuente del centro y el nombre por defecto en español: se traducen aquí
+    function nombreCentro(c) { return c.nombre === "Mosaico" ? _("Mosaico") : c.nombre; }
+
     function pintarCentro() {
         if (!datos) return;
         var c = datos.centro || {};
         var campo = datos.campo || {};
         var t = "";
         if (c.error) t = c.error;
-        else t = _("Centro: <b>{nombre}</b> ({fuente})", { nombre: esc(c.nombre), fuente: esc(c.fuente) }) + " · RA " + horasCortas(c.ra_h) + " Dec " + gradosCortos(c.dec_deg);
+        else t = _("Centro: <b>{nombre}</b> ({fuente})", { nombre: esc(nombreCentro(c)), fuente: esc(_(c.fuente)) }) + " · RA " + horasCortas(c.ra_h) + " Dec " + gradosCortos(c.dec_deg);
         if (campo.ancho_deg) t += "<br>" + _("Campo de la cámara: {ancho} × {alto} ({origen})", { ancho: grados(campo.ancho_deg), alto: grados(campo.alto_deg), origen: esc(campo.origen) });
         $("mosaico-centro-texto").innerHTML = t;
-        $("mosaico-nombre").placeholder = c.nombre ? c.nombre + " (" + c.fuente + ")" : _("Objeto o coordenadas del centro");
+        $("mosaico-nombre").placeholder = c.nombre ? nombreCentro(c) + " (" + _(c.fuente) + ")" : _("Objeto o coordenadas del centro");
     }
 
     function cuerpoFormulario() {

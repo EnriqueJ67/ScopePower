@@ -66,7 +66,7 @@ def buscar_en_catalogo(nombre):
     # "Andromeda" también debe encajar con "Galaxia de Andrómeda": segundo intento por inclusión
     candidatos = esta_noche.cargar_catalogo()
     for o in candidatos:
-        if clave in (_clave(o["id"]), _clave(o["nombre"]), _clave(o["nombre_alt"])):
+        if clave in (_clave(o["id"]), _clave(o["nombre"]), _clave(o["nombre_alt"]), _clave(o.get("nombre_es"))):
             return o
     # Nombre entre paréntesis: "Cabeza de Caballo (Barnard 33)"
     for o in candidatos:

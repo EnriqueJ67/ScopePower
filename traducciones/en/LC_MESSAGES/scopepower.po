@@ -1331,13 +1331,33 @@ msgstr "The plan isn't running"
 msgid "El plan de la noche está en marcha; detenlo antes."
 msgstr "The night plan is running; stop it first."
 
+#. js
+#: ScopePower.py
+msgid "coordenadas"
+msgstr "coordinates"
+
 #: ScopePower.py
 msgid "No se encuentra «{nombre}» en los catálogos"
 msgstr "“{nombre}” isn't in the catalogs"
 
+#. js
+#: ScopePower.py
+msgid "nombre"
+msgstr "name"
+
+#. js
+#: ScopePower.py
+msgid "último GoTo"
+msgstr "last GoTo"
+
 #: ScopePower.py
 msgid "No hay centro para el mosaico: apunta a un objeto, escribe un nombre o conecta la montura"
 msgstr "There's no center for the mosaic: point at an object, type a name or connect the mount"
+
+#. js
+#: ScopePower.py
+msgid "posición de la montura"
+msgstr "mount position"
 
 #: ScopePower.py
 msgid "Filas, columnas y solape tienen que ser números"
@@ -5082,6 +5102,10 @@ msgstr "pending"
 #: static/js/mosaico.js templates/apilado.html
 msgid "en curso"
 msgstr "in progress"
+
+#: static/js/mosaico.js templates/planetario.html
+msgid "Mosaico"
+msgstr "Mosaic"
 
 #. js
 #: static/js/mosaico.js templates/planetario.html
@@ -10617,10 +10641,6 @@ msgstr "Pins with the recommended objects from Tonight"
 #: templates/planetario.html
 msgid "Mosaico: rejilla de teselas sobre el cielo (se apilan una a una y se funden en una imagen)"
 msgstr "Mosaic: grid of tiles on the sky (stacked one by one and blended into a single image)"
-
-#: templates/planetario.html
-msgid "Mosaico"
-msgstr "Mosaic"
 
 #: templates/planetario.html
 msgid "Objetos recomendados esta noche"
