@@ -1,7 +1,7 @@
 <!-- templates/planetario.html -->
 {% extends "base.html" %}
 
-{% block title %}Planetario{% endblock %}
+{% block title %}{{ _("Planetario") }}{% endblock %}
 
 {% block head %}
 <!-- Motor Celestia Atlas (static/atlas, ver ORIGEN.md). Los catálogos son scripts clásicos
@@ -18,14 +18,14 @@
     (function () {
         function avisar(texto) {
             var e = document.getElementById("estado");
-            if (e && /Cargando el cielo/.test(e.textContent)) e.innerHTML = "❌ " + texto + "<br><small>Navegador: " + navigator.userAgent.replace(/^.*\((.*?)\).*?(Chrome\/[\d.]+|Safari\/[\d.]+|Firefox\/[\d.]+)?.*$/, "$1 · $2") + "</small>";
+            if (e && e.textContent.indexOf(_("Cargando el cielo…")) >= 0) e.innerHTML = "❌ " + texto + "<br><small>" + _("Navegador: {navegador}", { navegador: navigator.userAgent.replace(/^.*\((.*?)\).*?(Chrome\/[\d.]+|Safari\/[\d.]+|Firefox\/[\d.]+)?.*$/, "$1 · $2") }) + "</small>";
         }
         window.addEventListener("error", function (ev) {
-            if (ev.target && ev.target !== window && ev.target.src) avisar("No se pudo cargar " + ev.target.src.replace(/^.*\/static\//, "static/"));
-            else if (ev.message) avisar("Error al arrancar el planetario: " + ev.message);
+            if (ev.target && ev.target !== window && ev.target.src) avisar(_("No se pudo cargar {fichero}", { fichero: ev.target.src.replace(/^.*\/static\//, "static/") }));
+            else if (ev.message) avisar(_("Error al arrancar el planetario: {error}", { error: ev.message }));
         }, true);
-        window.addEventListener("unhandledrejection", function (ev) { avisar("Error al arrancar el planetario: " + (ev.reason && ev.reason.message || ev.reason)); });
-        setTimeout(function () { avisar("El planetario no ha arrancado en 20 s. Hace falta Chrome 80 o más reciente (o Safari 15); actualiza el navegador de este dispositivo."); }, 20000);
+        window.addEventListener("unhandledrejection", function (ev) { avisar(_("Error al arrancar el planetario: {error}", { error: (ev.reason && ev.reason.message || ev.reason) })); });
+        setTimeout(function () { avisar(_("El planetario no ha arrancado en 20 s. Hace falta Chrome 80 o más reciente (o Safari 15); actualiza el navegador de este dispositivo.")); }, 20000);
     })();
 </script>
 {% endblock %}
@@ -33,60 +33,60 @@
 {% block content %}
 <div class="card card-plana barra-atlas">
     <div class="buscador">
-        <input id="buscar" type="search" placeholder="Buscar: M31, NGC 7000, Vega, Jupiter…" autocomplete="off" spellcheck="false">
+        <input id="buscar" type="search" placeholder="{{ _('Buscar: M31, NGC 7000, Vega, Jupiter…') }}" autocomplete="off" spellcheck="false">
         <div id="sugerencias" class="sugerencias" hidden></div>
     </div>
-    <button type="button" class="btn" id="btn-modo" title="Cambiar entre horizonte (Alt/Az) y ecuatorial (RA/Dec)">Alt/Az</button>
-    <button type="button" class="btn" id="btn-montura" title="Centrar el mapa donde apunta la montura" disabled><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">Montura</span></button>
-    <button type="button" class="btn" id="btn-centro" title="Elegir el centro del mapa (donde está el rectángulo de la cámara) para ir a ese punto aunque no haya ningún objeto"><svg><use href="#i-goto"/></svg><span class="oculto-movil">Centro</span></button>
-    <label class="switch" title="El mapa sigue a la montura"><input type="checkbox" id="seguir"> Seguir</label>
-    <label class="switch" title="Chinchetas con los objetos recomendados de Esta noche"><input type="checkbox" id="chinchetas" checked> Esta noche</label>
-    <button type="button" class="btn" id="btn-mosaico" title="Mosaico: rejilla de teselas sobre el cielo (se apilan una a una y se funden en una imagen)">🧩<span class="oculto-movil"> Mosaico</span></button>
+    <button type="button" class="btn" id="btn-modo" title="{{ _('Cambiar entre horizonte (Alt/Az) y ecuatorial (RA/Dec)') }}">Alt/Az</button>
+    <button type="button" class="btn" id="btn-montura" title="{{ _('Centrar el mapa donde apunta la montura') }}" disabled><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">{{ _("Montura") }}</span></button>
+    <button type="button" class="btn" id="btn-centro" title="{{ _('Elegir el centro del mapa (donde está el rectángulo de la cámara) para ir a ese punto aunque no haya ningún objeto') }}"><svg><use href="#i-goto"/></svg><span class="oculto-movil">{{ _("Centro") }}</span></button>
+    <label class="switch" title="{{ _('El mapa sigue a la montura') }}"><input type="checkbox" id="seguir"> {{ _("Seguir") }}</label>
+    <label class="switch" title="{{ _('Chinchetas con los objetos recomendados de Esta noche') }}"><input type="checkbox" id="chinchetas" checked> {{ _("Esta noche") }}</label>
+    <button type="button" class="btn" id="btn-mosaico" title="{{ _('Mosaico: rejilla de teselas sobre el cielo (se apilan una a una y se funden en una imagen)') }}">🧩<span class="oculto-movil"> {{ _("Mosaico") }}</span></button>
 </div>
 
 <div class="atlas-marco">
     <div id="atlas" class="atlas"></div>
-    <div id="capa-noche" class="capa-noche" aria-label="Objetos recomendados esta noche"></div>
+    <div id="capa-noche" class="capa-noche" aria-label="{{ _('Objetos recomendados esta noche') }}"></div>
     <!-- Mosaico: huellas de las teselas (mosaico.py) proyectadas como las chinchetas, a cada fotograma -->
-    <svg id="capa-mosaico" class="capa-mosaico" hidden aria-label="Teselas del mosaico"></svg>
+    <svg id="capa-mosaico" class="capa-mosaico" hidden aria-label="{{ _('Teselas del mosaico') }}"></svg>
     <div id="panel-mosaico-atlas" class="panel panel-mosaico" hidden>
         <div class="panel-cab">
             <div>
-                <div class="panel-nombre">🧩 Mosaico</div>
+                <div class="panel-nombre">🧩 {{ _("Mosaico") }}</div>
                 <div class="panel-datos texto-2" id="ma-centro"></div>
             </div>
-            <button type="button" class="btn btn-icono" id="ma-cerrar" title="Cerrar"><svg><use href="#i-cerrar"/></svg></button>
+            <button type="button" class="btn btn-icono" id="ma-cerrar" title="{{ _('Cerrar') }}"><svg><use href="#i-cerrar"/></svg></button>
         </div>
         <div class="ma-form">
-            <label>Filas × columnas</label>
+            <label>{{ _("Filas × columnas") }}</label>
             <div class="fila" style="gap: 4px;">
                 <input type="number" id="ma-filas" min="1" max="6" step="1" value="2"><span class="texto-3">×</span><input type="number" id="ma-columnas" min="1" max="6" step="1" value="2">
             </div>
-            <label for="ma-solape">Solape (%)</label><input type="number" id="ma-solape" min="5" max="60" step="1" value="20">
-            <label for="ma-fotos">Fotos por tesela</label><input type="number" id="ma-fotos" min="1" max="999" step="1" value="20">
+            <label for="ma-solape">{{ _("Solape (%)") }}</label><input type="number" id="ma-solape" min="5" max="60" step="1" value="20">
+            <label for="ma-fotos">{{ _("Fotos por tesela") }}</label><input type="number" id="ma-fotos" min="1" max="999" step="1" value="20">
         </div>
         <div class="panel-datos texto-3" id="ma-info"></div>
         <div class="panel-acciones">
-            <button type="button" class="btn btn-primary" id="ma-empezar"><svg><use href="#i-play"/></svg>Empezar mosaico</button>
-            <button type="button" class="btn btn-danger" id="ma-detener" hidden>⏹ Detener</button>
-            <a class="btn" href="/apilado" title="Seguir el mosaico en la pantalla Apilado"><svg><use href="#i-apilado"/></svg>Apilado</a>
+            <button type="button" class="btn btn-primary" id="ma-empezar"><svg><use href="#i-play"/></svg>{{ _("Empezar mosaico") }}</button>
+            <button type="button" class="btn btn-danger" id="ma-detener" hidden>⏹ {{ _("Detener") }}</button>
+            <a class="btn" href="/apilado" title="{{ _('Seguir el mosaico en la pantalla Apilado') }}"><svg><use href="#i-apilado"/></svg>{{ _("Apilado") }}</a>
         </div>
         <div class="panel-datos" id="ma-estado"></div>
     </div>
     <div id="marca-punto" class="marca-punto" hidden aria-hidden="true"></div>
-    <div id="estado" class="estado-atlas"><span class="spinner"></span> Cargando el cielo…</div>
+    <div id="estado" class="estado-atlas"><span class="spinner"></span> {{ _("Cargando el cielo…") }}</div>
     <div id="panel" class="panel" hidden>
         <div class="panel-cab">
             <div>
                 <div class="panel-nombre" id="p-nombre"></div>
                 <div class="panel-datos texto-2" id="p-datos"></div>
             </div>
-            <button type="button" class="btn btn-icono" id="btn-cerrar" title="Cerrar"><svg><use href="#i-cerrar"/></svg></button>
+            <button type="button" class="btn btn-icono" id="btn-cerrar" title="{{ _('Cerrar') }}"><svg><use href="#i-cerrar"/></svg></button>
         </div>
         <div class="panel-acciones">
-            <button type="button" class="btn btn-primary" id="btn-ir"><svg><use href="#i-goto"/></svg><span id="btn-ir-texto">Ir</span></button>
-            <button type="button" class="btn" id="btn-centrar-mapa" title="Poner el centro del mapa (y el rectángulo de la cámara) aquí"><svg><use href="#i-planetario"/></svg>Centrar mapa</button>
-            <a class="btn" id="btn-info" href="#" target="_blank" rel="noopener" hidden><svg><use href="#i-info"/></svg>Info</a>
+            <button type="button" class="btn btn-primary" id="btn-ir"><svg><use href="#i-goto"/></svg><span id="btn-ir-texto">{{ _("Ir") }}</span></button>
+            <button type="button" class="btn" id="btn-centrar-mapa" title="{{ _('Poner el centro del mapa (y el rectángulo de la cámara) aquí') }}"><svg><use href="#i-planetario"/></svg>{{ _("Centrar mapa") }}</button>
+            <a class="btn" id="btn-info" href="#" target="_blank" rel="noopener" hidden><svg><use href="#i-info"/></svg>{{ _("Info") }}</a>
         </div>
     </div>
 </div>
@@ -100,16 +100,15 @@
         <div id="ficha-visib" style="font-weight: 600; font-size: 13.5px;"></div>
         <div class="texto-3" id="ficha-coords" style="font-size: 13px; margin-top: 4px;"></div>
         <div class="modal-acciones">
-            <button type="button" class="btn btn-primary" id="ficha-ir"><svg><use href="#i-goto"/></svg><span id="ficha-ir-texto">Ir y centrar</span></button>
-            <button type="button" class="btn" id="ficha-plan" title="Añadir a la lista del plan de la noche (pantalla Apilado)"><svg><use href="#i-apilado"/></svg>Añadir al plan</button>
-            <button type="button" class="btn" id="ficha-ver"><svg><use href="#i-planetario"/></svg>Ver en el mapa</button>
-            <button type="button" class="btn" onclick="cerrarFicha()">Cerrar</button>
+            <button type="button" class="btn btn-primary" id="ficha-ir"><svg><use href="#i-goto"/></svg><span id="ficha-ir-texto">{{ _("Ir y centrar") }}</span></button>
+            <button type="button" class="btn" id="ficha-plan" title="{{ _('Añadir a la lista del plan de la noche (pantalla Apilado)') }}"><svg><use href="#i-apilado"/></svg>{{ _("Añadir al plan") }}</button>
+            <button type="button" class="btn" id="ficha-ver"><svg><use href="#i-planetario"/></svg>{{ _("Ver en el mapa") }}</button>
+            <button type="button" class="btn" onclick="cerrarFicha()">{{ _("Cerrar") }}</button>
         </div>
     </div>
 </div>
 
-<p class="credito texto-3">Motor <a href="https://github.com/acocalypso/celestia_atlas" target="_blank" rel="noopener">Celestia Atlas</a> (MIT) ·
-    estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · <a href="/static/atlas/THIRD_PARTY_NOTICES.md" target="_blank">créditos</a></p>
+<p class="credito texto-3">{{ _('Motor <a href="https://github.com/acocalypso/celestia_atlas" target="_blank" rel="noopener">Celestia Atlas</a> (MIT) · estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · <a href="/static/atlas/THIRD_PARTY_NOTICES.md" target="_blank">créditos</a>')|safe }}</p>
 
 <style>
     .barra-atlas { display: flex; gap: 8px; align-items: center; padding: 10px; flex-wrap: wrap; }
@@ -193,26 +192,30 @@
 
     // Nombres del Sistema Solar tal como los entiende /goto (sin acentos): el PC calcula
     // sus coordenadas con astropy, así que a esos no se les mandan RA/Dec del mapa.
-    const sistemaSolar = { sun: "Sol", moon: "Luna", mercury: "Mercurio", venus: "Venus", mars: "Marte",
-        jupiter: "Jupiter", saturn: "Saturno", uranus: "Urano", neptune: "Neptuno", pluto: "Pluton" };
-    const tipos = { Star: "Estrella", G: "Galaxia", GPair: "Par de galaxias", GTrpl: "Trío de galaxias", GGroup: "Grupo de galaxias",
-        PN: "Nebulosa planetaria", Neb: "Nebulosa", HII: "Región HII", EmN: "Nebulosa de emisión", RfN: "Nebulosa de reflexión",
-        DrkN: "Nebulosa oscura", SNR: "Resto de supernova", OCl: "Cúmulo abierto", GCl: "Cúmulo globular", "Cl+N": "Cúmulo con nebulosa",
-        "*Ass": "Asociación estelar", "**": "Estrella doble", "*": "Estrella", Planet: "Planeta", Moon: "Luna", Sun: "Sol", Comet: "Cometa",
-        Punto: "Punto del cielo elegido en el mapa (sin objeto)" };
+    // Los valores siguen en español (son los nombres que entiende /goto); se traducen al pintarlos
+    const sistemaSolar = { sun: N_("Sol"), moon: N_("Luna"), mercury: N_("Mercurio"), venus: N_("Venus"), mars: N_("Marte"),
+        jupiter: N_("Jupiter"), saturn: N_("Saturno"), uranus: N_("Urano"), neptune: N_("Neptuno"), pluto: N_("Pluton") };
+    // Tipos en español (se mandan así al PC, p. ej. al mosaico); _(tipos[c]) al pintarlos
+    const tipos = { Star: N_("Estrella"), G: N_("Galaxia"), GPair: N_("Par de galaxias"), GTrpl: N_("Trío de galaxias"), GGroup: N_("Grupo de galaxias"),
+        PN: N_("Nebulosa planetaria"), Neb: N_("Nebulosa"), HII: N_("Región HII"), EmN: N_("Nebulosa de emisión"), RfN: N_("Nebulosa de reflexión"),
+        DrkN: N_("Nebulosa oscura"), SNR: N_("Resto de supernova"), OCl: N_("Cúmulo abierto"), GCl: N_("Cúmulo globular"), "Cl+N": N_("Cúmulo con nebulosa"),
+        "*Ass": N_("Asociación estelar"), "**": N_("Estrella doble"), "*": N_("Estrella"), Planet: N_("Planeta"), Moon: N_("Luna"), Sun: N_("Sol"), Comet: N_("Cometa"),
+        Punto: N_("Punto del cielo elegido en el mapa (sin objeto)") };
+    // Luna y planetas de "Esta noche" llegan con el nombre en español (clave del GoTo)
+    const nombreVisible = o => (o.tipo === "Planeta" || o.tipo === "Luna") ? _(o.nombre) : o.nombre;
 
     function coordsDe(t) {
         const ra = t?.coordinates?.raDeg ?? t?.raDeg, dec = t?.coordinates?.decDeg ?? t?.decDeg;
         return Number.isFinite(ra) && Number.isFinite(dec) ? { raDeg: ra, decDeg: dec, frame: t.coordinates?.frame || t.frame || "ICRS" } : null;
     }
-    const horas = raDeg => { const h = raDeg / 15, m = (h % 1) * 60; return `${Math.floor(h)}h ${m.toFixed(1).padStart(4, "0")}m`; };
+    const horas = raDeg => { const h = raDeg / 15, m = (h % 1) * 60; return `${Math.floor(h)}h ${fmtNum(m, 1).padStart(4, "0")}m`; };
     const grados = d => `${d < 0 ? "−" : "+"}${Math.floor(Math.abs(d))}° ${((Math.abs(d) % 1) * 60).toFixed(0).padStart(2, "0")}′`;
 
     async function iniciar() {
         try {
             cfg = await (await fetch("/planetario/estado")).json();
         } catch (e) {
-            estadoEl.innerHTML = "❌ No se pudo leer el estado del PC: " + e;
+            estadoEl.innerHTML = "❌ " + _("No se pudo leer el estado del PC: {error}", { error: e });
             return;
         }
         observador = { latitudeDeg: cfg.observador.latitud, longitudeDeg: cfg.observador.longitud, elevationM: cfg.observador.altitud };
@@ -225,7 +228,7 @@
                 onError: e => console.error("atlas", e),
             });
         } catch (e) {
-            estadoEl.innerHTML = "❌ El navegador no puede dibujar el planetario: " + e.message;
+            estadoEl.innerHTML = "❌ " + _("El navegador no puede dibujar el planetario: {error}", { error: e.message });
             return;
         }
         window.viewer = viewer;
@@ -280,7 +283,7 @@
         }
         $("btn-montura").disabled = !m.conectada;
         ponerEncuadre();
-        $("btn-ir-texto").textContent = c.centrar_tras_goto ? "Ir y centrar" : "Ir";
+        $("btn-ir-texto").textContent = c.centrar_tras_goto ? _("Ir y centrar") : _("Ir");
         pintarEstado(c);
     }
 
@@ -309,14 +312,14 @@
         if (gotoEnCurso) return;   // mientras /goto responde se muestra su propio mensaje
         const m = c.montura || {}, cen = c.centrado || {};
         let txt;
-        if (!m.conectada && m.error) txt = `⚠️ La montura no responde (${m.error}). Comprueba SynScan Pro y que la montura esté encendida`;
-        else if (!m.conectada) txt = "Montura no conectada: el mapa funciona, pero no se puede ir a los objetos";
-        else if (cen.en_curso) txt = `🎯 Centrando <b>${cen.objeto || ""}</b> (vuelta ${cen.vuelta}/${cen.max_vueltas}): ${cen.mensaje || ""}`;
-        else if (m.slewing) txt = `↗ Montura moviéndose${c.ultimo_goto?.objeto ? " a <b>" + c.ultimo_goto.objeto + "</b>" : ""}…`;
-        else txt = `Montura en RA ${horas(m.ra_h * 15)} · Dec ${grados(m.dec_deg)}` +
-            (c.ultimo_goto?.objeto ? ` · último GoTo: <b>${c.ultimo_goto.objeto}</b>` : "") +
-            (cen.terminado && cen.resultado ? ` · centrado: ${cen.resultado}` : "") +
-            (Number.isFinite(c.rotacion_camara?.grados) ? ` · cámara girada ${c.rotacion_camara.grados.toFixed(0)}°` : "");
+        if (!m.conectada && m.error) txt = "⚠️ " + _("La montura no responde ({error}). Comprueba SynScan Pro y que la montura esté encendida", { error: m.error });
+        else if (!m.conectada) txt = _("Montura no conectada: el mapa funciona, pero no se puede ir a los objetos");
+        else if (cen.en_curso) txt = "🎯 " + _("Centrando {objeto} (vuelta {n}/{total}): {mensaje}", { objeto: `<b>${cen.objeto || ""}</b>`, n: cen.vuelta, total: cen.max_vueltas, mensaje: cen.mensaje || "" });
+        else if (m.slewing) txt = "↗ " + (c.ultimo_goto?.objeto ? _("Montura moviéndose a {objeto}…", { objeto: "<b>" + c.ultimo_goto.objeto + "</b>" }) : _("Montura moviéndose…"));
+        else txt = _("Montura en RA {ra} · Dec {dec}", { ra: horas(m.ra_h * 15), dec: grados(m.dec_deg) }) +
+            (c.ultimo_goto?.objeto ? " · " + _("último GoTo: {objeto}", { objeto: `<b>${c.ultimo_goto.objeto}</b>` }) : "") +
+            (cen.terminado && cen.resultado ? " · " + _("centrado: {resultado}", { resultado: cen.resultado }) : "") +
+            (Number.isFinite(c.rotacion_camara?.grados) ? " · " + _("cámara girada {grados}°", { grados: c.rotacion_camara.grados.toFixed(0) }) : "");
         estadoEl.innerHTML = txt;
     }
 
@@ -332,16 +335,17 @@
         if (!t) { p.hidden = true; return; }
         const nombre = t.displayName || t.name;
         $("p-nombre").textContent = nombre;
-        const partes = [tipos[t.typeCode] || tipos[t.type] || t.type || t.typeCode || ""];
+        const tipoT = tipos[t.typeCode] || tipos[t.type];
+        const partes = [tipoT ? _(tipoT) : (t.type || t.typeCode || "")];
         const mag = t.mag ?? t.magnitude;
-        if (Number.isFinite(mag)) partes.push(`mag ${(+mag).toFixed(1)}`);
+        if (Number.isFinite(mag)) partes.push(_("mag {mag}", { mag: fmtNum(+mag, 1) }));
         let html = partes.filter(Boolean).join(" · ");
         if (c) {
             let alt = "";
             try {
                 const h = equatorialToHorizontal(c, observador, viewer.getTime());
-                alt = `<br>Alt ${h.altitudeDeg.toFixed(1)}° · Az ${h.azimuthDeg.toFixed(1)}°`;
-                if (h.altitudeDeg < (cfg?.altura_minima ?? 0)) alt += ` <span style="color: var(--warn)">· bajo la altura mínima (${cfg.altura_minima}°)</span>`;
+                alt = "<br>" + _("Alt {alt}° · Az {az}°", { alt: fmtNum(h.altitudeDeg, 1), az: fmtNum(h.azimuthDeg, 1) });
+                if (h.altitudeDeg < (cfg?.altura_minima ?? 0)) alt += ` <span style="color: var(--warn)">· ` + _("bajo la altura mínima ({altura}°)", { altura: fmtNum(cfg.altura_minima) }) + `</span>`;
             } catch (e) {}
             html += `<br>RA ${horas(c.raDeg)} · Dec ${grados(c.decDeg)}${alt}`;
         }
@@ -367,8 +371,8 @@
     function seleccionarPunto(c) {
         // Se pasa por viewer.select para que el motor suelte el objeto que tuviera recuadrado;
         // el motor devuelve el mismo objeto (con "libre") por onSelect → mostrarPanel.
-        const nombre = `Campo ${horasCortas(c.raDeg)} ${gradosCortos(c.decDeg)}`;
-        viewer.select({ id: "punto-libre", name: nombre, displayName: "Punto del cielo", type: "Punto", libre: true,
+        const nombre = _("Campo {ra} {dec}", { ra: horasCortas(c.raDeg), dec: gradosCortos(c.decDeg) });
+        viewer.select({ id: "punto-libre", name: nombre, displayName: _("Punto del cielo"), type: "Punto", libre: true,
                         coordinates: { raDeg: c.raDeg, decDeg: c.decDeg, frame: "ICRS" } });
     }
     function vistaProyectada() {
@@ -422,22 +426,22 @@
         if (filtroSolar) cuerpo += "&filtro_solar=si";
         gotoEnCurso = true;
         if (boton) boton.disabled = true;
-        estadoEl.innerHTML = `<span class="spinner"></span> Enviando GoTo a <b>${objeto}</b>…`;
+        estadoEl.innerHTML = `<span class="spinner"></span> ` + _("Enviando GoTo a {objeto}…", { objeto: `<b>${objeto}</b>` });
         let ok = false;
         try {
             const r = await (await fetch("/goto", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: cuerpo })).json();
             if (r.confirmar_filtro_solar) {
                 // El Sol (o algo muy cerca): el PC no mueve nada hasta confirmar el filtro solar
-                estadoEl.innerHTML = "☀️ Esperando confirmación del filtro solar…";
+                estadoEl.innerHTML = "☀️ " + _("Esperando confirmación del filtro solar…");
                 if (await confirmarFiltroSolar(r.confirmar_filtro_solar)) {
                     gotoEnCurso = false;
                     return enviarGoto(objeto, ra_h, dec_deg, boton, true);
                 }
-                estadoEl.innerHTML = "⛔ GoTo cancelado: filtro solar sin confirmar.";
+                estadoEl.innerHTML = "⛔ " + _("GoTo cancelado: filtro solar sin confirmar.");
             } else {
                 if (r.error) estadoEl.innerHTML = "❌ " + r.error;
                 else if (r.warning) estadoEl.innerHTML = "⚠️ " + r.warning;
-                else estadoEl.innerHTML = r.message || "✅ GoTo enviado";
+                else estadoEl.innerHTML = r.message || "✅ " + _("GoTo enviado");
                 ok = !r.error && !r.warning;
                 if (ok) { $("seguir").checked = true; viewer.setMountFollow(true); }
             }
@@ -475,8 +479,8 @@
                 const el = document.createElement("button");
                 el.type = "button";
                 el.className = "chincheta " + (o.visible_ahora ? "ahora" : "tarde");
-                el.title = o.nombre + (o.visible_ahora ? ` · ahora a ${o.alt_ahora}°` : ` · visible desde las ${o.visible_desde}`);
-                el.innerHTML = `<span class="cuadro">${iconosTipo[o.tipo] || "🔭"}</span><span class="etiqueta">${o.nombre}</span>`;
+                el.title = nombreVisible(o) + " · " + (o.visible_ahora ? _("ahora a {alt}°", { alt: fmtNum(o.alt_ahora) }) : _("visible desde las {hora}", { hora: o.visible_desde }));
+                el.innerHTML = `<span class="cuadro">${iconosTipo[o.tipo] || "🔭"}</span><span class="etiqueta">${nombreVisible(o)}</span>`;
                 el.hidden = true;
                 el.addEventListener("click", ev => { ev.stopPropagation(); abrirFicha(o); });
                 capa.appendChild(el);
@@ -530,19 +534,19 @@
     function abrirFicha(o) {
         fichaActual = o;
         $("ficha-icono").textContent = iconosTipo[o.tipo] || "🔭";
-        $("ficha-nombre").textContent = o.nombre;
+        $("ficha-nombre").textContent = nombreVisible(o);
         $("ficha-id").textContent = [o.id !== o.nombre ? o.id : "", o.nombre_alt && o.nombre_alt !== o.id ? o.nombre_alt : ""].filter(Boolean).join(" · ");
         const estrellas = "★".repeat(o.popularidad || 0) + "☆".repeat(Math.max(0, 5 - (o.popularidad || 0)));
-        $("ficha-datos").innerHTML = [o.tipo, o.constelacion, o.mag !== null && o.mag !== undefined ? `mag ${o.mag}` : "", o.tamano_arcmin ? `${o.tamano_arcmin}′` : ""]
+        $("ficha-datos").innerHTML = [o.tipo ? _(o.tipo) : "", o.constelacion, o.mag !== null && o.mag !== undefined ? _("mag {mag}", { mag: fmtNum(o.mag) }) : "", o.tamano_arcmin ? `${fmtNum(o.tamano_arcmin)}′` : ""]
             .filter(Boolean).join(" · ") + ` <span style="color: var(--warn); letter-spacing: 1px; font-size: 12px;">${estrellas}</span>`;
         $("ficha-desc").textContent = o.descripcion || "";
         const v = $("ficha-visib");
-        if (o.visible_ahora) { v.style.color = "var(--ok)"; v.textContent = `Visible ahora a ${o.alt_ahora}° · máximo ${o.alt_max}° a las ${o.hora_max}`; }
-        else { v.style.color = "var(--warn)"; v.textContent = `Visible de ${o.visible_desde} a ${o.visible_hasta} · máximo ${o.alt_max}° a las ${o.hora_max}`; }
+        if (o.visible_ahora) { v.style.color = "var(--ok)"; v.textContent = _("Visible ahora a {alt}° · máximo {max}° a las {hora}", { alt: fmtNum(o.alt_ahora), max: fmtNum(o.alt_max), hora: o.hora_max }); }
+        else { v.style.color = "var(--warn)"; v.textContent = _("Visible de {desde} a {hasta} · máximo {max}° a las {hora}", { desde: o.visible_desde, hasta: o.visible_hasta, max: fmtNum(o.alt_max), hora: o.hora_max }); }
         let coords = `RA ${horas(o.ra_h * 15)} · Dec ${grados(o.dec_deg)}`;
-        try { const hz = equatorialToHorizontal({ raDeg: o.ra_h * 15, decDeg: o.dec_deg, frame: "ICRS" }, observador, viewer.getTime()); coords += ` · Alt ${hz.altitudeDeg.toFixed(1)}° · Az ${hz.azimuthDeg.toFixed(1)}°`; } catch (e) {}
+        try { const hz = equatorialToHorizontal({ raDeg: o.ra_h * 15, decDeg: o.dec_deg, frame: "ICRS" }, observador, viewer.getTime()); coords += " · " + _("Alt {alt}° · Az {az}°", { alt: fmtNum(hz.altitudeDeg, 1), az: fmtNum(hz.azimuthDeg, 1) }); } catch (e) {}
         $("ficha-coords").textContent = coords;
-        $("ficha-ir-texto").textContent = cfg?.centrar_tras_goto ? "Ir y centrar" : "Ir";
+        $("ficha-ir-texto").textContent = cfg?.centrar_tras_goto ? _("Ir y centrar") : _("Ir");
         $("ficha-ir").className = "btn " + (o.visible_ahora ? "btn-primary" : "btn-secondary");
         $("modal-objeto").classList.add("abierto");
     }
@@ -583,7 +587,8 @@
         resultados = viewer.search(q).slice(0, 8);
         for (const r of resultados) {
             const d = document.createElement("div");
-            const tipo = tipos[r.typeCode] || tipos[r.type] || "";
+            const tipoR = tipos[r.typeCode] || tipos[r.type];
+            const tipo = tipoR ? _(tipoR) : "";
             d.innerHTML = `${r.displayName || r.name}${tipo ? `<small>${tipo}</small>` : ""}`;
             d.onclick = () => elegir(r);
             sug.appendChild(d);
@@ -625,15 +630,15 @@
     let claveMosaico = "", pidiendoMosaico = false, pendienteMosaico = false, timerCentroMosaico = null, timerEstadoMosaico = null;
 
     function centroActualMosaico() {
-        if (estadoMosaico?.en_curso) return { raDeg: estadoMosaico.ra_h * 15, decDeg: estadoMosaico.dec_deg, nombre: estadoMosaico.nombre, fuente: "mosaico en marcha" };
+        if (estadoMosaico?.en_curso) return { raDeg: estadoMosaico.ra_h * 15, decDeg: estadoMosaico.dec_deg, nombre: estadoMosaico.nombre, fuente: _("mosaico en marcha") };
         const c = coordsDe(seleccionado);
         if (c) {
             const { objeto } = nombreParaGoto(seleccionado);
             return { raDeg: c.raDeg, decDeg: c.decDeg, nombre: objeto, tipo: seleccionado.libre ? "" : (tipos[seleccionado.typeCode] || tipos[seleccionado.type] || ""),
-                     fuente: seleccionado.libre ? "punto elegido" : "objeto seleccionado" };
+                     fuente: seleccionado.libre ? _("punto elegido") : _("objeto seleccionado") };
         }
         const v = viewer.getView().center;
-        return { raDeg: v.raDeg, decDeg: v.decDeg, nombre: `Campo ${horasCortas(v.raDeg)} ${gradosCortos(v.decDeg)}`, fuente: "centro del mapa" };
+        return { raDeg: v.raDeg, decDeg: v.decDeg, nombre: _("Campo {ra} {dec}", { ra: horasCortas(v.raDeg), dec: gradosCortos(v.decDeg) }), fuente: _("centro del mapa") };
     }
     function pedirTeselas(forzar) {
         if (!viewer || panelMosaico.hidden) return;
@@ -648,13 +653,14 @@
                body: JSON.stringify({ ra_h: c.raDeg / 15, dec_deg: c.decDeg, nombre: c.nombre, tipo: c.tipo || "", filas, columnas, solape_pct: solape }) })
             .then(r => r.json()).then(d => {
                 pidiendoMosaico = false;
-                if (!d.ok) { $("ma-info").textContent = "⚠️ " + (d.error || "No se pudo calcular la rejilla"); return; }
+                if (!d.ok) { $("ma-info").textContent = "⚠️ " + (d.error || _("No se pudo calcular la rejilla")); return; }
                 centroMosaico = c;
                 teselasMosaico = d.teselas;
                 pintarTeselasSvg();
                 const tam = d.tamano_deg || [0, 0];
-                $("ma-centro").textContent = `Centro: ${c.nombre} (${c.fuente}) · RA ${horas(c.raDeg)} · Dec ${grados(c.decDeg)}`;
-                $("ma-info").textContent = `${filas}×${columnas} teselas de ${d.campo.ancho_deg.toFixed(2)}°: ${tam[0].toFixed(2)}° × ${tam[1].toFixed(2)}° · cámara a ${Math.round(d.angulo_deg)}° (${d.origen_angulo})`;
+                $("ma-centro").textContent = _("Centro: {nombre} ({fuente}) · RA {ra} · Dec {dec}", { nombre: c.nombre, fuente: c.fuente, ra: horas(c.raDeg), dec: grados(c.decDeg) });
+                $("ma-info").textContent = _("{filas}×{columnas} teselas de {campo}°: {ancho}° × {alto}° · cámara a {angulo}° ({origen})",
+                    { filas, columnas, campo: fmtNum(d.campo.ancho_deg, 2), ancho: fmtNum(tam[0], 2), alto: fmtNum(tam[1], 2), angulo: Math.round(d.angulo_deg), origen: d.origen_angulo });
                 if (pendienteMosaico) { pendienteMosaico = false; pedirTeselas(true); }
             }).catch(e => { pidiendoMosaico = false; $("ma-info").textContent = "⚠️ " + e; });
     }
@@ -723,11 +729,11 @@
         for (const id of ["ma-filas", "ma-columnas", "ma-solape", "ma-fotos"]) $(id).disabled = enCurso;
         $("ma-empezar").hidden = enCurso;
         $("ma-detener").hidden = !enCurso;
-        const fases = { goto: "moviendo el telescopio", centrando: "centrando", apilando: "apilando", combinando: "combinando", guardando: "guardando", pausado: "en pausa", terminado: "terminado" };
+        const fases = { goto: _("moviendo el telescopio"), centrando: _("centrando"), apilando: _("apilando"), combinando: _("combinando"), guardando: _("guardando"), pausado: _("en pausa"), terminado: _("terminado") };
         if (enCurso) {
             const n = e.teselas.length;
-            $("ma-estado").innerHTML = `<b>${e.nombre}</b> ${e.filas}×${e.columnas} · tesela ${e.actual !== null ? e.actual + 1 : "-"}/${n}` +
-                (e.fase === "apilando" ? ` (${e.fotos}/${e.fotos_por_tesela} fotos)` : "") + ` · ${e.pausado ? "en pausa" : (fases[e.fase] || e.fase)}` +
+            $("ma-estado").innerHTML = `<b>${e.nombre}</b> ${e.filas}×${e.columnas} · ` + _("tesela {n}/{total}", { n: e.actual !== null ? e.actual + 1 : "-", total: n }) +
+                (e.fase === "apilando" ? " " + _("({n}/{total} fotos)", { n: e.fotos, total: e.fotos_por_tesela }) : "") + " · " + (e.pausado ? _("en pausa") : (fases[e.fase] || e.fase)) +
                 (e.mensaje ? `<br><span class="texto-3">${e.mensaje}</span>` : "");
             if (e.filas) { $("ma-filas").value = e.filas; $("ma-columnas").value = e.columnas; $("ma-solape").value = e.solape_pct; $("ma-fotos").value = e.fotos_por_tesela; }
         } else if (e.fase === "terminado" && e.mensaje) {
@@ -765,18 +771,18 @@
         const cuerpo = { nombre: c.nombre, ra_h: c.raDeg / 15, dec_deg: c.decDeg, tipo: c.tipo || "",
                          filas: +$("ma-filas").value || 2, columnas: +$("ma-columnas").value || 2, solape_pct: +$("ma-solape").value || 20,
                          fotos_por_tesela: +$("ma-fotos").value || 20, centrar: configMosaico?.centrar !== false, guardar_galeria: configMosaico?.guardar_galeria !== false };
-        if (cuerpo.filas * cuerpo.columnas < 2) { $("ma-estado").textContent = "⚠️ El mosaico necesita al menos 2 teselas"; return; }
+        if (cuerpo.filas * cuerpo.columnas < 2) { $("ma-estado").textContent = "⚠️ " + _("El mosaico necesita al menos 2 teselas"); return; }
         $("ma-empezar").disabled = true;
-        $("ma-estado").innerHTML = `<span class="spinner"></span> Arrancando el mosaico de <b>${c.nombre}</b>…`;
+        $("ma-estado").innerHTML = `<span class="spinner"></span> ` + _("Arrancando el mosaico de {nombre}…", { nombre: `<b>${c.nombre}</b>` });
         try {
             const r = await (await fetch("/mosaico/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })).json();
-            if (!r.ok) $("ma-estado").textContent = "❌ " + (r.error || "No se pudo empezar");
+            if (!r.ok) $("ma-estado").textContent = "❌ " + (r.error || _("No se pudo empezar"));
             else { $("seguir").checked = true; viewer.setMountFollow(true); await refrescarEstadoMosaico(); }
         } catch (e) { $("ma-estado").textContent = "❌ " + e; }
         $("ma-empezar").disabled = false;
     };
     $("ma-detener").onclick = async () => {
-        if (!confirm("¿Detener el mosaico? Las teselas ya apiladas se conservan.")) return;
+        if (!confirm(_("¿Detener el mosaico? Las teselas ya apiladas se conservan."))) return;
         try { await fetch("/mosaico/detener", { method: "POST" }); } catch (e) {}
         refrescarEstadoMosaico();
     };

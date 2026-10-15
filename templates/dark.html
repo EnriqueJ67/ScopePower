@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Dark maestro{% endblock %}
+{% block title %}{{ _("Dark maestro") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Generar dark maestro</h1>
-        <p class="pagina-sub">Con el tubo tapado, varias tomas a la misma exposición que las fotos de la noche.</p>
+        <h1 class="pagina-titulo">{{ _("Generar dark maestro") }}</h1>
+        <p class="pagina-sub">{{ _("Con el tubo tapado, varias tomas a la misma exposición que las fotos de la noche.") }}</p>
     </div>
 </div>
 {% if mensaje %}
@@ -14,24 +14,24 @@
 {% endif %}
 
 <div class="card card-centrada">
-    <div id="dark-ultimo" class="aviso aviso-info">Consultando el último dark...</div>
+    <div id="dark-ultimo" class="aviso aviso-info">{{ _("Consultando el último dark...") }}</div>
     <div id="dark-biblioteca" class="texto-3 mb-2" style="font-size: 13px;"></div>
 
     <div id="dark-preparar">
-        <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>Tapa el telescopio completamente y pulsa Generar.</div>
+        <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>{{ _("Tapa el telescopio completamente y pulsa Generar.") }}</div>
         <div class="fila entre mb-2">
-            <span class="texto-2">Exposición: <b id="dark-exposicion" style="color: var(--text);">-</b> s · <span id="dark-ganancia">-</span> · bin <b id="dark-binning" style="color: var(--text);">-</b></span>
-            <span class="fila"><label for="dark-n" style="margin: 0;">Número de darks</label>
+            <span class="texto-2">{{ _("Exposición:") }} <b id="dark-exposicion" style="color: var(--text);">-</b> s · <span id="dark-ganancia">-</span> · bin <b id="dark-binning" style="color: var(--text);">-</b></span>
+            <span class="fila"><label for="dark-n" style="margin: 0;">{{ _("Número de darks") }}</label>
                 <input type="number" id="dark-n" class="corto" min="1" max="50" value="10"></span>
         </div>
-        <button class="btn btn-danger btn-lg btn-block" onclick="generarDarks()"><svg><use href="#i-foto"/></svg>Generar dark maestro</button>
+        <button class="btn btn-danger btn-lg btn-block" onclick="generarDarks()"><svg><use href="#i-foto"/></svg>{{ _("Generar dark maestro") }}</button>
     </div>
 
     <div id="dark-progreso" style="display: none;">
         <p id="dark-mensaje" class="estado" style="font-size: 16px; color: var(--text);"></p>
         <div class="progress alta"><div id="dark-barra" class="progress-bar"></div></div>
         <p id="dark-cuenta" class="estado mt-1"></p>
-        <button class="btn btn-ghost btn-block" onclick="cancelarDarks()"><svg><use href="#i-stop"/></svg>Cancelar</button>
+        <button class="btn btn-ghost btn-block" onclick="cancelarDarks()"><svg><use href="#i-stop"/></svg>{{ _("Cancelar") }}</button>
     </div>
 
     <div id="dark-final" class="centro mt-2" style="display: none; font-size: 16px; font-weight: 600;"></div>
@@ -40,18 +40,20 @@
 <script>
     let sondeoDarks = null;
 
-    function etiquetaGanancia(g) { return (g === null || g === undefined) ? "ganancia del driver" : `ganancia ${Math.round(g)}`; }
+    function etiquetaGanancia(g) { return (g === null || g === undefined) ? _("ganancia del driver") : _("ganancia {g}", { g: Math.round(g) }); }
     function describirUltimo(u) {
-        if (!u || !u.existe) return `ℹ️ No hay ningún dark guardado para ${u ? u.exposicion : "?"} s · ${etiquetaGanancia(u && u.ganancia)} · bin ${u && u.binning ? u.binning : "?"}. Se generará uno nuevo con esos valores.`;
+        if (!u || !u.existe) return _("ℹ️ No hay ningún dark guardado para {exp} s · {ganancia} · bin {bin}. Se generará uno nuevo con esos valores.",
+            { exp: u ? u.exposicion : "?", ganancia: etiquetaGanancia(u && u.ganancia), bin: u && u.binning ? u.binning : "?" });
         // Ganancia de la cabecera FITS; si el driver no la informa, la que se pidió (va en el nombre del fichero)
-        let s = `🌑 Dark de ${u.exposicion} s · ${etiquetaGanancia(u.gain !== null && u.gain !== undefined ? u.gain : u.ganancia)} · bin ${u.binning || 1}, hecho el ${u.fecha}`;
+        let s = _("🌑 Dark de {exp} s · {ganancia} · bin {bin}, hecho el {fecha}",
+            { exp: u.exposicion, ganancia: etiquetaGanancia(u.gain !== null && u.gain !== undefined ? u.gain : u.ganancia), bin: u.binning || 1, fecha: u.fecha });
         if (u.antiguedad_min !== undefined) {
             const h = Math.floor(u.antiguedad_min / 60), m = u.antiguedad_min % 60;
-            s += ` (hace ${h > 0 ? h + " h " : ""}${m} min)`;
+            s += " " + _("(hace {t})", { t: (h > 0 ? h + " h " : "") + m + " min" });
         }
-        if (u.temperatura !== null && u.temperatura !== undefined) s += ` · sensor a ${u.temperatura.toFixed(1)} °C`;
-        if (u.ndarks) s += ` · ${u.ndarks} tomas`;
-        s += " (generar de nuevo lo sustituye)";
+        if (u.temperatura !== null && u.temperatura !== undefined) s += " · " + _("sensor a {t} °C", { t: fmtNum(u.temperatura, 1) });
+        if (u.ndarks) s += " · " + ngettext("{n} toma", "{n} tomas", u.ndarks);
+        s += " " + _("(generar de nuevo lo sustituye)");
         return s;
     }
     function describirBiblioteca(lista, actual) {
@@ -60,7 +62,7 @@
             const t = `${d.exposicion} s · ${etiquetaGanancia(d.gain)} · bin ${d.binning} (${d.fecha.slice(0, 10)})`;
             return (actual && actual.existe && actual.nombre === d.nombre) ? `<b>${t}</b>` : t;
         });
-        return `📚 Biblioteca: un dark por exposición, ganancia y binning. Guardados (${lista.length}): ${partes.join(" &nbsp;|&nbsp; ")}`;
+        return _("📚 Biblioteca: un dark por exposición, ganancia y binning. Guardados ({n}): {lista}", { n: lista.length, lista: partes.join(" &nbsp;|&nbsp; ") });
     }
 
     function pintarEstado(d) {
@@ -79,7 +81,7 @@
             document.getElementById("dark-barra").style.width = pct + "%";
             const c = d.captura;
             document.getElementById("dark-cuenta").textContent =
-                (c && c.en_curso) ? `Quedan ${Math.ceil(c.restante)} s de esta toma` : "";
+                (c && c.en_curso) ? _("Quedan {s} s de esta toma", { s: Math.ceil(c.restante) }) : "";
         } else {
             document.getElementById("dark-progreso").style.display = "none";
             document.getElementById("dark-preparar").style.display = "block";
@@ -87,7 +89,7 @@
                 const f = document.getElementById("dark-final");
                 f.style.display = "block";
                 f.style.color = t.error ? "var(--err)" : "var(--ok)";
-                f.textContent = t.error ? "❌ " + t.error : "✅ " + t.mensaje + ". Ya puedes destapar el telescopio.";
+                f.textContent = t.error ? "❌ " + t.error : "✅ " + _("{mensaje}. Ya puedes destapar el telescopio.", { mensaje: t.mensaje });
             }
         }
         return t.en_curso;
@@ -107,10 +109,10 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ n })
         }).then(r => r.json()).then(d => {
-            if (!d.ok) { alert(d.error || "No se pudo iniciar"); return; }
+            if (!d.ok) { alert(d.error || _("No se pudo iniciar")); return; }
             if (!sondeoDarks) sondeoDarks = setInterval(sondear, 1000);
             sondear();
-        }).catch(err => alert("Error: " + err));
+        }).catch(err => alert(_("Error: {e}", { e: err })));
     }
 
     function cancelarDarks() {

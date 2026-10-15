@@ -1,7 +1,7 @@
 <!-- templates/control.html -->
 {% extends "base.html" %}
 
-{% block title %}Control manual{% endblock %}
+{% block title %}{{ _("Control manual") }}{% endblock %}
 
 {% block content %}
 <!-- Vertical: velocidad, pad, flechas. Apaisado: pad a la izquierda y velocidad + flechas a la derecha.
@@ -12,15 +12,15 @@
     <div class="control-flechas">
         <div class="telescope-grid">
             <div></div>
-            <button class="btn-dir up" ontouchstart="move('N')" ontouchend="stop()" onmousedown="move('N')" onmouseup="stop()" aria-label="Norte"></button>
+            <button class="btn-dir up" ontouchstart="move('N')" ontouchend="stop()" onmousedown="move('N')" onmouseup="stop()" aria-label="{{ _('Norte') }}"></button>
             <div></div>
 
-            <button class="btn-dir left" ontouchstart="move('W')" ontouchend="stop()" onmousedown="move('W')" onmouseup="stop()" aria-label="Oeste"></button>
-            <button class="btn-center" onclick="stop(); vibrar(40)" aria-label="Parar"><svg><use href="#i-stop"/></svg></button>
-            <button class="btn-dir right" ontouchstart="move('E')" ontouchend="stop()" onmousedown="move('E')" onmouseup="stop()" aria-label="Este"></button>
+            <button class="btn-dir left" ontouchstart="move('W')" ontouchend="stop()" onmousedown="move('W')" onmouseup="stop()" aria-label="{{ _('Oeste') }}"></button>
+            <button class="btn-center" onclick="stop(); vibrar(40)" aria-label="{{ _('Parar') }}"><svg><use href="#i-stop"/></svg></button>
+            <button class="btn-dir right" ontouchstart="move('E')" ontouchend="stop()" onmousedown="move('E')" onmouseup="stop()" aria-label="{{ _('Este') }}"></button>
 
             <div></div>
-            <button class="btn-dir down" ontouchstart="move('S')" ontouchend="stop()" onmousedown="move('S')" onmouseup="stop()" aria-label="Sur"></button>
+            <button class="btn-dir down" ontouchstart="move('S')" ontouchend="stop()" onmousedown="move('S')" onmouseup="stop()" aria-label="{{ _('Sur') }}"></button>
             <div></div>
         </div>
     </div>

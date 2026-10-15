@@ -1,43 +1,40 @@
 {% extends "base.html" %}
 
-{% block title %}Rastros{% endblock %}
+{% block title %}{{ _("Rastros") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Rastros</h1>
-        <p class="pagina-sub" id="rastros-resumen">{{ rastros|length }} fotos descartadas del apilado por un rastro.</p>
+        <h1 class="pagina-titulo">{{ _("Rastros") }}</h1>
+        <p class="pagina-sub" id="rastros-resumen">{{ ngettext("{n} foto descartada del apilado por un rastro.", "{n} fotos descartadas del apilado por un rastro.", rastros|length) }}</p>
     </div>
     <div class="pagina-acciones">
-        <a class="btn btn-secondary btn-sm" href="/galeria">← Galería</a>
+        <a class="btn btn-secondary btn-sm" href="/galeria">← {{ _("Galería") }}</a>
         {% if rastros %}
-        <button type="button" class="btn btn-secondary btn-sm" onclick="borrarMenosMeteoros()" title="Borra los rastros de avión y satélite; los posibles meteoros se quedan">Borrar aviones y satélites</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="borrarMenosMeteoros()" title="{{ _('Borra los rastros de avión y satélite; los posibles meteoros se quedan') }}">{{ _("Borrar aviones y satélites") }}</button>
         {% endif %}
     </div>
 </div>
 
 <div class="aviso aviso-info">
-    <span>El apilado no usa estas fotos. La clasificación es automática y orientativa: un destello de
-    satélite puede parecer un meteoro y un meteoro que cruza un campo tan pequeño puede parecer un
-    satélite. Revisa los <b>posibles meteoros</b> y pasa a la galería los que merezcan la pena.</span>
+    <span>{{ _("El apilado no usa estas fotos. La clasificación es automática y orientativa: un destello de satélite puede parecer un meteoro y un meteoro que cruza un campo tan pequeño puede parecer un satélite. Revisa los <b>posibles meteoros</b> y pasa a la galería los que merezcan la pena.")|safe }}</span>
 </div>
 
 <div class="aviso" id="rastros-estado" style="display: none;"></div>
 
 {% if filtros|length > 1 %}
 <div class="galeria-filtros" id="rastros-filtros">
-    <button type="button" class="chip activo" data-tipo="" onclick="filtrarRastros('')">Todos <span class="n">{{ rastros|length }}</span></button>
+    <button type="button" class="chip activo" data-tipo="" onclick="filtrarRastros('')">{{ _("Todos") }} <span class="n">{{ rastros|length }}</span></button>
     {% for clave, info, n in filtros %}
-    <button type="button" class="chip" data-tipo="{{ clave }}" onclick="filtrarRastros('{{ clave }}')">{{ info.icono }} {{ info.nombre }} <span class="n">{{ n }}</span></button>
+    <button type="button" class="chip" data-tipo="{{ clave }}" onclick="filtrarRastros('{{ clave }}')">{{ info.icono }} {{ _(info.nombre) }} <span class="n">{{ n }}</span></button>
     {% endfor %}
 </div>
 {% endif %}
 
 {% if not rastros %}
 <div class="card centro">
-    <p class="card-sub">Todavía no hay rastros. Cuando un avión, un satélite o un meteoro cruce una foto del
-    apilado, la foto se descartará y aparecerá aquí.</p>
-    <a href="/apilado" class="btn btn-primary">Ir al apilado</a>
+    <p class="card-sub">{{ _("Todavía no hay rastros. Cuando un avión, un satélite o un meteoro cruce una foto del apilado, la foto se descartará y aparecerá aquí.") }}</p>
+    <a href="/apilado" class="btn btn-primary">{{ _("Ir al apilado") }}</a>
 </div>
 {% endif %}
 
@@ -45,33 +42,33 @@
     {% for d in rastros %}
     {% set r = d.rasgos or {} %}
     <div class="foto tarjeta" id="{{ d.base }}" data-tipo="{{ d.tipo }}">
-        <img src="{{ url_for('static', filename='fotos/rastros/' ~ d.base ~ '.jpg') }}" alt="{{ d.nombre }}" loading="lazy"
-             onclick="abrirLightbox(this.src, '{{ d.icono }} {{ d.nombre }} · {{ d.hora or '' }}')">
+        <img src="{{ url_for('static', filename='fotos/rastros/' ~ d.base ~ '.jpg') }}" alt="{{ _(d.nombre) }}" loading="lazy"
+             onclick="abrirLightbox(this.src, '{{ d.icono }} {{ _(d.nombre) }} · {{ d.hora or '' }}')">
         <div class="foto-pie">
-            <div class="foto-nombre">{{ d.icono }} {{ d.nombre }}</div>
+            <div class="foto-nombre">{{ d.icono }} {{ _(d.nombre) }}</div>
             <div class="foto-tipo">{{ d.objeto or '' }}{% if d.exposicion %} · {{ d.exposicion|round(0)|int }} s{% endif %}</div>
             <div class="foto-fecha">
-                {% set f = d.base[7:] %}{{ f[6:8] }}/{{ f[4:6] }}/{{ f[0:4] }} · {{ f[9:11] }}:{{ f[11:13] }}:{{ f[13:15] }}
+                {% set f = d.base[7:] %}{% if idioma.idioma_actual() == 'es' %}{{ f[6:8] }}/{{ f[4:6] }}/{{ f[0:4] }}{% else %}{{ f[0:4] }}-{{ f[4:6] }}-{{ f[6:8] }}{% endif %} · {{ f[9:11] }}:{{ f[11:13] }}:{{ f[13:15] }}
             </div>
-            <div class="foto-fecha" title="Longitud del rastro, luces que destellan, líneas paralelas y cuánto se aparta su brillo de una rampa (más de 0,35 apunta a meteoro)">
-                {{ d.longitud }} px{% if r.destellos %} · {{ r.destellos }} destello{{ 's' if r.destellos != 1 }}{% endif %}{% if r.paralelas %} · {{ r.paralelas + 1 }} líneas{% endif %}{% if r.irregularidad is defined %} · irreg. {{ r.irregularidad }}{% endif %}{% if r.empieza_dentro or r.termina_dentro %} · {{ 'empieza' if r.empieza_dentro }}{{ ' y ' if r.empieza_dentro and r.termina_dentro }}{{ 'acaba' if r.termina_dentro }} dentro{% endif %}
+            <div class="foto-fecha" title="{{ _('Longitud del rastro, luces que destellan, líneas paralelas y cuánto se aparta su brillo de una rampa (más de {umbral} apunta a meteoro)', umbral=idioma.fmt_num(0.35)) }}">
+                {{ d.longitud }} px{% if r.destellos %} · {{ ngettext("{n} destello", "{n} destellos", r.destellos) }}{% endif %}{% if r.paralelas %} · {{ _("{n} líneas", n=r.paralelas + 1) }}{% endif %}{% if r.irregularidad is defined %} · {{ _("irreg. {v}", v=idioma.fmt_num(r.irregularidad)) }}{% endif %}{% if r.empieza_dentro and r.termina_dentro %} · {{ _("empieza y acaba dentro") }}{% elif r.empieza_dentro %} · {{ _("empieza dentro") }}{% elif r.termina_dentro %} · {{ _("acaba dentro") }}{% endif %}
             </div>
             <div class="mt-2" style="display: flex; gap: 6px; flex-wrap: wrap;">
                 {% if d.fits %}
-                <button type="button" class="btn btn-sm {{ 'btn-primary' if d.tipo == 'meteoro' else 'btn-secondary' }}" onclick="aGaleria('{{ d.base }}', this)" title="Revela la foto con el procesado del apilado, la firma y la guarda en la galería">A la galería</button>
-                <a class="btn btn-sm btn-secondary" href="{{ url_for('static', filename='fotos/rastros/' ~ d.base ~ '.fits') }}" download title="FITS original de la cámara (~18 MB)">FITS</a>
+                <button type="button" class="btn btn-sm {{ 'btn-primary' if d.tipo == 'meteoro' else 'btn-secondary' }}" onclick="aGaleria('{{ d.base }}', this)" title="{{ _('Revela la foto con el procesado del apilado, la firma y la guarda en la galería') }}">{{ _("A la galería") }}</button>
+                <a class="btn btn-sm btn-secondary" href="{{ url_for('static', filename='fotos/rastros/' ~ d.base ~ '.fits') }}" download title="{{ _('FITS original de la cámara (~18 MB)') }}">FITS</a>
                 {% else %}
-                <span class="texto-3" style="font-size: 12px;">Sin FITS (había poco disco)</span>
+                <span class="texto-3" style="font-size: 12px;">{{ _("Sin FITS (había poco disco)") }}</span>
                 {% endif %}
             </div>
         </div>
-        <button class="foto-borrar" onclick="borrarRastro('{{ d.base }}')" title="Borrar este rastro">×</button>
+        <button class="foto-borrar" onclick="borrarRastro('{{ d.base }}')" title="{{ _('Borrar este rastro') }}">×</button>
     </div>
     {% endfor %}
 </div>
 
 <div class="card centro" id="rastros-vacio" style="display: none;">
-    <p class="card-sub">No hay rastros de este tipo.</p>
+    <p class="card-sub">{{ _("No hay rastros de este tipo.") }}</p>
 </div>
 
 <!-- Visor a pantalla completa -->
@@ -103,7 +100,7 @@
 
     function abrirLightbox(src, pie) {
         document.getElementById("imagen-grande").src = src;
-        document.getElementById("lightbox-pie").textContent = pie + " · toca para cerrar";
+        document.getElementById("lightbox-pie").textContent = pie + " · " + _("toca para cerrar");
         document.getElementById("lightbox").classList.add("abierto");
     }
     document.getElementById("lightbox").onclick = () => document.getElementById("lightbox").classList.remove("abierto");
@@ -119,7 +116,7 @@
     function quitarTarjetas(bases) {
         bases.forEach(b => { const t = document.getElementById(b); if (t) t.remove(); });
         const quedan = document.querySelectorAll("#rastros .foto").length;
-        document.getElementById("rastros-resumen").textContent = `${quedan} fotos descartadas del apilado por un rastro.`;
+        document.getElementById("rastros-resumen").textContent = ngettext("{n} foto descartada del apilado por un rastro.", "{n} fotos descartadas del apilado por un rastro.", quedan);
         // Recontar los chips
         document.querySelectorAll("#rastros-filtros .chip").forEach(c => {
             const n = c.querySelector(".n");
@@ -129,14 +126,14 @@
     }
 
     async function borrarRastro(base) {
-        if (!confirm("¿Borrar este rastro (miniatura y FITS)?")) return;
+        if (!confirm(_("¿Borrar este rastro (miniatura y FITS)?"))) return;
         const r = await fetch("/galeria/rastros/borrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ base }) });
         const d = await r.json();
         if (d.ok) quitarTarjetas(d.borrados); else alert(d.mensaje);
     }
 
     async function borrarMenosMeteoros() {
-        if (!confirm("¿Borrar todos los rastros de avión y satélite? Los posibles meteoros se quedan.")) return;
+        if (!confirm(_("¿Borrar todos los rastros de avión y satélite? Los posibles meteoros se quedan."))) return;
         const r = await fetch("/galeria/rastros/borrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ menos_meteoros: true }) });
         const d = await r.json();
         if (d.ok) { quitarTarjetas(d.borrados); estado(d.mensaje, "ok"); } else alert(d.mensaje);
@@ -160,7 +157,7 @@
                 break;
             }
         } catch (e) {
-            estado("Error: " + e, "err");
+            estado(_("Error: {e}", { e: e }), "err");
         } finally {
             boton.disabled = false;
         }

@@ -6,7 +6,7 @@
         <div class="asis-cabecera">
             <div class="asis-puntos" id="asis-puntos" aria-hidden="true"></div>
             <span class="asis-contador" id="asis-contador"></span>
-            <button type="button" class="btn btn-sm btn-ghost btn-icono" onclick="cerrarAsistente()" aria-label="Cerrar el asistente" title="Cerrar"><svg><use href="#i-cerrar"/></svg></button>
+            <button type="button" class="btn btn-sm btn-ghost btn-icono" onclick="cerrarAsistente()" aria-label="{{ _('Cerrar el asistente') }}" title="{{ _('Cerrar') }}"><svg><use href="#i-cerrar"/></svg></button>
         </div>
 
         <!-- 0. Idioma: se aplica al momento (la página se recarga y el asistente sigue en la bienvenida).
@@ -24,93 +24,93 @@
 
         <!-- 1. Bienvenida -->
         <section class="asis-paso" data-paso="inicio" hidden>
-            <div class="modal-titulo" id="asis-titulo"><svg class="ico"><use href="#i-telescopio"/></svg><span id="asis-titulo-inicio">Vamos a dejar ScopePower listo</span></div>
-            <p class="modal-texto" id="asis-texto-inicio">En unos minutos configuramos tu equipo y comprobamos que todo responde:</p>
+            <div class="modal-titulo" id="asis-titulo"><svg class="ico"><use href="#i-telescopio"/></svg><span id="asis-titulo-inicio">{{ _("Vamos a dejar ScopePower listo") }}</span></div>
+            <p class="modal-texto" id="asis-texto-inicio">{{ _("En unos minutos configuramos tu equipo y comprobamos que todo responde:") }}</p>
             <ol class="modal-pasos">
-                <li><div><b>Telescopio</b>: la distancia focal.</div></li>
-                <li><div><b>Montura y cámara</b>: elegimos sus drivers y probamos que conectan de verdad.</div></li>
-                <li><div><b>Captura</b>: exposición y ganancia de partida.</div></li>
-                <li><div><b>ASTAP</b>: el programa que reconoce las estrellas de cada foto. Si falta, se instala solo.</div></li>
-                <li><div><b>Ubicación</b> del observatorio y autor de las fotos.</div></li>
+                <li><div>{{ _("<b>Telescopio</b>: la distancia focal.")|safe }}</div></li>
+                <li><div>{{ _("<b>Montura y cámara</b>: elegimos sus drivers y probamos que conectan de verdad.")|safe }}</div></li>
+                <li><div>{{ _("<b>Captura</b>: exposición y ganancia de partida.")|safe }}</div></li>
+                <li><div>{{ _("<b>ASTAP</b>: el programa que reconoce las estrellas de cada foto. Si falta, se instala solo.")|safe }}</div></li>
+                <li><div>{{ _("<b>Ubicación</b> del observatorio y autor de las fotos.")|safe }}</div></li>
             </ol>
-            <div class="aviso aviso-info"><svg class="ico"><use href="#i-info"/></svg><div>Antes de seguir: enciende la montura y conéctala al PC (por cable o por red, según tu modelo) y enchufa la cámara al USB. Si el driver de tu montura trabaja con un programa intermedio (SynScan Pro, EQMOD, GSServer...), ábrelo y conéctalo primero.</div></div>
+            <div class="aviso aviso-info"><svg class="ico"><use href="#i-info"/></svg><div>{{ _("Antes de seguir: enciende la montura y conéctala al PC (por cable o por red, según tu modelo) y enchufa la cámara al USB. Si el driver de tu montura trabaja con un programa intermedio (SynScan Pro, EQMOD, GSServer...), ábrelo y conéctalo primero.") }}</div></div>
         </section>
 
         <!-- 2. Telescopio -->
         <section class="asis-paso" data-paso="telescopio" hidden>
-            <div class="modal-titulo"><svg class="ico"><use href="#i-telescopio"/></svg>Telescopio</div>
+            <div class="modal-titulo"><svg class="ico"><use href="#i-telescopio"/></svg>{{ _("Telescopio") }}</div>
             <div class="form-group">
-                <label for="asis-focal">Distancia focal (mm)</label>
-                <input type="number" id="asis-focal" class="form-control" min="50" max="5000" step="1" inputmode="numeric" placeholder="por ejemplo 250">
-                <small class="ayuda">Viene impresa en el tubo o en el manual (FL, «f=»). Si usas un reductor o una lente de Barlow, pon la focal resultante: un reductor 0,8× en un tubo de 600 mm da 480 mm.</small>
+                <label for="asis-focal">{{ _("Distancia focal (mm)") }}</label>
+                <input type="number" id="asis-focal" class="form-control" min="50" max="5000" step="1" inputmode="numeric" placeholder="{{ _('por ejemplo 250') }}">
+                <small class="ayuda">{{ _("Viene impresa en el tubo o en el manual (FL, «f=»). Si usas un reductor o una lente de Barlow, pon la focal resultante: un reductor 0,8× en un tubo de 600 mm da 480 mm.") }}</small>
             </div>
-            <p class="ayuda">Con la focal y el sensor de la cámara, ScopePower calcula el campo que ves y la escala de cada foto (para el centrado, el apilado y el planetario).</p>
+            <p class="ayuda">{{ _("Con la focal y el sensor de la cámara, ScopePower calcula el campo que ves y la escala de cada foto (para el centrado, el apilado y el planetario).") }}</p>
         </section>
 
         <!-- 3. Montura -->
         <section class="asis-paso" data-paso="montura" hidden>
-            <div class="modal-titulo"><svg class="ico"><use href="#i-goto"/></svg>Montura</div>
+            <div class="modal-titulo"><svg class="ico"><use href="#i-goto"/></svg>{{ _("Montura") }}</div>
             <div class="form-group">
-                <label for="asis-driver-tel">Driver de la montura (ASCOM)</label>
+                <label for="asis-driver-tel">{{ _("Driver de la montura (ASCOM)") }}</label>
                 <select id="asis-driver-tel" class="form-control"></select>
-                <small class="ayuda" id="asis-ayuda-tel">Cualquier montura con driver ASCOM instalado en el PC.</small>
+                <small class="ayuda" id="asis-ayuda-tel">{{ _("Cualquier montura con driver ASCOM instalado en el PC.") }}</small>
             </div>
-            <div class="aviso aviso-warn" id="asis-sin-drivers-tel" hidden><svg class="ico"><use href="#i-info"/></svg><div>Este PC no tiene ningún driver ASCOM de montura. Instala en el PC <a href="https://ascom-standards.org" target="_blank" rel="noopener">ASCOM Platform</a> y el driver ASCOM de tu montura, que da su fabricante (en <a href="https://ascom-standards.org/Downloads/ScopeDrivers.htm" target="_blank" rel="noopener">ascom-standards.org</a> hay una lista por marcas), y vuelve a abrir el asistente.</div></div>
+            <div class="aviso aviso-warn" id="asis-sin-drivers-tel" hidden><svg class="ico"><use href="#i-info"/></svg><div>{{ _('Este PC no tiene ningún driver ASCOM de montura. Instala en el PC <a href="https://ascom-standards.org" target="_blank" rel="noopener">ASCOM Platform</a> y el driver ASCOM de tu montura, que da su fabricante (en <a href="https://ascom-standards.org/Downloads/ScopeDrivers.htm" target="_blank" rel="noopener">ascom-standards.org</a> hay una lista por marcas), y vuelve a abrir el asistente.')|safe }}</div></div>
             <div class="fila">
-                <button type="button" class="btn btn-primary" id="asis-probar-tel" onclick="asisProbar('montura')"><svg><use href="#i-conectar"/></svg>Probar conexión</button>
-                <button type="button" class="btn btn-secondary" id="asis-selector-tel" onclick="asisSelectorAscom('montura')"><svg><use href="#i-ajustes"/></svg>Configurar el driver en el PC</button>
+                <button type="button" class="btn btn-primary" id="asis-probar-tel" onclick="asisProbar('montura')"><svg><use href="#i-conectar"/></svg>{{ _("Probar conexión") }}</button>
+                <button type="button" class="btn btn-secondary" id="asis-selector-tel" onclick="asisSelectorAscom('montura')"><svg><use href="#i-ajustes"/></svg>{{ _("Configurar el driver en el PC") }}</button>
             </div>
-            <small class="ayuda mt-1">«Configurar el driver en el PC» abre el selector de ASCOM <b>en la pantalla del PC</b>: con su botón <i>Properties</i> se elige el puerto COM, la dirección IP o el modelo. Úsalo solo si estás delante del PC; el asistente espera hasta que cierres esa ventana.</small>
+            <small class="ayuda mt-1">{{ _("«Configurar el driver en el PC» abre el selector de ASCOM <b>en la pantalla del PC</b>: con su botón <i>Properties</i> se elige el puerto COM, la dirección IP o el modelo. Úsalo solo si estás delante del PC; el asistente espera hasta que cierres esa ventana.")|safe }}</small>
             <div id="asis-res-tel" class="mt-2"></div>
         </section>
 
         <!-- 4. Cámara -->
         <section class="asis-paso" data-paso="camara" hidden>
-            <div class="modal-titulo"><svg class="ico"><use href="#i-foto"/></svg>Cámara</div>
+            <div class="modal-titulo"><svg class="ico"><use href="#i-foto"/></svg>{{ _("Cámara") }}</div>
             <div class="form-group">
-                <label for="asis-driver-cam">Driver de la cámara</label>
+                <label for="asis-driver-cam">{{ _("Driver de la cámara") }}</label>
                 <select id="asis-driver-cam" class="form-control"></select>
-                <small class="ayuda">Las cámaras Player One funcionan también sin ASCOM, con «Player One por SDK nativo», que es más rápido.</small>
+                <small class="ayuda">{{ _("Las cámaras Player One funcionan también sin ASCOM, con «Player One por SDK nativo», que es más rápido.") }}</small>
             </div>
             <div class="fila">
-                <button type="button" class="btn btn-primary" id="asis-probar-cam" onclick="asisProbar('camara')"><svg><use href="#i-conectar"/></svg>Probar conexión</button>
-                <button type="button" class="btn btn-secondary" id="asis-selector-cam" onclick="asisSelectorAscom('camara')"><svg><use href="#i-ajustes"/></svg>Configurar el driver en el PC</button>
+                <button type="button" class="btn btn-primary" id="asis-probar-cam" onclick="asisProbar('camara')"><svg><use href="#i-conectar"/></svg>{{ _("Probar conexión") }}</button>
+                <button type="button" class="btn btn-secondary" id="asis-selector-cam" onclick="asisSelectorAscom('camara')"><svg><use href="#i-ajustes"/></svg>{{ _("Configurar el driver en el PC") }}</button>
             </div>
             <div id="asis-res-cam" class="mt-2"></div>
         </section>
 
         <!-- 5. Captura -->
         <section class="asis-paso" data-paso="captura" hidden>
-            <div class="modal-titulo"><svg class="ico"><use href="#i-calibracion"/></svg>Captura</div>
+            <div class="modal-titulo"><svg class="ico"><use href="#i-calibracion"/></svg>{{ _("Captura") }}</div>
             <div class="dos-campos-asis">
                 <div class="form-group">
-                    <label for="asis-exposicion">Exposición de cada foto (s)</label>
+                    <label for="asis-exposicion">{{ _("Exposición de cada foto (s)") }}</label>
                     <input type="number" id="asis-exposicion" class="form-control" min="0.1" max="3600" step="0.1" inputmode="decimal">
-                    <small class="ayuda">En una montura altacimutal, entre 10 y 25 s para que las estrellas no se muevan.</small>
+                    <small class="ayuda">{{ _("En una montura altacimutal, entre 10 y 25 s para que las estrellas no se muevan.") }}</small>
                 </div>
                 <div class="form-group">
-                    <label for="asis-ganancia">Ganancia</label>
-                    <input type="number" id="asis-ganancia" class="form-control" min="0" step="1" inputmode="numeric" placeholder="la del driver">
-                    <small class="ayuda" id="asis-ganancia-ayuda">Vacío = no tocarla (queda la que tenga el driver).</small>
+                    <label for="asis-ganancia">{{ _("Ganancia") }}</label>
+                    <input type="number" id="asis-ganancia" class="form-control" min="0" step="1" inputmode="numeric" placeholder="{{ _('la del driver') }}">
+                    <small class="ayuda" id="asis-ganancia-ayuda">{{ _("Vacío = no tocarla (queda la que tenga el driver).") }}</small>
                 </div>
             </div>
-            <p class="ayuda">Se pueden cambiar en cualquier momento desde Configuración.</p>
+            <p class="ayuda">{{ _("Se pueden cambiar en cualquier momento desde Configuración.") }}</p>
         </section>
 
         <!-- 6. ASTAP -->
         <section class="asis-paso" data-paso="astap" hidden>
-            <div class="modal-titulo"><svg class="ico"><use href="#i-constelacion"/></svg>ASTAP y el catálogo de estrellas</div>
-            <p class="modal-texto">ScopePower reconoce las estrellas de cada foto con ASTAP (<i>plate solving</i>) para saber exactamente hacia dónde apunta: lo usa para centrar el objeto tras el GoTo, sincronizar la montura y alinear las fotos del apilado.</p>
-            <div id="asis-astap-estado" class="mt-2"><div class="estado"><span class="spinner"></span>Comprobando...</div></div>
+            <div class="modal-titulo"><svg class="ico"><use href="#i-constelacion"/></svg>{{ _("ASTAP y el catálogo de estrellas") }}</div>
+            <p class="modal-texto">{{ _("ScopePower reconoce las estrellas de cada foto con ASTAP (<i>plate solving</i>) para saber exactamente hacia dónde apunta: lo usa para centrar el objeto tras el GoTo, sincronizar la montura y alinear las fotos del apilado.")|safe }}</p>
+            <div id="asis-astap-estado" class="mt-2"><div class="estado"><span class="spinner"></span>{{ _("Comprobando...") }}</div></div>
             <div id="asis-astap-instalar" hidden>
                 <div class="form-group">
-                    <label for="asis-catalogo">Catálogo de estrellas</label>
+                    <label for="asis-catalogo">{{ _("Catálogo de estrellas") }}</label>
                     <select id="asis-catalogo" class="form-control"></select>
                     <small class="ayuda" id="asis-catalogo-ayuda"></small>
                 </div>
                 <div class="fila">
-                    <button type="button" class="btn btn-primary" id="asis-btn-instalar" onclick="asisInstalarAstap()"><svg><use href="#i-guardar"/></svg>Descargar e instalar</button>
-                    <button type="button" class="btn btn-secondary" id="asis-btn-cancelar-astap" onclick="asisCancelarAstap()" hidden>Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="asis-btn-instalar" onclick="asisInstalarAstap()"><svg><use href="#i-guardar"/></svg>{{ _("Descargar e instalar") }}</button>
+                    <button type="button" class="btn btn-secondary" id="asis-btn-cancelar-astap" onclick="asisCancelarAstap()" hidden>{{ _("Cancelar") }}</button>
                 </div>
                 <div id="asis-astap-progreso" class="mt-2" hidden>
                     <div class="progress alta"><div id="asis-astap-barra" class="progress-bar"></div></div>
@@ -122,41 +122,41 @@
 
         <!-- 7. Ubicación y autor -->
         <section class="asis-paso" data-paso="ubicacion" hidden>
-            <div class="modal-titulo"><svg class="ico"><use href="#i-lugar"/></svg>Ubicación del observatorio</div>
-            <p class="ayuda">Con ella se calculan las alturas de los objetos, el GoTo, la noche astronómica y las efemérides.</p>
+            <div class="modal-titulo"><svg class="ico"><use href="#i-lugar"/></svg>{{ _("Ubicación del observatorio") }}</div>
+            <p class="ayuda">{{ _("Con ella se calculan las alturas de los objetos, el GoTo, la noche astronómica y las efemérides.") }}</p>
             <div class="fila mb-2">
-                <button type="button" class="btn btn-primary" onclick="asisUbicacionMovil()"><svg><use href="#i-lugar"/></svg>Usar la ubicación de este móvil</button>
+                <button type="button" class="btn btn-primary" onclick="asisUbicacionMovil()"><svg><use href="#i-lugar"/></svg>{{ _("Usar la ubicación de este móvil") }}</button>
             </div>
             <div id="asis-ubic-estado" class="estado"></div>
             <div class="tres-campos-asis">
-                <div class="form-group"><label for="asis-lat">Latitud (°)</label><input type="number" id="asis-lat" class="form-control" step="0.00001" min="-90" max="90" inputmode="decimal"></div>
-                <div class="form-group"><label for="asis-lon">Longitud (°)</label><input type="number" id="asis-lon" class="form-control" step="0.00001" min="-180" max="180" inputmode="decimal"></div>
-                <div class="form-group"><label for="asis-alt">Altitud (m)</label><input type="number" id="asis-alt" class="form-control" step="1" inputmode="numeric"></div>
+                <div class="form-group"><label for="asis-lat">{{ _("Latitud (°)") }}</label><input type="number" id="asis-lat" class="form-control" step="0.00001" min="-90" max="90" inputmode="decimal"></div>
+                <div class="form-group"><label for="asis-lon">{{ _("Longitud (°)") }}</label><input type="number" id="asis-lon" class="form-control" step="0.00001" min="-180" max="180" inputmode="decimal"></div>
+                <div class="form-group"><label for="asis-alt">{{ _("Altitud (m)") }}</label><input type="number" id="asis-alt" class="form-control" step="1" inputmode="numeric"></div>
             </div>
-            <small class="ayuda">Norte y este en positivo; oeste en negativo (Valencia: 39,47 y −0,38).</small>
+            <small class="ayuda">{{ _("Norte y este en positivo; oeste en negativo (Valencia: 39,47 y −0,38).") }}</small>
             <div class="form-group mt-2">
-                <label for="asis-autor">Autor de las fotos</label>
-                <input type="text" id="asis-autor" class="form-control" maxlength="60" placeholder="tu nombre (opcional)">
-                <small class="ayuda">Se pinta en la firma de los apilados.</small>
+                <label for="asis-autor">{{ _("Autor de las fotos") }}</label>
+                <input type="text" id="asis-autor" class="form-control" maxlength="60" placeholder="{{ _('tu nombre (opcional)') }}">
+                <small class="ayuda">{{ _("Se pinta en la firma de los apilados.") }}</small>
             </div>
         </section>
 
         <!-- 8. Resumen -->
         <section class="asis-paso" data-paso="resumen" hidden>
-            <div class="modal-titulo"><svg class="ico"><use href="#i-ok"/></svg><span id="asis-titulo-resumen">Resumen</span></div>
+            <div class="modal-titulo"><svg class="ico"><use href="#i-ok"/></svg><span id="asis-titulo-resumen">{{ _("Resumen") }}</span></div>
             <ul class="asis-resumen" id="asis-resumen"></ul>
             <div id="asis-listo" hidden>
-                <div class="aviso aviso-ok"><svg class="ico"><use href="#i-ok"/></svg><div><b>ScopePower está listo.</b> Puedes cambiar cualquiera de estos datos en Configuración o volver a pasar el asistente desde allí.</div></div>
+                <div class="aviso aviso-ok"><svg class="ico"><use href="#i-ok"/></svg><div>{{ _("<b>ScopePower está listo.</b> Puedes cambiar cualquiera de estos datos en Configuración o volver a pasar el asistente desde allí.")|safe }}</div></div>
             </div>
         </section>
 
         <div id="asis-error" class="aviso aviso-err mt-2" hidden></div>
 
         <div class="modal-acciones asis-acciones">
-            <button type="button" class="btn btn-secondary" id="asis-atras" onclick="asisAtras()"><svg class="giro-180"><use href="#i-flecha"/></svg>Atrás</button>
-            <button type="button" class="btn btn-ghost" id="asis-saltar" onclick="asisSaltar()">Saltar este paso</button>
-            <button type="button" class="btn btn-primary" id="asis-siguiente" onclick="asisSiguiente()">Siguiente<svg><use href="#i-flecha"/></svg></button>
-            <a class="btn btn-primary" id="asis-ir-inicio" href="/" hidden><svg><use href="#i-home"/></svg>Ir al inicio</a>
+            <button type="button" class="btn btn-secondary" id="asis-atras" onclick="asisAtras()"><svg class="giro-180"><use href="#i-flecha"/></svg>{{ _("Atrás") }}</button>
+            <button type="button" class="btn btn-ghost" id="asis-saltar" onclick="asisSaltar()">{{ _("Saltar este paso") }}</button>
+            <button type="button" class="btn btn-primary" id="asis-siguiente" onclick="asisSiguiente()">{{ _("Siguiente") }}<svg><use href="#i-flecha"/></svg></button>
+            <a class="btn btn-primary" id="asis-ir-inicio" href="/" hidden><svg><use href="#i-home"/></svg>{{ _("Ir al inicio") }}</a>
         </div>
     </div>
 </div>

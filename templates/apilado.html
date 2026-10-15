@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Apilado{% endblock %}
+{% block title %}{{ _("Apilado") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Apilado en tiempo real</h1>
-        <p class="pagina-sub" id="estado-carga">Actualizando...</p>
+        <h1 class="pagina-titulo">{{ _("Apilado en tiempo real") }}</h1>
+        <p class="pagina-sub" id="estado-carga">{{ _("Actualizando...") }}</p>
     </div>
     <div class="pagina-acciones">
-        <button id="boton-pausa" class="btn btn-warning" onclick="pausarApilado()" style="display: none;">⏸ Pausar</button>
-        <button id="boton-reanudar" class="btn btn-success" onclick="reanudarApilado()" style="display: none;">▶ Reanudar</button>
-        <button id="boton-detener" class="btn btn-secondary" onclick="detenerApilado()" style="display: none;">⏹ Detener</button>
+        <button id="boton-pausa" class="btn btn-warning" onclick="pausarApilado()" style="display: none;">{{ _("⏸ Pausar") }}</button>
+        <button id="boton-reanudar" class="btn btn-success" onclick="reanudarApilado()" style="display: none;">{{ _("▶ Reanudar") }}</button>
+        <button id="boton-detener" class="btn btn-secondary" onclick="detenerApilado()" style="display: none;">{{ _("⏹ Detener") }}</button>
         <form method="POST" action="{{ url_for('reiniciar_apilado') }}" onsubmit="return confirmarReinicio()" style="display: inline;">
-            <button class="btn btn-ghost" title="Borra las fotos apiladas y empieza de cero"><svg><use href="#i-papelera"/></svg><span class="oculto-movil">Reiniciar</span></button>
+            <button class="btn btn-ghost" title="{{ _('Borra las fotos apiladas y empieza de cero') }}"><svg><use href="#i-papelera"/></svg><span class="oculto-movil">{{ _("Reiniciar") }}</span></button>
         </form>
     </div>
 </div>
@@ -25,34 +25,34 @@
              la imagen apilada quede arriba; la cabecera ya lleva el botón de Empezar. -->
         <div id="panel-inicio" class="card card-acento panel-inicio" style="display: none;">
             <div class="panel-inicio-cabecera">
-                <button type="button" class="panel-inicio-toggle" onclick="alternarPanelInicio()" title="Opciones de darks">
+                <button type="button" class="panel-inicio-toggle" onclick="alternarPanelInicio()" title="{{ _('Opciones de darks') }}">
                     <span class="tile-ico"><svg><use href="#i-calibracion"/></svg></span>
-                    <span class="tile-texto"><span class="tile-titulo">Empezar apilado</span><span class="tile-desc" id="inicio-resumen">Consultando darks...</span></span>
+                    <span class="tile-texto"><span class="tile-titulo">{{ _("Empezar apilado") }}</span><span class="tile-desc" id="inicio-resumen">{{ _("Consultando darks...") }}</span></span>
                     <svg class="ico flecha"><use href="#i-flecha"/></svg>
                 </button>
                 <div id="inicio-botones" class="acciones">
-                    <button class="btn btn-primary" onclick="empezarApilado(true)"><svg><use href="#i-play"/></svg>Empezar</button>
-                    <button id="boton-continuar" class="btn btn-secondary" onclick="empezarApilado(false)" style="display: none;" title="Sigue sumando fotos al apilado que ya hay">Continuar</button>
+                    <button class="btn btn-primary" onclick="empezarApilado(true)"><svg><use href="#i-play"/></svg>{{ _("Empezar") }}</button>
+                    <button id="boton-continuar" class="btn btn-secondary" onclick="empezarApilado(false)" style="display: none;" title="{{ _('Sigue sumando fotos al apilado que ya hay') }}">{{ _("Continuar") }}</button>
                 </div>
             </div>
 
             <div id="panel-inicio-cuerpo" class="panel-inicio-cuerpo" hidden>
-                <div id="darks-ultimo" class="estado mb-1">Consultando...</div>
+                <div id="darks-ultimo" class="estado mb-1">{{ _("Consultando...") }}</div>
                 <div id="darks-biblioteca" class="texto-3 mb-1" style="font-size: 13px;"></div>
                 <div id="flat-info" class="texto-3 mb-2" style="font-size: 13px;"></div>
 
-                <label class="opcion"><input type="radio" name="opcion-dark" value="ultimo" id="opcion-dark-ultimo"> Usar el último dark</label>
-                <label class="opcion"><input type="radio" name="opcion-dark" value="nuevo" id="opcion-dark-nuevo"> Generar darks nuevos
-                    <span style="white-space: nowrap; margin-left: auto;"><input type="number" id="darks-n" class="corto" min="1" max="50" value="10"> tomas</span></label>
-                <label class="opcion"><input type="radio" name="opcion-dark" value="sin" id="opcion-dark-sin"> Sin darks</label>
+                <label class="opcion"><input type="radio" name="opcion-dark" value="ultimo" id="opcion-dark-ultimo"> {{ _("Usar el último dark") }}</label>
+                <label class="opcion"><input type="radio" name="opcion-dark" value="nuevo" id="opcion-dark-nuevo"> {{ _("Generar darks nuevos") }}
+                    <span style="white-space: nowrap; margin-left: auto;"><input type="number" id="darks-n" class="corto" min="1" max="50" value="10"> {{ _("tomas") }}</span></label>
+                <label class="opcion"><input type="radio" name="opcion-dark" value="sin" id="opcion-dark-sin"> {{ _("Sin darks") }}</label>
             </div>
 
             <!-- Paso: tapar -->
             <div id="paso-tapar" class="mt-2" style="display: none;">
-                <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>Tapa el telescopio completamente y pulsa Aceptar.</div>
+                <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg>{{ _("Tapa el telescopio completamente y pulsa Aceptar.") }}</div>
                 <div class="acciones-grid dos">
-                    <button class="btn btn-danger" onclick="lanzarDarks()">Aceptar, ya está tapado</button>
-                    <button class="btn btn-ghost" onclick="volverAlInicio()">Cancelar</button>
+                    <button class="btn btn-danger" onclick="lanzarDarks()">{{ _("Aceptar, ya está tapado") }}</button>
+                    <button class="btn btn-ghost" onclick="volverAlInicio()">{{ _("Cancelar") }}</button>
                 </div>
             </div>
 
@@ -61,30 +61,30 @@
                 <p id="darks-mensaje" class="estado" style="font-size: 16px; color: var(--text);"></p>
                 <div class="progress alta"><div id="darks-barra" class="progress-bar"></div></div>
                 <p id="darks-cuenta" class="estado mt-1"></p>
-                <button class="btn btn-ghost btn-block" onclick="cancelarCaptura()">Cancelar darks</button>
+                <button class="btn btn-ghost btn-block" onclick="cancelarCaptura()">{{ _("Cancelar darks") }}</button>
             </div>
 
             <!-- Paso: destapar -->
             <div id="paso-destapar" class="mt-2" style="display: none;">
                 <p id="darks-resultado" class="estado ok"></p>
-                <div class="aviso aviso-ok"><svg class="ico"><use href="#i-ok"/></svg>Destapa el telescopio y pulsa Empezar.</div>
-                <button class="btn btn-primary btn-lg btn-block" onclick="arrancarBucle()"><svg><use href="#i-play"/></svg>Empezar</button>
+                <div class="aviso aviso-ok"><svg class="ico"><use href="#i-ok"/></svg>{{ _("Destapa el telescopio y pulsa Empezar.") }}</div>
+                <button class="btn btn-primary btn-lg btn-block" onclick="arrancarBucle()"><svg><use href="#i-play"/></svg>{{ _("Empezar") }}</button>
             </div>
 
             <div id="darks-error" class="estado err mt-1" style="font-weight: 600;"></div>
         </div>
 
         <div class="visor">
-            <img id="preview" src="" alt="Apilado">
+            <img id="preview" src="" alt="{{ _('Apilado') }}">
             <div class="visor-overlay">
-                <span class="chip"><svg class="ico-sm"><use href="#i-apilado"/></svg><span id="contador-apilado">0</span><span id="maximo-apilado-sep">&nbsp;/ </span><span id="maximo-apilado">-</span> fotos</span>
-                <span class="chip" id="chip-ultima">Última: <span id="ultima-captura">Ninguna</span></span>
+                <span class="chip"><svg class="ico-sm"><use href="#i-apilado"/></svg><span id="contador-apilado">0</span><span id="maximo-apilado-sep">&nbsp;/ </span><span id="maximo-apilado">-</span> {{ _("fotos") }}</span>
+                <span class="chip" id="chip-ultima">{{ _("Última:") }} <span id="ultima-captura">{{ _("Ninguna") }}</span></span>
                 <!-- Cometa: el apilado se hace dos veces (por las estrellas y por el núcleo);
                      estos chips eligen cuál se ve. Solo aparecen cuando el objeto es un cometa. -->
                 <span id="vistas-apilado" class="vistas-apilado" style="display: none;">
-                    <button type="button" class="chip chip-vista activo" data-vista="estrellas" onclick="elegirVista('estrellas')" title="Alineado por las estrellas (el cometa sale corrido)">✦ Estrellas</button>
-                    <button type="button" class="chip chip-vista" data-vista="cometa" onclick="elegirVista('cometa')" title="Alineado por el núcleo del cometa (las estrellas salen como rastros)">☄️ Cometa</button>
-                    <button type="button" class="chip chip-vista" data-vista="mosaico" onclick="elegirVista('mosaico')" title="Las teselas apiladas fundidas en una sola imagen (mosaico.py)" hidden>🧩 Mosaico</button>
+                    <button type="button" class="chip chip-vista activo" data-vista="estrellas" onclick="elegirVista('estrellas')" title="{{ _('Alineado por las estrellas (el cometa sale corrido)') }}">{{ _("✦ Estrellas") }}</button>
+                    <button type="button" class="chip chip-vista" data-vista="cometa" onclick="elegirVista('cometa')" title="{{ _('Alineado por el núcleo del cometa (las estrellas salen como rastros)') }}">{{ _("☄️ Cometa") }}</button>
+                    <button type="button" class="chip chip-vista" data-vista="mosaico" onclick="elegirVista('mosaico')" title="{{ _('Las teselas apiladas fundidas en una sola imagen (mosaico.py)') }}" hidden>{{ _("🧩 Mosaico") }}</button>
                 </span>
                 <!-- Progreso del ciclo: anillo discreto arriba a la derecha que se completa con
                      la exposición (segundos dentro) o con las fases del procesado. La banda inferior
@@ -97,12 +97,12 @@
             </div>
         </div>
 
-        <button class="btn btn-success btn-lg btn-block" onclick="guardarImagenJPG()" title="Procesa el apilado acumulado a resolución completa y lo guarda en la galería"><svg><use href="#i-guardar"/></svg>Guardar el apilado en la galería</button>
+        <button class="btn btn-success btn-lg btn-block" onclick="guardarImagenJPG()" title="{{ _('Procesa el apilado acumulado a resolución completa y lo guarda en la galería') }}"><svg><use href="#i-guardar"/></svg>{{ _("Guardar el apilado en la galería") }}</button>
         <div id="estado-guardar" class="estado centro" style="margin-top: -4px;"></div>
 
         <div class="fila entre">
             <div id="estado-captura-linea" class="estado"></div>
-            <button id="boton-cancelar" class="btn btn-sm btn-danger" onclick="cancelarCaptura()" style="display: none;">⏹ Cancelar exposición</button>
+            <button id="boton-cancelar" class="btn btn-sm btn-danger" onclick="cancelarCaptura()" style="display: none;">{{ _("⏹ Cancelar exposición") }}</button>
         </div>
 
         <div id="mensaje-apilado" class="estado texto-3"></div>
@@ -110,7 +110,7 @@
 
         <!-- Tira de evolución del apilado -->
         <div id="evolucion-bloque" class="card" style="display: none;">
-            <div class="card-header"><h3 class="card-title">Evolución del apilado</h3><span class="texto-3" style="font-size: 12.5px;">Toca una miniatura para verla en grande</span></div>
+            <div class="card-header"><h3 class="card-title">{{ _("Evolución del apilado") }}</h3><span class="texto-3" style="font-size: 12.5px;">{{ _("Toca una miniatura para verla en grande") }}</span></div>
             <div id="evolucion" class="miniaturas"></div>
         </div>
     </div>
@@ -120,16 +120,16 @@
     <div class="columna lateral" id="paneles-apilado">
         <section class="card panel" data-panel="ultima-toma">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title">Última toma</h3>
+                <h3 class="card-title">{{ _("Última toma") }}</h3>
                 <span id="ultima-toma-texto" class="panel-sub"></span>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
-                <img id="ultima-toma" src="" alt="Última toma" style="width: 100%; border-radius: 10px; background: #000; display: block;">
+                <img id="ultima-toma" src="" alt="{{ _('Última toma') }}" style="width: 100%; border-radius: 10px; background: #000; display: block;">
             </div>
         </section>
 
@@ -139,64 +139,64 @@
              colorea según quede por encima de la media, por debajo, o bajo el umbral. -->
         <section class="card panel" data-panel="estadisticas">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-info"/></svg>Estadísticas</h3>
+                <h3 class="card-title"><svg class="ico"><use href="#i-info"/></svg>{{ _("Estadísticas") }}</h3>
                 <span id="estadisticas-sub" class="panel-sub"></span>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo estadisticas">
                 <div class="stats stats-calidad">
-                    <div class="stat destacado"><div class="etiqueta">Última foto</div><div class="valor" id="punt-ultima">—</div></div>
-                    <div class="stat destacado"><div class="etiqueta">Media apilado</div><div class="valor" id="punt-media">—</div></div>
+                    <div class="stat destacado"><div class="etiqueta">{{ _("Última foto") }}</div><div class="valor" id="punt-ultima">—</div></div>
+                    <div class="stat destacado"><div class="etiqueta">{{ _("Media apilado") }}</div><div class="valor" id="punt-media">—</div></div>
                 </div>
                 <div class="stats stats-calidad tres">
-                    <div class="stat"><div class="etiqueta">Mejor</div><div class="valor" id="punt-mejor">—</div></div>
-                    <div class="stat"><div class="etiqueta">Mediana</div><div class="valor" id="punt-mediana">—</div></div>
-                    <div class="stat"><div class="etiqueta">Peor</div><div class="valor" id="punt-peor">—</div></div>
+                    <div class="stat"><div class="etiqueta">{{ _("Mejor") }}</div><div class="valor" id="punt-mejor">—</div></div>
+                    <div class="stat"><div class="etiqueta">{{ _("Mediana") }}</div><div class="valor" id="punt-mediana">—</div></div>
+                    <div class="stat"><div class="etiqueta">{{ _("Peor") }}</div><div class="valor" id="punt-peor">—</div></div>
                 </div>
                 <div id="puntuaciones" class="texto-3 nota"></div>
 
-                <h4 class="estadisticas-titulo">Foto apilada</h4>
-                <dl class="kv" id="datos-apilado"><dd class="texto-3" style="grid-column: 1 / -1;">Todavía no hay fotos apiladas.</dd></dl>
+                <h4 class="estadisticas-titulo">{{ _("Foto apilada") }}</h4>
+                <dl class="kv" id="datos-apilado"><dd class="texto-3" style="grid-column: 1 / -1;">{{ _("Todavía no hay fotos apiladas.") }}</dd></dl>
                 <div id="grafica-foco" class="mt-1" style="display: none;"></div>
 
-                <h4 class="estadisticas-titulo">Última foto medida</h4>
-                <dl class="kv" id="datos-ultima"><dd class="texto-3" style="grid-column: 1 / -1;">Todavía no se ha medido ninguna foto.</dd></dl>
+                <h4 class="estadisticas-titulo">{{ _("Última foto medida") }}</h4>
+                <dl class="kv" id="datos-ultima"><dd class="texto-3" style="grid-column: 1 / -1;">{{ _("Todavía no se ha medido ninguna foto.") }}</dd></dl>
             </div>
         </section>
 
         <section class="card panel" data-panel="opciones">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title">Opciones</h3>
+                <h3 class="card-title">{{ _("Opciones") }}</h3>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
                 <div class="fila" style="justify-content: space-between;">
-                    <span class="texto-2" style="font-size: 14px;">Fotos del apilado (máximo)</span>
+                    <span class="texto-2" style="font-size: 14px;">{{ _("Fotos del apilado (máximo)") }}</span>
                     <span class="fila" style="flex-wrap: nowrap; gap: 6px;">
-                        <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarMaximo(-10)" title="10 menos">−10</button>
+                        <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarMaximo(-10)" title="{{ _('10 menos') }}">−10</button>
                         <input type="number" id="maximo-fotos" class="corto" min="1" max="999" step="1" style="width: 72px;" onchange="cambiarMaximo(0)">
-                        <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarMaximo(10)" title="10 más">+10</button>
+                        <button type="button" class="btn btn-sm btn-ghost" onclick="cambiarMaximo(10)" title="{{ _('10 más') }}">+10</button>
                     </span>
                 </div>
-                <div id="maximo-estado" class="texto-3 mt-1" style="font-size: 13px;">Se puede cambiar con el apilado en marcha: se guardan las N mejores. Si lo bajas, con la siguiente foto se quitan las peores.</div>
+                <div id="maximo-estado" class="texto-3 mt-1" style="font-size: 13px;">{{ _("Se puede cambiar con el apilado en marcha: se guardan las N mejores. Si lo bajas, con la siguiente foto se quitan las peores.") }}</div>
                 <hr>
-                <label class="switch"><input type="checkbox" id="checkbox-objetos-anotados"> Objetos anotados en la imagen</label>
+                <label class="switch"><input type="checkbox" id="checkbox-objetos-anotados"> {{ _("Objetos anotados en la imagen") }}</label>
                 <div class="fila mt-2">
-                    <span class="texto-2" style="font-size: 14px;">Galaxias y nebulosas NGC/IC hasta magnitud</span>
+                    <span class="texto-2" style="font-size: 14px;">{{ _("Galaxias y nebulosas NGC/IC hasta magnitud") }}</span>
                     <input type="number" id="ngc-hasta-mag" class="corto" min="0" max="18" step="0.5" style="width: 72px;" onchange="cambiarMagNgc()">
                 </div>
-                <div class="texto-3 mt-1" style="font-size: 13px;">En azul claro, además de los objetos populares (en amarillo). 0 = no anotarlos. Se aplica en la siguiente vista previa y en la galería.</div>
+                <div class="texto-3 mt-1" style="font-size: 13px;">{{ _("En azul claro, además de los objetos populares (en amarillo). 0 = no anotarlos. Se aplica en la siguiente vista previa y en la galería.") }}</div>
                 <div class="fila mt-2">
-                    <label class="switch"><input type="checkbox" id="dither-activo" onchange="cambiarDithering()"> Dithering cada</label>
-                    <input type="number" id="dither-cada" class="corto" min="1" max="20" value="3" style="width: 64px;" onchange="cambiarDithering()"> <span class="texto-2" style="font-size: 14px;">fotos</span>
+                    <label class="switch"><input type="checkbox" id="dither-activo" onchange="cambiarDithering()"> {{ _("Dithering cada") }}</label>
+                    <input type="number" id="dither-cada" class="corto" min="1" max="20" value="3" style="width: 64px;" onchange="cambiarDithering()"> <span class="texto-2" style="font-size: 14px;">{{ _("fotos") }}</span>
                 </div>
                 <div id="dither-estado" class="texto-3 mt-1" style="font-size: 13px;"></div>
             </div>
@@ -204,67 +204,67 @@
 
         <section class="card panel" data-panel="plan" id="panel-plan">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-noche"/></svg>Plan de la noche</h3>
+                <h3 class="card-title"><svg class="ico"><use href="#i-noche"/></svg>{{ _("Plan de la noche") }}</h3>
                 <span id="plan-sub" class="panel-sub"></span>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
                 <!-- Lista de objetos que se fotografían solos, uno tras otro (plan_sesion.py, static/js/plan.js) -->
                 <div class="acciones-grid dos">
-                    <button type="button" id="plan-btn-empezar" class="btn btn-primary" onclick="Plan.iniciar()" title="GoTo, centrado, apilado y guardado de cada objeto, en el orden del cronograma"><svg><use href="#i-play"/></svg>Empezar plan</button>
-                    <button type="button" id="plan-btn-pausar" class="btn btn-warning" onclick="Plan.pausar()" hidden>⏸ Pausar plan</button>
-                    <button type="button" id="plan-btn-reanudar" class="btn btn-success" onclick="Plan.reanudar()" hidden>▶ Reanudar plan</button>
-                    <button type="button" id="plan-btn-noche" class="btn btn-secondary" onclick="Plan.verNoche()" title="Cómo se reparten los objetos a lo largo de la noche"><svg><use href="#i-reloj"/></svg>Ver la noche</button>
-                    <button type="button" id="plan-btn-saltar" class="btn btn-ghost" onclick="Plan.saltar()" hidden>⏭ Saltar objeto</button>
-                    <button type="button" id="plan-btn-detener" class="btn btn-danger" onclick="Plan.detener()" hidden>⏹ Detener plan</button>
+                    <button type="button" id="plan-btn-empezar" class="btn btn-primary" onclick="Plan.iniciar()" title="{{ _('GoTo, centrado, apilado y guardado de cada objeto, en el orden del cronograma') }}"><svg><use href="#i-play"/></svg>{{ _("Empezar plan") }}</button>
+                    <button type="button" id="plan-btn-pausar" class="btn btn-warning" onclick="Plan.pausar()" hidden>{{ _("⏸ Pausar plan") }}</button>
+                    <button type="button" id="plan-btn-reanudar" class="btn btn-success" onclick="Plan.reanudar()" hidden>{{ _("▶ Reanudar plan") }}</button>
+                    <button type="button" id="plan-btn-noche" class="btn btn-secondary" onclick="Plan.verNoche()" title="{{ _('Cómo se reparten los objetos a lo largo de la noche') }}"><svg><use href="#i-reloj"/></svg>{{ _("Ver la noche") }}</button>
+                    <button type="button" id="plan-btn-saltar" class="btn btn-ghost" onclick="Plan.saltar()" hidden>{{ _("⏭ Saltar objeto") }}</button>
+                    <button type="button" id="plan-btn-detener" class="btn btn-danger" onclick="Plan.detener()" hidden>{{ _("⏹ Detener plan") }}</button>
                 </div>
                 <div id="plan-estado" class="aviso aviso-info plan-estado" hidden></div>
                 <div id="plan-error" class="estado mt-1" style="font-size: 13px;"></div>
                 <div class="buscador-plan">
-                    <input type="text" id="plan-buscar" placeholder="Añadir objeto: M31, NGC 7000, Júpiter…" autocomplete="off">
+                    <input type="text" id="plan-buscar" placeholder="{{ _('Añadir objeto: M31, NGC 7000, Júpiter…') }}" autocomplete="off">
                     <div id="plan-sugerencias" class="sugerencias" hidden></div>
                 </div>
                 <div class="fila plan-herramientas">
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="Plan.messier()" title="Los 110 objetos Messier">Messier completo</button>
-                    <button type="button" class="btn btn-sm btn-ghost" onclick="document.getElementById('plan-fichero').click()" title="Un plan exportado o un texto con un nombre por línea">Importar</button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="Plan.messier()" title="{{ _('Los 110 objetos Messier') }}">{{ _("Messier completo") }}</button>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="document.getElementById('plan-fichero').click()" title="{{ _('Un plan exportado o un texto con un nombre por línea') }}">{{ _("Importar") }}</button>
                     <input type="file" id="plan-fichero" accept=".json,.txt" hidden onchange="Plan.importar(this)">
-                    <a class="btn btn-sm btn-ghost" href="/plan/exportar" title="Guarda el plan con su progreso en un fichero">Exportar</a>
-                    <button type="button" class="btn btn-sm btn-ghost" onclick="Plan.vaciar()">Vaciar</button>
+                    <a class="btn btn-sm btn-ghost" href="/plan/exportar" title="{{ _('Guarda el plan con su progreso en un fichero') }}">{{ _("Exportar") }}</a>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="Plan.vaciar()">{{ _("Vaciar") }}</button>
                 </div>
                 <ul id="plan-lista" class="lista plan-lista"></ul>
-                <div id="plan-vacio" class="texto-3" style="font-size: 13px;" hidden>Todavía no hay objetos. Busca uno arriba, pulsa "Messier completo" o añádelos desde el planetario y Esta noche. Lo que no se pueda hacer esta noche queda para otra.</div>
+                <div id="plan-vacio" class="texto-3" style="font-size: 13px;" hidden>{{ _('Todavía no hay objetos. Busca uno arriba, pulsa "Messier completo" o añádelos desde el planetario y Esta noche. Lo que no se pueda hacer esta noche queda para otra.') }}</div>
                 <details class="mt-2">
-                    <summary class="proc-mas-titulo">Ajustes del plan</summary>
+                    <summary class="proc-mas-titulo">{{ _("Ajustes del plan") }}</summary>
                     <div class="plan-ajustes">
-                        <label for="plan-aj-altura">Altura mínima (°)</label><input type="number" id="plan-aj-altura" class="corto" min="5" max="60" step="1" onchange="Plan.guardarAjustes()">
-                        <label for="plan-aj-fotos">Fotos por objeto (por defecto)</label><input type="number" id="plan-aj-fotos" class="corto" min="1" max="999" step="1" onchange="Plan.guardarAjustes()">
-                        <label for="plan-aj-zoom">Zoom por defecto</label>
-                        <select id="plan-aj-zoom" onchange="Plan.guardarAjustes()"><option value="0">Campo entero</option><option value="25">75 % del campo</option><option value="50">50 % del campo</option><option value="75">25 % del campo</option></select>
-                        <label for="plan-aj-minutos">Minutos sin fotos aceptadas para saltar</label><input type="number" id="plan-aj-minutos" class="corto" min="3" max="60" step="1" onchange="Plan.guardarAjustes()">
-                        <label for="plan-aj-crepusculo">Noche</label>
-                        <select id="plan-aj-crepusculo" onchange="Plan.guardarAjustes()"><option value="nautico">Crepúsculo náutico (Sol a −12°)</option><option value="astronomico">Crepúsculo astronómico (Sol a −18°)</option></select>
-                        <label class="switch"><input type="checkbox" id="plan-aj-dark" onchange="Plan.guardarAjustes()"> Usar el último dark</label>
-                        <label class="switch"><input type="checkbox" id="plan-aj-centrar" onchange="Plan.guardarAjustes()"> Centrar por plate solving tras cada GoTo</label>
-                        <label class="switch" title="Solo para pruebas con simuladores: la noche empieza ahora y dura 6 h"><input type="checkbox" id="plan-aj-probar" onchange="Plan.guardarAjustes()"> Probar de día (ignora la noche; solo pruebas)</label>
+                        <label for="plan-aj-altura">{{ _("Altura mínima (°)") }}</label><input type="number" id="plan-aj-altura" class="corto" min="5" max="60" step="1" onchange="Plan.guardarAjustes()">
+                        <label for="plan-aj-fotos">{{ _("Fotos por objeto (por defecto)") }}</label><input type="number" id="plan-aj-fotos" class="corto" min="1" max="999" step="1" onchange="Plan.guardarAjustes()">
+                        <label for="plan-aj-zoom">{{ _("Zoom por defecto") }}</label>
+                        <select id="plan-aj-zoom" onchange="Plan.guardarAjustes()"><option value="0">{{ _("Campo entero") }}</option><option value="25">{{ _("75 % del campo") }}</option><option value="50">{{ _("50 % del campo") }}</option><option value="75">{{ _("25 % del campo") }}</option></select>
+                        <label for="plan-aj-minutos">{{ _("Minutos sin fotos aceptadas para saltar") }}</label><input type="number" id="plan-aj-minutos" class="corto" min="3" max="60" step="1" onchange="Plan.guardarAjustes()">
+                        <label for="plan-aj-crepusculo">{{ _("Noche") }}</label>
+                        <select id="plan-aj-crepusculo" onchange="Plan.guardarAjustes()"><option value="nautico">{{ _("Crepúsculo náutico (Sol a −12°)") }}</option><option value="astronomico">{{ _("Crepúsculo astronómico (Sol a −18°)") }}</option></select>
+                        <label class="switch"><input type="checkbox" id="plan-aj-dark" onchange="Plan.guardarAjustes()"> {{ _("Usar el último dark") }}</label>
+                        <label class="switch"><input type="checkbox" id="plan-aj-centrar" onchange="Plan.guardarAjustes()"> {{ _("Centrar por plate solving tras cada GoTo") }}</label>
+                        <label class="switch" title="{{ _('Solo para pruebas con simuladores: la noche empieza ahora y dura 6 h') }}"><input type="checkbox" id="plan-aj-probar" onchange="Plan.guardarAjustes()"> {{ _("Probar de día (ignora la noche; solo pruebas)") }}</label>
                     </div>
                     <div id="plan-aj-nota" class="texto-3 mt-1" style="font-size: 12.5px;"></div>
-                    <button type="button" class="btn btn-sm btn-ghost mt-2" onclick="Plan.reiniciarResultados()">Reiniciar resultados (todo a pendiente)</button>
+                    <button type="button" class="btn btn-sm btn-ghost mt-2" onclick="Plan.reiniciarResultados()">{{ _("Reiniciar resultados (todo a pendiente)") }}</button>
                 </details>
             </div>
         </section>
 
         <section class="card panel" data-panel="mosaico" id="panel-mosaico">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title">🧩 Mosaico</h3>
+                <h3 class="card-title">{{ _("🧩 Mosaico") }}</h3>
                 <span id="mosaico-sub" class="panel-sub"></span>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
@@ -273,58 +273,58 @@
                      puede dibujar sobre el cielo en el planetario. -->
                 <div id="mosaico-centro-texto" class="texto-2" style="font-size: 13px; line-height: 1.45;"></div>
                 <div id="mosaico-form" class="mosaico-form">
-                    <label for="mosaico-nombre">Centro</label>
-                    <input type="text" id="mosaico-nombre" placeholder="Objeto apuntado" autocomplete="off" title="Vacío: el objeto del último GoTo (o donde apunta la montura). O escribe un objeto: M31, NGC 7000…">
-                    <label for="mosaico-filas">Filas × columnas</label>
+                    <label for="mosaico-nombre">{{ _("Centro") }}</label>
+                    <input type="text" id="mosaico-nombre" placeholder="{{ _('Objeto apuntado') }}" autocomplete="off" title="{{ _('Vacío: el objeto del último GoTo (o donde apunta la montura). O escribe un objeto: M31, NGC 7000…') }}">
+                    <label for="mosaico-filas">{{ _("Filas × columnas") }}</label>
                     <div class="fila" style="gap: 4px;">
                         <input type="number" id="mosaico-filas" class="corto" min="1" max="6" step="1" style="width: 56px;">
                         <span class="texto-3">×</span>
                         <input type="number" id="mosaico-columnas" class="corto" min="1" max="6" step="1" style="width: 56px;">
                     </div>
-                    <label for="mosaico-solape">Solape entre teselas (%)</label><input type="number" id="mosaico-solape" class="corto" min="5" max="60" step="1">
-                    <label for="mosaico-fotos">Fotos por tesela</label><input type="number" id="mosaico-fotos" class="corto" min="1" max="999" step="1">
-                    <label class="switch"><input type="checkbox" id="mosaico-centrar"> Centrar por plate solving en cada tesela</label>
-                    <label class="switch"><input type="checkbox" id="mosaico-guardar"> Guardar el mosaico en la galería al terminar</label>
+                    <label for="mosaico-solape">{{ _("Solape entre teselas (%)") }}</label><input type="number" id="mosaico-solape" class="corto" min="5" max="60" step="1">
+                    <label for="mosaico-fotos">{{ _("Fotos por tesela") }}</label><input type="number" id="mosaico-fotos" class="corto" min="1" max="999" step="1">
+                    <label class="switch"><input type="checkbox" id="mosaico-centrar"> {{ _("Centrar por plate solving en cada tesela") }}</label>
+                    <label class="switch"><input type="checkbox" id="mosaico-guardar"> {{ _("Guardar el mosaico en la galería al terminar") }}</label>
                 </div>
                 <div id="mosaico-previa" class="texto-3" style="font-size: 12.5px; margin-top: 6px;"></div>
                 <div class="acciones-grid dos mt-2">
-                    <button type="button" id="mosaico-btn-empezar" class="btn btn-primary" onclick="Mosaico.iniciar()" title="GoTo, centrado y apilado de cada tesela, una tras otra; al final se funden en una imagen"><svg><use href="#i-play"/></svg>Empezar mosaico</button>
-                    <a class="btn btn-secondary" href="/planetario?mosaico=1" title="Ver y ajustar la rejilla de teselas sobre el cielo"><svg><use href="#i-planetario"/></svg>Ver en el planetario</a>
-                    <button type="button" id="mosaico-btn-pausar" class="btn btn-warning" onclick="Mosaico.pausar()" hidden>⏸ Pausar mosaico</button>
-                    <button type="button" id="mosaico-btn-reanudar" class="btn btn-success" onclick="Mosaico.reanudar()" hidden>▶ Reanudar mosaico</button>
-                    <button type="button" id="mosaico-btn-saltar" class="btn btn-ghost" onclick="Mosaico.saltar()" hidden>⏭ Siguiente tesela</button>
-                    <button type="button" id="mosaico-btn-detener" class="btn btn-danger" onclick="Mosaico.detener()" hidden>⏹ Detener mosaico</button>
+                    <button type="button" id="mosaico-btn-empezar" class="btn btn-primary" onclick="Mosaico.iniciar()" title="{{ _('GoTo, centrado y apilado de cada tesela, una tras otra; al final se funden en una imagen') }}"><svg><use href="#i-play"/></svg>{{ _("Empezar mosaico") }}</button>
+                    <a class="btn btn-secondary" href="/planetario?mosaico=1" title="{{ _('Ver y ajustar la rejilla de teselas sobre el cielo') }}"><svg><use href="#i-planetario"/></svg>{{ _("Ver en el planetario") }}</a>
+                    <button type="button" id="mosaico-btn-pausar" class="btn btn-warning" onclick="Mosaico.pausar()" hidden>{{ _("⏸ Pausar mosaico") }}</button>
+                    <button type="button" id="mosaico-btn-reanudar" class="btn btn-success" onclick="Mosaico.reanudar()" hidden>{{ _("▶ Reanudar mosaico") }}</button>
+                    <button type="button" id="mosaico-btn-saltar" class="btn btn-ghost" onclick="Mosaico.saltar()" hidden>{{ _("⏭ Siguiente tesela") }}</button>
+                    <button type="button" id="mosaico-btn-detener" class="btn btn-danger" onclick="Mosaico.detener()" hidden>{{ _("⏹ Detener mosaico") }}</button>
                 </div>
                 <div id="mosaico-estado" class="aviso aviso-info plan-estado" hidden></div>
                 <div id="mosaico-rejilla" class="mosaico-rejilla" hidden></div>
                 <div id="mosaico-error" class="estado mt-1" style="font-size: 13px;"></div>
                 <div class="fila plan-herramientas mt-1">
-                    <button type="button" id="mosaico-btn-recombinar" class="btn btn-sm btn-secondary" onclick="Mosaico.recombinar()" title="Vuelve a fundir las teselas que hay (p. ej. un mosaico a medias)" disabled>Recombinar</button>
-                    <button type="button" id="mosaico-btn-guardar" class="btn btn-sm btn-secondary" onclick="Mosaico.guardar()" disabled><svg><use href="#i-guardar"/></svg>Guardar en la galería</button>
-                    <a id="mosaico-btn-fits" class="btn btn-sm btn-ghost" href="/descargar-fits-mosaico">Descargar FITS</a>
+                    <button type="button" id="mosaico-btn-recombinar" class="btn btn-sm btn-secondary" onclick="Mosaico.recombinar()" title="{{ _('Vuelve a fundir las teselas que hay (p. ej. un mosaico a medias)') }}" disabled>{{ _("Recombinar") }}</button>
+                    <button type="button" id="mosaico-btn-guardar" class="btn btn-sm btn-secondary" onclick="Mosaico.guardar()" disabled><svg><use href="#i-guardar"/></svg>{{ _("Guardar en la galería") }}</button>
+                    <a id="mosaico-btn-fits" class="btn btn-sm btn-ghost" href="/descargar-fits-mosaico">{{ _("Descargar FITS") }}</a>
                 </div>
             </div>
         </section>
 
         <section class="card panel" data-panel="info-goto">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-goto"/></svg>Objeto del último GoTo</h3>
+                <h3 class="card-title"><svg class="ico"><use href="#i-goto"/></svg>{{ _("Objeto del último GoTo") }}</h3>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
                 <pre id="info-goto"></pre>
                 <!-- Nombre que sale en el rótulo de la firma y en el archivo de la galería; se puede cambiar a mano -->
                 <div class="campo mt-2">
-                    <label for="nombre-objeto">Nombre para el rótulo</label>
+                    <label for="nombre-objeto">{{ _("Nombre para el rótulo") }}</label>
                     <div class="fila" style="flex-wrap: nowrap; gap: 6px;">
-                        <input type="text" id="nombre-objeto" class="form-control" maxlength="60" placeholder="Nombre del objeto" onkeydown="if (event.key === 'Enter') guardarNombreObjeto()">
-                        <button type="button" class="btn btn-secondary" onclick="guardarNombreObjeto()">Cambiar</button>
+                        <input type="text" id="nombre-objeto" class="form-control" maxlength="60" placeholder="{{ _('Nombre del objeto') }}" onkeydown="if (event.key === 'Enter') guardarNombreObjeto()">
+                        <button type="button" class="btn btn-secondary" onclick="guardarNombreObjeto()">{{ _("Cambiar") }}</button>
                     </div>
-                    <small class="ayuda">Se usa en la firma del apilado y en el nombre del archivo al guardar en la galería. Cada GoTo lo actualiza.</small>
+                    <small class="ayuda">{{ _("Se usa en la firma del apilado y en el nombre del archivo al guardar en la galería. Cada GoTo lo actualiza.") }}</small>
                     <div id="nombre-objeto-estado" class="texto-3 mt-1" style="font-size: 13px;"></div>
                 </div>
             </div>
@@ -332,104 +332,104 @@
 
         <section class="card panel" data-panel="procesado">
             <div class="panel-header" onclick="alternarPanel(this)">
-                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>Procesado de la vista previa</h3>
+                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>{{ _("Procesado de la vista previa") }}</h3>
                 <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="Subir"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="Bajar"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="Plegar o desplegar"><svg><use href="#i-flecha"/></svg></button>
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
                 </div>
             </div>
             <div class="panel-cuerpo">
                 <div class="campo">
-                    <label>Preset</label>
+                    <label>{{ _("Preset") }}</label>
                     <div class="fila" style="gap: 6px;">
                         <select id="proc-preset" class="form-control" style="flex: 1; min-width: 0;" onchange="cargarPresetApilado()">
-                            <option value="">— ninguno —</option>
+                            <option value="">{{ _("— ninguno —") }}</option>
                         </select>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="guardarPresetApilado()" title="Guardar los ajustes actuales con un nombre">Guardar</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="guardarPresetApilado()" title="{{ _('Guardar los ajustes actuales con un nombre') }}">{{ _("Guardar") }}</button>
                     </div>
-                    <small class="ayuda">Los presets se crean aquí o en el editor de la galería. Al elegir uno se cargan todos sus ajustes; luego pulsa "Aplicar a la vista previa". Al apuntar a un objeto se carga solo el preset de su familia si existe: «Galaxias», «Nebulosas» (también planetarias y restos de supernova) o «Cúmulos».</small>
+                    <small class="ayuda">{{ _('Los presets se crean aquí o en el editor de la galería. Al elegir uno se cargan todos sus ajustes; luego pulsa "Aplicar a la vista previa". Al apuntar a un objeto se carga solo el preset de su familia si existe: «Galaxias», «Nebulosas» (también planetarias y restos de supernova) o «Cúmulos».') }}</small>
                 </div>
                 <div class="campo">
-                    <label>Estilo</label>
+                    <label>{{ _("Estilo") }}</label>
                     <select id="proc-estilo" class="form-control" onchange="aplicarEstilo()">
-                        <option value="natural">Natural: gradiente y ruido suave</option>
-                        <option value="seestar">Seestar: todo activado, valores medios</option>
-                        <option value="agresivo">Agresivo: máximo ruido y contraste</option>
+                        <option value="natural">{{ _("Natural: gradiente y ruido suave") }}</option>
+                        <option value="seestar">{{ _("Seestar: todo activado, valores medios") }}</option>
+                        <option value="agresivo">{{ _("Agresivo: máximo ruido y contraste") }}</option>
                     </select>
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>Brillo del fondo de cielo</span><span id="proc-fondo_objetivo-v"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Brillo del fondo de cielo") }}</span><span id="proc-fondo_objetivo-v"></span></div>
                     <input type="range" id="proc-fondo_objetivo" min="0.02" max="0.30" step="0.01" oninput="document.getElementById('proc-fondo_objetivo-v').textContent = this.value">
-                    <small class="ayuda">Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas).</small>
+                    <small class="ayuda">{{ _("Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas).") }}</small>
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>Compresión de lo brillante</span><span id="proc-compresion-v"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Compresión de lo brillante") }}</span><span id="proc-compresion-v"></span></div>
                     <input type="range" id="proc-compresion" min="0" max="1" step="0.05" oninput="document.getElementById('proc-compresion-v').textContent = this.value">
-                    <small class="ayuda">0 = igual que el STF clásico (estrellas y núcleos saturan a blanco); a más valor, más se protegen y más color conservan. 0,1-0,3 nebulosas, 0,3-0,6 galaxias y cúmulos.</small>
+                    <small class="ayuda">{{ _("0 = igual que el STF clásico (estrellas y núcleos saturan a blanco); a más valor, más se protegen y más color conservan. 0,1-0,3 nebulosas, 0,3-0,6 galaxias y cúmulos.") }}</small>
                 </div>
                 <div class="campo">
-                    <label>Curva del fondo</label>
+                    <label>{{ _("Curva del fondo") }}</label>
                     <select id="proc-curva" class="form-control">
-                        <option value="gamma">Gamma: la de siempre</option>
-                        <option value="asinh">Asinh: levanta más lo tenue</option>
-                        <option value="mtf">MTF (PixInsight): aún más pegada</option>
+                        <option value="gamma">{{ _("Gamma: la de siempre") }}</option>
+                        <option value="asinh">{{ _("Asinh: levanta más lo tenue") }}</option>
+                        <option value="mtf">{{ _("MTF (PixInsight): aún más pegada") }}</option>
                     </select>
-                    <small class="ayuda">Asinh y MTF dan más ganancia justo por encima del fondo: las nebulosas débiles suben el doble con el mismo cielo, y con ellas el ruido a media escala (bajar el contraste local y subir la reducción de ruido).</small>
+                    <small class="ayuda">{{ _("Asinh y MTF dan más ganancia justo por encima del fondo: las nebulosas débiles suben el doble con el mismo cielo, y con ellas el ruido a media escala (bajar el contraste local y subir la reducción de ruido).") }}</small>
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>Reducción de ruido</span><span id="proc-ruido-v"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Reducción de ruido") }}</span><span id="proc-ruido-v"></span></div>
                     <input type="range" id="proc-ruido" min="0" max="1" step="0.05" oninput="document.getElementById('proc-ruido-v').textContent = this.value">
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>Contraste local</span><span id="proc-contraste-v"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Contraste local") }}</span><span id="proc-contraste-v"></span></div>
                     <input type="range" id="proc-contraste" min="0" max="1" step="0.05" oninput="document.getElementById('proc-contraste-v').textContent = this.value">
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>Saturación</span><span id="proc-saturacion-v"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Saturación") }}</span><span id="proc-saturacion-v"></span></div>
                     <input type="range" id="proc-saturacion" min="0.5" max="3" step="0.1" oninput="document.getElementById('proc-saturacion-v').textContent = this.value">
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>Saturación de las estrellas</span><span id="proc-saturacion_estrellas-v"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Saturación de las estrellas") }}</span><span id="proc-saturacion_estrellas-v"></span></div>
                     <input type="range" id="proc-saturacion_estrellas" min="0" max="2" step="0.1" oninput="document.getElementById('proc-saturacion_estrellas-v').textContent = this.value">
-                    <small class="ayuda">Solo sobre las estrellas y sus halos. Con mucha saturación general las estrellas azules salen violeta (halo rojo + azul del refractor): 0,5-0,8 las deja con su color real.</small>
+                    <small class="ayuda">{{ _("Solo sobre las estrellas y sus halos. Con mucha saturación general las estrellas azules salen violeta (halo rojo + azul del refractor): 0,5-0,8 las deja con su color real.") }}</small>
                 </div>
-                <label class="fila-check"><input type="checkbox" id="proc-scnr_estrellas"> Quitar el verde también en las estrellas</label>
-                <label class="fila-check"><input type="checkbox" id="proc-color_estrellas_uniforme"> Un solo color por estrella</label>
-                <label class="fila-check"><input type="checkbox" id="proc-gradiente"> Quitar gradiente de contaminación lumínica</label>
-                <label class="fila-check"><input type="checkbox" id="proc-aplanar"> Aplanar fondo a gran escala (no usar con nebulosas extensas)</label>
+                <label class="fila-check"><input type="checkbox" id="proc-scnr_estrellas"> {{ _("Quitar el verde también en las estrellas") }}</label>
+                <label class="fila-check"><input type="checkbox" id="proc-color_estrellas_uniforme"> {{ _("Un solo color por estrella") }}</label>
+                <label class="fila-check"><input type="checkbox" id="proc-gradiente"> {{ _("Quitar gradiente de contaminación lumínica") }}</label>
+                <label class="fila-check"><input type="checkbox" id="proc-aplanar"> {{ _("Aplanar fondo a gran escala (no usar con nebulosas extensas)") }}</label>
                 <!-- Acabado: los mismos controles que el editor de la galería, plegados
                      para no alargar el panel. Se guardan en config.ini con el resto. -->
                 <details id="proc-mas" class="mt-2">
-                    <summary class="proc-mas-titulo">Más… (brillo, temperatura de color, verde)</summary>
+                    <summary class="proc-mas-titulo">{{ _("Más… (brillo, temperatura de color, verde)") }}</summary>
                     <div class="campo mt-1">
-                        <div class="rango-titulo"><span>Brillo general</span><span id="proc-brillo-v"></span></div>
+                        <div class="rango-titulo"><span>{{ _("Brillo general") }}</span><span id="proc-brillo-v"></span></div>
                         <input type="range" id="proc-brillo" min="-1" max="1" step="0.05" oninput="document.getElementById('proc-brillo-v').textContent = this.value">
-                        <small class="ayuda">0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro.</small>
+                        <small class="ayuda">{{ _("0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro.") }}</small>
                     </div>
                     <div class="campo">
-                        <div class="rango-titulo"><span>Temperatura de color</span><span id="proc-temperatura-v"></span></div>
+                        <div class="rango-titulo"><span>{{ _("Temperatura de color") }}</span><span id="proc-temperatura-v"></span></div>
                         <input type="range" id="proc-temperatura" min="-1" max="1" step="0.05" oninput="document.getElementById('proc-temperatura-v').textContent = this.value">
-                        <small class="ayuda">Izquierda más azul, derecha más rojo. El fondo de cielo se mantiene neutro.</small>
+                        <small class="ayuda">{{ _("Izquierda más azul, derecha más rojo. El fondo de cielo se mantiene neutro.") }}</small>
                     </div>
                     <div class="campo">
-                        <div class="rango-titulo"><span>Quitar dominante verde (SCNR)</span><span id="proc-scnr-v"></span></div>
+                        <div class="rango-titulo"><span>{{ _("Quitar dominante verde (SCNR)") }}</span><span id="proc-scnr-v"></span></div>
                         <input type="range" id="proc-scnr" min="0" max="1" step="0.05" oninput="document.getElementById('proc-scnr-v').textContent = this.value">
                     </div>
                 </details>
                 <div class="campo mt-2">
-                    <label>Campo visible (zoom)</label>
+                    <label>{{ _("Campo visible (zoom)") }}</label>
                     <select id="input-zoom" class="form-control">
-                        <option value="0">100 % (campo completo)</option>
+                        <option value="0">{{ _("100 % (campo completo)") }}</option>
                         <option value="25">75 %</option>
                         <option value="50">50 %</option>
-                        <option value="75">25 % (objetos pequeños)</option>
+                        <option value="75">{{ _("25 % (objetos pequeños)") }}</option>
                     </select>
-                    <small class="ayuda">Recorta por los bordes la vista previa y el JPG de la galería, para ver más grandes los cúmulos globulares, planetarias y galaxias. El apilado y el FITS siguen a campo completo.</small>
+                    <small class="ayuda">{{ _("Recorta por los bordes la vista previa y el JPG de la galería, para ver más grandes los cúmulos globulares, planetarias y galaxias. El apilado y el FITS siguen a campo completo.") }}</small>
                 </div>
                 <div class="campo mt-2">
-                    <div class="rango-titulo"><span>Giro del encuadre</span><span id="giro-v"></span></div>
-                    <label class="fila-check"><input type="checkbox" id="input-norte" onchange="pintarValorGiro()"> Norte arriba automático (este a la izquierda)</label>
+                    <div class="rango-titulo"><span>{{ _("Giro del encuadre") }}</span><span id="giro-v"></span></div>
+                    <label class="fila-check"><input type="checkbox" id="input-norte" onchange="pintarValorGiro()"> {{ _("Norte arriba automático (este a la izquierda)") }}</label>
                     <div id="giro-manual">
                         <div class="segmentado" id="giro-seg" style="width: 100%;">
                             <button type="button" data-cuartos="0" onclick="elegirCuartos(0)" style="flex: 1;">0°</button>
@@ -437,12 +437,12 @@
                             <button type="button" data-cuartos="2" onclick="elegirCuartos(2)" style="flex: 1;">180°</button>
                             <button type="button" data-cuartos="3" onclick="elegirCuartos(3)" style="flex: 1;">270°</button>
                         </div>
-                        <input type="range" id="input-giro-fino" min="-45" max="45" step="0.5" value="0" class="mt-2" title="Ajuste fino del giro" oninput="pintarValorGiro()">
-                        <label class="fila-check"><input type="checkbox" id="input-espejo"> Espejo (voltear de izquierda a derecha)</label>
+                        <input type="range" id="input-giro-fino" min="-45" max="45" step="0.5" value="0" class="mt-2" title="{{ _('Ajuste fino del giro') }}" oninput="pintarValorGiro()">
+                        <label class="fila-check"><input type="checkbox" id="input-espejo"> {{ _("Espejo (voltear de izquierda a derecha)") }}</label>
                     </div>
-                    <small class="ayuda">Gira en sentido horario la vista previa y el JPG de la galería; el FITS se guarda sin girar. Los cuartos de vuelta no pierden nada; con el ajuste fino se recorta lo justo para que no asomen las esquinas (nada con el zoom al 50 % o menos). «Norte arriba automático» usa el plate solving de la referencia de cada apilado y deja cada objeto como en los atlas.</small>
+                    <small class="ayuda">{{ _("Gira en sentido horario la vista previa y el JPG de la galería; el FITS se guarda sin girar. Los cuartos de vuelta no pierden nada; con el ajuste fino se recorta lo justo para que no asomen las esquinas (nada con el zoom al 50 % o menos). «Norte arriba automático» usa el plate solving de la referencia de cada apilado y deja cada objeto como en los atlas.") }}</small>
                 </div>
-                <button class="btn btn-primary btn-block" onclick="guardarParametrosMTF()">Aplicar a la vista previa</button>
+                <button class="btn btn-primary btn-block" onclick="guardarParametrosMTF()">{{ _("Aplicar a la vista previa") }}</button>
                 <div id="estado-mtf" class="estado mt-1"></div>
             </div>
         </section>
@@ -456,7 +456,7 @@
         <div class="texto-2" id="po-datos" style="font-size: 13.5px;"></div>
         <div id="po-previsto" style="font-weight: 600; font-size: 13.5px; margin-top: 8px;"></div>
         <div class="fila mt-2" style="justify-content: space-between;">
-            <span class="texto-2" style="font-size: 14px;">Fotos apiladas</span>
+            <span class="texto-2" style="font-size: 14px;">{{ _("Fotos apiladas") }}</span>
             <span class="fila" style="flex-wrap: nowrap; gap: 6px;">
                 <button type="button" class="btn btn-sm btn-ghost" onclick="Plan.fotosObjeto(-10)">−10</button>
                 <input type="number" id="po-fotos" class="corto" min="1" max="999" step="1" style="width: 72px;">
@@ -464,7 +464,7 @@
             </span>
         </div>
         <div class="fila mt-2" style="justify-content: space-between;">
-            <span class="texto-2" style="font-size: 14px;">Zoom (recorte)</span>
+            <span class="texto-2" style="font-size: 14px;">{{ _("Zoom (recorte)") }}</span>
             <span class="segmentado" id="po-zoom">
                 <button type="button" data-zoom="0" onclick="Plan.zoomObjeto(this)">100 %</button>
                 <button type="button" data-zoom="25" onclick="Plan.zoomObjeto(this)">75 %</button>
@@ -473,17 +473,17 @@
             </span>
         </div>
         <div class="fila mt-2" style="justify-content: space-between;">
-            <span class="texto-2" style="font-size: 14px;">Exposición (s)</span>
+            <span class="texto-2" style="font-size: 14px;">{{ _("Exposición (s)") }}</span>
             <input type="number" id="po-exposicion" class="corto" min="0" max="600" step="0.5" style="width: 110px;">
         </div>
-        <label class="switch mt-2" title="Reserva su hueco cuando esté más alto (paso por el meridiano); los demás objetos se reparten alrededor"><input type="checkbox" id="po-prioritario"> Prioritario: fotografiarlo cuando esté más alto</label>
+        <label class="switch mt-2" title="{{ _('Reserva su hueco cuando esté más alto (paso por el meridiano); los demás objetos se reparten alrededor') }}"><input type="checkbox" id="po-prioritario"> {{ _("Prioritario: fotografiarlo cuando esté más alto") }}</label>
         <div id="po-nota" class="texto-3 mt-1" style="font-size: 12.5px;"></div>
         <div class="modal-acciones">
-            <button type="button" class="btn btn-primary" onclick="Plan.guardarObjeto()"><svg><use href="#i-guardar"/></svg>Guardar</button>
-            <button type="button" class="btn" id="po-btn-pendiente" onclick="Plan.estadoObjeto('pendiente')" title="Volver a fotografiarlo">Volver a pendiente</button>
-            <button type="button" class="btn" id="po-btn-hecho" onclick="Plan.estadoObjeto('hecho')" title="Darlo por hecho sin fotografiarlo">Marcar como hecho</button>
-            <button type="button" class="btn btn-danger" onclick="Plan.borrarObjeto()"><svg><use href="#i-papelera"/></svg>Quitar</button>
-            <button type="button" class="btn" onclick="Plan.cerrarObjeto()">Cerrar</button>
+            <button type="button" class="btn btn-primary" onclick="Plan.guardarObjeto()"><svg><use href="#i-guardar"/></svg>{{ _("Guardar") }}</button>
+            <button type="button" class="btn" id="po-btn-pendiente" onclick="Plan.estadoObjeto('pendiente')" title="{{ _('Volver a fotografiarlo') }}">{{ _("Volver a pendiente") }}</button>
+            <button type="button" class="btn" id="po-btn-hecho" onclick="Plan.estadoObjeto('hecho')" title="{{ _('Darlo por hecho sin fotografiarlo') }}">{{ _("Marcar como hecho") }}</button>
+            <button type="button" class="btn btn-danger" onclick="Plan.borrarObjeto()"><svg><use href="#i-papelera"/></svg>{{ _("Quitar") }}</button>
+            <button type="button" class="btn" onclick="Plan.cerrarObjeto()">{{ _("Cerrar") }}</button>
         </div>
     </div>
 </div>
@@ -491,11 +491,11 @@
 <!-- Plan de la noche: cronograma -->
 <div id="modal-noche" class="modal" onclick="if (event.target === this) Plan.cerrarNoche()">
     <div class="modal-caja ancha" role="dialog" aria-modal="true">
-        <div class="modal-titulo"><svg class="ico"><use href="#i-reloj"/></svg>La noche</div>
-        <p class="modal-texto" style="margin: 0;">Cada fila es un objeto: en claro, cuando está por encima de la altura mínima; en color, cuando se fotografía. La línea roja es ahora.</p>
+        <div class="modal-titulo"><svg class="ico"><use href="#i-reloj"/></svg>{{ _("La noche") }}</div>
+        <p class="modal-texto" style="margin: 0;">{{ _("Cada fila es un objeto: en claro, cuando está por encima de la altura mínima; en color, cuando se fotografía. La línea roja es ahora.") }}</p>
         <div id="crono" class="crono"></div>
-        <div class="crono-leyenda"><span><i style="background: var(--ok); opacity: .35;"></i>visible</span><span><i style="background: var(--accent);"></i>previsto</span><span><i style="background: var(--warn);"></i>en curso</span><span><i style="background: var(--ok);"></i>hecho</span><span><i style="background: repeating-linear-gradient(45deg, var(--text-3) 0 3px, transparent 3px 7px);"></i>espera</span></div>
-        <div class="modal-acciones"><button type="button" class="btn" onclick="Plan.cerrarNoche()">Cerrar</button></div>
+        <div class="crono-leyenda"><span><i style="background: var(--ok); opacity: .35;"></i>{{ _("visible") }}</span><span><i style="background: var(--accent);"></i>{{ _("previsto") }}</span><span><i style="background: var(--warn);"></i>{{ _("en curso") }}</span><span><i style="background: var(--ok);"></i>{{ _("hecho") }}</span><span><i style="background: repeating-linear-gradient(45deg, var(--text-3) 0 3px, transparent 3px 7px);"></i>{{ _("espera") }}</span></div>
+        <div class="modal-acciones"><button type="button" class="btn" onclick="Plan.cerrarNoche()">{{ _("Cerrar") }}</button></div>
     </div>
 </div>
 
@@ -547,7 +547,7 @@
     }
     #info-goto { min-height: 2.6em; font-size: 13px; }
     #estado-guardar:empty { display: none; }
-    #info-goto:empty::before { content: "Todavía no se ha hecho ningún GoTo."; color: var(--text-3); font-family: var(--font); }
+    #info-goto:empty::before { content: "{{ _('Todavía no se ha hecho ningún GoTo.') }}"; color: var(--text-3); font-family: var(--font); }
     @media (max-height: 500px) and (orientation: landscape) {
         .apilado-layout { grid-template-columns: minmax(0, 1fr) minmax(260px, 1fr); }
     }
@@ -639,20 +639,20 @@
         return !!(u && u.existe && conf && conf.ganancia !== null && conf.ganancia !== undefined
                   && u.gain !== null && u.gain !== undefined && Math.round(u.gain) !== conf.ganancia);
     }
-    function etiquetaGanancia(g) { return (g === null || g === undefined) ? "ganancia del driver" : `ganancia ${Math.round(g)}`; }
+    function etiquetaGanancia(g) { return (g === null || g === undefined) ? _("ganancia del driver") : _("ganancia {g}", { g: Math.round(g) }); }
     function describirUltimoDark(u, conf) {
-        if (!u || !u.existe) return `ℹ️ No hay ningún dark guardado para ${u ? u.exposicion : "?"} s · ${etiquetaGanancia(u && u.ganancia)} · bin ${u && u.binning ? u.binning : "?"}.`;
-        let s = `🌑 Dark de ${u.exposicion} s · bin ${u.binning || 1}, hecho el ${u.fecha}`;
+        if (!u || !u.existe) return _("ℹ️ No hay ningún dark guardado para {exp} s · {ganancia} · bin {bin}.", { exp: u ? u.exposicion : "?", ganancia: etiquetaGanancia(u && u.ganancia), bin: u && u.binning ? u.binning : "?" });
+        let s = _("🌑 Dark de {exp} s · bin {bin}, hecho el {fecha}", { exp: u.exposicion, bin: u.binning || 1, fecha: u.fecha });
         if (u.antiguedad_min !== undefined) {
             const h = Math.floor(u.antiguedad_min / 60), m = u.antiguedad_min % 60;
-            s += ` (hace ${h > 0 ? h + " h " : ""}${m} min)`;
+            s += " " + (h > 0 ? _("(hace {h} h {m} min)", { h: h, m: m }) : _("(hace {m} min)", { m: m }));
         }
-        if (u.temperatura !== null && u.temperatura !== undefined) s += ` · sensor a ${u.temperatura.toFixed(1)} °C`;
+        if (u.temperatura !== null && u.temperatura !== undefined) s += " · " + _("sensor a {t} °C", { t: fmtNum(u.temperatura, 1) });
         // Ganancia de la cabecera FITS; si el driver no la informa, la que se pidió (va en el nombre del fichero)
         const g = (u.gain !== null && u.gain !== undefined) ? u.gain : u.ganancia;
-        if (g !== null && g !== undefined) s += ` · ganancia ${Math.round(g)}`;
-        if (u.ndarks) s += ` · ${u.ndarks} tomas`;
-        if (darkNoCasa(u, conf)) s += ` ⚠️ La cámara está ahora a ganancia ${conf.ganancia}: este dark no sirve, genera darks nuevos.`;
+        if (g !== null && g !== undefined) s += " · " + _("ganancia {g}", { g: Math.round(g) });
+        if (u.ndarks) s += " · " + ngettext("{n} toma", "{n} tomas", u.ndarks);
+        if (darkNoCasa(u, conf)) s += " " + _("⚠️ La cámara está ahora a ganancia {g}: este dark no sirve, genera darks nuevos.", { g: conf.ganancia });
         return s;
     }
     // Biblioteca de darks: uno por exposición, ganancia y binning (el que casa con la configuración va en negrita)
@@ -662,7 +662,7 @@
             const t = `${d.exposicion} s · ${etiquetaGanancia(d.gain)} · bin ${d.binning}`;
             return (actual && actual.existe && actual.nombre === d.nombre) ? `<b>${t}</b>` : t;
         });
-        return `📚 Biblioteca de darks (${lista.length}): ${partes.join(" &nbsp;|&nbsp; ")}`;
+        return _("📚 Biblioteca de darks ({n}): {lista}", { n: lista.length, lista: partes.join(" &nbsp;|&nbsp; ") });
     }
 
     function prepararInicio() {
@@ -675,8 +675,8 @@
             document.getElementById("darks-biblioteca").innerHTML = describirBiblioteca(d.biblioteca, d.ultimo);
             const fl = d.flat || {};
             document.getElementById("flat-info").innerHTML = fl.existe
-                ? `🟦 Flat maestro (bin ${fl.binning || fl.binning_pedido || 1}) del ${fl.fecha} (viñeteo ${fl.vinyeteo} %): se aplicará a cada foto`
-                : `ℹ️ Sin flat maestro para bin ${fl.binning_pedido || 1}: viñeteo y sombras de polvo no se corrigen. <a href="/flats">Generar flat</a>`;
+                ? _("🟦 Flat maestro (bin {bin}) del {fecha} (viñeteo {v} %): se aplicará a cada foto", { bin: fl.binning || fl.binning_pedido || 1, fecha: fl.fecha, v: fl.vinyeteo })
+                : _('ℹ️ Sin flat maestro para bin {bin}: viñeteo y sombras de polvo no se corrigen. <a href="/flats">Generar flat</a>', { bin: fl.binning_pedido || 1 });
             document.getElementById("darks-n").value = d.config.numero_darks || 10;
             // Un dark con otra ganancia cuenta como "no hay dark": se propone generar nuevos
             const hayDark = d.ultimo && d.ultimo.existe && !darkNoCasa(d.ultimo, d.config);
@@ -745,8 +745,8 @@
     function actualizarResumenInicio() {
         const marcada = document.querySelector('input[name="opcion-dark"]:checked');
         const n = parseInt(document.getElementById("darks-n").value) || 10;
-        const textos = { ultimo: "Con el último dark guardado", nuevo: `Darks nuevos: ${n} tomas (habrá que tapar el tubo)`, sin: "Sin darks" };
-        document.getElementById("inicio-resumen").textContent = marcada ? textos[marcada.value] + " · toca para cambiar" : "Toca para elegir los darks";
+        const textos = { ultimo: _("Con el último dark guardado"), nuevo: _("Darks nuevos: {n} tomas (habrá que tapar el tubo)", { n: n }), sin: _("Sin darks") };
+        document.getElementById("inicio-resumen").textContent = marcada ? textos[marcada.value] + " · " + _("toca para cambiar") : _("Toca para elegir los darks");
     }
     document.querySelectorAll('input[name="opcion-dark"], #darks-n').forEach(el => el.addEventListener("change", actualizarResumenInicio));
     document.querySelectorAll('input[name="opcion-dark"]').forEach(el => el.addEventListener("change", () => guardarPreferencias({ opcion_dark: el.value })));
@@ -773,7 +773,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ n })
         }).then(r => r.json()).then(d => {
-            if (!d.ok) { document.getElementById("darks-error").textContent = "❌ " + (d.error || "No se pudo iniciar"); mostrarPaso("inicio"); return; }
+            if (!d.ok) { document.getElementById("darks-error").textContent = "❌ " + (d.error || _("No se pudo iniciar")); mostrarPaso("inicio"); return; }
             mostrarPaso("progreso");
             iniciarSondeoDarks();
         }).catch(err => { document.getElementById("darks-error").textContent = "❌ " + err; mostrarPaso("inicio"); });
@@ -793,7 +793,7 @@
                 document.getElementById("darks-barra").style.width = (t.total ? 100 * t.completadas / t.total : 0) + "%";
                 const c = d.captura;
                 document.getElementById("darks-cuenta").textContent =
-                    (c && c.en_curso) ? `Quedan ${Math.ceil(c.restante)} s de esta toma` : "";
+                    (c && c.en_curso) ? _("Quedan {s} s de esta toma", { s: Math.ceil(c.restante) }) : "";
                 return;
             }
             clearInterval(sondeoDarks); sondeoDarks = null;
@@ -819,7 +819,7 @@
         })
             .then(r => r.json())
             .then(d => {
-                if (!d.ok) { document.getElementById("darks-error").textContent = "❌ " + (d.error || "No se pudo iniciar"); mostrarPaso("inicio"); return; }
+                if (!d.ok) { document.getElementById("darks-error").textContent = "❌ " + (d.error || _("No se pudo iniciar")); mostrarPaso("inicio"); return; }
                 document.getElementById("estado-carga").textContent = "";
                 mostrarComoActivo(d.bucle);
                 actualizarImagen();
@@ -830,7 +830,7 @@
 
     function detenerApilado() {
         if (modoPlan) { (trabajoEnCurso === "mosaico" ? Mosaico : Plan).detener(); return; }
-        if (!confirm("¿Detener el apilado? Las capturas se paran; el resultado actual se conserva.")) return;
+        if (!confirm(_("¿Detener el apilado? Las capturas se paran; el resultado actual se conserva."))) return;
         fetch('/apilado/detener', { method: 'POST' })
             .then(r => r.json())
             .then(d => { mostrarComoDetenido(d.bucle); prepararInicio(); })
@@ -864,7 +864,7 @@
                 nombreObjetoCargado = nombre;
             })
             .catch(() => {
-                document.getElementById("info-goto").textContent = "ℹ️ No se ha realizado GOTO recientemente.";
+                document.getElementById("info-goto").textContent = _("ℹ️ No se ha realizado GOTO recientemente.");
             });
     }
 
@@ -873,8 +873,8 @@
         const input = document.getElementById("nombre-objeto");
         const estado = document.getElementById("nombre-objeto-estado");
         const nombre = input.value.trim();
-        if (!nombre) { estado.textContent = "⚠️ Escribe un nombre."; return; }
-        estado.textContent = "⏳ Guardando...";
+        if (!nombre) { estado.textContent = _("⚠️ Escribe un nombre."); return; }
+        estado.textContent = _("⏳ Guardando...");
         fetch("/apilado/nombre-objeto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre }) })
             .then(r => r.json())
             .then(d => {
@@ -882,9 +882,9 @@
                 nombreObjetoCargado = d.nombre;
                 input.value = d.nombre;
                 cargarInfoGoto();
-                estado.textContent = `✅ Rótulo: ${d.nombre}. Regenerando la vista previa...`;
+                estado.textContent = _("✅ Rótulo: {nombre}. Regenerando la vista previa...", { nombre: d.nombre });
                 return reprocesarVistaPrevia(estado).then(r => {
-                    estado.textContent = r.ok ? `✅ Rótulo: ${d.nombre}` : `✅ Rótulo: ${d.nombre} (se verá en el siguiente apilado)`;
+                    estado.textContent = r.ok ? _("✅ Rótulo: {nombre}", { nombre: d.nombre }) : _("✅ Rótulo: {nombre} (se verá en el siguiente apilado)", { nombre: d.nombre });
                 });
             })
             .catch(err => estado.textContent = "❌ " + err);
@@ -914,7 +914,7 @@
             pintarAjustes(d.ajustes);
         }).catch(err => {
             console.error("⚠️ Error al cargar el procesado:", err);
-            document.getElementById("estado-mtf").textContent = "❌ Error al cargar los ajustes de procesado";
+            document.getElementById("estado-mtf").textContent = _("❌ Error al cargar los ajustes de procesado");
         });
         fetch("/config-zoom").then(r => r.json()).then(d => {
             pintarZoom(d.zoom);
@@ -927,9 +927,9 @@
     // Fila "Giro" de las estadísticas: el encuadre con que se hizo la última vista previa
     function textoEncuadre(e) {
         if (!e) return "";
-        const giro = `${Number(e.giro).toLocaleString("es", { maximumFractionDigits: 1 })}°${e.espejo ? " con espejo" : ""}`;
-        if (e.norte === "auto") return `norte arriba (${giro})`;
-        if (e.norte === "pendiente") return "norte arriba: falta el plate solving de la referencia";
+        const giro = fmtNum(Math.round(Number(e.giro) * 10) / 10) + "°" + (e.espejo ? " " + _("con espejo") : "");
+        if (e.norte === "auto") return _("norte arriba ({giro})", { giro: giro });
+        if (e.norte === "pendiente") return _("norte arriba: falta el plate solving de la referencia");
         return (Number(e.giro) || e.espejo) ? giro : "";
     }
 
@@ -960,7 +960,7 @@
     function pintarValorGiro() {
         const norte = document.getElementById("input-norte").checked;
         document.getElementById("giro-manual").style.display = norte ? "none" : "";
-        document.getElementById("giro-v").textContent = norte ? "norte arriba" : leerGiro().toLocaleString("es", { maximumFractionDigits: 1 }) + "°";
+        document.getElementById("giro-v").textContent = norte ? _("norte arriba") : fmtNum(Math.round(leerGiro() * 10) / 10) + "°";
     }
     function elegirCuartos(cuartos) {
         document.querySelectorAll("#giro-seg button").forEach(b => b.classList.toggle("activo", parseInt(b.dataset.cuartos) === cuartos));
@@ -972,7 +972,7 @@
     function pintarPresets(presets, seleccionar) {
         PRESETS = presets || {};
         const sel = document.getElementById("proc-preset");
-        sel.innerHTML = '<option value="">— ninguno —</option>';
+        sel.innerHTML = '<option value="">' + _("— ninguno —") + '</option>';
         for (const n of Object.keys(PRESETS)) {
             const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o);
         }
@@ -986,12 +986,12 @@
         const estado = document.getElementById("estado-mtf");
         fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ curva: "gamma" }, PRESETS[n])) })
             .then(r => r.json())
-            .then(d => { if (d.ajustes) pintarAjustes(d.ajustes); estado.textContent = `Preset "${n}" cargado · pulsa "Aplicar a la vista previa"`; })
+            .then(d => { if (d.ajustes) pintarAjustes(d.ajustes); estado.textContent = _('Preset "{n}" cargado · pulsa "Aplicar a la vista previa"', { n: n }); })
             .catch(err => estado.textContent = "❌ " + err);
     }
     async function guardarPresetApilado() {
         const actual = document.getElementById("proc-preset").value;
-        const nombre = prompt("Nombre del preset:", actual || "");
+        const nombre = prompt(_("Nombre del preset:"), actual || "");
         if (!nombre || !nombre.trim()) return;
         // Los ajustes del panel sobre los del config (por si hay claves que el panel no muestra)
         const cfg = await fetch("/config-procesado").then(r => r.json()).catch(() => ({ ajustes: {} }));
@@ -1047,7 +1047,7 @@
             scnr_estrellas: document.getElementById("proc-scnr_estrellas").checked,
             color_estrellas_uniforme: document.getElementById("proc-color_estrellas_uniforme").checked
         };
-        estado.textContent = "⏳ Aplicando y regenerando la vista previa...";
+        estado.textContent = _("⏳ Aplicando y regenerando la vista previa...");
         fetch("/guardar-config-zoom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(encuadre) })
             .then(() => fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ajustes) }))
             .then(() => reprocesarVistaPrevia(estado))
@@ -1094,47 +1094,47 @@
     }
     function textoCometa(c) {
         if (!c) return "";
-        if (!c.activo) return `${c.nombre}: ${c.motivo || "no se apila por el núcleo"}`;
-        const partes = [`${c.fotos} foto${c.fotos === 1 ? "" : "s"} por el núcleo`];
-        if (c.nucleo_ref) partes.push(`núcleo en (${Math.round(c.nucleo_ref[0])}, ${Math.round(c.nucleo_ref[1])})`);
+        if (!c.activo) return c.nombre + ": " + (c.motivo || _("no se apila por el núcleo"));
+        const partes = [ngettext("{n} foto por el núcleo", "{n} fotos por el núcleo", c.fotos)];
+        if (c.nucleo_ref) partes.push(_("núcleo en ({x}, {y})", { x: Math.round(c.nucleo_ref[0]), y: Math.round(c.nucleo_ref[1]) }));
         if (hayNum(c.desplazamiento_px) && c.minutos >= 0.5) {
-            let s = `se ha movido ${fmtPx(c.desplazamiento_px)} px en ${fmtPx(c.minutos)} min`;
+            let s = _("se ha movido {px} px en {min} min", { px: fmtPx(c.desplazamiento_px), min: fmtPx(c.minutos) });
             if (hayNum(c.velocidad_px_min)) s += ` (${fmtPx(c.velocidad_px_min)} px/min` + (hayNum(c.velocidad_arcsec_min) ? ` = ${fmtPx(c.velocidad_arcsec_min)}″/min` : "") + ")";
             partes.push(s);
         }
-        partes.push(c.efemeride ? "efeméride del MPC" : "sin efeméride: seguido foto a foto");
+        partes.push(c.efemeride ? _("efeméride del MPC") : _("sin efeméride: seguido foto a foto"));
         const u = c.ultimo;
-        if (u && u.usada === "prevision") partes.push("⚠️ en la última foto no se ve el núcleo (se usa la previsión)");
+        if (u && u.usada === "prevision") partes.push(_("⚠️ en la última foto no se ve el núcleo (se usa la previsión)"));
         return partes.join(" · ");
     }
     function textoNucleoUltima(c) {
         const u = c && c.ultimo;
         if (!u) return "";
-        if (u.usada === "medida") return `medido en (${Math.round(u.medido[0])}, ${Math.round(u.medido[1])}) · señal ${u.snr} σ` + (u.previsto ? ` · previsto (${Math.round(u.previsto[0])}, ${Math.round(u.previsto[1])})` : "");
-        if (u.usada === "prevision") return `no se ve; se usa la previsión (${Math.round(u.previsto[0])}, ${Math.round(u.previsto[1])})`;
-        return "no se ve y no hay previsión: la foto no entra en el apilado del cometa";
+        if (u.usada === "medida") return _("medido en ({x}, {y}) · señal {snr} σ", { x: Math.round(u.medido[0]), y: Math.round(u.medido[1]), snr: u.snr }) + (u.previsto ? " · " + _("previsto ({x}, {y})", { x: Math.round(u.previsto[0]), y: Math.round(u.previsto[1]) }) : "");
+        if (u.usada === "prevision") return _("no se ve; se usa la previsión ({x}, {y})", { x: Math.round(u.previsto[0]), y: Math.round(u.previsto[1]) });
+        return _("no se ve y no hay previsión: la foto no entra en el apilado del cometa");
     }
 
     function actualizarUltimaToma(info) {
         document.getElementById("ultima-toma").src = `/ultima-captura?${Date.now()}`;
         if (info && info.hora) {
             document.getElementById("ultima-toma-texto").textContent =
-                `Última toma ${info.hora} · ${info.exposicion} s` + (info.dark ? " · dark" : "")
-                + (info.ganancia !== null && info.ganancia !== undefined ? ` · ganancia ${info.ganancia}` : "");
+                _("Última toma {hora} · {exp} s", { hora: info.hora, exp: info.exposicion }) + (info.dark ? " · dark" : "")
+                + (info.ganancia !== null && info.ganancia !== undefined ? " · " + _("ganancia {g}", { g: info.ganancia }) : "");
         }
     }
 
     // ——— Foco: anchura de las estrellas (FWHM) foto a foto ———
     // La temperatura mueve el enfoque del tubo a lo largo de la noche: si la anchura
     // de la última foto supera en un 15 % la de las primeras, se avisa.
-    function fmtPx(v) { return Number(v).toFixed(1).replace(".", ","); }
+    function fmtPx(v) { return fmtNum(v, 1); }
     function textoFoco(d) {
         if (!hayNum(d.fwhm_ultima)) return "";
-        let s = `${fmtPx(d.fwhm_ultima)} px la última · ${fmtPx(d.fwhm_inicial)} al inicio · ${fmtPx(d.fwhm_minima)} la mejor`;
+        let s = _("{ultima} px la última · {inicial} al inicio · {minima} la mejor", { ultima: fmtPx(d.fwhm_ultima), inicial: fmtPx(d.fwhm_inicial), minima: fmtPx(d.fwhm_minima) });
         if (d.fwhm_inicial > 0) {
             const dif = 100 * (d.fwhm_ultima - d.fwhm_inicial) / d.fwhm_inicial;
-            if (dif >= 15) s += ` · ⚠️ un ${Math.round(dif)} % más ancha que al inicio: ¿se ha ido el foco?`;
-            else if (dif <= -15) s += ` · mejor que al inicio (${Math.round(-dif)} % más fina)`;
+            if (dif >= 15) s += " · " + _("⚠️ un {p} % más ancha que al inicio: ¿se ha ido el foco?", { p: Math.round(dif) });
+            else if (dif <= -15) s += " · " + _("mejor que al inicio ({p} % más fina)", { p: Math.round(-dif) });
         }
         return s;
     }
@@ -1157,7 +1157,7 @@
         cont.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width: 100%; height: 60px; display: block;">`
             + (ref !== null ? `<line x1="${m}" y1="${ref.toFixed(1)}" x2="${W - m}" y2="${ref.toFixed(1)}" stroke="currentColor" stroke-opacity="0.25" stroke-dasharray="3 3"/>` : "")
             + `<polyline points="${puntos}" fill="none" stroke="${claseFoco(d) ? "var(--warn, #e6a700)" : "var(--ok, #4caf50)"}" stroke-width="1.5"/></svg>`
-            + `<div class="texto-3" style="font-size: 12px;">Anchura de las estrellas (FWHM) en las últimas ${v.length} fotos: de ${fmtPx(Math.min(...v))} a ${fmtPx(Math.max(...v))} px; la línea de puntos es el inicio de la sesión.</div>`;
+            + '<div class="texto-3" style="font-size: 12px;">' + _("Anchura de las estrellas (FWHM) en las últimas {n} fotos: de {min} a {max} px; la línea de puntos es el inicio de la sesión.", { n: v.length, min: fmtPx(Math.min(...v)), max: fmtPx(Math.max(...v)) }) + "</div>";
     }
     let evolucionPintada = 0;
     function pintarEvolucion(lista) {
@@ -1172,7 +1172,7 @@
             const item = document.createElement("div");
             item.className = "miniatura";
             item.innerHTML = `<img src="/static/evolucion/${e.archivo}?${e.n}">` +
-                `<div>${e.fotos} fotos · ${e.segundos} s</div>`;
+                "<div>" + ngettext("{n} foto", "{n} fotos", e.fotos) + ` · ${e.segundos} s</div>`;
             item.onclick = () => { document.getElementById("preview").src = `/static/evolucion/${e.archivo}?${e.n}`; };
             tira.appendChild(item);
         }
@@ -1234,10 +1234,10 @@
                 if (sinTope !== avisoSinTope) {
                     avisoSinTope = sinTope;
                     document.getElementById("maximo-estado").textContent = sinTope
-                        ? "Apilado incremental: no hay tope, todas las fotos buenas se suman. Este número solo decide cuántos FITS se conservan en el disco."
-                        : "Se puede cambiar con el apilado en marcha: se guardan las N mejores. Si lo bajas, con la siguiente foto se quitan las peores.";
+                        ? _("Apilado incremental: no hay tope, todas las fotos buenas se suman. Este número solo decide cuántos FITS se conservan en el disco.")
+                        : _("Se puede cambiar con el apilado en marcha: se guardan las N mejores. Si lo bajas, con la siguiente foto se quitan las peores.");
                 }
-                document.getElementById("ultima-captura").textContent = d.ultima || "Ninguna";
+                document.getElementById("ultima-captura").textContent = d.ultima || _("Ninguna");
                 document.getElementById("mensaje-apilado").textContent = d.mensaje || "";
                 document.getElementById("error-apilado").textContent = d.ultimo_error ? "⚠️ " + d.ultimo_error : "";
 
@@ -1262,7 +1262,7 @@
                     if (!sinConexionDesde) sinConexionDesde = new Date();
                     const hora = sinConexionDesde.toTimeString().slice(0, 5);
                     const carga = document.getElementById("estado-carga");
-                    carga.textContent = `⚠️ Sin conexión con el mini PC desde las ${hora}: comprueba el wifi. Reintentando...`;
+                    carga.textContent = _("⚠️ Sin conexión con el mini PC desde las {hora}: comprueba el wifi. Reintentando...", { hora: hora });
                     carga.classList.add("sin-conexion");
                 }
             })
@@ -1296,43 +1296,43 @@
         }
         ultima.className = "valor " + clase;
         let pie = "";
-        if (hayNum(d.umbral)) pie = `Umbral de descarte: ${fmtPunt(d.umbral)} (por debajo, la foto no se apila)`;
-        if (d.metrica) pie += (pie ? " · " : "") + `métrica ${d.metrica}`;
+        if (hayNum(d.umbral)) pie = _("Umbral de descarte: {u} (por debajo, la foto no se apila)", { u: fmtPunt(d.umbral) });
+        if (d.metrica) pie += (pie ? " · " : "") + _("métrica {m}", { m: d.metrica });
         document.getElementById("puntuaciones").textContent = pie;
 
         // Resumen en la cabecera del panel (como en los demás paneles, se oculta al plegarlo)
         document.getElementById("estadisticas-sub").textContent = hayNum(d.puntuacion_ultima)
-            ? `última ${fmtPunt(d.puntuacion_ultima)} · media ${fmtPunt(d.puntuacion_media)}` : "";
+            ? _("última {u} · media {m}", { u: fmtPunt(d.puntuacion_ultima), m: fmtPunt(d.puntuacion_media) }) : "";
 
         // Datos de la foto apilada
         if (d.total > 0) {
             const desc = [];
-            if (d.descartadas) desc.push(`${d.descartadas} sin resolver`);
-            if (d.descartadas_calidad) desc.push(`${d.descartadas_calidad} por calidad`);
-            if (d.descartadas_rastros) desc.push(`${d.descartadas_rastros} por rastros o luces`);
+            if (d.descartadas) desc.push(_("{n} sin resolver", { n: d.descartadas }));
+            if (d.descartadas_calidad) desc.push(_("{n} por calidad", { n: d.descartadas_calidad }));
+            if (d.descartadas_rastros) desc.push(_("{n} por rastros o luces", { n: d.descartadas_rastros }));
             const std = d.desplazamiento_std;
             pintarKV("datos-apilado", [
-                ["Fotos", d.modo === "incremental"
-                    ? (d.referencia_fijada ? `${d.total} (incremental, sin tope)` : `${d.total} de ${d.fotos_referencia} para la referencia` + (d.apartadas ? ` (${d.apartadas} apartada${d.apartadas > 1 ? "s" : ""})` : ""))
-                    : `${d.total} de ${d.maximo || "?"}`],
-                ["Integración", d.segundos_totales ? `${fmtMin(d.segundos_totales)} (${d.total} × ${Math.round(d.segundos_totales / d.total)} s)` : ""],
-                ["Sesión", d.inicio ? `desde las ${d.inicio.slice(0, 5)} · ${fmtMinutos(d.duracion_min)}` : ""],
-                ["Puntuación", hayNum(d.puntuacion_std) ? `${fmtPunt(d.puntuacion_media)} ± ${fmtPunt(d.puntuacion_std)}` : fmtPunt(d.puntuacion_media)],
-                ["Estrellas", hayNum(d.estrellas_media) ? `${Math.round(d.estrellas_media)} de media` : ""],
-                ["Nitidez", hayNum(d.nitidez_media) ? `${Number(d.nitidez_media).toFixed(3)} de media` : ""],
-                ["Foco (FWHM)", textoFoco(d), claseFoco(d)],
-                ["Fondo de cielo", hayNum(d.fondo_medio) ? `${Math.round(d.fondo_medio)} ADU` : ""],
-                ["Deriva", std ? `±${std[0]} / ±${std[1]} px (${d.desplazamientos_n} fotos)` : ""],
-                ["Descartadas", desc.length ? desc.join(" · ") : "ninguna", desc.length ? "warn" : ""],
-                ["Tamaño", d.dimensiones ? `${d.dimensiones[0]} × ${d.dimensiones[1]} px` : ""],
-                ["Recorte", d.zona_comun ? `${d.zona_comun[2]} × ${d.zona_comun[3]} px (zona con ${d.referencia_fijada ? "al menos la mitad de" : "todas"} las fotos)` : (d.dimensiones ? "sin recortar" : "")],
-                ["Giro", textoEncuadre(d.encuadre)],
-                ["Referencia", d.referencia_nombre || ""],
-                ["☄️ Cometa", textoCometa(d.cometa), d.cometa && d.cometa.ultimo && d.cometa.ultimo.usada !== "medida" ? "warn" : ""],
+                [_("Fotos"), d.modo === "incremental"
+                    ? (d.referencia_fijada ? _("{n} (incremental, sin tope)", { n: d.total }) : _("{n} de {total} para la referencia", { n: d.total, total: d.fotos_referencia }) + (d.apartadas ? " " + ngettext("({n} apartada)", "({n} apartadas)", d.apartadas) : ""))
+                    : _("{n} de {total}", { n: d.total, total: d.maximo || "?" })],
+                [_("Integración"), d.segundos_totales ? `${fmtMin(d.segundos_totales)} (${d.total} × ${Math.round(d.segundos_totales / d.total)} s)` : ""],
+                [_("Sesión"), d.inicio ? _("desde las {hora}", { hora: d.inicio.slice(0, 5) }) + " · " + fmtMinutos(d.duracion_min) : ""],
+                [_("Puntuación"), hayNum(d.puntuacion_std) ? `${fmtPunt(d.puntuacion_media)} ± ${fmtPunt(d.puntuacion_std)}` : fmtPunt(d.puntuacion_media)],
+                [_("Estrellas"), hayNum(d.estrellas_media) ? _("{n} de media", { n: Math.round(d.estrellas_media) }) : ""],
+                [_("Nitidez"), hayNum(d.nitidez_media) ? _("{n} de media", { n: Number(d.nitidez_media).toFixed(3) }) : ""],
+                [_("Foco (FWHM)"), textoFoco(d), claseFoco(d)],
+                [_("Fondo de cielo"), hayNum(d.fondo_medio) ? `${Math.round(d.fondo_medio)} ADU` : ""],
+                [_("Deriva"), std ? `±${std[0]} / ±${std[1]} px (` + ngettext("{n} foto", "{n} fotos", d.desplazamientos_n) + ")" : ""],
+                [_("Descartadas"), desc.length ? desc.join(" · ") : _("ninguna"), desc.length ? "warn" : ""],
+                [_("Tamaño"), d.dimensiones ? `${d.dimensiones[0]} × ${d.dimensiones[1]} px` : ""],
+                [_("Recorte"), d.zona_comun ? (d.referencia_fijada ? _("{w} × {h} px (zona con al menos la mitad de las fotos)", { w: d.zona_comun[2], h: d.zona_comun[3] }) : _("{w} × {h} px (zona con todas las fotos)", { w: d.zona_comun[2], h: d.zona_comun[3] })) : (d.dimensiones ? _("sin recortar") : "")],
+                [_("Giro"), textoEncuadre(d.encuadre)],
+                [_("Referencia"), d.referencia_nombre || ""],
+                [_("☄️ Cometa"), textoCometa(d.cometa), d.cometa && d.cometa.ultimo && d.cometa.ultimo.usada !== "medida" ? "warn" : ""],
             ]);
         } else {
             const dl = document.getElementById("datos-apilado");
-            dl.innerHTML = `<dd class="texto-3" style="grid-column: 1 / -1;">Todavía no hay fotos apiladas.</dd>`;
+            dl.innerHTML = '<dd class="texto-3" style="grid-column: 1 / -1;">' + _("Todavía no hay fotos apiladas.") + "</dd>";
             dl.dataset.html = "";
         }
 
@@ -1341,25 +1341,25 @@
         pintarFoco(d);
         if (u) {
             const RESULTADO = {
-                midiendo: ["Procesando...", ""], apilada: ["✅ Apilada", "ok"],
-                sustituye: ["✅ Apilada, sustituye " + (u.motivo || ""), "ok"],
-                descartada: ["❌ Descartada: " + (u.motivo || ""), "err"],
+                midiendo: [_("Procesando..."), ""], apilada: [_("✅ Apilada"), "ok"],
+                sustituye: [_("✅ Apilada, sustituye {motivo}", { motivo: u.motivo || "" }), "ok"],
+                descartada: [_("❌ Descartada: {motivo}", { motivo: u.motivo || "" }), "err"],
             };
             const res = RESULTADO[u.resultado] || [u.resultado, ""];
             pintarKV("datos-ultima", [
-                ["Foto", `${u.nombre || ""} · ${u.hora || ""}`],
-                ["Resultado", res[0], res[1]],
-                ["Puntuación", fmtPunt(u.puntuacion) + (hayNum(u.puntuacion_sin_defecto)
-                    ? ` (${fmtPunt(u.puntuacion_sin_defecto)} sin el defecto)`
-                    : (d.puntuacion_media > 0 && hayNum(u.puntuacion) ? ` (${u.puntuacion >= d.puntuacion_media ? "+" : ""}${(100 * (u.puntuacion - d.puntuacion_media) / d.puntuacion_media).toFixed(0)} % sobre la media)` : ""))],
-                ["Estrellas", hayNum(u.estrellas) ? u.estrellas : ""],
-                ["Nitidez", hayNum(u.nitidez) ? Number(u.nitidez).toFixed(3) : ""],
-                ["Anchura de estrellas", hayNum(u.fwhm) ? `${fmtPx(u.fwhm)} px` + (hayNum(d.fwhm_minima) && d.fwhm_minima > 0 ? ` (mejor de la sesión ${fmtPx(d.fwhm_minima)})` : "") : ""],
-                ["Fondo de cielo", hayNum(u.fondo) ? `${u.fondo} ADU` : ""],
-                ["Desplazamiento", u.desplazamiento ? `${u.desplazamiento[0]} / ${u.desplazamiento[1]} px` : ""],
-                ["Exposición", u.exposicion ? `${u.exposicion} s` : ""],
-                ["Píxeles rechazados", hayNum(u.rechazado) ? `${Number(u.rechazado).toFixed(1)} %` + (hayNum(u.cambio_fondo) ? ` · fondo ${u.cambio_fondo > 0 ? "+" : ""}${u.cambio_fondo} ADU` : "") : ""],
-                ["Núcleo del cometa", d.cometa ? textoNucleoUltima(d.cometa) : "", d.cometa && d.cometa.ultimo && d.cometa.ultimo.usada !== "medida" ? "warn" : ""],
+                [_("Foto"), `${u.nombre || ""} · ${u.hora || ""}`],
+                [_("Resultado"), res[0], res[1]],
+                [_("Puntuación"), fmtPunt(u.puntuacion) + (hayNum(u.puntuacion_sin_defecto)
+                    ? " " + _("({p} sin el defecto)", { p: fmtPunt(u.puntuacion_sin_defecto) })
+                    : (d.puntuacion_media > 0 && hayNum(u.puntuacion) ? " " + _("({p} % sobre la media)", { p: (u.puntuacion >= d.puntuacion_media ? "+" : "") + (100 * (u.puntuacion - d.puntuacion_media) / d.puntuacion_media).toFixed(0) }) : ""))],
+                [_("Estrellas"), hayNum(u.estrellas) ? u.estrellas : ""],
+                [_("Nitidez"), hayNum(u.nitidez) ? Number(u.nitidez).toFixed(3) : ""],
+                [_("Anchura de estrellas"), hayNum(u.fwhm) ? `${fmtPx(u.fwhm)} px` + (hayNum(d.fwhm_minima) && d.fwhm_minima > 0 ? " " + _("(mejor de la sesión {fwhm})", { fwhm: fmtPx(d.fwhm_minima) }) : "") : ""],
+                [_("Fondo de cielo"), hayNum(u.fondo) ? `${u.fondo} ADU` : ""],
+                [_("Desplazamiento"), u.desplazamiento ? `${u.desplazamiento[0]} / ${u.desplazamiento[1]} px` : ""],
+                [_("Exposición"), u.exposicion ? `${u.exposicion} s` : ""],
+                [_("Píxeles rechazados"), hayNum(u.rechazado) ? `${Number(u.rechazado).toFixed(1)} %` + (hayNum(u.cambio_fondo) ? " · " + _("fondo {v} ADU", { v: (u.cambio_fondo > 0 ? "+" : "") + u.cambio_fondo }) : "") : ""],
+                [_("Núcleo del cometa"), d.cometa ? textoNucleoUltima(d.cometa) : "", d.cometa && d.cometa.ultimo && d.cometa.ultimo.usada !== "medida" ? "warn" : ""],
             ]);
         }
         // El máximo del apilado, la primera vez que llega (después manda el usuario)
@@ -1374,7 +1374,7 @@
     let avisoSinTope = false;
     function cambiarMaximo(delta) {
         if (modoPlan) {
-            document.getElementById("maximo-estado").textContent = "El plan fija las fotos de cada objeto: tócalo en la lista del plan para cambiarlas.";
+            document.getElementById("maximo-estado").textContent = _("El plan fija las fotos de cada objeto: tócalo en la lista del plan para cambiarlas.");
             return;
         }
         const campo = document.getElementById("maximo-fotos");
@@ -1387,19 +1387,19 @@
             document.getElementById("maximo-apilado").textContent = n;
             const total = parseInt(document.getElementById("contador-apilado").textContent) || 0;
             estado.textContent = total > n
-                ? `✅ Máximo: ${n} fotos. Hay ${total} apiladas: con la siguiente foto se quitan las ${total - n} peores.`
-                : `✅ Máximo: ${n} fotos. Se aplica a la siguiente foto.`;
+                ? _("✅ Máximo: {n} fotos. Hay {total} apiladas: con la siguiente foto se quitan las {quitar} peores.", { n: n, total: total, quitar: total - n })
+                : _("✅ Máximo: {n} fotos. Se aplica a la siguiente foto.", { n: n });
         });
     }
 
     const NOMBRE_FASE = {
-        leyendo: "Leyendo la foto", puntuando: "Midiendo la calidad", resolviendo: "Resolviendo con ASTAP",
-        alineando: "Alineando", apilando: "Apilando", estirando: "Preparando la vista previa", anotando: "Anotando objetos", guardando: "Guardando"
+        leyendo: _("Leyendo la foto"), puntuando: _("Midiendo la calidad"), resolviendo: _("Resolviendo con ASTAP"),
+        alineando: _("Alineando"), apilando: _("Apilando"), estirando: _("Preparando la vista previa"), anotando: _("Anotando objetos"), guardando: _("Guardando")
     };
     // Pasos dentro de "Preparando la vista previa" (procesado.py)
     const NOMBRE_SUBFASE = {
-        gradiente: "quitando el gradiente", estirando: "estirando", ruido: "reduciendo el ruido", nitidez: "afilando",
-        contraste: "contraste local", color: "color"
+        gradiente: _("quitando el gradiente"), estirando: _("estirando"), ruido: _("reduciendo el ruido"), nitidez: _("afilando"),
+        contraste: _("contraste local"), color: _("color")
     };
 
     // Cuenta atrás entre sondeos: el servidor manda eta_segundos cada 2 s (o
@@ -1440,11 +1440,11 @@
         if (captura && captura.en_curso) {
             const hechos = Math.max(0, captura.exposicion - captura.restante);
             const pct = captura.exposicion > 0 ? Math.min(100, 100 * hechos / captura.exposicion) : 0;
-            const titulo = `📷 ${captura.descripcion === "Apilado" ? "Foto " + numFoto + ": exponiendo" : captura.descripcion || "Exponiendo"} · ${Math.ceil(hechos)} / ${captura.exposicion} s`;
+            const titulo = "📷 " + (captura.descripcion === _("Apilado") ?    /* el servidor la manda ya traducida */ _("Foto {n}: exponiendo", { n: numFoto }) : captura.descripcion || _("Exponiendo")) + ` · ${Math.ceil(hechos)} / ${captura.exposicion} s`;
             pintarAnillo("exponiendo", pct, `${Math.ceil(hechos)} s`, titulo);
         } else if (procesando) {
-            const fase = NOMBRE_FASE[estado && estado.fase] || "Procesando";
-            let detalle = (estado && estado.fase === "apilando" && estado.total) ? ` ${estado.total} fotos` : "";
+            const fase = NOMBRE_FASE[estado && estado.fase] || _("Procesando");
+            let detalle = (estado && estado.fase === "apilando" && estado.total) ? " " + ngettext("{n} foto", "{n} fotos", estado.total) : "";
             if (estado && estado.subfase && NOMBRE_SUBFASE[estado.subfase]) detalle += `: ${NOMBRE_SUBFASE[estado.subfase]}`;
             // El anillo se llena por TIEMPO (lo hecho de esta foto frente a lo que queda),
             // no por número de fase: ASTAP o el apilado duran mucho más que leer la foto.
@@ -1458,7 +1458,7 @@
             pintarAnillo("procesando", pct, texto, `⚙️ ${fase}${detalle}...${cuenta}`);
         } else if (b.activo) {
             etaRecibida = null;
-            const titulo = b.pausado ? "⏸️ Pausado" : (b.esperando ? "⏳ Esperando: " + b.esperando : "🔄 Preparando la siguiente foto...");
+            const titulo = b.pausado ? _("⏸️ Pausado") : (b.esperando ? _("⏳ Esperando: {motivo}", { motivo: b.esperando }) : _("🔄 Preparando la siguiente foto..."));
             pintarAnillo("esperando", 100, b.pausado ? "⏸" : "⏳", titulo);
         } else {
             ciclo.style.display = "none";
@@ -1477,14 +1477,14 @@
         }
         let s = "";
         if (b.dithering && b.activo) {
-            s += `${b.dithers} movimientos`;
-            if (b.fotos_hasta_dither !== null && b.fotos_hasta_dither !== undefined) s += ` · próximo en ${b.fotos_hasta_dither} foto(s)`;
-            if (b.ultimo_dither) s += ` · último: ${b.ultimo_dither}`;
+            s += ngettext("{n} movimiento", "{n} movimientos", b.dithers);
+            if (b.fotos_hasta_dither !== null && b.fotos_hasta_dither !== undefined) s += " · " + ngettext("próximo en {n} foto", "próximo en {n} fotos", b.fotos_hasta_dither);
+            if (b.ultimo_dither) s += " · " + _("último: {hora}", { hora: b.ultimo_dither });
         }
         if (d.desplazamiento_ultimo) {
             const [dx, dy] = d.desplazamiento_ultimo;
-            s += (s ? " · " : "") + `desplazamiento medido: ${dx > 0 ? "+" : ""}${dx}, ${dy > 0 ? "+" : ""}${dy} px`;
-            if (d.desplazamiento_std) s += ` (dispersión ±${d.desplazamiento_std[0]}, ±${d.desplazamiento_std[1]} px en ${d.desplazamientos_n} fotos)`;
+            s += (s ? " · " : "") + _("desplazamiento medido: {dx}, {dy} px", { dx: (dx > 0 ? "+" : "") + dx, dy: (dy > 0 ? "+" : "") + dy });
+            if (d.desplazamiento_std) s += " " + _("(dispersión ±{a}, ±{b} px en {n} fotos)", { a: d.desplazamiento_std[0], b: d.desplazamiento_std[1], n: d.desplazamientos_n });
         }
         document.getElementById("dither-estado").textContent = s;
     }
@@ -1504,8 +1504,8 @@
     }
 
     function confirmarReinicio() {
-        if (modoPlan) { alert((trabajoEnCurso === "mosaico" ? "El mosaico" : "El plan de la noche") + " está en marcha: detenlo antes de reiniciar el apilado."); return false; }
-        return confirm("¿Seguro que quieres reiniciar el apilado?");
+        if (modoPlan) { alert(trabajoEnCurso === "mosaico" ? _("El mosaico está en marcha: detenlo antes de reiniciar el apilado.") : _("El plan de la noche está en marcha: detenlo antes de reiniciar el apilado.")); return false; }
+        return confirm(_("¿Seguro que quieres reiniciar el apilado?"));
     }
 
     // Cada 2 s: leer el estado del servidor (bucle, cuenta atrás, errores) y
@@ -1548,10 +1548,10 @@
                 if (!bucleActivo) mostrarComoActivo(b);
                 document.getElementById("boton-pausa").style.display = b.pausado ? "none" : "inline-flex";
                 document.getElementById("boton-reanudar").style.display = b.pausado ? "inline-flex" : "none";
-                if (b.pausado) carga.textContent = "⏸️ " + (b.motivo_pausa || "Apilado pausado");
-                else if (b.esperando) carga.textContent = "⏳ Esperando: " + b.esperando;
+                if (b.pausado) carga.textContent = "⏸️ " + (b.motivo_pausa || _("Apilado pausado"));
+                else if (b.esperando) carga.textContent = _("⏳ Esperando: {motivo}", { motivo: b.esperando });
                 else if (b.ultimo_error) carga.textContent = "⚠️ " + b.ultimo_error;
-                else carga.textContent = `📷 Capturando en el servidor · ${b.capturas} capturas desde las ${b.inicio}`;
+                else carga.textContent = _("📷 Capturando en el servidor · {n} capturas desde las {hora}", { n: b.capturas, hora: b.inicio });
             } else if (bucleActivo) {
                 // El servidor lo ha detenido (errores seguidos, reinicio desde otra pestaña...)
                 mostrarComoDetenido(b);
@@ -1596,7 +1596,7 @@
                 if (!primero) {
                     cargarParametros();
                     pintarPresets(PRESETS, pa.nombre);
-                    document.getElementById("estado-mtf").textContent = `🎨 Preset "${pa.nombre}" cargado por el tipo de objeto (${pa.tipo}) a las ${pa.hora}`;
+                    document.getElementById("estado-mtf").textContent = _('🎨 Preset "{nombre}" cargado por el tipo de objeto ({tipo}) a las {hora}', { nombre: pa.nombre, tipo: _(pa.tipo), hora: pa.hora });
                 }
             }
         }).catch(console.error);
@@ -1608,7 +1608,7 @@
             .then(() => {
                 document.getElementById("boton-pausa").style.display = "none";
                 document.getElementById("boton-reanudar").style.display = "inline-flex";
-                document.getElementById("estado-carga").textContent = "⏸️ Apilado pausado (la exposición en curso termina)";
+                document.getElementById("estado-carga").textContent = _("⏸️ Apilado pausado (la exposición en curso termina)");
             });
     }
 
@@ -1628,11 +1628,11 @@
     // (20-30 s); aquí solo se sigue el progreso.
     function guardarImagenJPG() {
         const estado = document.getElementById("estado-guardar");
-        estado.textContent = "⏳ Guardando...";
+        estado.textContent = _("⏳ Guardando...");
         fetch("/guardar-imagen-jpg", { method: "POST" })
             .then(r => r.json())
             .then(d => {
-                estado.textContent = d.mensaje || d.error || "❌ Error desconocido.";
+                estado.textContent = d.mensaje || d.error || _("❌ Error desconocido.");
                 if (d.en_curso) {
                     const sondeo = setInterval(() => {
                         fetch("/guardar-imagen-estado").then(r => r.json()).then(g => {
@@ -1643,7 +1643,7 @@
                                     const a = document.createElement("a");
                                     a.href = "/galeria/compartir/" + encodeURIComponent(g.archivo);
                                     a.target = "_blank"; a.className = "btn btn-sm btn-secondary"; a.style.marginLeft = "8px";
-                                    a.innerHTML = '<svg><use href="#i-compartir"/></svg>Compartir';
+                                    a.innerHTML = '<svg><use href="#i-compartir"/></svg>' + _("Compartir");
                                     estado.appendChild(a);
                                 }
                             }
@@ -1652,7 +1652,7 @@
                 }
             })
             .catch(err => {
-                estado.textContent = "❌ Error al guardar.";
+                estado.textContent = _("❌ Error al guardar.");
                 console.error("Guardar imagen:", err);
             });
     }

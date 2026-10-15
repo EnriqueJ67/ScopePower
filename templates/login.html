@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Iniciar sesión{% endblock %}
+{% block title %}{{ _("Iniciar sesión") }}{% endblock %}
 {% block titulo_cabecera %}{% endblock %}
 
 {% block content %}
 <div class="login">
     <div class="card login-card">
         <img src="/static/logo_transparente.png" alt="ScopePower" class="login-logo">
-        <p class="card-sub centro">Controla el telescopio desde el móvil</p>
+        <p class="card-sub centro">{{ _("Controla el telescopio desde el móvil") }}</p>
 
         {% if error %}
         <div class="aviso aviso-err"><svg class="ico"><use href="#i-info"/></svg>{{ error }}</div>
@@ -15,14 +15,14 @@
 
         <form method="post" class="columna">
             <div class="campo">
-                <label for="usuario">Usuario</label>
+                <label for="usuario">{{ _("Usuario") }}</label>
                 <input type="text" id="usuario" name="usuario" class="form-control" required autocomplete="username" autocapitalize="none">
             </div>
             <div class="campo">
-                <label for="clave">Contraseña</label>
+                <label for="clave">{{ _("Contraseña") }}</label>
                 <input type="password" id="clave" name="clave" class="form-control" required autocomplete="current-password">
             </div>
-            <button type="submit" class="btn btn-primary btn-lg btn-block"><svg><use href="#i-candado"/></svg>Entrar</button>
+            <button type="submit" class="btn btn-primary btn-lg btn-block"><svg><use href="#i-candado"/></svg>{{ _("Entrar") }}</button>
         </form>
     </div>
 </div>

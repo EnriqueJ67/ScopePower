@@ -1,18 +1,18 @@
 <!-- templates/modo_automatico.html -->
 {% extends "base.html" %}
 
-{% block title %}Centrado automático{% endblock %}
+{% block title %}{{ _("Centrado automático") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Centrado automático</h1>
-        <p class="pagina-sub">Foto corta → resolver → medir el error respecto al último GoTo → corregir, hasta quedar dentro de la tolerancia o agotar las vueltas.</p>
+        <h1 class="pagina-titulo">{{ _("Centrado automático") }}</h1>
+        <p class="pagina-sub">{{ _("Foto corta → resolver → medir el error respecto al último GoTo → corregir, hasta quedar dentro de la tolerancia o agotar las vueltas.") }}</p>
     </div>
 </div>
 <div class="card card-centrada">
     <div id="estado-centrado" class="estado" style="font-size: 17px; color: var(--text); min-height: 3em;"></div>
-    <button type="button" id="btn-centrar" class="btn btn-primary btn-lg btn-block mt-2" onclick="lanzar()"><svg><use href="#i-centrar"/></svg>Centrar de nuevo</button>
+    <button type="button" id="btn-centrar" class="btn btn-primary btn-lg btn-block mt-2" onclick="lanzar()"><svg><use href="#i-centrar"/></svg>{{ _("Centrar de nuevo") }}</button>
 </div>
 
 <script src="{{ url_for('static', filename='centrado.js') }}"></script>

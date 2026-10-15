@@ -61,7 +61,7 @@ function pintarVelocidad() {
         pintarAnillos();
     });
 
-    function formatear(v) { return String(v).replace(".", ","); }
+    function formatear(v) { return fmtNum(v); }
 
     // Escalones disponibles con la velocidad máxima elegida
     function escalones() {
@@ -110,8 +110,8 @@ function pintarVelocidad() {
         ultimoVx = vx; ultimoVy = vy;
         fetch(pad.dataset.urlMover || "/pad/mover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vx, vy }) })
             .then(r => r.json())
-            .then(d => { if (!d.ok) { estado.textContent = "❌ " + (d.mensaje || "Error"); soltar(); } })
-            .catch(() => { estado.textContent = "❌ Sin respuesta del servidor"; });
+            .then(d => { if (!d.ok) { estado.textContent = "❌ " + (d.mensaje || _("Error")); soltar(); } })
+            .catch(() => { estado.textContent = _("❌ Sin respuesta del servidor"); });
     }
 
     function parar(porBeacon) {
@@ -146,7 +146,7 @@ function pintarVelocidad() {
         const vx = dx * v * (invX.checked ? -1 : 1);
         const vy = dy * v * (invY.checked ? -1 : 1);
         svg.querySelectorAll(".pad-anillo-texto").forEach((t, i) => t.classList.toggle("activo", v > 0 && lista.indexOf(v) === i));
-        estado.textContent = (v === 0) ? "● Centro: parado" :
+        estado.textContent = (v === 0) ? _("● Centro: parado") :
             [vx ? `↔ ${vx > 0 ? "E" : "W"}` : "", vy ? `↕ ${vy > 0 ? "N" : "S"}` : ""].filter(Boolean).join("   ") + `   ${formatear(v)}°/s`;
         enviar(vx, vy, false);
     }
@@ -160,7 +160,7 @@ function pintarVelocidad() {
         svg.querySelectorAll(".pad-anillo-texto").forEach(t => t.classList.remove("activo"));
         pintar(0, 0);
         parar(false);
-        estado.textContent = "● Parado";
+        estado.textContent = _("● Parado");
         vibrar(20);
     }
 

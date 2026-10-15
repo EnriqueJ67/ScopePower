@@ -8,6 +8,8 @@
 //   _("Quedan {n} fotos", { n: 3 })                con marcadores {nombre}
 //   ngettext("{n} foto", "{n} fotos", total)       singular o plural ({n} se rellena solo)
 //   _(tipo)                                        dato que viene del servidor y está en el catálogo
+//   const TIPOS = { gx: N_("Galaxia") }            tabla cuyo valor sigue en español (clave, comparaciones);
+//                                                  se traduce al pintarlo: _(TIPOS[c])
 //   fmtNum(3.25, 2)  fmtHora(fecha)  fmtFecha(fecha)  IDIOMA.lang ("es-ES" | "en-US")
 //
 // Los textos van entre comillas normales dentro de _() (nada de `plantillas` ni concatenaciones):
@@ -35,6 +37,8 @@
         if (typeof t !== "string" || !t) t = marcar ? "¿¿" + id + "??" : id;
         return formatear(t, valores);
     };
+
+    window.N_ = function (id) { return id; };     // solo marca el texto para el catálogo
 
     window.ngettext = function (singular, plural, n, valores) {
         var v = Object.assign({ n: n }, valores || {});

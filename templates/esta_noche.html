@@ -1,38 +1,38 @@
 <!-- templates/esta_noche.html -->
 {% extends "base.html" %}
 
-{% block title %}Esta noche{% endblock %}
+{% block title %}{{ _("Esta noche") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Esta noche</h1>
-        <p class="pagina-sub" id="resumen"><span class="spinner"></span>Calculando qué se ve bien hoy...</p>
+        <h1 class="pagina-titulo">{{ _("Esta noche") }}</h1>
+        <p class="pagina-sub" id="resumen"><span class="spinner"></span>{{ _("Calculando qué se ve bien hoy...") }}</p>
     </div>
 </div>
 
 <div class="card card-plana filtros">
     <select id="filtro-tipo" onchange="pintar()">
-        <option value="">Todos los tipos</option>
-        <option value="Galaxia">Galaxias</option>
-        <option value="Nebulosa">Nebulosas</option>
-        <option value="Nebulosa planetaria">Nebulosas planetarias</option>
-        <option value="Cúmulo abierto">Cúmulos abiertos</option>
-        <option value="Cúmulo globular">Cúmulos globulares</option>
-        <option value="Resto de supernova">Restos de supernova</option>
-        <option value="Planeta">Planetas y Luna</option>
-        <option value="Cometa">Cometas y asteroides</option>
+        <option value="">{{ _("Todos los tipos") }}</option>
+        <option value="Galaxia">{{ _("Galaxias") }}</option>
+        <option value="Nebulosa">{{ _("Nebulosas") }}</option>
+        <option value="Nebulosa planetaria">{{ _("Nebulosas planetarias") }}</option>
+        <option value="Cúmulo abierto">{{ _("Cúmulos abiertos") }}</option>
+        <option value="Cúmulo globular">{{ _("Cúmulos globulares") }}</option>
+        <option value="Resto de supernova">{{ _("Restos de supernova") }}</option>
+        <option value="Planeta">{{ _("Planetas y Luna") }}</option>
+        <option value="Cometa">{{ _("Cometas y asteroides") }}</option>
     </select>
     <select id="orden" onchange="pintar()">
-        <option value="puntuacion">Recomendados</option>
-        <option value="alt_ahora">Más altos ahora</option>
-        <option value="alt_max">Más altos esta noche</option>
+        <option value="puntuacion">{{ _("Recomendados") }}</option>
+        <option value="alt_ahora">{{ _("Más altos ahora") }}</option>
+        <option value="alt_max">{{ _("Más altos esta noche") }}</option>
     </select>
-    <label class="switch"><input type="checkbox" id="solo-ahora" onchange="pintar()"> Solo visibles ahora</label>
+    <label class="switch"><input type="checkbox" id="solo-ahora" onchange="pintar()"> {{ _("Solo visibles ahora") }}</label>
 </div>
 
 <div id="tarjetas" class="tarjetas mt-2"></div>
-<div id="vacio" class="card centro texto-2 mt-2" hidden>Nada cumple el filtro. Prueba con otro tipo o quita "solo visibles ahora".</div>
+<div id="vacio" class="card centro texto-2 mt-2" hidden>{{ _("Nada cumple el filtro. Prueba con otro tipo o quita «solo visibles ahora».") }}</div>
 
 <style>
     .filtros { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: center; padding: 12px; }
@@ -70,8 +70,10 @@
     function cargar() {
         fetch("/esta-noche/objetos").then(r => r.json()).then(d => {
             datos = d;
+            const nObjetos = ngettext("{n} objeto", "{n} objetos", d.objetos.length);
             document.getElementById("resumen").textContent =
-                `Noche de ${d.noche_desde} a ${d.noche_hasta} · altura mínima ${d.altura_minima}° · ${d.objetos.length} objetos · calculado a las ${d.calculado}`;
+                _("Noche de {desde} a {hasta} · altura mínima {altura}° · {objetos} · calculado a las {hora}",
+                  { desde: d.noche_desde, hasta: d.noche_hasta, altura: fmtNum(d.altura_minima), objetos: nObjetos, hora: d.calculado });
             pintar();
         }).catch(err => document.getElementById("resumen").textContent = "❌ " + err);
     }
@@ -89,24 +91,25 @@
         document.getElementById("vacio").hidden = lista.length > 0;
         for (const o of lista) {
             let clase, visib, texto;
-            if (o.visible_ahora) { clase = "ahora"; visib = "ok"; texto = `Ahora a ${o.alt_ahora}° · máximo ${o.alt_max}° a las ${o.hora_max}`; }
-            else if (o.visible_desde) { clase = "mas-tarde"; visib = "tarde"; texto = `Visible de ${o.visible_desde} a ${o.visible_hasta} · máximo ${o.alt_max}° a las ${o.hora_max}`; }
-            else { clase = "no"; visib = "no"; texto = `Esta noche no sube de ${o.alt_max}°`; }
-            const datosTxt = [o.tipo, o.constelacion, o.mag !== null ? `mag ${o.mag}` : "", o.tamano_arcmin ? `${o.tamano_arcmin}′` : ""].filter(Boolean).join(" · ");
+            if (o.visible_ahora) { clase = "ahora"; visib = "ok"; texto = _("Ahora a {alt}° · máximo {max}° a las {hora}", { alt: fmtNum(o.alt_ahora), max: fmtNum(o.alt_max), hora: o.hora_max }); }
+            else if (o.visible_desde) { clase = "mas-tarde"; visib = "tarde"; texto = _("Visible de {desde} a {hasta} · máximo {max}° a las {hora}", { desde: o.visible_desde, hasta: o.visible_hasta, max: fmtNum(o.alt_max), hora: o.hora_max }); }
+            else { clase = "no"; visib = "no"; texto = _("Esta noche no sube de {max}°", { max: fmtNum(o.alt_max) }); }
+            const datosTxt = [o.tipo ? _(o.tipo) : "", o.constelacion, o.mag !== null ? _("mag {mag}", { mag: fmtNum(o.mag) }) : "", o.tamano_arcmin ? `${fmtNum(o.tamano_arcmin)}′` : ""].filter(Boolean).join(" · ");
+            const esCuerpo = o.tipo === "Planeta" || o.tipo === "Luna";
+            const nombre = esCuerpo ? _(o.nombre) : o.nombre;      // Luna, Júpiter... van en español (clave del GoTo)
             const div = document.createElement("div");
             div.className = "tarjeta " + clase;
             div.innerHTML = `
                 <div class="cabecera"><span class="icono">${iconos[o.tipo] || "🔭"}</span>
-                    <div><div class="nombre">${o.nombre}</div><div class="id">${o.id !== o.nombre ? o.id : ""}${o.nombre_alt && o.nombre_alt !== o.id ? " · " + o.nombre_alt : ""}</div></div></div>
+                    <div><div class="nombre">${nombre}</div><div class="id">${o.id !== o.nombre ? o.id : ""}${o.nombre_alt && o.nombre_alt !== o.id ? " · " + o.nombre_alt : ""}</div></div></div>
                 <div class="datos">${datosTxt} <span class="estrellas">${"★".repeat(o.popularidad)}${"☆".repeat(5 - o.popularidad)}</span></div>
                 <div class="desc">${o.descripcion}</div>
                 <div class="visib ${visib}">${texto}</div>
                 <div class="acciones">
-                    <a class="btn ${o.visible_ahora ? "btn-primary" : "btn-secondary"}" href="/goto?objeto=${encodeURIComponent(o.nombre)}&ra=${o.ra_h}&dec=${o.dec_deg}"><svg><use href="#i-goto"/></svg>Ir y centrar</a>
-                    <button type="button" class="btn btn-ghost" title="Añadir a la lista del plan de la noche (pantalla Apilado)"><svg><use href="#i-apilado"/></svg>Añadir al plan</button>
+                    <a class="btn ${o.visible_ahora ? "btn-primary" : "btn-secondary"}" href="/goto?objeto=${encodeURIComponent(o.nombre)}&ra=${o.ra_h}&dec=${o.dec_deg}"><svg><use href="#i-goto"/></svg>` + _("Ir y centrar") + `</a>
+                    <button type="button" class="btn btn-ghost" title="` + _("Añadir a la lista del plan de la noche (pantalla Apilado)") + `"><svg><use href="#i-apilado"/></svg>` + _("Añadir al plan") + `</button>
                 </div>`;
             const botonPlan = div.querySelector("button");
-            const esCuerpo = o.tipo === "Planeta" || o.tipo === "Luna";
             botonPlan.onclick = () => anadirAlPlan(esCuerpo ? { nombre: o.nombre, tipo: o.tipo } : { nombre: o.nombre, ra: o.ra_h, dec: o.dec_deg, tipo: o.tipo }, botonPlan);
             cont.appendChild(div);
         }

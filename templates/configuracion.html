@@ -1,28 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Configuración{% endblock %}
+{% block title %}{{ _("Configuración") }}{% endblock %}
 
 {% block content %}
 <div class="pagina-cabecera">
     <div>
-        <h1 class="pagina-titulo">Configuración</h1>
-        <p class="pagina-sub">Equipo, captura, red y voz. Los cambios se guardan en config.ini.</p>
+        <h1 class="pagina-titulo">{{ _("Configuración") }}</h1>
+        <p class="pagina-sub">{{ _("Equipo, captura, red y voz. Los cambios se guardan en config.ini.") }}</p>
         <p class="pagina-sub texto-2" id="version-app">ScopePower {{ VERSION }}</p>
     </div>
-    <button type="button" class="btn btn-secondary" onclick="abrirAsistente()"><svg><use href="#i-ajustes"/></svg>Asistente de configuración</button>
+    <button type="button" class="btn btn-secondary" onclick="abrirAsistente()"><svg><use href="#i-ajustes"/></svg>{{ _("Asistente de configuración") }}</button>
 </div>
 
 <div class="grid-2 config-layout">
     <div class="columna">
         <form id="form-config" class="card">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-telescopio"/></svg>Equipo y captura</h3></div>
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-telescopio"/></svg>{{ _("Equipo y captura") }}</h3></div>
             <!-- Drivers ASCOM: lista leída del perfil ASCOM del PC (se puede elegir desde el móvil) -->
             <div class="form-group">
-                <label>Driver de la montura (ASCOM)</label>
+                <label>{{ _("Driver de la montura (ASCOM)") }}</label>
                 <select id="driver_telescopio" class="form-control"></select>
             </div>
             <div class="form-group">
-                <label>Driver de la cámara (ASCOM)</label>
+                <label>{{ _("Driver de la cámara (ASCOM)") }}</label>
                 <select id="driver_camara" class="form-control"></select>
             </div>
             <div class="dos-campos">
@@ -31,208 +31,194 @@
                     <input type="number" id="binning" class="form-control" min="1" max="4" step="1">
                 </div>
                 <div class="form-group">
-                    <label>Exposición (s)</label>
+                    <label>{{ _("Exposición (s)") }}</label>
                     <input type="number" id="exposicion" class="form-control" min="0.1" step="0.1">
                 </div>
                 <div class="form-group">
-                    <label>Ganancia de la cámara</label>
-                    <input type="number" id="ganancia_camara" class="form-control" min="0" step="1" placeholder="la del driver">
-                    <small class="ayuda" id="ganancia-ayuda">Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM).</small>
+                    <label>{{ _("Ganancia de la cámara") }}</label>
+                    <input type="number" id="ganancia_camara" class="form-control" min="0" step="1" placeholder="{{ _('la del driver') }}">
+                    <small class="ayuda" id="ganancia-ayuda">{{ _("Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM).") }}</small>
                 </div>
                 <div class="form-group">
-                    <label>Máximo de fotos a apilar</label>
+                    <label>{{ _("Máximo de fotos a apilar") }}</label>
                     <input type="number" id="numero_maximo_imagenes" class="form-control" min="1" step="1">
                 </div>
                 <div class="form-group" style="grid-column: 1 / -1;">
-                    <label>Modo de apilado</label>
+                    <label>{{ _("Modo de apilado") }}</label>
                     <select id="modo_apilado" class="form-control">
-                        <option value="mejores">Las N mejores</option>
-                        <option value="incremental">Incremental (sin tope)</option>
+                        <option value="mejores">{{ _("Las N mejores") }}</option>
+                        <option value="incremental">{{ _("Incremental (sin tope)") }}</option>
                     </select>
-                    <small class="ayuda"><b>Las N mejores:</b> se guardan las mejores fotos hasta el máximo y se reapilan todas con cada foto nueva; una foto mejor sustituye a la peor. El tiempo por foto crece con el número de fotos.</small>
-                    <small class="ayuda"><b>Incremental:</b> las primeras fotos buenas (10) fijan la referencia y las siguientes se suman quitando lo que no encaja con ella (satélites, aviones). Tiempo fijo por foto y sin máximo, pero una foto que ha entrado ya no se puede quitar.</small>
-                    <small class="ayuda">Para comparar los dos modos con el mismo objeto: cambia aquí, guarda y reinicia el apilado.</small>
+                    <small class="ayuda">{{ _("<b>Las N mejores:</b> se guardan las mejores fotos hasta el máximo y se reapilan todas con cada foto nueva; una foto mejor sustituye a la peor. El tiempo por foto crece con el número de fotos.")|safe }}</small>
+                    <small class="ayuda">{{ _("<b>Incremental:</b> las primeras fotos buenas (10) fijan la referencia y las siguientes se suman quitando lo que no encaja con ella (satélites, aviones). Tiempo fijo por foto y sin máximo, pero una foto que ha entrado ya no se puede quitar.")|safe }}</small>
+                    <small class="ayuda">{{ _("Para comparar los dos modos con el mismo objeto: cambia aquí, guarda y reinicia el apilado.") }}</small>
                 </div>
                 <div class="form-group">
-                    <label>Focal (mm)</label>
+                    <label>{{ _("Focal (mm)") }}</label>
                     <input type="number" id="focal_len" class="form-control">
                 </div>
                 <div class="form-group">
-                    <label>Intensidad de color</label>
+                    <label>{{ _("Intensidad de color") }}</label>
                     <input type="number" id="color_intensity" class="form-control" min="0" max="5" step="0.1">
-                    <small class="ayuda">Saturación del revelado rápido de la foto de noche en Cámara (el estirado STF que se ve nada más hacerla).</small>
+                    <small class="ayuda">{{ _("Saturación del revelado rápido de la foto de noche en Cámara (el estirado STF que se ve nada más hacerla).") }}</small>
                 </div>
                 <div class="form-group">
-                    <label>Campo visible (zoom)</label>
+                    <label>{{ _("Campo visible (zoom)") }}</label>
                     <select id="zoom_preview" class="form-control">
-                        <option value="0">100 % (campo completo)</option>
+                        <option value="0">{{ _("100 % (campo completo)") }}</option>
                         <option value="25">75 %</option>
                         <option value="50">50 %</option>
-                        <option value="75">25 % (objetos pequeños)</option>
+                        <option value="75">{{ _("25 % (objetos pequeños)") }}</option>
                     </select>
                 </div>
             </div>
-            <small class="ayuda mb-2">El zoom recorta por los bordes la vista previa y el JPG de la galería; el apilado y el FITS siguen a campo completo.</small>
+            <small class="ayuda mb-2">{{ _("El zoom recorta por los bordes la vista previa y el JPG de la galería; el apilado y el FITS siguen a campo completo.") }}</small>
             <div class="fila entre mt-2">
-                <button type="submit" class="btn btn-primary"><svg><use href="#i-guardar"/></svg>Guardar configuración</button>
+                <button type="submit" class="btn btn-primary"><svg><use href="#i-guardar"/></svg>{{ _("Guardar configuración") }}</button>
                 <div id="estado-guardado" class="estado"></div>
             </div>
         </form>
 
         <!-- ─── Cometas y asteroides (elementos orbitales del MPC) ─────────── -->
-    <h4 style="margin-top: 35px;">☄️ Cometas y asteroides</h4>
+    <h4 style="margin-top: 35px;">{{ _("☄️ Cometas y asteroides") }}</h4>
     <p style="color: #ddaaaa; font-size: 14px;">
-        Los cometas y asteroides se calculan en el PC con los elementos orbitales del Minor Planet Center,
-        sin Internet. Las listas se renuevan solas cada semana cuando hay red; con este botón se fuerza ahora.
+        {{ _("Los cometas y asteroides se calculan en el PC con los elementos orbitales del Minor Planet Center, sin Internet. Las listas se renuevan solas cada semana cuando hay red; con este botón se fuerza ahora.") }}
     </p>
-    <div id="estado-mpc" style="font-size: 14px; color: #ffd; margin-bottom: 8px;">Consultando...</div>
+    <div id="estado-mpc" style="font-size: 14px; color: #ffd; margin-bottom: 8px;">{{ _("Consultando...") }}</div>
     <div class="text-center">
-        <button type="button" class="btn btn-primary" onclick="actualizarMPC()">🔄 Actualizar elementos orbitales</button>
+        <button type="button" class="btn btn-primary" onclick="actualizarMPC()">{{ _("🔄 Actualizar elementos orbitales") }}</button>
     </div>
 
     <!-- ─── Montura: sincronizaciones guardadas en la app SynScan Pro ── -->
         <div class="card">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-brujula"/></svg>Montura SynScan</h3></div>
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-brujula"/></svg>{{ _("Montura SynScan") }}</h3></div>
             <div class="dos-campos">
                 <div class="form-group">
-                    <label>Estabilización tras mover (s)</label>
+                    <label>{{ _("Estabilización tras mover (s)") }}</label>
                     <input type="number" id="montura-asentamiento" class="form-control" min="0" max="60" step="0.5">
                 </div>
                 <div class="form-group">
-                    <button type="button" class="btn btn-primary" style="margin-top: 26px;" onclick="guardarAsentamiento()"><svg><use href="#i-guardar"/></svg>Guardar</button>
+                    <button type="button" class="btn btn-primary" style="margin-top: 26px;" onclick="guardarAsentamiento()"><svg><use href="#i-guardar"/></svg>{{ _("Guardar") }}</button>
                 </div>
             </div>
-            <small class="ayuda mb-2">Segundos que se espera tras cada movimiento de la montura (GOTO, centrado, dithering, alineación, «Apunta aquí») antes de hacer la siguiente foto, para que deje de vibrar. Súbelo si las primeras fotos tras mover salen con las estrellas movidas.</small>
+            <small class="ayuda mb-2">{{ _("Segundos que se espera tras cada movimiento de la montura (GOTO, centrado, dithering, alineación, «Apunta aquí») antes de hacer la siguiente foto, para que deje de vibrar. Súbelo si las primeras fotos tras mover salen con las estrellas movidas.") }}</small>
             <div id="estado-asentamiento" class="estado mb-2"></div>
             <p class="card-sub">
-                La app SynScan guarda las sincronizaciones y el modelo de apuntado de sesiones anteriores.
-                Al conectar se conservan (si apagas el equipo para cambiar la batería no se pierde la alineación);
-                se borran al iniciar la Alineación Automática o con este botón. Después, la Alineación Automática
-                o el primer Centrado crean el modelo nuevo.
+                {{ _("La app SynScan guarda las sincronizaciones y el modelo de apuntado de sesiones anteriores. Al conectar se conservan (si apagas el equipo para cambiar la batería no se pierde la alineación); se borran al iniciar la Alineación Automática o con este botón. Después, la Alineación Automática o el primer Centrado crean el modelo nuevo.") }}
             </p>
             <div class="fila entre">
-                <button type="button" class="btn btn-secondary" onclick="limpiarSync()">Borrar sincronizaciones de SynScan</button>
+                <button type="button" class="btn btn-secondary" onclick="limpiarSync()">{{ _("Borrar sincronizaciones de SynScan") }}</button>
                 <div id="estado-sync" class="estado"></div>
             </div>
         </div>
 
         <!-- ─── Espacio en el disco del PC ─────────────────────────────── -->
         <div class="card" id="disco">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-disco"/></svg>Disco del PC</h3></div>
-            <div id="disco-resumen" class="estado mb-1" style="font-size: 16px; color: var(--text);">Consultando...</div>
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-disco"/></svg>{{ _("Disco del PC") }}</h3></div>
+            <div id="disco-resumen" class="estado mb-1" style="font-size: 16px; color: var(--text);">{{ _("Consultando...") }}</div>
             <div class="progress alta mb-2"><div id="disco-barra" class="progress-bar"></div></div>
             <div class="dos-campos">
                 <div class="form-group">
-                    <label>Avisar con menos de (% libre)</label>
+                    <label>{{ _("Avisar con menos de (% libre)") }}</label>
                     <input type="number" id="disco-umbral" class="form-control" min="1" max="90" step="1">
                 </div>
                 <div class="form-group">
-                    <button type="button" class="btn btn-primary" style="margin-top: 26px;" onclick="guardarUmbralDisco()"><svg><use href="#i-guardar"/></svg>Guardar</button>
+                    <button type="button" class="btn btn-primary" style="margin-top: 26px;" onclick="guardarUmbralDisco()"><svg><use href="#i-guardar"/></svg>{{ _("Guardar") }}</button>
                 </div>
             </div>
-            <small class="ayuda mb-2">Por debajo de ese porcentaje sale un aviso arriba en todas las páginas y el PC lo dice por el altavoz.
-                Con menos de la mitad (o de 2 GB) el aviso pasa a rojo: si el disco se llena, las fotos dejan de guardarse.
-                Con menos de 1 GB el apilado y el plan de la noche se pausan solos y no se pueden reanudar hasta liberar espacio.</small>
+            <small class="ayuda mb-2">{{ _("Por debajo de ese porcentaje sale un aviso arriba en todas las páginas y el PC lo dice por el altavoz. Con menos de la mitad (o de 2 GB) el aviso pasa a rojo: si el disco se llena, las fotos dejan de guardarse. Con menos de 1 GB el apilado y el plan de la noche se pausan solos y no se pueden reanudar hasta liberar espacio.") }}</small>
             <div id="estado-disco" class="estado mb-2"></div>
-            <div class="seccion-titulo" style="margin: 0 0 6px;">Qué ocupa ScopePower</div>
-            <div id="disco-carpetas" class="direcciones">Calculando...</div>
-            <p class="card-sub">Lo que más crece son las fotos de la sesión (FITS) y la galería. Para liberar espacio copia la galería
-                a otro equipo por la red y borra lo que ya no necesites desde la Galería.</p>
+            <div class="seccion-titulo" style="margin: 0 0 6px;">{{ _("Qué ocupa ScopePower") }}</div>
+            <div id="disco-carpetas" class="direcciones">{{ _("Calculando...") }}</div>
+            <p class="card-sub">{{ _("Lo que más crece son las fotos de la sesión (FITS) y la galería. Para liberar espacio copia la galería a otro equipo por la red y borra lo que ya no necesites desde la Galería.") }}</p>
         </div>
 
         <!-- ─── Actualizar desde GitHub ────────────────────────────────── -->
         <div class="card" id="actualizar">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-refrescar"/></svg>Actualizar desde GitHub</h3></div>
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-refrescar"/></svg>{{ _("Actualizar desde GitHub") }}</h3></div>
             <div class="direcciones mb-2">
-                <div><span>Instalada</span><b id="act-instalada">ScopePower {{ VERSION }}</b></div>
-                <div><span>Última release en GitHub</span><b id="act-ultima">— pulsa «Comprobar»</b></div>
+                <div><span>{{ _("Instalada") }}</span><b id="act-instalada">ScopePower {{ VERSION }}</b></div>
+                <div><span>{{ _("Última release en GitHub") }}</span><b id="act-ultima">{{ _("— pulsa «Comprobar»") }}</b></div>
             </div>
             <div class="act-botones mb-2">
-                <button type="button" class="btn btn-secondary" id="act-btn-comprobar" onclick="comprobarActualizacion()"><svg><use href="#i-refrescar"/></svg>Comprobar</button>
-                <button type="button" class="btn btn-primary" id="act-btn-release" onclick="aplicarActualizacion('release')" hidden><svg><use href="#i-guardar"/></svg>Actualizar</button>
-                <button type="button" class="btn btn-secondary" id="act-btn-master" onclick="aplicarActualizacion('master')" hidden>Actualizar a master</button>
-                <button type="button" class="btn btn-secondary" id="act-btn-volver" onclick="aplicarActualizacion('volver')" hidden>Volver a la anterior</button>
+                <button type="button" class="btn btn-secondary" id="act-btn-comprobar" onclick="comprobarActualizacion()"><svg><use href="#i-refrescar"/></svg>{{ _("Comprobar") }}</button>
+                <button type="button" class="btn btn-primary" id="act-btn-release" onclick="aplicarActualizacion('release')" hidden><svg><use href="#i-guardar"/></svg>{{ _("Actualizar") }}</button>
+                <button type="button" class="btn btn-secondary" id="act-btn-master" onclick="aplicarActualizacion('master')" hidden>{{ _("Actualizar a master") }}</button>
+                <button type="button" class="btn btn-secondary" id="act-btn-volver" onclick="aplicarActualizacion('volver')" hidden>{{ _("Volver a la anterior") }}</button>
             </div>
             <div id="estado-actualizar" class="estado mb-2"></div>
             <pre id="act-commits" class="act-commits" hidden></pre>
-            <small class="ayuda">Necesita Internet (en casa, no en el campo) y Git instalado en el mini PC. Solo consulta GitHub al pulsar «Comprobar».
-                Al actualizar, ScopePower se cierra, baja la versión elegida, reinstala las dependencias si han cambiado y vuelve a arrancar solo:
-                unos segundos, o varios minutos si cambian las dependencias. No toca config.ini, secretos.ini, las calibraciones, las capturas ni la galería.
-                Lo mismo a mano: <code>actualizar_desde_github.bat</code> en la carpeta de ScopePower.</small>
+            <small class="ayuda">{{ _("Necesita Internet (en casa, no en el campo) y Git instalado en el mini PC. Solo consulta GitHub al pulsar «Comprobar». Al actualizar, ScopePower se cierra, baja la versión elegida, reinstala las dependencias si han cambiado y vuelve a arrancar solo: unos segundos, o varios minutos si cambian las dependencias. No toca config.ini, secretos.ini, las calibraciones, las capturas ni la galería. Lo mismo a mano: <code>actualizar_desde_github.bat</code> en la carpeta de ScopePower.")|safe }}</small>
         </div>
     </div>
 
     <div class="columna">
         <!-- ─── Ubicación del observatorio y hora del PC ───────────────── -->
         <div class="card" id="hora">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-lugar"/></svg>Ubicación y hora</h3></div>
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-lugar"/></svg>{{ _("Ubicación y hora") }}</h3></div>
             <p class="card-sub">
-                Con estos datos se calcula qué objetos están altos, los puntos de la alineación y la posición
-                de cometas y asteroides. La montura tiene su propia ubicación en la app SynScan.
+                {{ _("Con estos datos se calcula qué objetos están altos, los puntos de la alineación y la posición de cometas y asteroides. La montura tiene su propia ubicación en la app SynScan.") }}
             </p>
             <div class="dos-campos">
                 <div class="form-group">
-                    <label>Latitud (grados, + norte)</label>
+                    <label>{{ _("Latitud (grados, + norte)") }}</label>
                     <input type="number" id="obs-lat" class="form-control" step="0.0001" min="-90" max="90">
                 </div>
                 <div class="form-group">
-                    <label>Longitud (grados, + este)</label>
+                    <label>{{ _("Longitud (grados, + este)") }}</label>
                     <input type="number" id="obs-lon" class="form-control" step="0.0001" min="-180" max="180">
                 </div>
                 <div class="form-group">
-                    <label>Altitud (m)</label>
+                    <label>{{ _("Altitud (m)") }}</label>
                     <input type="number" id="obs-alt" class="form-control" step="1" min="-500" max="9000">
                 </div>
             </div>
             <div class="dos-campos">
                 <div class="form-group">
-                    <label>Autor de las fotos (firma)</label>
-                    <input type="text" id="obs-autor" class="form-control" maxlength="60" placeholder="Tu nombre" autocomplete="name">
+                    <label>{{ _("Autor de las fotos (firma)") }}</label>
+                    <input type="text" id="obs-autor" class="form-control" maxlength="60" placeholder="{{ _('Tu nombre') }}" autocomplete="name">
                 </div>
                 <div class="form-group">
                     <label class="fila" style="gap: 8px; cursor: pointer; margin-top: 26px;">
-                        <input type="checkbox" id="obs-firma"> Firmar las fotos
+                        <input type="checkbox" id="obs-firma"> {{ _("Firmar las fotos") }}
                     </label>
                 </div>
             </div>
             <p class="card-sub">
-                La firma se pinta en la vista previa y en las fotos de la galería: logo, autor, lugar (redondeado a grados),
-                fecha, objeto, tiempo de integración y coordenadas. El FITS se guarda siempre sin firma.
+                {{ _("La firma se pinta en la vista previa y en las fotos de la galería: logo, autor, lugar (redondeado a grados), fecha, objeto, tiempo de integración y coordenadas. El FITS se guarda siempre sin firma.") }}
             </p>
             <div class="acciones">
-                <button type="button" class="btn btn-primary" onclick="usarUbicacionMovil()"><svg><use href="#i-lugar"/></svg>Usar la ubicación de este móvil</button>
-                <button type="button" class="btn btn-secondary" onclick="guardarObservatorio('manual')"><svg><use href="#i-guardar"/></svg>Guardar</button>
+                <button type="button" class="btn btn-primary" onclick="usarUbicacionMovil()"><svg><use href="#i-lugar"/></svg>{{ _("Usar la ubicación de este móvil") }}</button>
+                <button type="button" class="btn btn-secondary" onclick="guardarObservatorio('manual')"><svg><use href="#i-guardar"/></svg>{{ _("Guardar") }}</button>
             </div>
             <div id="estado-obs" class="estado mt-1"></div>
             <hr>
             <div class="fila entre">
                 <div>
-                    <div class="seccion-titulo" style="margin: 0 0 4px;">Hora del PC</div>
-                    <div id="hora-pc" class="estado" style="font-size: 16px; color: var(--text);">Consultando...</div>
+                    <div class="seccion-titulo" style="margin: 0 0 4px;">{{ _("Hora del PC") }}</div>
+                    <div id="hora-pc" class="estado" style="font-size: 16px; color: var(--text);">{{ _("Consultando...") }}</div>
                 </div>
                 <span class="chip chip-icono" id="chip-hora-detalle"><svg><use href="#i-reloj"/></svg><span id="hora-desfase">…</span></span>
             </div>
             <div id="hora-aviso" class="aviso aviso-warn mt-2" hidden>
                 <svg class="ico"><use href="#i-info"/></svg>
-                <span>El reloj del PC no coincide con el del móvil. Un desfase de minutos apenas afecta al GoTo
-                (el centrado lo corrige), pero sí a "Esta noche", a la alineación y a los cometas.</span>
+                <span>{{ _("El reloj del PC no coincide con el del móvil. Un desfase de minutos apenas afecta al GoTo (el centrado lo corrige), pero sí a «Esta noche», a la alineación y a los cometas.") }}</span>
             </div>
             <div class="acciones mt-2">
-                <button type="button" class="btn btn-secondary" id="btn-poner-hora" onclick="ponerPCEnHora()"><svg><use href="#i-reloj"/></svg>Poner el PC en hora con este móvil</button>
+                <button type="button" class="btn btn-secondary" id="btn-poner-hora" onclick="ponerPCEnHora()"><svg><use href="#i-reloj"/></svg>{{ _("Poner el PC en hora con este móvil") }}</button>
             </div>
             <div id="estado-hora" class="estado mt-1"></div>
         </div>
 
         <!-- ─── Direcciones para conectar ───────────────────────────── -->
         <div class="card">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-red"/></svg>Conectar desde el móvil</h3></div>
-            <div id="red-direcciones" class="direcciones mb-2">Consultando...</div>
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-red"/></svg>{{ _("Conectar desde el móvil") }}</h3></div>
+            <div id="red-direcciones" class="direcciones mb-2">{{ _("Consultando...") }}</div>
             <p class="card-sub">
-                Al arrancar, el PC dicta estas direcciones por el altavoz cada 30 segundos hasta que te conectas
-                (opción <code>anunciar_ip</code> en config.ini).
+                {{ _("Al arrancar, el PC dicta estas direcciones por el altavoz cada 30 segundos hasta que te conectas (opción <code>anunciar_ip</code> en config.ini).")|safe }}
             </p>
             <div class="fila entre">
-                <button type="button" class="btn btn-secondary" onclick="anunciarIP()"><svg><use href="#i-altavoz"/></svg>Anunciar IP por voz</button>
+                <button type="button" class="btn btn-secondary" onclick="anunciarIP()"><svg><use href="#i-altavoz"/></svg>{{ _("Anunciar IP por voz") }}</button>
                 <div id="estado-red" class="estado"></div>
             </div>
         </div>
@@ -254,36 +240,35 @@
 
         <!-- ─── Avisos por voz (altavoz del PC) ───────────────────────── -->
         <div class="card">
-            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-voz-on"/></svg>Avisos por voz</h3></div>
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-voz-on"/></svg>{{ _("Avisos por voz") }}</h3></div>
             <p class="card-sub">
-                El PC anuncia por su altavoz lo que va haciendo: conexión de telescopio y cámara, GoTo,
-                fotos, apilado, darks y centrado. Se activa o desactiva desde la barra inferior.
+                {{ _("El PC anuncia por su altavoz lo que va haciendo: conexión de telescopio y cámara, GoTo, fotos, apilado, darks y centrado. Se activa o desactiva desde la barra inferior.") }}
             </p>
             <div id="voz-disponible" class="estado mb-2"></div>
-            <label class="switch mb-2"><input type="checkbox" id="voz-capturas"> Anunciar el inicio y el final de cada foto</label>
+            <label class="switch mb-2"><input type="checkbox" id="voz-capturas"> {{ _("Anunciar el inicio y el final de cada foto") }}</label>
             <div class="form-group">
-                <label>Voz</label>
+                <label>{{ _("Voz") }}</label>
                 <select id="voz-voz" class="form-control"></select>
             </div>
             <div class="dos-campos">
                 <div class="form-group">
-                    <label>Volumen (0-100)</label>
+                    <label>{{ _("Volumen (0-100)") }}</label>
                     <input type="number" id="voz-volumen" class="form-control" min="0" max="100" step="5">
                 </div>
                 <div class="form-group">
-                    <label>Velocidad (-10 … 10)</label>
+                    <label>{{ _("Velocidad (-10 … 10)") }}</label>
                     <input type="number" id="voz-velocidad" class="form-control" min="-10" max="10" step="1">
                 </div>
             </div>
             <div class="acciones">
-                <button type="button" class="btn btn-primary" onclick="guardarVoz()"><svg><use href="#i-guardar"/></svg>Guardar voz</button>
-                <button type="button" class="btn btn-secondary" onclick="probarVoz()"><svg><use href="#i-altavoz"/></svg>Probar voz</button>
+                <button type="button" class="btn btn-primary" onclick="guardarVoz()"><svg><use href="#i-guardar"/></svg>{{ _("Guardar voz") }}</button>
+                <button type="button" class="btn btn-secondary" onclick="probarVoz()"><svg><use href="#i-altavoz"/></svg>{{ _("Probar voz") }}</button>
             </div>
             <div id="estado-voz" class="estado mt-1"></div>
             <!-- Casilla discreta y sin explicar, a propósito: habilita el humor de la voz y el botón «Humor»
                  de la barra (humor.py). Que sea una sorpresa para quien la marque. -->
             <label class="texto-3 mt-2" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px;">
-                <input type="checkbox" id="humor-activar" onchange="cambiarHumor(this.checked)"> Comentarios de a bordo
+                <input type="checkbox" id="humor-activar" onchange="cambiarHumor(this.checked)"> {{ _("Comentarios de a bordo") }}
             </label>
         </div>
     </div>
@@ -303,13 +288,15 @@
 
 <script>
     function pintarMPC(d) {
-        const edad = x => x === null || x === undefined ? "sin descargar" : (x < 1 ? "hoy" : `hace ${Math.round(x)} días`);
+        const edad = x => x === null || x === undefined ? _("sin descargar") : (x < 1 ? _("hoy") : ngettext("hace {n} día", "hace {n} días", Math.round(x)));
+        const n = d.cuerpos || 0;
         document.getElementById("estado-mpc").textContent =
-            `${d.cuerpos || 0} cuerpos cargados · cometas: ${edad(d.edad_cometas_dias)} · asteroides: ${edad(d.edad_asteroides_dias)}`;
+            ngettext("{n} cuerpo cargado · cometas: {cometas} · asteroides: {asteroides}", "{n} cuerpos cargados · cometas: {cometas} · asteroides: {asteroides}", n,
+                     { cometas: edad(d.edad_cometas_dias), asteroides: edad(d.edad_asteroides_dias) });
     }
     fetch("/cuerpos-menores/estado").then(r => r.json()).then(pintarMPC).catch(() => {});
     function actualizarMPC() {
-        document.getElementById("estado-mpc").textContent = "⏳ Descargando del Minor Planet Center...";
+        document.getElementById("estado-mpc").textContent = _("⏳ Descargando del Minor Planet Center...");
         fetch("/cuerpos-menores/actualizar", { method: "POST" }).then(r => r.json()).then(d => {
             document.getElementById("estado-mpc").textContent = (d.ok ? "✅ " : "⚠️ ") + d.mensaje;
             setTimeout(() => fetch("/cuerpos-menores/estado").then(r => r.json()).then(pintarMPC), 1500);
@@ -324,8 +311,8 @@
     function guardarAsentamiento() {
         const est = document.getElementById("estado-asentamiento");
         const segundos = parseFloat(document.getElementById("montura-asentamiento").value);
-        if (isNaN(segundos)) { est.className = "estado err mb-2"; est.textContent = "❌ Indica los segundos"; return; }
-        est.className = "estado mb-2"; est.textContent = "⏳ Guardando...";
+        if (isNaN(segundos)) { est.className = "estado err mb-2"; est.textContent = _("❌ Indica los segundos"); return; }
+        est.className = "estado mb-2"; est.textContent = _("⏳ Guardando...");
         fetch("/montura/asentamiento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ segundos }) })
             .then(r => r.json())
             .then(d => {
@@ -352,15 +339,13 @@
         document.getElementById("act-instalada").textContent = inst;
         const volver = document.getElementById("act-btn-volver");
         volver.hidden = !(d.anterior && d.es_clon);
-        if (d.anterior) volver.title = "Dejar los ficheros como en " + d.anterior.nombre;
+        if (d.anterior) volver.title = _("Dejar los ficheros como en {nombre}", { nombre: d.anterior.nombre });
         if (d.pendiente) {
-            actMensaje("⚠️ Hay una actualización pedida que no llegó a ejecutarse (la app no la arrancó lanzar_scopepower.bat). "
-                + "Ejecuta actualizar_desde_github.bat en el mini PC.", "warn");
+            actMensaje(_("⚠️ Hay una actualización pedida que no llegó a ejecutarse (la app no la arrancó lanzar_scopepower.bat). Ejecuta actualizar_desde_github.bat en el mini PC."), "warn");
         } else if (!d.hay_git) {
-            actMensaje("⚠️ En este PC no está instalado Git. Instálalo desde git-scm.com (opciones por defecto) para poder actualizar.", "warn");
+            actMensaje(_("⚠️ En este PC no está instalado Git. Instálalo desde git-scm.com (opciones por defecto) para poder actualizar."), "warn");
         } else if (!d.es_clon) {
-            actMensaje("⚠️ Esta carpeta es una copia, no un clon de GitHub. Ejecuta una vez actualizar_desde_github.bat en el mini PC "
-                + "para convertirla (no toca tu configuración ni tus fotos); después se podrá actualizar desde aquí.", "warn");
+            actMensaje(_("⚠️ Esta carpeta es una copia, no un clon de GitHub. Ejecuta una vez actualizar_desde_github.bat en el mini PC para convertirla (no toca tu configuración ni tus fotos); después se podrá actualizar desde aquí."), "warn");
         } else if (d.ultimo_resultado && d.ultimo_resultado.fecha) {
             const u = d.ultimo_resultado;
             const detalle = !u.ok && u.detalle ? "<br><small>" + u.detalle.replace(/</g, "&lt;").replace(/\n/g, "<br>") + "</small>" : "";
@@ -385,13 +370,13 @@
         btn.disabled = true;
         ["release", "master"].forEach(x => document.getElementById("act-btn-" + x).hidden = true);
         document.getElementById("act-commits").hidden = true;
-        actMensaje('<span class="spinner"></span>Consultando GitHub...');
+        actMensaje('<span class="spinner"></span>' + _("Consultando GitHub..."));
         fetch("/actualizar/comprobar", { method: "POST" }).then(r => r.json()).then(d => {
             btn.disabled = false;
             actComprobado = d;
             const ult = document.getElementById("act-ultima");
             if (!d.ok) {
-                ult.textContent = d.motivo === "sin_red" ? "sin Internet" : "no se pudo consultar";
+                ult.textContent = d.motivo === "sin_red" ? _("sin Internet") : _("no se pudo consultar");
                 actMensaje((d.motivo === "sin_red" ? "📵 " : "❌ ") + d.mensaje, d.motivo === "sin_red" ? "warn" : "err");
                 return;
             }
@@ -399,48 +384,50 @@
             if (d.ultima_release) {
                 ult.textContent = d.ultima_release + (d.fecha_release ? " (" + d.fecha_release + ")" : "");
                 if (d.al_dia_release) {
-                    actMensaje("✅ Ya está instalada la última release (" + d.ultima_release + ").", "ok");
+                    actMensaje(_("✅ Ya está instalada la última release ({version}).", { version: d.ultima_release }), "ok");
                 } else {
-                    actMensaje("⬇️ Hay una versión nueva: <b>" + d.ultima_release + "</b>. Esto es lo que entra (lo más nuevo arriba):");
-                    pre.textContent = d.commits_release.join("\n") || "(la versión instalada no coincide con ningún commit de GitHub: se dejará como la release)";
+                    actMensaje(_("⬇️ Hay una versión nueva: <b>{version}</b>. Esto es lo que entra (lo más nuevo arriba):", { version: d.ultima_release }));
+                    pre.textContent = d.commits_release.join("\n") || _("(la versión instalada no coincide con ningún commit de GitHub: se dejará como la release)");
                     pre.hidden = false;
                     const b = document.getElementById("act-btn-release");
                     b.hidden = false;
-                    b.innerHTML = '<svg><use href="#i-guardar"/></svg>Actualizar a ' + d.ultima_release;
+                    b.innerHTML = '<svg><use href="#i-guardar"/></svg>' + _("Actualizar a {version}", { version: d.ultima_release });
                 }
             } else {
-                ult.textContent = "ninguna todavía";
-                actMensaje("ℹ️ En GitHub no hay ninguna release publicada todavía; se puede actualizar a master.");
+                ult.textContent = _("ninguna todavía");
+                actMensaje(_("ℹ️ En GitHub no hay ninguna release publicada todavía; se puede actualizar a master."));
             }
             // master (último desarrollo): solo si trae algo distinto de lo instalado
             if (!d.al_dia_master) {
                 const bm = document.getElementById("act-btn-master");
                 bm.hidden = false;
-                bm.title = (d.commits_master.length ? d.commits_master.length + " commits en master" : "master") + ": versión en desarrollo, puede fallar";
+                bm.title = d.commits_master.length
+                    ? ngettext("{n} commit en master: versión en desarrollo, puede fallar", "{n} commits en master: versión en desarrollo, puede fallar", d.commits_master.length)
+                    : _("master: versión en desarrollo, puede fallar");
             }
         }).catch(err => { btn.disabled = false; actMensaje("❌ " + err, "err"); });
     }
     function aplicarActualizacion(destino) {
-        const nombre = destino === "master" ? "la última versión de master (en desarrollo, puede fallar)"
-            : destino === "volver" ? "la versión anterior (" + (actEstado && actEstado.anterior ? actEstado.anterior.nombre : "?") + ")"
-            : "la release " + ((actComprobado && actComprobado.ultima_release) || "");
-        if (!confirm("¿Actualizar ScopePower a " + nombre + "?\n\nSe desconectarán la cámara y la montura, la app se cierra, "
-            + "se actualiza y vuelve a arrancar sola. Puede tardar varios minutos si cambian las dependencias.")) return;
-        if (destino === "master" && !confirm("master es la versión en desarrollo y puede no estar probada con equipo real. "
-            + "Si algo falla, «Volver a la anterior» deja la versión de ahora. ¿Seguir?")) return;
+        const pregunta = destino === "master"
+            ? _("¿Actualizar ScopePower a la última versión de master (en desarrollo, puede fallar)?")
+            : destino === "volver"
+                ? _("¿Volver ScopePower a la versión anterior ({nombre})?", { nombre: actEstado && actEstado.anterior ? actEstado.anterior.nombre : "?" })
+                : _("¿Actualizar ScopePower a la release {version}?", { version: (actComprobado && actComprobado.ultima_release) || "" });
+        if (!confirm(pregunta + "\n\n" + _("Se desconectarán la cámara y la montura, la app se cierra, se actualiza y vuelve a arrancar sola. Puede tardar varios minutos si cambian las dependencias."))) return;
+        if (destino === "master" && !confirm(_("master es la versión en desarrollo y puede no estar probada con equipo real. Si algo falla, «Volver a la anterior» deja la versión de ahora. ¿Seguir?"))) return;
         actBotones(false);
-        actMensaje('<span class="spinner"></span>Desconectando el equipo...');
+        actMensaje('<span class="spinner"></span>' + _("Desconectando el equipo..."));
         fetch("/actualizar/aplicar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ destino }) })
             .then(r => r.json())
             .then(d => {
-                if (!d.ok) { actBotones(true); actMensaje("❌ " + (d.mensaje || "Error"), "err"); return; }
+                if (!d.ok) { actBotones(true); actMensaje("❌ " + (d.mensaje || _("Error")), "err"); return; }
                 esperarVueltaActualizacion(d.espera || 300);
             })
             .catch(err => { actBotones(true); actMensaje("❌ " + err, "err"); });
     }
     function esperarVueltaActualizacion(maximo) {
         let segundos = 0, caido = false;
-        actMensaje('<span class="spinner"></span><b>ScopePower se está actualizando.</b> La página se recargará sola cuando vuelva (puede tardar unos minutos)...');
+        actMensaje('<span class="spinner"></span>' + _("<b>ScopePower se está actualizando.</b> La página se recargará sola cuando vuelva (puede tardar unos minutos)..."));
         const t = setInterval(() => {
             segundos += 3;
             fetch("/estado-conexion", { cache: "no-store" })
@@ -452,8 +439,9 @@
                     caido = true;
                     if (segundos >= maximo) {
                         clearInterval(t);
-                        actMensaje("⚠️ ScopePower no ha vuelto en " + Math.round(maximo / 60) + " minutos. Recarga dentro de un rato; "
-                            + "si no vuelve, en el mini PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log.", "warn");
+                        actMensaje(ngettext("⚠️ ScopePower no ha vuelto en {n} minuto. Recarga dentro de un rato; si no vuelve, en el mini PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log.",
+                                            "⚠️ ScopePower no ha vuelto en {n} minutos. Recarga dentro de un rato; si no vuelve, en el mini PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log.",
+                                            Math.round(maximo / 60)), "warn");
                     }
                 });
         }, 3000);
@@ -462,24 +450,26 @@
     // ——— Espacio en disco ———
     function pintarDisco(d) {
         const res = document.getElementById("disco-resumen");
-        if (!d.ok) { res.textContent = "❌ " + (d.error || "No se pudo leer el disco"); return; }
+        if (!d.ok) { res.textContent = "❌ " + (d.error || _("No se pudo leer el disco")); return; }
         const barra = document.getElementById("disco-barra");
         barra.style.width = Math.max(0, 100 - d.pct_libre) + "%";
         barra.className = "progress-bar" + (d.bajo ? "" : " ok");
         barra.style.background = d.critico ? "var(--err)" : (d.bajo ? "var(--warn)" : "");
-        res.innerHTML = `<b>${d.libre_gb} GB libres</b> de ${d.total_gb} GB en ${d.unidad} · ${Math.round(d.pct_libre)} % libre`
-            + (d.critico ? ' <span class="texto-err">· casi lleno</span>' : (d.bajo ? ' <span class="texto-warn">· por debajo del aviso</span>' : ""));
+        res.innerHTML = _("<b>{libre} GB libres</b> de {total} GB en {unidad} · {pct} % libre",
+                          { libre: fmtNum(d.libre_gb), total: fmtNum(d.total_gb), unidad: d.unidad, pct: Math.round(d.pct_libre) })
+            + (d.critico ? ' <span class="texto-err">' + _("· casi lleno") + '</span>' : (d.bajo ? ' <span class="texto-warn">' + _("· por debajo del aviso") + '</span>' : ""));
         const umbral = document.getElementById("disco-umbral");
         if (document.activeElement !== umbral) umbral.value = d.umbral_pct;
         if (d.carpetas) {
             const cont = document.getElementById("disco-carpetas");
-            cont.innerHTML = d.carpetas.length ? "" : "Sin datos guardados todavía";
+            cont.innerHTML = d.carpetas.length ? "" : _("Sin datos guardados todavía");
             for (const c of d.carpetas) {
                 const fila = document.createElement("div");
-                const tam = c.gb >= 1 ? c.gb.toFixed(1) + " GB" : Math.round(c.gb * 1024) + " MB";
+                const tam = c.gb >= 1 ? fmtNum(c.gb, 1) + " GB" : Math.round(c.gb * 1024) + " MB";
                 fila.innerHTML = `<b></b> <span></span>`;
                 fila.querySelector("b").textContent = tam;
-                fila.querySelector("span").textContent = `${c.nombre} · ${c.carpeta} · ${c.ficheros} ficheros`;
+                fila.querySelector("span").textContent = ngettext("{nombre} · {carpeta} · {n} fichero", "{nombre} · {carpeta} · {n} ficheros", c.ficheros,
+                                                                  { nombre: _(c.nombre), carpeta: c.carpeta });
                 cont.appendChild(fila);
             }
         }
@@ -491,23 +481,23 @@
     function guardarUmbralDisco() {
         const est = document.getElementById("estado-disco");
         const umbral_pct = parseInt(document.getElementById("disco-umbral").value);
-        if (isNaN(umbral_pct)) { est.className = "estado err mb-2"; est.textContent = "❌ Indica el porcentaje"; return; }
-        est.className = "estado mb-2"; est.textContent = "⏳ Guardando...";
+        if (isNaN(umbral_pct)) { est.className = "estado err mb-2"; est.textContent = _("❌ Indica el porcentaje"); return; }
+        est.className = "estado mb-2"; est.textContent = _("⏳ Guardando...");
         fetch("/disco", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ umbral_pct }) })
             .then(r => r.json())
             .then(d => {
-                if (!d.ok) { est.className = "estado err mb-2"; est.textContent = "❌ " + (d.error || "No se pudo guardar"); return; }
+                if (!d.ok) { est.className = "estado err mb-2"; est.textContent = "❌ " + (d.error || _("No se pudo guardar")); return; }
                 pintarDisco(d);
-                est.className = "estado ok mb-2"; est.textContent = `✅ Avisará con menos del ${d.umbral_pct} % libre`;
+                est.className = "estado ok mb-2"; est.textContent = _("✅ Avisará con menos del {pct} % libre", { pct: d.umbral_pct });
                 if (window.refrescarEstadoEquipo) refrescarEstadoEquipo();   // actualiza el aviso de la cabecera
             })
             .catch(err => { est.className = "estado err mb-2"; est.textContent = "❌ " + err; });
     }
 
     function limpiarSync() {
-        if (!confirm("¿Borrar en la app SynScan las sincronizaciones y el modelo de apuntado? Habrá que volver a alinear o centrar por plate solving.")) return;
+        if (!confirm(_("¿Borrar en la app SynScan las sincronizaciones y el modelo de apuntado? Habrá que volver a alinear o centrar por plate solving."))) return;
         const est = document.getElementById("estado-sync");
-        est.textContent = "⏳ Enviando ClearSyncTo...";
+        est.textContent = _("⏳ Enviando ClearSyncTo...");
         fetch("/montura/limpiar-sync", { method: "POST" })
             .then(r => r.json())
             .then(d => est.textContent = (d.ok ? "✅ " : "❌ ") + d.mensaje)
@@ -517,7 +507,7 @@
     // Lista de drivers ASCOM registrados (Telescope / Camera), como en la versión de junio
     async function cargarDrivers(tipo) {
         const sel = document.getElementById(tipo === "Camera" ? "driver_camara" : "driver_telescopio");
-        sel.disabled = true; sel.innerHTML = "<option>Cargando...</option>";
+        sel.disabled = true; sel.innerHTML = "<option>" + _("Cargando...") + "</option>";
         try {
             const d = await (await fetch(`/ascom-drivers?tipo=${tipo}`)).json();
             sel.innerHTML = "";
@@ -525,9 +515,9 @@
                 const o = document.createElement("option"); o.value = progid; o.textContent = `${name} (${progid})`;
                 sel.appendChild(o);
             }
-            if (!d.drivers.length) sel.innerHTML = "<option value=''>(ningún driver registrado)</option>";
+            if (!d.drivers.length) sel.innerHTML = "<option value=''>" + _("(ningún driver registrado)") + "</option>";
         } catch (err) {
-            sel.innerHTML = "<option value=''>Error al cargar</option>"; console.error(err);
+            sel.innerHTML = "<option value=''>" + _("Error al cargar") + "</option>"; console.error(err);
         }
         sel.disabled = false;
     }
@@ -553,7 +543,7 @@
             el.value = data[campo];
             // Si el driver guardado no está en la lista, añadirlo para no perderlo
             if (el.tagName === "SELECT" && el.value !== data[campo] && data[campo]) {
-                const o = document.createElement("option"); o.value = data[campo]; o.textContent = data[campo] + " (no registrado)";
+                const o = document.createElement("option"); o.value = data[campo]; o.textContent = _("{driver} (no registrado)", { driver: data[campo] });
                 el.appendChild(o); el.value = data[campo];
             }
         }
@@ -589,14 +579,14 @@
         fetch("/camara/ganancia").then(r => r.json()).then(g => {
             const ayuda = document.getElementById("ganancia-ayuda");
             const campo = document.getElementById("ganancia_camara");
-            let s = "Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM).";
+            let s = _("Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM).");
             if (g.conectada && g.soportada) {
-                if (g.minima !== null && g.maxima !== null) { campo.min = g.minima; campo.max = g.maxima; s += ` Rango de esta cámara: ${g.minima}–${g.maxima}.`; }
-                s += ` Ahora mismo la cámara está a ${g.actual}.`;
+                if (g.minima !== null && g.maxima !== null) { campo.min = g.minima; campo.max = g.maxima; s += " " + _("Rango de esta cámara: {minima}–{maxima}.", { minima: g.minima, maxima: g.maxima }); }
+                s += " " + _("Ahora mismo la cámara está a {ganancia}.", { ganancia: g.actual });
             } else if (g.conectada) {
-                s += " Este driver no permite cambiar la ganancia desde la app.";
+                s += " " + _("Este driver no permite cambiar la ganancia desde la app.");
             }
-            s += " La biblioteca guarda un dark por exposición, ganancia y binning: si cambias la ganancia se usa el dark de esa ganancia, y si no lo hay toca generarlo.";
+            s += " " + _("La biblioteca guarda un dark por exposición, ganancia y binning: si cambias la ganancia se usa el dark de esa ganancia, y si no lo hay toca generarlo.");
             ayuda.textContent = s;
         }).catch(() => {});
     }
@@ -616,17 +606,17 @@
         document.getElementById("voz-volumen").value = e.volumen;
         document.getElementById("voz-velocidad").value = e.velocidad;
         const sel = document.getElementById("voz-voz");
-        sel.innerHTML = '<option value="">(automática: primera voz del idioma de la app)</option>';
+        sel.innerHTML = '<option value="">' + _("(automática: primera voz del idioma de la app)") + '</option>';
         for (const v of (e.voces || [])) {
             const o = document.createElement("option"); o.value = v; o.textContent = v;
             if (e.voz && v.toLowerCase().includes(e.voz.toLowerCase())) o.selected = true;
             sel.appendChild(o);
         }
         let disp = "";
-        if (e.disponible === false) disp = "❌ Voz no disponible en este PC: " + (e.ultimo_error || "");
-        else if (e.disponible === true) disp = "✅ Voz en uso: " + (e.voz_usada || "?")
-            + (e.voz_del_idioma === false ? " — ⚠️ No hay ninguna voz de este idioma instalada en Windows: añádela en Configuración de Windows > Hora e idioma > Voz y ejecuta herramientas/activar_voces_windows.bat." : "");
-        else disp = "ℹ️ Aún no se ha hablado desde el arranque; pulsa Probar voz para comprobarla.";
+        if (e.disponible === false) disp = _("❌ Voz no disponible en este PC: {error}", { error: e.ultimo_error || "" });
+        else if (e.disponible === true) disp = _("✅ Voz en uso: {voz}", { voz: e.voz_usada || "?" })
+            + (e.voz_del_idioma === false ? " — " + _("⚠️ No hay ninguna voz de este idioma instalada en Windows: añádela en Configuración de Windows > Hora e idioma > Voz y ejecuta herramientas/activar_voces_windows.bat.") : "");
+        else disp = _("ℹ️ Aún no se ha hablado desde el arranque; pulsa Probar voz para comprobarla.");
         document.getElementById("voz-disponible").textContent = disp;
     }
     function cargarVoz() {
@@ -640,11 +630,11 @@
             voz: document.getElementById("voz-voz").value
         };
         fetch("/voz/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) })
-            .then(r => r.json()).then(e => { pintarVozConfig(e); document.getElementById("estado-voz").textContent = "✅ Ajustes de voz guardados"; })
+            .then(r => r.json()).then(e => { pintarVozConfig(e); document.getElementById("estado-voz").textContent = _("✅ Ajustes de voz guardados"); })
             .catch(err => document.getElementById("estado-voz").textContent = "❌ " + err);
     }
     function probarVoz() {
-        document.getElementById("estado-voz").textContent = "🔊 Hablando por el altavoz del PC...";
+        document.getElementById("estado-voz").textContent = _("🔊 Hablando por el altavoz del PC...");
         fetch("/voz/probar", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
             .then(r => r.json()).then(e => { setTimeout(cargarVoz, 1500); })
             .catch(err => document.getElementById("estado-voz").textContent = "❌ " + err);
@@ -654,13 +644,13 @@
         fetch("/red/estado").then(r => r.json()).then(d => {
             let html = "";
             for (const x of d.direcciones) html += `<div><b>${x.url}</b> <span>${x.adaptador}</span></div>`;
-            html += `<div><b>${d.url_nombre}</b> <span>nombre del equipo</span></div>`;
-            if (!d.direcciones.length) html = "❌ No se encuentra ninguna dirección de red";
+            html += `<div><b>${d.url_nombre}</b> <span>` + _("nombre del equipo") + "</span></div>";
+            if (!d.direcciones.length) html = _("❌ No se encuentra ninguna dirección de red");
             document.getElementById("red-direcciones").innerHTML = html;
         }).catch(err => document.getElementById("red-direcciones").textContent = "❌ " + err);
     }
     function anunciarIP() {
-        document.getElementById("estado-red").textContent = "🔊 Dictando por el altavoz...";
+        document.getElementById("estado-red").textContent = _("🔊 Dictando por el altavoz...");
         fetch("/voz/anunciar-ip", { method: "POST" }).then(r => r.json())
             .then(d => document.getElementById("estado-red").textContent = "🔊 " + d.texto)
             .catch(err => document.getElementById("estado-red").textContent = "❌ " + err);
@@ -678,23 +668,24 @@
     function pintarHora(d) {
         if (!d.hora_utc_ms) return;
         const desfase = Math.round((d.hora_utc_ms - Date.now()) / 1000);   // + = el PC va adelantado
-        document.getElementById("hora-pc").textContent = `${d.hora_local}` + (d.zona_horaria ? ` (${d.zona_horaria})` : "") + ` · móvil: ${new Date().toLocaleTimeString("es-ES")}`;
+        document.getElementById("hora-pc").textContent = `${d.hora_local}` + (d.zona_horaria ? ` (${d.zona_horaria})` : "") + " · " + _("móvil: {hora}", { hora: fmtHora(new Date()) });
         const chip = document.getElementById("chip-hora-detalle");
         const s = Math.abs(desfase);
-        const texto = s < 2 ? "en hora" : (s >= 3600 ? Math.round(s / 3600) + " h" : (s >= 60 ? Math.round(s / 60) + " min" : s + " s")) + (desfase > 0 ? " adelantado" : " atrasado");
+        const t = s >= 3600 ? Math.round(s / 3600) + " h" : (s >= 60 ? Math.round(s / 60) + " min" : s + " s");
+        const texto = s < 2 ? _("en hora") : (desfase > 0 ? _("{t} adelantado", { t }) : _("{t} atrasado", { t }));
         document.getElementById("hora-desfase").textContent = texto;
         chip.className = "chip chip-icono " + (s < 60 ? "chip-ok" : "chip-warn");
         document.getElementById("hora-aviso").hidden = s < 60;
     }
     function ponerPCEnHora() {
         const est = document.getElementById("estado-hora");
-        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>Enviando la hora del móvil al PC...';
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Enviando la hora del móvil al PC...");
         fetch("/hora", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hora_utc_ms: Date.now() }) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + d.error; return; }
                 est.className = "estado ok mt-1";
-                est.textContent = `✅ PC en hora (corregidos ${d.corregido_s > 0 ? "+" : ""}${d.corregido_s} s)`;
+                est.textContent = _("✅ PC en hora (corregidos {s} s)", { s: (d.corregido_s > 0 ? "+" : "") + d.corregido_s });
                 pintarHora(d);
                 if (window.refrescarEstadoEquipo) refrescarEstadoEquipo();   // quita el aviso de la cabecera
             })
@@ -713,15 +704,19 @@
             firma: document.getElementById("obs-firma").checked,
             origen
         }, extra || {});
-        est.className = "estado mt-1"; est.textContent = "⏳ Guardando...";
+        est.className = "estado mt-1"; est.textContent = _("⏳ Guardando...");
         fetch("/observatorio", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) })
             .then(r => r.json())
             .then(d => {
-                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || "No se pudo guardar"); return; }
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || _("No se pudo guardar")); return; }
                 pintarObservatorio(d);
                 est.className = "estado ok mt-1";
-                est.textContent = (origen === "gps" ? "✅ Ubicación del móvil guardada en el PC" : "✅ Ubicación guardada")
-                    + (d.stellarium ? " y en Stellarium" : (d.stellarium === false ? " (Stellarium no estaba abierto)" : ""));
+                const gps = origen === "gps";
+                est.textContent = d.stellarium
+                    ? (gps ? _("✅ Ubicación del móvil guardada en el PC y en Stellarium") : _("✅ Ubicación guardada y en Stellarium"))
+                    : d.stellarium === false
+                        ? (gps ? _("✅ Ubicación del móvil guardada en el PC (Stellarium no estaba abierto)") : _("✅ Ubicación guardada (Stellarium no estaba abierto)"))
+                        : (gps ? _("✅ Ubicación del móvil guardada en el PC") : _("✅ Ubicación guardada"));
             })
             .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
     }

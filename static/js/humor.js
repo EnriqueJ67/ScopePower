@@ -11,13 +11,13 @@
     let ultimaFrase = "", ultimaFraseHora = 0;
 
     const ERRORES_VOZ = {
-        "not-allowed": "El navegador no deja usar el micrófono.",
-        "service-not-allowed": "El reconocimiento de voz está desactivado en este navegador.",
-        "network": "Chrome reconoce la voz en Internet: el móvil necesita datos o wifi con salida a Internet.",
-        "no-speech": "No se ha oído nada. Vuelve a pulsar y habla enseguida.",
-        "audio-capture": "No se encuentra ningún micrófono.",
-        "aborted": "Escucha cancelada.",
-        "language-not-supported": "El navegador no reconoce español.",
+        "not-allowed": N_("El navegador no deja usar el micrófono."),
+        "service-not-allowed": N_("El reconocimiento de voz está desactivado en este navegador."),
+        "network": N_("Chrome reconoce la voz en Internet: el móvil necesita datos o wifi con salida a Internet."),
+        "no-speech": N_("No se ha oído nada. Vuelve a pulsar y habla enseguida."),
+        "audio-capture": N_("No se encuentra ningún micrófono."),
+        "aborted": N_("Escucha cancelada."),
+        "language-not-supported": N_("El navegador no reconoce español."),
     };
 
     function $(id) { return document.getElementById(id); }
@@ -34,11 +34,11 @@
         if (!a || !t) return;
         a.hidden = !activado;      // escondido hasta habilitarlo en Avisos por voz (Configuración)
         // En el móvil solo cabe el porcentaje bajo el icono; en pantallas anchas, «Humor 75 %»
-        t.textContent = nivel > 0 ? `${nivel} %` : "Humor";
+        t.textContent = nivel > 0 ? `${nivel} %` : _("Humor");
         const pre = $("nav-humor-prefijo");
-        if (pre) pre.textContent = nivel > 0 ? "Humor " : "";
+        if (pre) pre.textContent = nivel > 0 ? _("Humor") + " " : "";
         a.classList.toggle("encendido", nivel > 0);
-        a.title = nivel > 0 ? `Nivel de humor de ScopePower: ${nivel} %` : "Nivel de humor de ScopePower (apagado)";
+        a.title = nivel > 0 ? _("Nivel de humor de ScopePower: {nivel} %", { nivel: nivel }) : _("Nivel de humor de ScopePower (apagado)");
     }
     window.pintarNivelHumor = function (nivel) {
         nivel = parseInt(nivel) || 0;
@@ -75,22 +75,22 @@
     window.fijarNivelHumor = function (nivel, origen) {
         nivel = Math.max(0, Math.min(100, parseInt(nivel) || 0));
         pintarNivelHumor(nivel);
-        estado("⏳ Ajustando...");
+        estado(_("⏳ Ajustando..."));
         return fetch("/humor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nivel, origen: origen || "" }) })
             .then(r => r.json())
             .then(d => {
-                if (!d.ok) { estado("❌ " + (d.error || "No se pudo cambiar el nivel"), "err"); return d; }
+                if (!d.ok) { estado("❌ " + (d.error || _("No se pudo cambiar el nivel")), "err"); return d; }
                 aplicarEstado(d);
-                estado(`✅ Humor al ${d.nivel} %` + (d.frase ? ` · «${d.frase}»` : ""), "ok");
+                estado(d.frase ? _("✅ Humor al {nivel} % · «{frase}»", { nivel: d.nivel, frase: d.frase }) : _("✅ Humor al {nivel} %", { nivel: d.nivel }), "ok");
                 return d;
             })
             .catch(err => estado("❌ " + err, "err"));
     };
     window.probarHumor = function () {
-        estado("🔊 Hablando por el altavoz del PC...");
+        estado(_("🔊 Hablando por el altavoz del PC..."));
         fetch("/humor/probar", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
             .then(r => r.json())
-            .then(d => estado(d.frase ? `🔊 «${d.frase}»` : "❌ " + (d.error || "Sin frase"), d.frase ? "" : "err"))
+            .then(d => estado(d.frase ? _("🔊 «{frase}»", { frase: d.frase }) : "❌ " + (d.error || _("Sin frase")), d.frase ? "" : "err"))
             .catch(err => estado("❌ " + err, "err"));
     };
 
@@ -101,16 +101,21 @@
         diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19,
         veinte: 20, veintiuno: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25, veintiseis: 26, veintisiete: 27,
         veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
-        cien: 100, ciento: 100 };
+        cien: 100, ciento: 100,
+        // inglés («humor at sixty five», «twenty-five percent»)
+        zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+        eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+        nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+        hundred: 100 };
     window.nivelDeFrase = function (texto) {
         let t = (texto || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[¿?.,!¡;:]/g, " ");
         t = t.replace(/(\d)\s*%/g, "$1 ").replace(/\s+/g, " ").trim();
         if (!t) return null;
         const cifras = t.match(/\b(\d{1,3})\b/);
         if (cifras) return rango(parseInt(cifras[1]));
-        if (/\b(apaga|apagalo|quita|quitalo|nada|serio|desactiva|silencio)\b/.test(t)) return 0;
-        if (/\b(maximo|al maximo|todo|a tope|total)\b/.test(t)) return 100;
-        const palabras = t.split(" ");
+        if (/\b(apaga|apagalo|quita|quitalo|nada|serio|desactiva|silencio|off|none|serious|disable|silence)\b/.test(t)) return 0;
+        if (/\b(maximo|al maximo|todo|a tope|total|max|maximum|full)\b/.test(t)) return 100;
+        const palabras = t.replace(/-/g, " ").split(" ");
         let valor = null;
         for (let i = 0; i < palabras.length; i++) {
             const p = palabras[i];
@@ -119,6 +124,10 @@
             // «sesenta y cinco», «treinta y cinco»
             if (valor >= 30 && valor < 100 && palabras[i + 1] === "y" && palabras[i + 2] in UNIDADES && UNIDADES[palabras[i + 2]] < 10) {
                 valor += UNIDADES[palabras[i + 2]];
+            } else if (valor >= 20 && valor < 100 && palabras[i + 1] in UNIDADES && UNIDADES[palabras[i + 1]] < 10) {
+                valor += UNIDADES[palabras[i + 1]];          // «sixty five» (inglés, sin «y»)
+            } else if (valor === 1 && palabras[i + 1] === "hundred") {
+                valor = 100;
             }
             break;
         }
@@ -145,27 +154,29 @@
         if ($("humor-mic")) $("humor-mic").classList.remove("yendo");
     }
     window.escucharNivelHumor = function () {
-        if (reconocimiento) { pararEscucha(); estado("Escucha cancelada."); return; }
+        if (reconocimiento) { pararEscucha(); estado(_("Escucha cancelada.")); return; }
         const Clase = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Clase) { estado("❌ Este navegador no tiene reconocimiento de voz. En Android usa Chrome.", "err"); return; }
+        if (!Clase) { estado(_("❌ Este navegador no tiene reconocimiento de voz. En Android usa Chrome."), "err"); return; }
         const r = new Clase();
-        r.lang = "es-ES";
+        r.lang = (window.IDIOMA || {}).lang || "es-ES";
         r.interimResults = false;
         reconocimiento = r;
         $("humor-mic").classList.add("yendo");
-        estado("🎙️ Escuchando... di por ejemplo «humor al sesenta por ciento»");
+        // El mismo texto (ya traducido) sirve en onend para saber si aún no se ha oído nada
+        const escuchando = _("🎙️ Escuchando... di por ejemplo «humor al sesenta por ciento»");
+        estado(escuchando);
         r.onresult = function (event) {
             const texto = textoFinalDe(event);
             if (!texto || fraseRepetida(texto)) return;
             pararEscucha();
             const nivel = nivelDeFrase(texto);
-            if (nivel === null) { estado(`❓ He oído «${texto}», pero no un nivel. Di un número de 0 a 100.`, "warn"); return; }
+            if (nivel === null) { estado(_("❓ He oído «{texto}», pero no un nivel. Di un número de 0 a 100.", { texto: texto }), "warn"); return; }
             estado(`🎙️ «${texto}» → ${nivel} %`);
             fijarNivelHumor(nivel, "voz");
         };
         r.onerror = function (event) {
             pararEscucha();
-            const msg = ERRORES_VOZ[event.error] || ("Error de reconocimiento: " + event.error);
+            const msg = ERRORES_VOZ[event.error] ? _(ERRORES_VOZ[event.error]) : _("Error de reconocimiento: {error}", { error: event.error });
             estado("❌ " + msg, "err");
             console.warn("Reconocimiento de voz (humor):", event.error, event.message || "");
             if (window.explicarFalloVoz) explicarFalloVoz(event.error);
@@ -173,10 +184,10 @@
         r.onend = function () {
             if (reconocimiento === r) {
                 pararEscucha();
-                if (($("humor-estado").textContent || "").startsWith("🎙️ Escuchando")) estado("🎙️ No se ha entendido nada; prueba otra vez.", "warn");
+                if (($("humor-estado").textContent || "") === escuchando) estado(_("🎙️ No se ha entendido nada; prueba otra vez."), "warn");
             }
         };
-        try { r.start(); } catch (e) { pararEscucha(); estado("❌ No se pudo iniciar la escucha: " + e.message, "err"); }
+        try { r.start(); } catch (e) { pararEscucha(); estado(_("❌ No se pudo iniciar la escucha: {e}", { e: e.message }), "err"); }
     };
 
     document.addEventListener("keydown", e => {

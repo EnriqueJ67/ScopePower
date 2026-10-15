@@ -15,7 +15,7 @@ function el(id) { return document.getElementById(id); }
 function iniciar() {
     const est = el("estado");
     est.className = "estado mt-2";
-    est.innerHTML = '<span class="spinner"></span>Preparando cámara y montura...';
+    est.innerHTML = '<span class="spinner"></span>' + _("Preparando cámara y montura...");
     el("btn-iniciar").disabled = true;
     const cuerpo = {
         backend: el("backend").value,
@@ -31,7 +31,7 @@ function iniciar() {
     fetch("/seguimiento/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
         .then(r => r.json())
         .then(d => {
-            if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || "No se pudo empezar"); el("btn-iniciar").disabled = false; return; }
+            if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); el("btn-iniciar").disabled = false; return; }
             if (!sondeo) sondeo = setInterval(sondear, 700);
             sondear();
         })
@@ -53,26 +53,26 @@ function elegirObjetivo(ev) {
 
 function calibrarAstrometria() {
     const t = el("calibracion-texto");
-    t.textContent = "Releyendo la última foto resuelta...";
+    t.textContent = _("Releyendo la última foto resuelta...");
     fetch("/seguimiento/calibrar/astrometria", { method: "POST" }).then(r => r.json()).then(d => {
-        t.textContent = d.ok ? "✅ " + d.mensaje : "❌ " + (d.error || "No se pudo calibrar");
+        t.textContent = d.ok ? "✅ " + d.mensaje : "❌ " + (d.error || _("No se pudo calibrar"));
     }).catch(e => { t.textContent = "❌ " + e; });
 }
 
 function comprobarSdk() {
     const t = el("sdk-texto");
     el("btn-sdk").disabled = true;
-    t.innerHTML = '<span class="spinner"></span>Foto por ASCOM y por el SDK de la misma escena...';
+    t.innerHTML = '<span class="spinner"></span>' + _("Foto por ASCOM y por el SDK de la misma escena...");
     fetch("/seguimiento/orientacion-sdk", { method: "POST" }).then(r => r.json()).then(d => {
-        t.textContent = d.ok ? (d.resultado.fiable ? "✅ " : "⚠️ ") + d.mensaje : "❌ " + (d.error || "No se pudo comprobar");
+        t.textContent = d.ok ? (d.resultado.fiable ? "✅ " : "⚠️ ") + d.mensaje : "❌ " + (d.error || _("No se pudo comprobar"));
     }).catch(e => { t.textContent = "❌ " + e; }).finally(() => { el("btn-sdk").disabled = false; });
 }
 
 function calibrarEmpirica() {
     const t = el("calibracion-texto");
-    t.textContent = "Moviendo los ejes y midiendo...";
+    t.textContent = _("Moviendo los ejes y midiendo...");
     fetch("/seguimiento/calibrar/empirica", { method: "POST" }).then(r => r.json()).then(d => {
-        if (!d.ok) t.textContent = "❌ " + (d.error || "No se pudo calibrar");
+        if (!d.ok) t.textContent = "❌ " + (d.error || _("No se pudo calibrar"));
     }).catch(e => { t.textContent = "❌ " + e; });
 }
 
@@ -85,12 +85,12 @@ function cambiarSigno(eje) {
 function texto(v, dec) {
     if (v === null || v === undefined) return "—";
     if (Array.isArray(v)) return v.map(x => texto(x, dec)).join(" / ");
-    if (typeof v === "number") return v.toFixed(dec === undefined ? 2 : dec).replace(".", ",");
+    if (typeof v === "number") return fmtNum(v, dec === undefined ? 2 : dec);
     return String(v);
 }
 
-const NOMBRES_FASE = { parado: "Parado", preparando: "Preparando", buscando: "Buscando", manual: "Pad", bloqueado: "Bloqueado",
-                       perdido: "Perdido", calibrando: "Calibrando", parando: "Parando" };
+const NOMBRES_FASE = { parado: _("Parado"), preparando: _("Preparando"), buscando: _("Buscando"), manual: _("Pad"), bloqueado: _("Bloqueado"),
+                       perdido: _("Perdido"), calibrando: _("Calibrando"), parando: _("Parando") };
 const CLASE_FASE = { parado: "", preparando: "chip-busy", buscando: "chip-warn chip-busy", manual: "chip-info", bloqueado: "chip-ok",
                      perdido: "chip-err", calibrando: "chip-info chip-busy", parando: "chip-busy" };
 
@@ -121,14 +121,14 @@ function pintar(e) {
     el("t-lat").textContent = t.latencia_ms === null || t.latencia_ms === undefined ? "—" : texto(t.latencia_ms, 0) + " ms (" + (m.backend || "") + ")";
     el("t-ordenes").textContent = texto(m.enviadas, 0) + " / " + texto(m.errores, 0);
     el("t-exp").textContent = (t.exposicion_ms === undefined ? "—" : texto(t.exposicion_ms, 2) + " ms")
-        + (t.pico === null || t.pico === undefined ? "" : " · pico " + texto(t.pico, 0) + " %" + (t.saturada ? " (saturado)" : ""))
-        + (t.fondo === undefined ? "" : ` · fondo ${texto(t.fondo, 0)} ±${texto(t.ruido, 1)}, máx ${texto(t.maximo, 0)} (de 255)`);
+        + (t.pico === null || t.pico === undefined ? "" : " · " + _("pico {p} %", { p: texto(t.pico, 0) }) + (t.saturada ? " " + _("(saturado)") : ""))
+        + (t.fondo === undefined ? "" : " · " + _("fondo {fondo} ±{ruido}, máx {max} (de 255)", { fondo: texto(t.fondo, 0), ruido: texto(t.ruido, 1), max: texto(t.maximo, 0) }));
     el("t-desc").textContent = texto(t.descartados, 0);
     const g = e.grabacion;
-    el("t-video").textContent = !g ? (e.error_grabacion ? "⚠️ Sin grabación: " + e.error_grabacion
-                                       : (activo && el("grabar").checked ? "esperando al bloqueo" : "—"))
-        : `${g.nombre} · ${texto(g.frames, 0)} fotogramas · ${texto(g.mb, 1)} MB` + (g.descartados ? ` · ${g.descartados} descartados` : "")
-          + (g.libre_gb !== null && g.libre_gb !== undefined ? ` · ${texto(g.libre_gb, 1)} GB libres` : "") + (g.error ? ` · ⚠️ ${g.error}` : "") + (g.activa ? "" : " · cerrada");
+    el("t-video").textContent = !g ? (e.error_grabacion ? _("⚠️ Sin grabación: {e}", { e: e.error_grabacion })
+                                       : (activo && el("grabar").checked ? _("esperando al bloqueo") : "—"))
+        : g.nombre + " · " + _("{n} fotogramas", { n: texto(g.frames, 0) }) + ` · ${texto(g.mb, 1)} MB` + (g.descartados ? " · " + _("{n} descartados", { n: g.descartados }) : "")
+          + (g.libre_gb !== null && g.libre_gb !== undefined ? " · " + _("{n} GB libres", { n: texto(g.libre_gb, 1) }) : "") + (g.error ? ` · ⚠️ ${g.error}` : "") + (g.activa ? "" : " · " + _("cerrada"));
     if (e.calibracion) {
         const c = e.calibracion;
         signos = { az: c.signo_az || 1, alt: c.signo_alt || 1 };
@@ -141,7 +141,7 @@ function pintar(e) {
         const img = el("vista");
         img.onload = img.onerror = () => { cargando = false; };
         img.src = "/seguimiento/vista?" + Date.now();
-        el("visor-pie").textContent = activo ? `Toca el objeto para elegirlo · ${texto(t.lado, 0)} px de lado` : "Última vista previa";
+        el("visor-pie").textContent = activo ? _("Toca el objeto para elegirlo · {n} px de lado", { n: texto(t.lado, 0) }) : _("Última vista previa");
     }
     if (!activo && sondeo && e.terminado) { clearInterval(sondeo); sondeo = null; }
 }
