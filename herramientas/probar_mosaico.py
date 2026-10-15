@@ -39,13 +39,20 @@ def preparar_copia():
     os.makedirs(os.path.join(COPIA, "logs"), exist_ok=True)
     for ruta in glob.glob(os.path.join(RAIZ, "*.py")):
         shutil.copy(ruta, COPIA)
-    shutil.copytree(os.path.join(RAIZ, "datos"), os.path.join(COPIA, "datos"), dirs_exist_ok=True)
+    # datos/ no va a git (tablas IERS, MPC, calibraciones): en un clon limpio no existe
+    if os.path.isdir(os.path.join(RAIZ, "datos")):
+        shutil.copytree(os.path.join(RAIZ, "datos"), os.path.join(COPIA, "datos"), dirs_exist_ok=True)
+    os.makedirs(os.path.join(COPIA, "datos"), exist_ok=True)
     for nombre in ("esperando.png", "logo_transparente.png", "logo.png"):
         origen = os.path.join(RAIZ, "static", nombre)
         if os.path.exists(origen):
             shutil.copy(origen, os.path.join(COPIA, "static", nombre))
     cfg = configparser.ConfigParser()
-    cfg.read(os.path.join(RAIZ, "config.ini"), encoding="utf-8")
+    # Sin config.ini (clon limpio, GitHub Actions) vale la plantilla
+    ruta_cfg = os.path.join(RAIZ, "config.ini")
+    if not os.path.exists(ruta_cfg):
+        ruta_cfg = os.path.join(RAIZ, "config.example.ini")
+    cfg.read(ruta_cfg, encoding="utf-8")
     cfg["FTP"]["subir_ftp"] = "false"
     if "Voz" in cfg:
         cfg["Voz"]["activada"] = "false"
