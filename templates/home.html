@@ -21,7 +21,9 @@
 <!-- El menú sigue el orden de una noche: conectar, alinear, ir al objeto, apilar.
      Plate Solve, Sincronizar y Modo Automático siguen existiendo como rutas
      (/platesolve, /corregir-posicion, /modo-automatico) pero ya no hacen falta:
-     el alineado y el centrado automático tras el GOTO los sustituyen. -->
+     el alineado y el centrado automático tras el GOTO los sustituyen.
+     El recorrido guiado por constelaciones (/constelacion) también sigue como ruta,
+     sin entrada en el menú: es para observación visual y la app va de fotografía. -->
 <div class="tiles mt-3">
     <a href="/goto" class="tile tile-grande destacada clic-audio requiere-conexion">
         <span class="tile-ico"><svg><use href="#i-goto"/></svg></span>
@@ -45,10 +47,6 @@
     <a href="/planetario" class="tile clic-audio">
         <span class="tile-ico info"><svg><use href="#i-planetario"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Planetario") }}</span><span class="tile-desc">{{ _("Mapa del cielo sin Internet: toca un objeto y ve a él") }}</span></span>
-    </a>
-    <a href="/constelacion" class="tile clic-audio requiere-conexion">
-        <span class="tile-ico info"><svg><use href="#i-constelacion"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">{{ _("Recorrido guiado") }}</span><span class="tile-desc">{{ _("Constelaciones estrella a estrella") }}</span></span>
     </a>
     <a href="{{ url_for('galeria') }}" class="tile clic-audio">
         <span class="tile-ico"><svg><use href="#i-galeria"/></svg></span>
