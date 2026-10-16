@@ -3,7 +3,7 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
-## 1.1.0 · sin fecha (en preparación)
+## 1.2.0 · 2026-10-16
 
 - Editor de la galería: el color (brillo, temperatura, SCNR, saturación), la firma y unas **curvas por
   puntos de control** nuevas (RGB y por canal, como las del Seestar) se aplican al instante en el
@@ -27,6 +27,16 @@ día de la release. El número de versión vive en `version.py`.
   defecto de la librería `wikipedia`.
 - Humor de la voz escondido de serie: se habilita con la casilla «Comentarios de a bordo» de Avisos por voz
   en Configuración (arranca al 50 %); hasta entonces el botón «Humor» no aparece y no se dice ninguna frase.
+- Configuración: la espera de estabilización tras mover la montura pasa a «Equipo y captura» y vale para
+  cualquier montura ASCOM; desaparece la tarjeta «Montura SynScan» (la Alineación Automática sigue
+  borrando las sincronizaciones al empezar). El desplegable de la cámara se llama «Driver de la cámara»,
+  sin «(ASCOM)», porque también lista las cámaras por SDK nativo.
+- Fuera la subida por FTP de la vista previa del apilado (y la sección `[FTP]` de config.ini): la
+  publicación de fotos volverá más adelante con una API.
+- El recorrido guiado por constelaciones sale del menú de inicio (la página sigue en `/constelacion`).
+
+## 1.1.0 · 2026-10-15
+
 - Actualizar desde GitHub: `actualizar_desde_github.bat` en el mini PC (última release o `/master`, 
   `/volver` a la versión anterior) y botón «Actualizar desde GitHub» en Configuración, que comprueba la 
   última release, enseña lo que entra y reinicia la app. `copiar_a_campo.bat` sigue valiendo sin Internet.
