@@ -933,6 +933,10 @@ msgstr "Delete the selected preset"
 msgid "Borrar este rastro"
 msgstr "Delete this trail"
 
+#: templates/editar_foto.html
+msgid "Borrar punto"
+msgstr "Delete point"
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Brillo del fondo de cielo"
 msgstr "Sky background brightness"
@@ -1726,6 +1730,10 @@ msgstr "Any mount with an ASCOM driver installed on the PC."
 msgid "Curva del fondo"
 msgstr "Background curve"
 
+#: templates/editar_foto.html
+msgid "Curvas"
+msgstr "Curves"
+
 #: templates/apilado.html
 msgid "Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas)."
 msgstr "How much the background is raised (0.10-0.20 normal; more for extended nebulae)."
@@ -1887,6 +1895,14 @@ msgstr "Tell ScopePower"
 #: templates/imagen.html
 msgid "Deja la foto como se ve a simple vista: arriba hacia el cénit y el acimut hacia la derecha"
 msgstr "Orients the shot as seen with the naked eye: up toward the zenith and azimuth to the right"
+
+#: templates/editar_foto.html
+msgid "Deja recta la curva de este canal"
+msgstr "Straighten this channel's curve"
+
+#: templates/editar_foto.html
+msgid "Deja rectas las cuatro curvas"
+msgstr "Straighten all four curves"
 
 #. js
 #: templates/configuracion.html
@@ -2244,6 +2260,10 @@ msgstr "The mount driver doesn't support changing the tracking rate"
 #: seguimiento.py
 msgid "El eje {eje} no se ha movido ({g}°): ¿montura parada o sin posición?"
 msgstr "Axis {eje} has not moved ({g}°): mount stopped or no position?"
+
+#: templates/editar_foto.html
+msgid "El encuadre, el estirado, el ruido y la nitidez se calculan a media resolución en el mini PC (unos segundos). Los controles con ⚡ (color, firma y curvas) se aplican al instante en este dispositivo, sin esperar al mini PC. Al guardar se procesa todo el FITS con todos los ajustes y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos."
+msgstr "Framing, stretch, noise and sharpness are computed at half resolution on the mini PC (a few seconds). Controls marked ⚡ (colour, signature and curves) apply instantly on this device, without waiting for the mini PC. Saving processes the whole FITS with every adjustment and, if you change the object name, renames the JPG, the FITS and its data."
 
 #. js
 #: templates/apagar.html
@@ -4383,10 +4403,6 @@ msgstr "The second brightest star in Scorpius. It marks the scorpion's stinger. 
 msgid "La ubicación del móvil no está disponible"
 msgstr "The phone's location isn't available"
 
-#: templates/editar_foto.html
-msgid "La vista previa se calcula a media resolución en el mini PC (unos segundos). Al guardar se procesa todo el FITS y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos."
-msgstr "The preview is computed at half resolution on the mini PC (a few seconds). Saving processes the whole FITS and, if you change the object name, the JPG, the FITS and its data are renamed."
-
 #: templates/seguimiento.html
 msgid "La vista se estira para que se vea la escena; con exposición automática, si no encuentra nada sube la exposición hasta el máximo ({max} ms)."
 msgstr "The view is stretched so the scene can be seen; with automatic exposure, if it finds nothing it raises the exposure up to the maximum ({max} ms)."
@@ -6256,6 +6272,10 @@ msgstr "Disk space is running low: {p} percent free, {espacio}."
 msgid "Quedan {s} s de esta toma"
 msgstr "{s} s left in this frame"
 
+#: templates/editar_foto.html
+msgid "Quita el punto seleccionado (los extremos no se quitan)"
+msgstr "Removes the selected point (the end points cannot be removed)"
+
 #. js
 #: ScopePower.py
 msgid "Quitando el gradiente"
@@ -6423,7 +6443,7 @@ msgstr "Restarting ScopePower"
 msgid "Reiniciando el equipo"
 msgstr "Restarting the PC"
 
-#: templates/apilado.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Reiniciar"
 msgstr "Reset"
 
@@ -6739,6 +6759,10 @@ msgstr "ScopePower: restart requested from the phone"
 #: templates/imagen.html
 msgid "Se activa cuando hay una foto nueva"
 msgstr "Enabled when there is a new shot"
+
+#: templates/editar_foto.html
+msgid "Se aplica al instante en este dispositivo"
+msgstr "Applies instantly on this device"
 
 #: static/js/asistente.js
 msgid "Se cerró el selector sin elegir driver."
@@ -7431,6 +7455,10 @@ msgstr "Tap the icon to the left of the address (ⓘ or padlock) → Permissions
 msgid "Toca el objeto para elegirlo · {n} px de lado"
 msgstr "Tap the object to select it · {n} px per side"
 
+#: templates/editar_foto.html
+msgid "Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Las curvas se guardan con la foto, no en los presets."
+msgstr "Tap the curve to add a point and drag it: up brightens, down darkens. A gentle S (lower the left, raise the right) adds contrast; the end points only move up or down (black and white point). RGB is applied first, then each colour's own curve. Curves are saved with the photo, not in presets."
+
 #. js
 #: templates/editar_foto.html
 msgid "Toca la foto..."
@@ -7454,7 +7482,7 @@ msgstr "Tap a thumbnail to see it full size"
 msgid "Tocar la foto"
 msgstr "Tap the photo"
 
-#: templates/galeria.html
+#: templates/editar_foto.html templates/galeria.html
 msgid "Todas"
 msgstr "All"
 
@@ -10927,8 +10955,8 @@ msgstr "✅ Location saved, also in Stellarium"
 
 #. js
 #: templates/editar_foto.html
-msgid "✅ Vista previa lista en {s} s · toca «Original» para comparar"
-msgstr "✅ Preview ready in {s} s · tap “Original” to compare"
+msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar"
+msgstr "✅ Preview ready in {s} s · colour and curves apply instantly · tap “Original” to compare"
 
 #. js
 #: templates/configuracion.html

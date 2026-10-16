@@ -21,16 +21,24 @@
 #     estrellas, el del núcleo o la composición de los dos (cometa.componer:
 #     cometa fijo y estrellas fijas).
 #
-# Vista previa: procesado a media resolución (como en el apilado), síncrono, con
-# un cerrojo para que solo haya una en marcha. Guardar: a resolución completa en
-# un hilo (20-30 s en el mini PC), estado en EDICION. La primera vez que se
-# guarda, el JPG y el JSON originales se apartan en static/fotos/originales/ para
-# poder volver atrás ("Restaurar original").
+#   - curvas por puntos de control (como las del Seestar): una para los tres
+#     canales y una por canal, que se dibujan en el navegador.
+#
+# Vista previa (oct-2026): el servidor procesa a media resolución (como en el
+# apilado) solo hasta la BASE de color (procesado.color_base: estirado, contraste
+# local, fondo neutralizado, color de las estrellas) y manda un paquete con la
+# base en JPEG, las dos máscaras de estrellas en PNG, la firma como capa PNG con
+# transparencia y el nivel del cielo; el navegador hace en vivo los ajustes
+# rápidos (temperatura, brillo, SCNR, saturación, curvas: static/js/retoque.js)
+# sobre esa base, sin volver a pedir nada mientras el mini PC apila. Síncrona,
+# con un cerrojo para que solo haya una en marcha. Guardar: a resolución
+# completa en un hilo (20-30 s en el mini PC), con los mismos ajustes rápidos en
+# coma flotante (procesado.ajustes_rapidos), estado en EDICION. La primera vez
+# que se guarda, el JPG y el JSON originales se apartan en
+# static/fotos/originales/ para poder volver atrás ("Restaurar original").
 
 import os
-import io
 import re
-import json
 import math
 import shutil
 import logging
@@ -259,6 +267,7 @@ def ajustes_desde(datos):
         aj["radio_cometa"] = int(min(max(float(datos.get("radio_cometa", RADIO_COMETA[2]) or RADIO_COMETA[2]), RADIO_COMETA[0]), RADIO_COMETA[1]))
     except (TypeError, ValueError):
         aj["radio_cometa"] = RADIO_COMETA[2]
+    aj["curvas"] = procesado.normalizar_curvas(datos.get("curvas"))
     return aj
 
 
@@ -291,6 +300,8 @@ def _ajustes_para_json(aj):
         guardar[k] = aj.get(k)
     for k in CLAVES_BOOL:
         guardar[k] = bool(aj.get(k))
+    if aj.get("curvas"):
+        guardar["curvas"] = aj["curvas"]
     return guardar
 
 
@@ -393,11 +404,14 @@ def _meta_firma(ruta_jpg, ruta_fits, objeto, n, exposicion):
     return meta
 
 
-def procesar_foto(nombre, opciones, completa=False, progreso=None):
+def procesar_foto(nombre, opciones, completa=False, progreso=None, solo_base=False):
     """
     Reprocesa el FITS de la foto con `opciones` (ver ajustes_desde) y devuelve
     (imagen BGR uint8, meta de la firma). completa=False: media resolución (o
     completa si el zoom es del 50 % o más, como en el apilado); True: todo.
+    solo_base: se para en la base de color (procesado.color_base) y devuelve
+    (base RGB float32 [0, 1], estrellas, pequenas, meta), sin firmar: es lo que
+    la vista previa manda al navegador para que haga él los ajustes rápidos.
     """
     base, ruta_jpg, ruta_fits, __ = rutas(nombre)
     if not os.path.isfile(ruta_fits):
@@ -422,9 +436,14 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
     recorte, __ = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=aj.get("bordes", 0) / 100.0,
                                        espejo=bool(aj.get("espejo")), centro=aj.get("centro"))
     escala = 1.0 if completa or fraccion <= 0.5 else 0.5
+    meta = _meta_firma(ruta_jpg, ruta_fits, objeto, n, exposicion)
+    if solo_base:
+        base, estrellas, pequenas = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso,
+                                                       balance=balance, solo_base=True)
+        meta["ajustes"] = _ajustes_para_json(aj)
+        return base, estrellas, pequenas, meta
     rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso, balance=balance)
     imagen = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
-    meta = _meta_firma(ruta_jpg, ruta_fits, objeto, n, exposicion)
     if aj["firma"]:
         imagen = firma.firmar(imagen, meta)
     meta["firmada"] = bool(aj["firma"])
@@ -436,20 +455,61 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None):
     return imagen, meta
 
 
+def _reducir(imagen, lado):
+    """La imagen (H, W[, C]) con el lado mayor a `lado` px como mucho (INTER_AREA)."""
+    h, w = imagen.shape[:2]
+    if max(h, w) <= lado:
+        return imagen
+    f = lado / float(max(h, w))
+    return cv2.resize(imagen, (max(8, int(w * f)), max(8, int(h * f))), interpolation=cv2.INTER_AREA)
+
+
+def capa_firma(ancho, alto, meta):
+    """
+    La firma como capa BGRA con transparencia del tamaño de la vista previa,
+    para que el navegador la pinte ENCIMA de la imagen ya retocada (si fuera
+    parte de la base, las curvas y la saturación teñirían el logo y los textos).
+    firma.firmar solo sabe pintar sobre una foto: se firma un negro y un blanco
+    y de la diferencia salen la transparencia y el color de cada píxel
+    (composición "sobre": negro = a·c, blanco = a·c + (1 - a)·255).
+    """
+    negro = firma.firmar(np.zeros((alto, ancho, 3), dtype=np.uint8), meta).astype(np.int16)
+    blanco = firma.firmar(np.full((alto, ancho, 3), 255, dtype=np.uint8), meta).astype(np.int16)
+    alfa = np.clip(255 - (blanco - negro).mean(axis=2), 0, 255)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        color = np.where(alfa[..., None] > 0, negro * 255.0 / np.maximum(alfa[..., None], 1), 0)
+    capa = np.dstack([np.clip(color, 0, 255), alfa]).astype(np.uint8)
+    return capa
+
+
 def vista_previa(nombre, opciones):
-    """JPEG (bytes) de la vista previa reducida a ANCHO_PREVIEW. Solo una a la vez."""
+    """
+    Paquete de la vista previa para el navegador: dict con "base" (JPEG, bytes),
+    "mascaras" (PNG gris con las dos máscaras lado a lado, estrellas | pequeñas,
+    a la mitad del tamaño de la base, bytes), "firma"
+    (PNG BGRA con transparencia, bytes) y "fondo" ([r, g, b] del cielo, 0..1),
+    todo con el lado mayor a ANCHO_PREVIEW. Solo una a la vez.
+    """
     if not _lock_preview.acquire(blocking=False):
         raise ErrorEditor(_("Hay otra vista previa en marcha; espera a que termine"))
     try:
-        imagen, __ = procesar_foto(nombre, opciones, completa=False)
-        h, w = imagen.shape[:2]
-        if max(h, w) > ANCHO_PREVIEW:
-            f = ANCHO_PREVIEW / float(max(h, w))
-            imagen = cv2.resize(imagen, (max(8, int(w * f)), max(8, int(h * f))), interpolation=cv2.INTER_AREA)
-        ok, jpg = cv2.imencode(".jpg", imagen, [cv2.IMWRITE_JPEG_QUALITY, CALIDAD_PREVIEW])
-        if not ok:
+        base, estrellas, pequenas, meta = procesar_foto(nombre, opciones, completa=False, solo_base=True)
+        fondo = procesado.fondo_cielo(base)
+        base = _reducir(base, ANCHO_PREVIEW)
+        alto, ancho = base.shape[:2]
+        # Máscaras: las dos lado a lado en un solo gris (estrellas | pequeñas), a la
+        # mitad del lado de la base y en 16 niveles: son pesos de mezcla suaves y
+        # así pesan ~100 KB en vez de 650 KB (el wifi del campo da 0,5-2 Mbit/s)
+        mascaras = _reducir(np.hstack([estrellas, pequenas]), ANCHO_PREVIEW)
+        mascaras = (np.clip(mascaras * 15.0 + 0.5, 0, 15).astype(np.uint8)) * 17
+        base8 = np.clip(base * 255.0 + 0.5, 0, 255).astype(np.uint8)
+        ok1, jpg = cv2.imencode(".jpg", cv2.cvtColor(base8, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, CALIDAD_PREVIEW])
+        ok2, png_m = cv2.imencode(".png", mascaras, [cv2.IMWRITE_PNG_COMPRESSION, 6])
+        ok3, png_f = cv2.imencode(".png", capa_firma(ancho, alto, meta), [cv2.IMWRITE_PNG_COMPRESSION, 6])
+        if not (ok1 and ok2 and ok3):
             raise ErrorEditor(_("No se pudo codificar la vista previa"))
-        return jpg.tobytes()
+        return {"base": jpg.tobytes(), "mascaras": png_m.tobytes(), "firma": png_f.tobytes(),
+                "fondo": [round(float(v), 5) for v in fondo], "ancho": int(ancho), "alto": int(alto)}
     finally:
         _lock_preview.release()
 

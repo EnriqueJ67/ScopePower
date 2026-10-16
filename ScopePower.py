@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, render_template_string, send_file
+from flask import Flask, request, jsonify, render_template, render_template_string, send_file, Response
 from flask import session, redirect, url_for
 
 from unidecode import unidecode
@@ -42,6 +42,7 @@ import cometa
 import firma
 import rotacion_camara
 import io
+import json
 from AutoStrechSTF import apply_stf_color, debayer_rgb, miniatura_cfa_rgb, guardar_jpg_web
 from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
 
@@ -5540,16 +5541,27 @@ def galeria_editar_original(nombre):
 
 @app.route("/galeria/editar/<nombre>/vista", methods=["POST"])
 def galeria_editar_vista(nombre):
-    """Vista previa (JPEG) del FITS reprocesado con los ajustes que manda la web."""
+    """
+    Vista previa del FITS reprocesado con los ajustes que manda la web, hasta la
+    base de color: un solo cuerpo binario con el JPEG de la base, el PNG de las
+    máscaras de estrellas y el PNG de la firma seguidos; la cabecera X-Vista
+    (JSON) dice cuánto mide cada parte y el nivel del cielo. Los ajustes rápidos
+    (brillo, temperatura, SCNR, saturación, curvas) los hace el navegador
+    (static/js/retoque.js).
+    """
     datos = request.get_json(silent=True) or {}
     try:
-        jpg = editor_fotos.vista_previa(nombre, datos)
+        paquete = editor_fotos.vista_previa(nombre, datos)
     except editor_fotos.ErrorEditor as e:
         return jsonify({"error": str(e)}), 409
     except Exception as e:
         log.exception("Error en la vista previa del editor")
         return jsonify({"error": _("No se pudo procesar: {e}", e=e)}), 500
-    r = send_file(io.BytesIO(jpg), mimetype="image/jpeg")
+    partes = ("base", "mascaras", "firma")
+    cabecera = {k: len(paquete[k]) for k in partes}
+    cabecera.update(fondo=paquete["fondo"], ancho=paquete["ancho"], alto=paquete["alto"])
+    r = Response(b"".join(paquete[k] for k in partes), mimetype="application/octet-stream")
+    r.headers["X-Vista"] = json.dumps(cabecera)
     r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return r
 

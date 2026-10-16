@@ -32,7 +32,8 @@ The screenshots show the Spanish interface. More in [docs/capturas](docs/captura
 - **Live stacking**: each frame is aligned and added while capturing, rejecting bad frames, with
   library darks and flats, plane and satellite trail detection and multiscale stretching.
 - **Gallery and editor**: processing, crop, rotation and mirror, deconvolution, color calibration
-  from the stars, NGC/IC object annotations and comet compositing.
+  from the stars, NGC/IC object annotations and comet compositing; colour and point curves are
+  adjusted instantly on your own device, even while the mini PC is stacking.
 - **Offline planetarium** (Celestia Atlas engine) showing the telescope position and the camera
   framing; “Tonight” suggests what to observe and the **night plan** chains objects on its own.
 - **Special modes**: tiled mosaics, stacking on the comet nucleus, tracking of moving objects with

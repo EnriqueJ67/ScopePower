@@ -40,7 +40,8 @@ Más capturas en [docs/capturas](docs/capturas).
 - **Apilado en vivo**: cada foto se alinea y se suma mientras se captura, con rechazo de las malas,
   darks y flats de biblioteca, detección de rastros de aviones y satélites y estirado multiescala.
 - **Galería y editor**: revelado, recorte, giro y espejo, deconvolución, calibración de color con las
-  estrellas, anotaciones de objetos NGC/IC y composición de cometas.
+  estrellas, anotaciones de objetos NGC/IC y composición de cometas; el color y las curvas por puntos
+  se retocan al instante en el propio dispositivo, aunque el mini PC esté apilando.
 - **Planetario sin Internet** (motor Celestia Atlas) con la posición del telescopio y el encuadre de
   la cámara; «Esta noche» propone qué observar y el **plan de la noche** encadena objetos solo.
 - **Modos especiales**: mosaico por teselas, apilado por el núcleo del cometa, seguimiento de

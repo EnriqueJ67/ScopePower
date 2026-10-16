@@ -5,6 +5,12 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.1.0 · sin fecha (en preparación)
 
+- Editor de la galería: el color (brillo, temperatura, SCNR, saturación), la firma y unas **curvas por
+  puntos de control** nuevas (RGB y por canal, como las del Seestar) se aplican al instante en el
+  propio navegador, sobre una base que el mini PC calcula una vez; así se puede retocar una foto
+  mientras la app apila, hace un mosaico o un cometa, sin esperar a cada vista previa. Al guardar,
+  el servidor aplica los mismos ajustes en coma flotante a resolución completa y las curvas quedan
+  guardadas con la foto.
 - Mosaico terminado: el panel enseña la miniatura del mosaico con enlaces para verlo en el visor, en la
   galería y en el editor (también tras reiniciar la app), y el botón grande de guardar guarda el mosaico
   cuando es la vista elegida en vez de avisar de que no hay apilado.

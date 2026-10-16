@@ -30,6 +30,9 @@
     <div class="columna">
         <div class="visor">
             <img id="imagen" src="/galeria/editar/{{ info.nombre }}/original" alt="{{ info.objeto }}">
+            <!-- La vista reprocesada: la base que manda el servidor con los ajustes rápidos
+                 (color, curvas) aplicados aquí mismo (static/js/retoque.js) -->
+            <canvas id="lienzo" style="display: none;"></canvas>
             <div class="visor-overlay">
                 <span class="chip" id="chip-vista">{{ _("Original") }}</span>
                 <span class="chip" id="chip-tiempo" style="display: none;"></span>
@@ -50,7 +53,7 @@
         {% if info.hay_original %}
         <button class="btn btn-outline-warning btn-block" id="btn-restaurar" onclick="restaurarFoto()">{{ _("Restaurar la foto original") }}</button>
         {% endif %}
-        <small class="ayuda">{{ _("La vista previa se calcula a media resolución en el mini PC (unos segundos). Al guardar se procesa todo el FITS y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos.") }}</small>
+        <small class="ayuda">{{ _("El encuadre, el estirado, el ruido y la nitidez se calculan a media resolución en el mini PC (unos segundos). Los controles con ⚡ (color, firma y curvas) se aplican al instante en este dispositivo, sin esperar al mini PC. Al guardar se procesa todo el FITS con todos los ajustes y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos.") }}</small>
     </div>
 
     <!-- ─── Columna lateral: paneles plegables, en el orden que elija el usuario
@@ -179,12 +182,12 @@
                     </select>
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Brillo general") }}</span><span id="v-brillo"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Brillo general") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-brillo"></span></div>
                     <input type="range" id="c-brillo" data-clave="brillo" min="-1" max="1" step="0.05">
                     <small class="ayuda">{{ _("0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro.") }}</small>
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Temperatura de color") }}</span><span id="v-temperatura"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Temperatura de color") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-temperatura"></span></div>
                     <input type="range" id="c-temperatura" data-clave="temperatura" min="-1" max="1" step="0.05">
                     <small class="ayuda">{{ _("Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro.") }}</small>
                 </div>
@@ -202,19 +205,19 @@
                     <small class="ayuda">{{ _("Recupera detalle y afila las estrellas deshaciendo el desenfoque medido en las estrellas de la propia foto (Richardson-Lucy). 0 = apagada; 0,65 son las 8 pasadas probadas con M13 y la Pacman (la anchura de las estrellas baja de 4,4 a 2,9 px). Las estrellas brillantes y el cielo no se tocan. Al guardar añade unos 10 s en el mini PC.") }}</small>
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Saturación") }}</span><span id="v-saturacion"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Saturación") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-saturacion"></span></div>
                     <input type="range" id="c-saturacion" data-clave="saturacion" min="0.5" max="3" step="0.1">
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Saturación de las estrellas") }}</span><span id="v-saturacion_estrellas"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Saturación de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-saturacion_estrellas"></span></div>
                     <input type="range" id="c-saturacion_estrellas" data-clave="saturacion_estrellas" min="0" max="2" step="0.1">
                     <small class="ayuda">{{ _("Solo sobre las estrellas y sus halos; la nebulosa sigue con la saturación general. En un refractor con cámara de color el halo de las estrellas azules es rojo + azul (enfocan fuera del verde) y con mucha saturación sale violeta: 0,5-0,8 las deja blancas, azules o naranjas según su color real.") }}</small>
                 </div>
                 <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Quitar dominante verde (SCNR)") }}</span><span id="v-scnr"></span></div>
+                    <div class="rango-titulo"><span>{{ _("Quitar dominante verde (SCNR)") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-scnr"></span></div>
                     <input type="range" id="c-scnr" data-clave="scnr" min="0" max="1" step="0.05">
                 </div>
-                <label class="fila-check"><input type="checkbox" id="c-scnr_estrellas"> {{ _("Quitar el verde también en las estrellas") }}</label>
+                <label class="fila-check"><input type="checkbox" id="c-scnr_estrellas"> {{ _("Quitar el verde también en las estrellas") }} <span class="rayo">⚡</span></label>
                 <small class="ayuda">{{ _("El SCNR solo baja el verde hasta la media de rojo y azul: las estrellas azules y naranjas no cambian; las de halo verdoso (el foco de la noche no es igual en los tres colores) quedan neutras.") }}</small>
                 <label class="fila-check"><input type="checkbox" id="c-color_estrellas_uniforme"> {{ _("Un solo color por estrella") }}</label>
                 <small class="ayuda">{{ _("El azul y el verde enfocan en el núcleo y el rojo desenfocado forma el halo, y la misma estrella sale con un punto azul dentro de una mancha naranja. Con esto cada estrella toma el color medio de su luz.") }}</small>
@@ -250,6 +253,34 @@
         </section>
         {% endif %}
 
+        <!-- Curvas por puntos de control (static/js/curvas.js): se aplican en el navegador sobre la base
+             y, al guardar, en el servidor (procesado.aplicar_curvas) con el mismo spline -->
+        <section class="card panel" data-panel="curvas">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-grafica"/></svg>{{ _("Curvas") }} <span class="rayo">⚡</span></h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="segmentado" id="curvas-seg" style="width: 100%;">
+                    <button type="button" class="activo" data-canal="rgb" onclick="elegirCanalCurva('rgb')" style="flex: 1;"><span class="punto-canal" style="background: linear-gradient(135deg, #ff5a5a, #5ad26b 50%, #5a9bff);"></span>RGB</button>
+                    <button type="button" data-canal="r" onclick="elegirCanalCurva('r')" style="flex: 1;"><span class="punto-canal" style="background: #ff5a5a;"></span>R</button>
+                    <button type="button" data-canal="g" onclick="elegirCanalCurva('g')" style="flex: 1;"><span class="punto-canal" style="background: #5ad26b;"></span>G</button>
+                    <button type="button" data-canal="b" onclick="elegirCanalCurva('b')" style="flex: 1;"><span class="punto-canal" style="background: #5a9bff;"></span>B</button>
+                </div>
+                <canvas id="curvas-lienzo" class="curvas-lienzo mt-2"></canvas>
+                <div class="fila mt-2" style="gap: 6px;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-curva-borrar" onclick="editorCurvas.borrarPunto()" disabled title="{{ _('Quita el punto seleccionado (los extremos no se quitan)') }}" style="flex: 1;">{{ _("Borrar punto") }}</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciar()" title="{{ _('Deja recta la curva de este canal') }}" style="flex: 1;">{{ _("Reiniciar") }}</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciarTodo()" title="{{ _('Deja rectas las cuatro curvas') }}" style="flex: 1;">{{ _("Todas") }}</button>
+                </div>
+                <small class="ayuda">{{ _("Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Las curvas se guardan con la foto, no en los presets.") }}</small>
+            </div>
+        </section>
+
         <section class="card panel" data-panel="firma">
             <div class="panel-header" onclick="alternarPanel(this)">
                 <h3 class="card-title"><svg class="ico"><use href="#i-guardar"/></svg>{{ _("Firma y nombre") }}</h3>
@@ -265,7 +296,7 @@
                     <input type="text" id="c-objeto" class="form-control" maxlength="60" value="{{ info.objeto }}" placeholder="{{ _('p. ej. Galaxia de Andrómeda') }}">
                     <small class="ayuda">{{ _("Va en el rótulo de la firma y, al guardar, en el nombre del archivo.") }}</small>
                 </div>
-                <label class="fila-check"><input type="checkbox" id="c-firma"> {{ _("Firma: logo, autor, lugar, fecha, objeto, integración y coordenadas") }}</label>
+                <label class="fila-check"><input type="checkbox" id="c-firma"> {{ _("Firma: logo, autor, lugar, fecha, objeto, integración y coordenadas") }} <span class="rayo">⚡</span></label>
                 {% if info.ra and info.dec %}<small class="ayuda">{{ _("Coordenadas del FITS: AR {ra} · Dec {dec}", ra=info.ra, dec=info.dec) }}</small>{% endif %}
             </div>
         </section>
@@ -274,6 +305,12 @@
 
 <style>
     .apilado-layout { align-items: start; }
+    .visor canvas { display: block; width: 100%; height: auto; }
+    .visor.visor-toque canvas { cursor: crosshair; }
+    .rayo { color: var(--accent); font-size: 12px; font-weight: 700; opacity: 0.9; }
+    .curvas-lienzo { display: block; width: 100%; aspect-ratio: 1 / 1; max-height: 340px; border-radius: 10px; background: #0d1017; border: 1px solid var(--border); touch-action: none; }
+    .punto-canal { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; opacity: 0.35; }
+    #curvas-seg button.tocada .punto-canal { opacity: 1; box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
     .lateral .card + .card { margin-top: 0; }
     /* Pantalla ancha: la columna lateral se queda fija y hace su propio scroll, así la
        foto no se pierde de vista al tocar los controles */
@@ -285,6 +322,8 @@
     }
 </style>
 
+<script src="{{ url_for('static', filename='js/curvas.js') }}?v={{ VERSION }}"></script>
+<script src="{{ url_for('static', filename='js/retoque.js') }}?v={{ VERSION }}"></script>
 <script>
     const NOMBRE = {{ info.nombre|tojson }};
 
@@ -339,6 +378,10 @@
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
     const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes"];
+    // Los ajustes rápidos los hace el navegador sobre la base (static/js/retoque.js): no piden
+    // vista previa nueva al servidor. Los demás cambian la base y sí la piden.
+    const CLAVES_RAPIDAS = ["brillo", "temperatura", "saturacion", "saturacion_estrellas", "scnr"];
+    const CLAVES_SERVIDOR = CLAVES_RANGO.filter(k => !CLAVES_RAPIDAS.includes(k));
     const COMETA = {{ info.cometa|tojson }};      // pareja de apilados (estrellas + núcleo) o null
     let composicion = COMETA ? (COMETA.es_nucleo ? "cometa" : "estrellas") : "";
 
@@ -354,7 +397,7 @@
             _("Apilado por las estrellas: el cometa sale corrido");
         if (refrescar) programarVistaPrevia();
     }
-    let urlNueva = null;           // objectURL de la última vista previa
+    const retoque = new Retoque(document.getElementById("lienzo"));   // base + ajustes rápidos en el navegador
     let hayNueva = false;
     let preparando = false, pendiente = false;
     let ultimaDuracion = 0;        // segundos que tardó la última vista previa (para la cuenta atrás)
@@ -382,6 +425,7 @@
         if (a.estirado) elegirEstirado(a.estirado, false);
         if (a.curva !== undefined) document.getElementById("c-curva").value = a.curva || "gamma";
         else if (inicial) document.getElementById("c-curva").value = "gamma";
+        if (a.curvas !== undefined || inicial) { editorCurvas.poner(a.curvas || {}); pintarCanalesCurvas(); }
         if (COMETA) {
             const r = document.getElementById("c-radio_cometa");
             if (a.radio_cometa !== undefined && a.radio_cometa !== null) r.value = a.radio_cometa;
@@ -394,7 +438,7 @@
 
     function aplicarEstilo() {
         const e = ESTILOS[document.getElementById("c-estilo").value];
-        if (e) { pintarAjustes(e); programarVistaPrevia(); }
+        if (e) { pintarAjustes(e); retocar(); programarVistaPrevia(); }
     }
 
     function elegirEstirado(tipo, refrescar = true) {
@@ -480,7 +524,7 @@
 
     async function toqueEnFoto(ev) {
         if (!toqueArmado) return;
-        const img = document.getElementById("imagen"), estado = document.getElementById("estado-centro");
+        const img = document.getElementById("lienzo"), estado = document.getElementById("estado-centro");
         if (!hayNueva || vistaActual() !== "nueva" || !ajustesVista) {
             estado.textContent = _("⏳ Espera a que esté la vista previa y vuelve a tocar");
             return;
@@ -520,6 +564,7 @@
     }
 
     document.getElementById("imagen").addEventListener("click", toqueEnFoto);
+    document.getElementById("lienzo").addEventListener("click", toqueEnFoto);
 
     function leerAjustes() {
         const a = {
@@ -535,7 +580,8 @@
             espejo: document.getElementById("c-espejo").checked,
             centro: centroEncuadre,
             firma: document.getElementById("c-firma").checked,
-            objeto: document.getElementById("c-objeto").value.trim()
+            objeto: document.getElementById("c-objeto").value.trim(),
+            curvas: editorCurvas.curvas
         };
         if (COMETA) {
             a.composicion = composicion;
@@ -547,11 +593,50 @@
     }
 
     function mostrarVista(cual) {
-        const img = document.getElementById("imagen");
+        const img = document.getElementById("imagen"), lienzo = document.getElementById("lienzo");
         if (cual === "nueva" && !hayNueva) return;
         document.querySelectorAll("#vista-seg button").forEach(b => b.classList.toggle("activo", b.dataset.vista === cual));
-        img.src = cual === "nueva" ? urlNueva : `/galeria/editar/${encodeURIComponent(NOMBRE)}/original?${Date.now()}`;
+        img.style.display = cual === "nueva" ? "none" : "";
+        lienzo.style.display = cual === "nueva" ? "" : "none";
         document.getElementById("chip-vista").textContent = cual === "nueva" ? _("Reprocesada (vista previa)") : _("Original");
+    }
+
+    // ——— Ajustes rápidos: se aplican en el navegador sobre la base, agrupados por fotograma ———
+    let retoquePedido = false;
+    function retocar() {
+        if (!retoque.lista || retoquePedido) return;
+        retoquePedido = true;
+        requestAnimationFrame(() => {
+            retoquePedido = false;
+            const a = leerAjustes();
+            const inicio = performance.now();
+            const hist = retoque.aplicar(a, editorCurvas.tablas(), a.firma);
+            if (hist) editorCurvas.histograma(hist);
+            const ms = performance.now() - inicio;
+            if (ms > 250) console.debug("retoque en", Math.round(ms), "ms");
+        });
+    }
+    function leerAjustesRapidos() {
+        const a = {};
+        for (const k of CLAVES_RAPIDAS) a[k] = parseFloat(document.getElementById("c-" + k).value);
+        a.scnr_estrellas = document.getElementById("c-scnr_estrellas").checked;
+        return a;
+    }
+
+    // ——— Curvas (static/js/curvas.js) ———
+    const editorCurvas = new EditorCurvas(document.getElementById("curvas-lienzo"), {
+        alArrastrar: retocar,
+        alCambiar: () => { retocar(); pintarCanalesCurvas(); },
+        // El botón «Borrar punto» solo con un punto intermedio seleccionado (los extremos no se quitan)
+        alSeleccionar: i => { const p = editorCurvas.puntos[editorCurvas.activo]; document.getElementById("btn-curva-borrar").disabled = !(i > 0 && i < p.length - 1); }
+    });
+    function elegirCanalCurva(canal) {
+        editorCurvas.canal(canal);
+        document.querySelectorAll("#curvas-seg button").forEach(b => b.classList.toggle("activo", b.dataset.canal === canal));
+    }
+    function pintarCanalesCurvas() {
+        // Un punto lleno en el chip de cada canal cuya curva no es la recta
+        document.querySelectorAll("#curvas-seg button").forEach(b => b.classList.toggle("tocada", editorCurvas.tocada(b.dataset.canal)));
     }
 
     // Los cambios en los controles piden una vista previa nueva (con un pequeño retardo para
@@ -586,16 +671,21 @@
                 const d = await r.json().catch(() => ({}));
                 throw new Error(d.error || _("Error {codigo}", { codigo: r.status }));
             }
-            const blob = await r.blob();
-            if (urlNueva) URL.revokeObjectURL(urlNueva);
-            urlNueva = URL.createObjectURL(blob);
+            // Un solo cuerpo: JPEG de la base + PNG de las máscaras + PNG de la firma; X-Vista dice cuánto mide cada uno
+            const cab = JSON.parse(r.headers.get("X-Vista") || "{}");
+            const todo = new Uint8Array(await r.arrayBuffer());
+            let pos = 0;
+            const trozo = (n, tipo) => { const b = new Blob([todo.subarray(pos, pos + n)], { type: tipo }); pos += n; return b; };
+            const paquete = { base: trozo(cab.base, "image/jpeg"), mascaras: trozo(cab.mascaras, "image/png"), firma: trozo(cab.firma, "image/png"), fondo: cab.fondo };
+            await retoque.cargar(paquete);
             hayNueva = true;
             ajustesVista = ajustes;
+            retocar();
             if (toqueArmado) document.getElementById("estado-centro").textContent = _("👆 Toca el objeto en la foto para dejarlo en el centro");
             document.getElementById("btn-vista-nueva").disabled = false;
             ultimaDuracion = (Date.now() - inicio) / 1000;
             mostrarVista("nueva");
-            estado.textContent = _("✅ Vista previa lista en {s} s · toca «Original» para comparar", { s: fmtNum(ultimaDuracion, 1) });
+            estado.textContent = _("✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar", { s: fmtNum(ultimaDuracion, 1) });
         } catch (e) {
             estado.textContent = "❌ " + e.message;
         } finally {
@@ -651,13 +741,15 @@
         if (d.ok) setTimeout(() => location.reload(), 800);
     }
 
-    // Controles → vista previa automática
+    // Controles → vista previa automática (los que cambian la base) o retoque al instante (los rápidos)
     for (const k of CLAVES_RANGO) {
         const c = document.getElementById("c-" + k);
         c.addEventListener("input", () => document.getElementById("v-" + k).textContent = fmtNum(c.value));
-        c.addEventListener("change", programarVistaPrevia);
+        if (CLAVES_RAPIDAS.includes(k)) c.addEventListener("input", retocar);
+        else c.addEventListener("change", programarVistaPrevia);
     }
-    for (const id of ["c-gradiente", "c-aplanar", "c-scnr_estrellas", "c-color_estrellas_uniforme", "c-zoom", "c-firma", "c-giro-fino", "c-espejo", "c-curva"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
+    for (const id of ["c-gradiente", "c-aplanar", "c-color_estrellas_uniforme", "c-zoom", "c-giro-fino", "c-espejo", "c-curva"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
+    for (const id of ["c-scnr_estrellas", "c-firma"]) document.getElementById(id).addEventListener("change", retocar);
     document.getElementById("c-giro-fino").addEventListener("input", pintarValorGiro);
     if (COMETA) {
         const r = document.getElementById("c-radio_cometa");
@@ -686,6 +778,7 @@
         // Un preset sin curva (anterior a que existiera el control) es la gamma de siempre
         if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({ curva: "gamma" }, ESTILOS[p.estilo], p));
         else pintarAjustes(Object.assign({ curva: "gamma" }, p));
+        retocar();
         programarVistaPrevia();
     }
     async function guardarPreset() {

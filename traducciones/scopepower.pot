@@ -931,6 +931,10 @@ msgstr ""
 msgid "Borrar este rastro"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Borrar punto"
+msgstr ""
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Brillo del fondo de cielo"
 msgstr ""
@@ -1724,6 +1728,10 @@ msgstr ""
 msgid "Curva del fondo"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Curvas"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas)."
 msgstr ""
@@ -1884,6 +1892,14 @@ msgstr ""
 
 #: templates/imagen.html
 msgid "Deja la foto como se ve a simple vista: arriba hacia el cénit y el acimut hacia la derecha"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Deja recta la curva de este canal"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Deja rectas las cuatro curvas"
 msgstr ""
 
 #. js
@@ -2241,6 +2257,10 @@ msgstr ""
 
 #: seguimiento.py
 msgid "El eje {eje} no se ha movido ({g}°): ¿montura parada o sin posición?"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "El encuadre, el estirado, el ruido y la nitidez se calculan a media resolución en el mini PC (unos segundos). Los controles con ⚡ (color, firma y curvas) se aplican al instante en este dispositivo, sin esperar al mini PC. Al guardar se procesa todo el FITS con todos los ajustes y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos."
 msgstr ""
 
 #. js
@@ -4381,10 +4401,6 @@ msgstr ""
 msgid "La ubicación del móvil no está disponible"
 msgstr ""
 
-#: templates/editar_foto.html
-msgid "La vista previa se calcula a media resolución en el mini PC (unos segundos). Al guardar se procesa todo el FITS y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos."
-msgstr ""
-
 #: templates/seguimiento.html
 msgid "La vista se estira para que se vea la escena; con exposición automática, si no encuentra nada sube la exposición hasta el máximo ({max} ms)."
 msgstr ""
@@ -6254,6 +6270,10 @@ msgstr ""
 msgid "Quedan {s} s de esta toma"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Quita el punto seleccionado (los extremos no se quitan)"
+msgstr ""
+
 #. js
 #: ScopePower.py
 msgid "Quitando el gradiente"
@@ -6421,7 +6441,7 @@ msgstr ""
 msgid "Reiniciando el equipo"
 msgstr ""
 
-#: templates/apilado.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Reiniciar"
 msgstr ""
 
@@ -6736,6 +6756,10 @@ msgstr ""
 
 #: templates/imagen.html
 msgid "Se activa cuando hay una foto nueva"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Se aplica al instante en este dispositivo"
 msgstr ""
 
 #: static/js/asistente.js
@@ -7429,6 +7453,10 @@ msgstr ""
 msgid "Toca el objeto para elegirlo · {n} px de lado"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Las curvas se guardan con la foto, no en los presets."
+msgstr ""
+
 #. js
 #: templates/editar_foto.html
 msgid "Toca la foto..."
@@ -7452,7 +7480,7 @@ msgstr ""
 msgid "Tocar la foto"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/editar_foto.html templates/galeria.html
 msgid "Todas"
 msgstr ""
 
@@ -10922,7 +10950,7 @@ msgstr ""
 
 #. js
 #: templates/editar_foto.html
-msgid "✅ Vista previa lista en {s} s · toca «Original» para comparar"
+msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar"
 msgstr ""
 
 #. js

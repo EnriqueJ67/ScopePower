@@ -14,9 +14,16 @@
 #      ganancia LOCAL (alta en el fondo, baja en estrellas y núcleos) y el color
 #      se escala en proporción, así lo brillante no se quema ni pierde el color.
 #   4. Contraste local (CLAHE en luminancia) + curva en S suave.
-#   5. Color: reneutralizar el fondo, temperatura de color y brillo general
-#      (deslizadores del editor), SCNR (quitar dominante verde, sin tocar las
-#      estrellas) y saturación, ya con el ruido reducido.
+#   5. Color, en dos partes:
+#      - base (color_base): reneutralizar el fondo y un solo color por estrella;
+#        necesita el vecindario y las máscaras de estrellas.
+#      - ajustes rápidos (ajustes_rapidos): temperatura de color, brillo general,
+#        SCNR (quitar dominante verde), saturación y curvas por puntos de control.
+#        Son píxel a píxel (o por tabla), así que el editor de la galería los
+#        repite en el navegador sobre la base en 8 bits para verlos al instante
+#        (static/js/retoque.js); al guardar se hacen aquí en coma flotante a
+#        resolución completa. Las dos versiones han de dar lo mismo: cualquier
+#        cambio en una va también en la otra.
 #
 # Tres estilos: natural, seestar (por defecto) y agresivo, con ajustes finos
 # (ruido, contraste, saturación) en la sección [Procesado] de config.ini.
@@ -1568,22 +1575,20 @@ def saturar(rgbf, factor, estrellas=None, factor_estrellas=None):
     return np.clip(cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB), 0, 1).astype(np.float32)
 
 
-def temperatura_color(rgbf, temperatura):
+def temperatura_color(rgbf, temperatura, fondo=None):
     """
     Desplaza la tonalidad de lo que está por encima del fondo: temperatura > 0
     hacia el cálido (más rojo, menos azul), < 0 hacia el frío. Se aplica sobre la
     señal respecto al nivel del fondo, así el cielo (ya neutralizado) no se tiñe
     y solo cambian objetos y estrellas. Rango útil -1..1 (±30 % en R y B).
+    fondo: nivel del cielo por canal (fondo_cielo); si no viene, se mide aquí.
     """
     t = float(np.clip(temperatura, -1, 1))
     if abs(t) < 1e-3:
         return rgbf
-    L = rgbf.mean(axis=2)
-    m = float(np.median(L))
-    mad = float(np.median(np.abs(L - m))) * 1.4826 + 1e-4
-    cielo = L < m + 2.0 * mad
-    fondo = np.median(rgbf[cielo], axis=0) if cielo.sum() > 1000 else np.array([m, m, m], dtype=np.float32)
-    fondo = fondo.reshape(1, 1, 3).astype(np.float32)
+    if fondo is None:
+        fondo = fondo_cielo(rgbf)
+    fondo = np.asarray(fondo, dtype=np.float32).reshape(1, 1, 3)
     ganancia = np.array([1.0 + 0.3 * t, 1.0, 1.0 - 0.3 * t], dtype=np.float32).reshape(1, 1, 3)
     return np.clip(fondo + (rgbf - fondo) * ganancia, 0, 1).astype(np.float32)
 
@@ -1596,32 +1601,188 @@ def brillo_general(rgbf, brillo):
     return np.power(np.clip(rgbf, 0, 1), 2.0 ** (-b)).astype(np.float32)
 
 
-def color(rgb, ajustes):
-    """Etapa de color completa sobre la imagen estirada (float [0, 1] o uint8): devuelve uint8."""
+# ── Curvas por puntos de control (como las del Seestar) ──
+#
+# Cada curva es una lista de puntos [x, y] en [0, 1], ordenados por x, que pasa
+# por todos ellos con un spline cúbico monótono (Fritsch-Carlson: sin
+# oscilaciones ni inversiones entre puntos). Hay una curva para los tres canales
+# ("rgb") y una por canal ("r", "g", "b"); la de los tres se aplica primero. Una
+# curva sin puntos, o con solo los extremos [0, 0] y [1, 1], es la identidad.
+# El mismo algoritmo está en JavaScript en static/js/curvas.js.
+
+CANALES_CURVAS = ("rgb", "r", "g", "b")
+MAX_PUNTOS_CURVA = 16
+
+
+def normalizar_curva(puntos):
+    """
+    Puntos de una curva tal como llegan de la web o del JSON -> lista limpia
+    [[x, y], ...] ordenada por x, con los extremos en x=0 y x=1, o None si es la
+    identidad (así el JSON de la foto no arrastra curvas vacías).
+    """
+    limpios = []
+    for p in puntos or ():
+        try:
+            x, y = float(p[0]), float(p[1])
+        except (TypeError, ValueError, IndexError, KeyError):
+            continue
+        if math.isfinite(x) and math.isfinite(y):
+            limpios.append([min(max(x, 0.0), 1.0), min(max(y, 0.0), 1.0)])
+    if not limpios:
+        return None
+    limpios.sort(key=lambda p: p[0])
+    limpios[0][0], limpios[-1][0] = 0.0, 1.0
+    if len(limpios) == 1:
+        return None
+    # dos puntos no pueden compartir x (el spline divide por la distancia)
+    salida = [limpios[0]]
+    for p in limpios[1:]:
+        if p[0] - salida[-1][0] >= 0.002:
+            salida.append(p)
+    if salida[-1][0] < 1.0:
+        salida[-1][0] = 1.0
+    salida = salida[:MAX_PUNTOS_CURVA]
+    salida = [[round(x, 4), round(y, 4)] for x, y in salida]
+    if len(salida) == 2 and salida[0] == [0.0, 0.0] and salida[1] == [1.0, 1.0]:
+        return None
+    return salida
+
+
+def normalizar_curvas(curvas):
+    """{"rgb": puntos, "r": ..., "g": ..., "b": ...} solo con las curvas que no son la identidad; {} si ninguna."""
+    salida = {}
+    if isinstance(curvas, dict):
+        for canal in CANALES_CURVAS:
+            p = normalizar_curva(curvas.get(canal))
+            if p:
+                salida[canal] = p
+    return salida
+
+
+def _pendientes_curva(xs, ys):
+    """Tangentes del spline cúbico monótono de Fritsch-Carlson en cada punto."""
+    n = len(xs)
+    h = np.diff(xs)
+    d = np.diff(ys) / h
+    m = np.empty(n, dtype=np.float64)
+    m[0], m[-1] = d[0], d[-1]
+    for i in range(1, n - 1):
+        m[i] = 0.0 if d[i - 1] * d[i] <= 0 else (d[i - 1] + d[i]) / 2.0
+    for i in range(n - 1):
+        if d[i] == 0:
+            m[i] = m[i + 1] = 0.0
+            continue
+        a, b = m[i] / d[i], m[i + 1] / d[i]
+        s2 = a * a + b * b
+        if s2 > 9.0:
+            t = 3.0 / math.sqrt(s2)
+            m[i], m[i + 1] = t * a * d[i], t * b * d[i]
+    return m
+
+
+def evaluar_curva(puntos, x):
+    """Aplica la curva (lista de puntos normalizada) a x (array float en [0, 1]); None = identidad."""
+    if not puntos or len(puntos) < 2:
+        return x
+    xs = np.array([p[0] for p in puntos], dtype=np.float64)
+    ys = np.array([p[1] for p in puntos], dtype=np.float64)
+    x = np.asarray(x, dtype=np.float32)
+    forma = x.shape
+    xf = np.clip(x.ravel().astype(np.float64), 0.0, 1.0)
+    if len(puntos) == 2:
+        y = ys[0] + (ys[1] - ys[0]) * (xf - xs[0]) / (xs[1] - xs[0])
+        return np.clip(y, 0, 1).astype(np.float32).reshape(forma)
+    m = _pendientes_curva(xs, ys)
+    i = np.clip(np.searchsorted(xs, xf, side="right") - 1, 0, len(xs) - 2)
+    h = xs[i + 1] - xs[i]
+    t = (xf - xs[i]) / h
+    t2, t3 = t * t, t * t * t
+    y = ((2 * t3 - 3 * t2 + 1) * ys[i] + (t3 - 2 * t2 + t) * h * m[i]
+         + (-2 * t3 + 3 * t2) * ys[i + 1] + (t3 - t2) * h * m[i + 1])
+    return np.clip(y, 0, 1).astype(np.float32).reshape(forma)
+
+
+def aplicar_curvas(rgbf, curvas):
+    """Curvas del editor sobre la imagen float [0, 1]: primero la de los tres canales, después la de cada uno."""
+    curvas = normalizar_curvas(curvas)
+    if not curvas:
+        return rgbf
+    f = np.clip(np.asarray(rgbf, dtype=np.float32), 0, 1)
+    # Las curvas son monótonas por tramos: se evalúan por tabla de 1024 entradas
+    # (interpolada) en vez de píxel a píxel, que con 9 Mpx sería lento
+    malla = np.linspace(0.0, 1.0, 1025, dtype=np.float32)
+    tabla_rgb = evaluar_curva(curvas.get("rgb"), malla)
+    for c, canal in enumerate(("r", "g", "b")):
+        tabla = evaluar_curva(curvas.get(canal), tabla_rgb)
+        if curvas.get("rgb") or curvas.get(canal):
+            f[..., c] = np.interp(f[..., c], malla, tabla).astype(np.float32)
+    return f
+
+
+def fondo_cielo(rgbf):
+    """
+    Nivel del fondo de cielo por canal (mediana R, G, B de los píxeles de cielo),
+    el punto alrededor del que gira la temperatura de color. El editor lo manda
+    al navegador para que use el mismo valor que el servidor.
+    """
+    L = rgbf.mean(axis=2)
+    m = float(np.median(L))
+    mad = float(np.median(np.abs(L - m))) * 1.4826 + 1e-4
+    cielo = L < m + 2.0 * mad
+    if cielo.sum() > 1000:
+        return np.median(rgbf[cielo], axis=0).astype(np.float32)
+    return np.array([m, m, m], dtype=np.float32)
+
+
+def _bool(v, defecto=True):
+    if v is None:
+        return defecto
+    return v if isinstance(v, bool) else str(v).lower() == "true"
+
+
+def color_base(rgb, ajustes):
+    """
+    Primera parte de la etapa de color, la que necesita el vecindario: máscaras
+    de estrellas, fondo reneutralizado y un solo color por estrella.
+    rgb: imagen estirada, float [0, 1] o uint8. Devuelve (f float32 [0, 1],
+    estrellas, pequenas): las dos máscaras 0..1 que usan los ajustes rápidos
+    (SCNR sin las estrellas y saturación propia de las estrellas).
+    """
     if np.asarray(rgb).dtype == np.uint8:
         f = rgb.astype(np.float32) / 255.0
     else:
         f = np.clip(np.asarray(rgb, dtype=np.float32), 0, 1)
     gris = np.clip(cv2.cvtColor(f, cv2.COLOR_RGB2GRAY) * 255.0 + 0.5, 0, 255).astype(np.uint8)
     estrellas = mascara_estrellas(gris, dilatar=2)
-    f = neutralizar_fondo_final(f)
-    f = temperatura_color(f, ajustes.get("temperatura", 0.0))
-    f = brillo_general(f, ajustes.get("brillo", 0.0))
-    scnr_estrellas = ajustes.get("scnr_estrellas", True)
-    if not isinstance(scnr_estrellas, bool):
-        scnr_estrellas = str(scnr_estrellas).lower() == "true"
-    f = scnr_verde(f, ajustes.get("scnr", 0.8), None if scnr_estrellas else estrellas)
     pequenas = mascara_estrellas(gris, dilatar=3, solo_pequenas=True)
-    uniforme = ajustes.get("color_estrellas_uniforme", True)
-    if not isinstance(uniforme, bool):
-        uniforme = str(uniforme).lower() == "true"
-    if uniforme:
+    f = neutralizar_fondo_final(f)
+    if _bool(ajustes.get("color_estrellas_uniforme", True)):
         try:
             con_nitidez = float(ajustes.get("nitidez", 0) or 0) > 0
         except (TypeError, ValueError):
             con_nitidez = False
         f = color_estrellas_uniforme(f, pequenas, cociente=con_nitidez)
+    return f, estrellas, pequenas
+
+
+def ajustes_rapidos(f, ajustes, estrellas=None, pequenas=None, fondo=None):
+    """
+    Segunda parte de la etapa de color, píxel a píxel: temperatura, brillo, SCNR,
+    saturación y curvas, en este orden. Es lo que el navegador repite en vivo
+    sobre la base en 8 bits (static/js/retoque.js); aquí se hace en float.
+    fondo: nivel del cielo por canal (fondo_cielo) si ya está medido.
+    """
+    f = temperatura_color(f, ajustes.get("temperatura", 0.0), fondo=fondo)
+    f = brillo_general(f, ajustes.get("brillo", 0.0))
+    f = scnr_verde(f, ajustes.get("scnr", 0.8), None if _bool(ajustes.get("scnr_estrellas", True)) else estrellas)
     f = saturar(f, ajustes.get("saturacion", 1.5), pequenas, ajustes.get("saturacion_estrellas"))
+    return aplicar_curvas(f, ajustes.get("curvas"))
+
+
+def color(rgb, ajustes):
+    """Etapa de color completa sobre la imagen estirada (float [0, 1] o uint8): devuelve uint8."""
+    f, estrellas, pequenas = color_base(rgb, ajustes)
+    f = ajustes_rapidos(f, ajustes, estrellas, pequenas)
     return np.clip(f * 255.0 + 0.5, 0, 255).astype(np.uint8)
 
 
@@ -1635,7 +1796,7 @@ def color(rgb, ajustes):
 SUBFASES = (("gradiente", 0.05), ("ruido", 0.35), ("nitidez", 0.10), ("estirando", 0.20), ("contraste", 0.12), ("color", 0.18))
 
 
-def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, balance="auto"):
+def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, balance="auto", solo_base=False):
     """
     cubo_lineal: (3, H, W) o (H, W, 3) float lineal (el apilado).
     escala: 0.5 para la vista previa (4 veces más rápido), 1.0 para guardar.
@@ -1644,7 +1805,9 @@ def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, ba
     balance: el de balance_estrellas() medido en el campo completo, cuando lo
     que llega aquí es un recorte de zoom; "auto" lo mide en la propia imagen y
     None deja el color como antes (fondo igualado multiplicando).
-    Devuelve uint8 (h, w, 3) RGB listo para JPG.
+    Devuelve uint8 (h, w, 3) RGB listo para JPG. Con solo_base, se para antes
+    de los ajustes rápidos y devuelve (base float32 [0, 1], estrellas, pequenas),
+    lo que el editor de la galería manda al navegador para que los haga él.
     """
     ajustes = ajustes or leer_config()
     inicio = {}
@@ -1715,4 +1878,6 @@ def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, ba
     avisar("contraste")
     rgbf = contraste_local(rgbf, ajustes.get("contraste", 0.5))
     avisar("color")
+    if solo_base:
+        return color_base(rgbf, ajustes)
     return color(rgbf, ajustes)
