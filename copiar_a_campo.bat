@@ -66,6 +66,12 @@ if errorlevel 8 set "ERRORES=1"
 REM Motor del planetario offline (Celestia Atlas): codigo, catalogos y Via Lactea
 robocopy "%ORIGEN%\static\atlas" "%DESTINO%\static\atlas" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
+REM Textos de la interfaz en ingles para el navegador (static\i18n) y traducciones
+REM compiladas de la app (traducciones\): sin ellas la app en ingles sale en espanol
+robocopy "%ORIGEN%\static\i18n" "%DESTINO%\static\i18n" /MIR %OPC%
+if errorlevel 8 set "ERRORES=1"
+robocopy "%ORIGEN%\traducciones" "%DESTINO%\traducciones" /MIR %OPC%
+if errorlevel 8 set "ERRORES=1"
 
 echo  [4/7] Herramientas, constelaciones e informacion de objetos
 robocopy "%ORIGEN%\herramientas" "%DESTINO%\herramientas" /MIR %OPC%
