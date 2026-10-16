@@ -5,6 +5,9 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.1.0 · sin fecha (en preparación)
 
+- Mosaico terminado: el panel enseña la miniatura del mosaico con enlaces para verlo en el visor, en la
+  galería y en el editor (también tras reiniciar la app), y el botón grande de guardar guarda el mosaico
+  cuando es la vista elegida en vez de avisar de que no hay apilado.
 - **ScopePower en inglés.** La app habla español o inglés (pantallas, voz del PC, humor, descripciones
   de objetos y constelaciones). Se elige en el primer paso del asistente de configuración, en la
   página de bienvenida o en Configuración > Idioma, y vale para todos los dispositivos conectados.
