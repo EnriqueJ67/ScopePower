@@ -3,6 +3,19 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## 1.2.1 · 2026-10-16
+
+- Librerías al día por seguridad: Flask 3.1.3, Werkzeug 3.1.9, Jinja2 3.1.6, Requests 2.33.0 y
+  Pillow 12.3.0. Cierran los 31 avisos que GitHub encontró al publicar el proyecto; 12 son graves:
+  11 de Pillow (al abrir imágenes, PDF o fuentes manipuladas) y 1 de Werkzeug. En el mini PC,
+  `actualizar_desde_github.bat` reinstala las librerías solo.
+- Nueva prueba `herramientas/probar_servidor.py` en la comprobación de cada cambio: arranca el
+  servidor web sin equipo y pide las pantallas principales en español e inglés. Detecta versiones de
+  librerías que no encajan entre sí, que antes pasaban la comprobación en verde.
+- El actualizador acepta etiquetas de versión movidas en GitHub (`git fetch --force --tags`). Un mini
+  PC que ya fuera clon antes del 16-oct-2026 necesita una vez `git fetch --force --tags origin`
+  (ver INSTALACION.md).
+
 ## 1.2.0 · 2026-10-16
 
 - Editor de la galería: el color (brillo, temperatura, SCNR, saturación), la firma y unas **curvas por

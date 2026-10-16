@@ -80,9 +80,8 @@ y no un clon de GitHub, ejecutar en el mini PC `actualizar_desde_github.bat` (do
 Git e Internet, ofrece convertir la carpeta en un clon (añade la carpeta oculta `.git` y baja el
 historial) y deja los ficheros del programa como en la última release publicada. No toca lo que es
 propio del mini PC: `config.ini`, `secretos.ini`, `calibraciones\`, `capturas\`, `logs\`, la galería
-(`static\fotos\`) ni `datos\`; lo comprueba y se para si alguno estuviera seguido por git. Mientras el
-repositorio sea privado, Git abre el navegador la primera vez para entrar en GitHub y guarda la
-identificación para las siguientes.
+(`static\fotos\`) ni `datos\`; lo comprueba y se para si alguno estuviera seguido por git. El
+repositorio es público: no hace falta cuenta de GitHub para actualizar.
 
 **Las siguientes veces**, de dos maneras:
 
@@ -100,6 +99,16 @@ identificación para las siguientes.
 
 Lo que hace cada actualización queda en `logs\actualizacion.log` (la pedida desde la web) y en la
 ventana del script.
+
+**Si el mini PC ya era un clon antes del 16-oct-2026.** Ese día se rehízo el repositorio de GitHub y
+las etiquetas de versión (`v1.1.0`, `v1.2.0`) cambiaron. Las versiones del actualizador anteriores a
+la 1.2.1 se paran con «would clobber existing tag». Una sola vez, en una consola abierta en la
+carpeta ScopePower del mini PC:
+
+    git fetch --force --tags origin
+
+y después `actualizar_desde_github.bat` como siempre. Desde la 1.2.1 el actualizador ya acepta
+etiquetas movidas.
 
 ## Actualizar copiando por la red (sin Internet)
 

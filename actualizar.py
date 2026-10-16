@@ -193,7 +193,9 @@ def comprobar():
             log.warning("Comprobar actualización: %s", (r.stderr or "").strip()[-300:])
             return {"ok": False, "motivo": motivo, "mensaje": mensaje}
         etiquetas = [l.split("refs/tags/")[-1] for l in r.stdout.splitlines() if "refs/tags/" in l]
-        f = _git("fetch", "--quiet", "--tags", "--prune", "origin", timeout=TIMEOUT_FETCH_S)
+        # --force: una etiqueta movida en GitHub (como al rehacer el repositorio el 16-oct-2026) no debe
+        # bloquear la actualización con «would clobber existing tag»
+        f = _git("fetch", "--quiet", "--force", "--tags", "--prune", "origin", timeout=TIMEOUT_FETCH_S)
         if f.returncode != 0:
             motivo, mensaje = _motivo_fallo(f.stderr)
             return {"ok": False, "motivo": motivo, "mensaje": mensaje}

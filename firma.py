@@ -166,7 +166,7 @@ def firmar(imagen_bgr, meta):
     alfa = (t * 215).astype(np.uint8)
     capa = np.zeros((alto_deg, w, 4), dtype=np.uint8)
     capa[:, :, 3] = alfa[:, None]
-    img.alpha_composite(Image.fromarray(capa, "RGBA"), (0, h - alto_deg))
+    img.alpha_composite(Image.fromarray(capa), (0, h - alto_deg))   # uint8 de 4 canales: RGBA
 
     draw = ImageDraw.Draw(img)
     blanco, gris = (255, 255, 255, 255), (205, 205, 205, 255)
