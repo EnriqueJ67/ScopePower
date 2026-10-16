@@ -106,7 +106,7 @@ Dos consejos:
 
 - Ejecuta la app desde una **copia** de la carpeta con su propio `config.ini`: escribe resultados
   en `static/`, `capturas/`, `datos/` y `logs/`, y así no pisas tu instalación de uso.
-- Pon `subir_ftp = false` y `anunciar_ip = false` en la copia para que no suba previews ni hable.
+- Pon `anunciar_ip = false` en la copia para que no anuncie la IP por voz.
 
 Las pruebas que no necesitan equipo están en `herramientas/`:
 

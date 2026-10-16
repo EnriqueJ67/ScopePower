@@ -56,7 +56,7 @@ else:
 if os.path.exists("secretos.ini"):
     linea(OK, "secretos.ini")
 else:
-    linea(AVISO, "secretos.ini no existe (se creará al arrancar; pon ahí la contraseña FTP si la usas)")
+    linea(AVISO, "secretos.ini no existe (se creará al arrancar)")
 
 print("\n=== Programas externos ===")
 sys.path.insert(0, RAIZ)

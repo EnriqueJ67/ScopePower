@@ -39,5 +39,5 @@ Si de verdad hace falta un commit directo (por ejemplo, arreglar el propio workf
 ## Probar sin equipo
 
 Simuladores ASCOM (`ASCOM.Simulator.Telescope` y `ASCOM.Simulator.Camera`) en una copia de la
-carpeta con su propio `config.ini`, `subir_ftp = false` y `anunciar_ip = false`. Las pruebas
+carpeta con su propio `config.ini` y `anunciar_ip = false`. Las pruebas
 sintéticas: `herramientas/probar_mosaico.py` y `herramientas/probar_seguimiento_simulado.py`.

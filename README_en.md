@@ -125,8 +125,8 @@ the folder with its own `config.ini`: the app writes results to `static/`, `capt
 | Language and translations | `idioma.py`, `static/js/i18n.js`, `traducciones/` |
 | Test and measurement tools | `herramientas/` |
 
-The configuration lives in `config.ini` (template in `config.example.ini`) and the secrets (FTP
-password, Astrometry.net key, session key) in `secretos.ini`; neither goes into git. The log is in
+The configuration lives in `config.ini` (template in `config.example.ini`) and the secrets
+(Astrometry.net key and session key) in `secretos.ini`; neither goes into git. The log is in
 `logs/scopepower.log` and is always written in Spanish.
 
 ## Security

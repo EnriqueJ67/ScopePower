@@ -123,7 +123,7 @@ carpeta con su propio `config.ini`: la app escribe resultados en `static/`, `cap
 | Herramientas de prueba y medida | `herramientas/` |
 
 La configuración vive en `config.ini` (plantilla en `config.example.ini`) y los secretos
-(contraseña FTP, clave de Astrometry.net, clave de sesión) en `secretos.ini`; ninguno de los dos va
+(clave de Astrometry.net y clave de sesión) en `secretos.ini`; ninguno de los dos va
 a git. El log está en `logs/scopepower.log`.
 
 ## Seguridad

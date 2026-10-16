@@ -4,7 +4,6 @@ import os
 import sys
 import threading
 import time
-from ftplib import FTP
 import numpy as np
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -33,7 +32,6 @@ from astropy.io.fits import Header, PrimaryHDU
 from astropy.wcs import WCS
 from math import atan2, degrees
 import threading
-from ftplib import FTP
 import configparser
 import os
 import config_inicial
@@ -545,46 +543,6 @@ def metadatos_firma(cfg=None, ruta_fits=None, n_fotos=0, exposicion=0):
     return meta
 
 
-def subir_imagen_ftp_async(ruta_local, nombre_remoto="ultima.jpg"):
-    def subir():
-        try:
-            config = configparser.ConfigParser()
-            config.read("config.ini")
-
-            # Comprobación si está activada la subida FTP
-            if config["FTP"].get("subir_ftp", "false").lower() != "true":
-                print("🔕 Subida FTP desactivada en config.ini.")
-                return
-
-            # Lectura de credenciales y ruta
-            ftp_host = config["FTP"]["host"]
-            ftp_user = config["FTP"]["usuario"]
-            import secretos
-            ftp_pass = secretos.obtener("ftp_contrasena")
-            ftp_path = config["FTP"].get("ruta_remota", "").strip()
-
-            # Verificación del archivo local
-            if not os.path.exists(ruta_local):
-                print(f"⚠️ Archivo local no encontrado: {ruta_local}")
-                return
-
-            # Conexión FTP y subida
-            with FTP(ftp_host) as ftp:
-                ftp.login(ftp_user, ftp_pass)
-                if ftp_path:
-                    ftp.cwd(ftp_path)
-
-                with open(ruta_local, "rb") as f:
-                    ftp.storbinary(f"STOR " + nombre_remoto, f)
-
-            print(f"✅ Imagen '{nombre_remoto}' subida al FTP correctamente.")
-
-        except Exception as e:
-            print(f"❌ Error al subir imagen por FTP: {e}")
-
-    # Lanzar en hilo separado, no bloquea apilado
-    threading.Thread(target=subir, daemon=True).start()
-
 def aumentar_saturacion(rgb, factor=1.0):
     """
     Aumenta la saturación de una imagen RGB.
@@ -1054,7 +1012,7 @@ class ApiladorEnTiempoReal:
     def _publicar_apilado(self, planos, zona, ruta_fits, EXPOSICION, ObjetosAnotados):
         """
         Del apilado ya calculado (planos r, g, b float32 y su zona cubierta) al FITS
-        de static/, la vista previa de la web, el texto de información y el FTP.
+        de static/, la vista previa de la web y el texto de información.
         """
         num_imagenes_preview = self.total
         with self.lock:
@@ -1138,10 +1096,6 @@ class ApiladorEnTiempoReal:
             f.write(info)
 
         print(f"✅ Imagen apilada actualizada. Total: {self.total}")
-
-        # Subir imagen al FTP en segundo plano (no bloquea el apilado)
-        subir_imagen_ftp_async("static/resultado_apilado_preview.jpg", "ultima.jpg")
-        subir_imagen_ftp_async("static/info_objeto_goto.txt", "info_objeto_goto.txt")
 
         # Limpiar imágenes FITS antiguas en disco
         self.limpiar_fits_antiguos()

@@ -36,7 +36,7 @@ from idioma import _, ngettext, N_, fmt_num
 idioma.cargar_desde_config()
 from apilado import iniciar_hilo_apilado
 from apilado import pausar_apilado, reanudar_apilado, esta_pausado
-from apilado import aumentar_saturacion #, subir_imagen_ftp_async
+from apilado import aumentar_saturacion
 import apilado
 import cometa
 import firma

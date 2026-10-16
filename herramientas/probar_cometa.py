@@ -67,8 +67,6 @@ def preparar_copia(modo, fotos_referencia):
     if "Cometa" not in cfg:
         cfg["Cometa"] = {}
     cfg["Cometa"]["activo"] = "auto"
-    if "FTP" in cfg:
-        cfg["FTP"]["subir_ftp"] = "false"      # nada de subir las pruebas a ningún sitio
     with open(os.path.join(COPIA, "config.ini"), "w", encoding="utf-8") as f:
         cfg.write(f)
     with open(os.path.join(COPIA, "static", "info_objeto_goto.txt"), "w", encoding="utf-8") as f:
