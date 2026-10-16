@@ -20,9 +20,16 @@ El workflow «Comprobar» de GitHub Actions debe pasar antes de fusionar.
 6. Fusionar solo con el workflow en verde y, si hay revisores, con su visto bueno. Después borrar
    la rama y volver a `master` con `git pull`.
 
-Hay un gancho local `pre-commit` que rechaza commits en `master`; no se salta con `--no-verify`.
-Si de verdad hace falta un commit directo (por ejemplo, arreglar el propio workflow), se hace con
-`SCOPEPOWER_PERMITIR_MASTER=1` y se cuenta en el mensaje del commit.
+`master` está protegida en GitHub: no admite subidas directas ni forzadas, solo pull requests
+con la comprobación `comprobar` en verde, y la regla vale también para el administrador. Además,
+un gancho local `pre-commit` rechaza commits en `master` para no descubrirlo al subir; no se salta
+con `--no-verify`.
+
+Si el propio workflow se rompe y ningún PR puede pasar (por ejemplo, GitHub cambia algo de
+`windows-latest`), el arreglo va igualmente en una rama y por PR. Para fusionarlo, el dueño del
+repositorio desactiva un momento «Do not allow bypassing the above settings» en
+Settings > Branches > `master`, fusiona el PR saltándose la comprobación, vuelve a activar la
+casilla y lo cuenta en la descripción del PR. Nunca se quita la protección para subir directo.
 
 ## Qué no cambia
 
