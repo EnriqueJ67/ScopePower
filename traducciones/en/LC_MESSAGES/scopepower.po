@@ -1585,10 +1585,6 @@ msgstr "Set up the driver on the PC"
 msgid "Conocida como 'la estrella del demonio' por su brillo variable visible a simple vista. Representa la cabeza de Medusa en la constelación de Perseo. Es una estrella binaria eclipsante, cuyo brillo disminuye periódicamente cada 2,86 días. Su nombre proviene del árabe 'ra’s al-ghūl', que significa 'la cabeza del ogro'."
 msgstr "Known as 'the demon star' because its changing brightness is visible to the naked eye. It marks the head of Medusa in the constellation Perseus. It is an eclipsing binary whose brightness dips every 2.86 days. Its name comes from the Arabic 'ra’s al-ghūl', meaning 'the head of the ogre'."
 
-#: templates/home.html
-msgid "Constelaciones estrella a estrella"
-msgstr "Constellations star by star"
-
 #. js
 #: templates/constelacion.html
 msgid "Constelación detectada: {nombre}"
@@ -6338,7 +6334,7 @@ msgstr "Reconnect equipment"
 msgid "Recorrido de la constelación completado."
 msgstr "Constellation tour complete."
 
-#: templates/constelacion.html templates/home.html
+#: templates/constelacion.html
 msgid "Recorrido guiado"
 msgstr "Guided tour"
 

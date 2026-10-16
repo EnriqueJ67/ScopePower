@@ -1583,10 +1583,6 @@ msgstr ""
 msgid "Conocida como 'la estrella del demonio' por su brillo variable visible a simple vista. Representa la cabeza de Medusa en la constelación de Perseo. Es una estrella binaria eclipsante, cuyo brillo disminuye periódicamente cada 2,86 días. Su nombre proviene del árabe 'ra’s al-ghūl', que significa 'la cabeza del ogro'."
 msgstr ""
 
-#: templates/home.html
-msgid "Constelaciones estrella a estrella"
-msgstr ""
-
 #. js
 #: templates/constelacion.html
 msgid "Constelación detectada: {nombre}"
@@ -6336,7 +6332,7 @@ msgstr ""
 msgid "Recorrido de la constelación completado."
 msgstr ""
 
-#: templates/constelacion.html templates/home.html
+#: templates/constelacion.html
 msgid "Recorrido guiado"
 msgstr ""
 
