@@ -152,6 +152,7 @@ window.I18N_CATALOGO = {
 "Copiar":"Copy",
 "Corregir":"Correct",
 "Cráteres y mares; con exposiciones muy cortas.":"Craters and maria; use very short exposures.",
+"Curvas cambiadas · pulsa \"Aplicar a la vista previa\"":"Curves changed · press \"Apply to the preview\"",
 "Cámara":"Camera",
 "Cámara conectada":"Camera connected",
 "Cámara sin conectar":"Camera not connected",

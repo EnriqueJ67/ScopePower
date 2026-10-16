@@ -10,7 +10,9 @@ día de la release. El número de versión vive en `version.py`.
   propio navegador, sobre una base que el mini PC calcula una vez; así se puede retocar una foto
   mientras la app apila, hace un mosaico o un cometa, sin esperar a cada vista previa. Al guardar,
   el servidor aplica los mismos ajustes en coma flotante a resolución completa y las curvas quedan
-  guardadas con la foto.
+  guardadas con la foto. El mismo panel de curvas está en «Procesado de la vista previa» del apilado
+  (con el histograma de la vista previa de fondo): se aplican al apilado en vivo y al guardar en la
+  galería, van en los presets y en `[Procesado] curvas` de config.ini.
 - Mosaico terminado: el panel enseña la miniatura del mosaico con enlaces para verlo en el visor, en la
   galería y en el editor (también tras reiniciar la app), y el botón grande de guardar guarda el mosaico
   cuando es la vista elegida en vez de avisar de que no hay apilado.

@@ -200,6 +200,11 @@ main.contenido { padding: 16px 16px 24px; max-width: 1080px; margin: 0 auto; }
 .acciones-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
 @media (min-width: 560px) { .acciones-grid.dos { grid-template-columns: 1fr 1fr; } }
 
+/* Editor de curvas por puntos (static/js/curvas.js): editor de la galería y panel de Apilado */
+.curvas-lienzo { display: block; width: 100%; aspect-ratio: 1 / 1; max-height: 340px; border-radius: 10px; background: #0d1017; border: 1px solid var(--border); touch-action: none; }
+.punto-canal { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; opacity: 0.35; }
+.segmentado button.tocada .punto-canal { opacity: 1; box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
+
 /* Grupo segmentado (velocidad, opciones) */
 .segmentado { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 3px; gap: 2px; max-width: 100%; }
 .segmentado button {
