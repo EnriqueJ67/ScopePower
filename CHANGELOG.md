@@ -3,6 +3,13 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## 1.2.2 · 2026-10-16
+
+- Una sola versión para instalar: «Actualizar desde GitHub» (en Configuración y en
+  `actualizar_desde_github.bat`) solo ofrece la última release. Desaparecen el botón «Actualizar a
+  master» y la opción `/master`, que instalaban lo último en desarrollo sin publicar. Se mantiene
+  «Volver a la anterior» para deshacer una actualización.
+
 ## 1.2.1 · 2026-10-16
 
 - Librerías al día por seguridad: Flask 3.1.3, Werkzeug 3.1.9, Jinja2 3.1.6, Requests 2.33.0 y

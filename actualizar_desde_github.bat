@@ -10,7 +10,6 @@ REM  Pensado para el mini PC de campo, en casa y con Internet. Hace falta tener
 REM  instalado Git para Windows (https://git-scm.com/download/win).
 REM
 REM  Uso:  actualizar_desde_github.bat           -> a la ultima release (etiqueta v* mas alta)
-REM        actualizar_desde_github.bat /master   -> a lo ultimo de la rama master (en desarrollo)
 REM        actualizar_desde_github.bat /volver   -> a la version que habia antes de actualizar
 REM        actualizar_desde_github.bat /si       -> sin pedir confirmacion
 REM
@@ -56,9 +55,8 @@ set "LOG=logs\actualizacion.log"
 set "PROTEGIDOS=config.ini secretos.ini calibraciones capturas logs static/fotos datos"
 
 REM ---- Opciones ----
-set "A_MASTER=" & set "SIN_PREGUNTAR=" & set "VOLVER=" & set "LANZADOR=" & set "RELANZAR="
+set "SIN_PREGUNTAR=" & set "VOLVER=" & set "LANZADOR=" & set "RELANZAR="
 for %%A in (%*) do (
-    if /I "%%~A"=="/master"   set "A_MASTER=1"
     if /I "%%~A"=="/si"       set "SIN_PREGUNTAR=1"
     if /I "%%~A"=="/volver"   set "VOLVER=1"
     if /I "%%~A"=="/lanzador" set "LANZADOR=1"
@@ -84,7 +82,6 @@ if defined LANZADOR (
         set /p DESTINO_PEDIDO=<"%FICHERO_PENDIENTE%"
         del "%FICHERO_PENDIENTE%" >nul 2>&1
         echo Destino pedido: !DESTINO_PEDIDO!
-        if /I "!DESTINO_PEDIDO!"=="master" set "A_MASTER=1"
         if /I "!DESTINO_PEDIDO!"=="volver" set "VOLVER=1"
     )
 )
@@ -191,16 +188,12 @@ if defined VOLVER (
         echo  [ERROR] La version anterior guardada ^(!DESTINO!^) no esta en el historial.
         goto :fin_error
     )
-) else if defined A_MASTER (
-    set "DESTINO=origin/master"
-    set "NOMBRE_DESTINO=master (ultimo desarrollo)"
 ) else (
     for /f "delims=" %%T in ('git tag --list "v*" --sort=-v:refname') do (
         if not defined DESTINO (set "DESTINO=%%T" & set "NOMBRE_DESTINO=release %%T")
     )
     if not defined DESTINO (
         echo  [ERROR] En GitHub no hay ninguna release ^(etiqueta v1.2.3^) todavia.
-        echo          Para actualizar a lo ultimo de master: actualizar_desde_github.bat /master
         goto :fin_error
     )
 )

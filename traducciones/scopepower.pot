@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ScopePower 1.1.0\n"
+"Project-Id-Version: ScopePower 1.2.2\n"
 "Report-Msgid-Bugs-To: https://github.com/EnriqueJ67/ScopePower/issues\n"
 "POT-Creation-Date: 2026-10-15 00:00+0009\n"
 "PO-Revision-Date: 2026-10-15 00:00+0009\n"
@@ -395,10 +395,6 @@ msgstr ""
 
 #: templates/configuracion.html
 msgid "Actualizar"
-msgstr ""
-
-#: templates/configuracion.html
-msgid "Actualizar a master"
 msgstr ""
 
 #. js
@@ -8906,16 +8902,6 @@ msgid "marcado a mano"
 msgstr ""
 
 #. js
-#: templates/configuracion.html
-msgid "master es la versión en desarrollo y puede no estar probada con equipo real. Si algo falla, «Volver a la anterior» deja la versión de ahora. ¿Seguir?"
-msgstr ""
-
-#. js
-#: templates/configuracion.html
-msgid "master: versión en desarrollo, puede fallar"
-msgstr ""
-
-#. js
 #: templates/apilado.html
 msgid "medido en ({x}, {y}) · señal {snr} σ"
 msgstr ""
@@ -9784,13 +9770,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. js
-#: templates/configuracion.html
-msgid "{n} commit en master: versión en desarrollo, puede fallar"
-msgid_plural "{n} commits en master: versión en desarrollo, puede fallar"
-msgstr[0] ""
-msgstr[1] ""
-
-#. js
 #: templates/imagen.html
 msgid "{n} corrección"
 msgid_plural "{n} correcciones"
@@ -10220,11 +10199,6 @@ msgid "¿Actualizar ScopePower a la release {version}?"
 msgstr ""
 
 #. js
-#: templates/configuracion.html
-msgid "¿Actualizar ScopePower a la última versión de master (en desarrollo, puede fallar)?"
-msgstr ""
-
-#. js
 #: templates/apagar.html
 msgid "¿Apagar el equipo? Se desconectarán la cámara y la montura y Windows se cerrará."
 msgstr ""
@@ -10443,7 +10417,7 @@ msgstr ""
 
 #. js
 #: templates/configuracion.html
-msgid "ℹ️ En GitHub no hay ninguna release publicada todavía; se puede actualizar a master."
+msgid "ℹ️ En GitHub no hay ninguna release publicada todavía."
 msgstr ""
 
 #. js

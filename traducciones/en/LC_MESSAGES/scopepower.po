@@ -399,10 +399,6 @@ msgstr "Updating..."
 msgid "Actualizar"
 msgstr "Update"
 
-#: templates/configuracion.html
-msgid "Actualizar a master"
-msgstr "Update to master"
-
 #. js
 #: templates/configuracion.html
 msgid "Actualizar a {version}"
@@ -8908,16 +8904,6 @@ msgid "marcado a mano"
 msgstr "marked by hand"
 
 #. js
-#: templates/configuracion.html
-msgid "master es la versión en desarrollo y puede no estar probada con equipo real. Si algo falla, «Volver a la anterior» deja la versión de ahora. ¿Seguir?"
-msgstr "master is the development version and may not be tested with real equipment. If something fails, “Go back to the previous one” restores the current version. Continue?"
-
-#. js
-#: templates/configuracion.html
-msgid "master: versión en desarrollo, puede fallar"
-msgstr "master: development version, may fail"
-
-#. js
 #: templates/apilado.html
 msgid "medido en ({x}, {y}) · señal {snr} σ"
 msgstr "measured at ({x}, {y}) · signal {snr} σ"
@@ -9786,13 +9772,6 @@ msgstr[0] "{n} set aside, will be added later"
 msgstr[1] "{n} set aside, will be added later"
 
 #. js
-#: templates/configuracion.html
-msgid "{n} commit en master: versión en desarrollo, puede fallar"
-msgid_plural "{n} commits en master: versión en desarrollo, puede fallar"
-msgstr[0] "{n} commit on master: development version, may fail"
-msgstr[1] "{n} commits on master: development version, may fail"
-
-#. js
 #: templates/imagen.html
 msgid "{n} corrección"
 msgid_plural "{n} correcciones"
@@ -10222,11 +10201,6 @@ msgid "¿Actualizar ScopePower a la release {version}?"
 msgstr "Update ScopePower to release {version}?"
 
 #. js
-#: templates/configuracion.html
-msgid "¿Actualizar ScopePower a la última versión de master (en desarrollo, puede fallar)?"
-msgstr "Update ScopePower to the latest master version (in development, may fail)?"
-
-#. js
 #: templates/apagar.html
 msgid "¿Apagar el equipo? Se desconectarán la cámara y la montura y Windows se cerrará."
 msgstr "Shut down the computer? The camera and the mount will be disconnected and Windows will close."
@@ -10448,8 +10422,8 @@ msgstr "ℹ️ Nothing has been spoken since startup; press Test voice to check 
 
 #. js
 #: templates/configuracion.html
-msgid "ℹ️ En GitHub no hay ninguna release publicada todavía; se puede actualizar a master."
-msgstr "ℹ️ There's no release published on GitHub yet; you can update to master."
+msgid "ℹ️ En GitHub no hay ninguna release publicada todavía."
+msgstr "ℹ️ There is no release published on GitHub yet."
 
 #. js
 #: templates/apilado.html
