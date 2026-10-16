@@ -97,7 +97,7 @@
             </div>
         </div>
 
-        <button class="btn btn-success btn-lg btn-block" onclick="guardarImagenJPG()" title="{{ _('Procesa el apilado acumulado a resolución completa y lo guarda en la galería') }}"><svg><use href="#i-guardar"/></svg>{{ _("Guardar el apilado en la galería") }}</button>
+        <button id="btn-guardar-galeria" class="btn btn-success btn-lg btn-block" onclick="guardarImagenJPG()" title="{{ _('Procesa el apilado acumulado a resolución completa y lo guarda en la galería') }}"><svg><use href="#i-guardar"/></svg><span id="btn-guardar-texto">{{ _("Guardar el apilado en la galería") }}</span></button>
         <div id="estado-guardar" class="estado centro" style="margin-top: -4px;"></div>
 
         <div class="fila entre">
@@ -507,6 +507,11 @@
     .mosaico-form input[type=number] { width: 90px; }
     .mosaico-form input[type=text] { width: 100%; min-width: 0; }
     .mosaico-form .switch { grid-column: 1 / -1; }
+    #mosaico-estado { display: block; }
+    .mosaico-fin > div { margin-top: 4px; }
+    .mosaico-mini { display: block; margin: -2px 0 8px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-2); max-width: 260px; }
+    .mosaico-mini img { display: block; width: 100%; height: auto; }
+    .mosaico-enlaces { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
     .mosaico-rejilla { display: grid; gap: 4px; margin-top: 8px; max-width: 260px; }
     .mosaico-rejilla .tesela { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 6px;
                                border: 1px solid var(--border-2); background: var(--surface-2); font-size: 14px; font-weight: 700; color: var(--text-2); line-height: 1.1; }
@@ -1084,6 +1089,8 @@
         if (vista === vistaApilado) return;
         vistaApilado = vista;
         document.querySelectorAll("#vistas-apilado .chip-vista").forEach(b => b.classList.toggle("activo", b.dataset.vista === vista));
+        // El botón grande guarda lo que se está viendo: el apilado o el mosaico
+        document.getElementById("btn-guardar-texto").textContent = vista === "mosaico" ? _("Guardar el mosaico en la galería") : _("Guardar el apilado en la galería");
         actualizarImagen();
     }
     function actualizarImagen() {
@@ -1629,7 +1636,7 @@
     function guardarImagenJPG() {
         const estado = document.getElementById("estado-guardar");
         estado.textContent = _("⏳ Guardando...");
-        fetch("/guardar-imagen-jpg", { method: "POST" })
+        fetch(vistaApilado === "mosaico" ? "/mosaico/guardar" : "/guardar-imagen-jpg", { method: "POST" })
             .then(r => r.json())
             .then(d => {
                 estado.textContent = d.mensaje || d.error || _("❌ Error desconocido.");

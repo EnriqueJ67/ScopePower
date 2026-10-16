@@ -6499,6 +6499,7 @@ def guardar_mosaico_en_galeria():
             meta["mosaico"] = rejilla
             firma.guardar_meta(destino, meta)
             GUARDADO.update({"ok": True, "mensaje": _("✅ Mosaico guardado como {archivo} (y su FITS)", archivo=base + ".jpg")})
+            mosaico.trabajo_mosaico.anotar_galeria(base + ".jpg")
             voz.decir(_("Mosaico guardado en la galería"))
             humor.decir("foto_guardada")
         except Exception as ex:

@@ -2052,7 +2052,7 @@ msgstr ""
 msgid "EXPERIMENTAL"
 msgstr ""
 
-#: templates/galeria.html
+#: static/js/mosaico.js templates/galeria.html
 msgid "Editar"
 msgstr ""
 
@@ -3811,8 +3811,14 @@ msgstr ""
 msgid "Guardar configuración"
 msgstr ""
 
+#. js
 #: templates/apilado.html
 msgid "Guardar el apilado en la galería"
+msgstr ""
+
+#. js
+#: templates/apilado.html
+msgid "Guardar el mosaico en la galería"
 msgstr ""
 
 #: templates/apilado.html
@@ -7012,6 +7018,10 @@ msgstr ""
 msgid "Sin grabación de vídeo: {e}"
 msgstr ""
 
+#: static/js/mosaico.js
+msgid "Sin guardar en la galería: usa «Guardar en la galería»"
+msgstr ""
+
 #: templates/seguimiento.html
 msgid "Sin imagen todavía"
 msgstr ""
@@ -7659,6 +7669,10 @@ msgstr ""
 msgid "Venus"
 msgstr ""
 
+#: static/js/mosaico.js
+msgid "Ver el mosaico en el visor"
+msgstr ""
+
 #. js
 #: templates/imagen.html
 msgid "Ver el revelado como el apilado"
@@ -7675,6 +7689,14 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "Ver en el planetario"
+msgstr ""
+
+#: static/js/mosaico.js
+msgid "Ver en el visor"
+msgstr ""
+
+#: static/js/mosaico.js
+msgid "Ver en la galería"
 msgstr ""
 
 #. js

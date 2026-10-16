@@ -847,7 +847,24 @@ class TrabajoMosaico:
                 d["teselas"] = defin.get("teselas", [])
                 d["hechas"] = sum(1 for t in d["teselas"] if t.get("estado") == "hecha")
                 d["resultado"] = defin.get("resultado", "")
+                d["archivo_galeria"] = defin.get("archivo_galeria", "")
         return d
+
+    def anotar_galeria(self, archivo):
+        """Apunta el archivo con que se guardó el mosaico en la galería (botón Guardar o fin del trabajo)."""
+        with self._lock:
+            self.archivo_galeria = archivo or ""
+            self.version_estado += 1
+        try:
+            if self.nombre:
+                guardar_definicion(self.definicion())
+            else:
+                d = leer_definicion()
+                if d is not None:
+                    d["archivo_galeria"] = archivo or ""
+                    guardar_definicion(d)
+        except Exception as e:
+            log.warning("Mosaico: no se pudo apuntar el archivo de la galería: %s", e)
 
     # ── Auxiliares ────────────────────────────────────────────────────
     def _evento(self, texto, decir=None):
@@ -904,7 +921,7 @@ class TrabajoMosaico:
                     "fotos_por_tesela": self.fotos_por_tesela, "teselas": [dict(t) for t in self.teselas],
                     "angulo_deg": self.angulo_deg, "origen_angulo": self.origen_angulo,
                     "inicio": self.inicio.isoformat(timespec="seconds") if self.inicio else "",
-                    "resultado": self.resultado, "campo": self.campo}
+                    "resultado": self.resultado, "archivo_galeria": self.archivo_galeria, "campo": self.campo}
 
     def _wcs_actual(self):
         """WCS con los ejes de la cámara (el real de la última tesela o el previsto) centrado en el mosaico."""
@@ -1002,7 +1019,7 @@ class TrabajoMosaico:
                     if g.get("ok", True) and g.get("en_curso"):
                         g = deps.esperar_guardado()
                     if g.get("ok"):
-                        self._set(archivo_galeria=g.get("archivo", ""))
+                        self.anotar_galeria(g.get("archivo", ""))
                 except Exception as e:
                     log.exception("Mosaico: error guardando en la galería")
                     self._evento(_("No se pudo guardar el mosaico en la galería: {e}", e=e))

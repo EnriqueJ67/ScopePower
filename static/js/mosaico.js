@@ -183,7 +183,7 @@
             if (ult) html += '<div class="texto-3 plan-evento">' + esc(ult.hora) + " " + esc(ult.texto) + "</div>";
             if (estado.combinando) html += '<div class="texto-3 plan-evento">' + _("🧩 Combinando el mosaico: {mensaje}", { mensaje: esc(estado.mensaje_combinar || "") }) + "</div>";
             else if (estado.ultimo_combinado && !estado.ultimo_combinado.error) html += '<div class="texto-3 plan-evento">' + _("🧩 Mosaico de {n} teselas, {ancho}×{alto} px ({hora})", { n: estado.ultimo_combinado.teselas, ancho: estado.ultimo_combinado.ancho, alto: estado.ultimo_combinado.alto, hora: esc(estado.ultimo_combinado.hora) }) + "</div>";
-            caja.innerHTML = html;
+            caja.innerHTML = '<div class="mosaico-fin">' + html + "</div>";
             caja.hidden = false;
             $("mosaico-sub").textContent = _("tesela {i}/{n}", { i: estado.actual !== null ? estado.actual + 1 : "-", n: n }) + " · " + (pausado ? _("en pausa") : (fases[estado.fase] || ""));
         } else {
@@ -196,7 +196,19 @@
                 partes.push('<div class="texto-3 plan-evento">' + (u.error ? _("⚠️ No se pudo combinar: {e}", { e: esc(u.error) })
                     : _("🧩 Mosaico de {n} teselas, {ancho}×{alto} px, {pct} % cubierto ({hora}, {s} s)", { n: u.teselas, ancho: u.ancho, alto: u.alto, pct: u.cobertura_pct, hora: esc(u.hora), s: u.segundos })) + "</div>");
             }
-            caja.innerHTML = partes.join("");
+            if (estado && estado.existe && !estado.combinando) {
+                var archivo = estado.archivo_galeria || "";
+                var enlaces = '<button type="button" class="btn btn-sm btn-secondary" onclick="elegirVista(\'mosaico\')">' + _("Ver en el visor") + "</button>";
+                if (archivo) {
+                    enlaces += ' <a class="btn btn-sm btn-secondary" href="/galeria/compartir/' + encodeURIComponent(archivo) + '" target="_blank">' + _("Ver en la galería") + "</a>";
+                    enlaces += ' <a class="btn btn-sm btn-ghost" href="/galeria/editar/' + encodeURIComponent(archivo) + '">' + _("Editar") + "</a>";
+                } else if (estado.fase === "terminado") {
+                    enlaces += ' <span class="texto-3">' + _("Sin guardar en la galería: usa «Guardar en la galería»") + "</span>";
+                }
+                partes.unshift('<a class="mosaico-mini" href="#" onclick="elegirVista(\'mosaico\'); return false;" title="' + _("Ver el mosaico en el visor") + '"><img src="/resultado-mosaico?' + (estado.version_mosaico || 0) + '" alt=""></a>');
+                partes.push('<div class="mosaico-enlaces">' + enlaces + "</div>");
+            }
+            caja.innerHTML = partes.length ? '<div class="mosaico-fin">' + partes.join("") + "</div>" : "";
             caja.hidden = partes.length === 0;
             var hechas = estado ? estado.hechas : 0;
             $("mosaico-sub").textContent = estado && estado.nombre && estado.teselas && estado.teselas.length

@@ -2054,7 +2054,7 @@ msgstr "It will take about {dur}; at 25 frames per second, the video will be {s}
 msgid "EXPERIMENTAL"
 msgstr "EXPERIMENTAL"
 
-#: templates/galeria.html
+#: static/js/mosaico.js templates/galeria.html
 msgid "Editar"
 msgstr "Edit"
 
@@ -3813,9 +3813,15 @@ msgstr "Save each shot"
 msgid "Guardar configuración"
 msgstr "Save settings"
 
+#. js
 #: templates/apilado.html
 msgid "Guardar el apilado en la galería"
 msgstr "Save the stack to the gallery"
+
+#. js
+#: templates/apilado.html
+msgid "Guardar el mosaico en la galería"
+msgstr "Save the mosaic to the gallery"
 
 #: templates/apilado.html
 msgid "Guardar el mosaico en la galería al terminar"
@@ -7014,6 +7020,10 @@ msgstr "No rotation"
 msgid "Sin grabación de vídeo: {e}"
 msgstr "No video recording: {e}"
 
+#: static/js/mosaico.js
+msgid "Sin guardar en la galería: usa «Guardar en la galería»"
+msgstr "Not saved to the gallery yet: use “Save to the gallery”"
+
 #: templates/seguimiento.html
 msgid "Sin imagen todavía"
 msgstr "No image yet"
@@ -7661,6 +7671,10 @@ msgstr "Invalid speeds"
 msgid "Venus"
 msgstr "Venus"
 
+#: static/js/mosaico.js
+msgid "Ver el mosaico en el visor"
+msgstr "Show the mosaic in the viewer"
+
 #. js
 #: templates/imagen.html
 msgid "Ver el revelado como el apilado"
@@ -7678,6 +7692,14 @@ msgstr "Show on map"
 #: templates/apilado.html
 msgid "Ver en el planetario"
 msgstr "View in the planetarium"
+
+#: static/js/mosaico.js
+msgid "Ver en el visor"
+msgstr "Show in the viewer"
+
+#: static/js/mosaico.js
+msgid "Ver en la galería"
+msgstr "Open in the gallery"
 
 #. js
 #: templates/imagen.html
