@@ -1016,7 +1016,7 @@ window.I18N_CATALOGO = {
 "✅ Ubicación guardada":"✅ Location saved",
 "✅ Ubicación guardada (Stellarium no estaba abierto)":"✅ Location saved (Stellarium wasn't open)",
 "✅ Ubicación guardada y en Stellarium":"✅ Location saved, also in Stellarium",
-"✅ Vista previa lista en {s} s · toca «Original» para comparar":"✅ Preview ready in {s} s · tap “Original” to compare",
+"✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar":"✅ Preview ready in {s} s · colour and curves apply instantly · tap “Original” to compare",
 "✅ Voz en uso: {voz}":"✅ Voice in use: {voz}",
 "✅ Ya está instalada la última release ({version}).":"✅ The latest release is already installed ({version}).",
 "✓ Foto nueva · {hora}":"✓ New shot · {hora}",
