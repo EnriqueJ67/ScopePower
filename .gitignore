@@ -14,7 +14,8 @@ calibraciones/
 *.fits
 *.wcs
 static/captura*
-static/resultado_apilado*
+static/resultado_*
+static/mosaico/
 static/scopepower_objetos.jpg
 static/apilado_info.txt
 static/info_objeto_goto.txt
