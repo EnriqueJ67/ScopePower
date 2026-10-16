@@ -311,6 +311,10 @@ msgstr "<b>iOptron</b>: USB or serial cable to the PC. The port is chosen with �
 msgid "<b>{libre} GB libres</b> de {total} GB en {unidad} · {pct} % libre"
 msgstr "<b>{libre} GB free</b> of {total} GB on {unidad} · {pct}% free"
 
+#: humor.py
+msgid "A este nivel no tengo nada que añadir. Sube un poco."
+msgstr "Nothing to add at this level. Turn it up a bit."
+
 #: templates/rastros.html
 msgid "A la galería"
 msgstr "To the gallery"
@@ -5215,10 +5219,6 @@ msgstr "There is no shot yet; take one (or turn on continuous or live mode)."
 #: ScopePower.py
 msgid "No hay ninguna foto; haz una foto primero."
 msgstr "There's no shot; take one first."
-
-#: humor.py
-msgid "No hay ninguna frase a este nivel. Revisa {fichero}."
-msgstr "There are no lines at this level. Check {fichero}."
 
 #: seguimiento.py
 msgid "No hay ninguna mancha cerca del punto pulsado"

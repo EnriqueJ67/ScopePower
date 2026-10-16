@@ -439,3 +439,37 @@ foto_peor;70;Mínimo histórico de la sesión. Si la siguiente es peor, empezar�
 foto_peor;75;La peor de la noche. Un Dwarf la habría puesto de portada.
 foto_peor;85;Récord por abajo. No ha sido el cielo: el cielo lleva toda la noche igual.
 foto_peor;95;La peor foto que ha entrado hasta ahora. Y aun así entra, que ya dice bastante del resto.
+# ══════════════════════════════════════════════════════════════════════════════
+# Niveles bajos (5-25 %): humor seco y educado, apenas una ceja levantada
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;5;Sistemas listos. El cielo, por su parte, hará lo que quiera.
+arranque;15;Todo en orden. Cualquier nube a partir de ahora es cosa de la meteorología, no mía.
+conexion_ok;10;Equipo conectado. Hasta aquí, sin sorpresas.
+conexion_ok;20;Conectado a la primera. Lo anoto, por si luego hace falta recordarlo.
+conexion_fallo;15;Sin conexión. Suele ser el cable. Casi siempre es el cable.
+goto_inicio;5;En camino. La montura va a su ritmo, no al nuestro.
+goto_inicio;20;Moviendo el telescopio. Es buen momento para no tocar nada.
+goto_llegada;10;En el objetivo. Si no está en la foto, no habrá sido por falta de puntería.
+goto_llegada;25;Apuntando. Ahora, paciencia: el universo no tiene prisa.
+goto_bajo_horizonte;15;Está por debajo del horizonte. Hasta ahí no llego ni yo.
+objeto_no_encontrado;15;No encuentro ese objeto. Puede que el universo tampoco.
+centrado_ok;10;Centrado. Las estrellas estaban donde debían.
+foto_guardada;10;Foto guardada. Una más para la colección.
+foto_guardada;25;Guardada. Los fotones han hecho un viaje muy largo para acabar en una galería.
+foto_descartada;10;Foto descartada. Hay noches así.
+foto_descartada;20;Descartada. No todas las fotos pueden ser la buena.
+foto_mejor;15;La mejor de la noche. Toca cruzar los dedos para que no sea la última buena.
+foto_peor;15;La peor hasta ahora. Alguna tenía que serlo.
+apilado_inicio;10;Empieza el apilado. A partir de aquí, cada foto cuenta.
+apilado_inicio;25;Apilando. Un buen momento para un café; de esto me ocupo yo.
+apilado_fin;10;Apilado terminado con {n} fotos. Trabajo hecho.
+apilado_fin;20;{n} fotos apiladas. Ya se puede mirar sin miedo.
+cancelado;15;Cancelado. Sin rencor.
+disco_bajo;10;Queda poco disco. Conviene hacer sitio antes de que lo haga él.
+error;10;Algo ha fallado. Lo normal, vamos.
+error;20;Error. No es grave hasta que se repite.
+proceso;15;Procesando. Esto lleva lo que lleva.
+exito;5;Hecho. Sin incidentes.
+exito;20;Terminado. Y a la primera, que no es poco.
+tars;10;Nota: hago lo que puedo con lo que hay.
+tars;25;Dato: nadie ha conseguido todavía que una nube se aparte con el ratón.

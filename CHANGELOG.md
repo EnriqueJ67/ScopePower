@@ -5,6 +5,8 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.2 · 2026-10-16
 
+- Humor: frases para los niveles bajos (5-25 %), que hasta ahora no tenían ninguna, en español y en
+  inglés; «Probar» ya no menciona ningún fichero cuando no hay frase.
 - Una sola versión para instalar: «Actualizar desde GitHub» (en Configuración y en
   `actualizar_desde_github.bat`) solo ofrece la última release. Desaparecen el botón «Actualizar a
   master» y la opción `/master`, que instalaban lo último en desarrollo sin publicar. Se mantiene

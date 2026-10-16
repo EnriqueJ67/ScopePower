@@ -446,3 +446,37 @@ foto_peor;70;All-time session low. If the next one is worse, I'll start suspecti
 foto_peor;75;Worst of the night. A Dwarf would have made it the cover photo.
 foto_peor;85;Record from below. It wasn't the sky. The sky has been the same all night.
 foto_peor;95;The worst frame accepted so far. And it still got in, which says a lot about the rest.
+# ══════════════════════════════════════════════════════════════════════════════
+# Low levels (5-25 %): dry, polite humour, barely a raised eyebrow
+# ══════════════════════════════════════════════════════════════════════════════
+arranque;5;Systems ready. The sky, for its part, will do as it pleases.
+arranque;15;All in order. Any cloud from now on is the weather's doing, not mine.
+conexion_ok;10;Equipment connected. So far, no surprises.
+conexion_ok;20;Connected first time. Noted, in case we need to remember it later.
+conexion_fallo;15;No connection. It's usually the cable. It's almost always the cable.
+goto_inicio;5;On the way. The mount goes at its own pace, not ours.
+goto_inicio;20;Moving the telescope. A good moment to touch nothing.
+goto_llegada;10;On target. If it's not in the frame, it won't be for lack of aim.
+goto_llegada;25;Pointing. Now, patience: the universe is in no hurry.
+goto_bajo_horizonte;15;It's below the horizon. Not even I can reach that far.
+objeto_no_encontrado;15;I can't find that object. Perhaps the universe can't either.
+centrado_ok;10;Centred. The stars were where they should be.
+foto_guardada;10;Photo saved. One more for the collection.
+foto_guardada;25;Saved. Those photons travelled a very long way to end up in a gallery.
+foto_descartada;10;Frame discarded. Some nights are like that.
+foto_descartada;20;Discarded. Not every frame can be the good one.
+foto_mejor;15;Best of the night. Fingers crossed it isn't the last good one.
+foto_peor;15;Worst so far. One of them had to be.
+apilado_inicio;10;Stacking started. From here on, every frame counts.
+apilado_inicio;25;Stacking. A good moment for a coffee; I'll take it from here.
+apilado_fin;10;Stacking finished with {n} frames. Job done.
+apilado_fin;20;{n} frames stacked. Safe to look now.
+cancelado;15;Cancelled. No hard feelings.
+disco_bajo;10;Disk running low. Best make room before it does it for you.
+error;10;Something failed. Business as usual.
+error;20;Error. Not serious until it happens again.
+proceso;15;Processing. It takes what it takes.
+exito;5;Done. No incidents.
+exito;20;Finished. And at the first attempt, which is something.
+tars;10;Note: I do what I can with what there is.
+tars;25;Fact: nobody has yet managed to move a cloud with the mouse.

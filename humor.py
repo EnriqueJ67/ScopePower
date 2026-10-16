@@ -271,8 +271,8 @@ class Humorista:
             self._recargar_si_cambio()
             frase = self._elegir_entre([f for ev, h, f in self._frases if h <= nivel and ev != "nivel_humor"])
             if frase is None:
-                frase = _("No hay ninguna frase a este nivel. Revisa {fichero}.",
-                          fichero=os.path.basename(self.ruta))
+                # Sin mencionar el fichero: el humor tiene que parecer cosa de la propia app
+                frase = _("A este nivel no tengo nada que añadir. Sube un poco.")
             frase = self._formatear(frase, {})
         self._hablar(frase, "prueba")
         return frase
