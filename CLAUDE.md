@@ -47,4 +47,5 @@ casilla y lo cuenta en la descripción del PR. Nunca se quita la protección par
 
 Simuladores ASCOM (`ASCOM.Simulator.Telescope` y `ASCOM.Simulator.Camera`) en una copia de la
 carpeta con su propio `config.ini` y `anunciar_ip = false`. Las pruebas
-sintéticas: `herramientas/probar_mosaico.py` y `herramientas/probar_seguimiento_simulado.py`.
+sintéticas: `herramientas/probar_servidor.py` (servidor web y pantallas, obligatoria si cambia
+`requirements.txt`), `herramientas/probar_mosaico.py` y `herramientas/probar_seguimiento_simulado.py`.

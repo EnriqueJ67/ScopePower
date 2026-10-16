@@ -111,9 +111,14 @@ Dos consejos:
 Las pruebas que no necesitan equipo están en `herramientas/`:
 
 ```bash
+python herramientas\probar_servidor.py
 python herramientas\probar_mosaico.py
 python herramientas\probar_seguimiento_simulado.py --segundos 10
 ```
+
+`probar_servidor.py` importa ScopePower como en un PC recién instalado y pide las pantallas
+principales en español e inglés: es la que detecta una versión de Flask, Werkzeug o Pillow que no
+encaja. Pásala siempre que toques `requirements.txt`.
 
 `probar_cometa.py` necesita ASTAP y un FITS real de la galería; `medir_*.py` y
 `comprobar_equipo.py` necesitan la cámara o la montura de verdad.

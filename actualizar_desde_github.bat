@@ -172,7 +172,7 @@ if defined RAMA if /I not "!RAMA!"=="master" (
 REM ---- 4) Bajar lo nuevo (ramas y etiquetas) ----
 git remote set-url origin "%REMOTO%" >nul 2>&1
 echo  Descargando de GitHub...
-git fetch --quiet --tags --prune origin
+git fetch --quiet --force --tags --prune origin
 if errorlevel 1 goto :fin_error_git
 
 REM ---- 5) Elegir el destino ----
