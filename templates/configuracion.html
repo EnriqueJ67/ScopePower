@@ -125,7 +125,6 @@
             <div class="act-botones mb-2">
                 <button type="button" class="btn btn-secondary" id="act-btn-comprobar" onclick="comprobarActualizacion()"><svg><use href="#i-refrescar"/></svg>{{ _("Comprobar") }}</button>
                 <button type="button" class="btn btn-primary" id="act-btn-release" onclick="aplicarActualizacion('release')" hidden><svg><use href="#i-guardar"/></svg>{{ _("Actualizar") }}</button>
-                <button type="button" class="btn btn-secondary" id="act-btn-master" onclick="aplicarActualizacion('master')" hidden>{{ _("Actualizar a master") }}</button>
                 <button type="button" class="btn btn-secondary" id="act-btn-volver" onclick="aplicarActualizacion('volver')" hidden>{{ _("Volver a la anterior") }}</button>
             </div>
             <div id="estado-actualizar" class="estado mb-2"></div>
@@ -346,7 +345,7 @@
     function comprobarActualizacion() {
         const btn = document.getElementById("act-btn-comprobar");
         btn.disabled = true;
-        ["release", "master"].forEach(x => document.getElementById("act-btn-" + x).hidden = true);
+        document.getElementById("act-btn-release").hidden = true;
         document.getElementById("act-commits").hidden = true;
         actMensaje('<span class="spinner"></span>' + _("Consultando GitHub..."));
         fetch("/actualizar/comprobar", { method: "POST" }).then(r => r.json()).then(d => {
@@ -373,26 +372,15 @@
                 }
             } else {
                 ult.textContent = _("ninguna todavía");
-                actMensaje(_("ℹ️ En GitHub no hay ninguna release publicada todavía; se puede actualizar a master."));
-            }
-            // master (último desarrollo): solo si trae algo distinto de lo instalado
-            if (!d.al_dia_master) {
-                const bm = document.getElementById("act-btn-master");
-                bm.hidden = false;
-                bm.title = d.commits_master.length
-                    ? ngettext("{n} commit en master: versión en desarrollo, puede fallar", "{n} commits en master: versión en desarrollo, puede fallar", d.commits_master.length)
-                    : _("master: versión en desarrollo, puede fallar");
+                actMensaje(_("ℹ️ En GitHub no hay ninguna release publicada todavía."));
             }
         }).catch(err => { btn.disabled = false; actMensaje("❌ " + err, "err"); });
     }
     function aplicarActualizacion(destino) {
-        const pregunta = destino === "master"
-            ? _("¿Actualizar ScopePower a la última versión de master (en desarrollo, puede fallar)?")
-            : destino === "volver"
-                ? _("¿Volver ScopePower a la versión anterior ({nombre})?", { nombre: actEstado && actEstado.anterior ? actEstado.anterior.nombre : "?" })
-                : _("¿Actualizar ScopePower a la release {version}?", { version: (actComprobado && actComprobado.ultima_release) || "" });
+        const pregunta = destino === "volver"
+            ? _("¿Volver ScopePower a la versión anterior ({nombre})?", { nombre: actEstado && actEstado.anterior ? actEstado.anterior.nombre : "?" })
+            : _("¿Actualizar ScopePower a la release {version}?", { version: (actComprobado && actComprobado.ultima_release) || "" });
         if (!confirm(pregunta + "\n\n" + _("Se desconectarán la cámara y la montura, la app se cierra, se actualiza y vuelve a arrancar sola. Puede tardar varios minutos si cambian las dependencias."))) return;
-        if (destino === "master" && !confirm(_("master es la versión en desarrollo y puede no estar probada con equipo real. Si algo falla, «Volver a la anterior» deja la versión de ahora. ¿Seguir?"))) return;
         actBotones(false);
         actMensaje('<span class="spinner"></span>' + _("Desconectando el equipo..."));
         fetch("/actualizar/aplicar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ destino }) })

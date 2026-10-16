@@ -35,7 +35,8 @@ FICHERO_PENDIENTE = os.path.join(RAIZ, "datos", "actualizar_pendiente.txt")
 FICHERO_ANTERIOR = os.path.join(RAIZ, "datos", "version_anterior.txt")
 LOG_ACTUALIZACION = os.path.join(RAIZ, "logs", "actualizacion.log")
 CODIGO_SALIDA_ACTUALIZAR = 5          # lo entiende lanzar_scopepower.bat
-DESTINOS = ("release", "master", "volver")
+# Solo hay una versión para instalar: la última release. «volver» deshace la última actualización.
+DESTINOS = ("release", "volver")
 
 TIMEOUT_CONSULTA_S = 10               # ls-remote: con Internet responde en 1-2 s
 TIMEOUT_FETCH_S = 90                  # bajar los objetos nuevos puede tardar algo más
@@ -172,9 +173,8 @@ def _motivo_fallo(salida):
 def comprobar():
     """
     Consulta GitHub. Devuelve un dict con 'ok' y, si todo va bien: 'ultima_release',
-    'commits_release' y 'commits_master' (lo que entraría con cada destino, más nuevo arriba),
-    'al_dia_release' y 'al_dia_master'. Si no, 'motivo' (sin_red | sin_permiso | sin_git |
-    no_clon | error) y un 'mensaje' para enseñar.
+    'commits_release' (lo que entraría, más nuevo arriba), 'al_dia_release' y 'fecha_release'.
+    Si no, 'motivo' (sin_red | sin_permiso | sin_git | no_clon | error) y un 'mensaje' para enseñar.
     """
     if not hay_git():
         return {"ok": False, "motivo": "sin_git",
@@ -206,8 +206,8 @@ def comprobar():
         return {"ok": False, "motivo": "error", "mensaje": _("No se pudo ejecutar git: {e}", e=e)}
 
     ultima = ultima_release(etiquetas)
-    resultado = {"ok": True, "ultima_release": ultima, "commits_release": [], "commits_master": [],
-                 "al_dia_release": None, "al_dia_master": None, "fecha_release": None}
+    resultado = {"ok": True, "ultima_release": ultima, "commits_release": [],
+                 "al_dia_release": None, "fecha_release": None}
 
     def _entrarian(destino):
         """Commits de destino que aquí no están (más nuevo arriba) y si HEAD ya es destino."""
@@ -220,9 +220,8 @@ def comprobar():
         resultado["commits_release"], resultado["al_dia_release"] = _entrarian(ultima)
         fecha = _git("log", "-1", "--format=%cs", ultima)
         resultado["fecha_release"] = fecha.stdout.strip() or None
-    resultado["commits_master"], resultado["al_dia_master"] = _entrarian("origin/master")
-    log.info("Comprobada la actualización: instalado %s, última release %s, master trae %d commits",
-             version.VERSION, ultima or "ninguna", len(resultado["commits_master"]))
+    log.info("Comprobada la actualización: instalado %s, última release %s",
+             version.VERSION, ultima or "ninguna")
     return resultado
 
 

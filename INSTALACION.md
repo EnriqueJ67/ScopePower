@@ -91,8 +91,7 @@ repositorio es público: no hace falta cuenta de GitHub para actualizar.
   (unos segundos, o varios minutos si han cambiado las dependencias). Hace falta que la app la haya
   arrancado `lanzar_scopepower.bat` o el acceso directo del escritorio, como en el mini PC.
 - En el mini PC, `actualizar_desde_github.bat`: enseña los commits que van a entrar y pide
-  confirmación. Opciones: `/master` actualiza a lo último de la rama master (en desarrollo, sin
-  probar en el campo), `/si` no pregunta, `/volver` deja la versión que había antes de la última
+  confirmación. Opciones: `/si` no pregunta, `/volver` deja la versión que había antes de la última
   actualización (queda apuntada en `datos\version_anterior.txt`). Si `requirements.txt` ha cambiado,
   reinstala las dependencias con el entorno de `instalar_scopepower.bat`. Si ScopePower está en marcha,
   ofrece cerrarlo y volver a arrancarlo al terminar.
