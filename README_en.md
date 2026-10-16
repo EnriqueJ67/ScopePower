@@ -42,7 +42,7 @@ The screenshots show the Spanish interface. More in [docs/capturas](docs/captura
   calibration library by exposure, gain and binning.
 - **Mount**: speed pad, multi-point alignment, altitude limits, parking, a sidereal tracking
   watchdog, direct UDP access to the SynScan Wi-Fi module as well as ASCOM.
-- **Voice announcements** on the PC (with an adjustable humor level), IP announcement at startup,
+- **Voice announcements** on the PC, IP announcement at startup,
   low disk space warning and its own Wi-Fi hotspot for the field.
 
 ## Language

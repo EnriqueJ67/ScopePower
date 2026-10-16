@@ -50,7 +50,7 @@ Más capturas en [docs/capturas](docs/capturas).
   biblioteca de calibración por exposición, ganancia y binning.
 - **Montura**: pad de velocidades, alineación por puntos, límites de altura, aparcado, vigilante
   del seguimiento sidéreo, acceso directo por UDP al SynScan Wi-Fi además de ASCOM.
-- **Avisos por voz** en el PC (con un nivel de humor ajustable), anuncio de la IP al arrancar,
+- **Avisos por voz** en el PC, anuncio de la IP al arrancar,
   aviso de espacio en disco y punto de acceso wifi propio para el campo.
 
 ## Idioma
