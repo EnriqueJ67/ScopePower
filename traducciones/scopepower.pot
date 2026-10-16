@@ -309,6 +309,10 @@ msgstr ""
 msgid "<b>{libre} GB libres</b> de {total} GB en {unidad} · {pct} % libre"
 msgstr ""
 
+#: humor.py
+msgid "A este nivel no tengo nada que añadir. Sube un poco."
+msgstr ""
+
 #: templates/rastros.html
 msgid "A la galería"
 msgstr ""
@@ -5212,10 +5216,6 @@ msgstr ""
 
 #: ScopePower.py
 msgid "No hay ninguna foto; haz una foto primero."
-msgstr ""
-
-#: humor.py
-msgid "No hay ninguna frase a este nivel. Revisa {fichero}."
 msgstr ""
 
 #: seguimiento.py

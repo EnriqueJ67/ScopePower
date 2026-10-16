@@ -3,6 +3,11 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## 1.2.3 · sin fecha (en preparación)
+
+- Humor: frases para los niveles bajos (5-25 %), que hasta ahora no tenían ninguna, en español y en
+  inglés; «Probar» ya no menciona ningún fichero cuando no hay frase.
+
 ## 1.2.2 · 2026-10-16
 
 - Una sola versión para instalar: «Actualizar desde GitHub» (en Configuración y en
