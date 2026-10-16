@@ -53,7 +53,6 @@ def preparar_copia():
     if not os.path.exists(ruta_cfg):
         ruta_cfg = os.path.join(RAIZ, "config.example.ini")
     cfg.read(ruta_cfg, encoding="utf-8")
-    cfg["FTP"]["subir_ftp"] = "false"
     if "Voz" in cfg:
         cfg["Voz"]["activada"] = "false"
     if "Mosaico" not in cfg:

@@ -16,7 +16,7 @@ Ficheros que NO están en git y conviene copiar del PC antiguo:
 
 - `config.ini` (si no existe, la app lo crea desde `config.example.ini` y abre el asistente
   de configuración; ver el punto 4)
-- `secretos.ini` (contraseña FTP y clave de Astrometry)
+- `secretos.ini` (clave de Astrometry y clave de sesión)
 - `calibraciones\` (darks y flat maestros, si valen para la misma cámara)
 
 ## 2. Ejecutar el instalador
