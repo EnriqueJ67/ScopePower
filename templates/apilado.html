@@ -417,6 +417,25 @@
                         <input type="range" id="proc-scnr" min="0" max="1" step="0.05" oninput="document.getElementById('proc-scnr-v').textContent = this.value">
                     </div>
                 </details>
+                <!-- Curvas por puntos de control (static/js/curvas.js), las mismas que en el editor de la
+                     galería; se guardan en config.ini ([Procesado] curvas) y en los presets, y el apilado en
+                     vivo las aplica al final del color (procesado.aplicar_curvas) -->
+                <details id="proc-curvas-det" class="mt-2">
+                    <summary class="proc-mas-titulo">{{ _("Curvas por puntos (RGB y por canal)") }}<span id="proc-curvas-marca" class="chip" style="display: none; margin-left: 8px;">{{ _("activas") }}</span></summary>
+                    <div class="segmentado mt-1" id="proc-curvas-seg" style="width: 100%;">
+                        <button type="button" class="activo" data-canal="rgb" onclick="elegirCanalCurvaApilado('rgb')" style="flex: 1;"><span class="punto-canal" style="background: linear-gradient(135deg, #ff5a5a, #5ad26b 50%, #5a9bff);"></span>RGB</button>
+                        <button type="button" data-canal="r" onclick="elegirCanalCurvaApilado('r')" style="flex: 1;"><span class="punto-canal" style="background: #ff5a5a;"></span>R</button>
+                        <button type="button" data-canal="g" onclick="elegirCanalCurvaApilado('g')" style="flex: 1;"><span class="punto-canal" style="background: #5ad26b;"></span>G</button>
+                        <button type="button" data-canal="b" onclick="elegirCanalCurvaApilado('b')" style="flex: 1;"><span class="punto-canal" style="background: #5a9bff;"></span>B</button>
+                    </div>
+                    <canvas id="proc-curvas-lienzo" class="curvas-lienzo mt-2"></canvas>
+                    <div class="fila mt-2" style="gap: 6px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="proc-curva-borrar" onclick="editorCurvasApilado.borrarPunto()" disabled title="{{ _('Quita el punto seleccionado (los extremos no se quitan)') }}" style="flex: 1;">{{ _("Borrar punto") }}</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasApilado.reiniciar()" title="{{ _('Deja recta la curva de este canal') }}" style="flex: 1;">{{ _("Reiniciar") }}</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasApilado.reiniciarTodo()" title="{{ _('Deja rectas las cuatro curvas') }}" style="flex: 1;">{{ _("Todas") }}</button>
+                    </div>
+                    <small class="ayuda">{{ _("Toca la curva para añadir un punto y arrástralo; de fondo, el histograma de la vista previa. Se aplican al apilado en vivo y al guardar en la galería tras pulsar «Aplicar a la vista previa», y se guardan en los presets.") }}</small>
+                </details>
                 <div class="campo mt-2">
                     <label>{{ _("Campo visible (zoom)") }}</label>
                     <select id="input-zoom" class="form-control">
@@ -560,6 +579,7 @@
 
 <!-- La pantalla se mantiene encendida desde base.html (static/js/pantalla.js) -->
 
+<script src="{{ url_for('static', filename='js/curvas.js') }}?v={{ VERSION }}"></script>
 <script>
     // ——— Inicialización: mostrar el panel de darks/arranque. NO se captura
     //     nada hasta que el usuario pulsa Empezar (así abrir la página no
@@ -911,7 +931,40 @@
         document.getElementById("proc-scnr_estrellas").checked = a.scnr_estrellas !== false;
         document.getElementById("proc-color_estrellas_uniforme").checked = a.color_estrellas_uniforme !== false;
         if (a.curva !== undefined) document.getElementById("proc-curva").value = a.curva || "gamma";
+        if (a.curvas !== undefined) { editorCurvasApilado.poner(a.curvas || {}); pintarCanalesCurvasApilado(); }
     }
+
+    // ——— Curvas por puntos (static/js/curvas.js), las mismas del editor de la galería ———
+    const editorCurvasApilado = new EditorCurvas(document.getElementById("proc-curvas-lienzo"), {
+        alCambiar: () => { pintarCanalesCurvasApilado(); document.getElementById("estado-mtf").textContent = _('Curvas cambiadas · pulsa "Aplicar a la vista previa"'); },
+        alSeleccionar: i => { const p = editorCurvasApilado.puntos[editorCurvasApilado.activo]; document.getElementById("proc-curva-borrar").disabled = !(i > 0 && i < p.length - 1); }
+    });
+    function elegirCanalCurvaApilado(canal) {
+        editorCurvasApilado.canal(canal);
+        document.querySelectorAll("#proc-curvas-seg button").forEach(b => b.classList.toggle("activo", b.dataset.canal === canal));
+    }
+    function pintarCanalesCurvasApilado() {
+        let alguna = false;
+        document.querySelectorAll("#proc-curvas-seg button").forEach(b => { const t = editorCurvasApilado.tocada(b.dataset.canal); b.classList.toggle("tocada", t); alguna = alguna || t; });
+        document.getElementById("proc-curvas-marca").style.display = alguna ? "" : "none";
+    }
+    // Histograma de la vista previa de fondo del lienzo: se lee del JPG apilado cada vez que cambia
+    function histogramaDePreview() {
+        const img = document.getElementById("preview");
+        if (!img.complete || !img.naturalWidth) return;
+        try {
+            const lado = 400, f = lado / Math.max(img.naturalWidth, img.naturalHeight);
+            const c = document.createElement("canvas");
+            c.width = Math.max(1, Math.round(img.naturalWidth * f)); c.height = Math.max(1, Math.round(img.naturalHeight * f));
+            const ctx = c.getContext("2d", { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            const d = ctx.getImageData(0, 0, c.width, c.height).data;
+            const h = { r: new Uint32Array(256), g: new Uint32Array(256), b: new Uint32Array(256), l: new Uint32Array(256) };
+            for (let i = 0; i < d.length; i += 4) { h.r[d[i]]++; h.g[d[i + 1]]++; h.b[d[i + 2]]++; h.l[(d[i] + d[i + 1] + d[i + 2]) / 3 | 0]++; }
+            editorCurvasApilado.histograma(h);
+        } catch (e) { /* imagen de otro origen o aún sin cargar: sin histograma */ }
+    }
+    document.getElementById("preview").addEventListener("load", histogramaDePreview);
 
     function cargarParametros() {
         fetch("/config-procesado").then(r => r.json()).then(d => {
@@ -989,7 +1042,7 @@
         const n = document.getElementById("proc-preset").value;
         if (!n || !PRESETS[n]) return;
         const estado = document.getElementById("estado-mtf");
-        fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ curva: "gamma" }, PRESETS[n])) })
+        fetch("/guardar-config-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ curva: "gamma", curvas: {} }, PRESETS[n])) })
             .then(r => r.json())
             .then(d => { if (d.ajustes) pintarAjustes(d.ajustes); estado.textContent = _('Preset "{n}" cargado · pulsa "Aplicar a la vista previa"', { n: n }); })
             .catch(err => estado.textContent = "❌ " + err);
@@ -1015,7 +1068,8 @@
             gradiente: document.getElementById("proc-gradiente").checked,
             aplanar: document.getElementById("proc-aplanar").checked,
             scnr_estrellas: document.getElementById("proc-scnr_estrellas").checked,
-            color_estrellas_uniforme: document.getElementById("proc-color_estrellas_uniforme").checked
+            color_estrellas_uniforme: document.getElementById("proc-color_estrellas_uniforme").checked,
+            curvas: editorCurvasApilado.curvas
         });
         const r = await fetch("/presets-procesado", { method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ nombre: nombre.trim(), ajustes }) }).then(r => r.json());
@@ -1050,7 +1104,8 @@
             gradiente: document.getElementById("proc-gradiente").checked,
             aplanar: document.getElementById("proc-aplanar").checked,
             scnr_estrellas: document.getElementById("proc-scnr_estrellas").checked,
-            color_estrellas_uniforme: document.getElementById("proc-color_estrellas_uniforme").checked
+            color_estrellas_uniforme: document.getElementById("proc-color_estrellas_uniforme").checked,
+            curvas: editorCurvasApilado.curvas
         };
         estado.textContent = _("⏳ Aplicando y regenerando la vista previa...");
         fetch("/guardar-config-zoom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(encuadre) })

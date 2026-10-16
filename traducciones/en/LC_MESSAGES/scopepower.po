@@ -933,7 +933,7 @@ msgstr "Delete the selected preset"
 msgid "Borrar este rastro"
 msgstr "Delete this trail"
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Borrar punto"
 msgstr "Delete point"
 
@@ -1734,6 +1734,15 @@ msgstr "Background curve"
 msgid "Curvas"
 msgstr "Curves"
 
+#. js
+#: templates/apilado.html
+msgid "Curvas cambiadas · pulsa \"Aplicar a la vista previa\""
+msgstr "Curves changed · press \"Apply to the preview\""
+
+#: templates/apilado.html
+msgid "Curvas por puntos (RGB y por canal)"
+msgstr "Point curves (RGB and per channel)"
+
 #: templates/apilado.html
 msgid "Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas)."
 msgstr "How much the background is raised (0.10-0.20 normal; more for extended nebulae)."
@@ -1896,11 +1905,11 @@ msgstr "Tell ScopePower"
 msgid "Deja la foto como se ve a simple vista: arriba hacia el cénit y el acimut hacia la derecha"
 msgstr "Orients the shot as seen with the naked eye: up toward the zenith and azimuth to the right"
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Deja recta la curva de este canal"
 msgstr "Straighten this channel's curve"
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Deja rectas las cuatro curvas"
 msgstr "Straighten all four curves"
 
@@ -6272,7 +6281,7 @@ msgstr "Disk space is running low: {p} percent free, {espacio}."
 msgid "Quedan {s} s de esta toma"
 msgstr "{s} s left in this frame"
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Quita el punto seleccionado (los extremos no se quitan)"
 msgstr "Removes the selected point (the end points cannot be removed)"
 
@@ -7456,8 +7465,12 @@ msgid "Toca el objeto para elegirlo · {n} px de lado"
 msgstr "Tap the object to select it · {n} px per side"
 
 #: templates/editar_foto.html
-msgid "Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Las curvas se guardan con la foto, no en los presets."
-msgstr "Tap the curve to add a point and drag it: up brightens, down darkens. A gentle S (lower the left, raise the right) adds contrast; the end points only move up or down (black and white point). RGB is applied first, then each colour's own curve. Curves are saved with the photo, not in presets."
+msgid "Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Se guardan con la foto y en los presets."
+msgstr "Tap the curve to add a point and drag it: up brightens, down darkens. A gentle S (lower the left, raise the right) adds contrast; the end points only move up or down (black and white point). RGB is applied first, then each colour's own curve. They are saved with the photo and in presets."
+
+#: templates/apilado.html
+msgid "Toca la curva para añadir un punto y arrástralo; de fondo, el histograma de la vista previa. Se aplican al apilado en vivo y al guardar en la galería tras pulsar «Aplicar a la vista previa», y se guardan en los presets."
+msgstr "Tap the curve to add a point and drag it; the preview's histogram is shown behind it. They apply to the live stack and to the gallery save once you press “Apply to the preview”, and they are saved in presets."
 
 #. js
 #: templates/editar_foto.html
@@ -7482,7 +7495,7 @@ msgstr "Tap a thumbnail to see it full size"
 msgid "Tocar la foto"
 msgstr "Tap the photo"
 
-#: templates/editar_foto.html templates/galeria.html
+#: templates/apilado.html templates/editar_foto.html templates/galeria.html
 msgid "Todas"
 msgstr "All"
 
@@ -8016,6 +8029,10 @@ msgstr "ends inside"
 #: camara_toupcam.py
 msgid "acceso denegado"
 msgstr "access denied"
+
+#: templates/apilado.html
+msgid "activas"
+msgstr "active"
 
 #. js
 #: templates/apilado.html

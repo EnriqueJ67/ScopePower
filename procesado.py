@@ -95,6 +95,12 @@ def leer_config():
         ajustes["escala_aplanado"] = float(p.get("escala_aplanado"))
     if str(p.get("curva", "")).strip() != "":
         ajustes["curva"] = str(p.get("curva")).strip().lower()
+    # Curvas por puntos de control del editor, guardadas como JSON (ver normalizar_curvas)
+    if str(p.get("curvas", "")).strip() != "":
+        try:
+            ajustes["curvas"] = normalizar_curvas(json.loads(p.get("curvas")))
+        except ValueError:
+            log.warning("[Procesado] curvas no es un JSON válido; se ignora")
     return ajustes
 
 
@@ -104,7 +110,7 @@ def leer_config():
 PRESETS_RUTA = "presets_procesado.json"
 CLAVES_PRESET = ("estilo", "estirado", "curva", "fondo_objetivo", "compresion", "brillo", "temperatura",
                  "ruido", "contraste", "saturacion", "saturacion_estrellas", "scnr", "scnr_estrellas", "color_estrellas_uniforme",
-                 "gradiente", "aplanar", "nitidez")
+                 "gradiente", "aplanar", "nitidez", "curvas")
 _lock_presets = threading.Lock()
 
 
@@ -123,13 +129,16 @@ def leer_presets():
 def _filtrar_preset(ajustes):
     limpio = {}
     for k in CLAVES_PRESET:
-        if k not in ajustes or ajustes[k] is None or str(ajustes[k]).strip() == "":
+        if k not in ajustes or ajustes[k] is None or (not isinstance(ajustes[k], dict) and str(ajustes[k]).strip() == ""):
             continue
         v = ajustes[k]
         if k in ("gradiente", "aplanar", "scnr_estrellas", "color_estrellas_uniforme"):
             limpio[k] = (str(v).lower() == "true") if not isinstance(v, bool) else v
         elif k in ("estilo", "estirado", "curva"):
             limpio[k] = str(v).lower()
+        elif k == "curvas":
+            # Siempre presente (aunque vacío): al cargar el preset borra las curvas anteriores
+            limpio[k] = normalizar_curvas(v if isinstance(v, dict) else {})
         else:
             try:
                 limpio[k] = float(v)
@@ -246,6 +255,15 @@ def guardar_config(cambios):
                  "fondo_objetivo", "agresividad", "compresion", "recuperacion", "escala", "curva",
                  "brillo", "temperatura"):
             cfg["Procesado"][k] = str(v).lower() if isinstance(v, bool) else str(v)
+        elif k == "curvas":
+            # Puede venir como dict (de la web) o como el JSON ya hecho (de un preset); vacío = sin curvas
+            if isinstance(v, str):
+                try:
+                    v = json.loads(v) if v.strip() else {}
+                except ValueError:
+                    v = {}
+            curvas = normalizar_curvas(v)
+            cfg["Procesado"]["curvas"] = json.dumps(curvas, separators=(",", ":")) if curvas else ""
     with open("config.ini", "w") as f:
         cfg.write(f)
 

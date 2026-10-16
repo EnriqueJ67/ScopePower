@@ -931,7 +931,7 @@ msgstr ""
 msgid "Borrar este rastro"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Borrar punto"
 msgstr ""
 
@@ -1732,6 +1732,15 @@ msgstr ""
 msgid "Curvas"
 msgstr ""
 
+#. js
+#: templates/apilado.html
+msgid "Curvas cambiadas · pulsa \"Aplicar a la vista previa\""
+msgstr ""
+
+#: templates/apilado.html
+msgid "Curvas por puntos (RGB y por canal)"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas)."
 msgstr ""
@@ -1894,11 +1903,11 @@ msgstr ""
 msgid "Deja la foto como se ve a simple vista: arriba hacia el cénit y el acimut hacia la derecha"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Deja recta la curva de este canal"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Deja rectas las cuatro curvas"
 msgstr ""
 
@@ -6270,7 +6279,7 @@ msgstr ""
 msgid "Quedan {s} s de esta toma"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Quita el punto seleccionado (los extremos no se quitan)"
 msgstr ""
 
@@ -7454,7 +7463,11 @@ msgid "Toca el objeto para elegirlo · {n} px de lado"
 msgstr ""
 
 #: templates/editar_foto.html
-msgid "Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Las curvas se guardan con la foto, no en los presets."
+msgid "Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Se guardan con la foto y en los presets."
+msgstr ""
+
+#: templates/apilado.html
+msgid "Toca la curva para añadir un punto y arrástralo; de fondo, el histograma de la vista previa. Se aplican al apilado en vivo y al guardar en la galería tras pulsar «Aplicar a la vista previa», y se guardan en los presets."
 msgstr ""
 
 #. js
@@ -7480,7 +7493,7 @@ msgstr ""
 msgid "Tocar la foto"
 msgstr ""
 
-#: templates/editar_foto.html templates/galeria.html
+#: templates/apilado.html templates/editar_foto.html templates/galeria.html
 msgid "Todas"
 msgstr ""
 
@@ -8013,6 +8026,10 @@ msgstr ""
 #. js
 #: camara_toupcam.py
 msgid "acceso denegado"
+msgstr ""
+
+#: templates/apilado.html
+msgid "activas"
 msgstr ""
 
 #. js

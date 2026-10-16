@@ -277,7 +277,7 @@
                     <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciar()" title="{{ _('Deja recta la curva de este canal') }}" style="flex: 1;">{{ _("Reiniciar") }}</button>
                     <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciarTodo()" title="{{ _('Deja rectas las cuatro curvas') }}" style="flex: 1;">{{ _("Todas") }}</button>
                 </div>
-                <small class="ayuda">{{ _("Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Las curvas se guardan con la foto, no en los presets.") }}</small>
+                <small class="ayuda">{{ _("Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Se guardan con la foto y en los presets.") }}</small>
             </div>
         </section>
 
@@ -308,9 +308,6 @@
     .visor canvas { display: block; width: 100%; height: auto; }
     .visor.visor-toque canvas { cursor: crosshair; }
     .rayo { color: var(--accent); font-size: 12px; font-weight: 700; opacity: 0.9; }
-    .curvas-lienzo { display: block; width: 100%; aspect-ratio: 1 / 1; max-height: 340px; border-radius: 10px; background: #0d1017; border: 1px solid var(--border); touch-action: none; }
-    .punto-canal { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; opacity: 0.35; }
-    #curvas-seg button.tocada .punto-canal { opacity: 1; box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
     .lateral .card + .card { margin-top: 0; }
     /* Pantalla ancha: la columna lateral se queda fija y hace su propio scroll, así la
        foto no se pierde de vista al tocar los controles */
@@ -776,8 +773,9 @@
         if (!n || !PRESETS[n]) return;
         const p = PRESETS[n];
         // Un preset sin curva (anterior a que existiera el control) es la gamma de siempre
-        if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({ curva: "gamma" }, ESTILOS[p.estilo], p));
-        else pintarAjustes(Object.assign({ curva: "gamma" }, p));
+        // Un preset sin curvas (anterior al panel) deja las curvas rectas
+        if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({ curva: "gamma", curvas: {} }, ESTILOS[p.estilo], p));
+        else pintarAjustes(Object.assign({ curva: "gamma", curvas: {} }, p));
         retocar();
         programarVistaPrevia();
     }
