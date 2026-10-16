@@ -2048,12 +2048,8 @@ msgstr ""
 msgid "Dithering desactivado"
 msgstr ""
 
-#: templates/_asistente.html
+#: templates/_asistente.html templates/configuracion.html
 msgid "Driver de la cámara"
-msgstr ""
-
-#: templates/configuracion.html
-msgid "Driver de la cámara (ASCOM)"
 msgstr ""
 
 #: templates/_asistente.html templates/configuracion.html
