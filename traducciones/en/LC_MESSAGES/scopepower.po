@@ -2050,13 +2050,9 @@ msgstr "Dither every"
 msgid "Dithering desactivado"
 msgstr "Dithering off"
 
-#: templates/_asistente.html
+#: templates/_asistente.html templates/configuracion.html
 msgid "Driver de la cámara"
 msgstr "Camera driver"
-
-#: templates/configuracion.html
-msgid "Driver de la cámara (ASCOM)"
-msgstr "Camera driver (ASCOM)"
 
 #: templates/_asistente.html templates/configuracion.html
 msgid "Driver de la montura (ASCOM)"
