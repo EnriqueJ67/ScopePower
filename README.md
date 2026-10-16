@@ -28,6 +28,8 @@ los comentarios están en español.
 | ![Editor](docs/capturas/editor-galeria.webp) | ![Enfoque](docs/capturas/camara-enfoque-bahtinov.webp) |
 | **Cámara de día: el Sol** | **Estadísticas y opciones del apilado** |
 | ![Modo día](docs/capturas/camara-modo-dia-sol.webp) | ![Estadísticas](docs/capturas/apilado-estadisticas.webp) |
+| **Esta noche: qué observar hoy** | **Cronograma del plan de la noche** |
+| ![Esta noche](docs/capturas/esta-noche.webp) | ![Cronograma del plan](docs/capturas/plan-cronograma.webp) |
 
 Más capturas en [docs/capturas](docs/capturas).
 

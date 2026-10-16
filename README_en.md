@@ -20,6 +20,8 @@ code, comments and commit messages are in Spanish.
 | ![Editor](docs/capturas/editor-galeria.webp) | ![Focus](docs/capturas/camara-enfoque-bahtinov.webp) |
 | **Daytime camera: the Sun** | **Stacking statistics and options** |
 | ![Day mode](docs/capturas/camara-modo-dia-sol.webp) | ![Statistics](docs/capturas/apilado-estadisticas.webp) |
+| **Tonight: what to observe today** | **Night plan schedule** |
+| ![Tonight](docs/capturas/esta-noche.webp) | ![Night plan schedule](docs/capturas/plan-cronograma.webp) |
 
 The screenshots show the Spanish interface. More in [docs/capturas](docs/capturas).
 
