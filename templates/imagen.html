@@ -57,6 +57,9 @@
                 <!-- Modo en vivo de día (vivo_dia.py): imagen casi continua por el SDK de la cámara, para centrar y enfocar -->
                 <button id="btn-vivo" class="btn btn-secondary" onclick="alternarVivo()" hidden
                         title="{{ _('Imagen casi continua por el SDK de la cámara, para centrar y enfocar. Mientras dura, la cámara no está disponible por ASCOM.') }}"><svg><use href="#i-play"/></svg>{{ _("En vivo") }}</button>
+                <!-- Grabación SER desde el vivo (vivo_dia.grabar): se apila después en el panel Vídeo -->
+                <button id="btn-grabar" class="btn btn-secondary" onclick="alternarGrabacion()" hidden
+                        title="{{ _('Graba el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. Luego, en el panel Vídeo, se apilan los fotogramas más nítidos.') }}"><svg><use href="#i-disco"/></svg>{{ _("Grabar vídeo") }}</button>
                 <button id="btn-sync" class="btn btn-secondary" onclick="sincronizar()" disabled title="{{ _('Se activa cuando hay una foto nueva') }}"><svg><use href="#i-sync"/></svg>{{ _("Sincronizar telescopio con la foto") }}</button>
                 <button id="btn-puntero" class="btn btn-secondary" onclick="alternarPuntero()" disabled title="{{ _('Se activa cuando hay una foto nueva') }}"><svg><use href="#i-goto"/></svg>{{ _("Apunta aquí") }}</button>
                 <button id="btn-galeria" class="btn btn-secondary" onclick="guardarEnGaleria()" {% if not hay_foto %}disabled{% endif %} title="{{ _('Guarda la foto que se ve, a resolución completa, en la galería. De noche, con el procesado y el preset de Apilado.') }}"><svg><use href="#i-guardar"/></svg>{{ _("Guardar en la galería") }}</button>
@@ -236,6 +239,55 @@
                     <div id="tl-video-estado" class="estado mt-1"></div>
                 </div>
                 <div id="tl-anteriores" class="mt-2"></div>
+            </div>
+        </section>
+
+        <!-- ─── Vídeo: grabaciones SER del modo en vivo y apilado de los mejores fotogramas (apilado_video.py). Solo de día. ─── -->
+        <section class="card panel" data-panel="video" id="card-video" hidden>
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title"><svg class="ico"><use href="#i-disco"/></svg>{{ _("Vídeo") }}</h3>
+                <span class="panel-sub" id="video-sub">{{ _("de día") }}</span>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <p class="card-sub">{{ _("Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. Después, aquí se miden todos los fotogramas, se quedan los más nítidos, se alinean y se apilan: el resultado va a la galería como una foto de día más. Con el recorte del 35 % son unos 2,7 GB por minuto.") }}</p>
+                <div class="dos-campos">
+                    <div class="form-group">
+                        <label for="video-duracion">{{ _("Duración de la grabación") }}</label>
+                        <select id="video-duracion" class="form-control">
+                            <option value="30">{{ _("30 segundos") }}</option>
+                            <option value="60">{{ _("1 minuto") }}</option>
+                            <option value="120" selected>{{ _("2 minutos") }}</option>
+                            <option value="300">{{ _("5 minutos") }}</option>
+                            <option value="0">{{ _("Hasta pulsar Parar") }}</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="video-pct">{{ _("Fotogramas que se apilan") }}</label>
+                        <select id="video-pct" class="form-control">
+                            <option value="10">{{ _("el 10 % más nítido") }}</option>
+                            <option value="25" selected>{{ _("el 25 % más nítido") }}</option>
+                            <option value="50">{{ _("el 50 % más nítido") }}</option>
+                            <option value="100">{{ _("todos") }}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="video-nitidez">{{ _("Afinado") }} <span id="video-nitidez-v" class="texto-3"></span></label>
+                    <input type="range" id="video-nitidez" min="0" max="3" step="0.5" value="1" oninput="pintarNitidezVideo()">
+                </div>
+                <div id="video-grabacion" class="estado mt-1"></div>
+                <div id="video-apilado" class="mt-2" hidden>
+                    <div class="fila entre"><span id="video-apilado-texto" class="estado" style="color: var(--text);"></span>
+                        <button type="button" id="btn-video-cancelar" class="btn btn-secondary btn-sm" onclick="cancelarApiladoVideo()">{{ _("Cancelar") }}</button></div>
+                    <div class="progress alta mt-1"><div id="video-barra" class="progress-bar"></div></div>
+                </div>
+                <div id="video-estado" class="estado mt-1"></div>
+                <div id="video-lista" class="mt-2"></div>
             </div>
         </section>
 
@@ -623,6 +675,7 @@
         pintarColorSol();
         pintarDisco();
         document.getElementById("card-timelapse").hidden = !modoDia;     // el timelapse es de día
+        document.getElementById("card-video").hidden = !(modoDia && CAMARA_SDK);   // el vídeo sale del vivo (cámara por SDK)
         pintarBotonFoto();
         document.getElementById("continuo-panel").hidden = !modoContinuo;
         document.getElementById("continuo-ayuda").textContent = ayudaGuardar();
@@ -1018,6 +1071,7 @@
         // Mientras dura, la cámara es del modo en vivo: nada de fotos, continuo, timelapse ni cambiar de modo
         ["btn-foto", "modo-continuo", "modo-dia", "btn-tl", "dia-campo"].forEach(id => document.getElementById(id).disabled = vivoActivo);
         document.querySelectorAll("#dia-objetivo button").forEach(b => b.disabled = vivoActivo);
+        pintarGrabacion(e);
         const est = document.getElementById("estado-foto");
         if (vivoActivo) {
             est.className = "estado mt-2";
@@ -1041,6 +1095,129 @@
     }
     // Al abrir la página: engancharse a un modo en vivo en marcha
     fetch("/vivo/estado").then(r => r.json()).then(e => { if (e.en_curso && pintarVivo(e) && !sondeoVivo) sondeoVivo = setInterval(sondearVivo, 1000); }).catch(() => {});
+
+    // ── Grabación de vídeo desde el vivo y apilado de los mejores fotogramas (apilado_video.py) ──
+    let grabando = false, ultimaGrabacionVista = null, sondeoApilado = null, apilandoNombre = "";
+    function mmss(s) { s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+    function alternarGrabacion() {
+        const btn = document.getElementById("btn-grabar");
+        btn.disabled = true;
+        const duracion = parseInt(document.getElementById("video-duracion").value) || 0;
+        fetch("/vivo/grabar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activar: !grabando, duracion_s: duracion }) })
+            .then(r => r.json())
+            .then(d => {
+                btn.disabled = false;
+                const est = document.getElementById("video-grabacion");
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || _("No se pudo grabar")); }
+            })
+            .catch(err => { btn.disabled = false; const est = document.getElementById("video-grabacion"); est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
+    }
+    function pintarGrabacion(e) {
+        const btn = document.getElementById("btn-grabar");
+        const g = e.grabacion || null;
+        grabando = !!g;
+        btn.hidden = !(vivoActivo && e.fase === "en vivo") && !grabando;
+        btn.className = "btn " + (grabando ? "btn-danger" : "btn-secondary");
+        btn.innerHTML = grabando ? '<svg><use href="#i-stop"/></svg>' + _("Parar la grabación") : '<svg><use href="#i-disco"/></svg>' + _("Grabar vídeo");
+        const est = document.getElementById("video-grabacion");
+        if (g) {
+            est.className = "estado mt-1";
+            est.innerHTML = '<span class="spinner"></span>' + _("Grabando {nombre} · {t}{total} · {n} fotogramas · {mb} MB", {
+                nombre: g.nombre, t: mmss(g.segundos), total: g.duracion_s ? " / " + mmss(g.duracion_s) : "", n: g.frames, mb: fmtNum(g.mb, 0) })
+                + (g.descartados ? " · " + _("{n} descartados", { n: g.descartados }) : "") + (g.libre_gb !== null && g.libre_gb !== undefined ? " · " + _("{gb} GB libres", { gb: fmtNum(g.libre_gb, 1) }) : "");
+        } else if (e.error_grabacion) {
+            est.className = "estado err mt-1"; est.textContent = "❌ " + e.error_grabacion;
+        } else if (e.ultima_grabacion && e.ultima_grabacion.nombre !== ultimaGrabacionVista) {
+            ultimaGrabacionVista = e.ultima_grabacion.nombre;
+            est.className = "estado ok mt-1";
+            est.textContent = "✅ " + _("Vídeo {nombre}: {n} fotogramas en {s} s ({mb} MB)", { nombre: e.ultima_grabacion.nombre, n: e.ultima_grabacion.frames, s: fmtNum(e.ultima_grabacion.segundos, 0), mb: fmtNum(e.ultima_grabacion.mb, 0) });
+            listarVideos();
+        }
+    }
+    function pintarNitidezVideo() {
+        const v = parseFloat(document.getElementById("video-nitidez").value);
+        document.getElementById("video-nitidez-v").textContent = v === 0 ? _("(ninguno)") : fmtNum(v, 1);
+    }
+    pintarNitidezVideo();
+    function listarVideos() {
+        fetch("/videos").then(r => r.json()).then(d => {
+            const cont = document.getElementById("video-lista");
+            document.getElementById("video-sub").textContent = d.libre_gb !== null && d.libre_gb !== undefined ? _("{gb} GB libres", { gb: fmtNum(d.libre_gb, 1) }) : _("de día");
+            if (d.config) {
+                const sel = document.getElementById("video-duracion");
+                if ([...sel.options].some(o => o.value === String(d.config.duracion_s))) sel.value = String(d.config.duracion_s);
+            }
+            if (!d.videos.length) { cont.innerHTML = '<div class="texto-3">' + _("Todavía no hay ningún vídeo grabado.") + "</div>"; return; }
+            const tApilar = _("Apilar"), tBorrar = _("Borrar el vídeo del mini PC"), tVerApilado = _("ver el apilado en la galería");
+            cont.innerHTML = d.videos.map(v => {
+                const fecha = new Date(1000 * v.fecha);
+                const datos = v.error ? "⚠️ " + v.error
+                    : _("{n} fotogramas", { n: v.frames }) + (v.duracion_s ? " · " + mmss(v.duracion_s) + (v.fps ? " · " + _("{fps} fotos/s", { fps: fmtNum(v.fps, 0) }) : "") : "") + ` · ${v.ancho}×${v.alto} · ${fmtNum(v.mb, 0)} MB`;
+                const apilado = v.apilado ? `<a href="/galeria#${encodeURIComponent(v.apilado)}" class="texto-2">${tVerApilado}</a>` : "";
+                const ocupado = apilandoNombre === v.nombre;
+                return `<div class="fila entre" style="gap: 8px; padding: 6px 0; border-top: 1px solid var(--border);">
+                    <div style="min-width: 0;"><div><strong>${v.nombre}</strong> <span class="texto-3">${fecha.toLocaleString()}</span></div>
+                        <div class="texto-3" style="font-size: 12.5px;">${datos}</div>${apilado}</div>
+                    <div class="fila" style="gap: 6px; flex-shrink: 0;">
+                        <button type="button" class="btn btn-primary btn-sm" ${v.error || ocupado ? "disabled" : ""} onclick="apilarVideo('${v.nombre}')"><svg><use href="#i-apilado"/></svg>${tApilar}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" ${ocupado ? "disabled" : ""} onclick="borrarVideo('${v.nombre}')" title="${tBorrar}"><svg><use href="#i-papelera"/></svg></button>
+                    </div></div>`;
+            }).join("");
+        }).catch(() => {});
+    }
+    function apilarVideo(nombre) {
+        const est = document.getElementById("video-estado");
+        const pct = parseInt(document.getElementById("video-pct").value) || 25;
+        const nitidez = parseFloat(document.getElementById("video-nitidez").value) || 0;
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Empezando el apilado...");
+        fetch("/videos/apilar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre, pct, nitidez }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); return; }
+                apilandoNombre = nombre;
+                listarVideos();
+                if (!sondeoApilado) sondeoApilado = setInterval(sondearApilado, 1000);
+                sondearApilado();
+            })
+            .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
+    }
+    function cancelarApiladoVideo() { fetch("/videos/apilar/cancelar", { method: "POST" }).catch(() => {}); }
+    function pintarApilado(e) {
+        const activo = !!e.en_curso;
+        document.getElementById("video-apilado").hidden = !activo;
+        const est = document.getElementById("video-estado");
+        if (activo) {
+            document.getElementById("video-apilado-texto").textContent = e.nombre + " · " + e.fase_texto;
+            document.getElementById("video-barra").style.width = Math.round(100 * (e.progreso || 0)) + "%";
+            est.innerHTML = "";
+        } else if (e.terminado && apilandoNombre) {
+            apilandoNombre = "";
+            est.className = "estado " + (e.error ? "err" : "ok") + " mt-1";
+            const tVer = _("ver en la galería");
+            est.innerHTML = (e.error ? "❌ " : "✅ ") + e.mensaje + (e.resultado && e.resultado.archivo
+                ? ` · <a href="/galeria#${encodeURIComponent(e.resultado.archivo)}">${tVer}</a>`
+                  + (e.resultado.no_alineados ? " · " + _("{n} sin alinear", { n: e.resultado.no_alineados }) : "") : "");
+            listarVideos();
+        }
+        return activo;
+    }
+    function sondearApilado() {
+        fetch("/videos/apilar/estado").then(r => r.json()).then(e => {
+            if (!pintarApilado(e) && sondeoApilado) { clearInterval(sondeoApilado); sondeoApilado = null; }
+        }).catch(() => {});
+    }
+    // Al abrir la página: la lista de vídeos y, si hay un apilado en marcha, seguirlo
+    if (CAMARA_SDK) {
+        listarVideos();
+        fetch("/videos/apilar/estado").then(r => r.json()).then(e => { if (e.en_curso) { apilandoNombre = e.nombre; if (pintarApilado(e) && !sondeoApilado) sondeoApilado = setInterval(sondearApilado, 1000); } }).catch(() => {});
+    }
+    function borrarVideo(nombre) {
+        if (!confirm(_("¿Borrar el vídeo {nombre} del mini PC? El apilado de la galería, si lo hay, se queda.", { nombre }))) return;
+        fetch("/videos/borrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre }) })
+            .then(r => r.json())
+            .then(d => { const est = document.getElementById("video-estado"); if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || ""); } listarVideos(); })
+            .catch(() => {});
+    }
 
     // ——— Modo enfoque: solo verde (enfoque.py) ———
     function hayEnfoque(i) { return !!i && (!!i.fwhm_g || ("limbo" in i)); }

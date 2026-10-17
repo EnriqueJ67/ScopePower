@@ -13,6 +13,12 @@ día de la release. El número de versión vive en `version.py`.
 - «Sincronizar con el disco» borra antes el modelo de apuntado anterior de SynScan Pro
   (ClearSyncTo), para que la app no pregunte en su ventana qué hacer con la muestra nueva, y
   comprueba después que la montura se ha quedado con la posición enviada; si no, lo dice.
+- Vídeo del Sol y la Luna y apilado de los mejores fotogramas («lucky imaging»): con el modo en
+  vivo en marcha, «Grabar vídeo» guarda un SER en crudo (RAW16, binning 1, el recorte que se ve)
+  en el disco del mini PC; el panel Vídeo de Cámara mide la nitidez de cada fotograma, se queda
+  con los mejores (el 25 % de serie), los alinea al subpíxel, los apila, los afina y deja el
+  resultado en la galería como una foto de día más (JPG firmado y FITS en color). Sección
+  `[Video]` nueva en `config.example.ini` y prueba `herramientas/probar_apilado_video.py`.
 
 ## 1.2.2 · 2026-10-16
 

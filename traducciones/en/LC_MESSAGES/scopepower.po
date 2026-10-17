@@ -81,6 +81,11 @@ msgid "(mejor de la sesión {fwhm})"
 msgstr "(session best {fwhm})"
 
 #. js
+#: templates/imagen.html
+msgid "(ninguno)"
+msgstr "(none)"
+
+#. js
 #: templates/configuracion.html
 msgid "(ningún driver registrado)"
 msgstr "(no driver registered)"
@@ -170,6 +175,10 @@ msgstr "0.5°/s"
 msgid "0°, 0° está en mitad del océano: escribe la ubicación de tu observatorio."
 msgstr "0°, 0° is in the middle of the ocean: enter your observatory's location."
 
+#: templates/imagen.html
+msgid "1 minuto"
+msgstr "1 minute"
+
 #: templates/apilado.html
 msgid "10 menos"
 msgstr "10 fewer"
@@ -183,6 +192,10 @@ msgstr "10 more"
 msgid "100 % (campo completo)"
 msgstr "100% (full field)"
 
+#: templates/imagen.html
+msgid "2 minutos"
+msgstr "2 minutes"
+
 #: templates/apilado.html templates/configuracion.html
 #: templates/editar_foto.html templates/imagen.html
 msgid "25 % (objetos pequeños)"
@@ -194,8 +207,16 @@ msgid "25 % del campo"
 msgstr "25% of the field"
 
 #: templates/imagen.html
+msgid "30 segundos"
+msgstr "30 seconds"
+
+#: templates/imagen.html
 msgid "35 % (Sol y Luna grandes)"
 msgstr "35 % (large Sun and Moon)"
+
+#: templates/imagen.html
+msgid "5 minutos"
+msgstr "5 minutes"
 
 #: templates/apilado.html
 #, python-format
@@ -417,6 +438,10 @@ msgstr "Update from GitHub"
 msgid "Afilando (deconvolución)"
 msgstr "Sharpening (deconvolution)"
 
+#: templates/imagen.html
+msgid "Afinado"
+msgstr "Sharpening"
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Agresivo: máximo ruido y contraste"
 msgstr "Aggressive: maximum noise and contrast"
@@ -630,6 +655,10 @@ msgstr "Park the mount"
 msgid "Apilado"
 msgstr "Stacking"
 
+#: apilado_video.py
+msgid "Apilado cancelado"
+msgstr "Stacking cancelled"
+
 #: plan_sesion.py
 msgid "Apilado detenido ({motivo}); plan en pausa. Reanuda para reintentar {objeto}"
 msgstr "Stacking stopped ({motivo}); plan paused. Resume to retry {objeto}"
@@ -674,10 +703,23 @@ msgstr "Stacked on the nucleus: sharp comet, stars as trails"
 msgid "Apilado por las estrellas: el cometa sale corrido"
 msgstr "Stacked on the stars: the comet comes out smeared"
 
+#: apilado_video.py
+msgid "Apilados {usados} de {frames} fotogramas en {s} s"
+msgstr "Stacked {usados} of {frames} frames in {s} s"
+
 #. js
 #: templates/apilado.html
 msgid "Apilando"
 msgstr "Stacking"
+
+#: apilado_video.py
+msgid "Apilando {nombre}..."
+msgstr "Stacking {nombre}..."
+
+#. js
+#: templates/imagen.html
+msgid "Apilar"
+msgstr "Stack"
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Aplanar fondo a gran escala (no usar con nebulosas extensas)"
@@ -928,6 +970,11 @@ msgstr "Delete planes and satellites"
 #: templates/editar_foto.html
 msgid "Borrar el preset seleccionado"
 msgstr "Delete the selected preset"
+
+#. js
+#: templates/imagen.html
+msgid "Borrar el vídeo del mini PC"
+msgstr "Delete the video from the mini PC"
 
 #: templates/rastros.html
 msgid "Borrar este rastro"
@@ -1469,6 +1516,11 @@ msgstr "Check that the mount is on and connected to the PC and that the driver i
 #: templates/imagen.html
 msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes."
 msgstr "While continuous mode, live mode or the timelapse is running, it corrects the mount if the disk drifts from where it is now. If you move it with the pad or with “Point here”, it stays where you leave it."
+
+#: templates/imagen.html
+#, python-format
+msgid "Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. Después, aquí se miden todos los fotogramas, se quedan los más nítidos, se alinean y se apilan: el resultado va a la galería como una foto de día más. Con el recorte del 35 % son unos 2,7 GB por minuto."
+msgstr "With live view running, “Record video” saves the raw video (RAW16, binning 1, the crop you see) on the mini PC's disk. Then, here, every frame is measured, the sharpest are kept, aligned and stacked: the result goes to the gallery as one more daytime photo. With the 35 % crop it is about 2.7 GB per minute."
 
 #: ScopePower.py
 msgid "Con el simulador no hay cámara real que comparar"
@@ -2066,6 +2118,10 @@ msgstr "Driver chosen on the PC: <b>{driver}</b>. Now press “Test connection�
 msgid "Drivers, exposición, voz, red"
 msgstr "Drivers, exposure, voice, network"
 
+#: templates/imagen.html
+msgid "Duración de la grabación"
+msgstr "Recording length"
+
 #. js
 #: templates/imagen.html
 msgid "Durará unos {dur}; a 25 fotos por segundo, el vídeo tendrá {s} s."
@@ -2321,6 +2377,10 @@ msgid "El modo en vivo necesita la cámara por SDK: elige en Configuración un d
 msgstr "Live mode needs the camera via SDK: choose a “{driver}” driver in Settings"
 
 #: vivo_dia.py
+msgid "El modo en vivo no está en marcha"
+msgstr "Live view is not running"
+
+#: vivo_dia.py
 msgid "El modo en vivo ya está en marcha"
 msgstr "Live mode is already running"
 
@@ -2520,6 +2580,14 @@ msgstr "The telescope tours the stars and objects of a constellation while the p
 msgid "El usuario solo puede llevar letras sin acentos, números, punto, guion y guion bajo"
 msgstr "The user name can only have letters without accents, numbers, period, hyphen and underscore"
 
+#: apilado_video.py
+msgid "El vídeo está vacío"
+msgstr "The video is empty"
+
+#: apilado_video.py
+msgid "El vídeo no tiene ningún fotograma aprovechable"
+msgstr "The video has no usable frame"
+
 #: templates/configuracion.html
 msgid "El zoom recorta por los bordes la vista previa y el JPG de la galería; el apilado y el FITS siguen a campo completo."
 msgstr "Zoom crops the edges of the preview and the gallery JPG; stacking and the FITS stay full field."
@@ -2560,6 +2628,11 @@ msgstr "Choose a tour"
 #: templates/galeria.html
 msgid "Eliminar imagen"
 msgstr "Delete image"
+
+#. js
+#: templates/imagen.html
+msgid "Empezando el apilado..."
+msgstr "Starting the stacking..."
 
 #. js
 #: foto_continua.py templates/imagen.html
@@ -2892,7 +2965,7 @@ msgid "Error {codigo}"
 msgstr "Error {codigo}"
 
 #. js
-#: ScopePower.py apilado.py foto_dia.py seguimiento.py
+#: ScopePower.py apilado.py apilado_video.py foto_dia.py seguimiento.py
 #: templates/alineacion.html templates/dark.html templates/flats.html
 #: templates/rastros.html vivo_dia.py
 msgid "Error: {e}"
@@ -2955,6 +3028,14 @@ msgstr "That catalog can't be installed automatically"
 #: ScopePower.py
 msgid "Ese objeto ya no está en el plan"
 msgstr "That object is no longer in the plan"
+
+#: ScopePower.py
+msgid "Ese vídeo se está apilando ahora"
+msgstr "That video is being stacked right now"
+
+#: ScopePower.py
+msgid "Ese vídeo se está grabando ahora"
+msgstr "That video is being recorded right now"
 
 #: templates/apilado.html templates/editar_foto.html templates/imagen.html
 msgid "Espejo (voltear de izquierda a derecha)"
@@ -3575,6 +3656,10 @@ msgstr "Frame lost: {e}"
 msgid "Fotogramas perdidos"
 msgstr "Dropped frames"
 
+#: templates/imagen.html
+msgid "Fotogramas que se apilan"
+msgstr "Frames to stack"
+
 #. js
 #: templates/apilado.html
 msgid "Fotos"
@@ -3758,6 +3843,10 @@ msgstr "GoTo, centering and stacking of each tile, one after another; at the end
 msgid "GoTo, centrado, apilado y guardado de cada objeto, en el orden del cronograma"
 msgstr "GoTo, centering, stacking and saving of each object, in schedule order"
 
+#: templates/imagen.html
+msgid "Graba el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. Luego, en el panel Vídeo, se apilan los fotogramas más nítidos."
+msgstr "Records the raw video (RAW16, binning 1, the crop you see) on the mini PC's disk. Then, in the Video panel, the sharpest frames are stacked."
+
 #: seguimiento.py
 msgid "Grabación de vídeo detenida por un error"
 msgstr "Video recording stopped by an error"
@@ -3766,6 +3855,10 @@ msgstr "Video recording stopped by an error"
 msgid "Grabación de vídeo detenida: el disco está casi lleno"
 msgstr "Video recording stopped: the disk is almost full"
 
+#: ScopePower.py
+msgid "Grabando vídeo"
+msgstr "Recording video"
+
 #: seguimiento.py
 msgid "Grabando vídeo en color en {nombre} ({formatos})"
 msgstr "Recording color video to {nombre} ({formatos})"
@@ -3773,6 +3866,16 @@ msgstr "Recording color video to {nombre} ({formatos})"
 #: seguimiento.py
 msgid "Grabando vídeo monocromo en {nombre} ({formatos})"
 msgstr "Recording mono video to {nombre} ({formatos})"
+
+#. js
+#: templates/imagen.html
+msgid "Grabando {nombre} · {t}{total} · {n} fotogramas · {mb} MB"
+msgstr "Recording {nombre} · {t}{total} · {n} frames · {mb} MB"
+
+#. js
+#: templates/imagen.html
+msgid "Grabar vídeo"
+msgstr "Record video"
 
 #: templates/seguimiento.html
 msgid "Grabar vídeo en el mini PC"
@@ -3914,6 +4017,10 @@ msgstr "Also take flat darks ({n} frames, it will ask you to cover the tube). Re
 #: templates/editar_foto.html
 msgid "Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro."
 msgstr "To the left bluer (cool), to the right redder (warm). The sky background stays neutral."
+
+#: templates/imagen.html
+msgid "Hasta pulsar Parar"
+msgstr "Until Stop is pressed"
 
 #: editor_fotos.py
 msgid "Hay otra vista previa en marcha; espera a que termine"
@@ -5307,6 +5414,10 @@ msgstr "Nothing was understood; try again."
 msgid "No se ha oído nada. Vuelve a pulsar y habla enseguida."
 msgstr "Nothing was heard. Tap again and speak right away."
 
+#: apilado_video.py
+msgid "No se ha podido alinear ningún fotograma"
+msgstr "No frame could be aligned"
+
 #: ScopePower.py
 msgid "No se ha podido aparcar la montura"
 msgstr "Couldn't park the mount"
@@ -5366,6 +5477,10 @@ msgstr "Couldn't annotate: {e}"
 #: static/js/plan.js
 msgid "No se pudo añadir"
 msgstr "Couldn't add it"
+
+#: ScopePower.py
+msgid "No se pudo borrar: {e}"
+msgstr "Could not delete: {e}"
 
 #: static/js/plan.js
 msgid "No se pudo calcular el plan: {e}"
@@ -5476,6 +5591,11 @@ msgid "No se pudo empezar la instalación"
 msgstr "Couldn't start the installation"
 
 #. js
+#: templates/imagen.html
+msgid "No se pudo grabar"
+msgstr "Could not record"
+
+#. js
 #: static/js/asistente.js templates/configuracion.html
 #: templates/editar_foto.html
 msgid "No se pudo guardar"
@@ -5582,6 +5702,10 @@ msgstr "Can't open webcam {n} (disconnected or in use by another program?)"
 #: disco.py
 msgid "No se puede calcular el tamaño del disco: {e}"
 msgstr "Cannot work out the disk size: {e}"
+
+#: apilado_video.py
+msgid "No se puede leer el vídeo: {e}"
+msgstr "The video cannot be read: {e}"
 
 #: disco.py
 msgid "No se reconoce el borde del disco."
@@ -5881,6 +6005,11 @@ msgstr "Stop"
 #: templates/imagen.html
 msgid "Parar en vivo"
 msgstr "Stop live"
+
+#. js
+#: templates/imagen.html
+msgid "Parar la grabación"
+msgstr "Stop recording"
 
 #: montura_ejes.py
 msgid "Parámetros del motor {eje} no válidos (a={a}, b={b})"
@@ -7504,6 +7633,11 @@ msgstr "No shots stacked yet."
 msgid "Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí."
 msgstr "No images yet. In Stacking, press <b>Save image</b> to add them here."
 
+#. js
+#: templates/imagen.html
+msgid "Todavía no hay ningún vídeo grabado."
+msgstr "No video has been recorded yet."
+
 #: templates/apilado.html
 msgid "Todavía no hay objetos. Busca uno arriba, pulsa \"Messier completo\" o añádelos desde el planetario y Esta noche. Lo que no se pueda hacer esta noche queda para otra."
 msgstr "No objects yet. Search for one above, press “Full Messier” or add them from the planetarium and Tonight. Whatever can't be done tonight is left for another night."
@@ -7869,6 +8003,10 @@ msgstr "Goes back to the usual central crop"
 msgid "Vídeo"
 msgstr "Video"
 
+#: ScopePower.py
+msgid "Vídeo desconocido"
+msgstr "Unknown video"
+
 #: templates/seguimiento.html
 msgid "Vídeo en color (binning 1: mismo campo, fotogramas ×4)"
 msgstr "Color video (binning 1: same field, frames ×4)"
@@ -7877,6 +8015,11 @@ msgstr "Color video (binning 1: same field, frames ×4)"
 #: templates/imagen.html
 msgid "Vídeo listo:"
 msgstr "Video ready:"
+
+#. js
+#: templates/imagen.html
+msgid "Vídeo {nombre}: {n} fotogramas en {s} s ({mb} MB)"
+msgstr "Video {nombre}: {n} frames in {s} s ({mb} MB)"
 
 #: seguimiento.py
 msgid "Vídeo: {e}. El seguimiento continúa sin grabar"
@@ -7948,6 +8091,10 @@ msgstr "An installation is already running"
 msgid "Ya se está aparcando la montura"
 msgstr "The mount is already parking"
 
+#: apilado_video.py
+msgid "Ya se está apilando un vídeo; espera a que termine."
+msgstr "A video is already being stacked; wait for it to finish."
+
 #: foto_dia.py
 msgid "Ya se está calibrando el color"
 msgstr "Color calibration is already running"
@@ -7955,6 +8102,10 @@ msgstr "Color calibration is already running"
 #: ScopePower.py
 msgid "Ya se está combinando"
 msgstr "Already combining"
+
+#: vivo_dia.py
+msgid "Ya se está grabando un vídeo"
+msgstr "A video is already being recorded"
 
 #: ScopePower.py
 msgid "Ya se está guardando una foto; espera a que termine."
@@ -8283,6 +8434,7 @@ msgstr "code {codigo}"
 msgid "darks"
 msgstr "darks"
 
+#. js
 #: templates/imagen.html
 msgid "de día"
 msgstr "daytime"
@@ -8358,6 +8510,18 @@ msgstr "day · {objetivo}"
 #: apilado.py templates/apilado.html
 msgid "efeméride del MPC"
 msgstr "MPC ephemeris"
+
+#: templates/imagen.html
+msgid "el 10 % más nítido"
+msgstr "the sharpest 10 %"
+
+#: templates/imagen.html
+msgid "el 25 % más nítido"
+msgstr "the sharpest 25 %"
+
+#: templates/imagen.html
+msgid "el 50 % más nítido"
+msgstr "the sharpest 50 %"
 
 #. js
 #: static/js/filtro_solar.js templates/imagen.html
@@ -9441,6 +9605,10 @@ msgstr "no accepted shots in {n} min"
 msgid "sin giro"
 msgstr "no rotation"
 
+#: vivo_dia.py
+msgid "sin límite"
+msgstr "no limit"
+
 #. js
 #: camara_toupcam.py
 msgid "sin memoria"
@@ -9537,6 +9705,10 @@ msgstr "tap to change"
 msgid "toca para cerrar"
 msgstr "tap to close"
 
+#: templates/imagen.html
+msgid "todos"
+msgstr "all of them"
+
 #: templates/apilado.html
 msgid "tomas"
 msgstr "frames"
@@ -9571,6 +9743,16 @@ msgstr "about {grados} degrees across"
 #: descripciones.py
 msgid "unos {minutos} minutos de arco"
 msgstr "about {minutos} arcminutes"
+
+#. js
+#: templates/imagen.html
+msgid "ver el apilado en la galería"
+msgstr "see the stacked photo in the gallery"
+
+#. js
+#: templates/imagen.html
+msgid "ver en la galería"
+msgstr "see it in the gallery"
 
 #: templates/apilado.html
 msgid "visible"
@@ -9701,6 +9883,16 @@ msgstr "{foto}: no detectable stars (clouds, cap on, out of focus?)"
 
 #. js
 #: templates/imagen.html
+msgid "{fps} fotos/s"
+msgstr "{fps} frames/s"
+
+#. js
+#: templates/imagen.html
+msgid "{gb} GB libres"
+msgstr "{gb} GB free"
+
+#. js
+#: templates/imagen.html
 msgid "{hechas} / {total} fotos"
 msgstr "{hechas} / {total} shots"
 
@@ -9824,7 +10016,8 @@ msgstr "{n} of {total} images · {tipo}"
 msgid "{n} de {total} para la referencia"
 msgstr "{n} of {total} for the reference"
 
-#: static/js/seguimiento.js
+#. js
+#: static/js/seguimiento.js templates/imagen.html
 msgid "{n} descartados"
 msgstr "{n} dropped"
 
@@ -9874,7 +10067,8 @@ msgid_plural "{n} fotos sin guardar"
 msgstr[0] "{n} shot not saved"
 msgstr[1] "{n} shots not saved"
 
-#: static/js/seguimiento.js
+#. js
+#: static/js/seguimiento.js templates/imagen.html
 msgid "{n} fotogramas"
 msgstr "{n} frames"
 
@@ -9981,6 +10175,11 @@ msgid "{n} rastro borrado"
 msgid_plural "{n} rastros borrados"
 msgstr[0] "{n} trail deleted"
 msgstr[1] "{n} trails deleted"
+
+#. js
+#: templates/imagen.html
+msgid "{n} sin alinear"
+msgstr "{n} not aligned"
 
 #. js
 #: templates/apilado.html
@@ -10122,6 +10321,10 @@ msgstr "{p}% of the field"
 msgid "{rotulo}: esperando {s} s a que se asiente la montura"
 msgstr "{rotulo}: waiting {s} s for the mount to settle"
 
+#: vivo_dia.py
+msgid "{s} s"
+msgstr "{s} s"
+
 #: static/js/plan.js
 msgid "{s} s por foto apilada con {exp} s de exposición"
 msgstr "{s} s per stacked shot with {exp} s exposure"
@@ -10218,6 +10421,11 @@ msgstr "Park the mount? Whatever is running (stacking, pad) stops, tracking stop
 #: templates/editar_foto.html
 msgid "¿Borrar el preset «{nombre}»?"
 msgstr "Delete the preset “{nombre}”?"
+
+#. js
+#: templates/imagen.html
+msgid "¿Borrar el vídeo {nombre} del mini PC? El apilado de la galería, si lo hay, se queda."
+msgstr "Delete the video {nombre} from the mini PC? The stacked photo in the gallery, if any, stays."
 
 #. js
 #: templates/rastros.html

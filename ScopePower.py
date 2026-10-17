@@ -65,6 +65,8 @@ import foto_dia
 import foto_actual
 import giro_camara
 import vivo_dia
+import grabador_video
+import apilado_video
 import enfoque
 import camara_sdk
 import disco
@@ -4446,6 +4448,180 @@ def vivo_imagen():
     respuesta.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     respuesta.headers["X-Vivo-Version"] = str(version)
     return respuesta
+
+
+# ───────────────────────── Vídeo desde el modo en vivo y apilado de los mejores fotogramas ─────────────────────────
+def _config_video():
+    """[Video] de config.ini: cadencia al grabar, % de fotogramas que se apilan, afinado, duración y carpeta."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+
+    def _num(clave, defecto, tipo=float):
+        try:
+            return tipo(cfg.get("Video", clave, fallback=defecto))
+        except ValueError:
+            return defecto
+    return {"fps": _num("fps", vivo_dia.FPS_GRABACION_DEFECTO), "mejores_pct": _num("mejores_pct", apilado_video.MEJORES_PCT_DEFECTO),
+            "nitidez": _num("nitidez", apilado_video.NITIDEZ_DEFECTO), "duracion_s": _num("duracion_s", 120, int),
+            "carpeta": cfg.get("Video", "carpeta", fallback=grabador_video.CARPETA_VIDEOS).strip() or grabador_video.CARPETA_VIDEOS}
+
+
+@app.route('/vivo/grabar', methods=["POST"])
+def vivo_grabar():
+    """{activar: bool, duracion_s}: graba un SER (RAW16, binning 1, el recorte del vivo) mientras dura el modo en vivo."""
+    datos = request.get_json(silent=True) or {}
+    conf = _config_video()
+    if not datos.get("activar"):
+        vivo_dia.trabajo_vivo.parar_grabacion()
+        return jsonify({"ok": True})
+    try:
+        duracion = max(0, int(datos.get("duracion_s", conf["duracion_s"])))
+    except (TypeError, ValueError):
+        duracion = conf["duracion_s"]
+    try:
+        vivo_dia.trabajo_vivo.grabar(duracion, fps=conf["fps"], carpeta=conf["carpeta"])
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    voz.decir(_("Grabando vídeo"), categoria="capturas")
+    return jsonify({"ok": True, "config": conf})
+
+
+def _ruta_video(nombre):
+    nombre = os.path.basename(str(nombre or ""))
+    if not nombre:
+        return None
+    if not nombre.lower().endswith(".ser"):
+        nombre += ".ser"
+    ruta = os.path.join(_config_video()["carpeta"], nombre)
+    return ruta if os.path.isfile(ruta) else None
+
+
+def _nombre_apilado_video(nombre, meta):
+    """Nombre base del JPG de la galería que sale de apilar el vídeo `nombre`."""
+    objetivo = (meta or {}).get("objetivo") or ""
+    objeto = foto_dia.OBJETIVOS.get(objetivo, {}).get("nombre", nombre.split("_")[0] or "Video")
+    objeto = objeto[:1].upper() + objeto[1:]
+    fecha = apilado_video.fecha_de_nombre(nombre, meta)
+    return objeto, f"{editor_fotos.nombre_archivo_objeto(objeto)}_{fecha:%Y%m%d_%H%M%S}_video"
+
+
+@app.route('/videos')
+def videos_lista():
+    """Los SER grabados (más recientes primero), el espacio libre y el estado del apilado."""
+    conf = _config_video()
+    lista = []
+    if os.path.isdir(conf["carpeta"]):
+        for f in sorted(os.listdir(conf["carpeta"]), reverse=True):
+            if not f.lower().endswith(".ser"):
+                continue
+            ruta = os.path.join(conf["carpeta"], f)
+            try:
+                info = apilado_video.info_video(ruta)
+            except apilado_video.ErrorVideo as e:
+                info = {"nombre": f[:-4], "error": str(e), "mb": round(os.path.getsize(ruta) / 1e6, 1), "fecha": os.path.getmtime(ruta)}
+            __, base = _nombre_apilado_video(info["nombre"], apilado_video.leer_meta(ruta))
+            info["apilado"] = base + ".jpg" if os.path.isfile(os.path.join("static", "fotos", base + ".jpg")) else None
+            lista.append(info)
+    libre = grabador_video.espacio_libre(conf["carpeta"])
+    return jsonify({"videos": lista, "carpeta": conf["carpeta"], "libre_gb": None if libre is None else round(libre / 1024 ** 3, 1),
+                    "config": conf, "apilado": apilado_video.trabajo_apilado_video.estado()})
+
+
+def _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info):
+    """
+    El apilado de un vídeo (RGB uint8 revelado y cubo lineal uint16, en la orientación del SDK)
+    a la galería como una foto de día más: JPG firmado con el giro de Cámara y FITS en color
+    (3 planos) en crudos/. Devuelve {"archivo"}.
+    """
+    import orientacion_camara
+    meta_v = info.get("meta") or {}
+    objeto, base = _nombre_apilado_video(nombre, meta_v)
+    orientacion = meta_v.get("orientacion") or orientacion_camara.leer_sdk()["transformacion"]
+    bgr = cv2.cvtColor(vivo_dia.a_orientacion_ascom(rgb8, orientacion), cv2.COLOR_RGB2BGR)
+    imagen = giro_camara.aplicar(bgr, giro_camara.leer())
+    cubo = np.stack([vivo_dia.a_orientacion_ascom(cubo16[..., i], orientacion) for i in range(3)])
+    ruta_jpg = os.path.join("static", "fotos", base + ".jpg")
+    ruta_crudo = os.path.join(CARPETA_CRUDOS_GALERIA, base + ".fits")
+    os.makedirs(CARPETA_CRUDOS_GALERIA, exist_ok=True)
+    exposicion = float(meta_v.get("exposicion_s") or 0.0)
+    hdu = fits.PrimaryHDU(cubo)
+    hdu.header["EXPTIME"] = (exposicion, "Exposicion de cada fotograma (s)")
+    hdu.header["XBINNING"] = hdu.header["YBINNING"] = int(meta_v.get("binning") or 1)
+    hdu.header["XPIXSZ"] = hdu.header["YPIXSZ"] = (float(meta_v.get("px_um") or 3.76), "Tamano de pixel (um)")
+    hdu.header["MODO"] = ("video", "Apilado de los mejores fotogramas de un video")
+    hdu.header["OBJETIVO"] = (str(meta_v.get("objetivo") or ""), "Sol, luna o paisaje")
+    hdu.header["NFRAMES"] = (int(info["frames"]), "Fotogramas del video")
+    hdu.header["NUSADOS"] = (int(info["usados"]), "Fotogramas apilados")
+    hdu.header["VIDEO"] = (str(nombre)[:60], "Fichero SER de origen")
+    if meta_v.get("ganancia") is not None:
+        hdu.header["GAIN"] = (int(meta_v["ganancia"]), "Ganancia de la camara")
+    hdu.writeto(ruta_crudo, overwrite=True)
+    meta = apilado.metadatos_firma(None, None, int(info["usados"]), exposicion)
+    fecha = apilado_video.fecha_de_nombre(nombre, meta_v)
+    meta.update({"objeto": objeto, "fecha": fecha, "tipo": catalogo_offline.categoria_objeto(objeto),
+                 "video": {"nombre": nombre, "frames": info["frames"], "usados": info["usados"], "pct": info["pct"]}})
+    _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
+    return {"archivo": base + ".jpg"}
+
+
+@app.route('/videos/apilar', methods=["POST"])
+def videos_apilar():
+    """{nombre, pct, nitidez}: apila los mejores fotogramas del SER en segundo plano y lo deja en la galería."""
+    datos = request.get_json(silent=True) or {}
+    ruta = _ruta_video(datos.get("nombre"))
+    if ruta is None:
+        return jsonify({"ok": False, "error": _("Vídeo desconocido")}), 404
+    conf = _config_video()
+    try:
+        pct = max(1.0, min(100.0, float(datos.get("pct", conf["mejores_pct"]))))
+        nitidez = max(0.0, min(3.0, float(datos.get("nitidez", conf["nitidez"]))))
+    except (TypeError, ValueError):
+        pct, nitidez = conf["mejores_pct"], conf["nitidez"]
+    nombre = os.path.splitext(os.path.basename(ruta))[0]
+    try:
+        apilado_video.trabajo_apilado_video.iniciar(
+            ruta, lambda rgb8, cubo16, info: _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info),
+            pct=pct, cantidad_nitidez=nitidez, ev=_compensacion_foto_dia())
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    log.info("Apilado del vídeo %s: mejores %.0f %%, afinado %.1f", nombre, pct, nitidez)
+    return jsonify({"ok": True, "estado": apilado_video.trabajo_apilado_video.estado()})
+
+
+@app.route('/videos/apilar/estado')
+def videos_apilar_estado():
+    return jsonify(apilado_video.trabajo_apilado_video.estado())
+
+
+@app.route('/videos/apilar/cancelar', methods=["POST"])
+def videos_apilar_cancelar():
+    apilado_video.trabajo_apilado_video.cancelar()
+    return jsonify({"ok": True})
+
+
+@app.route('/videos/borrar', methods=["POST"])
+def videos_borrar():
+    """{nombre}: borra el SER y su .json (no el apilado de la galería)."""
+    datos = request.get_json(silent=True) or {}
+    ruta = _ruta_video(datos.get("nombre"))
+    if ruta is None:
+        return jsonify({"ok": False, "error": _("Vídeo desconocido")}), 404
+    nombre = os.path.splitext(os.path.basename(ruta))[0]
+    e = apilado_video.trabajo_apilado_video.estado()
+    if e["en_curso"] and e["nombre"] == nombre:
+        return jsonify({"ok": False, "error": _("Ese vídeo se está apilando ahora")}), 409
+    g = vivo_dia.trabajo_vivo.estado().get("grabacion")
+    if g and g.get("nombre") == nombre:
+        return jsonify({"ok": False, "error": _("Ese vídeo se está grabando ahora")}), 409
+    for r in (ruta, os.path.splitext(ruta)[0] + ".json"):
+        try:
+            os.remove(r)
+        except FileNotFoundError:
+            pass
+        except OSError as err:
+            return jsonify({"ok": False, "error": _("No se pudo borrar: {e}", e=err)}), 500
+    log.info("Vídeo borrado: %s", nombre)
+    return jsonify({"ok": True})
 
 
 @app.route('/timelapse/iniciar', methods=["POST"])

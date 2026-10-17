@@ -54,3 +54,8 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_seguimiento_simulado.py --segundos 10
+
+      - name: Prueba del vídeo y el apilado de los mejores fotogramas (SER sintético, cámara falsa)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_apilado_video.py

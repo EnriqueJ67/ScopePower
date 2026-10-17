@@ -65,9 +65,13 @@ def texto_integracion(n_fotos, exposicion):
         return "", ""
     if exp <= 0:
         return ngettext("{n} foto", "{n} fotos", n), ""
-    if n == 1 and exp < 1:
-        # Foto suelta de Cámara (de día, milisegundos): solo su exposición
-        return (f"{exp * 1e6:.0f} µs" if exp < 0.001 else fmt_num(float(f"{exp * 1000:.3g}")) + " ms"), ""
+    if exp < 1:
+        # Foto suelta de Cámara (de día, milisegundos): solo su exposición. Apilado de los
+        # mejores fotogramas de un vídeo: cuántos y la exposición de cada uno
+        corta = f"{exp * 1e6:.0f} µs" if exp < 0.001 else fmt_num(float(f"{exp * 1000:.3g}")) + " ms"
+        if n == 1:
+            return corta, ""
+        return ngettext("{n} foto", "{n} fotos", n), f"{n} × {corta}"
     total = n * exp
     if total >= 3600:
         h, m = divmod(round(total / 60), 60)
