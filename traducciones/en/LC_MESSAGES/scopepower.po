@@ -1949,6 +1949,10 @@ msgstr "Say the object"
 msgid "Decirla"
 msgstr "Say it"
 
+#: templates/imagen.html
+msgid "Deconvolución del disco con el desenfoque medido en su propio limbo (4 iteraciones por punto). «Reafinar» vuelve a revelar el apilado guardado con el valor del deslizador, en segundos, sin repetir el apilado; sustituye la foto de la galería. La «Nitidez» del editor de la galería no sirve aquí: mide estrellas."
+msgstr "Deconvolution of the disc with the blur measured on its own limb (4 iterations per point). “Re-sharpen” develops the saved stack again with the slider value, in seconds, without stacking again; it replaces the gallery photo. The gallery editor's “Sharpness” is no use here: it measures stars."
+
 #: templates/_modal_humor.html
 msgid "Decírselo a ScopePower"
 msgstr "Tell ScopePower"
@@ -3178,6 +3182,10 @@ msgstr "This trail was saved without FITS (disk was low): only the thumbnail is 
 #: hora_sistema.py
 msgid "Este usuario de Windows no tiene permiso para cambiar la hora. Ejecuta instalar_scopepower.bat en el PC (concede el permiso) y vuelve a iniciar sesión en Windows; o pon la hora a mano."
 msgstr "This Windows user doesn't have permission to change the time. Run instalar_scopepower.bat on the PC (it grants the permission) and sign in to Windows again; or set the time by hand."
+
+#: apilado_video.py
+msgid "Este vídeo no tiene un apilado guardado: apílalo primero."
+msgstr "This video has no saved stack: stack it first."
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Estilo"
@@ -5704,6 +5712,10 @@ msgid "No se puede calcular el tamaño del disco: {e}"
 msgstr "Cannot work out the disk size: {e}"
 
 #: apilado_video.py
+msgid "No se puede leer el apilado guardado: {e}"
+msgstr "The saved stack cannot be read: {e}"
+
+#: apilado_video.py
 msgid "No se puede leer el vídeo: {e}"
 msgstr "The video cannot be read: {e}"
 
@@ -6465,6 +6477,24 @@ msgstr "Invalid trail"
 #: templates/galeria.html templates/rastros.html
 msgid "Rastros"
 msgstr "Trails"
+
+#: apilado_video.py
+msgid "Reafinado en {s} s"
+msgstr "Re-sharpened in {s} s"
+
+#: apilado_video.py
+msgid "Reafinando {nombre}..."
+msgstr "Re-sharpening {nombre}..."
+
+#. js
+#: templates/imagen.html
+msgid "Reafinando..."
+msgstr "Re-sharpening..."
+
+#. js
+#: templates/imagen.html
+msgid "Reafinar"
+msgstr "Re-sharpen"
 
 #. js
 #: templates/imagen.html
@@ -7940,6 +7970,11 @@ msgstr "Back to the gallery"
 msgid "Volver a pendiente"
 msgstr "Back to pending"
 
+#. js
+#: templates/imagen.html
+msgid "Volver a revelar el apilado guardado con el afinado del deslizador, sin repetir el apilado"
+msgstr "Develop the saved stack again with the slider's sharpening, without stacking again"
+
 #: templates/base.html templates/configuracion.html
 msgid "Voz"
 msgstr "Voice"
@@ -9022,6 +9057,10 @@ msgstr "read {nombre}"
 msgid "libres {tam}"
 msgstr "{tam} free"
 
+#: apilado_video.py
+msgid "limbo {l} px, {n} iteraciones"
+msgstr "limb {l} px, {n} iterations"
+
 #. js
 #: templates/imagen.html
 msgid "limbo {v} px"
@@ -9582,6 +9621,10 @@ msgstr "no altitude data"
 #: templates/configuracion.html
 msgid "sin descargar"
 msgstr "not downloaded"
+
+#: apilado_video.py
+msgid "sin disco que medir: afinado sencillo"
+msgstr "no disc to measure: simple sharpening"
 
 #: apilado.py
 msgid "sin efeméride: se sigue el núcleo foto a foto"

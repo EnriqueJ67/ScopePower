@@ -1947,6 +1947,10 @@ msgstr ""
 msgid "Decirla"
 msgstr ""
 
+#: templates/imagen.html
+msgid "Deconvolución del disco con el desenfoque medido en su propio limbo (4 iteraciones por punto). «Reafinar» vuelve a revelar el apilado guardado con el valor del deslizador, en segundos, sin repetir el apilado; sustituye la foto de la galería. La «Nitidez» del editor de la galería no sirve aquí: mide estrellas."
+msgstr ""
+
 #: templates/_modal_humor.html
 msgid "Decírselo a ScopePower"
 msgstr ""
@@ -3175,6 +3179,10 @@ msgstr ""
 
 #: hora_sistema.py
 msgid "Este usuario de Windows no tiene permiso para cambiar la hora. Ejecuta instalar_scopepower.bat en el PC (concede el permiso) y vuelve a iniciar sesión en Windows; o pon la hora a mano."
+msgstr ""
+
+#: apilado_video.py
+msgid "Este vídeo no tiene un apilado guardado: apílalo primero."
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -5702,6 +5710,10 @@ msgid "No se puede calcular el tamaño del disco: {e}"
 msgstr ""
 
 #: apilado_video.py
+msgid "No se puede leer el apilado guardado: {e}"
+msgstr ""
+
+#: apilado_video.py
 msgid "No se puede leer el vídeo: {e}"
 msgstr ""
 
@@ -6462,6 +6474,24 @@ msgstr ""
 
 #: templates/galeria.html templates/rastros.html
 msgid "Rastros"
+msgstr ""
+
+#: apilado_video.py
+msgid "Reafinado en {s} s"
+msgstr ""
+
+#: apilado_video.py
+msgid "Reafinando {nombre}..."
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Reafinando..."
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Reafinar"
 msgstr ""
 
 #. js
@@ -7938,6 +7968,11 @@ msgstr ""
 msgid "Volver a pendiente"
 msgstr ""
 
+#. js
+#: templates/imagen.html
+msgid "Volver a revelar el apilado guardado con el afinado del deslizador, sin repetir el apilado"
+msgstr ""
+
 #: templates/base.html templates/configuracion.html
 msgid "Voz"
 msgstr ""
@@ -9020,6 +9055,10 @@ msgstr ""
 msgid "libres {tam}"
 msgstr ""
 
+#: apilado_video.py
+msgid "limbo {l} px, {n} iteraciones"
+msgstr ""
+
 #. js
 #: templates/imagen.html
 msgid "limbo {v} px"
@@ -9579,6 +9618,10 @@ msgstr ""
 #. js
 #: templates/configuracion.html
 msgid "sin descargar"
+msgstr ""
+
+#: apilado_video.py
+msgid "sin disco que medir: afinado sencillo"
 msgstr ""
 
 #: apilado.py

@@ -16,11 +16,19 @@
 #      hace de referencia. Vale para el disco entero, para un trozo de Luna y para un
 #      planeta: solo hace falta que haya algo con bordes.
 #   4. Apilar: media de los alineados en lineal (el ruido baja con la raíz del número
-#      de fotogramas), afinado opcional en dos escalas y el revelado de día de siempre
-#      (negro, balance de blancos, blanco al 99,9 %, gamma suave).
+#      de fotogramas). El apilado lineal se guarda junto al SER (<nombre>.apilado.npy)
+#      para poder revelarlo otra vez con otro afinado sin repetir el apilado.
+#   5. Afinar: deconvolución Richardson-Lucy del disco con el desenfoque medido en su
+#      propio limbo (la anchura del limbo que calcula enfoque.py es la FWHM de la PSF
+#      para un borde nítido). Es la «Nitidez» del editor sin la máscara de estrellas: la
+#      del editor mide estrellas y aquí no las hay. Sin disco (paisaje) queda una máscara
+#      de desenfoque en dos escalas.
+#   6. Revelar como la foto de día de siempre (negro, balance de blancos, blanco al
+#      99,9 %, gamma suave).
 #
-# El resultado se guarda en la galería como una foto de día más (JPG firmado + FITS
-# en color de 16 bits en crudos/), así el editor y «Nitidez» sirven igual.
+# El resultado se guarda en la galería como una foto de día más (JPG firmado + FITS en
+# color de 16 bits en crudos/). El editor de la galería no reprocesa estas fotos (su
+# procesado es el de los apilados de noche): el afinado se cambia aquí con «Reafinar».
 #
 # Con la Saturn-C a 260 mm (2,9″/px y 50 mm de apertura) no va a sacar granulación:
 # el límite lo ponen la óptica y el muestreo. Lo que gana es un disco limpio, con el
@@ -46,6 +54,9 @@ MINIMO_FOTOGRAMAS = 10
 RESPUESTA_MINIMA = 0.03          # correlación de fase por debajo: el fotograma no se ha podido alinear
 TOLERANCIA_BRILLO = 0.25         # ±25 % del brillo mediano; fuera de ahí (nube, salto) se descarta
 NITIDEZ_DEFECTO = 1.0            # afinado 0 (nada) .. 3
+ITERACIONES_POR_PUNTO = 4        # afinado 1 = 4 iteraciones de Richardson-Lucy; 3 = 12 (como el máximo del editor)
+FACTOR_PSF = 0.85                # PSF algo más estrecha que la FWHM del limbo (menos anillos), como en el editor
+CLAVES_INFO = ("frames", "puntuados", "usados", "no_alineados", "descartados_brillo", "desplazamiento_max_px", "patron")
 
 # Posiciones de los dos verdes en el bloque 2×2 y conversión de OpenCV para desmosaicar.
 # OpenCV nombra el patrón por el píxel (1,1), no por el (0,0): RGGB es COLOR_BayerBG.
@@ -182,20 +193,103 @@ def afinar(rgb, cantidad):
     return np.clip(rgb + float(cantidad) * (0.7 * fino + 0.4 * medio), 0.0, None)
 
 
-def revelar(media_rgb, negro, balance, ev=0.0, cantidad_nitidez=NITIDEZ_DEFECTO):
+def medir_limbo(media_rgb):
     """
-    Media lineal RGB float32 → (RGB uint8 revelado como la foto de día, cubo RGB uint16 lineal sin
-    balance ni afinado para el FITS). El blanco es el 99,9 % más brillante, como en el modo en vivo.
+    FWHM del desenfoque (px de la imagen) medida en el limbo del disco del apilado: la anchura a
+    media altura de la derivada radial del verde (enfoque.medir_disco), que para un borde nítido
+    es la de la PSF. (None, info) si no se ve un disco (paisaje, nubes).
     """
-    img = np.clip(media_rgb - float(negro or 0.0), 0.0, None)
+    import enfoque
+    verde = np.ascontiguousarray(media_rgb[..., 1], dtype=np.float32)
+    try:
+        info = enfoque.medir_disco(verde, escala_px=1.0)
+    except Exception as e:
+        return None, {"limbo": None, "motivo": str(e)}
+    limbo = info.get("limbo")
+    return (float(limbo) if limbo else None), info
+
+
+def deconvolucionar_disco(rgb, iteraciones, fwhm_px, progreso=None):
+    """
+    Richardson-Lucy por canal sobre la imagen lineal con una PSF gaussiana de la FWHM medida en
+    el limbo (× FACTOR_PSF). El cociente se acota para que el ruido no dispare la corrección ni
+    el limbo anille. Devuelve float32 (H, W, 3) lineal.
+    """
+    import cv2
+    iteraciones = int(iteraciones)
+    if iteraciones <= 0 or not fwhm_px or fwhm_px <= 0:
+        return np.asarray(rgb, dtype=np.float32)
+    sigma = max(float(fwhm_px) * FACTOR_PSF, 1.0) / 2.355
+    rgb = np.asarray(rgb, dtype=np.float32)
+    salida = np.empty_like(rgb)
+    total = 3 * iteraciones
+    for c in range(3):
+        y = rgb[..., c]
+        piso = float(np.percentile(y[::8, ::8], 1.0))
+        y = np.clip(y - piso, 1e-3, None) + 1e-3          # RL exige datos positivos
+        x = y.copy()
+        for i in range(iteraciones):
+            est = cv2.GaussianBlur(x, (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
+            ratio = np.clip(y / np.maximum(est, 1e-6), 0.5, 2.0)
+            x *= cv2.GaussianBlur(ratio, (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
+            if progreso:
+                progreso((c * iteraciones + i + 1) / total)
+        salida[..., c] = x + piso
+    return salida
+
+
+def revelar(media_rgb, negro, balance, ev=0.0, cantidad_nitidez=NITIDEZ_DEFECTO, fwhm_px=None, progreso=None):
+    """
+    Media lineal RGB float32 → (RGB uint8 revelado como la foto de día, cubo RGB uint16 lineal
+    afinado pero sin balance para el FITS, {"iteraciones", "psf_px"}). Con `fwhm_px` (el limbo
+    medido) el afinado es la deconvolución del disco; sin disco, la máscara de desenfoque.
+    El blanco es el 99,9 % más brillante, como en el modo en vivo.
+    """
+    img = np.clip(np.asarray(media_rgb, dtype=np.float32) - float(negro or 0.0), 0.0, None)
+    iteraciones = int(round(ITERACIONES_POR_PUNTO * float(cantidad_nitidez or 0))) if fwhm_px else 0
+    iteraciones = min(iteraciones, ITERACIONES_POR_PUNTO * 3)
+    if iteraciones:
+        img = deconvolucionar_disco(img, iteraciones, fwhm_px, progreso)
     blanco = max(float(np.percentile(img[::2, ::2], 99.9)), 1.0) / 2.0 ** float(ev or 0.0)
     cubo16 = (np.clip(img / blanco, 0.0, 1.0) * 65535.0).astype(np.uint16)
     if balance:
         img[..., 0] *= float(balance.get("r", 1.0))
         img[..., 2] *= float(balance.get("b", 1.0))
     img = np.clip(img / blanco, 0.0, 1.0)
-    img = np.clip(afinar(img, cantidad_nitidez), 0.0, 1.0)
-    return (np.power(img, 1.0 / 1.6) * 255.0).astype(np.uint8), cubo16
+    if not fwhm_px:
+        img = np.clip(afinar(img, cantidad_nitidez), 0.0, 1.0)
+    afinado = {"iteraciones": iteraciones, "psf_px": round(float(fwhm_px) * FACTOR_PSF, 2) if (fwhm_px and iteraciones) else None}
+    return (np.power(img, 1.0 / 1.6) * 255.0).astype(np.uint8), cubo16, afinado
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Apilado lineal guardado junto al SER (para reafinar sin volver a apilar)
+# ─────────────────────────────────────────────────────────────────────────────
+def ruta_apilado(ruta_ser):
+    return os.path.splitext(ruta_ser)[0] + ".apilado.npy"
+
+
+def hay_apilado(ruta_ser):
+    return os.path.isfile(ruta_apilado(ruta_ser)) and os.path.isfile(os.path.splitext(ruta_ser)[0] + ".apilado.json")
+
+
+def guardar_apilado(ruta_ser, media, info):
+    np.save(ruta_apilado(ruta_ser), np.asarray(media, dtype=np.float32))
+    with open(os.path.splitext(ruta_ser)[0] + ".apilado.json", "w", encoding="utf-8") as f:
+        json.dump(info, f, ensure_ascii=False, indent=1)
+
+
+def cargar_apilado(ruta_ser):
+    """(media RGB float32, info) del apilado guardado; ErrorVideo si no lo hay."""
+    if not hay_apilado(ruta_ser):
+        raise ErrorVideo(_("Este vídeo no tiene un apilado guardado: apílalo primero."))
+    try:
+        media = np.load(ruta_apilado(ruta_ser))
+        with open(os.path.splitext(ruta_ser)[0] + ".apilado.json", encoding="utf-8") as f:
+            info = json.load(f)
+    except (OSError, ValueError) as e:
+        raise ErrorVideo(_("No se puede leer el apilado guardado: {e}", e=e))
+    return media, info
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -304,11 +398,14 @@ class TrabajoApiladoVideo:
                     "progreso": round(self.progreso, 3), "mensaje": self.mensaje, "error": self.error,
                     "nombre": self.nombre, "resultado": self.resultado}
 
-    def iniciar(self, ruta_ser, guardar, pct=MEJORES_PCT_DEFECTO, cantidad_nitidez=NITIDEZ_DEFECTO, ev=0.0):
+    def iniciar(self, ruta_ser, guardar, pct=MEJORES_PCT_DEFECTO, cantidad_nitidez=NITIDEZ_DEFECTO, ev=0.0, reafinar=False):
         """
         guardar(rgb8, cubo16, info) → dict con "archivo" (y lo que quiera): recibe la imagen revelada
         (RGB uint8, orientación del SDK) y el cubo lineal, y la deja en la galería.
+        `reafinar`: no se apila; se vuelve a revelar el apilado guardado con el afinado nuevo.
         """
+        if reafinar and not hay_apilado(ruta_ser):
+            raise RuntimeError(_("Este vídeo no tiene un apilado guardado: apílalo primero."))
         with self._lock:
             if self.en_curso:
                 raise RuntimeError(_("Ya se está apilando un vídeo; espera a que termine."))
@@ -316,10 +413,11 @@ class TrabajoApiladoVideo:
             self._parar.clear()
             self.en_curso = True
             self.nombre = os.path.splitext(os.path.basename(ruta_ser))[0]
-            self.fase = "puntuando"
-            self.mensaje = _("Apilando {nombre}...", nombre=self.nombre)
+            self.fase = "revelando" if reafinar else "puntuando"
+            self.mensaje = (_("Reafinando {nombre}...", nombre=self.nombre) if reafinar
+                            else _("Apilando {nombre}...", nombre=self.nombre))
         self._hilo = threading.Thread(target=self._ejecutar, name="apilado-video", daemon=True,
-                                      args=(ruta_ser, guardar, float(pct), float(cantidad_nitidez), float(ev)))
+                                      args=(ruta_ser, guardar, float(pct), float(cantidad_nitidez), float(ev), bool(reafinar)))
         self._hilo.start()
         return self._hilo
 
@@ -334,28 +432,41 @@ class TrabajoApiladoVideo:
         with self._lock:
             self.fase, self.progreso = fase, float(fraccion)
 
-    def _ejecutar(self, ruta_ser, guardar, pct, cantidad_nitidez, ev):
+    def _ejecutar(self, ruta_ser, guardar, pct, cantidad_nitidez, ev, reafinar=False):
         inicio = time.time()
         error, resultado = "", None
         try:
-            r = apilar(ruta_ser, pct, progreso=self._avanzar, cancelar=self._parar.is_set)
-            self._avanzar("revelando", 0.0)
             meta = leer_meta(ruta_ser)
-            lector = r["lector"]
-            import foto_dia
-            negro = meta.get("negro")
-            if negro is None:
-                negro = foto_dia.nivel_negro(lector.fotograma(r["referencia"]), lector.blanco)
-            balance = meta.get("balance")
-            if not balance and lector.patron in _VERDES:
-                balance = foto_dia.balance_para_patron(lector.fotograma(r["referencia"]), lector.patron, meta.get("objetivo"),
-                                                       negro, lector.blanco, aprender=False)
-            rgb8, cubo16 = revelar(r["media"], negro, balance, ev=ev, cantidad_nitidez=cantidad_nitidez)
-            lector.cerrar()
-            info = {k: r[k] for k in ("frames", "puntuados", "usados", "no_alineados", "descartados_brillo",
-                                       "desplazamiento_max_px", "patron")}
-            info.update({"pct": pct, "nitidez": cantidad_nitidez, "negro": negro, "balance": balance, "meta": meta,
-                         "segundos": round(time.time() - inicio, 1)})
+            if reafinar:
+                media, info = cargar_apilado(ruta_ser)
+                self._avanzar("revelando", 0.0)
+            else:
+                r = apilar(ruta_ser, pct, progreso=self._avanzar, cancelar=self._parar.is_set)
+                self._avanzar("revelando", 0.0)
+                lector = r["lector"]
+                import foto_dia
+                negro = meta.get("negro")
+                if negro is None:
+                    negro = foto_dia.nivel_negro(lector.fotograma(r["referencia"]), lector.blanco)
+                balance = meta.get("balance")
+                if not balance and lector.patron in _VERDES:
+                    balance = foto_dia.balance_para_patron(lector.fotograma(r["referencia"]), lector.patron, meta.get("objetivo"),
+                                                           negro, lector.blanco, aprender=False)
+                lector.cerrar()
+                media = r["media"]
+                limbo, info_limbo = medir_limbo(media)
+                if limbo:
+                    log.info("Apilado de vídeo %s: limbo %.2f px (%d ángulos)", self.nombre, limbo, info_limbo.get("n", 0))
+                else:
+                    log.info("Apilado de vídeo %s: sin disco que medir (%s): afinado sencillo", self.nombre, info_limbo.get("motivo"))
+                info = {k: r[k] for k in CLAVES_INFO}
+                info.update({"pct": pct, "negro": None if negro is None else float(negro), "balance": balance,
+                             "limbo_px": None if limbo is None else round(limbo, 2), "instante": time.time()})
+                guardar_apilado(ruta_ser, media, info)
+            rgb8, cubo16, afinado = revelar(media, info.get("negro"), info.get("balance"), ev=ev, cantidad_nitidez=cantidad_nitidez,
+                                            fwhm_px=info.get("limbo_px"), progreso=lambda f: self._avanzar("revelando", f))
+            info = dict(info, nitidez=cantidad_nitidez, meta=meta, reafinado=reafinar,
+                        segundos=round(time.time() - inicio, 1), **afinado)
             resultado = dict(guardar(rgb8, cubo16, info) or {})
             resultado.update(info)
             resultado.pop("meta", None)
@@ -375,8 +486,15 @@ class TrabajoApiladoVideo:
                 if error:
                     self.mensaje = _("Error: {e}", e=error)
                 else:
-                    self.mensaje = _("Apilados {usados} de {frames} fotogramas en {s} s", usados=resultado["usados"],
-                                     frames=resultado["frames"], s=fmt_num(resultado["segundos"], 0))
+                    s = fmt_num(resultado["segundos"], 0)
+                    self.mensaje = (_("Reafinado en {s} s", s=s) if resultado["reafinado"] else
+                                    _("Apilados {usados} de {frames} fotogramas en {s} s", usados=resultado["usados"],
+                                      frames=resultado["frames"], s=s))
+                    if resultado.get("iteraciones"):
+                        self.mensaje += " · " + _("limbo {l} px, {n} iteraciones", l=fmt_num(resultado["limbo_px"], 1),
+                                                   n=resultado["iteraciones"])
+                    elif resultado.get("nitidez") and not resultado.get("limbo_px"):
+                        self.mensaje += " · " + _("sin disco que medir: afinado sencillo")
 
 
 trabajo_apilado_video = TrabajoApiladoVideo()

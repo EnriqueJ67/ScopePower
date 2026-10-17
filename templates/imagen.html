@@ -279,6 +279,7 @@
                 <div class="form-group">
                     <label for="video-nitidez">{{ _("Afinado") }} <span id="video-nitidez-v" class="texto-3"></span></label>
                     <input type="range" id="video-nitidez" min="0" max="3" step="0.5" value="1" oninput="pintarNitidezVideo()">
+                    <small class="ayuda">{{ _("Deconvolución del disco con el desenfoque medido en su propio limbo (4 iteraciones por punto). «Reafinar» vuelve a revelar el apilado guardado con el valor del deslizador, en segundos, sin repetir el apilado; sustituye la foto de la galería. La «Nitidez» del editor de la galería no sirve aquí: mide estrellas.") }}</small>
                 </div>
                 <div id="video-grabacion" class="estado mt-1"></div>
                 <div id="video-apilado" class="mt-2" hidden>
@@ -1149,6 +1150,7 @@
             }
             if (!d.videos.length) { cont.innerHTML = '<div class="texto-3">' + _("Todavía no hay ningún vídeo grabado.") + "</div>"; return; }
             const tApilar = _("Apilar"), tBorrar = _("Borrar el vídeo del mini PC"), tVerApilado = _("ver el apilado en la galería");
+            const tReafinar = _("Reafinar"), tReafinarAyuda = _("Volver a revelar el apilado guardado con el afinado del deslizador, sin repetir el apilado");
             cont.innerHTML = d.videos.map(v => {
                 const fecha = new Date(1000 * v.fecha);
                 const datos = v.error ? "⚠️ " + v.error
@@ -1160,17 +1162,18 @@
                         <div class="texto-3" style="font-size: 12.5px;">${datos}</div>${apilado}</div>
                     <div class="fila" style="gap: 6px; flex-shrink: 0;">
                         <button type="button" class="btn btn-primary btn-sm" ${v.error || ocupado ? "disabled" : ""} onclick="apilarVideo('${v.nombre}')"><svg><use href="#i-apilado"/></svg>${tApilar}</button>
+                        ${v.reafinable ? `<button type="button" class="btn btn-secondary btn-sm" ${ocupado ? "disabled" : ""} onclick="reafinarVideo('${v.nombre}')" title="${tReafinarAyuda}"><svg><use href="#i-refrescar"/></svg>${tReafinar}</button>` : ""}
                         <button type="button" class="btn btn-secondary btn-sm" ${ocupado ? "disabled" : ""} onclick="borrarVideo('${v.nombre}')" title="${tBorrar}"><svg><use href="#i-papelera"/></svg></button>
                     </div></div>`;
             }).join("");
         }).catch(() => {});
     }
-    function apilarVideo(nombre) {
+    function apilarVideo(nombre, reafinar) {
         const est = document.getElementById("video-estado");
         const pct = parseInt(document.getElementById("video-pct").value) || 25;
         const nitidez = parseFloat(document.getElementById("video-nitidez").value) || 0;
-        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Empezando el apilado...");
-        fetch("/videos/apilar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre, pct, nitidez }) })
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + (reafinar ? _("Reafinando...") : _("Empezando el apilado..."));
+        fetch(reafinar ? "/videos/reafinar" : "/videos/apilar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre, pct, nitidez }) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); return; }
@@ -1181,6 +1184,7 @@
             })
             .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
     }
+    function reafinarVideo(nombre) { apilarVideo(nombre, true); }
     function cancelarApiladoVideo() { fetch("/videos/apilar/cancelar", { method: "POST" }).catch(() => {}); }
     function pintarApilado(e) {
         const activo = !!e.en_curso;
