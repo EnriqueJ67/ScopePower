@@ -203,7 +203,9 @@ def localizar(f, orientacion, objetivo, observatorio, leer_fits=None):
     except (KeyError, TypeError, ZeroDivisionError) as e:
         raise SinDisco(_("No se puede calcular el tamaño del disco: {e}", e=e))
     disco = detectar_disco(lum, radio_px)
-    du, dv = apuntado_teorico.desplazamiento(disco["fx"], disco["fy"], f, orientacion)
+    # La luminancia es el fotograma sin girar (no la vista con el giro de Cámara): en_vista=False,
+    # o con un giro de 180° el desplazamiento saldría al revés y el guiado alejaría el disco
+    du, dv = apuntado_teorico.desplazamiento(disco["fx"], disco["fy"], f, orientacion, en_vista=False)
     disco.update({"du": du, "dv": dv, "instante": instante, "radio_arcsec": radio_as,
                   "desvio_arcmin": math.hypot(du, dv) * 60.0})
     return disco
@@ -413,3 +415,26 @@ if __name__ == "__main__":
         detectar_disco(np.full((300, 300), 50.0, np.float32), 80)
     except SinDisco as e:
         print("uniforme       : SinDisco:", e)
+
+    # Guiado con la cámara girada 180° en Cámara: el disco se mide sobre el fotograma sin girar, así que
+    # el desplazamiento debe salir igual con giro que sin él (el 17-oct-2026 salía al revés y el guiado
+    # alejaba el Sol del centro en cada corrección)
+    observatorio = (39.5, -0.5, 200.0)
+    instante = time.time()
+    escala = 5.0                                       # ″/px: el Sol (~960″ de radio) cabe en 700 px
+    r = radio_esperado_arcsec("sol", instante, *observatorio) / escala
+    cx, cy = 330.4, 360.7
+    d2 = (xx - cx) ** 2 + (yy - cy) ** 2
+    img = np.full((h, w), 40.0, np.float32)
+    img[d2 < r ** 2] = 200.0
+    img = np.clip(img + np.random.default_rng(2).normal(0, 3, img.shape), 0, 255).astype(np.uint8)
+    orientacion = {"H": [[escala / 3600, 0.0], [0.0, -escala / 3600]], "binning_foto": 1, "escala_arcsec": escala, "angulo_x_deg": 0.0}
+    vista = {"modo": "vivo", "imagen": img, "ancho": w, "alto": h, "binning": 1, "campo": 1.0, "instante": instante, "objetivo": "sol"}
+    sin_giro = localizar(dict(vista, encuadre={"giro": 0.0, "espejo": False}), orientacion, "sol", observatorio)
+    con_giro = localizar(dict(vista, encuadre={"giro": 180.0, "espejo": False}), orientacion, "sol", observatorio)
+    esperado_du = (cx - w / 2) * escala / 3600           # el disco está a la izquierda: hay que mover a menos acimut
+    print(f"giro 0  : du {sin_giro['du'] * 60:+.2f}' dv {sin_giro['dv'] * 60:+.2f}' (esperado du {esperado_du * 60:+.2f}')")
+    print(f"giro 180: du {con_giro['du'] * 60:+.2f}' dv {con_giro['dv'] * 60:+.2f}'")
+    assert abs(sin_giro["du"] - esperado_du) < 1.0 / 60 and abs(con_giro["du"] - sin_giro["du"]) < 1e-6, (sin_giro, con_giro)
+    assert abs(con_giro["dv"] - sin_giro["dv"]) < 1e-6
+    print("✅ disco: el desplazamiento no depende del giro de Cámara")
