@@ -79,6 +79,11 @@ msgid "(mejor de la sesión {fwhm})"
 msgstr ""
 
 #. js
+#: templates/imagen.html
+msgid "(ninguno)"
+msgstr ""
+
+#. js
 #: templates/configuracion.html
 msgid "(ningún driver registrado)"
 msgstr ""
@@ -168,6 +173,10 @@ msgstr ""
 msgid "0°, 0° está en mitad del océano: escribe la ubicación de tu observatorio."
 msgstr ""
 
+#: templates/imagen.html
+msgid "1 minuto"
+msgstr ""
+
 #: templates/apilado.html
 msgid "10 menos"
 msgstr ""
@@ -181,6 +190,10 @@ msgstr ""
 msgid "100 % (campo completo)"
 msgstr ""
 
+#: templates/imagen.html
+msgid "2 minutos"
+msgstr ""
+
 #: templates/apilado.html templates/configuracion.html
 #: templates/editar_foto.html templates/imagen.html
 msgid "25 % (objetos pequeños)"
@@ -192,7 +205,15 @@ msgid "25 % del campo"
 msgstr ""
 
 #: templates/imagen.html
+msgid "30 segundos"
+msgstr ""
+
+#: templates/imagen.html
 msgid "35 % (Sol y Luna grandes)"
+msgstr ""
+
+#: templates/imagen.html
+msgid "5 minutos"
 msgstr ""
 
 #: templates/apilado.html
@@ -415,6 +436,10 @@ msgstr ""
 msgid "Afilando (deconvolución)"
 msgstr ""
 
+#: templates/imagen.html
+msgid "Afinado"
+msgstr ""
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Agresivo: máximo ruido y contraste"
 msgstr ""
@@ -628,6 +653,10 @@ msgstr ""
 msgid "Apilado"
 msgstr ""
 
+#: apilado_video.py
+msgid "Apilado cancelado"
+msgstr ""
+
 #: plan_sesion.py
 msgid "Apilado detenido ({motivo}); plan en pausa. Reanuda para reintentar {objeto}"
 msgstr ""
@@ -672,9 +701,22 @@ msgstr ""
 msgid "Apilado por las estrellas: el cometa sale corrido"
 msgstr ""
 
+#: apilado_video.py
+msgid "Apilados {usados} de {frames} fotogramas en {s} s"
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "Apilando"
+msgstr ""
+
+#: apilado_video.py
+msgid "Apilando {nombre}..."
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Apilar"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -925,6 +967,11 @@ msgstr ""
 
 #: templates/editar_foto.html
 msgid "Borrar el preset seleccionado"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Borrar el vídeo del mini PC"
 msgstr ""
 
 #: templates/rastros.html
@@ -1466,6 +1513,11 @@ msgstr ""
 
 #: templates/imagen.html
 msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes."
+msgstr ""
+
+#: templates/imagen.html
+#, python-format
+msgid "Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. Después, aquí se miden todos los fotogramas, se quedan los más nítidos, se alinean y se apilan: el resultado va a la galería como una foto de día más. Con el recorte del 35 % son unos 2,7 GB por minuto."
 msgstr ""
 
 #: ScopePower.py
@@ -2064,6 +2116,10 @@ msgstr ""
 msgid "Drivers, exposición, voz, red"
 msgstr ""
 
+#: templates/imagen.html
+msgid "Duración de la grabación"
+msgstr ""
+
 #. js
 #: templates/imagen.html
 msgid "Durará unos {dur}; a 25 fotos por segundo, el vídeo tendrá {s} s."
@@ -2319,6 +2375,10 @@ msgid "El modo en vivo necesita la cámara por SDK: elige en Configuración un d
 msgstr ""
 
 #: vivo_dia.py
+msgid "El modo en vivo no está en marcha"
+msgstr ""
+
+#: vivo_dia.py
 msgid "El modo en vivo ya está en marcha"
 msgstr ""
 
@@ -2518,6 +2578,14 @@ msgstr ""
 msgid "El usuario solo puede llevar letras sin acentos, números, punto, guion y guion bajo"
 msgstr ""
 
+#: apilado_video.py
+msgid "El vídeo está vacío"
+msgstr ""
+
+#: apilado_video.py
+msgid "El vídeo no tiene ningún fotograma aprovechable"
+msgstr ""
+
 #: templates/configuracion.html
 msgid "El zoom recorta por los bordes la vista previa y el JPG de la galería; el apilado y el FITS siguen a campo completo."
 msgstr ""
@@ -2557,6 +2625,11 @@ msgstr ""
 
 #: templates/galeria.html
 msgid "Eliminar imagen"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Empezando el apilado..."
 msgstr ""
 
 #. js
@@ -2890,7 +2963,7 @@ msgid "Error {codigo}"
 msgstr ""
 
 #. js
-#: ScopePower.py apilado.py foto_dia.py seguimiento.py
+#: ScopePower.py apilado.py apilado_video.py foto_dia.py seguimiento.py
 #: templates/alineacion.html templates/dark.html templates/flats.html
 #: templates/rastros.html vivo_dia.py
 msgid "Error: {e}"
@@ -2952,6 +3025,14 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Ese objeto ya no está en el plan"
+msgstr ""
+
+#: ScopePower.py
+msgid "Ese vídeo se está apilando ahora"
+msgstr ""
+
+#: ScopePower.py
+msgid "Ese vídeo se está grabando ahora"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html templates/imagen.html
@@ -3573,6 +3654,10 @@ msgstr ""
 msgid "Fotogramas perdidos"
 msgstr ""
 
+#: templates/imagen.html
+msgid "Fotogramas que se apilan"
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "Fotos"
@@ -3756,6 +3841,10 @@ msgstr ""
 msgid "GoTo, centrado, apilado y guardado de cada objeto, en el orden del cronograma"
 msgstr ""
 
+#: templates/imagen.html
+msgid "Graba el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. Luego, en el panel Vídeo, se apilan los fotogramas más nítidos."
+msgstr ""
+
 #: seguimiento.py
 msgid "Grabación de vídeo detenida por un error"
 msgstr ""
@@ -3764,12 +3853,26 @@ msgstr ""
 msgid "Grabación de vídeo detenida: el disco está casi lleno"
 msgstr ""
 
+#: ScopePower.py
+msgid "Grabando vídeo"
+msgstr ""
+
 #: seguimiento.py
 msgid "Grabando vídeo en color en {nombre} ({formatos})"
 msgstr ""
 
 #: seguimiento.py
 msgid "Grabando vídeo monocromo en {nombre} ({formatos})"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Grabando {nombre} · {t}{total} · {n} fotogramas · {mb} MB"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Grabar vídeo"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -3911,6 +4014,10 @@ msgstr ""
 
 #: templates/editar_foto.html
 msgid "Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro."
+msgstr ""
+
+#: templates/imagen.html
+msgid "Hasta pulsar Parar"
 msgstr ""
 
 #: editor_fotos.py
@@ -5305,6 +5412,10 @@ msgstr ""
 msgid "No se ha oído nada. Vuelve a pulsar y habla enseguida."
 msgstr ""
 
+#: apilado_video.py
+msgid "No se ha podido alinear ningún fotograma"
+msgstr ""
+
 #: ScopePower.py
 msgid "No se ha podido aparcar la montura"
 msgstr ""
@@ -5363,6 +5474,10 @@ msgstr ""
 
 #: static/js/plan.js
 msgid "No se pudo añadir"
+msgstr ""
+
+#: ScopePower.py
+msgid "No se pudo borrar: {e}"
 msgstr ""
 
 #: static/js/plan.js
@@ -5474,6 +5589,11 @@ msgid "No se pudo empezar la instalación"
 msgstr ""
 
 #. js
+#: templates/imagen.html
+msgid "No se pudo grabar"
+msgstr ""
+
+#. js
 #: static/js/asistente.js templates/configuracion.html
 #: templates/editar_foto.html
 msgid "No se pudo guardar"
@@ -5579,6 +5699,10 @@ msgstr ""
 
 #: disco.py
 msgid "No se puede calcular el tamaño del disco: {e}"
+msgstr ""
+
+#: apilado_video.py
+msgid "No se puede leer el vídeo: {e}"
 msgstr ""
 
 #: disco.py
@@ -5878,6 +6002,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Parar en vivo"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Parar la grabación"
 msgstr ""
 
 #: montura_ejes.py
@@ -7502,6 +7631,11 @@ msgstr ""
 msgid "Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí."
 msgstr ""
 
+#. js
+#: templates/imagen.html
+msgid "Todavía no hay ningún vídeo grabado."
+msgstr ""
+
 #: templates/apilado.html
 msgid "Todavía no hay objetos. Busca uno arriba, pulsa \"Messier completo\" o añádelos desde el planetario y Esta noche. Lo que no se pueda hacer esta noche queda para otra."
 msgstr ""
@@ -7867,6 +8001,10 @@ msgstr ""
 msgid "Vídeo"
 msgstr ""
 
+#: ScopePower.py
+msgid "Vídeo desconocido"
+msgstr ""
+
 #: templates/seguimiento.html
 msgid "Vídeo en color (binning 1: mismo campo, fotogramas ×4)"
 msgstr ""
@@ -7874,6 +8012,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Vídeo listo:"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Vídeo {nombre}: {n} fotogramas en {s} s ({mb} MB)"
 msgstr ""
 
 #: seguimiento.py
@@ -7946,12 +8089,20 @@ msgstr ""
 msgid "Ya se está aparcando la montura"
 msgstr ""
 
+#: apilado_video.py
+msgid "Ya se está apilando un vídeo; espera a que termine."
+msgstr ""
+
 #: foto_dia.py
 msgid "Ya se está calibrando el color"
 msgstr ""
 
 #: ScopePower.py
 msgid "Ya se está combinando"
+msgstr ""
+
+#: vivo_dia.py
+msgid "Ya se está grabando un vídeo"
 msgstr ""
 
 #: ScopePower.py
@@ -8281,6 +8432,7 @@ msgstr ""
 msgid "darks"
 msgstr ""
 
+#. js
 #: templates/imagen.html
 msgid "de día"
 msgstr ""
@@ -8355,6 +8507,18 @@ msgstr ""
 #. js
 #: apilado.py templates/apilado.html
 msgid "efeméride del MPC"
+msgstr ""
+
+#: templates/imagen.html
+msgid "el 10 % más nítido"
+msgstr ""
+
+#: templates/imagen.html
+msgid "el 25 % más nítido"
+msgstr ""
+
+#: templates/imagen.html
+msgid "el 50 % más nítido"
 msgstr ""
 
 #. js
@@ -9439,6 +9603,10 @@ msgstr ""
 msgid "sin giro"
 msgstr ""
 
+#: vivo_dia.py
+msgid "sin límite"
+msgstr ""
+
 #. js
 #: camara_toupcam.py
 msgid "sin memoria"
@@ -9535,6 +9703,10 @@ msgstr ""
 msgid "toca para cerrar"
 msgstr ""
 
+#: templates/imagen.html
+msgid "todos"
+msgstr ""
+
 #: templates/apilado.html
 msgid "tomas"
 msgstr ""
@@ -9568,6 +9740,16 @@ msgstr ""
 
 #: descripciones.py
 msgid "unos {minutos} minutos de arco"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "ver el apilado en la galería"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "ver en la galería"
 msgstr ""
 
 #: templates/apilado.html
@@ -9699,6 +9881,16 @@ msgstr ""
 
 #. js
 #: templates/imagen.html
+msgid "{fps} fotos/s"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "{gb} GB libres"
+msgstr ""
+
+#. js
+#: templates/imagen.html
 msgid "{hechas} / {total} fotos"
 msgstr ""
 
@@ -9822,7 +10014,8 @@ msgstr ""
 msgid "{n} de {total} para la referencia"
 msgstr ""
 
-#: static/js/seguimiento.js
+#. js
+#: static/js/seguimiento.js templates/imagen.html
 msgid "{n} descartados"
 msgstr ""
 
@@ -9872,7 +10065,8 @@ msgid_plural "{n} fotos sin guardar"
 msgstr[0] ""
 msgstr[1] ""
 
-#: static/js/seguimiento.js
+#. js
+#: static/js/seguimiento.js templates/imagen.html
 msgid "{n} fotogramas"
 msgstr ""
 
@@ -9979,6 +10173,11 @@ msgid "{n} rastro borrado"
 msgid_plural "{n} rastros borrados"
 msgstr[0] ""
 msgstr[1] ""
+
+#. js
+#: templates/imagen.html
+msgid "{n} sin alinear"
+msgstr ""
 
 #. js
 #: templates/apilado.html
@@ -10120,6 +10319,10 @@ msgstr ""
 msgid "{rotulo}: esperando {s} s a que se asiente la montura"
 msgstr ""
 
+#: vivo_dia.py
+msgid "{s} s"
+msgstr ""
+
 #: static/js/plan.js
 msgid "{s} s por foto apilada con {exp} s de exposición"
 msgstr ""
@@ -10215,6 +10418,11 @@ msgstr ""
 #. js
 #: templates/editar_foto.html
 msgid "¿Borrar el preset «{nombre}»?"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "¿Borrar el vídeo {nombre} del mini PC? El apilado de la galería, si lo hay, se queda."
 msgstr ""
 
 #. js

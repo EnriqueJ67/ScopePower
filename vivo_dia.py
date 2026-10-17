@@ -32,9 +32,11 @@
 #     devuelve la cámara a ASCOM.
 
 import os
+import json
 import time
 import logging
 import threading
+from datetime import datetime
 
 import numpy as np
 
@@ -43,11 +45,13 @@ import foto_actual
 import giro_camara
 import orientacion_camara
 import enfoque
-from idioma import _
+from idioma import _, fmt_num
 
 log = logging.getLogger("scopepower.vivo")
 
 FPS_CAMARA = 5                 # FrameLimit de la cámara: no más fotogramas de los que se procesan
+FPS_GRABACION_DEFECTO = 20     # mientras se graba un vídeo (la vista sigue a FPS_CAMARA; el resto solo se graba)
+NOMBRE_VIDEO = {"sol": "Sol", "luna": "Luna", "paisaje": "Paisaje"}
 ANCHO_JPG = 900
 CALIDAD_JPG = 72
 EXPOSICION_MAXIMA_S = 0.5      # en vivo no tiene sentido esperar más por foto
@@ -157,12 +161,19 @@ class TrabajoVivo:
         self._hilo = None
         self._jpg = None
         self.version = 0
+        # Grabación de vídeo (grabador_video.Grabacion) pedida desde la web mientras dura el vivo
+        self._peticion_grabacion = None
+        self._parar_grabacion = threading.Event()
+        self._grabacion = None
+        self._grabacion_info = None
         self._reiniciar()
 
     def _reiniciar(self):
         self.en_curso = False
         self.terminado = False
         self.parado_sin_mirar = False
+        self.error_grabacion = ""
+        self.ultima_grabacion = None   # resumen de la última grabación cerrada (nombre, fotogramas, segundos...)
         self.fase = ""
         self.mensaje = ""
         self.error = ""
@@ -183,7 +194,120 @@ class TrabajoVivo:
                     "campo": self.campo, "fps": round(self.fps, 1), "exposicion": self.exposicion,
                     "exposicion_texto": foto_dia.formatear_exposicion(self.exposicion),
                     "nivel": self.nivel, "color": foto_dia.texto_balance(self.balance),
-                    "fotogramas": self.fotogramas, "version": self.version, "enfoque": self.enfoque}
+                    "fotogramas": self.fotogramas, "version": self.version, "enfoque": self.enfoque,
+                    "grabacion": self._estado_grabacion(), "ultima_grabacion": self.ultima_grabacion,
+                    "error_grabacion": self.error_grabacion}
+
+    def _estado_grabacion(self):
+        g, info = self._grabacion, self._grabacion_info
+        if g is None or info is None:
+            return None
+        e = g.estado()
+        e.update({"segundos": round(time.time() - info["inicio"], 1), "duracion_s": info["duracion"], "fps": info["fps"]})
+        return e
+
+    # ── grabación de vídeo (se atiende desde el hilo del vivo) ─────────────
+    def grabar(self, duracion_s=120, fps=FPS_GRABACION_DEFECTO, carpeta=None):
+        """Pide grabar un SER desde el siguiente fotograma: `duracion_s` segundos (0 = hasta parar)."""
+        with self._lock:
+            if not self.en_curso or self.fase != "en vivo":
+                raise RuntimeError(_("El modo en vivo no está en marcha"))
+            if self._grabacion is not None or self._peticion_grabacion is not None:
+                raise RuntimeError(_("Ya se está grabando un vídeo"))
+            self._parar_grabacion.clear()
+            self._peticion_grabacion = {"duracion": max(0.0, float(duracion_s or 0)), "fps": max(1.0, float(fps or FPS_GRABACION_DEFECTO)),
+                                        "carpeta": carpeta}
+
+    def parar_grabacion(self):
+        self._parar_grabacion.set()
+
+    def _atender_grabacion(self, cam, geo, patron, orientacion, props, exposicion, ganancia, negro, balance):
+        """Arranca o cierra la grabación según lo pedido; True mientras hay que encolar fotogramas."""
+        with self._lock:
+            peticion, self._peticion_grabacion = self._peticion_grabacion, None
+        if peticion is not None and self._grabacion is None:
+            self._empezar_grabacion(cam, geo, patron, orientacion, props, exposicion, ganancia, negro, balance, peticion)
+        g, info = self._grabacion, self._grabacion_info
+        if g is None:
+            return False
+        agotada = info["duracion"] > 0 and time.time() >= info["inicio"] + info["duracion"]
+        if self._parar_grabacion.is_set() or agotada or not g.activa:
+            self._terminar_grabacion(cam)
+            return False
+        return True
+
+    def _empezar_grabacion(self, cam, geo, patron, orientacion, props, exposicion, ganancia, negro, balance, peticion):
+        import grabador_video
+        nombre = f"{NOMBRE_VIDEO.get(self.objetivo, 'Video')}_{datetime.now():%Y%m%d_%H%M%S}"
+        carpeta = peticion["carpeta"] or grabador_video.CARPETA_VIDEOS
+        bits = 16 if str(geo.get("formato", "RAW16")).upper() == "RAW16" else 8
+        try:
+            g = grabador_video.Grabacion(carpeta, ("ser",), ancho=geo["ancho"], alto=geo["alto"], fps=peticion["fps"],
+                                         bayer=patron, bits=bits, nombre=nombre, instrumento=str(props.get("modelo") or ""))
+        except Exception as e:
+            with self._lock:
+                self.error_grabacion = str(e)
+            log.warning("En vivo: no se puede grabar: %s", e)
+            return
+        try:
+            cam.poner("FrameLimit", int(round(peticion["fps"])))
+        except Exception as e:
+            log.warning("En vivo: no se pudo subir la cadencia de la cámara para grabar: %s", e)
+        self._grabacion = g
+        self._grabacion_info = {"nombre": nombre, "inicio": time.time(), "duracion": peticion["duracion"], "fps": peticion["fps"],
+                                "ruta": g.rutas["ser"]}
+        meta = {"objetivo": self.objetivo, "campo": self.campo, "exposicion_s": exposicion, "ganancia": ganancia,
+                "patron": patron, "formato": geo.get("formato"), "bits": bits, "orientacion": orientacion,
+                "lado": geo.get("lado"), "x0": geo.get("x0"), "y0": geo.get("y0"), "binning": geo.get("binning", 1),
+                "px_um": props.get("pixel_um") or props.get("px") or 3.76, "modelo": props.get("modelo"),
+                "negro": None if negro is None else float(negro), "balance": balance, "instante": time.time(),
+                "fps_pedido": peticion["fps"], "duracion_pedida_s": peticion["duracion"]}
+        self._escribir_meta(meta)
+        with self._lock:
+            self.error_grabacion = ""
+        log.info("En vivo: grabando vídeo %s (%s, %dx%d, %d bits, %s, hasta %s fps, %s)", nombre, patron, geo["ancho"], geo["alto"],
+                 bits, g.rutas["ser"], fmt_num(peticion["fps"], 0),
+                 (_("{s} s", s=fmt_num(peticion["duracion"], 0)) if peticion["duracion"] else _("sin límite")))
+
+    def _terminar_grabacion(self, cam):
+        g, info = self._grabacion, self._grabacion_info
+        if g is None:
+            return
+        self._grabacion = None
+        g.cerrar()
+        if cam is not None:
+            try:
+                cam.poner("FrameLimit", FPS_CAMARA)
+            except Exception as e:
+                log.warning("En vivo: no se pudo devolver la cadencia de la cámara: %s", e)
+        segundos = round(time.time() - info["inicio"], 1)
+        resumen = {"nombre": info["nombre"], "ruta": info["ruta"], "frames": g.frames, "descartados": g.descartados,
+                   "segundos": segundos, "mb": round(g.frames * g.bytes_frame / 1e6, 1), "error": g.error}
+        meta = self._leer_meta(info["ruta"])
+        meta.update({"frames": g.frames, "descartados": g.descartados, "duracion_s": segundos})
+        self._escribir_meta(meta, info["ruta"])
+        with self._lock:
+            self.ultima_grabacion = resumen
+            if g.error:
+                self.error_grabacion = g.error
+        log.info("En vivo: vídeo %s cerrado: %d fotogramas en %s s (%d descartados)%s", info["nombre"], g.frames,
+                 fmt_num(segundos, 1), g.descartados, f" · {g.error}" if g.error else "")
+
+    def _escribir_meta(self, meta, ruta_ser=None):
+        ruta = os.path.splitext(ruta_ser or self._grabacion_info["ruta"])[0] + ".json"
+        try:
+            with open(ruta, "w", encoding="utf-8") as f:
+                json.dump(meta, f, ensure_ascii=False, indent=1)
+        except OSError as e:
+            log.warning("En vivo: no se pudo escribir %s: %s", ruta, e)
+
+    @staticmethod
+    def _leer_meta(ruta_ser):
+        try:
+            with open(os.path.splitext(ruta_ser)[0] + ".json", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return {}
 
     def imagen(self, despues=None, espera=3.0):
         """
@@ -256,6 +380,10 @@ class TrabajoVivo:
             error = str(e)
             log.exception("En vivo: error")
         finally:
+            try:
+                self._terminar_grabacion(None)     # si se para el vivo grabando, el SER se cierra bien
+            except Exception as e:
+                log.warning("En vivo: al cerrar la grabación: %s", e)
             if cam is not None:
                 try:
                     cam.cerrar()
@@ -331,8 +459,9 @@ class TrabajoVivo:
         saltar = 0                      # fotogramas a descartar tras cambiar la exposición
         errores_seguidos = 0
         t_fps, n_fps = time.perf_counter(), 0
+        ultimo_mostrado = 0.0           # grabando, la vista sigue a FPS_CAMARA y el resto de fotogramas solo se graba
         while not self._parar.is_set():
-            if time.time() - self._ultimo_visto > SIN_MIRAR_S:
+            if time.time() - self._ultimo_visto > SIN_MIRAR_S and self._grabacion is None:
                 self.parado_sin_mirar = True
                 self._msg(_("Parado: nadie ha mirado la imagen en {n} minutos; la cámara vuelve a ASCOM", n=SIN_MIRAR_S // 60))
                 break
@@ -347,6 +476,14 @@ class TrabajoVivo:
             if saltar:
                 saltar -= 1
                 continue
+            # Grabación: el fotograma crudo tal cual sale del SDK (el SER lleva el patrón Bayer y
+            # apilado_video.py lo orienta al apilar). Mientras se graba, la exposición y el balance
+            # se quedan fijos: un vídeo con la exposición cambiando a mitad no se apila bien.
+            grabando = self._atender_grabacion(cam, geo, patron, orientacion, props, exposicion, ganancia, negro, balance)
+            if grabando:
+                self._grabacion.encolar(cfa)
+                if time.perf_counter() - ultimo_mostrado < 1.0 / FPS_CAMARA:
+                    continue
 
             conf_n = foto_dia.con_compensacion(conf, compensacion)
             modo_enfoque = enfoque.activo()
@@ -355,13 +492,14 @@ class TrabajoVivo:
                 nueva, nivel = enfoque.nueva_exposicion_estrella(exposicion, cfa, minima_s, maxima_s, BLANCO)
             else:
                 nueva, nivel = nueva_exposicion(exposicion, cfa, conf_n["nivel"], minima_s, maxima_s)
-            if nueva != exposicion:
+            if nueva != exposicion and not grabando:
                 exposicion = nueva
                 cam.exposicion(exposicion * 1000.0)
                 saltar = 1
 
             ahora = time.perf_counter()
-            if balance is None or ahora - ultimo_balance >= CADA_BALANCE_S:
+            ultimo_mostrado = ahora
+            if balance is None or (ahora - ultimo_balance >= CADA_BALANCE_S and not grabando):
                 negro = foto_dia.nivel_negro(cfa, BLANCO)
                 balance = foto_dia.balance_para_patron(cfa, patron, self.objetivo, negro, BLANCO, aprender=False)
                 ultimo_balance = ahora
