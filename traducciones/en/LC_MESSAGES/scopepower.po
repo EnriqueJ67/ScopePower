@@ -4340,6 +4340,10 @@ msgstr "The mount didn't accept the move"
 msgid "La montura no ha aceptado la sincronización: {e}"
 msgstr "The mount didn't accept the sync: {e}"
 
+#: ScopePower.py
+msgid "La montura no ha aplicado la sincronización: sigue a {d}′ de la posición enviada. Si usas SynScan Pro, mira si pregunta algo en su ventana y desactiva «Interactively confirm SyncTo samples» en sus ajustes."
+msgstr "The mount did not apply the sync: it is still {d}′ from the position sent. If you use SynScan Pro, check whether it is asking something in its window and turn off “Interactively confirm SyncTo samples” in its settings."
+
 #: seguimiento.py
 msgid "La montura no informa de su posición; no se puede medir el ángulo recorrido"
 msgstr "The mount does not report its position; the angle traveled cannot be measured"

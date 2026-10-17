@@ -2828,10 +2828,31 @@ def sincronizar_con_disco(centrar=False):
     error = float(SkyCoord(ra=ra_i * u.hourangle, dec=dec_i * u.deg).separation(
         SkyCoord(ra=ra_c * u.hourangle, dec=dec_c * u.deg)).arcmin)
     ra_s, dec_s = coordenadas.a_montura(ra_c, dec_c)
+
+    def _sincronizar(tel):
+        # Primero se borra el modelo de apuntado de sesiones anteriores (ClearSyncTo): si no, SynScan Pro
+        # pregunta en su ventana del mini PC qué hacer con la muestra nueva («Add to existing model...»)
+        # y, sin nadie que conteste allí, el Sync se queda sin aplicar (visto el 17-oct-2026)
+        if _es_synscan(_dispositivos()["driver_telescopio"]):
+            limpiar_sincronizaciones(tel)
+        tel.SyncToCoordinates(ra_s, dec_s)
+        time.sleep(0.5)
+        return tel.RightAscension, tel.Declination
+
     try:
-        montura.ejecutar(lambda tel: tel.SyncToCoordinates(ra_s, dec_s), timeout=20)
+        ra_t, dec_t = montura.ejecutar(_sincronizar, timeout=30)
     except ErrorHardware as e:
         return {"ok": False, "mensaje": _("La montura no ha aceptado la sincronización: {e}", e=e)}
+    # Comprobar que la montura se ha quedado con la posición nueva (si una app intermedia
+    # la ignora o la deja pendiente de confirmar, aquí se ve)
+    residuo = float(SkyCoord(ra=ra_t * u.hourangle, dec=dec_t * u.deg).separation(
+        SkyCoord(ra=ra_s * u.hourangle, dec=dec_s * u.deg)).arcmin)
+    if residuo > max(5.0, 0.1 * error):
+        log.warning("Sincronización con el disco no aplicada: tras el Sync la montura sigue a %.1f' de la posición enviada "
+                    "(se equivocaba %.1f')", residuo, error)
+        return {"ok": False, "mensaje": _("La montura no ha aplicado la sincronización: sigue a {d}′ de la posición "
+                                          "enviada. Si usas SynScan Pro, mira si pregunta algo en su ventana y desactiva "
+                                          "«Interactively confirm SyncTo samples» en sus ajustes.", d=fmt_num(residuo, 1))}
     nombre = disco.NOMBRE[objetivo]
     log.info("Sincronizado con el disco de %s: centro de la foto AR %.4f h Dec %.3f° (disco a %.1f', ajuste %.0f %%%s); "
              "la montura se equivocaba %.1f'", nombre, ra_c, dec_c, d["desvio_arcmin"], 100 * d["ajuste"],

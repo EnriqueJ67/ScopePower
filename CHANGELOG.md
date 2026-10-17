@@ -7,6 +7,12 @@ día de la release. El número de versión vive en `version.py`.
 
 - Humor: frases para los niveles bajos (5-25 %), que hasta ahora no tenían ninguna, en español y en
   inglés; «Probar» ya no menciona ningún fichero cuando no hay frase.
+- Arreglado el guiado por el disco del Sol o la Luna con la cámara girada en Cámara (giro de 180°):
+  el desplazamiento del disco salía con el signo cambiado y cada corrección alejaba el disco del
+  centro hasta sacarlo del campo. Afectaba también a «Sincronizar con el disco».
+- «Sincronizar con el disco» borra antes el modelo de apuntado anterior de SynScan Pro
+  (ClearSyncTo), para que la app no pregunte en su ventana qué hacer con la muestra nueva, y
+  comprueba después que la montura se ha quedado con la posición enviada; si no, lo dice.
 
 ## 1.2.2 · 2026-10-16
 

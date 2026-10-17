@@ -4338,6 +4338,10 @@ msgstr ""
 msgid "La montura no ha aceptado la sincronización: {e}"
 msgstr ""
 
+#: ScopePower.py
+msgid "La montura no ha aplicado la sincronización: sigue a {d}′ de la posición enviada. Si usas SynScan Pro, mira si pregunta algo en su ventana y desactiva «Interactively confirm SyncTo samples» en sus ajustes."
+msgstr ""
+
 #: seguimiento.py
 msgid "La montura no informa de su posición; no se puede medir el ángulo recorrido"
 msgstr ""

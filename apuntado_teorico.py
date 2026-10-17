@@ -36,11 +36,16 @@ def geometria_visible(vista):
     return w, h
 
 
-def desplazamiento(fx, fy, vista, orientacion):
+def desplazamiento(fx, fy, vista, orientacion, en_vista=True):
     """
     (du, dv) en grados en el plano tangente horizontal (Δaz·cos alt, Δalt) desde el
     centro de la foto hasta el punto (fx, fy) de la foto que se ve (fracciones 0–1).
     Mover el apuntado esa cantidad deja el punto en el centro.
+
+    `en_vista`: el punto viene de la foto como se ve en Cámara, con su giro (un toque
+    de «Apunta aquí»). False si viene del fotograma sin girar (el disco que mide
+    disco.py sobre la imagen revelada); si no, con un giro de 180° el desplazamiento
+    saldría con el signo cambiado y el guiado corregiría al revés.
     """
     if not vista or not vista.get("ancho"):
         raise SinDatos(_("No hay ninguna foto en pantalla; haz una foto primero."))
@@ -48,8 +53,9 @@ def desplazamiento(fx, fy, vista, orientacion):
         raise SinDatos(_("Todavía no se conoce la orientación de la cámara: hace falta un plate solving "
                          "que salga bien (centrado, alineación, apilado o foto de noche) con la cámara como está ahora."))
     w, h = geometria_visible(vista)
-    # El toque viene sobre la foto como se ve (con el giro de Cámara): al fotograma sin girar
-    fx, fy = giro_camara.original(fx, fy, w, h, vista.get("encuadre"))
+    if en_vista:
+        # El toque viene sobre la foto como se ve (con el giro de Cámara): al fotograma sin girar
+        fx, fy = giro_camara.original(fx, fy, w, h, vista.get("encuadre"))
     # Píxeles del fotograma con binning -> píxeles de la foto resuelta
     factor = float(vista.get("binning", 1) or 1) / float(orientacion.get("binning_foto", 1) or 1)
     d = np.array([(fx - 0.5) * w, (fy - 0.5) * h]) * factor
@@ -112,6 +118,13 @@ if __name__ == "__main__":
     # Binning 2 en la foto de día: mismos grados por fracción de foto
     v2 = dict(v, ancho=1504, alto=1504, binning=2)
     assert abs(desplazamiento(1.0, 0.5, v2, o)[0] - desplazamiento(1.0, 0.5, v, o)[0]) < 1e-3
+    # Cámara girada 180°: un toque en la derecha de la vista es la izquierda del fotograma (menos acimut),
+    # pero un punto medido sobre el fotograma sin girar (en_vista=False) no cambia de signo
+    v180 = dict(v, encuadre={"giro": 180.0, "espejo": False})
+    du_toque, dv_toque = desplazamiento(1.0, 0.5, v180, o)
+    du_medido, dv_medido = desplazamiento(1.0, 0.5, v180, o, en_vista=False)
+    assert abs(du_toque + 752 * 2.91 / 3600) < 1e-6 and abs(dv_toque) < 1e-6, (du_toque, dv_toque)
+    assert abs(du_medido - 752 * 2.91 / 3600) < 1e-6 and abs(dv_medido) < 1e-6, (du_medido, dv_medido)
     # Proyección: a 60° de altura, 1° en el plano tangente son ~2° de acimut
     az, alt = mover_en_horizonte(100.0, 60.0, 1.0, 0.0)
     assert abs(az - 102.0) < 0.01 and abs(alt - 60.0) < 0.02, (az, alt)   # círculo máximo: baja un poco
