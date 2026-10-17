@@ -19,6 +19,11 @@ día de la release. El número de versión vive en `version.py`.
   con los mejores (el 25 % de serie), los alinea al subpíxel, los apila, los afina y deja el
   resultado en la galería como una foto de día más (JPG firmado y FITS en color). Sección
   `[Video]` nueva en `config.example.ini` y prueba `herramientas/probar_apilado_video.py`.
+- El afinado del apilado del vídeo es una deconvolución del disco (Richardson-Lucy) con el
+  desenfoque medido en su propio limbo, 4 iteraciones por punto del deslizador; sin disco
+  (paisaje) queda la máscara de desenfoque. El apilado lineal se guarda junto al SER y
+  «Reafinar» lo revela otra vez con otro afinado en segundos, sin repetir el apilado. La
+  «Nitidez» del editor de la galería no sirve para estas fotos: mide estrellas.
 
 ## 1.2.2 · 2026-10-16
 

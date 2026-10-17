@@ -131,9 +131,24 @@ def probar_apilado(carpeta):
     ruido_uno = float(apilado_video.desmosaicar(ref, "RGGB")[zona][..., 1].std())
     ruido_media = float(r["media"][zona][..., 1].std())
     assert ruido_media < ruido_uno * 0.6, (ruido_uno, ruido_media)
-    rgb8, cubo16 = apilado_video.revelar(r["media"], 1500.0, {"r": 1.0, "b": 1.6}, cantidad_nitidez=1.0)
+    rgb8, cubo16, afinado = apilado_video.revelar(r["media"], 1500.0, {"r": 1.0, "b": 1.6}, cantidad_nitidez=1.0)
     assert rgb8.dtype == np.uint8 and rgb8.shape == (h, w, 3) and cubo16.dtype == np.uint16 and cubo16.max() > 60000
     assert rgb8[165, 160, 0] > 200, "el centro del Sol revelado debería estar cerca del blanco"
+    assert afinado["iteraciones"] == 0 and afinado["psf_px"] is None, afinado      # sin limbo medido: afinado sencillo
+    # Limbo y deconvolución: un apilado desenfocado a propósito (σ 1,5 px → FWHM ≈ 3,5 px) se mide y se afina
+    import cv2
+    borroso = cv2.GaussianBlur(r["media"], (0, 0), 1.5)
+    limbo, info_limbo = apilado_video.medir_limbo(borroso)
+    assert limbo and 2.5 < limbo < 5.5, (limbo, info_limbo)
+    nitida = apilado_video.deconvolucionar_disco(np.clip(borroso - 1500.0, 0, None), 8, limbo)
+    limbo2, __ = apilado_video.medir_limbo(nitida)
+    assert limbo2 and limbo2 < 0.8 * limbo, f"el limbo no se estrecha: {limbo:.2f} → {limbo2}"
+    pico_antes, pico_despues = float(borroso[..., 1].max() - 1500.0), float(nitida[..., 1].max())
+    assert pico_despues < 1.08 * pico_antes, f"anilla: pico {pico_antes:.0f} → {pico_despues:.0f}"
+    rgb8n, __, afinado = apilado_video.revelar(borroso, 1500.0, {"r": 1.0, "b": 1.6}, cantidad_nitidez=2.0, fwhm_px=limbo)
+    assert afinado["iteraciones"] == 8 and abs(afinado["psf_px"] - 0.85 * limbo) < 0.02, afinado
+    assert rgb8n.shape == (h, w, 3)
+    print(f"✅ limbo: {limbo:.2f} px desenfocado → {limbo2:.2f} px tras 8 iteraciones (pico {pico_despues / pico_antes:.3f}×)")
     r["lector"].cerrar()
     print(f"✅ apilado: {r['usados']} de {n} fotogramas (los {nitidos} nítidos entre ellos), desplazamiento máximo "
           f"{r['desplazamiento_max_px']} px, apilado a {error:.3f} px de la referencia, ruido ×{ruido_media / ruido_uno:.2f}, {dt:.1f} s")
@@ -153,7 +168,17 @@ def probar_trabajo(ruta):
     assert not e["en_curso"] and e["terminado"] and not e["error"], e
     assert e["resultado"]["archivo"] == "Sol_prueba_video.jpg" and guardado["usados"] == e["resultado"]["usados"], (e, guardado)
     assert guardado["meta"] == "sol" and e["progreso"] == 1.0
+    assert e["resultado"]["limbo_px"] and e["resultado"]["iteraciones"] == 4 and not e["resultado"]["reafinado"], e["resultado"]
+    assert apilado_video.hay_apilado(ruta), "el apilado lineal debería quedar guardado junto al SER"
     print("✅ trabajo en segundo plano:", e["mensaje"])
+    # Reafinar: sin volver a apilar, con otro afinado; vuelve a guardar en la galería
+    guardado.clear()
+    t.iniciar(ruta, guardar, cantidad_nitidez=2.5, reafinar=True)
+    t.esperar(60)
+    e = t.estado()
+    assert not e["error"] and e["resultado"]["reafinado"] and e["resultado"]["iteraciones"] == 10, e
+    assert guardado["usados"] == e["resultado"]["usados"] and e["resultado"]["segundos"] < 30, (guardado, e["resultado"])
+    print("✅ reafinado:", e["mensaje"])
 
 
 class CamaraFalsa:

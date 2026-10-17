@@ -4521,6 +4521,7 @@ def videos_lista():
                 info = {"nombre": f[:-4], "error": str(e), "mb": round(os.path.getsize(ruta) / 1e6, 1), "fecha": os.path.getmtime(ruta)}
             __, base = _nombre_apilado_video(info["nombre"], apilado_video.leer_meta(ruta))
             info["apilado"] = base + ".jpg" if os.path.isfile(os.path.join("static", "fotos", base + ".jpg")) else None
+            info["reafinable"] = apilado_video.hay_apilado(ruta)
             lista.append(info)
     libre = grabador_video.espacio_libre(conf["carpeta"])
     return jsonify({"videos": lista, "carpeta": conf["carpeta"], "libre_gb": None if libre is None else round(libre / 1024 ** 3, 1),
@@ -4588,6 +4589,29 @@ def videos_apilar():
     return jsonify({"ok": True, "estado": apilado_video.trabajo_apilado_video.estado()})
 
 
+@app.route('/videos/reafinar', methods=["POST"])
+def videos_reafinar():
+    """{nombre, nitidez}: vuelve a revelar el apilado guardado del vídeo con otro afinado, sin repetir el apilado."""
+    datos = request.get_json(silent=True) or {}
+    ruta = _ruta_video(datos.get("nombre"))
+    if ruta is None:
+        return jsonify({"ok": False, "error": _("Vídeo desconocido")}), 404
+    conf = _config_video()
+    try:
+        nitidez = max(0.0, min(3.0, float(datos.get("nitidez", conf["nitidez"]))))
+    except (TypeError, ValueError):
+        nitidez = conf["nitidez"]
+    nombre = os.path.splitext(os.path.basename(ruta))[0]
+    try:
+        apilado_video.trabajo_apilado_video.iniciar(
+            ruta, lambda rgb8, cubo16, info: _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info),
+            cantidad_nitidez=nitidez, ev=_compensacion_foto_dia(), reafinar=True)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    log.info("Reafinado del vídeo %s: afinado %.1f", nombre, nitidez)
+    return jsonify({"ok": True, "estado": apilado_video.trabajo_apilado_video.estado()})
+
+
 @app.route('/videos/apilar/estado')
 def videos_apilar_estado():
     return jsonify(apilado_video.trabajo_apilado_video.estado())
@@ -4613,7 +4637,8 @@ def videos_borrar():
     g = vivo_dia.trabajo_vivo.estado().get("grabacion")
     if g and g.get("nombre") == nombre:
         return jsonify({"ok": False, "error": _("Ese vídeo se está grabando ahora")}), 409
-    for r in (ruta, os.path.splitext(ruta)[0] + ".json"):
+    base_video = os.path.splitext(ruta)[0]
+    for r in (ruta, base_video + ".json", base_video + ".apilado.npy", base_video + ".apilado.json"):
         try:
             os.remove(r)
         except FileNotFoundError:
