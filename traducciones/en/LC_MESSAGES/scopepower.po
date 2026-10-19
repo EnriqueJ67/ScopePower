@@ -8624,6 +8624,10 @@ msgstr "the landscape"
 msgid "el vídeo está en marcha"
 msgstr "the video is running"
 
+#: apilado_video.py
+msgid "el vídeo no trae la hora de cada fotograma"
+msgstr "the video does not carry the time of each frame"
+
 #: instalar_astap.py
 msgid "el zip de ASTAP no traía astap_cli.exe"
 msgstr "the ASTAP zip didn't include astap_cli.exe"
@@ -8743,6 +8747,14 @@ msgstr "failed"
 #: bucle_captura.py
 msgid "fallido: {e}"
 msgstr "failed: {e}"
+
+#: apilado_video.py
+msgid "falta la orientación de la cámara: hace falta un plate solving de noche"
+msgstr "the camera orientation is missing: a plate solve at night is needed"
+
+#: apilado_video.py
+msgid "falta la ubicación del observatorio"
+msgstr "the observatory location is missing"
 
 #: camara_nativa.py
 msgid "fijar binning"
@@ -9280,6 +9292,10 @@ msgstr "could not fit the homography"
 msgid "no se pudo anotar"
 msgstr "couldn't annotate"
 
+#: apilado_video.py
+msgid "no se pudo calcular: {e}"
+msgstr "could not be calculated: {e}"
+
 #. js
 #: templates/configuracion.html
 msgid "no se pudo consultar"
@@ -9548,6 +9564,14 @@ msgstr "red {px}"
 #: templates/imagen.html
 msgid "rojo {v}"
 msgstr "red {v}"
+
+#: apilado_video.py
+msgid "rotación de campo corregida (hasta {g}°)"
+msgstr "field rotation corrected (up to {g}°)"
+
+#: apilado_video.py
+msgid "rotación de campo sin corregir: {motivo}"
+msgstr "field rotation not corrected: {motivo}"
 
 #. js
 #: camara_zwo.py

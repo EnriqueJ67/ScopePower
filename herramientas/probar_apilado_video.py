@@ -10,6 +10,10 @@
 #   3. El trabajo en segundo plano (TrabajoApiladoVideo) con la llamada de guardado.
 #   4. La grabación desde el modo en vivo con una cámara falsa: el SER y su .json quedan en
 #      disco con fotogramas, y la cadencia de la cámara se sube al grabar y se baja al parar.
+#   5. Rotación de campo: el norte celeste calculado en la imagen apunta donde debe, gira al
+#      ritmo de la fórmula de la altacimutal y en sentido contrario si la imagen va en espejo;
+#      un Sol sintético que gira 4° durante el vídeo sale nítido con la corrección y
+#      emborronado sin ella.
 #
 # Uso: python herramientas/probar_apilado_video.py   (desde la carpeta de ScopePower)
 
@@ -25,9 +29,14 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import datos_iers
 import apilado_video
 import grabador_video
 import vivo_dia
+
+datos_iers.configurar()          # astropy sin red, como en la app
+OBSERVATORIO = (39.6, -0.5, 200.0)
+H_PRUEBA = [[2.9 / 3600, 0.0], [0.0, -2.9 / 3600]]     # columna → +acimut, fila hacia abajo → −altura
 
 
 def sol_rgb(h, w, cx, cy, r, sigma, rng, ruido=300.0):
@@ -162,10 +171,12 @@ def probar_trabajo(ruta):
         guardado.update({"forma": rgb8.shape, "usados": info["usados"], "meta": info["meta"].get("objetivo")})
         return {"archivo": "Sol_prueba_video.jpg"}
     t = apilado_video.TrabajoApiladoVideo()
-    t.iniciar(ruta, guardar, pct=25, cantidad_nitidez=1.0)
+    t.iniciar(ruta, guardar, pct=25, cantidad_nitidez=1.0,
+              contexto={"observatorio": OBSERVATORIO, "orientacion": {"H": H_PRUEBA, "binning_foto": 1}})
     t.esperar(120)
     e = t.estado()
     assert not e["en_curso"] and e["terminado"] and not e["error"], e
+    assert e["resultado"]["giro_max_deg"] is not None and not e["resultado"]["giro_motivo"], e["resultado"]
     assert e["resultado"]["archivo"] == "Sol_prueba_video.jpg" and guardado["usados"] == e["resultado"]["usados"], (e, guardado)
     assert guardado["meta"] == "sol" and e["progreso"] == 1.0
     assert e["resultado"]["limbo_px"] and e["resultado"]["iteraciones"] == 4 and not e["resultado"]["reafinado"], e["resultado"]
@@ -227,7 +238,7 @@ def probar_grabacion_vivo(carpeta):
         time.sleep(0.1)
     assert vivo.estado()["fase"] == "en vivo", vivo.estado()
     time.sleep(0.5)
-    vivo.grabar(duracion_s=1.5, fps=30, carpeta=carpeta)
+    vivo.grabar(duracion_s=1.5, fps=30, carpeta=carpeta, extra_meta={"observatorio": list(OBSERVATORIO), "H_camara": H_PRUEBA})
     time.sleep(0.5)
     e = vivo.estado()
     assert e["grabacion"] and e["grabacion"]["activa"] and e["grabacion"]["nombre"].startswith("Sol_"), e["grabacion"]
@@ -241,6 +252,7 @@ def probar_grabacion_vivo(carpeta):
     with open(os.path.splitext(ruta)[0] + ".json", encoding="utf-8") as f:
         meta = json.load(f)
     assert meta["objetivo"] == "sol" and meta["frames"] == cab["frames"] and meta["patron"] == "RGGB" and meta["bits"] == 16, meta
+    assert meta["observatorio"] == list(OBSERVATORIO) and meta["H_camara"] == H_PRUEBA, meta
     assert 30 in cam.limites_fps and cam.limites_fps[-1] == vivo_dia.FPS_CAMARA, cam.limites_fps
     vivo.parar()
     vivo.esperar(10)
@@ -248,9 +260,92 @@ def probar_grabacion_vivo(carpeta):
           f"cadencia {cam.limites_fps}")
 
 
+def probar_angulos_norte():
+    """El norte calculado en la imagen, su ritmo de giro y el sentido con la imagen en espejo."""
+    import math
+    from astropy.time import Time
+    import astropy.units as u
+    lat, lon, __ = OBSERVATORIO
+    t0 = Time("2024-03-20T12:00:00", scale="utc")
+    tsl = t0.sidereal_time("apparent", longitude=lon * u.deg).deg
+    dec = -10.0                                     # en el meridiano, al sur, a 90 − 39,6 − 10 = 40,4° de altura
+    tiempos = t0.unix + np.array([-60.0, 0.0, 60.0])
+    th = apilado_video.angulos_norte(tiempos, OBSERVATORIO, np.array(H_PRUEBA), radec=(tsl, dec))
+    # Al sur en el meridiano el norte celeste queda hacia el cénit: arriba en la imagen (fila decreciente)
+    assert abs(th[1] - (-90.0)) < 0.5, th
+    alt = 90.0 - (lat - dec)
+    w = math.degrees(7.2921e-5 * math.cos(math.radians(lat)) / math.cos(math.radians(alt))) * 120.0
+    giro = th[2] - th[0]
+    assert abs(abs(giro) - w) < 0.03 * w, (giro, w)
+    espejo = np.array(H_PRUEBA) @ np.diag([-1.0, 1.0])
+    th_e = apilado_video.angulos_norte(tiempos, OBSERVATORIO, espejo, radec=(tsl, dec))
+    assert abs((th_e[2] - th_e[0]) + giro) < 0.01 * w, (th_e, th)
+    # Al este o al oeste del observador no hay giro de campo en el instante en que el astro pasa por el primer vertical:
+    # basta con comprobar que el ritmo crece con la altura en el meridiano
+    th_alto = apilado_video.angulos_norte(tiempos, OBSERVATORIO, np.array(H_PRUEBA), radec=(tsl, 25.0))
+    assert abs(th_alto[2] - th_alto[0]) > 2 * abs(giro), (th_alto, giro)
+    print(f"✅ rotación de campo: norte arriba al sur ({th[1]:.2f}°), {abs(giro):.3f}° en 2 min a {alt:.1f}° de altura "
+          f"(fórmula {w:.3f}°), sentido contrario con la imagen en espejo")
+
+
+def sol_con_manchas(h, w, cx, cy, r, giro_deg, rng=None, sigma=0.5):
+    """Sol en color con manchas cerca del limbo, girado `giro_deg` alrededor del centro (sentido de desplazar)."""
+    import cv2
+    # Bordes con antialiasing (cobertura del píxel): con máscaras de píxel entero un desplazamiento de
+    # 0,6 px no mueve el borde 0,6 px y la prueba no podría comprobar el alineado al subpíxel
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float64)
+    d = np.hypot(xx - cx, yy - cy)
+    cobertura = np.clip(r - d + 0.5, 0.0, 1.0)
+    lum = 40000.0 * (0.55 + 0.45 * np.sqrt(np.clip(1.0 - (d / r) ** 2, 0.0, 1.0))) * cobertura
+    a = np.radians(giro_deg)
+    for ang, frac, rad in ((20, 0.85, 4.0), (110, 0.8, 3.0), (200, 0.88, 5.0), (300, 0.75, 3.5), (250, 0.5, 4.0)):
+        vx, vy = frac * r * np.cos(np.radians(ang)), frac * r * np.sin(np.radians(ang))
+        mx, my = cx + vx * np.cos(a) - vy * np.sin(a), cy + vx * np.sin(a) + vy * np.cos(a)
+        lum *= 1.0 - 0.7 * np.clip(rad - np.hypot(xx - mx, yy - my) + 0.5, 0.0, 1.0)
+    rgb = np.dstack([lum, lum * 0.8, lum * 0.55]) + 1500.0
+    rgb = cv2.GaussianBlur(rgb.astype(np.float32), (0, 0), sigma)
+    if rng is not None:
+        rgb = rgb + rng.normal(0, 300.0, rgb.shape)
+    return rgb
+
+
+def probar_apilado_con_giro(carpeta):
+    """Un vídeo cuyo disco gira 4° de principio a fin: con la corrección el apilado se parece a la referencia."""
+    h = w = 320
+    cx, cy, r = 160.0, 162.0, 110.0
+    n = 24
+    giros = np.linspace(-2.0, 2.0, n)
+    rng = np.random.default_rng(11)
+    frames = []
+    for i in range(n):
+        dx, dy = rng.uniform(-4, 4, 2)
+        frames.append(a_cfa_rggb(sol_con_manchas(h, w, cx + dx, cy + dy, r, giros[i], rng)))
+    ruta = escribir_ser(carpeta, "Sol_con_giro", frames, {"objetivo": "sol"})
+
+    def error(res):
+        """Diferencia (RMS, verde) entre el apilado y el fotograma de referencia dentro del disco: los dos en
+        los ejes de la referencia, así no hace falta saber dónde quedó el disco al subpíxel."""
+        ref = apilado_video.desmosaicar(frames[res["referencia"]], "RGGB")[..., 1]
+        yy, xx = np.mgrid[0:h, 0:w]
+        dentro = np.hypot(xx - cx, yy - cy) < 0.9 * r
+        return float(np.sqrt(np.mean((res["media"][..., 1] - ref)[dentro] ** 2)))
+
+    sin = apilado_video.apilar(ruta, pct=100)
+    con = apilado_video.apilar(ruta, pct=100, angulos=giros)
+    e_sin, e_con = error(sin), error(con)
+    for res in (sin, con):
+        res["lector"].cerrar()
+    assert con["giro_max_deg"] > 1.5 and sin["giro_max_deg"] is None, (con["giro_max_deg"], sin["giro_max_deg"])
+    assert e_con < 0.6 * e_sin, (e_con, e_sin)
+    print(f"✅ apilado con giro de 4°: diferencia con la referencia {e_sin:.0f} sin corregir → {e_con:.0f} corregido "
+          f"(giro máximo {con['giro_max_deg']:.2f}°; ruido de un fotograma 300)")
+
+
 if __name__ == "__main__":
     carpeta = tempfile.mkdtemp(prefix="scopepower_video_")
     try:
+        probar_angulos_norte()
+        probar_apilado_con_giro(carpeta)
         probar_desmosaicado()
         ruta = probar_apilado(carpeta)
         probar_trabajo(ruta)

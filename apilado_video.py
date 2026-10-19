@@ -15,6 +15,13 @@
 #      por correlación de fase (subpíxel) sobre el verde hasta el mejor fotograma, que
 #      hace de referencia. Vale para el disco entero, para un trozo de Luna y para un
 #      planeta: solo hace falta que haya algo con bordes.
+#      Rotación de campo: la montura altacimutal sigue al astro pero la cámara no gira con
+#      el cielo, así que el disco gira en la imagen (hasta 1,5° en 2 minutos con el Sol a
+#      75° de altura al sur, 9 px en el borde del disco). El giro no se mide (un disco
+#      redondo casi no tiene forma con que medirlo): se calcula con la hora de cada
+#      fotograma, la ubicación y la orientación de la cámara del último plate solving, que
+#      dice hacia dónde queda el norte celeste en la imagen del SDK en cada instante. Cada
+#      fotograma se gira alrededor del centro del disco hasta el norte de la referencia.
 #   4. Apilar: media de los alineados en lineal (el ruido baja con la raíz del número
 #      de fotogramas). El apilado lineal se guarda junto al SER (<nombre>.apilado.npy)
 #      para poder revelarlo otra vez con otro afinado sin repetir el apilado.
@@ -56,7 +63,11 @@ TOLERANCIA_BRILLO = 0.25         # ±25 % del brillo mediano; fuera de ahí (nub
 NITIDEZ_DEFECTO = 1.0            # afinado 0 (nada) .. 3
 ITERACIONES_POR_PUNTO = 4        # afinado 1 = 4 iteraciones de Richardson-Lucy; 3 = 12 (como el máximo del editor)
 FACTOR_PSF = 0.85                # PSF algo más estrecha que la FWHM del limbo (menos anillos), como en el editor
-CLAVES_INFO = ("frames", "puntuados", "usados", "no_alineados", "descartados_brillo", "desplazamiento_max_px", "patron")
+PASOS_REFINADO = 3              # medidas del desplazamiento que quedan tras girar el fotograma (probado con Soles
+AMORTIGUACION = 0.5             # sintéticos: mediana de 0,25 a 0,07 px con limbo nítido, de 0,5 a 0,25 con limbo blando)
+GIRO_MINIMO_REFINAR = 0.05      # grados: por debajo el giro no sesga la medida y no se refina
+CLAVES_INFO = ("frames", "puntuados", "usados", "no_alineados", "descartados_brillo", "desplazamiento_max_px", "patron",
+               "giro_max_deg")
 
 # Posiciones de los dos verdes en el bloque 2×2 y conversión de OpenCV para desmosaicar.
 # OpenCV nombra el patrón por el píxel (1,1), no por el (0,0): RGGB es COLOR_BayerBG.
@@ -172,15 +183,105 @@ def desmosaicar(cfa, patron):
 def desplazamiento(referencia, g, ventana):
     """(dx, dy, respuesta) en píxeles de `g` respecto a `referencia` (correlación de fase subpíxel)."""
     import cv2
-    (dx, dy), respuesta = cv2.phaseCorrelate(referencia, g, ventana)
+    # Copias: con ventana, cv2.phaseCorrelate (OpenCV 4.11) multiplica por ella las imágenes que recibe,
+    # sobre ellas mismas. La referencia se usa con todos los fotogramas y se iría borrando hacia los bordes
+    (dx, dy), respuesta = cv2.phaseCorrelate(np.array(referencia, dtype=np.float32, copy=True),
+                                             np.array(g, dtype=np.float32, copy=True), ventana)
     return float(dx), float(dy), float(respuesta)
 
 
-def desplazar(rgb, dx, dy):
-    """La imagen movida (-dx, -dy) para que coincida con la referencia (bilineal, bordes replicados)."""
+def desplazar(rgb, dx, dy, giro_deg=0.0, centro=None):
+    """
+    La imagen llevada sobre la referencia: movida (-dx, -dy) y, con `giro_deg`, girada ese ángulo
+    alrededor de `centro` (x, y de la referencia: el centro del disco). El ángulo va en los ejes de
+    la imagen (columna, fila): positivo aumenta atan2(Δfila, Δcolumna). Bilineal, bordes replicados.
+    """
     import cv2
-    m = np.array([[1.0, 0.0, -dx], [0.0, 1.0, -dy]], dtype=np.float32)
+    if giro_deg and centro is not None:
+        a = np.radians(float(giro_deg))
+        R = np.array([[np.cos(a), -np.sin(a)], [np.sin(a), np.cos(a)]])
+        c = np.asarray(centro, dtype=float)
+        # p_ref = c + R·(p − d − c)
+        t = c - R @ (np.array([dx, dy]) + c)
+        m = np.hstack([R, t[:, None]]).astype(np.float32)
+    else:
+        m = np.array([[1.0, 0.0, -dx], [0.0, 1.0, -dy]], dtype=np.float32)
     return cv2.warpAffine(rgb, m, (rgb.shape[1], rgb.shape[0]), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Rotación de campo de la montura altacimutal
+# ─────────────────────────────────────────────────────────────────────────────
+def angulos_norte(tiempos_unix, observatorio, Hs, objetivo=None, radec=None, muestras=40):
+    """
+    Ángulo (grados, desenrollado) de la dirección del norte celeste en los ejes de la imagen del
+    SDK (columna, fila hacia abajo) en cada instante, en el astro `objetivo` («sol», «luna») o en
+    `radec` = (ra_deg, dec_deg). observatorio = (lat, lon, alt_m). Hs (2×2): (Δaz·cos alt, Δalt)
+    = Hs · (Δcolumna, Δfila) del SDK (orientacion_camara.matriz_sensor_sdk); su signo dice si la
+    imagen está en espejo y con él el sentido del giro. Se calcula en `muestras` instantes y se
+    interpola: el giro es suave.
+    """
+    from astropy.coordinates import EarthLocation, AltAz, SkyCoord, get_body
+    from astropy.time import Time
+    import astropy.units as u
+    t = np.asarray(tiempos_unix, dtype=float)
+    lat, lon, alt_m = observatorio
+    lugar = EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=alt_m * u.m)
+    if radec is None:
+        cuerpo = get_body("sun" if objetivo == "sol" else "moon", Time(float(np.median(t)), format="unix"), lugar)
+        radec = (float(cuerpo.ra.deg), float(cuerpo.dec.deg))
+    ra, dec = radec
+    # El astro y un punto 0,1° al norte (dirección, sin distancia: con la del Sol saldría la del baricentro)
+    paso = 0.1 if dec < 89.8 else -0.1
+    puntos = SkyCoord(ra=[ra, ra] * u.deg, dec=[dec, dec + paso] * u.deg, frame="icrs")
+    tm = np.linspace(t.min(), t.max(), max(2, int(muestras))) if len(t) > muestras else t
+    marco = AltAz(obstime=Time(tm, format="unix"), location=lugar)
+    h = puntos[:, None].transform_to(marco)
+    az, alt = h.az.deg, h.alt.deg
+    du = ((az[1] - az[0] + 180.0) % 360.0 - 180.0) * np.cos(np.radians(alt[0]))
+    dv = alt[1] - alt[0]
+    if paso < 0:
+        du, dv = -du, -dv
+    sdk = np.linalg.inv(np.asarray(Hs, dtype=float)) @ np.vstack([du, dv])
+    theta = np.unwrap(np.arctan2(sdk[1], sdk[0]))
+    if len(tm) != len(t):
+        theta = np.interp(t, tm, theta)
+    return np.degrees(theta)
+
+
+def angulos_de_rotacion(lector, meta, contexto=None):
+    """
+    (ángulos del norte por fotograma en grados, None) o (None, motivo) para el vídeo de `lector`:
+    con las marcas de tiempo del SER (o el inicio y la duración del .json), la ubicación y la
+    orientación de la cámara guardadas al grabar (o, en vídeos de antes, las actuales de `contexto`).
+    """
+    contexto = contexto or {}
+    objetivo = meta.get("objetivo")
+    if objetivo not in ("sol", "luna"):
+        return None, ""                        # paisaje: el campo no gira con el cielo
+    observatorio = meta.get("observatorio") or contexto.get("observatorio")
+    H = meta.get("H_camara")
+    binning = meta.get("binning_foto", 1)
+    if H is None and contexto.get("orientacion"):
+        H, binning = contexto["orientacion"].get("H"), contexto["orientacion"].get("binning_foto", 1)
+    if not observatorio:
+        return None, _("falta la ubicación del observatorio")
+    if H is None:
+        return None, _("falta la orientación de la cámara: hace falta un plate solving de noche")
+    tiempos = lector.tiempos()
+    if tiempos is None or len(tiempos) != lector.frames or float(np.ptp(tiempos)) <= 0:
+        inicio, dur = meta.get("instante"), meta.get("duracion_s")
+        if not inicio or not dur:
+            return None, _("el vídeo no trae la hora de cada fotograma")
+        tiempos = float(inicio) + np.linspace(0.0, float(dur), lector.frames)
+    try:
+        import orientacion_camara
+        transformacion = meta.get("orientacion") or orientacion_camara.leer_sdk()["transformacion"]
+        Hs = orientacion_camara.matriz_sensor_sdk({"H": H, "binning_foto": binning}, {"transformacion": transformacion})
+        return angulos_norte(tiempos, observatorio, Hs, objetivo=objetivo), None
+    except Exception as e:
+        log.warning("Rotación de campo: no se pudo calcular: %s", e)
+        return None, _("no se pudo calcular: {e}", e=e)
 
 
 def afinar(rgb, cantidad):
@@ -295,11 +396,13 @@ def cargar_apilado(ruta_ser):
 # ─────────────────────────────────────────────────────────────────────────────
 #  Apilado
 # ─────────────────────────────────────────────────────────────────────────────
-def apilar(ruta_ser, pct=MEJORES_PCT_DEFECTO, progreso=None, cancelar=None):
+def apilar(ruta_ser, pct=MEJORES_PCT_DEFECTO, progreso=None, cancelar=None, angulos=None):
     """
     Apila los mejores `pct` % fotogramas del SER. Devuelve {"media": RGB float32 lineal,
     "patron", "frames", "puntuados", "usados", "no_alineados", "descartados_brillo", "indices",
-    "referencia", "desplazamiento_max_px", "lector"}.
+    "referencia", "desplazamiento_max_px", "giro_max_deg", "lector"}.
+    `angulos`: ángulo del norte celeste en la imagen de cada fotograma (angulos_de_rotacion); con
+    él cada fotograma se gira alrededor del centro del disco hasta el norte de la referencia.
     progreso(fase, fraccion) y cancelar() → True para abortar (lanza ErrorVideo).
     """
     import cv2
@@ -331,26 +434,50 @@ def apilar(ruta_ser, pct=MEJORES_PCT_DEFECTO, progreso=None, cancelar=None):
         raise ErrorVideo(_("El vídeo no tiene ningún fotograma aprovechable"))
     referencia = elegidos[0]
 
-    # 3 y 4. Alinear sobre el mejor y promediar
+    # 3 y 4. Alinear sobre el mejor y promediar. El desplazamiento se mide en el verde a resolución
+    # completa del fotograma ya desmosaicado (hace falta igual para apilar): en el plano verde a media
+    # resolución la correlación de fase se equivoca hasta 0,8 px con desplazamientos de un píxel impar
     ref_g = verde(lector.fotograma(referencia), lector.patron)
-    ventana = cv2.createHanningWindow((ref_g.shape[1], ref_g.shape[0]), cv2.CV_32F)
+    ref_rgb = desmosaicar(lector.fotograma(referencia), lector.patron)
+    ref_v = np.ascontiguousarray(ref_rgb[..., 1])
+    ventana = cv2.createHanningWindow((ref_v.shape[1], ref_v.shape[0]), cv2.CV_32F)
+    centro = None
+    if angulos is not None:
+        # El giro se hace alrededor del centro del disco de la referencia (lo que sigue la montura)
+        import enfoque
+        circ = enfoque.circulo_disco(ref_g)
+        if circ is not None:
+            centro = (2.0 * circ[0] + 0.5, 2.0 * circ[1] + 0.5)       # el verde va a media resolución
+        else:
+            centro = ((lector.ancho - 1) / 2.0, (lector.alto - 1) / 2.0)
+            log.info("Apilado de vídeo: sin disco en la referencia; el giro se hace alrededor del centro de la imagen")
     acumulado = None
-    usados, no_alineados, desplazamiento_max = 0, 0, 0.0
+    usados, no_alineados, desplazamiento_max, giro_max = 0, 0, 0.0, 0.0
     for j, i in enumerate(elegidos):
         if parar():
             raise ErrorVideo(_("Apilado cancelado"))
-        cfa = lector.fotograma(i)
+        rgb = ref_rgb if i == referencia else desmosaicar(lector.fotograma(i), lector.patron)
+        giro = float(angulos[referencia] - angulos[i]) if angulos is not None else 0.0
         if i == referencia:
             dx = dy = 0.0
         else:
-            dx2, dy2, respuesta = desplazamiento(ref_g, verde(cfa, lector.patron), ventana)
+            v = np.ascontiguousarray(rgb[..., 1])
+            dx, dy, respuesta = desplazamiento(ref_v, v, ventana)
             if respuesta < RESPUESTA_MINIMA:
                 no_alineados += 1
                 continue
-            dx, dy = 2.0 * dx2, 2.0 * dy2          # el verde va a media resolución
-        rgb = desmosaicar(cfa, lector.patron)
-        if dx or dy:
-            rgb = desplazar(rgb, dx, dy)
+            if abs(giro) >= GIRO_MINIMO_REFINAR:
+                # Medido sobre el fotograma aún girado, el desplazamiento sale sesgado (las manchas o los
+                # cráteres giran con él): se gira el verde con lo medido y se mide lo que queda
+                a = np.radians(giro)
+                for __ in range(PASOS_REFINADO):
+                    ex, ey, __r = desplazamiento(ref_v, desplazar(v, dx, dy, giro, centro), ventana)
+                    # p_ref = c + R(p − d − c) − e  ⇒  d' = d + Rᵀ·e
+                    dx += AMORTIGUACION * (np.cos(a) * ex + np.sin(a) * ey)
+                    dy += AMORTIGUACION * (-np.sin(a) * ex + np.cos(a) * ey)
+        if dx or dy or giro:
+            rgb = desplazar(rgb, dx, dy, giro, centro)
+        giro_max = max(giro_max, abs(giro))
         desplazamiento_max = max(desplazamiento_max, float(np.hypot(dx, dy)))
         acumulado = rgb if acumulado is None else acumulado + rgb
         usados += 1
@@ -359,11 +486,12 @@ def apilar(ruta_ser, pct=MEJORES_PCT_DEFECTO, progreso=None, cancelar=None):
         raise ErrorVideo(_("No se ha podido alinear ningún fotograma"))
     media = acumulado / float(usados)
     log.info("Apilado de vídeo %s: %d fotogramas, %d elegidos (%s %%), %d usados, %d sin alinear, %d descartados por brillo, "
-             "desplazamiento máximo %.1f px", os.path.basename(ruta_ser), n, k, fmt_num(pct, 0), usados, no_alineados,
-             descartados_brillo, desplazamiento_max)
+             "desplazamiento máximo %.1f px, giro %s", os.path.basename(ruta_ser), n, k, fmt_num(pct, 0), usados, no_alineados,
+             descartados_brillo, desplazamiento_max, "sin corregir" if angulos is None else f"hasta {giro_max:.2f}°")
     return {"media": media, "patron": lector.patron, "frames": n, "puntuados": int(validos.sum()), "usados": usados,
             "no_alineados": no_alineados, "descartados_brillo": descartados_brillo, "indices": elegidos,
-            "referencia": referencia, "desplazamiento_max_px": round(desplazamiento_max, 2), "lector": lector,
+            "referencia": referencia, "desplazamiento_max_px": round(desplazamiento_max, 2),
+            "giro_max_deg": None if angulos is None else round(giro_max, 3), "lector": lector,
             "blanco": lector.blanco}
 
 
@@ -398,11 +526,14 @@ class TrabajoApiladoVideo:
                     "progreso": round(self.progreso, 3), "mensaje": self.mensaje, "error": self.error,
                     "nombre": self.nombre, "resultado": self.resultado}
 
-    def iniciar(self, ruta_ser, guardar, pct=MEJORES_PCT_DEFECTO, cantidad_nitidez=NITIDEZ_DEFECTO, ev=0.0, reafinar=False):
+    def iniciar(self, ruta_ser, guardar, pct=MEJORES_PCT_DEFECTO, cantidad_nitidez=NITIDEZ_DEFECTO, ev=0.0, reafinar=False,
+                contexto=None):
         """
         guardar(rgb8, cubo16, info) → dict con "archivo" (y lo que quiera): recibe la imagen revelada
         (RGB uint8, orientación del SDK) y el cubo lineal, y la deja en la galería.
         `reafinar`: no se apila; se vuelve a revelar el apilado guardado con el afinado nuevo.
+        `contexto`: {"observatorio", "orientacion"} actuales, para corregir la rotación de campo de los
+        vídeos grabados sin ellos en su .json.
         """
         if reafinar and not hay_apilado(ruta_ser):
             raise RuntimeError(_("Este vídeo no tiene un apilado guardado: apílalo primero."))
@@ -417,7 +548,8 @@ class TrabajoApiladoVideo:
             self.mensaje = (_("Reafinando {nombre}...", nombre=self.nombre) if reafinar
                             else _("Apilando {nombre}...", nombre=self.nombre))
         self._hilo = threading.Thread(target=self._ejecutar, name="apilado-video", daemon=True,
-                                      args=(ruta_ser, guardar, float(pct), float(cantidad_nitidez), float(ev), bool(reafinar)))
+                                      args=(ruta_ser, guardar, float(pct), float(cantidad_nitidez), float(ev), bool(reafinar),
+                                            contexto))
         self._hilo.start()
         return self._hilo
 
@@ -432,7 +564,7 @@ class TrabajoApiladoVideo:
         with self._lock:
             self.fase, self.progreso = fase, float(fraccion)
 
-    def _ejecutar(self, ruta_ser, guardar, pct, cantidad_nitidez, ev, reafinar=False):
+    def _ejecutar(self, ruta_ser, guardar, pct, cantidad_nitidez, ev, reafinar=False, contexto=None):
         inicio = time.time()
         error, resultado = "", None
         try:
@@ -441,7 +573,12 @@ class TrabajoApiladoVideo:
                 media, info = cargar_apilado(ruta_ser)
                 self._avanzar("revelando", 0.0)
             else:
-                r = apilar(ruta_ser, pct, progreso=self._avanzar, cancelar=self._parar.is_set)
+                lector_giro = LectorSER(ruta_ser)
+                angulos, motivo_giro = angulos_de_rotacion(lector_giro, meta, contexto)
+                lector_giro.cerrar()
+                if motivo_giro:
+                    log.info("Apilado de vídeo %s: rotación de campo sin corregir: %s", self.nombre, motivo_giro)
+                r = apilar(ruta_ser, pct, progreso=self._avanzar, cancelar=self._parar.is_set, angulos=angulos)
                 self._avanzar("revelando", 0.0)
                 lector = r["lector"]
                 import foto_dia
@@ -461,7 +598,8 @@ class TrabajoApiladoVideo:
                     log.info("Apilado de vídeo %s: sin disco que medir (%s): afinado sencillo", self.nombre, info_limbo.get("motivo"))
                 info = {k: r[k] for k in CLAVES_INFO}
                 info.update({"pct": pct, "negro": None if negro is None else float(negro), "balance": balance,
-                             "limbo_px": None if limbo is None else round(limbo, 2), "instante": time.time()})
+                             "limbo_px": None if limbo is None else round(limbo, 2), "instante": time.time(),
+                             "giro_motivo": motivo_giro or ""})
                 guardar_apilado(ruta_ser, media, info)
             rgb8, cubo16, afinado = revelar(media, info.get("negro"), info.get("balance"), ev=ev, cantidad_nitidez=cantidad_nitidez,
                                             fwhm_px=info.get("limbo_px"), progreso=lambda f: self._avanzar("revelando", f))
@@ -495,6 +633,10 @@ class TrabajoApiladoVideo:
                                                    n=resultado["iteraciones"])
                     elif resultado.get("nitidez") and not resultado.get("limbo_px"):
                         self.mensaje += " · " + _("sin disco que medir: afinado sencillo")
+                    if resultado.get("giro_max_deg") is not None:
+                        self.mensaje += " · " + _("rotación de campo corregida (hasta {g}°)", g=fmt_num(resultado["giro_max_deg"], 2))
+                    elif resultado.get("giro_motivo"):
+                        self.mensaje += " · " + _("rotación de campo sin corregir: {motivo}", motivo=resultado["giro_motivo"])
 
 
 trabajo_apilado_video = TrabajoApiladoVideo()
