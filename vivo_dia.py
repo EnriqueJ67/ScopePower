@@ -207,8 +207,12 @@ class TrabajoVivo:
         return e
 
     # ── grabación de vídeo (se atiende desde el hilo del vivo) ─────────────
-    def grabar(self, duracion_s=120, fps=FPS_GRABACION_DEFECTO, carpeta=None):
-        """Pide grabar un SER desde el siguiente fotograma: `duracion_s` segundos (0 = hasta parar)."""
+    def grabar(self, duracion_s=120, fps=FPS_GRABACION_DEFECTO, carpeta=None, extra_meta=None):
+        """
+        Pide grabar un SER desde el siguiente fotograma: `duracion_s` segundos (0 = hasta parar).
+        `extra_meta` se añade al .json del vídeo (la ubicación y la orientación de la cámara, que
+        hacen falta para corregir la rotación de campo al apilar).
+        """
         with self._lock:
             if not self.en_curso or self.fase != "en vivo":
                 raise RuntimeError(_("El modo en vivo no está en marcha"))
@@ -216,7 +220,7 @@ class TrabajoVivo:
                 raise RuntimeError(_("Ya se está grabando un vídeo"))
             self._parar_grabacion.clear()
             self._peticion_grabacion = {"duracion": max(0.0, float(duracion_s or 0)), "fps": max(1.0, float(fps or FPS_GRABACION_DEFECTO)),
-                                        "carpeta": carpeta}
+                                        "carpeta": carpeta, "extra_meta": dict(extra_meta or {})}
 
     def parar_grabacion(self):
         self._parar_grabacion.set()
@@ -262,6 +266,7 @@ class TrabajoVivo:
                 "px_um": props.get("pixel_um") or props.get("px") or 3.76, "modelo": props.get("modelo"),
                 "negro": None if negro is None else float(negro), "balance": balance, "instante": time.time(),
                 "fps_pedido": peticion["fps"], "duracion_pedida_s": peticion["duracion"]}
+        meta.update(peticion.get("extra_meta") or {})
         self._escribir_meta(meta)
         with self._lock:
             self.error_grabacion = ""

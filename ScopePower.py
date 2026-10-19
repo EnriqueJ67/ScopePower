@@ -4466,6 +4466,21 @@ def _config_video():
             "carpeta": cfg.get("Video", "carpeta", fallback=grabador_video.CARPETA_VIDEOS).strip() or grabador_video.CARPETA_VIDEOS}
 
 
+def _contexto_rotacion_video():
+    """Ubicación y orientación de la cámara actuales: con ellas se calcula la rotación de campo del vídeo."""
+    import orientacion_camara
+    return {"observatorio": list(_observatorio()), "orientacion": orientacion_camara.ultima()}
+
+
+def _meta_rotacion_video():
+    """Lo que se guarda en el .json del vídeo para corregir después su rotación de campo."""
+    c = _contexto_rotacion_video()
+    meta = {"observatorio": c["observatorio"]}
+    if c["orientacion"] and c["orientacion"].get("H"):
+        meta.update({"H_camara": c["orientacion"]["H"], "binning_foto": c["orientacion"].get("binning_foto", 1)})
+    return meta
+
+
 @app.route('/vivo/grabar', methods=["POST"])
 def vivo_grabar():
     """{activar: bool, duracion_s}: graba un SER (RAW16, binning 1, el recorte del vivo) mientras dura el modo en vivo."""
@@ -4479,7 +4494,7 @@ def vivo_grabar():
     except (TypeError, ValueError):
         duracion = conf["duracion_s"]
     try:
-        vivo_dia.trabajo_vivo.grabar(duracion, fps=conf["fps"], carpeta=conf["carpeta"])
+        vivo_dia.trabajo_vivo.grabar(duracion, fps=conf["fps"], carpeta=conf["carpeta"], extra_meta=_meta_rotacion_video())
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     voz.decir(_("Grabando vídeo"), categoria="capturas")
@@ -4582,7 +4597,7 @@ def videos_apilar():
     try:
         apilado_video.trabajo_apilado_video.iniciar(
             ruta, lambda rgb8, cubo16, info: _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info),
-            pct=pct, cantidad_nitidez=nitidez, ev=_compensacion_foto_dia())
+            pct=pct, cantidad_nitidez=nitidez, ev=_compensacion_foto_dia(), contexto=_contexto_rotacion_video())
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     log.info("Apilado del vídeo %s: mejores %.0f %%, afinado %.1f", nombre, pct, nitidez)

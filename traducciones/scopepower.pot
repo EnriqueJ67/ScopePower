@@ -8622,6 +8622,10 @@ msgstr ""
 msgid "el vídeo está en marcha"
 msgstr ""
 
+#: apilado_video.py
+msgid "el vídeo no trae la hora de cada fotograma"
+msgstr ""
+
 #: instalar_astap.py
 msgid "el zip de ASTAP no traía astap_cli.exe"
 msgstr ""
@@ -8740,6 +8744,14 @@ msgstr ""
 
 #: bucle_captura.py
 msgid "fallido: {e}"
+msgstr ""
+
+#: apilado_video.py
+msgid "falta la orientación de la cámara: hace falta un plate solving de noche"
+msgstr ""
+
+#: apilado_video.py
+msgid "falta la ubicación del observatorio"
 msgstr ""
 
 #: camara_nativa.py
@@ -9278,6 +9290,10 @@ msgstr ""
 msgid "no se pudo anotar"
 msgstr ""
 
+#: apilado_video.py
+msgid "no se pudo calcular: {e}"
+msgstr ""
+
 #. js
 #: templates/configuracion.html
 msgid "no se pudo consultar"
@@ -9545,6 +9561,14 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "rojo {v}"
+msgstr ""
+
+#: apilado_video.py
+msgid "rotación de campo corregida (hasta {g}°)"
+msgstr ""
+
+#: apilado_video.py
+msgid "rotación de campo sin corregir: {motivo}"
 msgstr ""
 
 #. js

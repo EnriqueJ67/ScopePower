@@ -24,6 +24,14 @@ día de la release. El número de versión vive en `version.py`.
   (paisaje) queda la máscara de desenfoque. El apilado lineal se guarda junto al SER y
   «Reafinar» lo revela otra vez con otro afinado en segundos, sin repetir el apilado. La
   «Nitidez» del editor de la galería no sirve para estas fotos: mide estrellas.
+- El apilado del vídeo corrige la rotación de campo de la montura altacimutal: cada fotograma se
+  gira alrededor del centro del disco según la hora de ese fotograma, la ubicación y la
+  orientación de la cámara del último plate solving (hasta 1,5° en 2 minutos con el Sol a 75°
+  de altura). La ubicación y la orientación se guardan con el vídeo al grabarlo.
+- Arreglado el alineado del apilado del vídeo, también sin giro: `cv2.phaseCorrelate` con
+  ventana multiplicaba por ella la imagen de referencia en cada fotograma y la iba borrando, y
+  el desplazamiento medido en el verde a media resolución fallaba hasta 0,8 px. Ahora se mide
+  en el verde a resolución completa (0,1–0,2 px).
 
 ## 1.2.2 · 2026-10-16
 
