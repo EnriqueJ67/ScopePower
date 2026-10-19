@@ -4463,19 +4463,41 @@ def _config_video():
             return defecto
     return {"fps": _num("fps", vivo_dia.FPS_GRABACION_DEFECTO), "mejores_pct": _num("mejores_pct", apilado_video.MEJORES_PCT_DEFECTO),
             "nitidez": _num("nitidez", apilado_video.NITIDEZ_DEFECTO), "duracion_s": _num("duracion_s", 120, int),
-            "carpeta": cfg.get("Video", "carpeta", fallback=grabador_video.CARPETA_VIDEOS).strip() or grabador_video.CARPETA_VIDEOS}
+            "carpeta": cfg.get("Video", "carpeta", fallback=grabador_video.CARPETA_VIDEOS).strip() or grabador_video.CARPETA_VIDEOS,
+            "rotacion_campo": apilado_video.modo_rotacion(cfg.get("Video", "rotacion_campo", fallback=""))}
+
+
+MODOS_MONTURA = {0: "altacimutal", 1: "ecuatorial", 2: "ecuatorial_alemana"}   # ASCOM AlignmentMode
+
+
+def _modo_montura():
+    """
+    «altacimutal», «ecuatorial» o «ecuatorial_alemana» según la montura (ASCOM AlignmentMode); None si
+    no está conectada o el driver no lo dice. Con una ecuatorial el campo no gira y el vídeo no se corrige.
+    """
+    if not montura.esta_conectado():
+        return None
+    try:
+        return MODOS_MONTURA.get(int(montura.ejecutar(lambda tel: tel.AlignmentMode, timeout=3, conectar=False)))
+    except Exception as e:
+        log.info("Modo de la montura desconocido (AlignmentMode): %s", e)
+        return None
 
 
 def _contexto_rotacion_video():
-    """Ubicación y orientación de la cámara actuales: con ellas se calcula la rotación de campo del vídeo."""
+    """
+    Ubicación, orientación de la cámara y modo de la montura actuales, y la opción [Video] rotacion_campo:
+    con ellos se decide y se calcula la rotación de campo del vídeo.
+    """
     import orientacion_camara
-    return {"observatorio": list(_observatorio()), "orientacion": orientacion_camara.ultima()}
+    return {"observatorio": list(_observatorio()), "orientacion": orientacion_camara.ultima(),
+            "modo_montura": _modo_montura(), "rotacion_campo": _config_video()["rotacion_campo"]}
 
 
 def _meta_rotacion_video():
     """Lo que se guarda en el .json del vídeo para corregir después su rotación de campo."""
     c = _contexto_rotacion_video()
-    meta = {"observatorio": c["observatorio"]}
+    meta = {"observatorio": c["observatorio"], "modo_montura": c["modo_montura"]}
     if c["orientacion"] and c["orientacion"].get("H"):
         meta.update({"H_camara": c["orientacion"]["H"], "binning_foto": c["orientacion"].get("binning_foto", 1)})
     return meta
@@ -4597,11 +4619,25 @@ def videos_apilar():
     try:
         apilado_video.trabajo_apilado_video.iniciar(
             ruta, lambda rgb8, cubo16, info: _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info),
-            pct=pct, cantidad_nitidez=nitidez, ev=_compensacion_foto_dia(), contexto=_contexto_rotacion_video())
+            pct=pct, cantidad_nitidez=nitidez, ev=_compensacion_foto_dia(),
+            contexto=dict(_contexto_rotacion_video(), rotacion_campo=apilado_video.modo_rotacion(
+                datos.get("rotacion_campo") or conf["rotacion_campo"])))
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     log.info("Apilado del vídeo %s: mejores %.0f %%, afinado %.1f", nombre, pct, nitidez)
     return jsonify({"ok": True, "estado": apilado_video.trabajo_apilado_video.estado()})
+
+
+@app.route('/videos/config', methods=["POST"])
+def videos_config():
+    """{rotacion_campo: automatico|siempre|nunca}: se guarda en [Video] de config.ini."""
+    datos = request.get_json(silent=True) or {}
+    valor = str(datos.get("rotacion_campo") or "")
+    if valor not in apilado_video.MODOS_ROTACION:
+        return jsonify({"ok": False, "error": _("Valor no válido")}), 400
+    _guardar_en_config("Video", {"rotacion_campo": valor})
+    log.info("Rotación de campo del vídeo: %s", valor)
+    return jsonify({"ok": True, "config": _config_video()})
 
 
 @app.route('/videos/reafinar', methods=["POST"])

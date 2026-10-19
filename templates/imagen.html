@@ -281,6 +281,15 @@
                     <input type="range" id="video-nitidez" min="0" max="3" step="0.5" value="1" oninput="pintarNitidezVideo()">
                     <small class="ayuda">{{ _("Deconvolución del disco con el desenfoque medido en su propio limbo (4 iteraciones por punto). «Reafinar» vuelve a revelar el apilado guardado con el valor del deslizador, en segundos, sin repetir el apilado; sustituye la foto de la galería. La «Nitidez» del editor de la galería no sirve aquí: mide estrellas.") }}</small>
                 </div>
+                <div class="form-group">
+                    <label for="video-rotacion">{{ _("Rotación de campo") }}</label>
+                    <select id="video-rotacion" class="form-control" onchange="guardarRotacionVideo()">
+                        <option value="automatico">{{ _("Automática (según la montura)") }}</option>
+                        <option value="siempre">{{ _("Corregir siempre (altacimutal)") }}</option>
+                        <option value="nunca">{{ _("No corregir (ecuatorial)") }}</option>
+                    </select>
+                    <small class="ayuda">{{ _("Con montura altacimutal el disco gira en la imagen durante la grabación y se corrige al apilar; con una ecuatorial no gira. «Automática» pregunta a la montura por ASCOM al grabar. Elige a mano si la montura no lo dice bien, por ejemplo una altacimutal sobre cuña. Vale para el siguiente «Apilar»; «Reafinar» no cambia el alineado.") }}</small>
+                </div>
                 <div id="video-grabacion" class="estado mt-1"></div>
                 <div id="video-apilado" class="mt-2" hidden>
                     <div class="fila entre"><span id="video-apilado-texto" class="estado" style="color: var(--text);"></span>
@@ -1145,6 +1154,7 @@
             const cont = document.getElementById("video-lista");
             document.getElementById("video-sub").textContent = d.libre_gb !== null && d.libre_gb !== undefined ? _("{gb} GB libres", { gb: fmtNum(d.libre_gb, 1) }) : _("de día");
             if (d.config) {
+                if (d.config.rotacion_campo) document.getElementById("video-rotacion").value = d.config.rotacion_campo;
                 const sel = document.getElementById("video-duracion");
                 if ([...sel.options].some(o => o.value === String(d.config.duracion_s))) sel.value = String(d.config.duracion_s);
             }
@@ -1172,8 +1182,9 @@
         const est = document.getElementById("video-estado");
         const pct = parseInt(document.getElementById("video-pct").value) || 25;
         const nitidez = parseFloat(document.getElementById("video-nitidez").value) || 0;
+        const rotacion_campo = document.getElementById("video-rotacion").value;
         est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + (reafinar ? _("Reafinando...") : _("Empezando el apilado..."));
-        fetch(reafinar ? "/videos/reafinar" : "/videos/apilar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre, pct, nitidez }) })
+        fetch(reafinar ? "/videos/reafinar" : "/videos/apilar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre, pct, nitidez, rotacion_campo }) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); return; }
@@ -1185,6 +1196,13 @@
             .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
     }
     function reafinarVideo(nombre) { apilarVideo(nombre, true); }
+    function guardarRotacionVideo() {
+        const rotacion_campo = document.getElementById("video-rotacion").value;
+        fetch("/videos/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rotacion_campo }) })
+            .then(r => r.json())
+            .then(d => { if (!d.ok) { const est = document.getElementById("video-estado"); est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || ""); } })
+            .catch(() => {});
+    }
     function cancelarApiladoVideo() { fetch("/videos/apilar/cancelar", { method: "POST" }).catch(() => {}); }
     function pintarApilado(e) {
         const activo = !!e.en_curso;
