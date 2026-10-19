@@ -249,16 +249,35 @@ def angulos_norte(tiempos_unix, observatorio, Hs, objetivo=None, radec=None, mue
     return np.degrees(theta)
 
 
+MODOS_ROTACION = ("automatico", "siempre", "nunca")
+MONTURAS_ECUATORIALES = ("ecuatorial", "ecuatorial_alemana")
+
+
+def modo_rotacion(valor):
+    """[Video] rotacion_campo normalizado: automatico (de serie), siempre o nunca."""
+    v = str(valor or "").strip().lower().replace("á", "a")
+    return v if v in MODOS_ROTACION else "automatico"
+
+
 def angulos_de_rotacion(lector, meta, contexto=None):
     """
     (ángulos del norte por fotograma en grados, None) o (None, motivo) para el vídeo de `lector`:
     con las marcas de tiempo del SER (o el inicio y la duración del .json), la ubicación y la
     orientación de la cámara guardadas al grabar (o, en vídeos de antes, las actuales de `contexto`).
+    contexto["rotacion_campo"]: «automatico» corrige salvo que la montura sea ecuatorial (lo dijo por
+    ASCOM al grabar, o lo dice ahora); «siempre» corrige aunque lo sea (una altacimutal sobre cuña que
+    ASCOM no distingue, o al revés); «nunca» no corrige.
     """
     contexto = contexto or {}
     objetivo = meta.get("objetivo")
     if objetivo not in ("sol", "luna"):
         return None, ""                        # paisaje: el campo no gira con el cielo
+    modo = modo_rotacion(contexto.get("rotacion_campo"))
+    if modo == "nunca":
+        return None, _("desactivada en la configuración")
+    montura = meta.get("modo_montura") or contexto.get("modo_montura")
+    if modo == "automatico" and montura in MONTURAS_ECUATORIALES:
+        return None, _("montura ecuatorial, el campo no gira")
     observatorio = meta.get("observatorio") or contexto.get("observatorio")
     H = meta.get("H_camara")
     binning = meta.get("binning_foto", 1)

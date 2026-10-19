@@ -14,6 +14,8 @@
 #      ritmo de la fórmula de la altacimutal y en sentido contrario si la imagen va en espejo;
 #      un Sol sintético que gira 4° durante el vídeo sale nítido con la corrección y
 #      emborronado sin ella.
+#   6. Cuándo se corrige: automático salvo montura ecuatorial (la del .json al grabar o la de
+#      ahora), «siempre» aunque lo sea, «nunca» nunca, y nada con el paisaje.
 #
 # Uso: python herramientas/probar_apilado_video.py   (desde la carpeta de ScopePower)
 
@@ -162,6 +164,30 @@ def probar_apilado(carpeta):
     print(f"✅ apilado: {r['usados']} de {n} fotogramas (los {nitidos} nítidos entre ellos), desplazamiento máximo "
           f"{r['desplazamiento_max_px']} px, apilado a {error:.3f} px de la referencia, ruido ×{ruido_media / ruido_uno:.2f}, {dt:.1f} s")
     return ruta
+
+
+def probar_decision_rotacion(ruta):
+    """angulos_de_rotacion según [Video] rotacion_campo y el modo de la montura."""
+    lector = apilado_video.LectorSER(ruta)
+    base = {"objetivo": "sol", "observatorio": list(OBSERVATORIO), "H_camara": H_PRUEBA, "orientacion": "traspuesta"}
+    casos = [
+        ("automático, altacimutal", dict(base, modo_montura="altacimutal"), {}, True),
+        ("automático, sin saber la montura", base, {}, True),
+        ("automático, ecuatorial al grabar", dict(base, modo_montura="ecuatorial"), {}, False),
+        ("automático, ecuatorial alemana ahora", base, {"modo_montura": "ecuatorial_alemana"}, False),
+        ("siempre, ecuatorial", dict(base, modo_montura="ecuatorial_alemana"), {"rotacion_campo": "siempre"}, True),
+        ("nunca, altacimutal", dict(base, modo_montura="altacimutal"), {"rotacion_campo": "nunca"}, False),
+        ("paisaje", dict(base, objetivo="paisaje"), {"rotacion_campo": "siempre"}, False),
+    ]
+    for nombre, meta, contexto, corrige in casos:
+        angulos, motivo = apilado_video.angulos_de_rotacion(lector, meta, contexto)
+        assert (angulos is not None) == corrige, (nombre, motivo)
+        if not corrige and nombre != "paisaje":
+            assert motivo, nombre
+    assert apilado_video.modo_rotacion("Automático") == "automatico" and apilado_video.modo_rotacion("") == "automatico"
+    assert apilado_video.modo_rotacion("NUNCA") == "nunca" and apilado_video.modo_rotacion("x") == "automatico"
+    lector.cerrar()
+    print(f"✅ cuándo se corrige la rotación de campo: {len(casos)} casos (automático, siempre, nunca, ecuatorial, paisaje)")
 
 
 def probar_trabajo(ruta):
@@ -348,6 +374,7 @@ if __name__ == "__main__":
         probar_apilado_con_giro(carpeta)
         probar_desmosaicado()
         ruta = probar_apilado(carpeta)
+        probar_decision_rotacion(ruta)
         probar_trabajo(ruta)
         probar_grabacion_vivo(carpeta)
         print("✅ probar_apilado_video: todo correcto")

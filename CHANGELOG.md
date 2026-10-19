@@ -28,6 +28,11 @@ día de la release. El número de versión vive en `version.py`.
   gira alrededor del centro del disco según la hora de ese fotograma, la ubicación y la
   orientación de la cámara del último plate solving (hasta 1,5° en 2 minutos con el Sol a 75°
   de altura). La ubicación y la orientación se guardan con el vídeo al grabarlo.
+- La rotación de campo del vídeo solo se corrige con montura altacimutal: al grabar se pregunta
+  a la montura por ASCOM (AlignmentMode) y con una ecuatorial no se gira nada. La opción
+  «Rotación de campo» del panel Vídeo (`[Video] rotacion_campo`: automatico, siempre, nunca)
+  permite elegirlo a mano cuando la montura no lo dice bien, por ejemplo una altacimutal sobre
+  cuña.
 - Arreglado el alineado del apilado del vídeo, también sin giro: `cv2.phaseCorrelate` con
   ventana multiplicaba por ella la imagen de referencia en cada fotograma y la iba borrando, y
   el desplazamiento medido en el verde a media resolución fallaba hasta 0,8 px. Ahora se mide

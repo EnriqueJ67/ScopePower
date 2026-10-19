@@ -830,6 +830,10 @@ msgstr ""
 msgid "Auto-GOTO desactivado."
 msgstr ""
 
+#: templates/imagen.html
+msgid "Automática (según la montura)"
+msgstr ""
+
 #: templates/_asistente.html
 msgid "Autor de las fotos"
 msgstr ""
@@ -1562,6 +1566,10 @@ msgstr ""
 msgid "Con menos de {minimo} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio."
 msgstr ""
 
+#: templates/imagen.html
+msgid "Con montura altacimutal el disco gira en la imagen durante la grabación y se corrige al apilar; con una ecuatorial no gira. «Automática» pregunta a la montura por ASCOM al grabar. Elige a mano si la montura no lo dice bien, por ejemplo una altacimutal sobre cuña. Vale para el siguiente «Apilar»; «Reafinar» no cambia el alineado."
+msgstr ""
+
 #: static/js/asistente.js
 msgid "Con tu campo de {campo}° (menos de 0,6°) hace falta el catálogo <b>D80</b> (1,2 GB), que solo existe como instalador para Windows: descárgalo en el PC desde <a href=\"{web}\" target=\"_blank\" rel=\"noopener\">hnsky.org</a> e instálalo en la carpeta de ASTAP. El D50 puede valer si el campo no es mucho menor."
 msgstr ""
@@ -1745,6 +1753,10 @@ msgstr ""
 
 #: static/centrado.js
 msgid "Corregir"
+msgstr ""
+
+#: templates/imagen.html
+msgid "Corregir siempre (altacimutal)"
 msgstr ""
 
 #: disco.py
@@ -5226,6 +5238,10 @@ msgstr ""
 msgid "No cambies el enfoque ni la orientación de la cámara respecto a las fotos de la noche."
 msgstr ""
 
+#: templates/imagen.html
+msgid "No corregir (ecuatorial)"
+msgstr ""
+
 #. js
 #: templates/goto.html
 msgid "No disponible"
@@ -6808,6 +6824,10 @@ msgstr ""
 msgid "Revelar como el apilado"
 msgstr ""
 
+#: templates/imagen.html
+msgid "Rotación de campo"
+msgstr ""
+
 #: templates/_pad.html
 msgid "Rápida (1°/s)"
 msgstr ""
@@ -7834,6 +7854,10 @@ msgid "Vale desde la siguiente foto."
 msgstr ""
 
 #: ScopePower.py
+msgid "Valor no válido"
+msgstr ""
+
+#: ScopePower.py
 msgid "Valores fuera de rango"
 msgstr ""
 
@@ -8483,6 +8507,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "deriva {v}′/min"
+msgstr ""
+
+#: apilado_video.py
+msgid "desactivada en la configuración"
 msgstr ""
 
 #: instalar_astap.py
@@ -9177,6 +9205,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "montura desconectada; pulsa Reconectar equipo en el inicio"
+msgstr ""
+
+#: apilado_video.py
+msgid "montura ecuatorial, el campo no gira"
 msgstr ""
 
 #. js

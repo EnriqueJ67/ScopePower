@@ -832,6 +832,10 @@ msgstr "Auto-GOTO on. Speak to move the telescope."
 msgid "Auto-GOTO desactivado."
 msgstr "Auto-GOTO off."
 
+#: templates/imagen.html
+msgid "Automática (según la montura)"
+msgstr "Automatic (by mount)"
+
 #: templates/_asistente.html
 msgid "Autor de las fotos"
 msgstr "Photo author"
@@ -1564,6 +1568,10 @@ msgstr "With the focal length and the camera sensor, ScopePower works out the fi
 msgid "Con menos de {minimo} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio."
 msgstr "Below {minimo} GB stacking pauses by itself and cannot resume until you free up space."
 
+#: templates/imagen.html
+msgid "Con montura altacimutal el disco gira en la imagen durante la grabación y se corrige al apilar; con una ecuatorial no gira. «Automática» pregunta a la montura por ASCOM al grabar. Elige a mano si la montura no lo dice bien, por ejemplo una altacimutal sobre cuña. Vale para el siguiente «Apilar»; «Reafinar» no cambia el alineado."
+msgstr "With an alt-az mount the disc rotates in the image during the recording and it is corrected when stacking; with an equatorial one it does not rotate. “Automatic” asks the mount through ASCOM when recording. Choose by hand if the mount does not report it right, for example an alt-az on a wedge. It applies to the next “Stack”; “Re-sharpen” does not change the alignment."
+
 #: static/js/asistente.js
 msgid "Con tu campo de {campo}° (menos de 0,6°) hace falta el catálogo <b>D80</b> (1,2 GB), que solo existe como instalador para Windows: descárgalo en el PC desde <a href=\"{web}\" target=\"_blank\" rel=\"noopener\">hnsky.org</a> e instálalo en la carpeta de ASTAP. El D50 puede valer si el campo no es mucho menor."
 msgstr "With your {campo}° field (less than 0.6°) you need the <b>D80</b> catalog (1.2 GB), which only exists as a Windows installer: download it on the PC from <a href=\"{web}\" target=\"_blank\" rel=\"noopener\">hnsky.org</a> and install it in the ASTAP folder. D50 may do if the field isn't much smaller."
@@ -1748,6 +1756,10 @@ msgstr "Corrected {desvio}′ (correction {n})"
 #: static/centrado.js
 msgid "Corregir"
 msgstr "Correct"
+
+#: templates/imagen.html
+msgid "Corregir siempre (altacimutal)"
+msgstr "Always correct (alt-az)"
 
 #: disco.py
 msgid "Corrigiendo {desvio}′..."
@@ -5228,6 +5240,10 @@ msgstr "Not authorized"
 msgid "No cambies el enfoque ni la orientación de la cámara respecto a las fotos de la noche."
 msgstr "Don't change the focus or the camera orientation from tonight's shots."
 
+#: templates/imagen.html
+msgid "No corregir (ecuatorial)"
+msgstr "Do not correct (equatorial)"
+
 #. js
 #: templates/goto.html
 msgid "No disponible"
@@ -6810,6 +6826,10 @@ msgstr "Developing..."
 msgid "Revelar como el apilado"
 msgstr "Develop like stacking"
 
+#: templates/imagen.html
+msgid "Rotación de campo"
+msgstr "Field rotation"
+
 #: templates/_pad.html
 msgid "Rápida (1°/s)"
 msgstr "Fast (1°/s)"
@@ -7836,6 +7856,10 @@ msgid "Vale desde la siguiente foto."
 msgstr "Applies from the next shot."
 
 #: ScopePower.py
+msgid "Valor no válido"
+msgstr "Invalid value"
+
+#: ScopePower.py
 msgid "Valores fuera de rango"
 msgstr "Values out of range"
 
@@ -8486,6 +8510,10 @@ msgstr "too close to the pole"
 #: templates/imagen.html
 msgid "deriva {v}′/min"
 msgstr "drift {v}′/min"
+
+#: apilado_video.py
+msgid "desactivada en la configuración"
+msgstr "turned off in the settings"
 
 #: instalar_astap.py
 msgid "descarga incompleta ({hechos} de {total} MB)"
@@ -9180,6 +9208,10 @@ msgstr "mount"
 #: ScopePower.py
 msgid "montura desconectada; pulsa Reconectar equipo en el inicio"
 msgstr "mount disconnected; press Reconnect equipment on Home"
+
+#: apilado_video.py
+msgid "montura ecuatorial, el campo no gira"
+msgstr "equatorial mount, the field does not rotate"
 
 #. js
 #: templates/planetario.html
