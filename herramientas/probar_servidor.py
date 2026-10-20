@@ -99,6 +99,33 @@ def main():
     if not bien:
         fallos.append("firma")
 
+    print("Luna anotada en Cámara (fotograma del modo en vivo sintético):")
+    import cv2
+    sys.path.insert(0, os.path.join(copia, "herramientas"))
+    from probar_luna_anotada import pintar
+    # En vivo se anota con la hora actual y el observatorio de config.ini: la Luna sintética, igual
+    obs = firma.datos_observatorio()
+    geo = sp.luna_anotada.geometria(time.time(), obs["latitud"], obs["longitud"])
+    __, jpg = cv2.imencode(".jpg", pintar(geo, 1052, 1052, 540, 500, 331, 120.0, True))
+    original = sp.vivo_dia.trabajo_vivo.imagen
+    sp.vivo_dia.trabajo_vivo.imagen = lambda despues=None, espera=3.0: (7, jpg.tobytes())
+    try:
+        if geo["iluminada"] < 0.25:
+            # Cerca de la Luna nueva puede no haber Luna que anotar: basta con que la ruta conteste bien
+            r = cliente.get("/camara/luna-anotada?vivo=1")
+            bien = r.status_code in (200, 409) and (r.get_json() or {}).get("mensaje", "ok")
+            print(f"  {'✅' if bien else '❌'} Luna casi nueva hoy ({100 * geo['iluminada']:.0f} %): la ruta contesta {r.status_code}")
+        else:
+            r = pedir("/camara/luna-anotada?vivo=1")
+            d = r.get_json() or {}
+            bien = d.get("ok") and d.get("luna") and len(d.get("objetos") or []) > 30 and abs(d["orientacion"]["giro"] - 120.0) < 1.0
+            print(f"  {'✅' if bien else '❌'} {len(d.get('objetos') or [])} accidentes, giro {d.get('orientacion', {}).get('giro')}°, "
+                  f"espejo {d.get('orientacion', {}).get('espejo')}")
+        if not bien:
+            fallos.append("luna anotada en Cámara")
+    finally:
+        sp.vivo_dia.trabajo_vivo.imagen = original
+
     if fallos:
         print(f"\n❌ Fallan {len(fallos)}: {', '.join(fallos)}")
         return 1

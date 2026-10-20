@@ -45,6 +45,11 @@ día de la release. El número de versión vive en `version.py`.
   foto pequeña solo se nombra lo grande y ningún nombre pisa otro. Nombres del nomenclátor de la UAI,
   mapa y límites de los mares del LROC (dominio público) en `luna/`; prueba
   `herramientas/probar_luna_anotada.py`.
+- Luna anotada también en Cámara: en el modo día, con la Luna elegida, el interruptor «Nombres de
+  la Luna encima de la foto» pinta los mismos nombres y contornos sobre la foto que se ve. Con fotos
+  sueltas, el continuo o el timelapse se anota cada foto nueva; en vivo, un fotograma cada 8 s (la
+  Luna apenas se mueve y así no se carga el mini PC). El dibujo es común a la galería y a Cámara
+  (`static/js/luna_anotada.js`).
 
 ## 1.2.2 · 2026-10-16
 

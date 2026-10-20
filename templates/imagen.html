@@ -16,6 +16,8 @@
     <div class="foto-imagen">
         <div class="visor">
             <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" alt="{{ _('Última foto') }}">
+            <!-- Luna anotada (panel Modo día, con la Luna elegida): mares, cráteres y montes encima de la foto -->
+            <svg id="luna-capa" class="lightbox-anotaciones capa-camara" aria-hidden="true" style="display: none;"></svg>
             <!-- Sello: la foto que va bajando por la wifi (con su progreso) y, cuando llega, de qué hora es:
                  al enfocar se sabe si lo que se ve es la foto nueva o todavía la anterior -->
             <div id="foto-sello" class="foto-sello" hidden></div>
@@ -168,6 +170,13 @@
                     </div>
                     <small class="ayuda">{{ _("Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes.") }}</small>
                     <div id="estado-disco" class="estado mt-1"></div>
+                    <div id="dia-luna-anotada" hidden>
+                        <div class="fila mt-1" style="justify-content: space-between;">
+                            <label class="switch" style="margin: 0;"><input type="checkbox" id="luna-anotar" onchange="cambiarLunaAnotada()"> {{ _("Nombres de la Luna encima de la foto") }}</label>
+                        </div>
+                        <small class="ayuda">{{ _("Mares, cráteres y montes con su nombre, como en un atlas. Se calcula con la fecha, el observatorio y la propia foto: no hace falta plate solving. En vivo se recoloca cada pocos segundos.") }}</small>
+                        <div id="luna-estado" class="texto-3 mt-1" style="font-size: 13px;"></div>
+                    </div>
                 </div>
                 <div id="dia-aviso-sol" class="aviso aviso-err mt-2" hidden>
                     <svg class="ico"><use href="#i-info"/></svg>
@@ -438,6 +447,7 @@
     }
 </style>
 
+<script src="{{ url_for('static', filename='js/luna_anotada.js') }}?v=1"></script>
 <script>
     let sondeo = null;
     let hayFotoNueva = false;                 // foto hecha en esta visita (de noche, ASTAP la resuelve)
@@ -744,6 +754,8 @@
     function pintarDisco() {
         const ver = modoDia && (objetivoDia === "sol" || objetivoDia === "luna");
         document.getElementById("dia-disco").hidden = !ver;
+        document.getElementById("dia-luna-anotada").hidden = !(modoDia && objetivoDia === "luna");
+        actualizarLunaAnotada();
         const clave = objetivoDia === "luna" ? "luna" : "sol";
         const nombre = _(OBJETIVO_ART[clave]);
         document.querySelector("#btn-sync-disco span").textContent = _("Sincronizar con {nombre}", { nombre });
@@ -1070,6 +1082,62 @@
             .catch(() => { pidiendoVivo = false; esperaVivo = setTimeout(pedirFotoVivo, 1000); });
     }
     document.getElementById("foto").addEventListener("load", () => { if (vivoActivo) { fotoMostrada(false); pedirFotoVivo(); } });
+
+    // ── Luna anotada: mares, cráteres y montes encima de la foto (luna_anotada.py, static/js/luna_anotada.js) ──
+    // Con fotos sueltas, el continuo o el timelapse se anota cada foto que llega (el servidor no repite
+    // el cálculo de la misma foto). En vivo, un fotograma cada CADA_VIVO_MS: la Luna apenas se mueve
+    // entre fotogramas y calcularlo en cada uno cargaría el mini PC. Mientras llega la anotación nueva
+    // se queda la anterior: en el continuo la Luna está casi en el mismo sitio y así no parpadea.
+    // (var y no let: pintarModoDia() llama a esto al cargar la página, antes de llegar aquí)
+    var CADA_VIVO_MS = 8000;
+    var lunaAnotada = false, datosLuna = null, pidiendoLuna = false, otraLuna = false, ultimaLunaVivo = 0;
+    try { lunaAnotada = localStorage.getItem("camara_luna_anotada") === "1"; } catch (e) {}
+    document.getElementById("luna-anotar").checked = lunaAnotada;
+    function lunaAnotadaActiva() { return lunaAnotada && modoDia && objetivoDia === "luna"; }
+    function cambiarLunaAnotada() {
+        lunaAnotada = document.getElementById("luna-anotar").checked;
+        try { localStorage.setItem("camara_luna_anotada", lunaAnotada ? "1" : "0"); } catch (e) {}
+        datosLuna = null; ultimaLunaVivo = 0;
+        actualizarLunaAnotada();
+    }
+    function actualizarLunaAnotada() {
+        if (CADA_VIVO_MS === undefined) return;          // aún no se ha leído este bloque
+        if (!lunaAnotadaActiva()) { datosLuna = null; pintarCapaLuna(); document.getElementById("luna-estado").textContent = ""; return; }
+        if (vivoActivo && datosLuna && Date.now() - ultimaLunaVivo < CADA_VIVO_MS) { pintarCapaLuna(); return; }
+        pedirLuna();
+    }
+    function pedirLuna() {
+        if (pidiendoLuna) { otraLuna = true; return; }
+        pidiendoLuna = true;
+        const vivo = vivoActivo, estado = document.getElementById("luna-estado");
+        if (!datosLuna) estado.innerHTML = '<span class="spinner"></span>' + _("buscando los accidentes de la Luna…");
+        fetch("/camara/luna-anotada" + (vivo ? "?vivo=1" : ""), { cache: "no-store" })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) throw new Error(d.mensaje || _("no se pudo anotar"));
+                datosLuna = d;
+                if (vivo) ultimaLunaVivo = Date.now();
+                pintarCapaLuna();
+            })
+            .catch(e => { datosLuna = null; pintarCapaLuna(); if (lunaAnotadaActiva()) estado.textContent = "⚠️ " + e.message; })
+            .finally(() => { pidiendoLuna = false; if (otraLuna) { otraLuna = false; actualizarLunaAnotada(); } });
+    }
+    function pintarCapaLuna() {
+        const capa = document.getElementById("luna-capa"), img = document.getElementById("foto");
+        capa.replaceChildren();
+        // Solo sobre una foto del mismo tamaño que la anotada (si no, es otra foto: espera a la suya)
+        if (!datosLuna || !lunaAnotadaActiva() || img.naturalWidth !== datosLuna.ancho || img.naturalHeight !== datosLuna.alto) {
+            capa.style.display = "none";
+            return;
+        }
+        const w = img.clientWidth, h = img.clientHeight;
+        capa.style.display = "";
+        capa.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        const puestos = pintarLunaAnotada(capa, datosLuna, w / datosLuna.ancho, w, h);
+        document.getElementById("luna-estado").textContent = textoLunaAnotada(datosLuna, puestos);
+    }
+    document.getElementById("foto").addEventListener("load", () => actualizarLunaAnotada());
+    new ResizeObserver(() => pintarCapaLuna()).observe(document.getElementById("foto"));
     document.getElementById("foto").addEventListener("error", () => { if (vivoActivo) esperaVivo = setTimeout(pedirFotoVivo, 500); });
     function pintarVivo(e) {
         const antes = vivoActivo;

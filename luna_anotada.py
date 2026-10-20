@@ -555,6 +555,25 @@ def instante_de(nombre, meta=None):
     return None
 
 
+def _para_el_visor(r, etiqueta, t0):
+    """Resultado de anotar() en el formato que pintan la galería y Cámara (static/js/luna_anotada.js)."""
+    orient = r["orientacion"]
+    log.info("Luna anotada en %s: %d accidentes, giro %.1f°%s, correlación %.3f (margen %.3f), %.1f s",
+             etiqueta, len(r["accidentes"]), orient["giro"], " con espejo" if orient["espejo"] else "",
+             orient["correlacion"], orient["margen"], time.time() - t0)
+    return {"ok": True, "luna": True, "ancho": r["ancho"], "alto": r["alto"], "objetos": r["accidentes"],
+            "disco": r["disco"], "terminador": r["terminador"], "mares": r["mares"], "iluminada": r["iluminada"],
+            "orientacion": orient, "dudosa": orient["margen"] < 0.02}
+
+
+def _guardar_en_cache(clave, salida):
+    with _lock:
+        if len(_cache) > 40:
+            for k in [k for k in _cache if isinstance(k, tuple)][:20]:
+                del _cache[k]
+        _cache[clave] = salida
+
+
 def objetos_foto(nombre, observatorio=None):
     """
     Accidentes de la Luna sobre una foto de la galería, en el formato de las anotaciones del
@@ -587,19 +606,30 @@ def objetos_foto(nombre, observatorio=None):
         raise ErrorEditor(_("No se pudo leer la imagen"))
     t0 = time.time()
     try:
-        r = anotar(img, instante, float(lat), float(lon))
+        salida = _para_el_visor(anotar(img, instante, float(lat), float(lon)), nombre, t0)
     except ErrorLuna as e:
         raise ErrorEditor(str(e))
-    orient = r["orientacion"]
-    log.info("Luna anotada en %s: %d accidentes, giro %.1f°%s, correlación %.3f (margen %.3f), %.1f s",
-             nombre, len(r["accidentes"]), orient["giro"], " con espejo" if orient["espejo"] else "",
-             orient["correlacion"], orient["margen"], time.time() - t0)
-    salida = {"ok": True, "luna": True, "ancho": r["ancho"], "alto": r["alto"], "objetos": r["accidentes"],
-              "disco": r["disco"], "terminador": r["terminador"], "mares": r["mares"], "iluminada": r["iluminada"],
-              "orientacion": orient, "dudosa": orient["margen"] < 0.02}
+    _guardar_en_cache(clave, salida)
+    return salida
+
+
+def objetos_camara(jpg, clave, instante, observatorio):
+    """
+    Accidentes de la Luna sobre la foto que enseña Cámara (`jpg`: los bytes del JPG que ve
+    la web, ya con su recorte y su giro), en el mismo formato que la galería. `clave`
+    identifica esa foto (la versión del fotograma del vivo o la fecha del JPG): pedirla otra
+    vez no repite el cálculo. Lanza ErrorLuna si no se ve la Luna.
+    """
+    import cv2
+    lat, lon = observatorio
+    clave = ("camara", clave, float(lat), float(lon))
     with _lock:
-        if len(_cache) > 40:
-            for k in [k for k in _cache if isinstance(k, tuple)][:20]:
-                del _cache[k]
-        _cache[clave] = salida
+        if clave in _cache:
+            return _cache[clave]
+    img = cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)
+    if img is None:
+        raise ErrorLuna(_("No se pudo leer la imagen"))
+    t0 = time.time()
+    salida = _para_el_visor(anotar(img, instante, float(lat), float(lon)), "Cámara", t0)
+    _guardar_en_cache(clave, salida)
     return salida

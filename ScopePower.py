@@ -4451,6 +4451,38 @@ def vivo_imagen():
     return respuesta
 
 
+@app.route('/camara/luna-anotada')
+def camara_luna_anotada():
+    """
+    Mares, cráteres y montes de la Luna sobre la foto que enseña Cámara (luna_anotada.py), en
+    píxeles de su JPG: el mismo formato que las anotaciones de la galería. Con ?vivo=1, el
+    último fotograma del modo en vivo (la web lo pide cada pocos segundos: la Luna apenas se
+    mueve entre fotogramas); si no, la foto de static/captura.jpg. La misma foto pedida otra
+    vez no se vuelve a calcular.
+    """
+    obs = firma.datos_observatorio()
+    try:
+        if request.args.get("vivo") == "1":
+            version, jpg = vivo_dia.trabajo_vivo.imagen()
+            if jpg is None:
+                return jsonify({"ok": False, "mensaje": _("Todavía no hay imagen del modo en vivo.")}), 409
+            clave, instante = ("vivo", version), time.time()
+        else:
+            if not os.path.exists(RUTA_IMAGEN_WEB):
+                return jsonify({"ok": False, "mensaje": _("No hay ninguna foto; haz una foto primero.")}), 409
+            est = os.stat(RUTA_IMAGEN_WEB)
+            with open(RUTA_IMAGEN_WEB, "rb") as f:
+                jpg = f.read()
+            foto = _foto_en_pantalla() or {}
+            clave, instante = ("foto", est.st_size, est.st_mtime_ns), foto.get("instante") or est.st_mtime
+        return jsonify(luna_anotada.objetos_camara(jpg, clave, instante, (obs["latitud"], obs["longitud"])))
+    except luna_anotada.ErrorLuna as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    except Exception as e:
+        log.exception("Error anotando la Luna en Cámara")
+        return jsonify({"ok": False, "mensaje": _("No se pudo anotar: {e}", e=e)}), 500
+
+
 # ───────────────────────── Vídeo desde el modo en vivo y apilado de los mejores fotogramas ─────────────────────────
 def _config_video():
     """[Video] de config.ini: cadencia al grabar, % de fotogramas que se apilan, afinado, duración y carpeta."""

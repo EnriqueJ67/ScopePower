@@ -372,6 +372,8 @@ details[open] > .proc-mas-titulo::before { content: "▾ "; }
 .lightbox-anotaciones ellipse.anot-ngc { stroke: #96d2ff; }
 .lightbox-anotaciones text.anot-ngc { fill: #96d2ff; }
 /* Luna anotada: colores por familia (mares, cráteres, montes, rimas, dorsos, alunizajes) */
+/* La misma capa sobre la foto de Cámara: ocupa la foto entera (que llena el visor) */
+.lightbox-anotaciones.capa-camara { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
 .lightbox-anotaciones .luna-limbo { fill: none; stroke: rgba(120, 210, 200, 0.55); stroke-width: 1px; }
 .lightbox-anotaciones .luna-contorno { fill: none; stroke: rgba(110, 200, 255, 0.6); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .lightbox-anotaciones .luna-terminador { fill: none; stroke: rgba(255, 200, 90, 0.7); stroke-width: 1px; stroke-dasharray: 4 4; }
