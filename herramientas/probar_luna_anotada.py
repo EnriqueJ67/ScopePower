@@ -172,6 +172,15 @@ def probar_trozos():
     # La misma zona un poco movida, como el fotograma siguiente del vivo: se sigue, no se busca
     if r1:
         _caso("fotograma siguiente del vivo", int(x - 492), int(y - 496), 1000, previo=r1)
+    # Una foto sin Luna (negra, con la tapa puesta): se dice enseguida, sin buscarla como trozo
+    t0 = time.time()
+    try:
+        L.anotar(np.full((600, 800), 12, np.uint8), t, 39.95, -1.11)
+        comprobar(False, "foto negra: debería avisar de que no se ve la Luna")
+    except L.SinLuna as e:
+        comprobar(time.time() - t0 < 2.0, f"foto negra: avisa ({e}) en {time.time() - t0:.2f} s")
+    except L.ErrorLuna as e:
+        comprobar(False, f"foto negra: avisa con otro motivo ({e})")
     # Una zona lisa en medio de un mar grande: encaja en varios sitios, no se debe anotar
     x, y = _donde(-5.0, -40.0)
     _caso("interior liso (Oceanus Procellarum)", int(x - 250), int(y - 250), 500, debe_anotar=False)
