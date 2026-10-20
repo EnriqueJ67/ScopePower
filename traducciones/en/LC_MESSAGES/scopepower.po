@@ -4809,6 +4809,10 @@ msgstr "It marks the tail of the Swan. It is one of the most luminous stars know
 msgid "Marcar como hecho"
 msgstr "Mark as done"
 
+#: templates/imagen.html
+msgid "Mares, cráteres y montes con su nombre, como en un atlas. Se calcula con la fecha, el observatorio y la propia foto: no hace falta plate solving. En vivo se recoloca cada pocos segundos."
+msgstr "Seas, craters and mountains with their names, like in an atlas. It is worked out from the date, the observatory and the photo itself: no plate solving needed. In live mode it is repositioned every few seconds."
+
 #. js
 #: esta_noche.py plan_sesion.py templates/planetario.html
 msgid "Marte"
@@ -5817,6 +5821,10 @@ msgstr "Caption name"
 #: templates/goto.html
 msgid "Nombre:"
 msgstr "Name:"
+
+#: templates/imagen.html
+msgid "Nombres de la Luna encima de la foto"
+msgstr "Moon names over the photo"
 
 #: templates/galeria.html
 msgid "Nombres de los mares, cráteres y montes de la Luna encima de la foto"
@@ -7719,6 +7727,10 @@ msgstr "All"
 msgid "Todavía no hay fotos apiladas."
 msgstr "No shots stacked yet."
 
+#: ScopePower.py
+msgid "Todavía no hay imagen del modo en vivo."
+msgstr "There is no live mode image yet."
+
 #: templates/galeria.html
 msgid "Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí."
 msgstr "No images yet. In Stacking, press <b>Save image</b> to add them here."
@@ -8353,7 +8365,7 @@ msgid "bajo la altura mínima ({altura}°)"
 msgstr "below the minimum altitude ({altura}°)"
 
 #. js
-#: templates/galeria.html
+#: templates/galeria.html templates/imagen.html
 msgid "buscando los accidentes de la Luna…"
 msgstr "finding the Moon's features…"
 
@@ -9365,7 +9377,7 @@ msgid "no se pudo ajustar la homografía"
 msgstr "could not fit the homography"
 
 #. js
-#: templates/galeria.html
+#: templates/galeria.html templates/imagen.html
 msgid "no se pudo anotar"
 msgstr "couldn't annotate"
 
@@ -9474,8 +9486,7 @@ msgstr "skipped"
 msgid "orden de llamadas no válido"
 msgstr "invalid call sequence"
 
-#. js
-#: templates/galeria.html
+#: static/js/luna_anotada.js
 msgid "orientación dudosa: puede salir en espejo"
 msgstr "uncertain orientation: it may be mirrored"
 
@@ -10110,8 +10121,7 @@ msgstr "{n} (incremental, no limit)"
 msgid "{n} GB libres"
 msgstr "{n} GB free"
 
-#. js
-#: templates/galeria.html
+#: static/js/luna_anotada.js
 msgid "{n} accidente con nombre"
 msgid_plural "{n} accidentes con nombre"
 msgstr[0] "{n} named feature"
@@ -10473,8 +10483,7 @@ msgstr "{px} px ({arcsec}\") to the {rumbo}"
 msgid "{p} % del campo"
 msgstr "{p}% of the field"
 
-#. js
-#: templates/galeria.html
+#: static/js/luna_anotada.js
 #, python-format
 msgid "{p} % iluminada"
 msgstr "{p} % illuminated"

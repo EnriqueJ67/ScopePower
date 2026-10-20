@@ -4807,6 +4807,10 @@ msgstr ""
 msgid "Marcar como hecho"
 msgstr ""
 
+#: templates/imagen.html
+msgid "Mares, cráteres y montes con su nombre, como en un atlas. Se calcula con la fecha, el observatorio y la propia foto: no hace falta plate solving. En vivo se recoloca cada pocos segundos."
+msgstr ""
+
 #. js
 #: esta_noche.py plan_sesion.py templates/planetario.html
 msgid "Marte"
@@ -5814,6 +5818,10 @@ msgstr ""
 #. js
 #: templates/goto.html
 msgid "Nombre:"
+msgstr ""
+
+#: templates/imagen.html
+msgid "Nombres de la Luna encima de la foto"
 msgstr ""
 
 #: templates/galeria.html
@@ -7717,6 +7725,10 @@ msgstr ""
 msgid "Todavía no hay fotos apiladas."
 msgstr ""
 
+#: ScopePower.py
+msgid "Todavía no hay imagen del modo en vivo."
+msgstr ""
+
 #: templates/galeria.html
 msgid "Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí."
 msgstr ""
@@ -8351,7 +8363,7 @@ msgid "bajo la altura mínima ({altura}°)"
 msgstr ""
 
 #. js
-#: templates/galeria.html
+#: templates/galeria.html templates/imagen.html
 msgid "buscando los accidentes de la Luna…"
 msgstr ""
 
@@ -9363,7 +9375,7 @@ msgid "no se pudo ajustar la homografía"
 msgstr ""
 
 #. js
-#: templates/galeria.html
+#: templates/galeria.html templates/imagen.html
 msgid "no se pudo anotar"
 msgstr ""
 
@@ -9472,8 +9484,7 @@ msgstr ""
 msgid "orden de llamadas no válido"
 msgstr ""
 
-#. js
-#: templates/galeria.html
+#: static/js/luna_anotada.js
 msgid "orientación dudosa: puede salir en espejo"
 msgstr ""
 
@@ -10108,8 +10119,7 @@ msgstr ""
 msgid "{n} GB libres"
 msgstr ""
 
-#. js
-#: templates/galeria.html
+#: static/js/luna_anotada.js
 msgid "{n} accidente con nombre"
 msgid_plural "{n} accidentes con nombre"
 msgstr[0] ""
@@ -10471,8 +10481,7 @@ msgstr ""
 msgid "{p} % del campo"
 msgstr ""
 
-#. js
-#: templates/galeria.html
+#: static/js/luna_anotada.js
 #, python-format
 msgid "{p} % iluminada"
 msgstr ""
