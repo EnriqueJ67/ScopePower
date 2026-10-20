@@ -21,7 +21,8 @@
 #      y los mares deciden el espejo; así no depende de cómo estaba montada la cámara
 #      ni de si la foto se giró después en el editor.
 #   4. Cada accidente se proyecta sobre el disco (proyección ortográfica: los cráteres
-#      del borde salen como elipses aplastadas) y se pasa a píxeles del JPG.
+#      del borde salen como elipses aplastadas) y se pasa a píxeles del JPG; también los
+#      límites de los mares (luna/contornos_mares.json, del LROC).
 
 import os
 import re
@@ -42,6 +43,7 @@ log = logging.getLogger("scopepower.luna_anotada")
 CARPETA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "luna")
 RUTA_ACCIDENTES = os.path.join(CARPETA, "accidentes_luna.csv")
 RUTA_ALBEDO = os.path.join(CARPETA, "albedo_luna.jpg")
+RUTA_MARES = os.path.join(CARPETA, "contornos_mares.json")
 RADIO_KM = 1737.4
 ANCHO_ANALISIS = 800           # la foto se analiza a ~800 px: el giro sale a décimas de grado
 ANILLOS, ANGULOS = 64, 720     # rejilla polar de la comparación (medio grado por paso)
@@ -414,6 +416,65 @@ def accidentes(geo, disco, orient, ancho, alto):
     return salida[:MAX_ACCIDENTES]
 
 
+def _contornos_mares():
+    """Anillos de los límites de los mares (arrays N×2 de lat, lon en grados), de luna/contornos_mares.json."""
+    if "mares" not in _cache:
+        try:
+            with open(RUTA_MARES, encoding="utf-8") as f:
+                _cache["mares"] = [np.asarray(a, dtype=np.float64) for a in json.load(f)]
+        except (OSError, ValueError) as e:
+            log.warning("Sin contornos de los mares: %s", e)
+            _cache["mares"] = []
+    return _cache["mares"]
+
+
+def contornos(geo, disco, orient, ancho, alto):
+    """
+    Los límites de los mares en píxeles de la foto, como trazado SVG («M x y l dx dy...»,
+    con movimientos relativos en píxeles enteros), cortados donde pasan a la cara oculta y
+    simplificados a un píxel de la pantalla: unas decenas de KB aunque el JPG sea de
+    4 000 px, menos que el propio JPG que se está viendo. La tolerancia
+    va con el disco: el visor enseña la Luna entera a unos 400 px de radio como mucho, así
+    que r/400 px del JPG es un píxel de pantalla. Los anillos más pequeños que eso, fuera.
+    """
+    import cv2
+    tolerancia = max(0.8, disco["r"] / 400.0)
+    trazos = []
+    for anillo in _contornos_mares():
+        X, Y, cos_e, __ = a_vista(geo, _vectores_superficie(anillo[:, 0], anillo[:, 1]))
+        x, y = _a_foto(X, Y, disco, orient)
+        visible = (cos_e > 0) & (x > -50) & (x < ancho + 50) & (y > -50) & (y < alto + 50)
+        if not visible.any():
+            continue
+        if visible.all():                         # anillo entero: se cierra
+            tramos = [np.append(np.arange(len(x)), 0)]
+        else:                                     # trozos visibles, empezando tras uno oculto
+            orden = np.roll(np.arange(len(x)), -int(np.argmin(visible)))
+            tramos, actual = [], []
+            for k in orden:
+                if visible[k]:
+                    actual.append(k)
+                elif actual:
+                    tramos.append(np.array(actual))
+                    actual = []
+            if actual:
+                tramos.append(np.array(actual))
+        for t in tramos:
+            if len(t) < 2:
+                continue
+            linea = np.column_stack([x[t], y[t]]).astype(np.float32).reshape(-1, 1, 2)
+            simple = cv2.approxPolyDP(linea, tolerancia, False).reshape(-1, 2)
+            if len(simple) < 2 or np.ptp(simple, axis=0).max() < 6 * tolerancia:
+                continue
+            p = np.rint(simple).astype(int)
+            d = np.diff(p, axis=0)
+            d = d[(d != 0).any(axis=1)]
+            if not len(d):                        # un «l» sin números estropearía el trazado entero
+                continue
+            trazos.append(f"M{p[0, 0]} {p[0, 1]}l" + " ".join(f"{a} {b}" for a, b in d))
+    return "".join(trazos)
+
+
 def terminador(geo, disco, orient, puntos=181):
     """Línea entre el día y la noche en la cara visible, en píxeles de la foto (lista de [x, y])."""
     s = geo["s"]
@@ -454,7 +515,7 @@ def anotar(lum_o_bgr, instante, lat, lon, alt_m=0.0):
     orient = orientar(pequena, disco_p, geo)
     return {"ancho": ancho, "alto": alto, "disco": {c: round(v, 1) for c, v in disco.items()},
             "orientacion": orient, "accidentes": accidentes(geo, disco, orient, ancho, alto),
-            "terminador": terminador(geo, disco, orient),
+            "terminador": terminador(geo, disco, orient), "mares": contornos(geo, disco, orient, ancho, alto),
             "iluminada": round(geo["iluminada"], 3), "libracion": [round(geo["libracion_lat"], 2), round(geo["libracion_lon"], 2)],
             "pa_eje": round(geo["pa_eje"], 2)}
 
@@ -534,7 +595,7 @@ def objetos_foto(nombre, observatorio=None):
              nombre, len(r["accidentes"]), orient["giro"], " con espejo" if orient["espejo"] else "",
              orient["correlacion"], orient["margen"], time.time() - t0)
     salida = {"ok": True, "luna": True, "ancho": r["ancho"], "alto": r["alto"], "objetos": r["accidentes"],
-              "disco": r["disco"], "terminador": r["terminador"], "iluminada": r["iluminada"],
+              "disco": r["disco"], "terminador": r["terminador"], "mares": r["mares"], "iluminada": r["iluminada"],
               "orientacion": orient, "dudosa": orient["margen"] < 0.02}
     with _lock:
         if len(_cache) > 40:

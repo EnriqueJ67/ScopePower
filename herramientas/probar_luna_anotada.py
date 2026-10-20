@@ -7,7 +7,7 @@
 #      con tamaño, posición, giro y espejo al azar: se tienen que recuperar el disco (al 1,5 %
 #      del radio), el giro (a 1°) y el espejo.
 #   3. Los accidentes: los de una foto salen dentro del disco, con los grandes primero, y
-#      Tycho cae donde debe.
+#      Tycho cae donde debe; el terminador y los contornos de los mares salen bien formados.
 #
 # Uso:
 #   python herramientas\probar_luna_anotada.py
@@ -131,6 +131,9 @@ def probar_accidentes():
     comprobar(tycho is not None and math.hypot(tycho["x"] - x[0], tycho["y"] - y[0]) < 3.0,
               "Tycho cae donde debe" + (f" (a {math.hypot(tycho['x'] - x[0], tycho['y'] - y[0]):.1f} px)" if tycho else ""))
     comprobar(len(res["terminador"]) > 20, f"terminador con {len(res['terminador'])} puntos")
+    trazado = res["mares"]
+    comprobar(trazado.startswith("M") and trazado.count("M") > 50 and "l M" not in trazado and not trazado.endswith("l"),
+              f"contornos de los mares: {trazado.count('M')} trazos, {len(trazado) // 1024} KB")
 
 
 if __name__ == "__main__":

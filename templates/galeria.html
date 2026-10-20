@@ -227,10 +227,12 @@
     }
     window.addEventListener("resize", pintarAnotaciones);
 
-    // La Luna: el limbo, el terminador (discontinuo) y los accidentes con nombre. Los mares
-    // llevan el nombre encima de su centro; los cráteres, su contorno (elipse, aplastada
-    // cerca del borde) y el nombre al lado; montes, rimas y dorsos, un punto. Los de la parte
-    // de noche, más tenues.
+    // La Luna: el limbo, el terminador (discontinuo), los límites de los mares y los
+    // accidentes con nombre. Los mares llevan el nombre encima de su centro; los cráteres, su
+    // contorno (elipse, aplastada cerca del borde) y el nombre al lado; montes, rimas y
+    // dorsos, un punto. Los de la parte de noche, más tenues. Ningún nombre pisa otro ni el
+    // contorno de un cráter pequeño: el que no cabe se queda sin poner (al ver la foto más
+    // grande caben más).
     function pintarLuna(d, k, w, h, NS) {
         const nuevo = (tipo, attrs, clase, antes) => {
             const el = document.createElementNS(NS, tipo);
@@ -239,44 +241,55 @@
             svgAnot.insertBefore(el, antes || null);
             return el;
         };
+        if (d.mares) nuevo("path", { d: d.mares, transform: `scale(${k})` }, "luna-contorno");
         nuevo("circle", { cx: d.disco.cx * k, cy: d.disco.cy * k, r: d.disco.r * k }, "luna-limbo");
         if (d.terminador.length > 1)
             nuevo("polyline", { points: d.terminador.map(p => `${p[0] * k},${p[1] * k}`).join(" ") }, "luna-terminador");
+        const HOLGURA = 3;
         const ocupados = [];
-        const libre = rc => rc[0] >= 0 && rc[2] <= w && rc[1] >= 0 && rc[3] <= h
-            && ocupados.every(o => rc[2] < o[0] || rc[0] > o[2] || rc[3] < o[1] || rc[1] > o[3]);
-        const th = 13;
+        const choca = rc => ocupados.some(o => !(rc[2] < o[0] || rc[0] > o[2] || rc[3] < o[1] || rc[1] > o[3]));
+        const dentro = rc => rc[0] >= 0 && rc[2] <= w && rc[1] >= 0 && rc[3] <= h;
         let puestos = 0;
         // Tamaño mínimo en pantalla (diámetro en px) por familia: con la foto pequeña solo los grandes
-        const MINIMO = { mar: 26, crater: 10, monte: 18, rima: 18, dorso: 18, estacion: 0 };
+        const MINIMO = { mar: 26, crater: 12, monte: 24, rima: 24, dorso: 24, estacion: 0 };
         for (const o of d.objetos) {
             const x = o.x * k, y = o.y * k, a = o.a * k, b = o.b * k;
-            if (2 * a < (MINIMO[o.familia] ?? 10)) continue;
+            if (2 * a < (MINIMO[o.familia] ?? 12)) continue;
             const clase = "luna-" + o.familia + (o.luz ? "" : " luna-noche");
+            // La marca de un cráter pequeño o de un punto también ocupa sitio: si ya hay un nombre
+            // encima, este accidente se queda fuera (un contorno cruzando un nombre lo hace ilegible)
+            let marca = null;
+            if (o.familia === "crater" && a <= 40) marca = [x - a - 1, y - a - 1, x + a + 1, y + a + 1];
+            else if (o.familia !== "mar" && o.familia !== "crater") marca = [x - 4, y - 4, x + 4, y + 4];
+            if (marca && choca(marca)) continue;
             const texto = nuevo("text", {}, clase);
             texto.textContent = o.nombre;
-            const tw = texto.getComputedTextLength();
+            // Medida real del texto (con el espaciado entre letras y la fuente de su familia)
+            const caja0 = texto.getBBox();
+            const tw = caja0.width, th = caja0.height;
+            const r = Math.max(a, 3) + HOLGURA + 2;           // fuera de su propia marca, con holgura
             let sitios;
-            if (o.familia === "mar") sitios = [[x - tw / 2, y + th / 3], [x - tw / 2, y + th + 4], [x - tw / 2, y - th / 2]];
-            else if (o.familia === "crater") {
-                const r = Math.max(a, 3) + 3;
-                sitios = [[x - tw / 2, y + r + th - 2], [x - tw / 2, y - r - 3], [x + r + 2, y + th / 3], [x - r - tw - 2, y + th / 3]];
-            } else sitios = [[x + 5, y + th / 3], [x - tw - 5, y + th / 3], [x - tw / 2, y + th + 3], [x - tw / 2, y - 6]];
+            if (o.familia === "mar") sitios = [[x - tw / 2, y - th / 2], [x - tw / 2, y + th / 2 + 2], [x - tw / 2, y - 1.5 * th - 2]];
+            else if (o.familia === "crater")
+                sitios = [[x - tw / 2, y + r], [x - tw / 2, y - r - th], [x + r + 1, y - th / 2], [x - r - tw - 1, y - th / 2]];
+            else sitios = [[x + 6, y - th / 2], [x - tw - 6, y - th / 2], [x - tw / 2, y + 5], [x - tw / 2, y - th - 5]];
+            // (tx, ty) es la esquina de arriba a la izquierda de la caja; la línea base va más abajo
+            const base = -caja0.y;
             let puesto = false;
             for (const [tx, ty] of sitios) {
-                const rc = [tx - 2, ty - th + 1, tx + tw + 2, ty + 3];
-                if (libre(rc)) {
-                    texto.setAttribute("x", tx); texto.setAttribute("y", ty);
+                const rc = [tx - HOLGURA, ty - HOLGURA, tx + tw + HOLGURA, ty + th + HOLGURA];
+                if (dentro(rc) && !choca(rc) && !(marca && !(rc[2] < marca[0] || rc[0] > marca[2] || rc[3] < marca[1] || rc[1] > marca[3]))) {
+                    texto.setAttribute("x", tx); texto.setAttribute("y", ty + base);
                     ocupados.push(rc); puesto = true;
                     break;
                 }
             }
             if (!puesto) { texto.remove(); continue; }
             puestos++;
-            // La marca solo si el nombre cabe: sin nombre, un círculo más no dice nada
-            if (o.familia === "crater" && a * 2 >= 5)
+            if (marca) ocupados.push(marca);
+            if (o.familia === "crater")
                 nuevo("ellipse", { cx: x, cy: y, rx: a, ry: Math.max(b, 1), transform: `rotate(${o.angulo} ${x} ${y})` }, clase, texto);
-            else if (o.familia !== "mar" && o.familia !== "crater")
+            else if (o.familia !== "mar")
                 nuevo("circle", { cx: x, cy: y, r: 2.5 }, clase + " luna-punto", texto);
         }
         let pie = ngettext("{n} accidente con nombre", "{n} accidentes con nombre", puestos) + " · "

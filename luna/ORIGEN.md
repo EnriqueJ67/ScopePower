@@ -23,3 +23,16 @@ Visualization Studio, <https://svs.gsfc.nasa.gov/4720>, fichero `lroc_color_pole
 
 NASA's Scientific Visualization Studio, de dominio público. Solo sirve para reconocer el giro y el
 espejo de la foto por la forma de los mares; no se dibuja.
+
+## contornos_mares.json
+
+Límites de los mares del LROC: *Global Mapping of Lunar Mare Boundaries (65N and 65S)*,
+<https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_LROC_GLOBAL_MARE>, fichero
+`LROC_GLOBAL_MARE_180.ZIP` del PDS de la NASA (sin restricciones de uso), descargado el 20-oct-2026.
+Cita: Nelson, D. M. et al. (2014), *Mapping lunar maria extents and lobate scarps using LROC image
+products*, Lunar and Planetary Science Conference 45, p. 2861.
+
+De sus 450 000 puntos quedan unos 17 000: solo la cara visible y su borde, sin las manchas de menos de
+1° y simplificados a 0,1° (unos 3 km). Es una lista de anillos, cada uno una lista de [latitud,
+longitud] en grados. Las rectas que cruzan algunos mares son los límites entre mares vecinos del
+propio mapa.

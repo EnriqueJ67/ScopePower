@@ -13,22 +13,32 @@
 #      https://svs.gsfc.nasa.gov/4720 → lroc_color_poles_1k.jpg (1024×512, cilíndrico,
 #      longitud 0 en el centro). Se guarda en grises: solo sirve para reconocer los mares.
 #
-#   python herramientas/preparar_luna.py MOON_nomenclature_center_pts.zip lroc_color_poles_1k.jpg
+#   3. Contornos de los mares: el mapa de los límites de los mares del LROC (Nelson et al. 2014,
+#      datos de la NASA en el PDS), https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_LROC_GLOBAL_MARE
+#      → LROC_GLOBAL_MARE_180.ZIP. De sus 450 000 puntos se quedan unos pocos miles: solo la
+#      cara visible y su borde, sin las manchas de menos de MIN_ANILLO_GRADOS y simplificados a
+#      TOLERANCIA_GRADOS (unos 3 km), que en la foto de la Luna entera es un píxel o menos.
+#
+#   python herramientas/preparar_luna.py MOON_nomenclature_center_pts.zip lroc_color_poles_1k.jpg LROC_GLOBAL_MARE_180.ZIP
 
 import os
 import io
 import sys
 import csv
+import json
 import math
 import struct
 import zipfile
 
 import cv2
+import numpy as np
 
 CARPETA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "luna")
 MIN_CRATER_KM = 15.0
 MAX_DISTANCIA_CENTRO = 100.0       # grados desde el centro de la cara visible (libración incluida)
 SIN_USAR = {"SF", "LF"}            # cráteres satélite (Tycho A...) y nombres de los alunizajes del Apolo
+TOLERANCIA_GRADOS = 0.1            # simplificación de los contornos de los mares (~3 km)
+MIN_ANILLO_GRADOS = 1.0            # contornos más pequeños (islas, manchas de ~30 km) no se guardan
 
 
 def leer_dbf(datos):
@@ -94,9 +104,55 @@ def preparar_albedo(ruta_jpg):
     print(f"Mapa de albedo en {ruta} ({os.path.getsize(ruta) // 1024} KB)")
 
 
+def anillos_shp(datos):
+    """Anillos [(lon, lat)...] de un .shp de polígonos (tipo 5), leído a mano."""
+    if struct.unpack("<i", datos[32:36])[0] != 5:
+        sys.exit("Se esperaba un shapefile de polígonos")
+    anillos, p = [], 100
+    while p < len(datos):
+        __, largo = struct.unpack(">2i", datos[p:p + 8])
+        reg = datos[p + 8:p + 8 + 2 * largo]
+        p += 8 + 2 * largo
+        if struct.unpack("<i", reg[:4])[0] != 5:
+            continue
+        n_partes, n_puntos = struct.unpack("<2i", reg[36:44])
+        partes = list(struct.unpack(f"<{n_partes}i", reg[44:44 + 4 * n_partes])) + [n_puntos]
+        puntos = np.frombuffer(reg[44 + 4 * n_partes:44 + 4 * n_partes + 16 * n_puntos], dtype="<f8").reshape(-1, 2)
+        anillos += [puntos[partes[i]:partes[i + 1]] for i in range(n_partes)]
+    return anillos
+
+
+def preparar_mares(ruta_zip):
+    with zipfile.ZipFile(ruta_zip) as z:
+        nombre_shp = next(n for n in z.namelist() if n.lower().endswith(".shp"))
+        anillos = anillos_shp(z.read(nombre_shp))
+    salida, puntos = [], 0
+    for a in anillos:
+        lon, lat = a[:, 0], a[:, 1]
+        if np.ptp(lon) > 180:                     # cruza la longitud ±180: es de la cara oculta
+            continue
+        if max(np.ptp(lon) * math.cos(math.radians(float(np.mean(lat)))), np.ptp(lat)) < MIN_ANILLO_GRADOS:
+            continue
+        if min(distancia_al_centro(float(la), float(lo)) for lo, la in a[::max(1, len(a) // 50)]) > MAX_DISTANCIA_CENTRO:
+            continue
+        # Douglas-Peucker en grados (la longitud encogida por la latitud, como se ve)
+        escala = math.cos(math.radians(float(np.mean(lat))))
+        curva = np.column_stack([lon * escala, lat]).astype(np.float32).reshape(-1, 1, 2)
+        simple = cv2.approxPolyDP(curva, TOLERANCIA_GRADOS, True).reshape(-1, 2)
+        if len(simple) < 4:
+            continue
+        salida.append([[round(float(la), 2), round(float(lo) / escala, 2)] for lo, la in simple])
+        puntos += len(simple)
+    ruta = os.path.join(CARPETA, "contornos_mares.json")
+    with open(ruta, "w", encoding="utf-8") as f:
+        json.dump(salida, f, separators=(",", ":"))
+    print(f"{len(salida)} contornos de mares ({puntos} puntos) en {ruta} ({os.path.getsize(ruta) // 1024} KB)")
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit(__doc__ or "Uso: preparar_luna.py <nomenclatura.zip> <mapa.jpg>")
+    if len(sys.argv) != 4:
+        sys.exit("Uso: preparar_luna.py <nomenclatura.zip> <mapa.jpg> <mares.zip>")
     os.makedirs(CARPETA, exist_ok=True)
     preparar_nombres(sys.argv[1])
     preparar_albedo(sys.argv[2])
+    preparar_mares(sys.argv[3])
