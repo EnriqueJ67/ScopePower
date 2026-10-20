@@ -10,7 +10,7 @@
 #      centro, por la libración): sin las letras de los cráteres satélite («Tycho A») ni
 #      los rincones del Apolo, y los cráteres desde MIN_CRATER_KM.
 #   2. Mapa de albedo: el de color del LROC del CGI Moon Kit de la NASA (dominio público),
-#      https://svs.gsfc.nasa.gov/4720 → lroc_color_poles_1k.jpg (1024×512, cilíndrico,
+#      https://svs.gsfc.nasa.gov/4720 → lroc_color_poles_2k.tif (2048×1024, cilíndrico,
 #      longitud 0 en el centro). Se guarda en grises: solo sirve para reconocer los mares.
 #
 #   3. Contornos de los mares: el mapa de los límites de los mares del LROC (Nelson et al. 2014,
@@ -19,7 +19,7 @@
 #      cara visible y su borde, sin las manchas de menos de MIN_ANILLO_GRADOS y simplificados a
 #      TOLERANCIA_GRADOS (unos 3 km), que en la foto de la Luna entera es un píxel o menos.
 #
-#   python herramientas/preparar_luna.py MOON_nomenclature_center_pts.zip lroc_color_poles_1k.jpg LROC_GLOBAL_MARE_180.ZIP
+#   python herramientas/preparar_luna.py MOON_nomenclature_center_pts.zip lroc_color_poles_2k.tif LROC_GLOBAL_MARE_180.ZIP
 
 import os
 import io
@@ -97,10 +97,10 @@ def preparar_nombres(ruta_zip):
 
 def preparar_albedo(ruta_jpg):
     img = cv2.imread(ruta_jpg, cv2.IMREAD_GRAYSCALE)
-    if img is None or img.shape != (512, 1024):
-        sys.exit(f"Se esperaba un mapa de 1024×512: {ruta_jpg}")
+    if img is None or img.shape[1] != 2 * img.shape[0]:
+        sys.exit(f"Se esperaba un mapa cilíndrico (el doble de ancho que de alto): {ruta_jpg}")
     ruta = os.path.join(CARPETA, "albedo_luna.jpg")
-    cv2.imwrite(ruta, img, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    cv2.imwrite(ruta, img, [cv2.IMWRITE_JPEG_QUALITY, 85])
     print(f"Mapa de albedo en {ruta} ({os.path.getsize(ruta) // 1024} KB)")
 
 

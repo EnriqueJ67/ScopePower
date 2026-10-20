@@ -5753,12 +5753,12 @@ msgstr ""
 msgid "No se puede leer el vídeo: {e}"
 msgstr ""
 
-#: luna_anotada.py
-msgid "No se reconoce el borde de la Luna."
-msgstr ""
-
 #: disco.py
 msgid "No se reconoce el borde del disco."
+msgstr ""
+
+#: luna_anotada.py
+msgid "No se reconoce qué parte de la Luna es."
 msgstr ""
 
 #: luna_anotada.py
@@ -5767,6 +5767,10 @@ msgstr ""
 
 #: luna_anotada.py
 msgid "No se sabe desde dónde se hizo la foto: falta el observatorio en Configuración."
+msgstr ""
+
+#: luna_anotada.py
+msgid "No se ve el borde de la Luna y este trozo encaja en más de un sitio (una zona lisa, sin nada destacado): no se puede saber qué parte es."
 msgstr ""
 
 #: luna_anotada.py
@@ -7056,6 +7060,10 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "Se usa en la firma del apilado y en el nombre del archivo al guardar en la galería. Cada GoTo lo actualiza."
+msgstr ""
+
+#: luna_anotada.py
+msgid "Se ve poco borde de la Luna y la foto encaja con más de una posición: no se puede saber con seguridad qué parte es. Con más disco a la vista sí."
 msgstr ""
 
 #. js

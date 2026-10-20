@@ -136,10 +136,52 @@ def probar_accidentes():
               f"contornos de los mares: {trazado.count('M')} trazos, {len(trazado) // 1024} KB")
 
 
+def probar_trozos():
+    print("Trozos de la Luna (disco cortado, interior sin limbo, seguimiento en vivo)")
+    t = datetime(2026, 10, 21, 19, 30, tzinfo=timezone.utc).timestamp()
+    geo = L.geometria(t, 39.95, -1.11)
+    R, giro, espejo = 1300.0, 62.0, True
+    grande = pintar(geo, 3000, 3000, 1500, 1500, R, giro, espejo, semilla=3)
+    disco_ok = {"cx": 1500.0, "cy": 1500.0, "r": R}
+
+    def _donde(lat, lon):
+        X, Y, __, __ = L.a_vista(geo, L._vectores_superficie(np.array([lat]), np.array([lon])))
+        x, y = L._a_foto(X, Y, disco_ok, {"giro": giro, "espejo": espejo})
+        return float(x[0]), float(y[0])
+
+    def _caso(texto, x0, y0, lado, debe_anotar=True, previo=None):
+        trozo = np.ascontiguousarray(grande[y0:y0 + lado, x0:x0 + lado])
+        t0 = time.time()
+        try:
+            res = L.anotar(trozo, t, 39.95, -1.11, previo=previo)
+        except L.ErrorLuna as e:
+            comprobar(not debe_anotar, f"{texto}: no anota ({e}) {time.time() - t0:.1f} s")
+            return None
+        d = res["disco"]
+        error = math.hypot(d["cx"] - (1500 - x0), d["cy"] - (1500 - y0))
+        bien = debe_anotar and error < 0.03 * R and abs(d["r"] - R) < 0.04 * R and res["orientacion"]["espejo"] == espejo
+        comprobar(bien, f"{texto}: {res['metodo']}{' seguido' if res['seguido'] else ''}, centro a {error:.0f} px, "
+                        f"radio {d['r']:.0f} (real {R:.0f}), {time.time() - t0:.1f} s")
+        return res
+
+    # Disco cortado: un arco largo del limbo a la vista
+    _caso("disco cortado, medio disco y algo más", 0, 300, 1700)
+    # Interior: alrededor de Mare Vaporum (mares, montes y tierras altas), sin limbo
+    x, y = _donde(13.3, 3.6)
+    r1 = _caso("interior, Mare Vaporum", int(x - 500), int(y - 500), 1000)
+    # La misma zona un poco movida, como el fotograma siguiente del vivo: se sigue, no se busca
+    if r1:
+        _caso("fotograma siguiente del vivo", int(x - 492), int(y - 496), 1000, previo=r1)
+    # Una zona lisa en medio de un mar grande: encaja en varios sitios, no se debe anotar
+    x, y = _donde(-5.0, -40.0)
+    _caso("interior liso (Oceanus Procellarum)", int(x - 250), int(y - 250), 500, debe_anotar=False)
+
+
 if __name__ == "__main__":
     probar_geometria()
     probar_sinteticas()
     probar_accidentes()
+    probar_trozos()
     if fallos:
         print(f"\n{len(fallos)} comprobaciones fallidas")
         sys.exit(1)
