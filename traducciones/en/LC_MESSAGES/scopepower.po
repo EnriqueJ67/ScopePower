@@ -1197,6 +1197,10 @@ msgstr "Loading..."
 msgid "Carpeta de timelapse desconocida"
 msgstr "Unknown timelapse folder"
 
+#: luna_anotada.py
+msgid "Casi todo el borde de la Luna queda fuera de la foto."
+msgstr "Almost all of the Moon's edge is outside the photo."
+
 #: disco.py
 msgid "Casi todo el borde del disco queda fuera de la imagen."
 msgstr "Almost all of the disk's edge is outside the image."
@@ -2286,6 +2290,10 @@ msgstr "The white is blown out in {p} % of the central area even at the minimum 
 msgid "El borde no encaja con un disco de ese tamaño (solo el {p} %): ¿nubes delante, desenfocado o es otra cosa?"
 msgstr "The edge does not match a disk of that size (only {p} %): clouds in front, out of focus, or something else?"
 
+#: luna_anotada.py
+msgid "El borde no parece el de la Luna: ¿está desenfocada, tapada por nubes o fuera de campo?"
+msgstr "The edge does not look like the Moon's: is it out of focus, behind clouds or out of the frame?"
+
 #: mosaico.py
 msgid "El centrado no resolvió ninguna foto; la rejilla va con el giro previsto"
 msgstr "Centering did not solve any shot; the grid uses the expected rotation"
@@ -3372,6 +3380,10 @@ msgstr "Failed to monitor the telescope."
 msgid "Falta actualizar_desde_github.bat en la carpeta de ScopePower"
 msgstr "actualizar_desde_github.bat is missing from the ScopePower folder"
 
+#: luna_anotada.py
+msgid "Falta el mapa de la Luna ({ruta})."
+msgstr "The Moon map is missing ({ruta})."
+
 #: ScopePower.py
 msgid "Falta el nombre del objeto"
 msgstr "The object name is missing"
@@ -4129,7 +4141,7 @@ msgstr "SDK image vs. ASCOM image:"
 msgid "Imagen guardada en la galería"
 msgstr "Image saved to the gallery"
 
-#: ScopePower.py editor_fotos.py galeria_anotada.py
+#: ScopePower.py editor_fotos.py galeria_anotada.py luna_anotada.py
 msgid "Imagen no encontrada"
 msgstr "Image not found"
 
@@ -4412,6 +4424,10 @@ msgstr "The shot points below the minimum altitude; not syncing."
 #: camara_webcam.py
 msgid "La foto de la webcam no terminó a tiempo"
 msgstr "The webcam shot didn't finish in time"
+
+#: luna_anotada.py
+msgid "La foto no es de la Luna"
+msgstr "The photo is not of the Moon"
 
 #: disco.py
 msgid "La foto no está disponible."
@@ -5678,7 +5694,7 @@ msgstr "Could not read the PC status: {error}"
 msgid "No se pudo leer el mosaico: {e}"
 msgstr "Couldn't read the mosaic: {e}"
 
-#: ScopePower.py
+#: ScopePower.py luna_anotada.py
 msgid "No se pudo leer la imagen"
 msgstr "Couldn't read the image"
 
@@ -5735,9 +5751,29 @@ msgstr "The saved stack cannot be read: {e}"
 msgid "No se puede leer el vídeo: {e}"
 msgstr "The video cannot be read: {e}"
 
+#: luna_anotada.py
+msgid "No se reconoce el borde de la Luna."
+msgstr "The Moon's edge cannot be recognised."
+
 #: disco.py
 msgid "No se reconoce el borde del disco."
 msgstr "The disk's edge is not recognized."
+
+#: luna_anotada.py
+msgid "No se sabe cuándo se hizo la foto: hace falta para saber cómo se veía la Luna."
+msgstr "It is not known when the photo was taken: that is needed to know how the Moon looked."
+
+#: luna_anotada.py
+msgid "No se sabe desde dónde se hizo la foto: falta el observatorio en Configuración."
+msgstr "It is not known where the photo was taken from: set the observatory in Settings."
+
+#: luna_anotada.py
+msgid "No se ve la Luna en la foto."
+msgstr "The Moon cannot be seen in the photo."
+
+#: luna_anotada.py
+msgid "No se ve la Luna en la foto: la imagen es casi uniforme."
+msgstr "The Moon cannot be seen in the photo: the image is almost uniform."
 
 #: disco.py
 msgid "No se ve ningún disco brillante."
@@ -5781,6 +5817,10 @@ msgstr "Caption name"
 #: templates/goto.html
 msgid "Nombre:"
 msgstr "Name:"
+
+#: templates/galeria.html
+msgid "Nombres de los mares, cráteres y montes de la Luna encima de la foto"
+msgstr "Names of the Moon's seas, craters and mountains over the photo"
 
 #: templates/galeria.html
 msgid "Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos"
@@ -8313,6 +8353,11 @@ msgid "bajo la altura mínima ({altura}°)"
 msgstr "below the minimum altitude ({altura}°)"
 
 #. js
+#: templates/galeria.html
+msgid "buscando los accidentes de la Luna…"
+msgstr "finding the Moon's features…"
+
+#. js
 #: camara_zwo.py
 msgid "búfer demasiado pequeño"
 msgstr "buffer too small"
@@ -9429,6 +9474,11 @@ msgstr "skipped"
 msgid "orden de llamadas no válido"
 msgstr "invalid call sequence"
 
+#. js
+#: templates/galeria.html
+msgid "orientación dudosa: puede salir en espejo"
+msgstr "uncertain orientation: it may be mirrored"
+
 #: mosaico.py
 msgid "orientación respecto a los ejes"
 msgstr "orientation relative to the axes"
@@ -10060,6 +10110,13 @@ msgstr "{n} (incremental, no limit)"
 msgid "{n} GB libres"
 msgstr "{n} GB free"
 
+#. js
+#: templates/galeria.html
+msgid "{n} accidente con nombre"
+msgid_plural "{n} accidentes con nombre"
+msgstr[0] "{n} named feature"
+msgstr[1] "{n} named features"
+
 #: apilado.py
 msgid "{n} apartada, se sumará después"
 msgid_plural "{n} apartadas, se sumarán después"
@@ -10415,6 +10472,12 @@ msgstr "{px} px ({arcsec}\") to the {rumbo}"
 #, python-format
 msgid "{p} % del campo"
 msgstr "{p}% of the field"
+
+#. js
+#: templates/galeria.html
+#, python-format
+msgid "{p} % iluminada"
+msgstr "{p} % illuminated"
 
 #: centrado.py
 msgid "{rotulo}: esperando {s} s a que se asiente la montura"
