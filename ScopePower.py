@@ -82,6 +82,7 @@ import cuerpos_menores
 import catalogo_offline
 import editor_fotos
 import galeria_anotada
+import luna_anotada
 import anuncio_ip
 import punto_acceso
 import coordenadas
@@ -5567,6 +5568,8 @@ def galeria():
     imagenes = sorted([f for f in os.listdir(carpeta) if f.lower().endswith(".jpg")])
     # Solo las fotos con su FITS apilado al lado se pueden reprocesar en el editor
     con_fits = {f for f in imagenes if os.path.isfile(os.path.join(carpeta, os.path.splitext(f)[0] + ".fits"))}
+    # Las de la Luna se anotan sin FITS: con sus accidentes (luna_anotada.py)
+    con_luna = {f for f in imagenes if luna_anotada.es_luna(f, luna_anotada.meta_de(os.path.join(carpeta, f)))}
     # Tipo de objeto (galaxia, nebulosa, cúmulo...) para filtrar: del JSON hermano si la
     # foto se guardó con él; las antiguas se deducen del nombre y el catálogo local
     tipos = {f: _tipo_foto_galeria(carpeta, f) for f in imagenes}
@@ -5577,7 +5580,7 @@ def galeria():
     filtros = sorted(conteo.items(), key=lambda kv: orden.index(kv[0]) if kv[0] in orden else len(orden))
     lista_rastros = rastros.listar()
     n_meteoros = sum(1 for d in lista_rastros if d.get("tipo") == "meteoro")
-    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, tipos=tipos, filtros=filtros,
+    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_luna=con_luna, tipos=tipos, filtros=filtros,
                            n_rastros=len(lista_rastros), n_meteoros=n_meteoros)
 
 
@@ -5772,9 +5775,14 @@ def galeria_anotaciones(nombre):
     """
     Objetos del campo de una foto de la galería, situados sobre su JPG (galeria_anotada.py):
     los pinta el visor como una capa encima de la foto. La primera vez resuelve el FITS con
-    ASTAP (unos segundos); después sale de datos/anotaciones_galeria.json.
+    ASTAP (unos segundos); después sale de datos/anotaciones_galeria.json. Las fotos de la
+    Luna no se resuelven: llevan sus mares, cráteres y montes (luna_anotada.py).
     """
     try:
+        __, ruta_jpg, __, __ = editor_fotos.rutas(nombre)
+        if luna_anotada.es_luna(nombre, luna_anotada.meta_de(ruta_jpg)):
+            obs = firma.datos_observatorio()
+            return jsonify(luna_anotada.objetos_foto(nombre, (obs["latitud"], obs["longitud"])))
         return jsonify(galeria_anotada.objetos_foto(nombre))
     except editor_fotos.ErrorEditor as e:
         return jsonify({"ok": False, "mensaje": str(e)}), 409

@@ -371,6 +371,21 @@ details[open] > .proc-mas-titulo::before { content: "▾ "; }
 .lightbox-anotaciones text.anot-simbad { fill: #fff; }
 .lightbox-anotaciones ellipse.anot-ngc { stroke: #96d2ff; }
 .lightbox-anotaciones text.anot-ngc { fill: #96d2ff; }
+/* Luna anotada: colores por familia (mares, cráteres, montes, rimas, dorsos, alunizajes) */
+.lightbox-anotaciones .luna-limbo { fill: none; stroke: rgba(120, 210, 200, 0.55); stroke-width: 1px; }
+.lightbox-anotaciones .luna-terminador { fill: none; stroke: rgba(255, 200, 90, 0.7); stroke-width: 1px; stroke-dasharray: 4 4; }
+.lightbox-anotaciones .luna-mar { fill: #8fd0ff; stroke: rgba(143, 208, 255, 0.9); }
+.lightbox-anotaciones text.luna-mar { stroke: rgba(0,0,0,0.85); letter-spacing: 0.04em; }
+.lightbox-anotaciones .luna-crater { stroke: #ffd36b; }
+.lightbox-anotaciones text.luna-crater { fill: #ffd36b; stroke: rgba(0,0,0,0.85); }
+.lightbox-anotaciones .luna-monte { fill: #ffad6b; }
+.lightbox-anotaciones .luna-rima { fill: #8fe3b4; }
+.lightbox-anotaciones .luna-dorso { fill: #b3b9ff; }
+.lightbox-anotaciones .luna-estacion { fill: #ff93b5; }
+.lightbox-anotaciones text.luna-monte, .lightbox-anotaciones text.luna-rima, .lightbox-anotaciones text.luna-dorso,
+.lightbox-anotaciones text.luna-estacion { font-size: 12px; stroke: rgba(0,0,0,0.85); }
+.lightbox-anotaciones .luna-punto { stroke: rgba(0,0,0,0.7); stroke-width: 1px; }
+.lightbox-anotaciones .luna-noche { opacity: 0.55; }
 
 /* ── Visor de imagen (apilado, foto de prueba) ────────────────────────────── */
 .visor { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }

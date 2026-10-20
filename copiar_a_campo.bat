@@ -73,10 +73,12 @@ if errorlevel 8 set "ERRORES=1"
 robocopy "%ORIGEN%\traducciones" "%DESTINO%\traducciones" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
 
-echo  [4/7] Herramientas, constelaciones e informacion de objetos
+echo  [4/7] Herramientas, constelaciones, informacion de objetos y nombres de la Luna
 robocopy "%ORIGEN%\herramientas" "%DESTINO%\herramientas" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
 robocopy "%ORIGEN%\constelaciones" "%DESTINO%\constelaciones" /MIR %OPC%
+if errorlevel 8 set "ERRORES=1"
+robocopy "%ORIGEN%\luna" "%DESTINO%\luna" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
 robocopy "%ORIGEN%\info_objetos" "%DESTINO%\info_objetos" /E %OPC%
 if errorlevel 8 set "ERRORES=1"

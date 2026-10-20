@@ -1195,6 +1195,10 @@ msgstr ""
 msgid "Carpeta de timelapse desconocida"
 msgstr ""
 
+#: luna_anotada.py
+msgid "Casi todo el borde de la Luna queda fuera de la foto."
+msgstr ""
+
 #: disco.py
 msgid "Casi todo el borde del disco queda fuera de la imagen."
 msgstr ""
@@ -2284,6 +2288,10 @@ msgstr ""
 msgid "El borde no encaja con un disco de ese tamaño (solo el {p} %): ¿nubes delante, desenfocado o es otra cosa?"
 msgstr ""
 
+#: luna_anotada.py
+msgid "El borde no parece el de la Luna: ¿está desenfocada, tapada por nubes o fuera de campo?"
+msgstr ""
+
 #: mosaico.py
 msgid "El centrado no resolvió ninguna foto; la rejilla va con el giro previsto"
 msgstr ""
@@ -3370,6 +3378,10 @@ msgstr ""
 msgid "Falta actualizar_desde_github.bat en la carpeta de ScopePower"
 msgstr ""
 
+#: luna_anotada.py
+msgid "Falta el mapa de la Luna ({ruta})."
+msgstr ""
+
 #: ScopePower.py
 msgid "Falta el nombre del objeto"
 msgstr ""
@@ -4127,7 +4139,7 @@ msgstr ""
 msgid "Imagen guardada en la galería"
 msgstr ""
 
-#: ScopePower.py editor_fotos.py galeria_anotada.py
+#: ScopePower.py editor_fotos.py galeria_anotada.py luna_anotada.py
 msgid "Imagen no encontrada"
 msgstr ""
 
@@ -4409,6 +4421,10 @@ msgstr ""
 
 #: camara_webcam.py
 msgid "La foto de la webcam no terminó a tiempo"
+msgstr ""
+
+#: luna_anotada.py
+msgid "La foto no es de la Luna"
 msgstr ""
 
 #: disco.py
@@ -5676,7 +5692,7 @@ msgstr ""
 msgid "No se pudo leer el mosaico: {e}"
 msgstr ""
 
-#: ScopePower.py
+#: ScopePower.py luna_anotada.py
 msgid "No se pudo leer la imagen"
 msgstr ""
 
@@ -5733,8 +5749,28 @@ msgstr ""
 msgid "No se puede leer el vídeo: {e}"
 msgstr ""
 
+#: luna_anotada.py
+msgid "No se reconoce el borde de la Luna."
+msgstr ""
+
 #: disco.py
 msgid "No se reconoce el borde del disco."
+msgstr ""
+
+#: luna_anotada.py
+msgid "No se sabe cuándo se hizo la foto: hace falta para saber cómo se veía la Luna."
+msgstr ""
+
+#: luna_anotada.py
+msgid "No se sabe desde dónde se hizo la foto: falta el observatorio en Configuración."
+msgstr ""
+
+#: luna_anotada.py
+msgid "No se ve la Luna en la foto."
+msgstr ""
+
+#: luna_anotada.py
+msgid "No se ve la Luna en la foto: la imagen es casi uniforme."
 msgstr ""
 
 #: disco.py
@@ -5778,6 +5814,10 @@ msgstr ""
 #. js
 #: templates/goto.html
 msgid "Nombre:"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Nombres de los mares, cráteres y montes de la Luna encima de la foto"
 msgstr ""
 
 #: templates/galeria.html
@@ -8311,6 +8351,11 @@ msgid "bajo la altura mínima ({altura}°)"
 msgstr ""
 
 #. js
+#: templates/galeria.html
+msgid "buscando los accidentes de la Luna…"
+msgstr ""
+
+#. js
 #: camara_zwo.py
 msgid "búfer demasiado pequeño"
 msgstr ""
@@ -9427,6 +9472,11 @@ msgstr ""
 msgid "orden de llamadas no válido"
 msgstr ""
 
+#. js
+#: templates/galeria.html
+msgid "orientación dudosa: puede salir en espejo"
+msgstr ""
+
 #: mosaico.py
 msgid "orientación respecto a los ejes"
 msgstr ""
@@ -10058,6 +10108,13 @@ msgstr ""
 msgid "{n} GB libres"
 msgstr ""
 
+#. js
+#: templates/galeria.html
+msgid "{n} accidente con nombre"
+msgid_plural "{n} accidentes con nombre"
+msgstr[0] ""
+msgstr[1] ""
+
 #: apilado.py
 msgid "{n} apartada, se sumará después"
 msgid_plural "{n} apartadas, se sumarán después"
@@ -10412,6 +10469,12 @@ msgstr ""
 #: static/js/plan.js
 #, python-format
 msgid "{p} % del campo"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+#, python-format
+msgid "{p} % iluminada"
 msgstr ""
 
 #: centrado.py

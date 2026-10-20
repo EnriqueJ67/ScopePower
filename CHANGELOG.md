@@ -37,6 +37,13 @@ día de la release. El número de versión vive en `version.py`.
   ventana multiplicaba por ella la imagen de referencia en cada fotograma y la iba borrando, y
   el desplazamiento medido en el verde a media resolución fallaba hasta 0,8 px. Ahora se mide
   en el verde a resolución completa (0,1–0,2 px).
+- Luna anotada: en las fotos de la Luna de la galería (las sueltas de Cámara y los apilados de
+  vídeo), el interruptor «Anotaciones» pinta los mares, cráteres, montes, rimas y alunizajes con
+  su nombre, el limbo y el terminador. La libración y la iluminación salen de la fecha y el lugar de
+  la foto (modelo de rotación de la UAI, comprobado con JPL Horizons) y el giro y el espejo de la
+  propia foto, comparándola con un mapa de albedo; no hace falta Internet ni plate solving. Con la
+  foto pequeña solo se nombra lo grande. Nombres del nomenclátor de la UAI y mapa del LROC (dominio
+  público) en `luna/`; prueba `herramientas/probar_luna_anotada.py`.
 
 ## 1.2.2 · 2026-10-16
 
