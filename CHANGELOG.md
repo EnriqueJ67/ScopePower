@@ -57,6 +57,9 @@ día de la release. El número de versión vive en `version.py`.
   no se anota y se dice por qué, en vez de poner los nombres en otro sitio. En vivo, el trozo se
   sigue desde el fotograma anterior (0,3 s en vez de la búsqueda completa, de 2 a 8 s). El mapa de
   albedo pasa a 2048×1024 (unos 5 km por píxel).
+- Luna anotada: cuando no se puede anotar, el motivo y el tiempo quedan en el log (en Cámara, el
+  mismo motivo una vez por minuto, para no llenarlo en vivo). Una foto sin Luna (negra, con la tapa
+  puesta) se rechaza al momento, sin buscarla como trozo del interior.
 
 ## 1.2.2 · 2026-10-16
 

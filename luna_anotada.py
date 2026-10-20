@@ -86,6 +86,10 @@ class ErrorLuna(Exception):
     """No se puede anotar la Luna en esta foto (el texto dice por qué)."""
 
 
+class SinLuna(ErrorLuna):
+    """En la foto no hay nada brillante que pueda ser la Luna (negra, uniforme, tapa puesta)."""
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Datos
 # ─────────────────────────────────────────────────────────────────────────────
@@ -270,12 +274,12 @@ def _borde_brillante(lum):
     suave = cv2.GaussianBlur(lum, (0, 0), 1.2)
     bajo, alto = float(np.percentile(suave, 5)), float(np.percentile(suave, 99.5))
     if alto - bajo < 0.02 * max(alto, 1.0):
-        raise ErrorLuna(_("No se ve la Luna en la foto: la imagen es casi uniforme."))
+        raise SinLuna(_("No se ve la Luna en la foto: la imagen es casi uniforme."))
     mascara = (suave > bajo + 0.3 * (alto - bajo)).astype(np.uint8)
     mascara = cv2.morphologyEx(mascara, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     n, etiquetas, stats, __ = cv2.connectedComponentsWithStats(mascara, 8)
     if n <= 1:
-        raise ErrorLuna(_("No se ve la Luna en la foto."))
+        raise SinLuna(_("No se ve la Luna en la foto."))
     mayor = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
     comp = (etiquetas == mayor).astype(np.uint8)
     contornos, __ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -1029,8 +1033,10 @@ def anotar(lum_o_bgr, instante, lat, lon, alt_m=0.0, previo=None):
     else:
         try:
             candidatos = candidatos_disco(pequena)
+        except SinLuna:
+            raise                   # sin nada brillante no hay trozo que buscar
         except ErrorLuna as sin_borde:
-            log.info("Sin limbo reconocible (%s): se busca como trozo del interior", sin_borde)
+            log.debug("Sin limbo reconocible (%s): se busca como trozo del interior", sin_borde)
             disco_p, orient = buscar_sin_limbo(pequena, geo)
             metodo = "sin limbo"
         else:
@@ -1111,6 +1117,21 @@ def _para_el_visor(r, etiqueta, t0):
             "orientacion": orient, "dudosa": orient["margen"] < 0.02}
 
 
+def _log_fallo(etiqueta, error, t0, repetible=False):
+    """
+    Deja en el log por qué no se pudo anotar y cuánto se tardó en saberlo. Con `repetible` (la
+    foto de Cámara, que en vivo se pide cada pocos segundos) el mismo motivo solo se apunta
+    una vez por minuto: con la Luna fuera del encuadre no se llena el log.
+    """
+    texto = str(error)
+    if repetible:
+        ultimo = _cache.get("ultimo_fallo_camara")
+        if ultimo and ultimo[0] == texto and time.time() - ultimo[1] < 60.0:
+            return
+        _cache["ultimo_fallo_camara"] = (texto, time.time())
+    log.info("Luna sin anotar en %s: %s (%.1f s)", etiqueta, texto, time.time() - t0)
+
+
 def _guardar_en_cache(clave, salida):
     with _lock:
         if len(_cache) > 40:
@@ -1153,6 +1174,7 @@ def objetos_foto(nombre, observatorio=None):
     try:
         salida = _para_el_visor(anotar(img, instante, float(lat), float(lon)), nombre, t0)
     except ErrorLuna as e:
+        _log_fallo(nombre, e, t0)
         raise ErrorEditor(str(e))
     _guardar_en_cache(clave, salida)
     return salida
@@ -1177,7 +1199,12 @@ def objetos_camara(jpg, clave, instante, observatorio):
     t0 = time.time()
     # En vivo, el resultado del fotograma anterior: con un trozo de la Luna se sigue desde él
     previo = _cache.get("vivo_previo") if clave[1][0] == "vivo" else None
-    r = anotar(img, instante, float(lat), float(lon), previo=previo)
+    try:
+        r = anotar(img, instante, float(lat), float(lon), previo=previo)
+    except ErrorLuna as e:
+        _cache.pop("vivo_previo", None)        # lo anterior ya no sirve para seguir
+        _log_fallo("Cámara" + (" (en vivo)" if clave[1][0] == "vivo" else ""), e, t0, repetible=True)
+        raise
     if clave[1][0] == "vivo":
         _cache["vivo_previo"] = r
     salida = _para_el_visor(r, "Cámara" + (" (seguido)" if r["seguido"] else ""), t0)
