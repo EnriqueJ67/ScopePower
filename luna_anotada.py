@@ -13,7 +13,12 @@
 #   2. Dónde está el disco en la foto: un círculo ajustado con RANSAC al borde de la zona
 #      brillante. El radio no se conoce (el JPG puede estar recortado o con zoom), pero en
 #      cualquier fase el limbo iluminado es media circunferencia y el terminador no es un
-#      círculo, así que gana el limbo.
+#      círculo, así que gana el limbo. Con el disco cortado por los bordes de la foto, un
+#      arco corto del limbo da mal el radio y un trozo de terminador puede parecer limbo: se
+#      prueban varios círculos (también un barrido de radios) y gana el que, pintando la Luna
+#      que se debería ver con él, más se parece a la foto entera. Sin limbo a la vista (un
+#      trozo del interior), el trozo se busca en la Luna esperada (escala, giro, espejo y
+#      posición). Si dos soluciones distintas encajan casi igual, no se anota.
 #   3. El giro y el espejo de la foto: se pinta la Luna que se debería ver (el mapa de
 #      albedo del LROC con la iluminación de ese instante) y se compara con la foto en
 #      coordenadas polares, donde girar es desplazar y el espejo es invertir el ángulo.
@@ -48,6 +53,15 @@ RADIO_KM = 1737.4
 ANCHO_ANALISIS = 800           # la foto se analiza a ~800 px: el giro sale a décimas de grado
 ANILLOS, ANGULOS = 64, 720     # rejilla polar de la comparación (medio grado por paso)
 MIN_DIAMETRO_PX = 6.0          # un cráter más pequeño en el JPG no se distingue
+AMBIGUO = 0.01                 # otro disco distinto, ya afinado, a menos de esto de parecido: trozo ambiguo, no se anota
+LIMBO_MIN_GRADOS = 40.0        # con el disco cortado, menos limbo iluminado a la vista no sitúa el trozo con seguridad
+LIMBO_BRILLO_MAX = 0.45        # fuera del limbo, el cielo: menos de esto del brillo de la Luna junto al borde...
+LIMBO_TEXTURA_MAX = 0.35       # ...o, de día con el cielo claro, menos de esto de su textura
+LADO_VISTA = 512               # lado de la imagen de la Luna esperada para comparar trozos (se compara a 240 px)
+LADO_VISTA_TROZO = 1024        # ...y para buscar un trozo sin limbo (la foto a 128 px puede ser 2/5 del radio)
+SEGUIR_TOLERANCIA = 0.03       # en vivo, el trozo se sigue mientras encaje casi tan bien como en la imagen anterior
+MARGEN_SIN_LIMBO = 0.04        # sin limbo, la mejor solución debe sacar esto a cualquier otra distinta
+PARECIDO_MIN_SIN_LIMBO = 0.75
 MIN_CRATER_NOCHE_KM = 90.0    # en la parte de noche solo se nombran los cráteres desde este tamaño
 MAX_ACCIDENTES = 300
 NOMBRES_LUNA = {"luna", "moon"}
@@ -216,6 +230,20 @@ def _circulo_3_puntos(p1, p2, p3):
     return ux, uy, math.hypot(ax - ux, ay - uy)
 
 
+def _ajustar_radio_fijo(puntos, centro, radio, iteraciones=15):
+    """Gauss-Newton: centro que minimiza Σ(|p−c| − R)² con R fijo."""
+    c = np.array(centro, dtype=np.float64)
+    for __ in range(iteraciones):
+        d = puntos - c
+        dist = np.maximum(np.hypot(d[:, 0], d[:, 1]), 1e-6)
+        J = -d / dist[:, None]
+        paso, *__ = np.linalg.lstsq(J, -(dist - radio), rcond=None)
+        c += paso
+        if np.hypot(*paso) < 1e-3:
+            break
+    return c
+
+
 def _ajustar_circulo(puntos, cx, cy, r, iteraciones=20):
     """Gauss-Newton: centro y radio que minimizan Σ(|p−c| − r)²."""
     p = np.array([cx, cy, r], dtype=np.float64)
@@ -230,11 +258,11 @@ def _ajustar_circulo(puntos, cx, cy, r, iteraciones=20):
     return p
 
 
-def localizar_disco(lum, semilla=0):
+def _borde_brillante(lum):
     """
-    Centro y radio del disco de la Luna en `lum` (luminancia float) sin saber su tamaño:
-    círculo de tres puntos del borde de la zona brillante con más puntos del borde encima.
-    Devuelve dict cx, cy, r, ajuste (fracción del borde en el círculo).
+    El borde de la zona brillante mayor (la Luna) con lo que hace falta para buscar el limbo:
+    dict con suave (la imagen suavizada), comp (la zona, 0/1), puntos (N×2), grad (dirección
+    hacia lo brillante, unitaria) y nitidez (cuánto cambia el brillo, 1 = de los más nítidos).
     """
     import cv2
     lum = np.asarray(lum, dtype=np.float32)
@@ -252,7 +280,9 @@ def localizar_disco(lum, semilla=0):
     comp = (etiquetas == mayor).astype(np.uint8)
     contornos, __ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     puntos = max(contornos, key=len).reshape(-1, 2).astype(np.float64)
-    dentro = (puntos[:, 0] > 1) & (puntos[:, 0] < w - 2) & (puntos[:, 1] > 1) & (puntos[:, 1] < h - 2)
+    # El corte de la foto no es limbo: fuera los puntos pegados a los bordes (una recta ahí
+    # encajaría con un círculo enorme)
+    dentro = (puntos[:, 0] > 3) & (puntos[:, 0] < w - 4) & (puntos[:, 1] > 3) & (puntos[:, 1] < h - 4)
     puntos = puntos[dentro]
     if len(puntos) < 40:
         raise ErrorLuna(_("Casi todo el borde de la Luna queda fuera de la foto."))
@@ -263,45 +293,202 @@ def localizar_disco(lum, semilla=0):
     gy = cv2.Sobel(suave, cv2.CV_32F, 0, 1, ksize=3)
     xi, yi = puntos[:, 0].astype(int), puntos[:, 1].astype(int)
     grad = np.column_stack([gx[yi, xi], gy[yi, xi]]).astype(np.float64)
-    grad /= np.maximum(np.hypot(grad[:, 0], grad[:, 1]), 1e-6)[:, None]
+    nitidez = np.hypot(grad[:, 0], grad[:, 1])
+    grad /= np.maximum(nitidez, 1e-6)[:, None]
+    nitidez /= max(float(np.percentile(nitidez, 95)), 1e-6)
 
-    def _en_circulo(c, tol):
-        d = np.column_stack([c[0] - puntos[:, 0], c[1] - puntos[:, 1]])
-        dist = np.maximum(np.hypot(d[:, 0], d[:, 1]), 1e-6)
-        hacia_dentro = (grad * d).sum(axis=1) / dist > 0.6
-        return (np.abs(dist - c[2]) < tol) & hacia_dentro
+    return {"suave": suave, "comp": comp, "puntos": puntos, "grad": grad, "nitidez": nitidez}
+
+
+def _en_circulo(borde, c, tol):
+    """Puntos del borde a menos de tol del círculo c y con lo brillante hacia su centro."""
+    puntos, grad = borde["puntos"], borde["grad"]
+    d = np.column_stack([c[0] - puntos[:, 0], c[1] - puntos[:, 1]])
+    dist = np.maximum(np.hypot(d[:, 0], d[:, 1]), 1e-6)
+    hacia_dentro = (grad * d).sum(axis=1) / dist > 0.6
+    return (np.abs(dist - c[2]) < tol) & hacia_dentro
+
+
+def _abarca(pts, c):
+    """Grados de circunferencia que cubren los puntos (sin contar el hueco mayor)."""
+    if len(pts) < 2:
+        return 0.0
+    angs = np.sort(np.arctan2(pts[:, 1] - c[1], pts[:, 0] - c[0]))
+    huecos = np.diff(np.concatenate([angs, angs[:1] + 2.0 * math.pi]))
+    return math.degrees(2.0 * math.pi - float(huecos.max()))
+
+
+def limbo_visible(lum, disco):
+    """Grados de limbo iluminado que se ven en la foto con ese disco."""
+    borde = _borde_brillante(lum)
+    c = (disco["cx"], disco["cy"], disco["r"])
+    return _abarca(borde["puntos"][_en_circulo(borde, c, max(1.5, 0.012 * disco["r"]))], c)
+
+
+def localizar_disco(lum, semilla=0):
+    """
+    Centro y radio del disco de la Luna en `lum` (luminancia float) sin saber su tamaño: el
+    mejor de candidatos_disco(). Devuelve dict cx, cy, r, arco (fracción del limbo dentro de
+    la foto que encaja en el círculo) y parcial (si el disco se sale de la foto).
+    """
+    return candidatos_disco(lum, semilla)[0]
+
+
+def candidatos_disco(lum, semilla=0, cuantos=4):
+    """
+    Círculos que pueden ser el disco de la Luna, el más probable primero: círculos de tres
+    puntos del borde de la zona brillante, puntuados por lo nítido que es el borde encima
+    (el limbo es un corte neto contra el cielo; el terminador, un degradado con sombras).
+    Vale con el disco cortado por los bordes de la foto, mientras se vea un arco del limbo
+    iluminado. Con el disco entero gana casi siempre el primero; con un trozo, un arco del
+    terminador puede parecerse a uno del limbo, y por eso hay varios: anotar() se queda con
+    el que mejor encaja con la Luna que se debería ver.
+    """
+    h, w = np.asarray(lum).shape[:2]
+    borde = _borde_brillante(lum)
+    suave, comp, puntos, nitidez = borde["suave"], borde["comp"], borde["puntos"], borde["nitidez"]
+
+    def _en_circulo_(c, tol):
+        return _en_circulo(borde, c, tol)
 
     rng = np.random.default_rng(semilla)
-    r_min, r_max = 0.03 * max(w, h), 0.75 * max(w, h)
-    mejor, mejor_n = None, 0
-    for __ in range(600):
-        i, j, k = rng.choice(len(puntos), 3, replace=False)
-        c = _circulo_3_puntos(puntos[i], puntos[j], puntos[k])
-        if c is None or not (r_min < c[2] < r_max):
-            continue
-        n_in = int(np.sum(_en_circulo(c, max(1.5, 0.012 * c[2]))))
-        if n_in > mejor_n:
-            mejor, mejor_n = c, n_in
-    if mejor is None:
-        raise ErrorLuna(_("No se reconoce el borde de la Luna."))
-    # Afinado con la tolerancia cada vez más estrecha: casi en Luna llena el terminador
-    # pasa muy cerca del limbo y con la tolerancia ancha tiraría del círculo
-    for fraccion in (0.012, 0.008, 0.005):
-        tol = max(1.0, fraccion * mejor[2])
-        inliers = puntos[_en_circulo(mejor, tol)]
-        if len(inliers) < 20:
+    # Hasta 6 veces la foto: un trozo ampliado de la Luna en el que solo se ve un arco del limbo
+    r_min, r_max = 0.03 * max(w, h), 6.0 * max(w, h)
+    yy, xx = np.nonzero(comp)
+    t = np.linspace(0.0, 2.0 * math.pi, 2880, endpoint=False)
+    salida, quedan = [], np.ones(len(puntos), bool)
+
+    def _validar(c, tol):
+        """El círculo c como candidato (dict), o None si no puede ser el disco."""
+        cx, cy, r = (float(v) for v in c)
+        if not (r_min < r < r_max):
+            return None
+        inliers = puntos[_en_circulo_(c, tol)]
+        # El limbo iluminado es media circunferencia en cualquier fase (de lo que cae dentro
+        # de la foto, si el disco se sale): bastante menos, no es la Luna
+        xs, ys = cx + r * np.cos(t), cy + r * np.sin(t)
+        dentro_img = float(np.mean((xs > 1) & (xs < w - 2) & (ys > 1) & (ys < h - 2)))
+        arco = len(inliers) / (2.0 * math.pi * r * max(dentro_img, 1e-3))
+        # Lo brillante tiene que caer dentro del círculo: un círculo pequeño metido en una
+        # zona brillante mayor (un trozo del interior) no es el disco
+        fuera = float(np.mean(np.hypot(xx - cx, yy - cy) > 1.03 * r)) if len(xx) else 1.0
+        parcial = cx - r < 0 or cy - r < 0 or cx + r > w or cy + r > h
+        # Con el disco cortado, lo que cae dentro de la foto puede ser sobre todo limbo a
+        # oscuras: se pide menos arco iluminado (decide la comparación con el modelo)
+        if arco < (0.12 if parcial else 0.3) or len(inliers) < max(25.0, 0.08 * (w + h)) or fuera > 0.04 \
+                or _abarca(inliers, (cx, cy)) < 20.0:
+            return None
+        cielo = _cielo_fuera(suave, inliers, (cx, cy, r))
+        if cielo is None:
+            return None
+        return {"cx": cx, "cy": cy, "r": r, "arco": round(arco, 3), "parcial": bool(parcial), **cielo}
+
+    # RANSAC en secuencia: tras cada candidato se quitan sus puntos y se busca el siguiente,
+    # así un arco corto del limbo tiene su candidato aunque el terminador tenga más puntos
+    for __ in range(cuantos):
+        idx = np.flatnonzero(quedan)
+        if len(idx) < 30:
             break
-        mejor = _ajustar_circulo(inliers, *mejor)
-    cx, cy, r = (float(v) for v in mejor)
-    # El limbo iluminado es media circunferencia en cualquier fase (de lo que cae dentro de
-    # la foto, si el disco se sale): bastante menos, no es la Luna
-    t = np.linspace(0.0, 2.0 * math.pi, 720, endpoint=False)
-    xs, ys = cx + r * np.cos(t), cy + r * np.sin(t)
-    dentro_img = float(np.mean((xs > 1) & (xs < w - 2) & (ys > 1) & (ys < h - 2)))
-    arco = len(inliers) / (2.0 * math.pi * r * max(dentro_img, 1e-3))
-    if arco < 0.3 or dentro_img < 0.25:
+        mejor, mejor_p = None, 0.0
+        for __ in range(400):
+            i, j, k = rng.choice(idx, 3, replace=False)
+            c = _circulo_3_puntos(puntos[i], puntos[j], puntos[k])
+            if c is None or not (r_min < c[2] < r_max):
+                continue
+            sobre = _en_circulo_(c, max(1.5, 0.012 * c[2])) & quedan
+            p = float(nitidez[sobre].sum())
+            # Un arco de menos de 20° casi no tiene curvatura: en una Luna gibosa cortada, el
+            # terminador (una curva suave) encajaría con un círculo enorme
+            if p > mejor_p and sobre.sum() >= 20 and _abarca(puntos[sobre], c) >= 20.0:
+                mejor, mejor_p = c, p
+        if mejor is None:
+            break
+        # Afinado con la tolerancia cada vez más estrecha: casi en Luna llena el terminador
+        # pasa muy cerca del limbo y con la tolerancia ancha tiraría del círculo
+        for fraccion in (0.012, 0.008, 0.005):
+            sobre = _en_circulo_(mejor, max(1.0, fraccion * mejor[2])) & quedan
+            if sobre.sum() < 20:
+                break
+            afinado = _ajustar_circulo(puntos[sobre], *mejor)
+            if not (r_min < afinado[2] < r_max):      # un arco casi recto puede escaparse: se queda el de RANSAC
+                break
+            mejor = afinado
+        quedan &= ~_en_circulo_(mejor, max(3.0, 0.02 * mejor[2]))
+        cand = _validar(mejor, max(1.0, 0.005 * mejor[2]))
+        if cand:
+            salida.append(cand)
+            if not cand["parcial"]:            # el disco entero a la vista: no hace falta buscar más
+                break
+
+    # Con el disco cortado, un arco corto (y el limbo tiene montañas) da mal el radio, y un
+    # trozo de terminador puede pasar por limbo. Barrido de radios: para cada uno, el centro
+    # con RANSAC de dos puntos (con el radio fijo, dos puntos del borde dan dos centros) que
+    # más borde nítido tiene encima. La comparación con la Luna que se debería ver elige entre
+    # todos (anotar)
+    if not salida or salida[0]["parcial"]:
+        rk = max(r_min, 0.2 * max(w, h))
+        while rk < r_max:
+            mejor, mejor_p = None, 0.0
+            for __ in range(150):
+                i, j = rng.choice(len(puntos), 2, replace=False)
+                p, q = puntos[i], puntos[j]
+                cuerda = float(np.hypot(*(q - p)))
+                if cuerda < max(20.0, 0.2 * rk) or cuerda >= 2.0 * rk:
+                    continue
+                medio = (p + q) / 2.0
+                altura = math.sqrt(rk * rk - (cuerda / 2.0) ** 2)
+                normal = np.array([-(q - p)[1], (q - p)[0]]) / cuerda
+                for c in (medio + altura * normal, medio - altura * normal):
+                    sobre = _en_circulo_((c[0], c[1], rk), max(2.0, 0.015 * rk))
+                    pt = float(nitidez[sobre].sum())
+                    if pt > mejor_p and sobre.sum() >= 20 and _abarca(puntos[sobre], (c[0], c[1])) >= 20.0:
+                        mejor, mejor_p = c, pt
+            if mejor is not None:
+                sobre = _en_circulo_((mejor[0], mejor[1], rk), max(2.0, 0.015 * rk))
+                c = _ajustar_radio_fijo(puntos[sobre], mejor, rk)
+                cand = _validar((c[0], c[1], rk), max(2.0, 0.015 * rk))
+                if cand:
+                    cand["barrido"] = True
+                    salida.append(cand)
+            rk *= 1.12
+    if not salida:
         raise ErrorLuna(_("El borde no parece el de la Luna: ¿está desenfocada, tapada por nubes o fuera de campo?"))
-    return {"cx": cx, "cy": cy, "r": r, "arco": round(arco, 3)}
+    return salida
+
+
+def _cielo_fuera(suave, inliers, c):
+    """
+    Al otro lado del limbo hay cielo: mucho más oscuro que la Luna o, de día, liso. Al otro
+    lado del borde de un mar con las tierras altas (lo que confunde en un trozo del interior)
+    hay más Luna: algo más oscura, pero con textura. Compara una franja por dentro y otra
+    por fuera del arco; devuelve sus cocientes de brillo y de textura, o None si no es cielo.
+    """
+    import cv2
+    cx, cy, r = c
+    h, w = suave.shape
+    textura = np.abs(cv2.Laplacian(suave, cv2.CV_32F, ksize=3))
+    d = np.column_stack([inliers[:, 0] - cx, inliers[:, 1] - cy])
+    d /= np.maximum(np.hypot(d[:, 0], d[:, 1]), 1e-6)[:, None]
+    franja = max(4.0, 0.04 * min(r, max(h, w)))
+    medidas = {}
+    for lado, signo in (("dentro", -1.0), ("fuera", 1.0)):
+        vals, tex = [], []
+        for paso in (0.4, 0.7, 1.0):
+            p = inliers + signo * paso * franja * d
+            ok = (p[:, 0] >= 0) & (p[:, 0] <= w - 1) & (p[:, 1] >= 0) & (p[:, 1] <= h - 1)
+            pi = p[ok].astype(int)
+            vals.append(suave[pi[:, 1], pi[:, 0]])
+            tex.append(textura[pi[:, 1], pi[:, 0]])
+        vals, tex = np.concatenate(vals), np.concatenate(tex)
+        if len(vals) < 15:
+            return None
+        medidas[lado] = (float(np.median(vals)), float(np.median(tex)))
+    fondo = float(np.percentile(suave, 1))
+    brillo = (medidas["fuera"][0] - fondo) / max(medidas["dentro"][0] - fondo, 1e-6)
+    tex = medidas["fuera"][1] / max(medidas["dentro"][1], 1e-6)
+    if brillo > LIMBO_BRILLO_MAX and tex > LIMBO_TEXTURA_MAX:
+        return None
+    return {"cielo_brillo": round(brillo, 3), "cielo_textura": round(tex, 3)}
 
 
 def _polares(radios, angulos):
@@ -309,62 +496,362 @@ def _polares(radios, angulos):
     return rr * np.cos(aa), rr * np.sin(aa)
 
 
+def _vista(geo, lado=None):
+    """
+    La Luna que se debería ver (albedo × iluminación), con el norte arriba y el este a la
+    izquierda, en una imagen de LADO_VISTA² que cubre [-1, 1]² en radios lunares (cielo a 0).
+    No depende de dónde esté el disco en la foto ni de cómo esté girada: se pinta una vez por
+    instante y cada candidato la toma con un giro y un escalado (_modelo, _pintar_modelo).
+    """
+    lado = lado or LADO_VISTA
+    vistas = geo.setdefault("_vistas", {})
+    if lado not in vistas:
+        n = lado
+        c = (np.arange(n) + 0.5) / n * 2.0 - 1.0
+        X, Y = np.meshgrid(c, -c)
+        dentro = X * X + Y * Y < 1.0
+        img = np.zeros((n, n), np.float32)
+        f = _desde_vista(geo, X[dentro], Y[dentro])
+        lat = np.degrees(np.arcsin(np.clip(f[:, 2], -1, 1)))
+        lon = np.degrees(np.arctan2(f[:, 1], f[:, 0]))
+        fi = f @ geo["R"]
+        cos_i = np.clip(fi @ geo["s"], 0.0, None)
+        cos_e = np.clip(-(fi @ geo["u"]), 1e-3, None)
+        img[dentro] = _albedo_en(lat, lon) * cos_i / (cos_i + cos_e)   # Lommel-Seeliger: el limbo no se oscurece
+        vistas[lado] = img
+    return vistas[lado]
+
+
 def _modelo(geo, radios, angulos):
-    """La Luna que se debería ver (albedo × iluminación) en la rejilla polar de la vista."""
+    """
+    La Luna que se debería ver (albedo × iluminación) en la rejilla polar de la vista. Si ya
+    está pintada la vista (disco cortado: muchos candidatos), se toma de ella; con el disco
+    entero se orienta una sola vez y sale más barato calcular solo los puntos de la rejilla.
+    """
     import cv2
     X, Y = _polares(radios, angulos)
+    if geo.get("_vistas"):
+        vista_img = geo["_vistas"][max(geo["_vistas"])]
+        n = vista_img.shape[0]
+        return cv2.remap(vista_img, ((X + 1.0) / 2.0 * n - 0.5).astype(np.float32),
+                         ((1.0 - Y) / 2.0 * n - 0.5).astype(np.float32), cv2.INTER_LINEAR).astype(np.float64)
     f = _desde_vista(geo, X, Y)
     lat = np.degrees(np.arcsin(np.clip(f[..., 2], -1, 1)))
     lon = np.degrees(np.arctan2(f[..., 1], f[..., 0]))
-    mapa = _albedo()
-    h, w = mapa.shape
-    albedo = cv2.remap(mapa, ((lon + 180.0) / 360.0 * w - 0.5).astype(np.float32),
-                       ((90.0 - lat) / 180.0 * h - 0.5).astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
     fi = f @ geo["R"]
     cos_i = np.clip(fi @ geo["s"], 0.0, None)
     cos_e = np.clip(-(fi @ geo["u"]), 1e-3, None)
-    return albedo * cos_i / (cos_i + cos_e)          # Lommel-Seeliger: el limbo no se oscurece
+    return _albedo_en(lat, lon) * cos_i / (cos_i + cos_e)          # Lommel-Seeliger: el limbo no se oscurece
 
 
 def _foto_polar(lum, disco, radios, angulos):
+    """La foto en la rejilla polar del disco y qué muestras caen dentro de la foto (máscara 0/1)."""
     import cv2
     X, Y = _polares(radios, angulos)
-    return cv2.remap(np.asarray(lum, dtype=np.float32), (disco["cx"] + disco["r"] * X).astype(np.float32),
-                     (disco["cy"] - disco["r"] * Y).astype(np.float32), cv2.INTER_LINEAR)
+    xs = (disco["cx"] + disco["r"] * X).astype(np.float32)
+    ys = (disco["cy"] - disco["r"] * Y).astype(np.float32)
+    h, w = np.asarray(lum).shape[:2]
+    valida = ((xs >= 1) & (xs <= w - 2) & (ys >= 1) & (ys <= h - 2)).astype(np.float64)
+    return cv2.remap(np.asarray(lum, dtype=np.float32), xs, ys, cv2.INTER_LINEAR).astype(np.float64), valida
 
 
-def orientar(lum, disco, geo):
+def _rejilla(lum, disco, rapida=False):
+    """
+    Radios y ángulos de la comparación: con el disco entero, los de siempre; con el disco
+    cortado, solo los radios que tocan la foto y más ángulos, para que el trozo visible
+    tenga muestras de sobra aunque el disco sea varias veces mayor que la foto.
+    """
+    h, w = np.asarray(lum).shape[:2]
+    cx, cy, r = disco["cx"], disco["cy"], disco["r"]
+    esquinas = [math.hypot(x - cx, y - cy) for x in (0, w) for y in (0, h)]
+    cerca = math.hypot(min(max(cx, 0), w) - cx, min(max(cy, 0), h) - cy)
+    r0 = max(0.04, cerca / r)
+    r1 = min(0.97, max(esquinas) / r)
+    if r1 <= r0 + 0.05:
+        r0, r1 = 0.06, 0.96
+    anillos = int(min(160, max(ANILLOS, ANILLOS * (r1 - r0) * r / 400.0)))
+    angulos = ANGULOS if r < 600 else 2 * ANGULOS
+    if rapida:                       # para puntuar candidatos y afinar: un cuarto de las muestras
+        anillos, angulos = max(24, anillos // 2), angulos // 2
+    return np.linspace(r0, r1, anillos), np.arange(angulos) * (2.0 * math.pi / angulos)
+
+
+def _distintos(a, b):
+    """Si dos discos son soluciones de verdad distintas (no el mismo con un poco de error)."""
+    r = max(a["r"], b["r"])
+    return math.hypot(a["cx"] - b["cx"], a["cy"] - b["cy"]) > 0.1 * r or abs(a["r"] - b["r"]) > 0.1 * r
+
+
+def _albedo_en(lat, lon):
+    """Albedo del mapa en esos puntos (grados, arrays de cualquier forma), interpolado."""
+    import cv2
+    mapa = _albedo()
+    h, w = mapa.shape
+    forma = np.shape(lat)
+    mx = ((np.ravel(lon) + 180.0) / 360.0 * w - 0.5).astype(np.float32)
+    my = ((90.0 - np.ravel(lat)) / 180.0 * h - 0.5).astype(np.float32)
+    # remap no admite más de 32 767 columnas: se pasa en filas de 4 096
+    n = len(mx)
+    filas = max(1, -(-n // 4096))
+    relleno = filas * 4096 - n
+    mx = np.pad(mx, (0, relleno)).reshape(filas, 4096)
+    my = np.pad(my, (0, relleno)).reshape(filas, 4096)
+    return cv2.remap(mapa, mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP).ravel()[:n].reshape(forma)
+
+
+def _pintar_modelo(geo, disco, orient, ancho, alto, lado=None):
+    """
+    La Luna que se debería ver con ese disco y esa orientación, en una imagen de ancho×alto
+    (cielo a 0): la vista de _vista() con una transformación afín de los píxeles de la foto.
+    """
+    import cv2
+    g = math.radians(orient["giro"])
+    m = -1.0 if orient["espejo"] else 1.0
+    vista_img = _vista(geo, lado)
+    cg, sg, r, n = math.cos(g), math.sin(g), disco["r"], vista_img.shape[0]
+    # Píxel (x, y) de la foto → (Xr, Yr) = ((x − cx)/r, −(y − cy)/r) → giro y espejo →
+    # (X, Y) de la vista → píxel (u, v) de la imagen de _vista(). Todo es afín
+    a = np.array([[1.0 / r, 0.0, -disco["cx"] / r], [0.0, -1.0 / r, disco["cy"] / r]])        # → (Xr, Yr)
+    rot = np.array([[cg, sg], [-m * sg, m * cg]])                                                # → (X, Y)
+    vista = np.array([[n / 2.0, 0.0], [0.0, -n / 2.0]])                                          # → (u, v)
+    lineal = vista @ rot @ a[:, :2]
+    traslacion = vista @ rot @ a[:, 2] + np.array([n / 2.0 - 0.5, n / 2.0 - 0.5])
+    M = np.column_stack([lineal, traslacion])
+    return cv2.warpAffine(vista_img, M, (ancho, alto), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP,
+                          borderMode=cv2.BORDER_CONSTANT, borderValue=0).astype(np.float64)
+
+
+def _parecido(lum_red, k, disco, orient, geo):
+    """
+    Correlación entre la foto entera (reducida por k) y la Luna que se debería ver con ese
+    disco y esa orientación. A diferencia de orientar(), mide todos los candidatos sobre los
+    mismos píxeles: un disco enorme del que la foto solo ve un trocito no sale favorecido.
+    """
+    alto, ancho = lum_red.shape
+    d = {"cx": (disco["cx"] + 0.5) * k - 0.5, "cy": (disco["cy"] + 0.5) * k - 0.5, "r": disco["r"] * k}
+    modelo = _pintar_modelo(geo, d, orient, ancho, alto)
+    a = lum_red - lum_red.mean()
+    b = modelo - modelo.mean()
+    return float((a * b).sum() / math.sqrt(float((a * a).sum() * (b * b).sum()) or 1.0))
+
+
+def _elegir_disco_cortado(lum, candidatos, geo):
+    """
+    Con el disco cortado: cada candidato se orienta y se puntúa comparando la foto entera con
+    la Luna que se debería ver; se afinan los tres mejores (distintos entre sí) y gana el que
+    mejor queda. Si otro disco claramente distinto encaja casi igual, la foto es ambigua (medio
+    disco cortado por el centro con el terminador a la vista, por ejemplo) y no se anota:
+    mejor sin nombres que con los nombres en otro sitio.
+    """
+    import cv2
+    h, w = lum.shape
+    k = min(1.0, 240.0 / max(h, w))
+    lum_red = cv2.resize(lum, (max(8, round(w * k)), max(8, round(h * k))), interpolation=cv2.INTER_AREA).astype(np.float64)
+
+    def _puntuar(c, rapida=True):
+        # La orientación de orientar() y la del espejo contrario: decide el parecido con la foto
+        # entera (con un trozo, la comparación en polares puede equivocarse de espejo)
+        o = orientar(lum, c, geo, rapida=rapida)
+        alt = dict(o, **o["otra"])
+        return max(((_parecido(lum_red, k, c, x, geo), x) for x in (o, alt)), key=lambda px: px[0])
+
+    puntuados = sorted(((_puntuar(c)[0], c) for c in candidatos), key=lambda x: -x[0])
+    semillas = []
+    for __, c in puntuados:
+        if all(_distintos(c, o) for o in semillas):
+            semillas.append(c)
+        if len(semillas) == 3:
+            break
+    afinados = []
+    for c in semillas:
+        # Dos pasadas: con la orientación fija se afina el círculo (rápido), se reorienta y otra vez
+        d = c
+        for __ in range(2):
+            o = _puntuar(d)[1]
+            d = afinar_disco(lum, d, geo, lambda dd, o=o: _parecido(lum_red, k, dd, o, geo))
+        afinados.append(_puntuar(d, rapida=False) + (d,))
+    afinados.sort(key=lambda x: -x[0])
+    nota, orient, disco = afinados[0]
+    # Solo cuentan como rivales las soluciones que siguen siendo distintas después de afinar:
+    # un círculo un 10 % mayor sobre el mismo arco es la misma solución con algo de error
+    if limbo_visible(lum, disco) < LIMBO_MIN_GRADOS:
+        raise ErrorLuna(_("Se ve poco borde de la Luna y la foto encaja con más de una posición: "
+                          "no se puede saber con seguridad qué parte es. Con más disco a la vista sí."))
+    rivales = [p for p, __, d in afinados[1:] if _distintos(d, disco)]
+    log.debug("Disco cortado: %s", [(round(p, 3), round(d["cx"]), round(d["cy"]), round(d["r"])) for p, __, d in afinados])
+    if rivales and max(rivales) > nota - AMBIGUO:
+        raise ErrorLuna(_("Se ve poco borde de la Luna y la foto encaja con más de una posición: "
+                          "no se puede saber con seguridad qué parte es. Con más disco a la vista sí."))
+    return disco, orient
+
+
+def _plantilla(lum, lado):
+    import cv2
+    h, w = lum.shape
+    k = lado / max(h, w)
+    return cv2.resize(lum, (max(8, round(w * k)), max(8, round(h * k))), interpolation=cv2.INTER_AREA).astype(np.float32), k
+
+
+def _probar_plantilla(geo, t, R, giros, espejo):
+    """
+    Busca la foto reducida `t` dentro de la Luna esperada con disco de radio R (px de t), con
+    cada giro de `giros` y ese espejo. Solo valen las posiciones con la foto entera dentro del
+    disco (si no, se vería el limbo). Devuelve [(parecido, R, cx, cy, giro, espejo)], con el
+    centro del disco en píxeles de t.
+    """
+    import cv2
+    th, tw = t.shape
+    lado = int(2 * R + 4)
+    if lado < max(th, tw):
+        return []
+    d = {"cx": R + 2, "cy": R + 2, "r": R}
+    yy, xx = np.mgrid[0:lado - th + 1, 0:lado - tw + 1]
+    valida = np.ones(xx.shape, bool)
+    for ex, ey in ((0, 0), (tw, 0), (0, th), (tw, th)):
+        valida &= np.hypot(xx + ex - d["cx"], yy + ey - d["cy"]) < 0.98 * R
+    if not valida.any():
+        return []
+    salida = []
+    for g in giros:
+        v = _pintar_modelo(geo, d, {"giro": g, "espejo": espejo}, lado, lado, LADO_VISTA_TROZO).astype(np.float32)
+        cc = cv2.matchTemplate(v, t, cv2.TM_CCOEFF_NORMED)
+        cc = np.where(valida & np.isfinite(cc), cc, -1.0).astype(np.float32)
+        __, mx, __, pos = cv2.minMaxLoc(cc)
+        salida.append((float(mx), R, d["cx"] - pos[0], d["cy"] - pos[1], float(g) % 360.0, espejo))
+    return salida
+
+
+def _distintas(a, b):
+    """Si dos soluciones (parecido, R, cx, cy, giro, espejo) de buscar_sin_limbo son de verdad distintas."""
+    R = max(a[1], b[1])
+    dg = abs((a[4] - b[4] + 180.0) % 360.0 - 180.0)
+    return a[5] != b[5] or dg > 15.0 or math.hypot(a[2] - b[2], a[3] - b[3]) > 0.15 * R or abs(a[1] - b[1]) > 0.15 * R
+
+
+def buscar_sin_limbo(lum, geo):
+    """
+    Un trozo del interior de la Luna, sin limbo a la vista (con una Barlow o un recorte): se
+    busca la foto dentro de la Luna que se debería ver, probando escala, giro y espejo, y la
+    posición con búsqueda por plantilla. Primero en grueso (la foto a 64 px, giros de 12° y
+    trece escalas, de que la foto cubra el 40 % del radio lunar a 2 radios), luego en fino
+    alrededor de las tres mejores (128 px, giros de 3°) y por último un afinado continuo.
+    Las zonas lisas (un mar o las tierras altas sin nada destacado) encajan casi igual en
+    varios sitios: si otra solución distinta queda a menos de MARGEN_SIN_LIMBO, no se anota.
+    Devuelve (disco, orientación) en píxeles de lum.
+    """
+    t, k = _plantilla(lum, 64)
+    lado_t = max(t.shape)
+    gruesos = []
+    for R in np.geomspace(0.5, 2.5, 13) * lado_t:
+        for espejo in (False, True):
+            gruesos += _probar_plantilla(geo, t, R, np.arange(0.0, 360.0, 12.0), espejo)
+    gruesos = [(p, R / k, cx / k, cy / k, g, e) for p, R, cx, cy, g, e in gruesos]
+    gruesos.sort(key=lambda x: -x[0])
+    semillas = []
+    for x in gruesos:
+        if all(_distintas(x, o) for o in semillas):
+            semillas.append(x)
+        if len(semillas) == 3:
+            break
+    t2, k2 = _plantilla(lum, 128)
+    finos = []
+    for __, R, __, __, g, e in semillas:
+        mejor = None
+        for f in (0.9, 0.95, 1.0, 1.05, 1.1):
+            for x in _probar_plantilla(geo, t2, R * f * k2, np.arange(g - 9.0, g + 9.1, 3.0), e):
+                if mejor is None or x[0] > mejor[0]:
+                    mejor = x
+        if mejor:
+            p, R2, cx2, cy2, g2, e2 = mejor
+            finos.append((p, R2 / k2, cx2 / k2, cy2 / k2, g2, e2))
+    if not finos:
+        raise ErrorLuna(_("No se reconoce qué parte de la Luna es."))
+    finos.sort(key=lambda x: -x[0])
+    mejor = finos[0]
+    rival = max([x[0] for x in finos[1:] if _distintas(x, mejor)] + [x[0] for x in gruesos if _distintas(x, mejor)][:1] + [-1.0])
+    log.debug("Sin limbo: mejor %.3f, rival %.3f", mejor[0], rival)
+    if mejor[0] < PARECIDO_MIN_SIN_LIMBO or mejor[0] - rival < MARGEN_SIN_LIMBO:
+        raise ErrorLuna(_("No se ve el borde de la Luna y este trozo encaja en más de un sitio (una zona lisa, "
+                          "sin nada destacado): no se puede saber qué parte es."))
+    # Afinado continuo de centro, radio y giro con el parecido de la foto entera
+    import cv2
+    from scipy.optimize import minimize
+    h, w = lum.shape
+    kr = min(1.0, 240.0 / max(h, w))
+    lum_red = cv2.resize(lum, (max(8, round(w * kr)), max(8, round(h * kr))), interpolation=cv2.INTER_AREA).astype(np.float64)
+    __, R, cx, cy, g, espejo = mejor
+    x0 = np.array([cx, cy, R, g])
+
+    def _coste(p):
+        return -_parecido(lum_red, kr, {"cx": p[0], "cy": p[1], "r": p[2]}, {"giro": p[3], "espejo": espejo}, geo)
+
+    paso = 0.02 * R
+    simplex = np.array([x0, x0 + [paso, 0, 0, 0], x0 + [0, paso, 0, 0], x0 + [0, 0, paso, 0], x0 + [0, 0, 0, 2.0]])
+    res = minimize(_coste, x0, method="Nelder-Mead", options={"initial_simplex": simplex, "maxfev": 80})
+    cx, cy, R, g = (float(v) for v in res.x)
+    disco = {"cx": cx, "cy": cy, "r": R, "parcial": True, "sin_limbo": True}
+    orient = {"giro": round(g % 360.0, 2), "espejo": espejo, "correlacion": round(-float(res.fun), 4),
+              "margen": round(mejor[0] - rival, 4)}
+    return disco, orient
+
+
+def afinar_disco(lum, disco, geo, puntuar, margen=0.12):
+    """
+    Con el disco cortado, el arco visible del limbo deja el radio y el centro con un error de
+    unos %: aquí se afinan buscando (Nelder-Mead, hasta ±margen del radio) el círculo que
+    maximiza puntuar(disco). Devuelve el disco afinado.
+    """
+    from scipy.optimize import minimize
+    r0 = disco["r"]
+    x0 = np.array([disco["cx"], disco["cy"], r0])
+
+    def _coste(p):
+        if np.any(np.abs(p - x0) > margen * r0):
+            return 1.0
+        return -puntuar({"cx": p[0], "cy": p[1], "r": p[2]})
+
+    simplex = np.array([x0, x0 + [0.02 * r0, 0, 0], x0 + [0, 0.02 * r0, 0], x0 + [0, 0, 0.02 * r0]])
+    res = minimize(_coste, x0, method="Nelder-Mead",
+                   options={"initial_simplex": simplex, "xatol": 0.002 * r0, "fatol": 1e-4, "maxfev": 45})
+    return dict(disco, cx=float(res.x[0]), cy=float(res.x[1]), r=float(res.x[2]))
+
+
+def orientar(lum, disco, geo, rapida=False):
     """
     Giro (grados, hacia la izquierda) y espejo de la foto respecto a la vista del cielo. Con
     giro g y sin espejo, el punto de la vista a un ángulo ψ cae en la foto a g + ψ; con
     espejo, a g − ψ. Devuelve dict giro, espejo, correlacion y margen (sobre la mejor
     solución con el espejo contrario: poco margen, espejo dudoso).
     """
-    radios = np.linspace(0.06, 0.96, ANILLOS)
-    angulos = np.arange(ANGULOS) * (2.0 * math.pi / ANGULOS)
-    foto = _foto_polar(lum, disco, radios, angulos)
+    radios, angulos = _rejilla(lum, disco, rapida)
+    n = len(angulos)
+    foto, valida = _foto_polar(lum, disco, radios, angulos)
     modelo = _modelo(geo, radios, angulos)
-    peso = radios[:, None]                                 # cada anillo pesa lo que su área
-
-    def _normalizar(a):
-        a = a - (a * peso).sum() / (peso.sum() * a.shape[1])
-        return a / math.sqrt(float((a * a * peso).sum()) or 1.0)
-
-    foto, modelo = _normalizar(foto), _normalizar(modelo)
-    F = np.fft.rfft(foto * peso, axis=1)
+    # Cada anillo pesa lo que su área; las muestras fuera de la foto no cuentan. Correlación
+    # normalizada con máscara: el modelo se normaliza con la parte que cae sobre la foto en
+    # cada giro (con el disco entero, la máscara es todo unos y queda la correlación de siempre)
+    W = valida * radios[:, None]
+    media = float((foto * W).sum() / max(W.sum(), 1e-9))
+    P = (foto - media) * W
+    P /= math.sqrt(float((P * P / np.maximum(W, 1e-9) * (W > 0)).sum()) or 1.0)
+    modelo = modelo - float((modelo * radios[:, None]).sum() / (radios.sum() * n))
+    FP, FW = np.fft.rfft(P, axis=1), np.fft.rfft(W, axis=1)
     resultados = []
     for espejo in (False, True):
-        m = modelo[:, (-np.arange(ANGULOS)) % ANGULOS] if espejo else modelo
-        corr = np.fft.irfft(F * np.conj(np.fft.rfft(m, axis=1)), n=ANGULOS, axis=1).sum(axis=0)
+        m = modelo[:, (-np.arange(n)) % n] if espejo else modelo
+        num = np.fft.irfft(FP * np.conj(np.fft.rfft(m, axis=1)), n=n, axis=1).sum(axis=0)
+        den = np.fft.irfft(FW * np.conj(np.fft.rfft(m * m, axis=1)), n=n, axis=1).sum(axis=0)
+        corr = num / np.sqrt(np.maximum(den, 1e-12))
         k = int(np.argmax(corr))
-        a, b, c = corr[(k - 1) % ANGULOS], corr[k], corr[(k + 1) % ANGULOS]
+        a, b, c = corr[(k - 1) % n], corr[k], corr[(k + 1) % n]
         fino = 0.5 * (a - c) / (a - 2 * b + c) if (a - 2 * b + c) != 0 else 0.0
-        resultados.append({"giro": ((k + fino) * 360.0 / ANGULOS) % 360.0, "espejo": espejo, "correlacion": float(b)})
+        resultados.append({"giro": ((k + fino) * 360.0 / n) % 360.0, "espejo": espejo, "correlacion": float(b)})
     resultados.sort(key=lambda r: -r["correlacion"])
     mejor = dict(resultados[0])
     mejor["margen"] = round(mejor["correlacion"] - resultados[1]["correlacion"], 4)
     mejor["correlacion"] = round(mejor["correlacion"], 4)
     mejor["giro"] = round(mejor["giro"], 2)
+    mejor["otra"] = {"giro": round(resultados[1]["giro"], 2), "espejo": resultados[1]["espejo"]}   # la del espejo contrario
     return mejor
 
 
@@ -496,10 +983,34 @@ def terminador(geo, disco, orient, puntos=181):
     return [[round(float(x[k]), 1), round(float(y[k]), 1)] for k in orden if visible[k]]
 
 
-def anotar(lum_o_bgr, instante, lat, lon, alt_m=0.0):
+def _seguir(pequena, geo, previo):
+    """
+    Con un trozo (disco cortado o sin limbo), la solución de la imagen anterior afinada sobre
+    esta (en vivo la Luna apenas se mueve entre una y otra): menos de medio segundo frente a los
+    varios de la búsqueda completa. (disco, orientación) o None si ya no encaja tan bien como
+    antes (se movió mucho, o es otra foto) y hay que buscar de nuevo.
+    """
+    import cv2
+    interno = (previo or {}).get("_interno")
+    if not interno or interno["metodo"] == "disco" or interno["forma"] != pequena.shape:
+        return None
+    h, w = pequena.shape
+    kr = min(1.0, 240.0 / max(h, w))
+    lum_red = cv2.resize(pequena, (max(8, round(w * kr)), max(8, round(h * kr))), interpolation=cv2.INTER_AREA).astype(np.float64)
+    orient = interno["orientacion"]
+    disco = afinar_disco(pequena, interno["disco"], geo, lambda d: _parecido(lum_red, kr, d, orient, geo), margen=0.08)
+    nota = _parecido(lum_red, kr, disco, orient, geo)
+    if nota < interno["parecido"] - SEGUIR_TOLERANCIA:
+        return None
+    return disco, dict(orient, correlacion=round(nota, 4))
+
+
+def anotar(lum_o_bgr, instante, lat, lon, alt_m=0.0, previo=None):
     """
     Todo de una vez para una imagen (luminancia o BGR uint8/float) de la Luna: disco,
-    orientación, accidentes y terminador en píxeles de esa imagen.
+    orientación, accidentes y terminador en píxeles de esa imagen. `previo`: el resultado de
+    anotar() con la imagen anterior del mismo tamaño (modo en vivo), para seguir un trozo en
+    vez de buscarlo otra vez.
     """
     import cv2
     img = np.asarray(lum_o_bgr)
@@ -509,15 +1020,49 @@ def anotar(lum_o_bgr, instante, lat, lon, alt_m=0.0):
     paso = max(1.0, max(alto, ancho) / ANCHO_ANALISIS)
     pequena = cv2.resize(lum, (int(round(ancho / paso)), int(round(alto / paso))), interpolation=cv2.INTER_AREA) if paso > 1 else lum
     geo = geometria(instante, lat, lon, alt_m)
-    disco_p = localizar_disco(pequena)
+    # Con el disco entero basta el primer círculo; con el disco cortado se prueban todos y gana
+    # el que mejor encaja con la Luna que se debería ver; sin limbo reconocible puede ser un
+    # trozo del interior (con una Barlow o un recorte), que se busca en la Luna esperada
+    seguido = _seguir(pequena, geo, previo)
+    if seguido:
+        (disco_p, orient), metodo = seguido, previo["_interno"]["metodo"]
+    else:
+        try:
+            candidatos = candidatos_disco(pequena)
+        except ErrorLuna as sin_borde:
+            log.info("Sin limbo reconocible (%s): se busca como trozo del interior", sin_borde)
+            disco_p, orient = buscar_sin_limbo(pequena, geo)
+            metodo = "sin limbo"
+        else:
+            if not candidatos[0]["parcial"]:
+                disco_p, orient = candidatos[0], orientar(pequena, candidatos[0], geo)
+                metodo = "disco"
+            else:
+                try:
+                    disco_p, orient = _elegir_disco_cortado(pequena, candidatos, geo)
+                    metodo = "disco cortado"
+                except ErrorLuna as ambiguo:
+                    # Lo que parecía un arco del limbo puede ser el borde de un mar en un trozo del
+                    # interior (sin cielo, el mar es lo más oscuro): se busca también así, y si
+                    # tampoco sale, el aviso es el del disco cortado
+                    try:
+                        disco_p, orient = buscar_sin_limbo(pequena, geo)
+                        metodo = "sin limbo"
+                    except ErrorLuna:
+                        raise ambiguo
+    interno = {"metodo": metodo, "forma": pequena.shape, "disco": disco_p, "orientacion": orient}
+    if metodo != "disco":           # para seguir el trozo en la imagen siguiente (_seguir)
+        h, w = pequena.shape
+        kr = min(1.0, 240.0 / max(h, w))
+        lum_red = cv2.resize(pequena, (max(8, round(w * kr)), max(8, round(h * kr))), interpolation=cv2.INTER_AREA).astype(np.float64)
+        interno["parecido"] = _parecido(lum_red, kr, disco_p, orient, geo)
     k = ancho / float(pequena.shape[1])
     disco = {"cx": (disco_p["cx"] + 0.5) * k - 0.5, "cy": (disco_p["cy"] + 0.5) * k - 0.5, "r": disco_p["r"] * k}
-    orient = orientar(pequena, disco_p, geo)
-    return {"ancho": ancho, "alto": alto, "disco": {c: round(v, 1) for c, v in disco.items()},
+    return {"_interno": interno, "seguido": bool(seguido), "ancho": ancho, "alto": alto, "disco": {c: round(v, 1) for c, v in disco.items()},
             "orientacion": orient, "accidentes": accidentes(geo, disco, orient, ancho, alto),
             "terminador": terminador(geo, disco, orient), "mares": contornos(geo, disco, orient, ancho, alto),
             "iluminada": round(geo["iluminada"], 3), "libracion": [round(geo["libracion_lat"], 2), round(geo["libracion_lon"], 2)],
-            "pa_eje": round(geo["pa_eje"], 2)}
+            "pa_eje": round(geo["pa_eje"], 2), "metodo": metodo}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -558,8 +1103,8 @@ def instante_de(nombre, meta=None):
 def _para_el_visor(r, etiqueta, t0):
     """Resultado de anotar() en el formato que pintan la galería y Cámara (static/js/luna_anotada.js)."""
     orient = r["orientacion"]
-    log.info("Luna anotada en %s: %d accidentes, giro %.1f°%s, correlación %.3f (margen %.3f), %.1f s",
-             etiqueta, len(r["accidentes"]), orient["giro"], " con espejo" if orient["espejo"] else "",
+    log.info("Luna anotada en %s (%s): %d accidentes, giro %.1f°%s, correlación %.3f (margen %.3f), %.1f s",
+             etiqueta, r["metodo"], len(r["accidentes"]), orient["giro"], " con espejo" if orient["espejo"] else "",
              orient["correlacion"], orient["margen"], time.time() - t0)
     return {"ok": True, "luna": True, "ancho": r["ancho"], "alto": r["alto"], "objetos": r["accidentes"],
             "disco": r["disco"], "terminador": r["terminador"], "mares": r["mares"], "iluminada": r["iluminada"],
@@ -630,6 +1175,11 @@ def objetos_camara(jpg, clave, instante, observatorio):
     if img is None:
         raise ErrorLuna(_("No se pudo leer la imagen"))
     t0 = time.time()
-    salida = _para_el_visor(anotar(img, instante, float(lat), float(lon)), "Cámara", t0)
+    # En vivo, el resultado del fotograma anterior: con un trozo de la Luna se sigue desde él
+    previo = _cache.get("vivo_previo") if clave[1][0] == "vivo" else None
+    r = anotar(img, instante, float(lat), float(lon), previo=previo)
+    if clave[1][0] == "vivo":
+        _cache["vivo_previo"] = r
+    salida = _para_el_visor(r, "Cámara" + (" (seguido)" if r["seguido"] else ""), t0)
     _guardar_en_cache(clave, salida)
     return salida

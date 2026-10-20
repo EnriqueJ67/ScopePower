@@ -18,11 +18,12 @@ del Apolo, y los cráteres desde 15 km. Columnas: nombre, código de tipo del US
 ## albedo_luna.jpg
 
 Mapa de color del LROC (Lunar Reconnaissance Orbiter Camera) del *CGI Moon Kit* del NASA Scientific
-Visualization Studio, <https://svs.gsfc.nasa.gov/4720>, fichero `lroc_color_poles_1k.jpg`
-(1024×512, proyección cilíndrica con la longitud 0 en el centro), pasado a grises.
+Visualization Studio, <https://svs.gsfc.nasa.gov/4720>, fichero `lroc_color_poles_2k.tif`
+(2048×1024, proyección cilíndrica con la longitud 0 en el centro, unos 5 km por píxel en el
+ecuador), pasado a grises.
 
 NASA's Scientific Visualization Studio, de dominio público. Solo sirve para reconocer el giro y el
-espejo de la foto por la forma de los mares; no se dibuja.
+espejo de la foto por la forma de los mares, y en qué parte de la Luna cae un trozo; no se dibuja.
 
 ## contornos_mares.json
 

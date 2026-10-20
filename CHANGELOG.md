@@ -50,6 +50,13 @@ día de la release. El número de versión vive en `version.py`.
   sueltas, el continuo o el timelapse se anota cada foto nueva; en vivo, un fotograma cada 8 s (la
   Luna apenas se mueve y así no se carga el mini PC). El dibujo es común a la galería y a Cámara
   (`static/js/luna_anotada.js`).
+- Luna anotada con un trozo de la Luna: con el disco cortado por el borde de la foto basta un arco
+  del limbo iluminado de unos 40°; sin limbo a la vista (con una Barlow o un recorte del interior)
+  se busca el trozo en la Luna que se debería ver, probando escala, giro y espejo. Si la foto encaja
+  igual de bien en más de un sitio (poco limbo, o una zona lisa de un mar o de las tierras altas),
+  no se anota y se dice por qué, en vez de poner los nombres en otro sitio. En vivo, el trozo se
+  sigue desde el fotograma anterior (0,3 s en vez de la búsqueda completa, de 2 a 8 s). El mapa de
+  albedo pasa a 2048×1024 (unos 5 km por píxel).
 
 ## 1.2.2 · 2026-10-16
 

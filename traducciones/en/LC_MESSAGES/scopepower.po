@@ -5755,13 +5755,13 @@ msgstr "The saved stack cannot be read: {e}"
 msgid "No se puede leer el vídeo: {e}"
 msgstr "The video cannot be read: {e}"
 
-#: luna_anotada.py
-msgid "No se reconoce el borde de la Luna."
-msgstr "The Moon's edge cannot be recognised."
-
 #: disco.py
 msgid "No se reconoce el borde del disco."
 msgstr "The disk's edge is not recognized."
+
+#: luna_anotada.py
+msgid "No se reconoce qué parte de la Luna es."
+msgstr "It is not possible to tell which part of the Moon this is."
 
 #: luna_anotada.py
 msgid "No se sabe cuándo se hizo la foto: hace falta para saber cómo se veía la Luna."
@@ -5770,6 +5770,10 @@ msgstr "It is not known when the photo was taken: that is needed to know how the
 #: luna_anotada.py
 msgid "No se sabe desde dónde se hizo la foto: falta el observatorio en Configuración."
 msgstr "It is not known where the photo was taken from: set the observatory in Settings."
+
+#: luna_anotada.py
+msgid "No se ve el borde de la Luna y este trozo encaja en más de un sitio (una zona lisa, sin nada destacado): no se puede saber qué parte es."
+msgstr "The edge of the Moon is not visible and this piece fits in more than one place (a smooth area with nothing distinctive): it is not possible to tell which part it is."
 
 #: luna_anotada.py
 msgid "No se ve la Luna en la foto."
@@ -7059,6 +7063,10 @@ msgstr "It sits at Orion's left foot. It is a blue supergiant, one of the bright
 #: templates/apilado.html
 msgid "Se usa en la firma del apilado y en el nombre del archivo al guardar en la galería. Cada GoTo lo actualiza."
 msgstr "Used in the stack's signature and in the file name when saving to the gallery. Every GoTo updates it."
+
+#: luna_anotada.py
+msgid "Se ve poco borde de la Luna y la foto encaja con más de una posición: no se puede saber con seguridad qué parte es. Con más disco a la vista sí."
+msgstr "Too little of the Moon's edge is visible and the photo fits more than one position: it is not possible to tell for sure which part it is. With more of the disc in view it would be."
 
 #. js
 #: templates/imagen.html
