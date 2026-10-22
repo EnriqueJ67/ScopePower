@@ -56,6 +56,8 @@
         <button class="foto-compartir" onclick="compartirImagen('{{ nombre }}', this)" title="{{ _('Compartir o descargar la foto firmada') }}"><svg class="ico"><use href="#i-compartir"/></svg></button>
         {% if nombre in con_fits %}
         <a class="foto-editar" href="/galeria/editar/{{ nombre }}" title="{{ _('Editar: reprocesar el FITS apilado con otros ajustes, firma y nombre') }}"><svg class="ico"><use href="#i-ajustes"/></svg></a>
+        {% elif nombre in con_dia %}
+        <a class="foto-editar" href="/galeria/editar-dia/{{ nombre }}" title="{{ _('Editar: volver a revelar la foto de día (exposición, contraste, detalle, nitidez, color) o volver a apilar el vídeo') }}"><svg class="ico"><use href="#i-ajustes"/></svg></a>
         {% endif %}
     </div>
     {% endfor %}
@@ -79,6 +81,7 @@
 <script src="{{ url_for('static', filename='js/luna_anotada.js') }}?v=1"></script>
 <script>
     const CON_FITS = {{ con_fits|list|tojson }};
+    const CON_DIA = {{ con_dia|list|tojson }};
     const CON_LUNA = {{ con_luna|list|tojson }};
     const TITULO_ANOTAR = {{ _('Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos')|tojson }};
     const TITULO_ANOTAR_LUNA = {{ _('Nombres de los mares, cráteres y montes de la Luna encima de la foto')|tojson }};
@@ -115,8 +118,8 @@
         pieLightbox("");
         document.getElementById('lightbox-compartir').dataset.nombre = nombre_archivo;
         const editar = document.getElementById('lightbox-editar');
-        editar.href = "/galeria/editar/" + encodeURIComponent(nombre_archivo);
-        editar.style.display = CON_FITS.includes(nombre_archivo) ? "" : "none";
+        editar.href = (CON_DIA.includes(nombre_archivo) ? "/galeria/editar-dia/" : "/galeria/editar/") + encodeURIComponent(nombre_archivo);
+        editar.style.display = CON_FITS.includes(nombre_archivo) || CON_DIA.includes(nombre_archivo) ? "" : "none";
         const anotar = document.getElementById('lightbox-anotar');
         anotar.style.display = anotable(nombre_archivo) ? "" : "none";
         anotar.title = CON_LUNA.includes(nombre_archivo) ? TITULO_ANOTAR_LUNA : TITULO_ANOTAR;

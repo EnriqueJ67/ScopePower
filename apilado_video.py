@@ -358,28 +358,28 @@ def deconvolucionar_disco(rgb, iteraciones, fwhm_px, progreso=None):
     return salida
 
 
-def revelar(media_rgb, negro, balance, ev=0.0, cantidad_nitidez=NITIDEZ_DEFECTO, fwhm_px=None, progreso=None):
+def revelar(media_rgb, negro, balance, ajustes=None, fwhm_px=None, progreso=None, ev=None, cantidad_nitidez=None):
     """
-    Media lineal RGB float32 → (RGB uint8 revelado como la foto de día, cubo RGB uint16 lineal
-    afinado pero sin balance para el FITS, {"iteraciones", "psf_px"}). Con `fwhm_px` (el limbo
-    medido) el afinado es la deconvolución del disco; sin disco, la máscara de desenfoque.
-    El blanco es el 99,9 % más brillante, como en el modo en vivo.
+    Media lineal RGB float32 → (RGB uint8 revelado con revelado_dia, cubo RGB uint16 lineal
+    afinado y normalizado al blanco para el FITS, {"iteraciones", "psf_px", "ajustes"}).
+    `ajustes` son los del editor de día (exposición, contraste, detalle, nitidez, color);
+    `ev` y `cantidad_nitidez` sueltos valen por compatibilidad. Con `fwhm_px` (el limbo medido)
+    la nitidez es la deconvolución del disco; sin disco, la máscara de desenfoque.
     """
-    img = np.clip(np.asarray(media_rgb, dtype=np.float32) - float(negro or 0.0), 0.0, None)
-    iteraciones = int(round(ITERACIONES_POR_PUNTO * float(cantidad_nitidez or 0))) if fwhm_px else 0
-    iteraciones = min(iteraciones, ITERACIONES_POR_PUNTO * 3)
-    if iteraciones:
-        img = deconvolucionar_disco(img, iteraciones, fwhm_px, progreso)
-    blanco = max(float(np.percentile(img[::2, ::2], 99.9)), 1.0) / 2.0 ** float(ev or 0.0)
-    cubo16 = (np.clip(img / blanco, 0.0, 1.0) * 65535.0).astype(np.uint16)
-    if balance:
-        img[..., 0] *= float(balance.get("r", 1.0))
-        img[..., 2] *= float(balance.get("b", 1.0))
-    img = np.clip(img / blanco, 0.0, 1.0)
-    if not fwhm_px:
-        img = np.clip(afinar(img, cantidad_nitidez), 0.0, 1.0)
-    afinado = {"iteraciones": iteraciones, "psf_px": round(float(fwhm_px) * FACTOR_PSF, 2) if (fwhm_px and iteraciones) else None}
-    return (np.power(img, 1.0 / 1.6) * 255.0).astype(np.uint8), cubo16, afinado
+    import revelado_dia
+    a = dict(ajustes or {})
+    if ev is not None:
+        a.setdefault("exposicion", ev)
+    if cantidad_nitidez is not None:
+        a.setdefault("nitidez", cantidad_nitidez)
+    a = revelado_dia.normalizar(a)
+    lineal = revelado_dia.aplicar_balance(media_rgb, negro, balance)
+    rgb8, lineal01 = revelado_dia.revelar(lineal, a, limbo_px=fwhm_px, progreso=progreso, devolver_lineal=True)
+    cubo16 = (lineal01 * 65535.0 + 0.5).astype(np.uint16)
+    iteraciones = min(int(round(ITERACIONES_POR_PUNTO * a["nitidez"])), ITERACIONES_POR_PUNTO * 3) if fwhm_px else 0
+    afinado = {"iteraciones": iteraciones, "psf_px": round(float(fwhm_px) * FACTOR_PSF, 2) if (fwhm_px and iteraciones) else None,
+               "ajustes": a}
+    return rgb8, cubo16, afinado
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -546,13 +546,14 @@ class TrabajoApiladoVideo:
                     "nombre": self.nombre, "resultado": self.resultado}
 
     def iniciar(self, ruta_ser, guardar, pct=MEJORES_PCT_DEFECTO, cantidad_nitidez=NITIDEZ_DEFECTO, ev=0.0, reafinar=False,
-                contexto=None):
+                contexto=None, ajustes=None):
         """
         guardar(rgb8, cubo16, info) → dict con "archivo" (y lo que quiera): recibe la imagen revelada
         (RGB uint8, orientación del SDK) y el cubo lineal, y la deja en la galería.
         `reafinar`: no se apila; se vuelve a revelar el apilado guardado con el afinado nuevo.
         `contexto`: {"observatorio", "orientacion"} actuales, para corregir la rotación de campo de los
-        vídeos grabados sin ellos en su .json.
+        vídeos grabados sin ellos en su .json. `ajustes`: los del revelado de día (revelado_dia.py);
+        si no vienen, nitidez y exposición sueltas.
         """
         if reafinar and not hay_apilado(ruta_ser):
             raise RuntimeError(_("Este vídeo no tiene un apilado guardado: apílalo primero."))
@@ -568,7 +569,7 @@ class TrabajoApiladoVideo:
                             else _("Apilando {nombre}...", nombre=self.nombre))
         self._hilo = threading.Thread(target=self._ejecutar, name="apilado-video", daemon=True,
                                       args=(ruta_ser, guardar, float(pct), float(cantidad_nitidez), float(ev), bool(reafinar),
-                                            contexto))
+                                            contexto, ajustes))
         self._hilo.start()
         return self._hilo
 
@@ -583,7 +584,7 @@ class TrabajoApiladoVideo:
         with self._lock:
             self.fase, self.progreso = fase, float(fraccion)
 
-    def _ejecutar(self, ruta_ser, guardar, pct, cantidad_nitidez, ev, reafinar=False, contexto=None):
+    def _ejecutar(self, ruta_ser, guardar, pct, cantidad_nitidez, ev, reafinar=False, contexto=None, ajustes=None):
         inicio = time.time()
         error, resultado = "", None
         try:
@@ -620,8 +621,9 @@ class TrabajoApiladoVideo:
                              "limbo_px": None if limbo is None else round(limbo, 2), "instante": time.time(),
                              "giro_motivo": motivo_giro or ""})
                 guardar_apilado(ruta_ser, media, info)
-            rgb8, cubo16, afinado = revelar(media, info.get("negro"), info.get("balance"), ev=ev, cantidad_nitidez=cantidad_nitidez,
-                                            fwhm_px=info.get("limbo_px"), progreso=lambda f: self._avanzar("revelando", f))
+            rgb8, cubo16, afinado = revelar(media, info.get("negro"), info.get("balance"), ajustes=ajustes, ev=ev,
+                                            cantidad_nitidez=cantidad_nitidez, fwhm_px=info.get("limbo_px"),
+                                            progreso=lambda f: self._avanzar("revelando", f))
             info = dict(info, nitidez=cantidad_nitidez, meta=meta, reafinado=reafinar,
                         segundos=round(time.time() - inicio, 1), **afinado)
             resultado = dict(guardar(rgb8, cubo16, info) or {})
