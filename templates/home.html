@@ -130,7 +130,9 @@
         const clase = (bien, busy) => "chip chip-lg chip-icono " + (busy ? "chip-busy" : (bien ? "chip-ok" : "chip-err"));
         chipM.className = clase(d.montura, d.conectando && !d.montura);
         chipC.className = clase(d.camara, d.conectando && !d.camara);
-        chipM.innerHTML = '<svg><use href="#i-telescopio"/></svg>' + _("Montura") + (d.montura && d.sistema ? " · " + d.sistema : "");
+        const modo = window.modoMontura ? modoMontura(d) : null;
+        chipM.innerHTML = '<svg><use href="#i-telescopio"/></svg>' + [_("Montura"), d.montura && d.sistema, modo && modo[0]].filter(Boolean).join(" · ");
+        chipM.title = modo ? modo[1] : "";
         chipC.innerHTML = '<svg><use href="#i-foto"/></svg>' + _("Cámara");
 
         let txt;

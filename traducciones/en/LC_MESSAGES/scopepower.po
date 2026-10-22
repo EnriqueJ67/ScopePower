@@ -548,6 +548,11 @@ msgstr "Aligning"
 msgid "Alt {alt}° · Az {az}°"
 msgstr "Alt {alt}° · Az {az}°"
 
+#. js
+#: templates/base.html
+msgid "AltAz"
+msgstr "AltAz"
+
 #: templates/_asistente.html templates/configuracion.html
 msgid "Altitud (m)"
 msgstr "Altitude (m)"
@@ -2834,6 +2839,11 @@ msgstr "Sending GoTo to {objeto}…"
 #: templates/configuracion.html
 msgid "Enviando la hora del móvil al PC..."
 msgstr "Sending the phone's time to the PC..."
+
+#. js
+#: templates/base.html
+msgid "Eq"
+msgstr "Eq"
 
 #. js
 #: templates/home.html
@@ -8328,6 +8338,11 @@ msgstr "alignment"
 msgid "alt {alt}° az {az}°"
 msgstr "alt {alt}° az {az}°"
 
+#. js
+#: templates/base.html
+msgid "altacimutal"
+msgstr "alt-azimuth"
+
 #: plan_sesion.py
 msgid "amanece"
 msgstr "dawn is coming"
@@ -8633,6 +8648,16 @@ msgstr "two"
 #: templates/imagen.html
 msgid "día · {objetivo}"
 msgstr "day · {objetivo}"
+
+#. js
+#: templates/base.html
+msgid "ecuatorial"
+msgstr "equatorial"
+
+#. js
+#: templates/base.html
+msgid "ecuatorial alemana"
+msgstr "German equatorial"
 
 #. js
 #: apilado.py templates/apilado.html

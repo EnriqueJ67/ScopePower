@@ -135,6 +135,10 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
 .chip-icono.chip-lg svg { width: 20px; height: 20px; }
 .chip-icono.chip-busy svg { animation: pulso 1s ease-in-out infinite; color: var(--warn); }
 .chip-icono.chip-ok svg { filter: drop-shadow(0 0 5px var(--ok)); }
+/* Modo de la montura (AltAz / Eq) junto a su icono; en escritorio, tras «Montura» */
+.chip-modo { font-weight: 700; letter-spacing: 0.02em; }
+.oculto-movil + .chip-modo { padding-left: 6px; border-left: 1px solid color-mix(in srgb, currentColor 40%, transparent); }
+@media (max-width: 699px) { .oculto-movil + .chip-modo { padding-left: 0; border-left: 0; } }
 @keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* ── Contenido ────────────────────────────────────────────────────────────── */
