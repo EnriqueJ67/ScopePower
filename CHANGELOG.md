@@ -60,6 +60,14 @@ día de la release. El número de versión vive en `version.py`.
 - Luna anotada: cuando no se puede anotar, el motivo y el tiempo quedan en el log (en Cámara, el
   mismo motivo una vez por minuto, para no llenarlo en vivo). Una foto sin Luna (negra, con la tapa
   puesta) se rechaza al momento, sin buscarla como trozo del interior.
+- Asistente de puesta en estación para monturas ecuatoriales (botón en Alineación cuando la montura
+  se declara ecuatorial): tres fotos resueltas con ASTAP girando solo el eje de AR miden el error del
+  eje polar en altura y acimut, y después un bucle de fotos dice en grande, con flechas y por voz,
+  cuánto girar cada tornillo hasta bajar de la tolerancia (2′ de serie). Si el tubo está en la
+  posición de inicio apuntando al polo, la app lo aparta sola; con montura alemana gira hacia el lado
+  que no cruce el meridiano; la referencia del ajuste descuenta la deriva propia de una montura mal
+  puesta en estación. Sección `[PuestaEnEstacion]` nueva en `config.example.ini` y prueba
+  `herramientas/probar_puesta_estacion.py` (montura falsa con error conocido, sin ASTAP).
 - La cabecera dice junto al icono de la montura si está en modo altacimutal («AltAz») o ecuatorial
   («Eq»), también en el móvil; el chip del Inicio lo añade tras el sistema de coordenadas. Es lo que
   declara el driver por ASCOM (AlignmentMode) al conectar; si no lo dice, no aparece nada.

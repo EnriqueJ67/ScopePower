@@ -623,6 +623,33 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
     .asis-acciones #asis-saltar { margin-left: 0; }
 }
 .giro-180 { transform: rotate(180deg); }
+
+/* ── Puesta en estación (templates/_puesta_estacion.html, static/js/puesta_estacion.js) ── */
+.pe-lista { list-style: none; margin: 6px 0 4px; padding: 0; }
+.pe-lista li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-top: 1px solid var(--border); font-size: 14.5px; }
+.pe-lista li:first-child { border-top: 0; }
+.pe-lista .ico { color: var(--accent); flex: none; margin-top: 2px; width: 18px; height: 18px; }
+.pe-ajustes summary { cursor: pointer; color: var(--text-2); font-weight: 600; padding: 6px 0; }
+.pe-ajustes .switch { display: block; margin-top: 6px; }
+.pe-grande { font-size: 21px; font-weight: 800; text-align: center; margin: 14px 0 6px; line-height: 1.3; }
+.pe-instrucciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+@media (max-width: 420px) { .pe-instrucciones { grid-template-columns: 1fr; } }
+.pe-instr { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 12px 10px; text-align: center; }
+.pe-instr.ok { border-color: var(--ok); }
+.pe-flecha { font-size: 40px; line-height: 1; font-weight: 700; color: var(--accent); }
+.pe-instr.ok .pe-flecha { color: var(--ok); }
+.pe-valor { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent-2, var(--accent)); margin: 4px 0; }
+.pe-instr.ok .pe-valor { color: var(--ok); }
+.pe-texto { font-size: 14px; font-weight: 600; color: var(--text); }
+.pe-total { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; padding: 8px 2px; }
+.pe-total.ok { color: var(--ok); }
+.pe-semaforo { width: 14px; height: 14px; border-radius: 50%; flex: none; background: var(--text-3); }
+.pe-semaforo.rojo { background: var(--err); box-shadow: 0 0 8px var(--err); }
+.pe-semaforo.ambar { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.pe-semaforo.verde { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.pe-estado { font-size: 12.5px; color: var(--text-3); margin: 0 0 6px; }
+.pe-foto img { cursor: default; max-width: 300px; margin: 0 auto; }
+.asis-acciones .btn[hidden] { display: none; }
 /* El modal de ayuda de la ubicación (http) se abre desde el asistente y tiene que quedar encima */
 #modal-voz { z-index: 2100; }
 
