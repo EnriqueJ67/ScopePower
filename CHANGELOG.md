@@ -7,6 +7,17 @@ día de la release. El número de versión vive en `version.py`.
 
 - Humor: frases para los niveles bajos (5-25 %), que hasta ahora no tenían ninguna, en español y en
   inglés; «Probar» ya no menciona ningún fichero cuando no hay frase.
+- Revelado de día nuevo (`revelado_dia.py`) para el apilado de los vídeos y las fotos del Sol y la
+  Luna: el blanco va a lo más brillante de verdad con el balance ya aplicado (antes el 1,5 % más
+  brillante del disco de la Luna salía blanco puro, sin detalle), curva con rodilla, realce del
+  relieve por escalas solo dentro del disco, deconvolución por el limbo y saturación ajustable: con
+  3–5 aparecen los colores de la Luna (mares azules, tierras altas ocres). La foto de día y el modo
+  en vivo también ponen el blanco en el 99,99 % en vez del 99,9 %.
+- Editor de día en la galería (`editor_dia.py`, «Editar» en las fotos con su crudo): cinco
+  controles (exposición, contraste, detalle, nitidez, color) con vista previa automática en un
+  segundo, firma, restaurar el original y, en las que vienen de un vídeo que sigue en el mini PC,
+  volver a apilar con más o menos fotogramas y la rotación de campo elegida. El panel Vídeo de
+  Cámara se queda solo con grabar y apilar: los ajustes se tocan en la galería.
 - Arreglado el guiado por el disco del Sol o la Luna con la cámara girada en Cámara (giro de 180°):
   el desplazamiento del disco salía con el signo cambiado y cada corrección alejaba el disco del
   centro hasta sacarlo del campo. Afectaba también a «Sincronizar con el disco».

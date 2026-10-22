@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _("Editar · {objeto}", objeto=info.objeto) }}{% endblock %}
+
+{% block content %}
+<!-- Editor de día (editor_dia.py): volver a revelar el apilado de un vídeo o una foto suelta del
+     Sol, la Luna o el paisaje con pocos controles, y volver a apilar el vídeo con más o menos
+     fotogramas. La vista previa la calcula el mini PC a unos 800 px (alrededor de un segundo). -->
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">{{ _("Editar foto de día") }}</h1>
+        <p class="pagina-sub">
+            {{ info.objeto }}{% if info.fecha %} · {{ info.fecha }}{% endif %}
+            {% if info.video %} · {{ _("{usados} de {frames} fotogramas apilados", usados=info.video.usados, frames=info.video.frames) }}{% elif info.exposicion %} · {{ info.exposicion_texto }}{% endif %}
+            {% if info.ancho %} · {{ info.ancho }}×{{ info.alto }}{% endif %}
+        </p>
+    </div>
+    <div class="pagina-acciones">
+        <a href="/galeria" class="btn btn-secondary"><svg><use href="#i-galeria"/></svg>{{ _("Galería") }}</a>
+    </div>
+</div>
+
+<div class="grid-2 ancha apilado-layout">
+    <!-- ─── La imagen: original o revelada con los ajustes de la derecha ─── -->
+    <div class="columna">
+        <div class="visor">
+            <img id="imagen" src="/galeria/editar/{{ info.nombre }}/original" alt="{{ info.objeto }}">
+            <div class="visor-overlay">
+                <span class="chip" id="chip-vista">{{ _("Original") }}</span>
+                <span class="chip" id="chip-tiempo" style="display: none;"></span>
+            </div>
+        </div>
+        <div class="fila entre" style="gap: 8px; flex-wrap: wrap;">
+            <div class="segmentado" id="vista-seg">
+                <button type="button" class="activo" data-vista="original" onclick="mostrarVista('original')">{{ _("Original") }}</button>
+                <button type="button" data-vista="nueva" onclick="mostrarVista('nueva')" id="btn-vista-nueva" disabled>{{ _("Nueva") }}</button>
+            </div>
+            <button class="btn btn-primary" id="btn-preview" onclick="pedirVistaPrevia()"><svg><use href="#i-refrescar"/></svg>{{ _("Vista previa") }}</button>
+        </div>
+        <div id="estado-preview" class="estado"></div>
+        <button class="btn btn-success btn-lg btn-block" id="btn-guardar" onclick="guardarFoto()" title="{{ _('Revela la foto a resolución completa con estos ajustes y sustituye el JPG de la galería (el original se conserva)') }}"><svg><use href="#i-guardar"/></svg>{{ _("Guardar en la galería") }}</button>
+        <div id="estado-guardar" class="estado centro" style="margin-top: -4px;"></div>
+        {% if info.hay_original %}
+        <button class="btn btn-outline-warning btn-block" id="btn-restaurar" onclick="restaurarFoto()">{{ _("Restaurar la foto original") }}</button>
+        {% endif %}
+        <small class="ayuda">{{ _("Mueve un control y la vista previa se recalcula en el mini PC (alrededor de un segundo). Toca «Original» para comparar. Al guardar se revela a resolución completa, se firma y sustituye la foto de la galería; el original queda apartado.") }}</small>
+    </div>
+
+    <!-- ─── Los controles: pocos a propósito ─── -->
+    <div class="columna lateral">
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-sol"/></svg>{{ _("Revelado") }}</h3>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Exposición") }}</span><span id="v-exposicion"></span></div>
+                <input type="range" id="c-exposicion" data-clave="exposicion" min="-2" max="2" step="0.1">
+                <small class="ayuda">{{ _("En pasos de cámara (EV): 0 deja lo más brillante justo en el blanco; a la izquierda más oscuro, a la derecha más claro.") }}</small>
+            </div>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Contraste") }}</span><span id="v-contraste"></span></div>
+                <input type="range" id="c-contraste" data-clave="contraste" min="0.5" max="2" step="0.05">
+            </div>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Detalle") }}</span><span id="v-detalle"></span></div>
+                <input type="range" id="c-detalle" data-clave="detalle" min="0" max="3" step="0.1">
+                <small class="ayuda">{{ _("Realce del relieve por escalas (cráteres, mares, manchas), solo dentro del disco. Mucho detalle saca también el ruido.") }}</small>
+            </div>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Nitidez") }}</span><span id="v-nitidez"></span></div>
+                <input type="range" id="c-nitidez" data-clave="nitidez" min="0" max="3" step="0.25">
+                <small class="ayuda">{{ _("Deconvolución del disco con el desenfoque medido en su propio limbo, 4 pasadas por punto. Con mucha nitidez el limbo anilla.") }}</small>
+            </div>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Color") }}</span><span id="v-color"></span></div>
+                <input type="range" id="c-color" data-clave="color" min="0" max="5" step="0.25">
+                <small class="ayuda">{{ _("Saturación: 1 es el color natural y 0, blanco y negro. Con 3–5 en la Luna aparecen los tonos de los mares (azules) y las tierras altas (ocres): la «Luna mineral».") }}</small>
+            </div>
+            <label class="interruptor-linea"><input type="checkbox" id="c-firma" checked> {{ _("Firma en la foto") }}</label>
+        </section>
+
+        {% if info.video %}
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-apilado"/></svg>{{ _("Apilado del vídeo") }}</h3>
+            <p class="card-sub">{{ info.video.nombre }} · {{ _("{usados} de {frames} fotogramas", usados=info.video.usados, frames=info.video.frames) }}{% if info.video.limbo_px %} · {{ _("limbo {l} px", l=info.video.limbo_px|round(1)) }}{% endif %}{% if info.video.giro_max_deg is not none %} · {{ _("rotación de campo corregida (hasta {g}°)", g=info.video.giro_max_deg) }}{% endif %}</p>
+            {% if info.video.reapilable %}
+            <div class="form-group">
+                <label for="c-pct">{{ _("Fotogramas que se apilan") }}</label>
+                <select id="c-pct" class="form-control">
+                    <option value="10">{{ _("el 10 % más nítido") }}</option>
+                    <option value="25">{{ _("el 25 % más nítido") }}</option>
+                    <option value="50">{{ _("el 50 % más nítido") }}</option>
+                    <option value="100">{{ _("todos") }}</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="c-rotacion">{{ _("Rotación de campo") }}</label>
+                <select id="c-rotacion" class="form-control">
+                    <option value="automatico">{{ _("Automática (según la montura)") }}</option>
+                    <option value="siempre">{{ _("Corregir siempre (altacimutal)") }}</option>
+                    <option value="nunca">{{ _("No corregir (ecuatorial)") }}</option>
+                </select>
+            </div>
+            <button class="btn btn-primary btn-block" id="btn-reapilar" onclick="reapilar()" title="{{ _('Vuelve a elegir, alinear y apilar los fotogramas del vídeo (uno o dos minutos) y sustituye la foto con los ajustes de arriba') }}"><svg><use href="#i-apilado"/></svg>{{ _("Volver a apilar") }}</button>
+            <div id="reapilado" class="mt-2" hidden>
+                <div class="fila entre"><span id="reapilado-texto" class="estado" style="color: var(--text);"></span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="cancelarReapilado()">{{ _("Cancelar") }}</button></div>
+                <div class="progress alta mt-1"><div id="reapilado-barra" class="progress-bar"></div></div>
+            </div>
+            <div id="estado-reapilar" class="estado mt-1"></div>
+            <small class="ayuda">{{ _("Menos fotogramas: más nitidez y más ruido; más fotogramas: menos ruido y algo menos de nitidez. Con montura altacimutal el disco gira durante la grabación y se corrige al apilar; «Automática» usa lo que dijo la montura al grabar.") }}</small>
+            {% else %}
+            <small class="ayuda">{{ _("El vídeo de esta foto ya no está en el mini PC: se puede volver a revelar, pero no volver a apilar.") }}</small>
+            {% endif %}
+        </section>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    const NOMBRE = {{ info.nombre|tojson }};
+    const AJUSTES = {{ info.ajustes|tojson }};
+    const CLAVES = ["exposicion", "contraste", "detalle", "nitidez", "color"];
+    const PCT_INICIAL = {{ (info.video.pct if info.video and info.video.pct else config_video.mejores_pct)|tojson }};
+    const ROTACION_INICIAL = {{ config_video.rotacion_campo|tojson }};
+    let hayNueva = false, preparando = false, pendiente = false, temporizador = null, urlNueva = null, ultimaDuracion = null;
+
+    function fmtValor(k, v) {
+        v = parseFloat(v);
+        if (k === "exposicion") return (v > 0 ? "+" : "") + fmtNum(v, 1) + " EV";
+        if (k === "color" && v === 0) return _("B/N");
+        return fmtNum(v, 2);
+    }
+    function pintarAjustes(a) {
+        for (const k of CLAVES) {
+            const c = document.getElementById("c-" + k);
+            if (a[k] !== undefined) c.value = a[k];
+            document.getElementById("v-" + k).textContent = fmtValor(k, c.value);
+        }
+        document.getElementById("c-firma").checked = a.firma !== false;
+    }
+    function leerAjustes() {
+        const a = {};
+        for (const k of CLAVES) a[k] = parseFloat(document.getElementById("c-" + k).value);
+        a.firma = document.getElementById("c-firma").checked;
+        return a;
+    }
+    function mostrarVista(cual) {
+        const img = document.getElementById("imagen");
+        if (cual === "nueva" && !urlNueva) cual = "original";
+        img.src = cual === "nueva" ? urlNueva : "/galeria/editar/" + encodeURIComponent(NOMBRE) + "/original?" + Date.now();
+        document.getElementById("chip-vista").textContent = cual === "nueva" ? _("Nueva") : _("Original");
+        document.querySelectorAll("#vista-seg button").forEach(b => b.classList.toggle("activo", b.dataset.vista === cual));
+    }
+    function programarVistaPrevia() {
+        clearTimeout(temporizador);
+        temporizador = setTimeout(pedirVistaPrevia, 350);
+    }
+    async function pedirVistaPrevia() {
+        if (preparando) { pendiente = true; return; }
+        preparando = true; pendiente = false;
+        const estado = document.getElementById("estado-preview"), chip = document.getElementById("chip-tiempo");
+        const boton = document.getElementById("btn-preview");
+        boton.disabled = true;
+        const inicio = Date.now();
+        const cuenta = setInterval(() => {
+            const t = (Date.now() - inicio) / 1000;
+            chip.textContent = ultimaDuracion ? "≈ " + Math.ceil(Math.max(0, ultimaDuracion - t)) + " s" : Math.floor(t) + " s";
+            chip.style.display = "";
+        }, 250);
+        try {
+            const r = await fetch("/galeria/editar-dia/" + encodeURIComponent(NOMBRE) + "/vista", {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(leerAjustes())
+            });
+            if (!r.ok) {
+                const d = await r.json().catch(() => ({}));
+                throw new Error(d.error || _("Error {codigo}", { codigo: r.status }));
+            }
+            const b = await r.blob();
+            if (urlNueva) URL.revokeObjectURL(urlNueva);
+            urlNueva = URL.createObjectURL(b);
+            hayNueva = true;
+            ultimaDuracion = (Date.now() - inicio) / 1000;
+            document.getElementById("btn-vista-nueva").disabled = false;
+            mostrarVista("nueva");
+            estado.textContent = _("✅ Vista previa en {s} s · toca «Original» para comparar", { s: fmtNum(ultimaDuracion, 1) });
+        } catch (e) {
+            estado.textContent = "❌ " + e.message;
+        } finally {
+            clearInterval(cuenta);
+            chip.style.display = "none";
+            boton.disabled = false;
+            preparando = false;
+            if (pendiente) pedirVistaPrevia();
+        }
+    }
+    async function guardarFoto() {
+        const estado = document.getElementById("estado-guardar"), boton = document.getElementById("btn-guardar");
+        boton.disabled = true;
+        estado.textContent = _("⏳ Guardando...");
+        try {
+            const r = await fetch("/galeria/editar-dia/" + encodeURIComponent(NOMBRE) + "/guardar", {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(leerAjustes())
+            });
+            const d = await r.json();
+            if (!r.ok || d.ok === false) { estado.textContent = "⚠️ " + (d.mensaje || _("No se pudo guardar")); boton.disabled = false; return; }
+            const sondeo = setInterval(async () => {
+                const e = await fetch("/galeria/editar-dia-estado").then(r => r.json()).catch(() => null);
+                if (!e) return;
+                const g = e.guardado;
+                estado.textContent = (g.en_curso ? "⏳ " : (g.ok ? "✅ " : "❌ ")) + g.mensaje;
+                if (g.en_curso) return;
+                clearInterval(sondeo);
+                boton.disabled = false;
+                if (g.ok) setTimeout(() => location.reload(), 800);
+            }, 1000);
+        } catch (e) {
+            estado.textContent = "❌ " + e; boton.disabled = false;
+        }
+    }
+    async function restaurarFoto() {
+        if (!confirm(_("¿Volver a la foto original tal como se guardó?"))) return;
+        const r = await fetch("/galeria/editar-dia/" + encodeURIComponent(NOMBRE) + "/restaurar", { method: "POST" });
+        const d = await r.json();
+        document.getElementById("estado-guardar").textContent = (d.ok ? "✅ " : "⚠️ ") + d.mensaje;
+        if (d.ok) setTimeout(() => location.reload(), 800);
+    }
+    async function reapilar() {
+        const estado = document.getElementById("estado-reapilar"), boton = document.getElementById("btn-reapilar");
+        boton.disabled = true;
+        estado.className = "estado mt-1"; estado.textContent = _("⏳ Empezando el apilado...");
+        try {
+            const r = await fetch("/galeria/editar-dia/" + encodeURIComponent(NOMBRE) + "/reapilar", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pct: parseInt(document.getElementById("c-pct").value) || 25, ajustes: leerAjustes(),
+                                       rotacion_campo: document.getElementById("c-rotacion").value })
+            });
+            const d = await r.json();
+            if (!r.ok || d.ok === false) { estado.className = "estado err mt-1"; estado.textContent = "⚠️ " + (d.mensaje || _("No se pudo empezar")); boton.disabled = false; return; }
+            document.getElementById("reapilado").hidden = false;
+            const sondeo = setInterval(async () => {
+                const e = await fetch("/galeria/editar-dia-estado").then(r => r.json()).catch(() => null);
+                if (!e) return;
+                const a = e.apilado;
+                if (a.en_curso) {
+                    document.getElementById("reapilado-texto").textContent = a.fase_texto;
+                    document.getElementById("reapilado-barra").style.width = Math.round(100 * (a.progreso || 0)) + "%";
+                    return;
+                }
+                clearInterval(sondeo);
+                document.getElementById("reapilado").hidden = true;
+                boton.disabled = false;
+                estado.className = "estado " + (a.error ? "err" : "ok") + " mt-1";
+                estado.textContent = (a.error ? "❌ " : "✅ ") + a.mensaje;
+                if (!a.error) setTimeout(() => location.reload(), 1200);
+            }, 1000);
+        } catch (e) {
+            estado.className = "estado err mt-1"; estado.textContent = "❌ " + e; boton.disabled = false;
+        }
+    }
+    function cancelarReapilado() { fetch("/videos/apilar/cancelar", { method: "POST" }).catch(() => {}); }
+
+    pintarAjustes(AJUSTES);
+    for (const k of CLAVES) {
+        const c = document.getElementById("c-" + k);
+        c.addEventListener("input", () => document.getElementById("v-" + k).textContent = fmtValor(k, c.value));
+        c.addEventListener("change", programarVistaPrevia);
+    }
+    document.getElementById("c-firma").addEventListener("change", programarVistaPrevia);
+    const selPct = document.getElementById("c-pct");
+    if (selPct && [...selPct.options].some(o => parseInt(o.value) === Math.round(PCT_INICIAL))) selPct.value = String(Math.round(PCT_INICIAL));
+    const selRot = document.getElementById("c-rotacion");
+    if (selRot && ROTACION_INICIAL) selRot.value = ROTACION_INICIAL;
+    // Si hay un apilado en marcha de esta misma foto (se volvió a apilar y se recargó la página), seguirlo
+    fetch("/galeria/editar-dia-estado").then(r => r.json()).then(e => {
+        if (e.apilado && e.apilado.en_curso && document.getElementById("btn-reapilar")) {
+            document.getElementById("btn-reapilar").disabled = true;
+            document.getElementById("reapilado").hidden = false;
+            const sondeo = setInterval(async () => {
+                const s = await fetch("/galeria/editar-dia-estado").then(r => r.json()).catch(() => null);
+                if (!s || s.apilado.en_curso) { if (s) { document.getElementById("reapilado-texto").textContent = s.apilado.fase_texto; document.getElementById("reapilado-barra").style.width = Math.round(100 * (s.apilado.progreso || 0)) + "%"; } return; }
+                clearInterval(sondeo); location.reload();
+            }, 1000);
+        }
+    }).catch(() => {});
+    pedirVistaPrevia();
+</script>
+{% endblock %}

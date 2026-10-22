@@ -601,13 +601,14 @@ def revelar(frame, sensor_type, objetivo=None, balance=None, negro=None, aprende
             fb, cb = 1 - fr, 1 - cr
             img[fr::2, cr::2] *= float(balance["r"])
             img[fb::2, cb::2] *= float(balance["b"])
-        # Blanco: lo más brillante de la foto ya equilibrada (0,1 % se deja quemar, como antes)
-        blanco = max(float(np.percentile(img[::3, ::3], 99.9)), 1.0) / 2.0 ** float(ev or 0.0)
+        # Blanco: lo más brillante de la foto ya equilibrada (el 99,99 %; con el 99,9 % de antes el 0,1 % más
+        # brillante del disco, las tierras altas de la Luna, salía blanco puro sin detalle)
+        blanco = max(float(np.percentile(img[::3, ::3], 99.99)), 1.0) / 2.0 ** float(ev or 0.0)
         cfa16 = np.clip(img * (65535.0 / blanco), 0, 65535).astype(np.uint16)
         from AutoStrechSTF import debayer_rgb
         img = debayer_rgb(cfa16, patron).astype(np.float32) / 65535.0
     else:
-        blanco = max(float(np.percentile(img[::3, ::3], 99.9)), 1.0) / 2.0 ** float(ev or 0.0)
+        blanco = max(float(np.percentile(img[::3, ::3], 99.99)), 1.0) / 2.0 ** float(ev or 0.0)
         img = img / blanco
     img = np.clip(img, 0.0, 1.0)
     img = (np.power(img, 1.0 / 1.6) * 255.0).astype(np.uint8)

@@ -82,6 +82,7 @@ import esta_noche
 import cuerpos_menores
 import catalogo_offline
 import editor_fotos
+import editor_dia
 import galeria_anotada
 import luna_anotada
 import anuncio_ip
@@ -4737,7 +4738,9 @@ def _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info):
     meta = apilado.metadatos_firma(None, None, int(info["usados"]), exposicion)
     fecha = apilado_video.fecha_de_nombre(nombre, meta_v)
     meta.update({"objeto": objeto, "fecha": fecha, "tipo": catalogo_offline.categoria_objeto(objeto),
-                 "video": {"nombre": nombre, "frames": info["frames"], "usados": info["usados"], "pct": info["pct"]}})
+                 "video": {"nombre": nombre, "frames": info["frames"], "usados": info["usados"], "pct": info["pct"]},
+                 "ajustes_dia": {k: v for k, v in (info.get("ajustes") or {}).items() if k != "firma"},
+                 "giro": giro_camara.leer()})
     _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
     return {"archivo": base + ".jpg"}
 
@@ -4752,54 +4755,18 @@ def videos_apilar():
     conf = _config_video()
     try:
         pct = max(1.0, min(100.0, float(datos.get("pct", conf["mejores_pct"]))))
-        nitidez = max(0.0, min(3.0, float(datos.get("nitidez", conf["nitidez"]))))
     except (TypeError, ValueError):
-        pct, nitidez = conf["mejores_pct"], conf["nitidez"]
+        pct = conf["mejores_pct"]
     nombre = os.path.splitext(os.path.basename(ruta))[0]
     try:
         apilado_video.trabajo_apilado_video.iniciar(
             ruta, lambda rgb8, cubo16, info: _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info),
-            pct=pct, cantidad_nitidez=nitidez, ev=_compensacion_foto_dia(),
+            pct=pct, ajustes={"nitidez": conf["nitidez"], "exposicion": _compensacion_foto_dia()},
             contexto=dict(_contexto_rotacion_video(), rotacion_campo=apilado_video.modo_rotacion(
                 datos.get("rotacion_campo") or conf["rotacion_campo"])))
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
-    log.info("Apilado del vídeo %s: mejores %.0f %%, afinado %.1f", nombre, pct, nitidez)
-    return jsonify({"ok": True, "estado": apilado_video.trabajo_apilado_video.estado()})
-
-
-@app.route('/videos/config', methods=["POST"])
-def videos_config():
-    """{rotacion_campo: automatico|siempre|nunca}: se guarda en [Video] de config.ini."""
-    datos = request.get_json(silent=True) or {}
-    valor = str(datos.get("rotacion_campo") or "")
-    if valor not in apilado_video.MODOS_ROTACION:
-        return jsonify({"ok": False, "error": _("Valor no válido")}), 400
-    _guardar_en_config("Video", {"rotacion_campo": valor})
-    log.info("Rotación de campo del vídeo: %s", valor)
-    return jsonify({"ok": True, "config": _config_video()})
-
-
-@app.route('/videos/reafinar', methods=["POST"])
-def videos_reafinar():
-    """{nombre, nitidez}: vuelve a revelar el apilado guardado del vídeo con otro afinado, sin repetir el apilado."""
-    datos = request.get_json(silent=True) or {}
-    ruta = _ruta_video(datos.get("nombre"))
-    if ruta is None:
-        return jsonify({"ok": False, "error": _("Vídeo desconocido")}), 404
-    conf = _config_video()
-    try:
-        nitidez = max(0.0, min(3.0, float(datos.get("nitidez", conf["nitidez"]))))
-    except (TypeError, ValueError):
-        nitidez = conf["nitidez"]
-    nombre = os.path.splitext(os.path.basename(ruta))[0]
-    try:
-        apilado_video.trabajo_apilado_video.iniciar(
-            ruta, lambda rgb8, cubo16, info: _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info),
-            cantidad_nitidez=nitidez, ev=_compensacion_foto_dia(), reafinar=True)
-    except RuntimeError as e:
-        return jsonify({"ok": False, "error": str(e)}), 409
-    log.info("Reafinado del vídeo %s: afinado %.1f", nombre, nitidez)
+    log.info("Apilado del vídeo %s: mejores %.0f %% (los ajustes del revelado se cambian en la galería)", nombre, pct)
     return jsonify({"ok": True, "estado": apilado_video.trabajo_apilado_video.estado()})
 
 
@@ -5707,6 +5674,8 @@ def galeria():
     imagenes = sorted([f for f in os.listdir(carpeta) if f.lower().endswith(".jpg")])
     # Solo las fotos con su FITS apilado al lado se pueden reprocesar en el editor
     con_fits = {f for f in imagenes if os.path.isfile(os.path.join(carpeta, os.path.splitext(f)[0] + ".fits"))}
+    # Las de día (apilado de un vídeo o foto suelta con su crudo) se vuelven a revelar en el editor de día
+    con_dia = {f for f in imagenes if f not in con_fits and editor_dia.es_foto_dia(f)}
     # Las de la Luna se anotan sin FITS: con sus accidentes (luna_anotada.py)
     con_luna = {f for f in imagenes if luna_anotada.es_luna(f, luna_anotada.meta_de(os.path.join(carpeta, f)))}
     # Tipo de objeto (galaxia, nebulosa, cúmulo...) para filtrar: del JSON hermano si la
@@ -5719,7 +5688,7 @@ def galeria():
     filtros = sorted(conteo.items(), key=lambda kv: orden.index(kv[0]) if kv[0] in orden else len(orden))
     lista_rastros = rastros.listar()
     n_meteoros = sum(1 for d in lista_rastros if d.get("tipo") == "meteoro")
-    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_luna=con_luna, tipos=tipos, filtros=filtros,
+    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_dia=con_dia, con_luna=con_luna, tipos=tipos, filtros=filtros,
                            n_rastros=len(lista_rastros), n_meteoros=n_meteoros)
 
 
@@ -6042,6 +6011,78 @@ def galeria_editar_restaurar(nombre):
         editor_fotos.restaurar(nombre)
     except editor_fotos.ErrorEditor as e:
         return jsonify({"ok": False, "mensaje": str(e)}), 409
+    return jsonify({"ok": True, "mensaje": _("Foto restaurada a su original")})
+
+
+# ───────────────────────── Editor de día de la galería (editor_dia.py) ─────────────────────────
+@app.route("/galeria/editar-dia/<nombre>")
+def galeria_editar_dia(nombre):
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    try:
+        info = editor_dia.info(nombre)
+    except (editor_dia.ErrorEditorDia, editor_fotos.ErrorEditor) as e:
+        return str(e), 404
+    return render_template("editar_dia.html", info=info, config_video=_config_video(), mostrar_volver=True)
+
+
+@app.route("/galeria/editar-dia/<nombre>/vista", methods=["POST"])
+def galeria_editar_dia_vista(nombre):
+    """JPEG de la foto revelada con los ajustes que manda la web, a unos 800 px."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        jpg = editor_dia.vista_previa(nombre, datos)
+    except (editor_dia.ErrorEditorDia, editor_fotos.ErrorEditor) as e:
+        return jsonify({"error": str(e)}), 409
+    except Exception as e:
+        log.exception("Error en la vista previa del editor de día")
+        return jsonify({"error": _("No se pudo revelar: {e}", e=e)}), 500
+    r = Response(jpg, mimetype="image/jpeg")
+    r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return r
+
+
+@app.route("/galeria/editar-dia/<nombre>/guardar", methods=["POST"])
+def galeria_editar_dia_guardar(nombre):
+    datos = request.get_json(silent=True) or {}
+    try:
+        return jsonify(editor_dia.guardar(nombre, datos))
+    except (editor_dia.ErrorEditorDia, editor_fotos.ErrorEditor) as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+
+
+@app.route("/galeria/editar-dia-estado")
+def galeria_editar_dia_estado():
+    """El guardado del editor de día y el apilado del vídeo (si se está volviendo a apilar)."""
+    return jsonify({"guardado": editor_dia.EDICION, "apilado": apilado_video.trabajo_apilado_video.estado()})
+
+
+@app.route("/galeria/editar-dia/<nombre>/reapilar", methods=["POST"])
+def galeria_editar_dia_reapilar(nombre):
+    """{pct, ajustes, rotacion_campo}: vuelve a apilar el vídeo de la foto y la sustituye en la galería."""
+    datos = request.get_json(silent=True) or {}
+    conf = _config_video()
+    try:
+        hdr = editor_dia.cabecera(nombre)
+        nombre_video = str((hdr or {}).get("VIDEO") or "")
+        contexto = dict(_contexto_rotacion_video(),
+                        rotacion_campo=apilado_video.modo_rotacion(datos.get("rotacion_campo") or conf["rotacion_campo"]))
+        estado = editor_dia.reapilar(
+            nombre, datos.get("pct", conf["mejores_pct"]),
+            lambda rgb8, cubo16, info: _guardar_apilado_video_en_galeria(nombre_video, rgb8, cubo16, info),
+            ajustes=datos.get("ajustes") or {}, contexto=contexto)
+    except (editor_dia.ErrorEditorDia, editor_fotos.ErrorEditor) as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    return jsonify({"ok": True, "estado": estado})
+
+
+@app.route("/galeria/editar-dia/<nombre>/restaurar", methods=["POST"])
+def galeria_editar_dia_restaurar(nombre):
+    try:
+        editor_dia.restaurar(nombre)
+    except (editor_dia.ErrorEditorDia, editor_fotos.ErrorEditor) as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    editor_dia.olvidar_cache()
     return jsonify({"ok": True, "mensaje": _("Foto restaurada a su original")})
 
 

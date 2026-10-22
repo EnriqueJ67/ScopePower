@@ -85,11 +85,6 @@ msgid "(mejor de la sesión {fwhm})"
 msgstr "(session best {fwhm})"
 
 #. js
-#: templates/imagen.html
-msgid "(ninguno)"
-msgstr "(none)"
-
-#. js
 #: templates/configuracion.html
 msgid "(ningún driver registrado)"
 msgstr "(no driver registered)"
@@ -446,10 +441,6 @@ msgstr "Update from GitHub"
 msgid "Afilando (deconvolución)"
 msgstr "Sharpening (deconvolution)"
 
-#: templates/imagen.html
-msgid "Afinado"
-msgstr "Sharpening"
-
 #: templates/apilado.html templates/editar_foto.html
 msgid "Agresivo: máximo ruido y contraste"
 msgstr "Aggressive: maximum noise and contrast"
@@ -701,6 +692,10 @@ msgstr "Stacking"
 msgid "Apilado cancelado"
 msgstr "Stacking cancelled"
 
+#: templates/editar_dia.html
+msgid "Apilado del vídeo"
+msgstr "Video stacking"
+
 #: plan_sesion.py
 msgid "Apilado detenido ({motivo}); plan en pausa. Reanuda para reintentar {objeto}"
 msgstr "Stacking stopped ({motivo}); plan paused. Resume to retry {objeto}"
@@ -878,7 +873,7 @@ msgstr "Auto-GOTO on. Speak to move the telescope."
 msgid "Auto-GOTO desactivado."
 msgstr "Auto-GOTO off."
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "Automática (según la montura)"
 msgstr "Automatic (by mount)"
 
@@ -950,6 +945,11 @@ msgstr "No tour ready yet."
 #: ScopePower.py
 msgid "Aún no se está ajustando"
 msgstr "Not adjusting yet"
+
+#. js
+#: templates/editar_dia.html
+msgid "B/N"
+msgstr "B&W"
 
 #. js
 #: templates/imagen.html
@@ -1207,8 +1207,8 @@ msgstr "Field {ra} {dec}"
 
 #: templates/_asistente.html templates/_puesta_estacion.html
 #: templates/alineacion.html templates/apagar.html templates/apilado.html
-#: templates/calibracion.html templates/dark.html templates/flats.html
-#: templates/imagen.html
+#: templates/calibracion.html templates/dark.html templates/editar_dia.html
+#: templates/flats.html templates/imagen.html
 msgid "Cancelar"
 msgstr "Cancel"
 
@@ -1460,7 +1460,7 @@ msgid "Chrome tiene denegado el permiso del micrófono para esta dirección. Toc
 msgstr "Chrome has denied microphone permission for this address. Tap the padlock or the settings icon next to the address, go to Permissions and allow the Microphone; then reload the page."
 
 #. js
-#: ScopePower.py
+#: ScopePower.py templates/editar_dia.html
 msgid "Color"
 msgstr "Color"
 
@@ -1595,8 +1595,8 @@ msgstr "While continuous mode, live mode or the timelapse is running, it correct
 
 #: templates/imagen.html
 #, python-format
-msgid "Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. Después, aquí se miden todos los fotogramas, se quedan los más nítidos, se alinean y se apilan: el resultado va a la galería como una foto de día más. Con el recorte del 35 % son unos 2,7 GB por minuto."
-msgstr "With live view running, “Record video” saves the raw video (RAW16, binning 1, the crop you see) on the mini PC's disk. Then, here, every frame is measured, the sharpest are kept, aligned and stacked: the result goes to the gallery as one more daytime photo. With the 35 % crop it is about 2.7 GB per minute."
+msgid "Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto."
+msgstr "With live view running, “Record video” saves the raw video (RAW16, binning 1, the crop you see) on the mini PC's disk. “Stack” keeps the sharpest frames, aligns them and leaves the result in the gallery as one more daytime photo; there, with “Edit”, you adjust the development or stack again with more or fewer frames. With the 35 % crop it is about 2.7 GB per minute."
 
 #: ScopePower.py
 msgid "Con el simulador no hay cámara real que comparar"
@@ -1639,10 +1639,6 @@ msgstr "With the focal length and the camera sensor, ScopePower works out the fi
 #: templates/base.html
 msgid "Con menos de {minimo} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio."
 msgstr "Below {minimo} GB stacking pauses by itself and cannot resume until you free up space."
-
-#: templates/imagen.html
-msgid "Con montura altacimutal el disco gira en la imagen durante la grabación y se corrige al apilar; con una ecuatorial no gira. «Automática» pregunta a la montura por ASCOM al grabar. Elige a mano si la montura no lo dice bien, por ejemplo una altacimutal sobre cuña. Vale para el siguiente «Apilar»; «Reafinar» no cambia el alineado."
-msgstr "With an alt-az mount the disc rotates in the image during the recording and it is corrected when stacking; with an equatorial one it does not rotate. “Automatic” asks the mount through ASCOM when recording. Choose by hand if the mount does not report it right, for example an alt-az on a wedge. It applies to the next “Stack”; “Re-sharpen” does not change the alignment."
 
 #: static/js/asistente.js
 msgid "Con tu campo de {campo}° (menos de 0,6°) hace falta el catálogo <b>D80</b> (1,2 GB), que solo existe como instalador para Windows: descárgalo en el PC desde <a href=\"{web}\" target=\"_blank\" rel=\"noopener\">hnsky.org</a> e instálalo en la carpeta de ASTAP. El D50 puede valer si el campo no es mucho menor."
@@ -1784,6 +1780,10 @@ msgstr "Continuous · shot {n} at {hora}"
 msgid "Contraseña"
 msgstr "Password"
 
+#: templates/editar_dia.html
+msgid "Contraste"
+msgstr "Contrast"
+
 #. js
 #: ScopePower.py templates/apilado.html templates/editar_foto.html
 msgid "Contraste local"
@@ -1829,7 +1829,7 @@ msgstr "Corrected {desvio}′ (correction {n})"
 msgid "Corregir"
 msgstr "Correct"
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "Corregir siempre (altacimutal)"
 msgstr "Always correct (alt-az)"
 
@@ -2041,9 +2041,9 @@ msgstr "Speak the corrections aloud"
 msgid "Decirla"
 msgstr "Say it"
 
-#: templates/imagen.html
-msgid "Deconvolución del disco con el desenfoque medido en su propio limbo (4 iteraciones por punto). «Reafinar» vuelve a revelar el apilado guardado con el valor del deslizador, en segundos, sin repetir el apilado; sustituye la foto de la galería. La «Nitidez» del editor de la galería no sirve aquí: mide estrellas."
-msgstr "Deconvolution of the disc with the blur measured on its own limb (4 iterations per point). “Re-sharpen” develops the saved stack again with the slider value, in seconds, without stacking again; it replaces the gallery photo. The gallery editor's “Sharpness” is no use here: it measures stars."
+#: templates/editar_dia.html
+msgid "Deconvolución del disco con el desenfoque medido en su propio limbo, 4 pasadas por punto. Con mucha nitidez el limbo anilla."
+msgstr "Deconvolution of the disc with the blur measured on its own limb, 4 passes per point. Too much sharpness makes the limb ring."
 
 #: templates/_modal_humor.html
 msgid "Decírselo a ScopePower"
@@ -2142,6 +2142,10 @@ msgstr "Uncover the telescope and press Start."
 #: actualizar.py
 msgid "Destino no válido"
 msgstr "Invalid target"
+
+#: templates/editar_dia.html
+msgid "Detalle"
+msgstr "Detail"
 
 #: templates/planetario.html
 msgid "Detener"
@@ -2247,13 +2251,21 @@ msgstr "Edit"
 msgid "Editar foto"
 msgstr "Edit photo"
 
-#: templates/editar_foto.html
+#: templates/editar_dia.html
+msgid "Editar foto de día"
+msgstr "Edit daytime photo"
+
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Editar · {objeto}"
 msgstr "Edit · {objeto}"
 
 #: templates/galeria.html
 msgid "Editar: reprocesar el FITS apilado con otros ajustes, firma y nombre"
 msgstr "Edit: reprocess the stacked FITS with other settings, signature and name"
+
+#: templates/galeria.html
+msgid "Editar: volver a revelar la foto de día (exposición, contraste, detalle, nitidez, color) o volver a apilar el vídeo"
+msgstr "Edit: develop the daytime photo again (exposure, contrast, detail, sharpness, colour) or stack the video again"
 
 #: ScopePower.py
 msgid "Efemérides planetarias (Astropy)"
@@ -2263,6 +2275,10 @@ msgstr "Planetary ephemeris (Astropy)"
 #: templates/constelacion.html
 msgid "El 'perro antes de Can Mayor'. Brilla en invierno y es parte del triángulo invernal."
 msgstr "The 'dog before Canis Major'. It shines in winter and is part of the Winter Triangle."
+
+#: editor_dia.py
+msgid "El FITS de esta foto no es un apilado en color"
+msgstr "This photo's FITS is not a colour stack"
 
 #: editor_fotos.py
 msgid "El FITS del cometa no es un apilado RGB de ScopePower"
@@ -2728,6 +2744,14 @@ msgstr "The tube towards the pole but not at the pole (Dec 60–80°), higher th
 msgid "El usuario solo puede llevar letras sin acentos, números, punto, guion y guion bajo"
 msgstr "The user name can only have letters without accents, numbers, period, hyphen and underscore"
 
+#: templates/editar_dia.html
+msgid "El vídeo de esta foto ya no está en el mini PC: se puede volver a revelar, pero no volver a apilar."
+msgstr "This photo's video is no longer on the mini PC: it can be developed again, but not stacked again."
+
+#: editor_dia.py
+msgid "El vídeo de esta foto ya no está en el mini PC; no se puede volver a apilar."
+msgstr "This photo's video is no longer on the mini PC; it cannot be stacked again."
+
 #: apilado_video.py
 msgid "El vídeo está vacío"
 msgstr "The video is empty"
@@ -2904,6 +2928,10 @@ msgstr "In that option's text box, paste the ScopePower address (on the telescop
 msgid "En la constelación del Cochero. Asociada a una cabra en la mitología romana."
 msgstr "In the constellation Auriga. Associated with a goat in Roman mythology."
 
+#: templates/editar_dia.html
+msgid "En pasos de cámara (EV): 0 deja lo más brillante justo en el blanco; a la izquierda más oscuro, a la derecha más claro."
+msgstr "In camera stops (EV): 0 puts the brightest part right at white; to the left darker, to the right brighter."
+
 #: templates/_asistente.html
 msgid "En una montura altacimutal, entre 10 y 25 s para que las estrellas no se muevan."
 msgstr "On an alt-azimuth mount, between 10 and 25 s so the stars don't trail."
@@ -3017,7 +3045,7 @@ msgstr "Connection error: {e}"
 msgid "Error al consultar constelación: {error}"
 msgstr "Error looking up the constellation: {error}"
 
-#: ScopePower.py editor_fotos.py
+#: ScopePower.py editor_dia.py editor_fotos.py
 msgid "Error al guardar: {e}"
 msgstr "Error saving: {e}"
 
@@ -3123,7 +3151,7 @@ msgid "Error total: {t}′"
 msgstr "Total error: {t}′"
 
 #. js
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Error {codigo}"
 msgstr "Error {codigo}"
 
@@ -3269,6 +3297,14 @@ msgstr "This photo doesn't have its stacked FITS saved next to it, so it can't b
 #: editor_fotos.py
 msgid "Esta foto no tiene original apartado"
 msgstr "This shot has no original set aside"
+
+#: editor_dia.py
+msgid "Esta foto no tiene su imagen en crudo guardada; no se puede volver a revelar."
+msgstr "This photo has no raw image saved; it cannot be developed again."
+
+#: editor_dia.py
+msgid "Esta foto no viene de un vídeo; no hay nada que volver a apilar."
+msgstr "This photo does not come from a video; there is nothing to stack again."
 
 #: ScopePower.py
 msgid "Esta foto ya estaba en la galería ({archivo})."
@@ -3453,7 +3489,7 @@ msgid "Exportar"
 msgstr "Export"
 
 #. js
-#: templates/apilado.html
+#: templates/apilado.html templates/editar_dia.html
 msgid "Exposición"
 msgstr "Exposure"
 
@@ -3579,6 +3615,10 @@ msgstr "Rows × columns"
 #: ScopePower.py
 msgid "Filas, columnas y solape tienen que ser números"
 msgstr "Rows, columns and overlap must be numbers"
+
+#: templates/editar_dia.html
+msgid "Firma en la foto"
+msgstr "Signature on the photo"
 
 #: templates/editar_foto.html
 msgid "Firma y nombre"
@@ -3794,6 +3834,10 @@ msgstr "Shot saved to the gallery"
 msgid "Foto guardada en rastros"
 msgstr "Shot saved in trails"
 
+#: editor_dia.py
+msgid "Foto guardada en {s} s"
+msgstr "Photo saved in {s} s"
+
 #: static/js/seguimiento.js
 msgid "Foto por ASCOM y por el SDK de la misma escena..."
 msgstr "Shooting the same scene via ASCOM and via the SDK..."
@@ -3851,7 +3895,7 @@ msgstr "Frame lost: {e}"
 msgid "Fotogramas perdidos"
 msgstr "Dropped frames"
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "Fotogramas que se apilan"
 msgstr "Frames to stack"
 
@@ -3908,8 +3952,9 @@ msgid "Galaxias y nebulosas NGC/IC hasta magnitud"
 msgstr "NGC/IC galaxies and nebulae down to magnitude"
 
 #. js
-#: espacio_disco.py templates/base.html templates/editar_foto.html
-#: templates/galeria.html templates/home.html templates/rastros.html
+#: espacio_disco.py templates/base.html templates/editar_dia.html
+#: templates/editar_foto.html templates/galeria.html templates/home.html
+#: templates/rastros.html
 msgid "Galería"
 msgstr "Gallery"
 
@@ -4178,7 +4223,8 @@ msgstr "Save the mosaic to the gallery"
 msgid "Guardar el mosaico en la galería al terminar"
 msgstr "Save the mosaic to the gallery when done"
 
-#: templates/apilado.html templates/editar_foto.html templates/imagen.html
+#: templates/apilado.html templates/editar_dia.html templates/editar_foto.html
+#: templates/imagen.html
 msgid "Guardar en la galería"
 msgstr "Save to gallery"
 
@@ -4245,7 +4291,7 @@ msgstr "To the left bluer (cool), to the right redder (warm). The sky background
 msgid "Hasta pulsar Parar"
 msgstr "Until Stop is pressed"
 
-#: editor_fotos.py
+#: editor_dia.py editor_fotos.py
 msgid "Hay otra vista previa en marcha; espera a que termine"
 msgstr "Another preview is running; wait for it to finish"
 
@@ -4332,7 +4378,8 @@ msgstr "SDK image vs. ASCOM image:"
 msgid "Imagen guardada en la galería"
 msgstr "Image saved to the gallery"
 
-#: ScopePower.py editor_fotos.py galeria_anotada.py luna_anotada.py
+#: ScopePower.py editor_dia.py editor_fotos.py galeria_anotada.py
+#: luna_anotada.py
 msgid "Imagen no encontrada"
 msgstr "Image not found"
 
@@ -5081,6 +5128,10 @@ msgstr "Best"
 msgid "Mejorado pero fuera de tolerancia: {detalle}"
 msgstr "Improved but out of tolerance: {detalle}"
 
+#: templates/editar_dia.html
+msgid "Menos fotogramas: más nitidez y más ruido; más fotogramas: menos ruido y algo menos de nitidez. Con montura altacimutal el disco gira durante la grabación y se corrige al apilar; «Automática» usa lo que dijo la montura al grabar."
+msgstr "Fewer frames: more sharpness and more noise; more frames: less noise and a bit less sharpness. With an alt-az mount the disc rotates during the recording and it is corrected when stacking; “Automatic” uses what the mount reported when recording."
+
 #. js
 #: plan_sesion.py templates/planetario.html
 msgid "Mercurio"
@@ -5356,6 +5407,10 @@ msgstr "Moving the axes and measuring..."
 msgid "Mueve cada eje 1 s y mide el desplazamiento de una luz fija (con el seguimiento en marcha)"
 msgstr "Moves each axis for 1 s and measures the shift of a fixed light (with tracking running)"
 
+#: templates/editar_dia.html
+msgid "Mueve un control y la vista previa se recalcula en el mini PC (alrededor de un segundo). Toca «Original» para comparar. Al guardar se revela a resolución completa, se firma y sustituye la foto de la galería; el original queda apartado."
+msgstr "Move a control and the preview is recalculated on the mini PC (about a second). Tap “Original” to compare. Saving develops at full resolution, signs it and replaces the gallery photo; the original is set aside."
+
 #: templates/editar_foto.html
 msgid "Multiescala (nuevo)"
 msgstr "Multiscale (new)"
@@ -5475,7 +5530,7 @@ msgid "Ningún formato de vídeo válido (ser, mp4)"
 msgstr "No valid video format (ser, mp4)"
 
 #. js
-#: templates/apilado.html
+#: templates/apilado.html templates/editar_dia.html
 msgid "Nitidez"
 msgstr "Sharpness"
 
@@ -5511,7 +5566,7 @@ msgstr "Not authorized"
 msgid "No cambies el enfoque ni la orientación de la cámara respecto a las fotos de la noche."
 msgstr "Don't change the focus or the camera orientation from tonight's shots."
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "No corregir (ecuatorial)"
 msgstr "Do not correct (equatorial)"
 
@@ -5678,6 +5733,10 @@ msgstr "Can't find ASICamera2.dll: install the ZWO driver or N.I.N.A., or set th
 msgid "No se encuentra PlayerOneCamera.dll ({error})"
 msgstr "Can't find PlayerOneCamera.dll ({error})"
 
+#: editor_dia.py
+msgid "No se encuentra la imagen en crudo de esta foto"
+msgstr "This photo's raw image cannot be found"
+
 #. js
 #: static/js/humor.js templates/constelacion.html templates/goto.html
 msgid "No se encuentra ningún micrófono."
@@ -5838,7 +5897,7 @@ msgstr "Could not encode the JPG"
 msgid "No se pudo codificar la imagen"
 msgstr "Couldn't encode the image"
 
-#: editor_fotos.py
+#: editor_dia.py editor_fotos.py
 msgid "No se pudo codificar la vista previa"
 msgstr "Could not encode the preview"
 
@@ -5880,8 +5939,8 @@ msgid "No se pudo ejecutar git: {e}"
 msgstr "Couldn't run git: {e}"
 
 #. js
-#: static/js/seguimiento.js templates/calibracion.html templates/imagen.html
-#: templates/planetario.html
+#: static/js/seguimiento.js templates/calibracion.html
+#: templates/editar_dia.html templates/imagen.html templates/planetario.html
 msgid "No se pudo empezar"
 msgstr "Could not start"
 
@@ -5900,7 +5959,7 @@ msgstr "Could not record"
 
 #. js
 #: static/js/asistente.js templates/configuracion.html
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "No se pudo guardar"
 msgstr "Couldn't save"
 
@@ -6001,6 +6060,10 @@ msgstr "Could not solve the image on pass {vuelta}"
 #: ScopePower.py
 msgid "No se pudo resolver: {e}"
 msgstr "Couldn't solve: {e}"
+
+#: ScopePower.py
+msgid "No se pudo revelar: {e}"
+msgstr "Could not develop: {e}"
 
 #: static/js/puesta_estacion.js
 msgid "No se pudo terminar"
@@ -6125,6 +6188,11 @@ msgstr "Automatic north up (east on the left)"
 #: templates/_asistente.html
 msgid "Norte y este en positivo; oeste en negativo (Valencia: 39,47 y −0,38)."
 msgstr "North and east are positive; west is negative (Valencia: 39.47 and −0.38)."
+
+#. js
+#: templates/editar_dia.html
+msgid "Nueva"
+msgstr "New"
 
 #. js
 #: templates/apilado.html
@@ -6261,7 +6329,7 @@ msgid "Orientación de la imagen del SDK: {t} (correlación {c})"
 msgstr "SDK image orientation: {t} (correlation {c})"
 
 #. js
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Original"
 msgstr "Original"
 
@@ -6841,15 +6909,9 @@ msgstr "Re-sharpened in {s} s"
 msgid "Reafinando {nombre}..."
 msgstr "Re-sharpening {nombre}..."
 
-#. js
-#: templates/imagen.html
-msgid "Reafinando..."
-msgstr "Re-sharpening..."
-
-#. js
-#: templates/imagen.html
-msgid "Reafinar"
-msgstr "Re-sharpen"
+#: templates/editar_dia.html
+msgid "Realce del relieve por escalas (cráteres, mares, manchas), solo dentro del disco. Mucho detalle saca también el ruido."
+msgstr "Multi-scale relief enhancement (craters, maria, sunspots), only inside the disc. A lot of detail brings out the noise too."
 
 #. js
 #: templates/imagen.html
@@ -7091,7 +7153,7 @@ msgstr "Unexpected server response."
 msgid "Restando el dark y el flat"
 msgstr "Subtracting the dark and flat"
 
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Restaurar la foto original"
 msgstr "Restore the original photo"
 
@@ -7139,6 +7201,10 @@ msgstr "Summary"
 msgid "Resumen reproducido."
 msgstr "Summary played."
 
+#: templates/editar_dia.html
+msgid "Revela la foto a resolución completa con estos ajustes y sustituye el JPG de la galería (el original se conserva)"
+msgstr "Develops the photo at full resolution with these settings and replaces the gallery JPG (the original is kept)"
+
 #: templates/rastros.html
 msgid "Revela la foto con el procesado del apilado, la firma y la guarda en la galería"
 msgstr "Develops the shot with the stacking processing, signs it and saves it to the gallery"
@@ -7147,9 +7213,17 @@ msgstr "Develops the shot with the stacking processing, signs it and saves it to
 msgid "Revelada como el apilado en {s} s"
 msgstr "Developed like the stack in {s} s"
 
-#: templates/imagen.html
+#: templates/editar_dia.html templates/imagen.html
 msgid "Revelado"
 msgstr "Development"
+
+#: editor_dia.py
+msgid "Revelando a resolución completa ({p} %)..."
+msgstr "Developing at full resolution ({p} %)..."
+
+#: editor_dia.py
+msgid "Revelando a resolución completa..."
+msgstr "Developing at full resolution..."
 
 #: ScopePower.py
 msgid "Revelando con el procesado del apilado..."
@@ -7169,7 +7243,7 @@ msgstr "Developing..."
 msgid "Revelar como el apilado"
 msgstr "Develop like stacking"
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "Rotación de campo"
 msgstr "Field rotation"
 
@@ -7235,6 +7309,10 @@ msgstr "Star saturation"
 #: templates/configuracion.html
 msgid "Saturación del revelado rápido de la foto de noche en Cámara (el estirado STF que se ve nada más hacerla)."
 msgstr "Saturation of the quick development of the night shot in Camera (the STF stretch you see right after taking it)."
+
+#: templates/editar_dia.html
+msgid "Saturación: 1 es el color natural y 0, blanco y negro. Con 3–5 en la Luna aparecen los tonos de los mares (azules) y las tierras altas (ocres): la «Luna mineral»."
+msgstr "Saturation: 1 is the natural colour and 0, black and white. With 3–5 on the Moon the hues of the maria (blue) and the highlands (ochre) appear: the “mineral Moon”."
 
 #. js
 #: esta_noche.py plan_sesion.py templates/planetario.html
@@ -8231,10 +8309,6 @@ msgid "Vale desde la siguiente foto."
 msgstr "Applies from the next shot."
 
 #: ScopePower.py
-msgid "Valor no válido"
-msgstr "Invalid value"
-
-#: ScopePower.py
 msgid "Valores fuera de rango"
 msgstr "Values out of range"
 
@@ -8341,7 +8415,7 @@ msgstr "Visible now at {alt}° · peaks at {max}° at {hora}"
 msgid "Visible de {desde} a {hasta} · máximo {max}° a las {hora}"
 msgstr "Visible from {desde} to {hasta} · peaks at {max}° at {hora}"
 
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Vista previa"
 msgstr "Preview"
 
@@ -8356,6 +8430,10 @@ msgstr "Preview regenerated"
 #: templates/configuracion.html
 msgid "Volumen (0-100)"
 msgstr "Volume (0-100)"
+
+#: templates/editar_dia.html
+msgid "Volver a apilar"
+msgstr "Stack again"
 
 #: templates/apilado.html
 msgid "Volver a fotografiarlo"
@@ -8372,11 +8450,6 @@ msgstr "Back to the gallery"
 #: templates/apilado.html
 msgid "Volver a pendiente"
 msgstr "Back to pending"
-
-#. js
-#: templates/imagen.html
-msgid "Volver a revelar el apilado guardado con el afinado del deslizador, sin repetir el apilado"
-msgstr "Develop the saved stack again with the slider's sharpening, without stacking again"
 
 #: templates/base.html templates/configuracion.html
 msgid "Voz"
@@ -8423,6 +8496,10 @@ msgstr "Pass {vuelta}/{max}: solving the image (plate solving with ASTAP)"
 #: templates/_modal_voz.html
 msgid "Vuelve a ScopePower y acepta el permiso del micrófono cuando lo pida."
 msgstr "Go back to ScopePower and accept the microphone permission when asked."
+
+#: templates/editar_dia.html
+msgid "Vuelve a elegir, alinear y apilar los fotogramas del vídeo (uno o dos minutos) y sustituye la foto con los ajustes de arriba"
+msgstr "Chooses, aligns and stacks the video frames again (one or two minutes) and replaces the photo with the settings above"
 
 #: templates/apilado.html
 msgid "Vuelve a fundir las teselas que hay (p. ej. un mosaico a medias)"
@@ -8501,7 +8578,7 @@ msgstr "A shot named {nombre} already exists"
 msgid "Ya hay un centrado en curso"
 msgstr "Centering is already running"
 
-#: editor_fotos.py
+#: editor_dia.py editor_fotos.py
 msgid "Ya hay un guardado en curso"
 msgstr "A save is already in progress"
 
@@ -8981,19 +9058,24 @@ msgid "ecuatorial alemana"
 msgstr "German equatorial"
 
 #. js
+#: templates/imagen.html
+msgid "editar"
+msgstr "edit"
+
+#. js
 #: apilado.py templates/apilado.html
 msgid "efeméride del MPC"
 msgstr "MPC ephemeris"
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "el 10 % más nítido"
 msgstr "the sharpest 10 %"
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "el 25 % más nítido"
 msgstr "the sharpest 25 %"
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "el 50 % más nítido"
 msgstr "the sharpest 50 %"
 
@@ -9516,6 +9598,10 @@ msgstr "read {nombre}"
 msgid "libres {tam}"
 msgstr "{tam} free"
 
+#: templates/editar_dia.html
+msgid "limbo {l} px"
+msgstr "limb {l} px"
+
 #: apilado_video.py
 msgid "limbo {l} px, {n} iteraciones"
 msgstr "limb {l} px, {n} iterations"
@@ -10025,7 +10111,7 @@ msgstr "red {px}"
 msgid "rojo {v}"
 msgstr "red {v}"
 
-#: apilado_video.py
+#: apilado_video.py templates/editar_dia.html
 msgid "rotación de campo corregida (hasta {g}°)"
 msgstr "field rotation corrected (up to {g}°)"
 
@@ -10236,7 +10322,7 @@ msgstr "tap to change"
 msgid "toca para cerrar"
 msgstr "tap to close"
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "todos"
 msgstr "all of them"
 
@@ -10908,6 +10994,14 @@ msgstr "{t} behind"
 msgid "{ultima} px la última · {inicial} al inicio · {minima} la mejor"
 msgstr "{ultima} px latest · {inicial} at start · {minima} best"
 
+#: templates/editar_dia.html
+msgid "{usados} de {frames} fotogramas"
+msgstr "{usados} of {frames} frames"
+
+#: templates/editar_dia.html
+msgid "{usados} de {frames} fotogramas apilados"
+msgstr "{usados} of {frames} frames stacked"
+
 #: montura_ejes.py
 msgid "{version} (montura 0x{codigo})"
 msgstr "{version} (mount 0x{codigo})"
@@ -11111,6 +11205,11 @@ msgstr "Roll ScopePower back to the previous version ({nombre})?"
 msgid "¿Volver a la foto original tal como se guardó desde el apilado?"
 msgstr "Go back to the original photo as it was saved from stacking?"
 
+#. js
+#: templates/editar_dia.html
+msgid "¿Volver a la foto original tal como se guardó?"
+msgstr "Go back to the original photo as it was saved?"
+
 #: templates/seguimiento.html
 msgid "Órdenes / errores"
 msgstr "Commands / errors"
@@ -11285,6 +11384,11 @@ msgid "⏳ Desconectando el equipo..."
 msgstr "⏳ Disconnecting the equipment..."
 
 #. js
+#: templates/editar_dia.html
+msgid "⏳ Empezando el apilado..."
+msgstr "⏳ Starting the stacking..."
+
+#. js
 #: templates/editar_foto.html
 msgid "⏳ Espera a que esté la vista previa y vuelve a tocar"
 msgstr "⏳ Wait for the preview and tap again"
@@ -11300,7 +11404,7 @@ msgstr "⏳ Saving the mosaic..."
 
 #. js
 #: templates/apilado.html templates/configuracion.html
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "⏳ Guardando..."
 msgstr "⏳ Saving..."
 
@@ -11737,6 +11841,11 @@ msgstr "✅ Location saved (Stellarium wasn't open)"
 #: templates/configuracion.html
 msgid "✅ Ubicación guardada y en Stellarium"
 msgstr "✅ Location saved, also in Stellarium"
+
+#. js
+#: templates/editar_dia.html
+msgid "✅ Vista previa en {s} s · toca «Original» para comparar"
+msgstr "✅ Preview in {s} s · tap “Original” to compare"
 
 #. js
 #: templates/editar_foto.html
