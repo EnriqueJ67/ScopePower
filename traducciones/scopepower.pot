@@ -527,6 +527,10 @@ msgstr ""
 msgid "Al centro"
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Al llegar a un objeto con GoTo, el móvil lee su descripción (sin Internet, solo los del catálogo)"
+msgstr ""
+
 #: templates/alineacion.html
 msgid "Alineación"
 msgstr ""
@@ -1068,6 +1072,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Buscando el disco en la foto y sincronizando..."
+msgstr ""
+
+#. js
+#: templates/goto.html
+msgid "Buscando la descripción del objeto..."
 msgstr ""
 
 #: seguimiento.py
@@ -5627,6 +5636,11 @@ msgid "No hay dark para la exposición actual ({exp} s)."
 msgstr ""
 
 #. js
+#: templates/goto.html
+msgid "No hay descripción de «{objeto}» (fuera del catálogo y sin Internet)."
+msgstr ""
+
+#. js
 #: templates/calibracion.html
 msgid "No hay flat maestro."
 msgstr ""
@@ -6303,11 +6317,6 @@ msgstr ""
 #. js
 #: templates/goto.html
 msgid "Obteniendo datos de {objeto}..."
-msgstr ""
-
-#. js
-#: templates/goto.html
-msgid "Obteniendo información de Wikipedia..."
 msgstr ""
 
 #: templates/control.html

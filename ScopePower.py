@@ -4062,7 +4062,8 @@ def goto_objeto():
         except Exception as e:
             return jsonify({"error": _("Error durante GOTO: {e}", e=e)})
 
-    return render_template("goto.html", mostrar_volver=True, palabra_clave=_palabra_clave_goto())
+    return render_template("goto.html", mostrar_volver=True, palabra_clave=_palabra_clave_goto(),
+                           describir_objeto=voz.locutor.config.get("describir_objeto", True))
 
 
 def _palabra_clave_goto():

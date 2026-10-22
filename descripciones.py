@@ -15,6 +15,7 @@ import csv
 import os
 import re
 import logging
+import socket
 
 from unidecode import unidecode
 
@@ -26,6 +27,16 @@ from idioma import _, fmt_num
 log = logging.getLogger("scopepower.descripciones")
 
 RUTA_DESCRIPCIONES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "descripciones_objetos.csv")
+
+
+def hay_internet(timeout=3.0):
+    """True si se alcanza la Wikipedia del idioma de la app. En el campo (wifi de la montura o del
+    móvil sin salida) falla en el acto y la descripción no se queda esperando a Wikipedia."""
+    try:
+        with socket.create_connection((f"{idioma.wiki()}.wikipedia.org", 443), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 # Nombres de constelación del catálogo que no están escritos para ser leídos
 _CONSTELACIONES = {"Se1": "la Serpiente", "Se2": "la Serpiente", "Canes Venatici": "los Perros de Caza",
@@ -58,11 +69,21 @@ def _cargar_descripciones():
     return textos
 
 
+def sin_tipo(nombre):
+    """'M 31 (Galaxia)' -> 'M 31': la pantalla GoTo de versiones anteriores añadía el tipo entre
+    paréntesis, y con él el objeto no se encontraba en el catálogo."""
+    return re.sub(r"\s*\([^()]*\)\s*$", "", str(nombre or "")).strip()
+
+
 def buscar_en_catalogo(nombre):
     """Fila del catálogo cuyo id, nombre o nombre alternativo coincide con `nombre`, o None."""
     clave = _clave(nombre)
     if not clave:
         return None
+    if _clave(sin_tipo(nombre)) != clave:
+        o = buscar_en_catalogo(sin_tipo(nombre))
+        if o:
+            return o
     # "Andromeda" también debe encajar con "Galaxia de Andrómeda": segundo intento por inclusión
     candidatos = esta_noche.cargar_catalogo()
     for o in candidatos:
@@ -120,7 +141,7 @@ def describir(nombre, reemplazar_numeros=None):
     frase de datos delante cuando el objeto está en el catálogo.
     fuente: catalogo | cache | wikipedia | ninguna
     """
-    nombre = (nombre or "").strip()
+    nombre = sin_tipo(nombre)
     o = buscar_en_catalogo(nombre)
     intro = frase_datos(o) if o else ""
     if o:
@@ -133,8 +154,16 @@ def describir(nombre, reemplazar_numeros=None):
     # Para la Wikipedia el nombre corto (M 31) desambigua mejor que "Galaxia de Andrómeda"
     consultas = [nombre] if not o else [o["id"], o["nombre"], nombre]
     texto, fuente = "", "ninguna"
+    con_red = None   # se comprueba una sola vez y solo si hace falta salir a Internet
     for q in dict.fromkeys(consultas):
         en_cache = os.path.isfile(recorridos.ruta_cache_wiki(q, reemplazar_numeros))
+        if not en_cache:
+            if con_red is None:
+                con_red = hay_internet()
+                if not con_red:
+                    log.info("Sin Internet: «%s» no está en el catálogo ni en la caché de Wikipedia", nombre)
+            if not con_red:
+                continue
         resumen = recorridos.obten_resumen_wiki(q, reemplazar_numeros)
         # Sin resultado, obten_resumen_wiki devuelve este mismo texto (traducido)
         if resumen and resumen != _("No se encontró información sobre «{nombre}».", nombre=q):
