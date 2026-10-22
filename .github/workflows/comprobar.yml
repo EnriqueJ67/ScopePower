@@ -74,3 +74,8 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_puesta_estacion.py
+
+      - name: Prueba del guiado por el disco (corrección por ejes sobre una montura falsa)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_guiado_disco.py

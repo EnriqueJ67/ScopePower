@@ -5,6 +5,13 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- El guiado por el disco del Sol o la Luna corrige moviendo los ejes a velocidad baja
+  (`correccion_ejes.py`, MoveAxis en bucle cerrado con los codificadores) en vez de con un GoTo:
+  con la Luna real del 21-oct, cada GoTo de 2′ hacía que la AZ GoTo se pasara unos 25′, parase y
+  volviera (13 s de bandazo que sacaba el disco del encuadre del vivo). El sentido de cada eje se
+  aprende solo y, si la montura no responde a MoveAxis, se vuelve al GoTo. Mientras se graba un
+  vídeo la corrección espera (hasta 3 veces el umbral). Nueva clave `[FotoDia]
+  guiado_velocidad_deg_s` (0 = GoTo como antes) y prueba `herramientas/probar_guiado_disco.py`.
 - Humor: frases para los niveles bajos (5-25 %), que hasta ahora no tenían ninguna, en español y en
   inglés; «Probar» ya no menciona ningún fichero cuando no hay frase.
 - Revelado de día nuevo (`revelado_dia.py`) para el apilado de los vídeos y las fotos del Sol y la

@@ -70,6 +70,7 @@ import apilado_video
 import enfoque
 import camara_sdk
 import disco
+import correccion_ejes
 import espacio_disco
 import rastros
 import apuntado_teorico
@@ -2918,6 +2919,46 @@ def _umbral_guiado_disco():
     return max(disco.UMBRAL_MINIMO_ARCMIN, umbral)
 
 
+def _velocidad_guiado_disco():
+    """°/s máximos por eje para corregir con MoveAxis ([FotoDia] guiado_velocidad_deg_s); 0 = corregir con GoTo."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    try:
+        v = float(cfg.get("FotoDia", "guiado_velocidad_deg_s", fallback=correccion_ejes.VELOCIDAD_DEFECTO))
+    except ValueError:
+        v = correccion_ejes.VELOCIDAD_DEFECTO
+    return max(0.0, min(4.0, v))
+
+
+def _aplazar_guiado_disco():
+    """Motivo por el que el guiado por el disco debe esperar para corregir, o None."""
+    try:
+        if vivo_dia.trabajo_vivo.estado().get("grabacion"):
+            return _("se está grabando un vídeo")
+    except Exception:
+        pass
+    return None
+
+
+def mover_relativo_guiado(du, dv):
+    """
+    Corrección del guiado por el disco: (du, dv) grados en el plano tangente horizontal.
+    Con MoveAxis a velocidad baja (correccion_ejes.py), porque un GoTo corto hace que la
+    AZ GoTo se pase unos 25′ y vuelva (medido el 21-oct-2026). Si la montura no responde
+    a MoveAxis, se hace con el GoTo de siempre.
+    """
+    velocidad = _velocidad_guiado_disco()
+    if velocidad <= 0:
+        mover_relativo_horizonte(du, dv)
+        return
+    lugar = EarthLocation(lat=LATITUD_OBSERVATORIO * u.deg, lon=LONGITUD_OBSERVATORIO * u.deg, height=ALTITUD_OBSERVATORIO * u.m)
+    try:
+        montura.ejecutar(lambda tel: correccion_ejes.corregir(tel, du, dv, lugar, velocidad_max=velocidad), timeout=90)
+    except correccion_ejes.ErrorCorreccion as e:
+        log.warning("Guiado por el disco: corrección por ejes fallida (%s); se corrige con GoTo", e)
+        mover_relativo_horizonte(du, dv)
+
+
 @app.route('/disco/guiado', methods=['POST'])
 def disco_guiado():
     """{activar: bool}: mantener el disco del Sol o la Luna donde está, corrigiendo la montura."""
@@ -2939,10 +2980,10 @@ def disco_guiado():
         ocupada = _montura_ocupada()
         if ocupada:
             raise ErrorHardware(ocupada)
-        mover_relativo_horizonte(du, dv)
+        mover_relativo_guiado(du, dv)
     try:
         disco.guiado.activar(objetivo, _foto_en_pantalla, lambda foto: _medir_disco(foto, objetivo), mover, _pad_en_uso,
-                             umbral_arcmin=umbral)
+                             umbral_arcmin=umbral, aplazar=_aplazar_guiado_disco)
     except RuntimeError as e:
         return jsonify({"ok": False, "mensaje": str(e)}), 409
     log.info("Guiado por el disco de %s activado (corrige a partir de %.1f')", disco.NOMBRE[objetivo], umbral)

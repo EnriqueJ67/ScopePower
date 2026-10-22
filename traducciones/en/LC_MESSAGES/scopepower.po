@@ -1590,8 +1590,8 @@ msgid "Comprueba que la montura está encendida y conectada al PC y que el drive
 msgstr "Check that the mount is on and connected to the PC and that the driver is the one for your model."
 
 #: templates/imagen.html
-msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes."
-msgstr "While continuous mode, live mode or the timelapse is running, it corrects the mount if the disk drifts from where it is now. If you move it with the pad or with “Point here”, it stays where you leave it."
+msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes. Mientras se graba un vídeo, la corrección espera a que termine."
+msgstr "While continuous mode, live mode or the timelapse is running, it corrects the mount if the disk drifts from where it is now. If you move it with the pad or with “Point here”, it stays where you leave it. While a video is being recorded, the correction waits until it ends."
 
 #: templates/imagen.html
 #, python-format
@@ -2167,6 +2167,10 @@ msgstr "Stop the plan before emptying it"
 #: templates/constelacion.html
 msgid "Diga \"constelación X\"."
 msgstr "Say “constellation X”."
+
+#: disco.py
+msgid "Disco a {desvio}′; la corrección espera: {motivo}"
+msgstr "Disk at {desvio}′; the correction is waiting: {motivo}"
 
 #: grabador_video.py
 msgid "Disco casi lleno ({gb} GB libres): grabación detenida"
@@ -4762,6 +4766,10 @@ msgstr "The mount isn't responding ({e}); no centering"
 msgid "La montura no se declara ecuatorial: la puesta en estación solo vale para monturas ecuatoriales"
 msgstr "The mount does not report itself as equatorial: polar alignment only works with equatorial mounts"
 
+#: correccion_ejes.py
+msgid "La montura no se ha movido con MoveAxis (error {antes}′ → {despues}′)"
+msgstr "The mount did not move with MoveAxis (error {antes}′ → {despues}′)"
+
 #: puesta_estacion.py
 msgid "La montura no se ha movido entre la foto {a} y la {b}: comprueba que gira el eje de AR"
 msgstr "The mount did not move between photo {a} and photo {b}: check that the RA axis turns"
@@ -6031,6 +6039,10 @@ msgstr "Couldn't get coordinates for object '{objeto}'. Check the name or try an
 #: static/js/ubicacion_movil.js
 msgid "No se pudo obtener la posición: {e}"
 msgstr "Couldn't get the position: {e}"
+
+#: correccion_ejes.py
+msgid "No se pudo parar la montura tras moverla: {e}"
+msgstr "Couldn't stop the mount after moving it: {e}"
 
 #: ScopePower.py
 msgid "No se pudo procesar: {e}"
@@ -10135,6 +10147,10 @@ msgstr "skipped by hand"
 #: enfoque.py
 msgid "saturada: baja la exposición o la ganancia"
 msgstr "saturated: lower the exposure or the gain"
+
+#: ScopePower.py
+msgid "se está grabando un vídeo"
+msgstr "a video is being recorded"
 
 #. js
 #: templates/apilado.html
