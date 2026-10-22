@@ -104,7 +104,7 @@
                 <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-enfoque" onchange="cambiarModoEnfoque()"> {{ _("Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)") }}</label>
                 <span class="texto-3" style="font-size: 12.5px;">{{ _("foto de prueba y modo en vivo") }}</span>
             </div>
-            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>{{ _("Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras) y se mide la anchura del limbo en píxeles (cuanto menor, mejor foco); en vivo se enseña el fotograma más nítido de los últimos y el mejor valor de la sesión, para girar el enfocador hasta el mínimo.") }}</div>
+            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>{{ _("Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»).") }}</div>
             <!-- Modo continuo: una foto tras otra en el servidor hasta que se pare (ver foto_continua.py).
                  Cada foto puede guardarse en JPG (revelada, pocos MB) o FITS (en bruto, 18 MB) para no llenar el disco sin querer. -->
             <div id="fila-continuo" class="fila mt-2" style="justify-content: space-between;">
@@ -1276,6 +1276,7 @@
             }
             let t = _("limbo {v} px", { v: f(i.limbo) });
             if (f(i.mejor) !== null) t += " · " + _("mejor {v}", { v: f(i.mejor) });
+            if (i.veredicto) t += " · " + ({ mejora: _("mejora"), empeora: _("empeora"), igual: _("igual") })[i.veredicto];
             if (i.n) t += " · " + ngettext("{n} ángulo", "{n} ángulos", i.n);
             return t;
         }

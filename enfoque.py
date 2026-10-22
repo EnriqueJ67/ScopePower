@@ -40,13 +40,23 @@
 #   - Arriba a la derecha, el limbo ampliado ×5 a resolución completa; en la Luna,
 #     el terminador (cráteres y sombras: mucho más detalle que el limbo para el
 #     ojo), que es la parte del borde de la zona iluminada que no cae en el
-#     círculo. En vivo se enseña el recorte del fotograma más nítido de los
-#     últimos 10 (el seeing de día hace temblar la imagen) y el número es la
-#     mediana de los últimos 5, con el mejor valor de la sesión al lado: se gira
-#     el enfocador hasta el mínimo.
+#     círculo. El recorte lleva su etiqueta («limbo» o «terminador»): el número
+#     es siempre la anchura del limbo.
+#   - En vivo (HistorialLimbo, medido con los vídeos de la Luna del 21-oct-2026):
+#     el limbo de cada fotograma varía un 6–7 % con el mismo foco por el seeing,
+#     así que el número es el percentil 25 de los últimos 2,5 s (los fotogramas
+#     con mejor seeing son los que enseñan el desenfoque real), con histéresis
+#     para que no parpadee; el recorte es el del fotograma más nítido de esa
+#     ventana; al lado va el mejor valor de la sesión; debajo, la gráfica del
+#     último minuto para ver si al girar el enfocador se baja o se sube; y por
+#     voz se dice «mejora», «empeora» o «igual» cada pocos segundos comparando
+#     la ventana con la del último veredicto. Las medidas con el disco cortado
+#     por el borde (pocos ángulos de limbo, otro radio) o moviéndose deprisa (pad,
+#     mano en el tubo) se descartan: daban un limbo falso y estropeaban el «mejor».
 #   - La exposición sigue siendo la automática de día (nivel del disco), no la
 #     de la estrella.
 import math
+import time
 import threading
 import collections
 import numpy as np
@@ -65,8 +75,22 @@ OBJETIVOS_DISCO = ("sol", "luna")
 ANGULOS_LIMBO = 180       # perfiles radiales por fotograma
 VENTANA_LIMBO = 8         # ± píxeles del plano alrededor del radio ajustado
 PASO_PERFIL = 0.25        # muestreo del perfil radial (px del plano)
-ULTIMOS_FOTOGRAMAS = 10   # en vivo: el recorte es el del fotograma más nítido de estos
-MEDIANA_FOTOGRAMAS = 5    # en vivo: el número es la mediana de los últimos 5
+ANGULOS_MINIMOS = 30      # con menos ángulos de limbo la medida no vale (disco cortado por el borde: el
+                          # círculo se ajusta al terminador y el limbo sale falso; el limbo iluminado de la
+                          # Luna abarca siempre medio círculo, unos 100 ángulos, y el Sol entero, 180)
+# En vivo (HistorialLimbo)
+VENTANA_S = 2.5           # el número es el percentil de las medidas de los últimos 2,5 s
+PERCENTIL_VENTANA = 25    # bajo: los fotogramas con mejor seeing enseñan el desenfoque real
+HISTERESIS_PX = 0.08      # el número enseñado no cambia si la ventana se mueve menos que esto (px del sensor)
+FOTOGRAMAS_MEJOR = 8      # el «mejor» de la sesión solo cuenta ventanas con estos fotogramas o más
+TOLERANCIA_RADIO = 0.03   # un círculo con un radio distinto al de la sesión en más de un 3 % no es el disco
+VELOCIDAD_MAX = 25.0      # px del plano por segundo: si el disco se mueve más deprisa (pad, mano en el tubo) la
+                          # exposición lo emborrona y la medida no vale (el seeing lo mueve ~6 px/s; el pad, 80)
+TENDENCIA_S = 60.0        # la gráfica enseña el último minuto
+TENDENCIA_CADA_S = 0.25   # un punto de la gráfica cada cuarto de segundo
+VOZ_CADA_S = 3.0          # un veredicto por voz como mucho cada 3 s
+UMBRAL_VOZ = 0.05         # «mejora»/«empeora» si la ventana cambia más de un 5 %, más de UMBRAL_VOZ_PX y más de
+UMBRAL_VOZ_PX = 0.15      # 3 veces el ruido del percentil (medido con la dispersión de los fotogramas de la ventana)
 
 
 def activo():
@@ -202,11 +226,58 @@ def recorte_estrella(gris8, x, y, tam=TAM_RECORTE, ampliacion=AMPLIACION):
     return cv2.resize(c, (c.shape[1] * ampliacion, c.shape[0] * ampliacion), interpolation=cv2.INTER_CUBIC)
 
 
-def componer(gris8, recorte, info, pulsado=None):
+ETIQUETAS_RECORTE = {"limbo": lambda: _("limbo"), "terminador": lambda: _("terminador")}
+VERDE_TEXTO = (120, 255, 120)
+VERDE_MARCO = (80, 200, 80)
+
+
+def _grafica_tendencia(base, serie, mejor, x0, y0, ancho, alto):
+    """
+    La gráfica del limbo del último minuto en (x0, y0)-(x0+ancho, y0+alto): fondo
+    oscuro, la línea del número enseñado, el mejor de la sesión como raya de puntos
+    y el valor actual como punto. Eje x = tiempo (TENDENCIA_S), eje y = anchura con
+    un margen; a la izquierda, el máximo y el mínimo del tramo.
+    """
+    if len(serie) < 2 or ancho < 40 or alto < 20:
+        return
+    ts = np.array([p[0] for p in serie], float)
+    vs = np.array([p[1] for p in serie], float)
+    t1 = ts[-1]
+    vmin, vmax = float(vs.min()), float(vs.max())
+    if mejor is not None:
+        vmin = min(vmin, float(mejor))
+    margen = max(0.1, 0.15 * (vmax - vmin), 0.05 * vmax)
+    lo, hi = vmin - margen, vmax + margen
+    fondo = base[y0:y0 + alto, x0:x0 + ancho]
+    cv2.addWeighted(fondo, 0.35, np.zeros_like(fondo), 0.65, 0, dst=fondo)
+    cv2.rectangle(base, (x0, y0), (x0 + ancho - 1, y0 + alto - 1), VERDE_MARCO, 1)
+    escala_txt = max(0.35, min(0.8, alto / 90.0))
+    (tw, th), __ = cv2.getTextSize(fmt_num(hi, 1), cv2.FONT_HERSHEY_SIMPLEX, escala_txt, 1)
+    margen_izq = tw + 6
+    gx0, gx1 = x0 + margen_izq, x0 + ancho - 4
+    gy0, gy1 = y0 + 3, y0 + alto - 4
+    def px(t, v):
+        return (int(round(gx1 - (t1 - t) / TENDENCIA_S * (gx1 - gx0))),
+                int(round(gy1 - (v - lo) / (hi - lo) * (gy1 - gy0))))
+    cv2.putText(base, fmt_num(hi, 1), (x0 + 3, gy0 + th), cv2.FONT_HERSHEY_SIMPLEX, escala_txt, VERDE_TEXTO, 1, cv2.LINE_AA)
+    cv2.putText(base, fmt_num(lo, 1), (x0 + 3, gy1), cv2.FONT_HERSHEY_SIMPLEX, escala_txt, VERDE_TEXTO, 1, cv2.LINE_AA)
+    if mejor is not None:
+        ym = px(t1, float(mejor))[1]
+        for x in range(gx0, gx1, 6):
+            cv2.line(base, (x, ym), (min(x + 2, gx1), ym), VERDE_MARCO, 1)
+    puntos = np.array([px(t, v) for t, v in zip(ts, vs) if t1 - t <= TENDENCIA_S], np.int32)
+    if len(puntos) >= 2:
+        cv2.polylines(base, [puntos.reshape(-1, 1, 2)], False, VERDE_TEXTO, max(1, alto // 60), cv2.LINE_AA)
+    cv2.circle(base, tuple(int(v) for v in puntos[-1]), max(2, alto // 25), VERDE_TEXTO, -1, cv2.LINE_AA)
+
+
+def componer(gris8, recorte, info, pulsado=None, tendencia=None, etiqueta=None):
     """
     Imagen BGR para la web: el verde en gris, el recorte de la estrella en la
-    esquina superior derecha (con marco) y la línea de anchuras debajo. Si
-    `pulsado` (x, y) se da, se marca la estrella en la imagen grande.
+    esquina superior derecha (con marco y, con `etiqueta`, su nombre: «limbo» o
+    «terminador»), la línea de anchuras debajo y, con `tendencia` [(t, px)], la
+    gráfica del último minuto debajo del texto. Si `pulsado` (x, y) se da, se
+    marca la estrella en la imagen grande.
     """
     base = cv2.cvtColor(gris8, cv2.COLOR_GRAY2BGR)
     h, w = base.shape[:2]
@@ -219,17 +290,29 @@ def componer(gris8, recorte, info, pulsado=None):
         m = max(6, lado // 100)
         base[m:m + rl, w - m - rl:w - m] = rec
         grosor = max(2, lado // 500)
-        cv2.rectangle(base, (w - m - rl - 1, m - 1), (w - m, m + rl), (80, 200, 80), grosor)
+        cv2.rectangle(base, (w - m - rl - 1, m - 1), (w - m, m + rl), VERDE_MARCO, grosor)
+        escala = max(0.45, min(2.0, rl / 420.0))
+        g_txt = max(1, int(round(escala * 1.3)))
+        nombre = ETIQUETAS_RECORTE.get(etiqueta)
+        if nombre:
+            # El nombre del recorte dentro del marco, arriba a la izquierda (el número de debajo es siempre el limbo)
+            e_et = escala * 0.75
+            (tw, th), __ = cv2.getTextSize(nombre(), cv2.FONT_HERSHEY_SIMPLEX, e_et, g_txt)
+            cv2.putText(base, nombre(), (w - m - rl + 4, m + th + 4), cv2.FONT_HERSHEY_SIMPLEX, e_et, (0, 0, 0), g_txt + 2, cv2.LINE_AA)
+            cv2.putText(base, nombre(), (w - m - rl + 4, m + th + 4), cv2.FONT_HERSHEY_SIMPLEX, e_et, VERDE_TEXTO, g_txt, cv2.LINE_AA)
         texto = texto_info(info, para_imagen=True)
+        oy = m + rl
         if texto:
-            escala = max(0.45, min(2.0, rl / 420.0))
-            g_txt = max(1, int(round(escala * 1.3)))
             (tw, th), __ = cv2.getTextSize(texto, cv2.FONT_HERSHEY_SIMPLEX, escala, g_txt)
             ox, oy = max(2, w - m - tw), min(h - 6, m + rl + th + m)
             cv2.putText(base, texto, (ox, oy), cv2.FONT_HERSHEY_SIMPLEX, escala, (0, 0, 0), g_txt + 3, cv2.LINE_AA)
-            cv2.putText(base, texto, (ox, oy), cv2.FONT_HERSHEY_SIMPLEX, escala, (120, 255, 120), g_txt, cv2.LINE_AA)
+            cv2.putText(base, texto, (ox, oy), cv2.FONT_HERSHEY_SIMPLEX, escala, VERDE_TEXTO, g_txt, cv2.LINE_AA)
+        if tendencia:
+            alto_g = int(rl * 0.4)
+            if oy + m + alto_g < h:
+                _grafica_tendencia(base, tendencia, (info or {}).get("mejor"), w - m - rl, oy + m, rl, alto_g)
     if pulsado is not None:
-        cv2.circle(base, (int(pulsado[0]), int(pulsado[1])), max(10, lado // 90), (80, 200, 80), max(1, lado // 1000), cv2.LINE_AA)
+        cv2.circle(base, (int(pulsado[0]), int(pulsado[1])), max(10, lado // 90), VERDE_MARCO, max(1, lado // 1000), cv2.LINE_AA)
     return base
 
 
@@ -402,8 +485,9 @@ def medir_disco(verde, escala_px=1.0, n_ang=ANGULOS_LIMBO, terminador=False):
     cx, cy, r, borde = c
     anch, angs, radios = anchura_limbo(verde, cx, cy, r, n_ang=n_ang)
     info = {"cx": round(cx, 1), "cy": round(cy, 1), "r": round(r, 1)}
-    if len(anch) < 12:
-        info.update({"limbo": None, "motivo": _("el limbo no se ve bien (¿nubes, saturado, casi fuera de campo?)")})
+    if len(anch) < ANGULOS_MINIMOS:
+        info.update({"limbo": None, "n": int(len(anch)),
+                     "motivo": _("el limbo no se ve bien (¿disco cortado por el borde, nubes, saturado?)")})
         return info
     # El recorte: el punto del limbo más cercano a «arriba» del plano (el borde queda horizontal, cielo arriba)
     d = np.abs((angs + np.pi / 2 + np.pi) % (2 * np.pi) - np.pi)
@@ -420,28 +504,142 @@ def medir_disco(verde, escala_px=1.0, n_ang=ANGULOS_LIMBO, terminador=False):
 
 class HistorialLimbo:
     """
-    En vivo: el recorte que se enseña es el del fotograma más nítido de los
-    últimos ULTIMOS_FOTOGRAMAS (el seeing de día hace temblar la imagen), el
-    número es la mediana de los últimos MEDIANA_FOTOGRAMAS y se guarda el mejor
-    de la sesión para saber si se ha pasado el foco.
+    En vivo: las medidas de los fotogramas y lo que se enseña con ellas. Medido con
+    los vídeos de la Luna del 21-oct-2026 (20 fotogramas/s, 15,8 ms, Luna baja): el
+    limbo de cada fotograma varía un 6–7 % con el mismo foco, y la nitidez de todo
+    el disco o del terminador no es más estable: es el seeing, no la medida. La
+    mediana de 5 fotogramas saltaba hasta un 8 % entre lecturas; el percentil 25
+    de los últimos 2,5 s se queda en el 1–2 % y además mide el desenfoque real
+    (los fotogramas con mejor seeing son los que menos lo tapan, como el apilado
+    de los mejores).
+      - anotar(): guarda la medida si vale. Con la Luna cortada por el borde de la
+        imagen el círculo se ajusta al terminador y el limbo daba 2,0–2,9 px con
+        12–18 ángulos cuando el real era 3,5: medir_disco exige ANGULOS_MINIMOS y
+        aquí se exige además el radio de la sesión (mediana de los últimos).
+      - resumen(): el número (percentil de la ventana, con histéresis para que no
+        parpadee), el mejor de la sesión (solo de ventanas con fotogramas de sobra),
+        el recorte del fotograma más nítido de la ventana y cuántos fotogramas tiene.
+      - tendencia(): los números enseñados en el último minuto, para la gráfica.
+      - veredicto(): cada VOZ_CADA_S, «mejora», «empeora» o «igual» comparando la
+        ventana actual con la del último veredicto, para decirlo por voz; None si no toca.
+    `reloj` se cambia en las pruebas (los tiempos del vídeo).
     """
-    def __init__(self):
-        self.ultimos = collections.deque(maxlen=ULTIMOS_FOTOGRAMAS)
+    def __init__(self, reloj=time.monotonic):
+        self._reloj = reloj
+        self.medidas = collections.deque()      # (t, anchura, recorte) aceptadas de los últimos 2·VENTANA_S
+        self.radios = collections.deque(maxlen=30)
+        self.serie = collections.deque()        # (t, número enseñado) del último TENDENCIA_S
+        self._centro = None                     # (t, cx, cy) del último disco visto, para la velocidad
+        self.mostrado = None
         self.mejor = None
+        self.rechazadas = 0                     # medidas descartadas por el radio
+        self.movidas = 0                        # medidas descartadas porque el disco se movía
+        self._t_voz = None
+        self._dicho = None
+        self._referencia = None                 # percentil de la ventana en el último veredicto
 
-    def anotar(self, anchura, recorte):
-        if anchura is not None and np.isfinite(anchura):
-            self.ultimos.append((float(anchura), recorte))
+    def anotar(self, info, recorte, t=None):
+        """Guarda la medida del fotograma (`info` de medir_disco) si vale; True si se ha aceptado."""
+        t = self._reloj() if t is None else float(t)
+        anchura = (info or {}).get("limbo")
+        if anchura is None or not np.isfinite(anchura):
+            return False
+        r, cx, cy = info.get("r"), info.get("cx"), info.get("cy")
+        if r:
+            # El radio de la sesión se sigue con todos los círculos, aceptados o no: si los primeros
+            # fotogramas fueran malos (la Luna medio fuera al empezar), la mediana se corrige sola
+            ref = float(np.median(self.radios)) if len(self.radios) >= 5 else None
+            self.radios.append(float(r))
+            if ref is not None and abs(float(r) - ref) > TOLERANCIA_RADIO * ref:
+                self.rechazadas += 1
+                return False
+        if cx is not None and cy is not None:
+            anterior, self._centro = self._centro, (t, float(cx), float(cy))
+            if anterior is not None and 0 < t - anterior[0] < 0.5:
+                if math.hypot(float(cx) - anterior[1], float(cy) - anterior[2]) / (t - anterior[0]) > VELOCIDAD_MAX:
+                    self.movidas += 1
+                    return False
+        self.medidas.append((t, float(anchura), recorte))
+        while self.medidas and t - self.medidas[0][0] > 2 * VENTANA_S:
+            self.medidas.popleft()
+        return True
 
-    def resumen(self):
-        """(anchura actual, mejor de la sesión, recorte más nítido) o (None, None, None)."""
-        if not self.ultimos:
-            return None, self.mejor, None
-        anchuras = [a for a, __ in self.ultimos]
-        actual = float(np.median(anchuras[-MEDIANA_FOTOGRAMAS:]))
-        if self.mejor is None or actual < self.mejor:
-            self.mejor = actual
-        return actual, self.mejor, min(self.ultimos, key=lambda t: t[0])[1]
+    def _ventana(self, t, desde, hasta):
+        """[(t, anchura)] de las medidas con desde < t − t_medida <= hasta."""
+        return [(ta, a) for (ta, a, __) in self.medidas if desde < t - ta <= hasta]
+
+    def resumen(self, t=None):
+        """(número enseñado, mejor de la sesión, recorte más nítido de la ventana, fotogramas en la ventana); sin ventana, (None, mejor, None, 0)."""
+        t = self._reloj() if t is None else float(t)
+        ventana = [(ta, a, rec) for (ta, a, rec) in self.medidas if t - ta <= VENTANA_S]
+        if not ventana:
+            return None, self.mejor, None, 0
+        actual = float(np.percentile([a for __, a, __ in ventana], PERCENTIL_VENTANA))
+        if self.mostrado is None or abs(actual - self.mostrado) > HISTERESIS_PX:
+            self.mostrado = actual
+        if len(ventana) >= FOTOGRAMAS_MEJOR and (self.mejor is None or self.mostrado < self.mejor):
+            self.mejor = self.mostrado
+        if not self.serie or t - self.serie[-1][0] >= TENDENCIA_CADA_S:
+            self.serie.append((t, self.mostrado))
+        while self.serie and t - self.serie[0][0] > TENDENCIA_S:
+            self.serie.popleft()
+        return self.mostrado, self.mejor, min(ventana, key=lambda v: v[1])[2], len(ventana)
+
+    def tendencia(self):
+        """[(t, número enseñado)] del último minuto, de más antiguo a más nuevo."""
+        return list(self.serie)
+
+    def veredicto(self, t=None):
+        """
+        «mejora» / «empeora» si el percentil de la ventana actual difiere del que había
+        en el último veredicto más que el ruido (UMBRAL_VOZ, UMBRAL_VOZ_PX y 3 veces la
+        dispersión); «igual» la primera vez que deja de cambiar; None si no toca hablar
+        (cada VOZ_CADA_S) o la ventana no está llena. La referencia es la del último
+        veredicto y no la ventana anterior: el percentil bajo de una ventana a medio
+        cambiar ya es el valor nuevo, y comparando ventanas seguidas una mejora se perdía.
+        """
+        t = self._reloj() if t is None else float(t)
+        if self._t_voz is not None and t - self._t_voz < VOZ_CADA_S:
+            return None
+        ahora = self._ventana(t, -1.0, VENTANA_S)
+        # La ventana tiene que estar llena (fotogramas de sobra y casi todo su tiempo): al empezar,
+        # o tras un corte (la imagen se movía, el disco se salió), está a medias
+        if len(ahora) < FOTOGRAMAS_MEJOR or ahora[-1][0] - ahora[0][0] < 0.7 * VENTANA_S:
+            return None
+        va = np.array([a for __, a in ahora])
+        a = float(np.percentile(va, PERCENTIL_VENTANA))
+        self._t_voz = t
+        if self._referencia is None:
+            self._referencia = a
+            return None
+        # Ruido del percentil: la dispersión de los fotogramas de la ventana entre la raíz de su
+        # número, ×1,4 por ser un percentil y no la media y ×√2 porque la referencia lleva el suyo
+        ruido = 2.0 * float(va.std()) / math.sqrt(len(va))
+        umbral = max(UMBRAL_VOZ_PX, UMBRAL_VOZ * self._referencia, 3.0 * ruido)
+        if a < self._referencia - umbral:
+            v = "mejora"
+        elif a > self._referencia + umbral:
+            v = "empeora"
+        else:
+            v = "igual"
+        if v == "igual":
+            self._referencia = 0.7 * self._referencia + 0.3 * a      # sigue despacio la deriva del seeing
+            if self._dicho in (None, "igual"):
+                self._dicho = v
+                return None
+        else:
+            self._referencia = a
+        self._dicho = v
+        return v
+
+
+TEXTO_VEREDICTO = {"mejora": lambda: _("mejora"), "empeora": lambda: _("empeora"), "igual": lambda: _("igual")}
+
+
+def texto_veredicto(clave):
+    """La palabra para decir por voz (en el idioma de la app) o ""."""
+    f = TEXTO_VEREDICTO.get(clave)
+    return f() if f else ""
 
 
 def _punto_en_vista(x, y, forma, paso, orientar, girar):
@@ -466,17 +664,27 @@ def imagen_vivo_disco(cfa, patron, paso, orientar, girar, historial, objetivo=No
     gris = revelar_gris_disco(verde)
     pulsado = None
     if info.get("limbo") is not None:
-        historial.anotar(info["limbo"], recorte_estrella(gris, info["x"], info["y"]))
-        pulsado = _punto_en_vista(info["x"], info["y"], gris.shape, paso, orientar, girar)
-    actual, mejor, recorte = historial.resumen()
+        movidas = historial.movidas
+        if historial.anotar(info, recorte_estrella(gris, info["x"], info["y"])):
+            pulsado = _punto_en_vista(info["x"], info["y"], gris.shape, paso, orientar, girar)
+        elif historial.movidas > movidas:
+            info.update({"limbo": None, "motivo": _("la imagen se mueve")})
+        else:
+            info.update({"limbo": None, "motivo": _("el disco no es el de antes (¿cortado por el borde?)")})
+    actual, mejor, recorte, n_ventana = historial.resumen()
+    if mejor is not None:
+        info["mejor"] = round(mejor, 2)
     if actual is not None:
         info["limbo_foto"] = info.get("limbo")
         info["limbo"] = round(actual, 2)
-        info["mejor"] = round(mejor, 2)
+        info["ventana"] = n_ventana
         info.pop("motivo", None)
+    veredicto = historial.veredicto()
+    if veredicto:
+        info["veredicto"] = veredicto
     vista = gris[::paso, ::paso] if paso > 1 else gris
     girada, encuadre = girar(orientar(np.ascontiguousarray(vista)))
-    return componer(girada, recorte, info, pulsado=pulsado), encuadre, info
+    return componer(girada, recorte, info, pulsado=pulsado, tendencia=historial.tendencia(), etiqueta=info.get("recorte")), encuadre, info
 
 
 def imagen_foto_dia_disco(cfa, patron, girar, objetivo=None):
@@ -493,7 +701,7 @@ def imagen_foto_dia_disco(cfa, patron, girar, objetivo=None):
         recorte = recorte_estrella(gris, info["x"], info["y"])
         pulsado = _punto_en_vista(info["x"], info["y"], gris.shape, 1, lambda im: im, girar)
     girada, encuadre = girar(gris)
-    return componer(girada, recorte, info, pulsado=pulsado), encuadre, info
+    return componer(girada, recorte, info, pulsado=pulsado, etiqueta=info.get("recorte")), encuadre, info
 
 
 def imagen_foto_noche(rgb_lineal, girar):

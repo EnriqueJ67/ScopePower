@@ -1624,8 +1624,8 @@ msgid "Con estos datos se calcula qué objetos están altos, los puntos de la al
 msgstr "These values are used to work out which objects are high, the alignment points and the position of comets and asteroids. The mount has its own location, set in its driver, app or hand controller."
 
 #: templates/imagen.html
-msgid "Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras) y se mide la anchura del limbo en píxeles (cuanto menor, mejor foco); en vivo se enseña el fotograma más nítido de los últimos y el mejor valor de la sesión, para girar el enfocador hasta el mínimo."
-msgstr "With a color camera each channel focuses at a different point, and the color image shows three Bahtinov crosses that don't line up. Here you see only green (the channel with the most pixels and the middle of the spectrum) and, at the top right, the brightest star magnified ×5 with its width in each color. Without a mask, focus is right when green is the sharpest channel. In live mode the exposure follows that star's peak (up to 2 s) with the night gain. With the Sun or the Moon (day mode) the Bahtinov doesn't work: the edge of the disk is magnified (on the Moon, the terminator, with its craters and shadows) and the limb width is measured in pixels (the smaller, the better the focus); in live mode the sharpest of the latest frames and the best value of the session are shown, so you can turn the focuser to the minimum."
+msgid "Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»)."
+msgstr "With a colour camera each channel focuses at a different point, and the colour image shows three Bahtinov crosses that do not match. Here only the green channel is shown (the one with the most pixels and in the middle of the spectrum) and, at the top right, the brightest star enlarged ×5 with its width in each colour. Without a mask, focus is good when green is the narrowest channel. In live view the exposure follows the peak of that star (up to 2 s) with the night gain. With the Sun or the Moon (day mode) the Bahtinov mask is useless: the disk's limb is enlarged (on the Moon, the terminator, with its craters and shadows; the crop carries its name) and the number is always the width of the limb in pixels (the smaller, the better the focus). In live view the seeing makes every frame vary, so the number comes from the best frames of the last few seconds, with the best of the session next to it and the graph of the last minute below: as you turn the focuser you can see whether it goes down or up, and the PC says it aloud (“better”, “worse”, “same”)."
 
 #: templates/seguimiento.html
 msgid "Con la cámara fija en el tubo, cualquier plate solving de cualquier noche (un GoTo con centrado, la alineación, el apilado) deja calibrado el seguimiento: la montura es altacimutal y lo único que gira es el cielo. No hace falta mover nada. Si mueves la cámara en el tubo, basta un plate solving nuevo."
@@ -9112,6 +9112,10 @@ msgstr "binning 2 doesn't keep the color"
 msgid "el catálogo no ha quedado en la carpeta de ASTAP"
 msgstr "the catalog didn't end up in the ASTAP folder"
 
+#: enfoque.py
+msgid "el disco no es el de antes (¿cortado por el borde?)"
+msgstr "the disk is not the one seen before (cut off by the edge?)"
+
 #. js
 #: camara_toupcam.py
 msgid "el dispositivo no responde"
@@ -9126,8 +9130,8 @@ msgid "el driver «{driver}» no está instalado en este PC: elige otro o instal
 msgstr "the “{driver}” driver isn't installed on this PC: choose another one or install the one for your equipment"
 
 #: enfoque.py
-msgid "el limbo no se ve bien (¿nubes, saturado, casi fuera de campo?)"
-msgstr "the limb is not clearly visible (clouds, saturated, almost out of the field?)"
+msgid "el limbo no se ve bien (¿disco cortado por el borde, nubes, saturado?)"
+msgstr "the limb is not clearly visible (disk cut off by the edge, clouds, saturated?)"
 
 #: vivo_dia.py
 msgid "el modo en vivo"
@@ -9168,6 +9172,11 @@ msgstr "the ASTAP zip didn't include astap_cli.exe"
 #: camara_toupcam.py
 msgid "elegir la resolución completa"
 msgstr "select full resolution"
+
+#. js
+#: enfoque.py templates/imagen.html
+msgid "empeora"
+msgstr "worse"
 
 #: templates/rastros.html
 msgid "empieza dentro"
@@ -9468,6 +9477,11 @@ msgstr "today"
 msgid "identificador de cámara no válido"
 msgstr "invalid camera ID"
 
+#. js
+#: enfoque.py templates/imagen.html
+msgid "igual"
+msgstr "same"
+
 #: vivo_dia.py
 msgid "imagen continua de {objeto}"
 msgstr "continuous view of {objeto}"
@@ -9540,6 +9554,10 @@ msgstr "the one in config ({s} s)"
 msgid "la del driver"
 msgstr "driver's value"
 
+#: enfoque.py
+msgid "la imagen se mueve"
+msgstr "the image is moving"
+
 #: hardware.py
 msgid "la montura está en uso por {motivo}"
 msgstr "the mount is in use by {motivo}"
@@ -9609,6 +9627,10 @@ msgstr "read {nombre}"
 #: templates/imagen.html
 msgid "libres {tam}"
 msgstr "{tam} free"
+
+#: enfoque.py
+msgid "limbo"
+msgstr "limb"
 
 #: templates/editar_dia.html
 msgid "limbo {l} px"
@@ -9685,6 +9707,11 @@ msgstr "best {px}"
 #: templates/imagen.html
 msgid "mejor {v}"
 msgstr "best {v}"
+
+#. js
+#: enfoque.py templates/imagen.html
+msgid "mejora"
+msgstr "better"
 
 #. js
 #: foto_dia.py
@@ -10294,6 +10321,10 @@ msgstr "ends around {hora}"
 #: static/js/mosaico.js static/js/plan.js templates/planetario.html
 msgid "terminado"
 msgstr "finished"
+
+#: enfoque.py
+msgid "terminador"
+msgstr "terminator"
 
 #: static/js/mosaico.js
 msgid "tesela {i}/{n}"

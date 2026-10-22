@@ -5,6 +5,16 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Enfoque de día (Sol y Luna) en vivo más estable: medido con los vídeos reales de la Luna, el
+  limbo de cada fotograma varía un 6-7 % por el seeing, así que el número es ahora el percentil 25
+  de los últimos 2,5 s (los fotogramas con mejor seeing enseñan el desenfoque real) con histéresis,
+  en vez de la mediana de 5 fotogramas que saltaba un 8 % entre lecturas. Debajo del recorte va la
+  gráfica del último minuto con el mejor de la sesión, el recorte lleva su nombre («limbo» o
+  «terminador»; el número es siempre el limbo) y el PC dice por voz «mejora», «empeora» o «igual»
+  al girar el enfocador. Arreglado: con la Luna cortada por el borde de la imagen el círculo se
+  ajustaba al terminador y el limbo salía falso y más fino, estropeando el «mejor» de la sesión;
+  ahora se exigen 30 ángulos de limbo, el radio de la sesión y el disco quieto (con el pad o la
+  mano en el tubo la exposición emborrona el limbo). Prueba `herramientas/probar_enfoque_dia.py`.
 - El guiado por el disco del Sol o la Luna corrige moviendo los ejes a velocidad baja
   (`correccion_ejes.py`, MoveAxis en bucle cerrado con los codificadores) en vez de con un GoTo:
   con la Luna real del 21-oct, cada GoTo de 2′ hacía que la AZ GoTo se pasara unos 25′, parase y
