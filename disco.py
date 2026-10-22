@@ -17,8 +17,10 @@
 #   - Guiado: con el continuo, el modo en vivo o el timelapse en marcha, cada foto
 #     nueva se mide dónde está el disco; si se ha ido más de un umbral de donde
 #     estaba al activar el guiado, la montura se corrige con un movimiento corto
-#     (el mismo del centrado teórico). Si se usa el pad, la referencia pasa a ser
-#     la nueva posición.
+#     (por ejes a velocidad baja, correccion_ejes.py: un GoTo corto hacía que la
+#     AZ GoTo se pasara 25′ y volviera). Si se usa el pad, la referencia pasa a ser
+#     la nueva posición. Mientras se graba un vídeo la corrección espera (hasta
+#     APLAZAMIENTO_MAXIMO veces el umbral), para no estropear la grabación.
 #
 # El disco se localiza ajustando un círculo del radio que debe tener (efemérides +
 # escala de la cámara) al borde de la zona brillante, con RANSAC: en una Luna
@@ -40,6 +42,7 @@ NOMBRE = {"sol": N_("Sol"), "luna": N_("Luna")}
 ANCHO_ANALISIS = 800           # la imagen se analiza a unos 800 px: sobra para centrar al píxel del sensor×4
 UMBRAL_DEFECTO_ARCMIN = 2.0    # se corrige cuando el disco se aparta más de esto ([FotoDia] guiado_umbral_arcmin)
 UMBRAL_MINIMO_ARCMIN = 0.5     # por debajo se estaría persiguiendo el propio error del GoTo de la montura
+APLAZAMIENTO_MAXIMO = 3        # con un vídeo grabándose la corrección espera hasta 3 veces el umbral; más allá, corrige igual
 PERDIDAS_MAXIMAS = 6           # fotos seguidas sin disco antes de dejar de guiar
 PAUSA_PAD_S = 3.0
 
@@ -254,6 +257,7 @@ class GuiadoDisco:
         self.referencia = None       # (du0, dv0): dónde debe estar el disco
         self.ultima = None           # última medida
         self.correcciones = 0
+        self.aplazadas = 0           # fotos en las que tocaba corregir y se esperó (vídeo grabándose)
         self.deriva_arcmin_min = None
         self.perdidas = 0
         self.umbral_arcmin = UMBRAL_DEFECTO_ARCMIN
@@ -263,7 +267,7 @@ class GuiadoDisco:
         with self._lock:
             u = dict(self.ultima) if self.ultima else None
             return {"activo": self.activo, "objetivo": self.objetivo, "mensaje": self.mensaje,
-                    "correcciones": self.correcciones, "umbral_arcmin": round(self.umbral_arcmin, 2),
+                    "correcciones": self.correcciones, "aplazadas": self.aplazadas, "umbral_arcmin": round(self.umbral_arcmin, 2),
                     "deriva_arcmin_min": None if self.deriva_arcmin_min is None else round(self.deriva_arcmin_min, 2),
                     "desvio_arcmin": None if not u else round(u["desvio_ref"], 2), "perdidas": self.perdidas, "detenido": self.detenido}
 
@@ -272,12 +276,15 @@ class GuiadoDisco:
             self.mensaje = texto
         log.log(nivel, "Guiado por el disco: %s", texto)
 
-    def activar(self, objetivo, obtener_foto, medir, mover, pad_en_uso, umbral_arcmin=None, cada_s=2.0):
+    def activar(self, objetivo, obtener_foto, medir, mover, pad_en_uso, umbral_arcmin=None, cada_s=2.0, aplazar=None):
         """
         obtener_foto() → dict de foto_actual (con "instante") o None.
         medir(foto) → dict con du, dv (grados; lanza SinDisco).
         mover(du, dv) → mueve el apuntado esa cantidad (grados, plano tangente horizontal); lanza si falla.
         pad_en_uso() → True mientras se usa el pad (o hace menos de unos segundos).
+        aplazar() → motivo (texto) por el que ahora no conviene corregir (se está grabando un
+        vídeo...), o None. Se respeta hasta APLAZAMIENTO_MAXIMO veces el umbral: más allá se
+        corrige igual, antes de que el disco salga del encuadre.
         """
         with self._lock:
             if self.activo:
@@ -290,7 +297,7 @@ class GuiadoDisco:
                 self.umbral_arcmin = float(umbral_arcmin)
             self.mensaje = _("Esperando una foto nueva...")
         self._hilo = threading.Thread(target=self._bucle, name="guiado-disco", daemon=True,
-                                      args=(obtener_foto, medir, mover, pad_en_uso, cada_s))
+                                      args=(obtener_foto, medir, mover, pad_en_uso, cada_s, aplazar))
         self._hilo.start()
 
     def desactivar(self):
@@ -306,10 +313,11 @@ class GuiadoDisco:
         if self._hilo:
             self._hilo.join(timeout)
 
-    def _bucle(self, obtener_foto, medir, mover, pad_en_uso, cada_s):
+    def _bucle(self, obtener_foto, medir, mover, pad_en_uso, cada_s, aplazar=None):
         ultimo_instante = 0.0
         no_antes_de = 0.0           # tras mover (o usar el pad) solo valen fotos posteriores
         muestras = []               # (t, du, dv) desde la última corrección, para la deriva
+        aplazada = False            # ya se ha avisado de que la corrección espera
         try:
             while not self._parar.wait(cada_s):
                 if pad_en_uso():
@@ -359,8 +367,18 @@ class GuiadoDisco:
                 with self._lock:
                     self.ultima = dict(m, desvio_ref=desvio)
                 if desvio <= umbral:
+                    aplazada = False
                     self._msg(_("Disco en su sitio (a {desvio}′; se corrige a partir de {umbral}′)", desvio=fmt_num(desvio, 1), umbral=fmt_num(umbral, 1)))
                     continue
+                motivo = aplazar() if aplazar else None
+                if motivo and desvio <= umbral * APLAZAMIENTO_MAXIMO:
+                    with self._lock:
+                        self.aplazadas += 1
+                    if not aplazada:
+                        aplazada = True
+                        self._msg(_("Disco a {desvio}′; la corrección espera: {motivo}", desvio=fmt_num(desvio, 1), motivo=motivo))
+                    continue
+                aplazada = False
                 self._msg(_("Corrigiendo {desvio}′...", desvio=fmt_num(desvio, 1)))
                 try:
                     mover(ddu, ddv)

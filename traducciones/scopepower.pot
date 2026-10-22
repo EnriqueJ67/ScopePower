@@ -1588,7 +1588,7 @@ msgid "Comprueba que la montura está encendida y conectada al PC y que el drive
 msgstr ""
 
 #: templates/imagen.html
-msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes."
+msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes. Mientras se graba un vídeo, la corrección espera a que termine."
 msgstr ""
 
 #: templates/imagen.html
@@ -2164,6 +2164,10 @@ msgstr ""
 #. js
 #: templates/constelacion.html
 msgid "Diga \"constelación X\"."
+msgstr ""
+
+#: disco.py
+msgid "Disco a {desvio}′; la corrección espera: {motivo}"
 msgstr ""
 
 #: grabador_video.py
@@ -4760,6 +4764,10 @@ msgstr ""
 msgid "La montura no se declara ecuatorial: la puesta en estación solo vale para monturas ecuatoriales"
 msgstr ""
 
+#: correccion_ejes.py
+msgid "La montura no se ha movido con MoveAxis (error {antes}′ → {despues}′)"
+msgstr ""
+
 #: puesta_estacion.py
 msgid "La montura no se ha movido entre la foto {a} y la {b}: comprueba que gira el eje de AR"
 msgstr ""
@@ -6028,6 +6036,10 @@ msgstr ""
 
 #: static/js/ubicacion_movil.js
 msgid "No se pudo obtener la posición: {e}"
+msgstr ""
+
+#: correccion_ejes.py
+msgid "No se pudo parar la montura tras moverla: {e}"
 msgstr ""
 
 #: ScopePower.py
@@ -10132,6 +10144,10 @@ msgstr ""
 
 #: enfoque.py
 msgid "saturada: baja la exposición o la ganancia"
+msgstr ""
+
+#: ScopePower.py
+msgid "se está grabando un vídeo"
 msgstr ""
 
 #. js
