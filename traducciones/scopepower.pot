@@ -83,11 +83,6 @@ msgid "(mejor de la sesión {fwhm})"
 msgstr ""
 
 #. js
-#: templates/imagen.html
-msgid "(ninguno)"
-msgstr ""
-
-#. js
 #: templates/configuracion.html
 msgid "(ningún driver registrado)"
 msgstr ""
@@ -444,10 +439,6 @@ msgstr ""
 msgid "Afilando (deconvolución)"
 msgstr ""
 
-#: templates/imagen.html
-msgid "Afinado"
-msgstr ""
-
 #: templates/apilado.html templates/editar_foto.html
 msgid "Agresivo: máximo ruido y contraste"
 msgstr ""
@@ -699,6 +690,10 @@ msgstr ""
 msgid "Apilado cancelado"
 msgstr ""
 
+#: templates/editar_dia.html
+msgid "Apilado del vídeo"
+msgstr ""
+
 #: plan_sesion.py
 msgid "Apilado detenido ({motivo}); plan en pausa. Reanuda para reintentar {objeto}"
 msgstr ""
@@ -876,7 +871,7 @@ msgstr ""
 msgid "Auto-GOTO desactivado."
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "Automática (según la montura)"
 msgstr ""
 
@@ -947,6 +942,11 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Aún no se está ajustando"
+msgstr ""
+
+#. js
+#: templates/editar_dia.html
+msgid "B/N"
 msgstr ""
 
 #. js
@@ -1205,8 +1205,8 @@ msgstr ""
 
 #: templates/_asistente.html templates/_puesta_estacion.html
 #: templates/alineacion.html templates/apagar.html templates/apilado.html
-#: templates/calibracion.html templates/dark.html templates/flats.html
-#: templates/imagen.html
+#: templates/calibracion.html templates/dark.html templates/editar_dia.html
+#: templates/flats.html templates/imagen.html
 msgid "Cancelar"
 msgstr ""
 
@@ -1458,7 +1458,7 @@ msgid "Chrome tiene denegado el permiso del micrófono para esta dirección. Toc
 msgstr ""
 
 #. js
-#: ScopePower.py
+#: ScopePower.py templates/editar_dia.html
 msgid "Color"
 msgstr ""
 
@@ -1593,7 +1593,7 @@ msgstr ""
 
 #: templates/imagen.html
 #, python-format
-msgid "Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. Después, aquí se miden todos los fotogramas, se quedan los más nítidos, se alinean y se apilan: el resultado va a la galería como una foto de día más. Con el recorte del 35 % son unos 2,7 GB por minuto."
+msgid "Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto."
 msgstr ""
 
 #: ScopePower.py
@@ -1636,10 +1636,6 @@ msgstr ""
 #. js
 #: templates/base.html
 msgid "Con menos de {minimo} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio."
-msgstr ""
-
-#: templates/imagen.html
-msgid "Con montura altacimutal el disco gira en la imagen durante la grabación y se corrige al apilar; con una ecuatorial no gira. «Automática» pregunta a la montura por ASCOM al grabar. Elige a mano si la montura no lo dice bien, por ejemplo una altacimutal sobre cuña. Vale para el siguiente «Apilar»; «Reafinar» no cambia el alineado."
 msgstr ""
 
 #: static/js/asistente.js
@@ -1782,6 +1778,10 @@ msgstr ""
 msgid "Contraseña"
 msgstr ""
 
+#: templates/editar_dia.html
+msgid "Contraste"
+msgstr ""
+
 #. js
 #: ScopePower.py templates/apilado.html templates/editar_foto.html
 msgid "Contraste local"
@@ -1827,7 +1827,7 @@ msgstr ""
 msgid "Corregir"
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "Corregir siempre (altacimutal)"
 msgstr ""
 
@@ -2039,8 +2039,8 @@ msgstr ""
 msgid "Decirla"
 msgstr ""
 
-#: templates/imagen.html
-msgid "Deconvolución del disco con el desenfoque medido en su propio limbo (4 iteraciones por punto). «Reafinar» vuelve a revelar el apilado guardado con el valor del deslizador, en segundos, sin repetir el apilado; sustituye la foto de la galería. La «Nitidez» del editor de la galería no sirve aquí: mide estrellas."
+#: templates/editar_dia.html
+msgid "Deconvolución del disco con el desenfoque medido en su propio limbo, 4 pasadas por punto. Con mucha nitidez el limbo anilla."
 msgstr ""
 
 #: templates/_modal_humor.html
@@ -2139,6 +2139,10 @@ msgstr ""
 
 #: actualizar.py
 msgid "Destino no válido"
+msgstr ""
+
+#: templates/editar_dia.html
+msgid "Detalle"
 msgstr ""
 
 #: templates/planetario.html
@@ -2245,12 +2249,20 @@ msgstr ""
 msgid "Editar foto"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/editar_dia.html
+msgid "Editar foto de día"
+msgstr ""
+
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Editar · {objeto}"
 msgstr ""
 
 #: templates/galeria.html
 msgid "Editar: reprocesar el FITS apilado con otros ajustes, firma y nombre"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Editar: volver a revelar la foto de día (exposición, contraste, detalle, nitidez, color) o volver a apilar el vídeo"
 msgstr ""
 
 #: ScopePower.py
@@ -2260,6 +2272,10 @@ msgstr ""
 #. js
 #: templates/constelacion.html
 msgid "El 'perro antes de Can Mayor'. Brilla en invierno y es parte del triángulo invernal."
+msgstr ""
+
+#: editor_dia.py
+msgid "El FITS de esta foto no es un apilado en color"
 msgstr ""
 
 #: editor_fotos.py
@@ -2726,6 +2742,14 @@ msgstr ""
 msgid "El usuario solo puede llevar letras sin acentos, números, punto, guion y guion bajo"
 msgstr ""
 
+#: templates/editar_dia.html
+msgid "El vídeo de esta foto ya no está en el mini PC: se puede volver a revelar, pero no volver a apilar."
+msgstr ""
+
+#: editor_dia.py
+msgid "El vídeo de esta foto ya no está en el mini PC; no se puede volver a apilar."
+msgstr ""
+
 #: apilado_video.py
 msgid "El vídeo está vacío"
 msgstr ""
@@ -2902,6 +2926,10 @@ msgstr ""
 msgid "En la constelación del Cochero. Asociada a una cabra en la mitología romana."
 msgstr ""
 
+#: templates/editar_dia.html
+msgid "En pasos de cámara (EV): 0 deja lo más brillante justo en el blanco; a la izquierda más oscuro, a la derecha más claro."
+msgstr ""
+
 #: templates/_asistente.html
 msgid "En una montura altacimutal, entre 10 y 25 s para que las estrellas no se muevan."
 msgstr ""
@@ -3015,7 +3043,7 @@ msgstr ""
 msgid "Error al consultar constelación: {error}"
 msgstr ""
 
-#: ScopePower.py editor_fotos.py
+#: ScopePower.py editor_dia.py editor_fotos.py
 msgid "Error al guardar: {e}"
 msgstr ""
 
@@ -3121,7 +3149,7 @@ msgid "Error total: {t}′"
 msgstr ""
 
 #. js
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Error {codigo}"
 msgstr ""
 
@@ -3266,6 +3294,14 @@ msgstr ""
 
 #: editor_fotos.py
 msgid "Esta foto no tiene original apartado"
+msgstr ""
+
+#: editor_dia.py
+msgid "Esta foto no tiene su imagen en crudo guardada; no se puede volver a revelar."
+msgstr ""
+
+#: editor_dia.py
+msgid "Esta foto no viene de un vídeo; no hay nada que volver a apilar."
 msgstr ""
 
 #: ScopePower.py
@@ -3451,7 +3487,7 @@ msgid "Exportar"
 msgstr ""
 
 #. js
-#: templates/apilado.html
+#: templates/apilado.html templates/editar_dia.html
 msgid "Exposición"
 msgstr ""
 
@@ -3576,6 +3612,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Filas, columnas y solape tienen que ser números"
+msgstr ""
+
+#: templates/editar_dia.html
+msgid "Firma en la foto"
 msgstr ""
 
 #: templates/editar_foto.html
@@ -3792,6 +3832,10 @@ msgstr ""
 msgid "Foto guardada en rastros"
 msgstr ""
 
+#: editor_dia.py
+msgid "Foto guardada en {s} s"
+msgstr ""
+
 #: static/js/seguimiento.js
 msgid "Foto por ASCOM y por el SDK de la misma escena..."
 msgstr ""
@@ -3849,7 +3893,7 @@ msgstr ""
 msgid "Fotogramas perdidos"
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "Fotogramas que se apilan"
 msgstr ""
 
@@ -3906,8 +3950,9 @@ msgid "Galaxias y nebulosas NGC/IC hasta magnitud"
 msgstr ""
 
 #. js
-#: espacio_disco.py templates/base.html templates/editar_foto.html
-#: templates/galeria.html templates/home.html templates/rastros.html
+#: espacio_disco.py templates/base.html templates/editar_dia.html
+#: templates/editar_foto.html templates/galeria.html templates/home.html
+#: templates/rastros.html
 msgid "Galería"
 msgstr ""
 
@@ -4176,7 +4221,8 @@ msgstr ""
 msgid "Guardar el mosaico en la galería al terminar"
 msgstr ""
 
-#: templates/apilado.html templates/editar_foto.html templates/imagen.html
+#: templates/apilado.html templates/editar_dia.html templates/editar_foto.html
+#: templates/imagen.html
 msgid "Guardar en la galería"
 msgstr ""
 
@@ -4243,7 +4289,7 @@ msgstr ""
 msgid "Hasta pulsar Parar"
 msgstr ""
 
-#: editor_fotos.py
+#: editor_dia.py editor_fotos.py
 msgid "Hay otra vista previa en marcha; espera a que termine"
 msgstr ""
 
@@ -4330,7 +4376,8 @@ msgstr ""
 msgid "Imagen guardada en la galería"
 msgstr ""
 
-#: ScopePower.py editor_fotos.py galeria_anotada.py luna_anotada.py
+#: ScopePower.py editor_dia.py editor_fotos.py galeria_anotada.py
+#: luna_anotada.py
 msgid "Imagen no encontrada"
 msgstr ""
 
@@ -5079,6 +5126,10 @@ msgstr ""
 msgid "Mejorado pero fuera de tolerancia: {detalle}"
 msgstr ""
 
+#: templates/editar_dia.html
+msgid "Menos fotogramas: más nitidez y más ruido; más fotogramas: menos ruido y algo menos de nitidez. Con montura altacimutal el disco gira durante la grabación y se corrige al apilar; «Automática» usa lo que dijo la montura al grabar."
+msgstr ""
+
 #. js
 #: plan_sesion.py templates/planetario.html
 msgid "Mercurio"
@@ -5354,6 +5405,10 @@ msgstr ""
 msgid "Mueve cada eje 1 s y mide el desplazamiento de una luz fija (con el seguimiento en marcha)"
 msgstr ""
 
+#: templates/editar_dia.html
+msgid "Mueve un control y la vista previa se recalcula en el mini PC (alrededor de un segundo). Toca «Original» para comparar. Al guardar se revela a resolución completa, se firma y sustituye la foto de la galería; el original queda apartado."
+msgstr ""
+
 #: templates/editar_foto.html
 msgid "Multiescala (nuevo)"
 msgstr ""
@@ -5473,7 +5528,7 @@ msgid "Ningún formato de vídeo válido (ser, mp4)"
 msgstr ""
 
 #. js
-#: templates/apilado.html
+#: templates/apilado.html templates/editar_dia.html
 msgid "Nitidez"
 msgstr ""
 
@@ -5509,7 +5564,7 @@ msgstr ""
 msgid "No cambies el enfoque ni la orientación de la cámara respecto a las fotos de la noche."
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "No corregir (ecuatorial)"
 msgstr ""
 
@@ -5676,6 +5731,10 @@ msgstr ""
 msgid "No se encuentra PlayerOneCamera.dll ({error})"
 msgstr ""
 
+#: editor_dia.py
+msgid "No se encuentra la imagen en crudo de esta foto"
+msgstr ""
+
 #. js
 #: static/js/humor.js templates/constelacion.html templates/goto.html
 msgid "No se encuentra ningún micrófono."
@@ -5836,7 +5895,7 @@ msgstr ""
 msgid "No se pudo codificar la imagen"
 msgstr ""
 
-#: editor_fotos.py
+#: editor_dia.py editor_fotos.py
 msgid "No se pudo codificar la vista previa"
 msgstr ""
 
@@ -5878,8 +5937,8 @@ msgid "No se pudo ejecutar git: {e}"
 msgstr ""
 
 #. js
-#: static/js/seguimiento.js templates/calibracion.html templates/imagen.html
-#: templates/planetario.html
+#: static/js/seguimiento.js templates/calibracion.html
+#: templates/editar_dia.html templates/imagen.html templates/planetario.html
 msgid "No se pudo empezar"
 msgstr ""
 
@@ -5898,7 +5957,7 @@ msgstr ""
 
 #. js
 #: static/js/asistente.js templates/configuracion.html
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "No se pudo guardar"
 msgstr ""
 
@@ -5998,6 +6057,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "No se pudo resolver: {e}"
+msgstr ""
+
+#: ScopePower.py
+msgid "No se pudo revelar: {e}"
 msgstr ""
 
 #: static/js/puesta_estacion.js
@@ -6122,6 +6185,11 @@ msgstr ""
 
 #: templates/_asistente.html
 msgid "Norte y este en positivo; oeste en negativo (Valencia: 39,47 y −0,38)."
+msgstr ""
+
+#. js
+#: templates/editar_dia.html
+msgid "Nueva"
 msgstr ""
 
 #. js
@@ -6259,7 +6327,7 @@ msgid "Orientación de la imagen del SDK: {t} (correlación {c})"
 msgstr ""
 
 #. js
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Original"
 msgstr ""
 
@@ -6839,14 +6907,8 @@ msgstr ""
 msgid "Reafinando {nombre}..."
 msgstr ""
 
-#. js
-#: templates/imagen.html
-msgid "Reafinando..."
-msgstr ""
-
-#. js
-#: templates/imagen.html
-msgid "Reafinar"
+#: templates/editar_dia.html
+msgid "Realce del relieve por escalas (cráteres, mares, manchas), solo dentro del disco. Mucho detalle saca también el ruido."
 msgstr ""
 
 #. js
@@ -7089,7 +7151,7 @@ msgstr ""
 msgid "Restando el dark y el flat"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Restaurar la foto original"
 msgstr ""
 
@@ -7137,6 +7199,10 @@ msgstr ""
 msgid "Resumen reproducido."
 msgstr ""
 
+#: templates/editar_dia.html
+msgid "Revela la foto a resolución completa con estos ajustes y sustituye el JPG de la galería (el original se conserva)"
+msgstr ""
+
 #: templates/rastros.html
 msgid "Revela la foto con el procesado del apilado, la firma y la guarda en la galería"
 msgstr ""
@@ -7145,8 +7211,16 @@ msgstr ""
 msgid "Revelada como el apilado en {s} s"
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html templates/imagen.html
 msgid "Revelado"
+msgstr ""
+
+#: editor_dia.py
+msgid "Revelando a resolución completa ({p} %)..."
+msgstr ""
+
+#: editor_dia.py
+msgid "Revelando a resolución completa..."
 msgstr ""
 
 #: ScopePower.py
@@ -7167,7 +7241,7 @@ msgstr ""
 msgid "Revelar como el apilado"
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "Rotación de campo"
 msgstr ""
 
@@ -7232,6 +7306,10 @@ msgstr ""
 
 #: templates/configuracion.html
 msgid "Saturación del revelado rápido de la foto de noche en Cámara (el estirado STF que se ve nada más hacerla)."
+msgstr ""
+
+#: templates/editar_dia.html
+msgid "Saturación: 1 es el color natural y 0, blanco y negro. Con 3–5 en la Luna aparecen los tonos de los mares (azules) y las tierras altas (ocres): la «Luna mineral»."
 msgstr ""
 
 #. js
@@ -8229,10 +8307,6 @@ msgid "Vale desde la siguiente foto."
 msgstr ""
 
 #: ScopePower.py
-msgid "Valor no válido"
-msgstr ""
-
-#: ScopePower.py
 msgid "Valores fuera de rango"
 msgstr ""
 
@@ -8339,7 +8413,7 @@ msgstr ""
 msgid "Visible de {desde} a {hasta} · máximo {max}° a las {hora}"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Vista previa"
 msgstr ""
 
@@ -8353,6 +8427,10 @@ msgstr ""
 
 #: templates/configuracion.html
 msgid "Volumen (0-100)"
+msgstr ""
+
+#: templates/editar_dia.html
+msgid "Volver a apilar"
 msgstr ""
 
 #: templates/apilado.html
@@ -8369,11 +8447,6 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "Volver a pendiente"
-msgstr ""
-
-#. js
-#: templates/imagen.html
-msgid "Volver a revelar el apilado guardado con el afinado del deslizador, sin repetir el apilado"
 msgstr ""
 
 #: templates/base.html templates/configuracion.html
@@ -8420,6 +8493,10 @@ msgstr ""
 
 #: templates/_modal_voz.html
 msgid "Vuelve a ScopePower y acepta el permiso del micrófono cuando lo pida."
+msgstr ""
+
+#: templates/editar_dia.html
+msgid "Vuelve a elegir, alinear y apilar los fotogramas del vídeo (uno o dos minutos) y sustituye la foto con los ajustes de arriba"
 msgstr ""
 
 #: templates/apilado.html
@@ -8499,7 +8576,7 @@ msgstr ""
 msgid "Ya hay un centrado en curso"
 msgstr ""
 
-#: editor_fotos.py
+#: editor_dia.py editor_fotos.py
 msgid "Ya hay un guardado en curso"
 msgstr ""
 
@@ -8979,19 +9056,24 @@ msgid "ecuatorial alemana"
 msgstr ""
 
 #. js
+#: templates/imagen.html
+msgid "editar"
+msgstr ""
+
+#. js
 #: apilado.py templates/apilado.html
 msgid "efeméride del MPC"
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "el 10 % más nítido"
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "el 25 % más nítido"
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "el 50 % más nítido"
 msgstr ""
 
@@ -9536,6 +9618,10 @@ msgstr ""
 msgid "limbo"
 msgstr ""
 
+#: templates/editar_dia.html
+msgid "limbo {l} px"
+msgstr ""
+
 #: apilado_video.py
 msgid "limbo {l} px, {n} iteraciones"
 msgstr ""
@@ -10050,7 +10136,7 @@ msgstr ""
 msgid "rojo {v}"
 msgstr ""
 
-#: apilado_video.py
+#: apilado_video.py templates/editar_dia.html
 msgid "rotación de campo corregida (hasta {g}°)"
 msgstr ""
 
@@ -10265,7 +10351,7 @@ msgstr ""
 msgid "toca para cerrar"
 msgstr ""
 
-#: templates/imagen.html
+#: templates/editar_dia.html
 msgid "todos"
 msgstr ""
 
@@ -10937,6 +11023,14 @@ msgstr ""
 msgid "{ultima} px la última · {inicial} al inicio · {minima} la mejor"
 msgstr ""
 
+#: templates/editar_dia.html
+msgid "{usados} de {frames} fotogramas"
+msgstr ""
+
+#: templates/editar_dia.html
+msgid "{usados} de {frames} fotogramas apilados"
+msgstr ""
+
 #: montura_ejes.py
 msgid "{version} (montura 0x{codigo})"
 msgstr ""
@@ -11137,6 +11231,11 @@ msgstr ""
 msgid "¿Volver a la foto original tal como se guardó desde el apilado?"
 msgstr ""
 
+#. js
+#: templates/editar_dia.html
+msgid "¿Volver a la foto original tal como se guardó?"
+msgstr ""
+
 #: templates/seguimiento.html
 msgid "Órdenes / errores"
 msgstr ""
@@ -11311,6 +11410,11 @@ msgid "⏳ Desconectando el equipo..."
 msgstr ""
 
 #. js
+#: templates/editar_dia.html
+msgid "⏳ Empezando el apilado..."
+msgstr ""
+
+#. js
 #: templates/editar_foto.html
 msgid "⏳ Espera a que esté la vista previa y vuelve a tocar"
 msgstr ""
@@ -11326,7 +11430,7 @@ msgstr ""
 
 #. js
 #: templates/apilado.html templates/configuracion.html
-#: templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "⏳ Guardando..."
 msgstr ""
 
@@ -11762,6 +11866,11 @@ msgstr ""
 #. js
 #: templates/configuracion.html
 msgid "✅ Ubicación guardada y en Stellarium"
+msgstr ""
+
+#. js
+#: templates/editar_dia.html
+msgid "✅ Vista previa en {s} s · toca «Original» para comparar"
 msgstr ""
 
 #. js

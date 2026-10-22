@@ -60,6 +60,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_apilado_video.py
 
+      - name: Prueba del editor de día de la galería (galería de mentira en una carpeta temporal)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_editor_dia.py
+
       - name: Prueba de la Luna anotada (geometría contra JPL Horizons y Lunas sintéticas)
         env:
           PYTHONIOENCODING: utf-8

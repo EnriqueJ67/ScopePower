@@ -111,7 +111,7 @@ def revelar_vivo(cfa, patron, negro, balance, orientacion, paso=1, ev=0.0):
             img[..., 2] *= float(balance["b"])
     else:
         img = np.asarray(cfa, dtype=np.float32)[::2 * paso, ::2 * paso] - float(negro)
-    blanco = max(float(np.percentile(img[::2, ::2], 99.9)), 1.0) / 2.0 ** float(ev or 0.0)   # ±EV, como foto_dia.revelar
+    blanco = max(float(np.percentile(img[::2, ::2], 99.99)), 1.0) / 2.0 ** float(ev or 0.0)  # ±EV, como foto_dia.revelar
     img = np.clip(img / blanco, 0.0, 1.0)
     img = (np.power(img, 1.0 / 1.6) * 255.0).astype(np.uint8)
     img = a_orientacion_ascom(img, orientacion)

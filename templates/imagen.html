@@ -263,41 +263,16 @@
                 </div>
             </div>
             <div class="panel-cuerpo">
-                <p class="card-sub">{{ _("Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. Después, aquí se miden todos los fotogramas, se quedan los más nítidos, se alinean y se apilan: el resultado va a la galería como una foto de día más. Con el recorte del 35 % son unos 2,7 GB por minuto.") }}</p>
-                <div class="dos-campos">
-                    <div class="form-group">
-                        <label for="video-duracion">{{ _("Duración de la grabación") }}</label>
-                        <select id="video-duracion" class="form-control">
-                            <option value="30">{{ _("30 segundos") }}</option>
-                            <option value="60">{{ _("1 minuto") }}</option>
-                            <option value="120" selected>{{ _("2 minutos") }}</option>
-                            <option value="300">{{ _("5 minutos") }}</option>
-                            <option value="0">{{ _("Hasta pulsar Parar") }}</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="video-pct">{{ _("Fotogramas que se apilan") }}</label>
-                        <select id="video-pct" class="form-control">
-                            <option value="10">{{ _("el 10 % más nítido") }}</option>
-                            <option value="25" selected>{{ _("el 25 % más nítido") }}</option>
-                            <option value="50">{{ _("el 50 % más nítido") }}</option>
-                            <option value="100">{{ _("todos") }}</option>
-                        </select>
-                    </div>
-                </div>
+                <p class="card-sub">{{ _("Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto.") }}</p>
                 <div class="form-group">
-                    <label for="video-nitidez">{{ _("Afinado") }} <span id="video-nitidez-v" class="texto-3"></span></label>
-                    <input type="range" id="video-nitidez" min="0" max="3" step="0.5" value="1" oninput="pintarNitidezVideo()">
-                    <small class="ayuda">{{ _("Deconvolución del disco con el desenfoque medido en su propio limbo (4 iteraciones por punto). «Reafinar» vuelve a revelar el apilado guardado con el valor del deslizador, en segundos, sin repetir el apilado; sustituye la foto de la galería. La «Nitidez» del editor de la galería no sirve aquí: mide estrellas.") }}</small>
-                </div>
-                <div class="form-group">
-                    <label for="video-rotacion">{{ _("Rotación de campo") }}</label>
-                    <select id="video-rotacion" class="form-control" onchange="guardarRotacionVideo()">
-                        <option value="automatico">{{ _("Automática (según la montura)") }}</option>
-                        <option value="siempre">{{ _("Corregir siempre (altacimutal)") }}</option>
-                        <option value="nunca">{{ _("No corregir (ecuatorial)") }}</option>
+                    <label for="video-duracion">{{ _("Duración de la grabación") }}</label>
+                    <select id="video-duracion" class="form-control">
+                        <option value="30">{{ _("30 segundos") }}</option>
+                        <option value="60">{{ _("1 minuto") }}</option>
+                        <option value="120" selected>{{ _("2 minutos") }}</option>
+                        <option value="300">{{ _("5 minutos") }}</option>
+                        <option value="0">{{ _("Hasta pulsar Parar") }}</option>
                     </select>
-                    <small class="ayuda">{{ _("Con montura altacimutal el disco gira en la imagen durante la grabación y se corrige al apilar; con una ecuatorial no gira. «Automática» pregunta a la montura por ASCOM al grabar. Elige a mano si la montura no lo dice bien, por ejemplo una altacimutal sobre cuña. Vale para el siguiente «Apilar»; «Reafinar» no cambia el alineado.") }}</small>
                 </div>
                 <div id="video-grabacion" class="estado mt-1"></div>
                 <div id="video-apilado" class="mt-2" hidden>
@@ -1212,47 +1187,36 @@
             listarVideos();
         }
     }
-    function pintarNitidezVideo() {
-        const v = parseFloat(document.getElementById("video-nitidez").value);
-        document.getElementById("video-nitidez-v").textContent = v === 0 ? _("(ninguno)") : fmtNum(v, 1);
-    }
-    pintarNitidezVideo();
     function listarVideos() {
         fetch("/videos").then(r => r.json()).then(d => {
             const cont = document.getElementById("video-lista");
             document.getElementById("video-sub").textContent = d.libre_gb !== null && d.libre_gb !== undefined ? _("{gb} GB libres", { gb: fmtNum(d.libre_gb, 1) }) : _("de día");
             if (d.config) {
-                if (d.config.rotacion_campo) document.getElementById("video-rotacion").value = d.config.rotacion_campo;
                 const sel = document.getElementById("video-duracion");
                 if ([...sel.options].some(o => o.value === String(d.config.duracion_s))) sel.value = String(d.config.duracion_s);
             }
             if (!d.videos.length) { cont.innerHTML = '<div class="texto-3">' + _("Todavía no hay ningún vídeo grabado.") + "</div>"; return; }
-            const tApilar = _("Apilar"), tBorrar = _("Borrar el vídeo del mini PC"), tVerApilado = _("ver el apilado en la galería");
-            const tReafinar = _("Reafinar"), tReafinarAyuda = _("Volver a revelar el apilado guardado con el afinado del deslizador, sin repetir el apilado");
+            const tApilar = _("Apilar"), tBorrar = _("Borrar el vídeo del mini PC"), tVerApilado = _("ver el apilado en la galería"), tEditar = _("editar");
             cont.innerHTML = d.videos.map(v => {
                 const fecha = new Date(1000 * v.fecha);
                 const datos = v.error ? "⚠️ " + v.error
                     : _("{n} fotogramas", { n: v.frames }) + (v.duracion_s ? " · " + mmss(v.duracion_s) + (v.fps ? " · " + _("{fps} fotos/s", { fps: fmtNum(v.fps, 0) }) : "") : "") + ` · ${v.ancho}×${v.alto} · ${fmtNum(v.mb, 0)} MB`;
-                const apilado = v.apilado ? `<a href="/galeria#${encodeURIComponent(v.apilado)}" class="texto-2">${tVerApilado}</a>` : "";
+                const apilado = v.apilado ? `<a href="/galeria#${encodeURIComponent(v.apilado)}" class="texto-2">${tVerApilado}</a> · <a href="/galeria/editar-dia/${encodeURIComponent(v.apilado)}" class="texto-2">${tEditar}</a>` : "";
                 const ocupado = apilandoNombre === v.nombre;
                 return `<div class="fila entre" style="gap: 8px; padding: 6px 0; border-top: 1px solid var(--border);">
                     <div style="min-width: 0;"><div><strong>${v.nombre}</strong> <span class="texto-3">${fecha.toLocaleString()}</span></div>
                         <div class="texto-3" style="font-size: 12.5px;">${datos}</div>${apilado}</div>
                     <div class="fila" style="gap: 6px; flex-shrink: 0;">
                         <button type="button" class="btn btn-primary btn-sm" ${v.error || ocupado ? "disabled" : ""} onclick="apilarVideo('${v.nombre}')"><svg><use href="#i-apilado"/></svg>${tApilar}</button>
-                        ${v.reafinable ? `<button type="button" class="btn btn-secondary btn-sm" ${ocupado ? "disabled" : ""} onclick="reafinarVideo('${v.nombre}')" title="${tReafinarAyuda}"><svg><use href="#i-refrescar"/></svg>${tReafinar}</button>` : ""}
                         <button type="button" class="btn btn-secondary btn-sm" ${ocupado ? "disabled" : ""} onclick="borrarVideo('${v.nombre}')" title="${tBorrar}"><svg><use href="#i-papelera"/></svg></button>
                     </div></div>`;
             }).join("");
         }).catch(() => {});
     }
-    function apilarVideo(nombre, reafinar) {
+    function apilarVideo(nombre) {
         const est = document.getElementById("video-estado");
-        const pct = parseInt(document.getElementById("video-pct").value) || 25;
-        const nitidez = parseFloat(document.getElementById("video-nitidez").value) || 0;
-        const rotacion_campo = document.getElementById("video-rotacion").value;
-        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + (reafinar ? _("Reafinando...") : _("Empezando el apilado..."));
-        fetch(reafinar ? "/videos/reafinar" : "/videos/apilar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre, pct, nitidez, rotacion_campo }) })
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Empezando el apilado...");
+        fetch("/videos/apilar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre }) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); return; }
@@ -1262,14 +1226,6 @@
                 sondearApilado();
             })
             .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
-    }
-    function reafinarVideo(nombre) { apilarVideo(nombre, true); }
-    function guardarRotacionVideo() {
-        const rotacion_campo = document.getElementById("video-rotacion").value;
-        fetch("/videos/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rotacion_campo }) })
-            .then(r => r.json())
-            .then(d => { if (!d.ok) { const est = document.getElementById("video-estado"); est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || ""); } })
-            .catch(() => {});
     }
     function cancelarApiladoVideo() { fetch("/videos/apilar/cancelar", { method: "POST" }).catch(() => {}); }
     function pintarApilado(e) {
@@ -1283,9 +1239,9 @@
         } else if (e.terminado && apilandoNombre) {
             apilandoNombre = "";
             est.className = "estado " + (e.error ? "err" : "ok") + " mt-1";
-            const tVer = _("ver en la galería");
+            const tVer = _("ver en la galería"), tEditar = _("editar");
             est.innerHTML = (e.error ? "❌ " : "✅ ") + e.mensaje + (e.resultado && e.resultado.archivo
-                ? ` · <a href="/galeria#${encodeURIComponent(e.resultado.archivo)}">${tVer}</a>`
+                ? ` · <a href="/galeria#${encodeURIComponent(e.resultado.archivo)}">${tVer}</a> · <a href="/galeria/editar-dia/${encodeURIComponent(e.resultado.archivo)}">${tEditar}</a>`
                   + (e.resultado.no_alineados ? " · " + _("{n} sin alinear", { n: e.resultado.no_alineados }) : "") : "");
             listarVideos();
         }
