@@ -1,0 +1,79 @@
+<!-- templates/_puesta_estacion.html: asistente de puesta en estación para monturas ecuatoriales, paso a
+     paso (static/js/puesta_estacion.js; el trabajo está en puesta_estacion.py). Lo incluye alineacion.html;
+     la tarjeta que lo abre solo se ve cuando la montura se declara ecuatorial. -->
+<div id="pe-modal" class="modal" data-latitud="{{ conf_pe.latitud }}" data-tolerancia="{{ conf_pe.tolerancia_arcmin }}">
+    <div class="modal-caja asistente-caja" role="dialog" aria-modal="true" aria-labelledby="pe-titulo">
+        <div class="asis-cabecera">
+            <div class="asis-puntos" id="pe-puntos" aria-hidden="true"></div>
+            <span class="asis-contador" id="pe-contador"></span>
+            <button type="button" class="btn btn-sm btn-ghost btn-icono" onclick="cerrarPuestaEstacion()" aria-label="{{ _('Cerrar el asistente') }}" title="{{ _('Cerrar') }}"><svg><use href="#i-cerrar"/></svg></button>
+        </div>
+
+        <!-- 1. Preparación: la montura más o menos bien puesta a mano -->
+        <section class="asis-paso" data-paso="preparacion">
+            <div class="modal-titulo" id="pe-titulo"><svg class="ico"><use href="#i-brujula"/></svg>{{ _("Puesta en estación") }}</div>
+            <p class="modal-texto">{{ _("Deja la montura más o menos bien y la app hará el resto: tres fotos para medir el eje y después te dirá cuánto girar cada tornillo.") }}</p>
+            <ul class="pe-lista">
+                <li><svg class="ico"><use href="#i-ok"/></svg><span>{{ _("La montura mirando al norte (al sur en el hemisferio sur): vale con la brújula del móvil o la estrella Polar.") }}</span></li>
+                <li><svg class="ico"><use href="#i-ok"/></svg><span>{{ _("El eje polar a la altura de tu latitud, en la escala de la montura:") }} <b id="pe-latitud"></b></span></li>
+                <li><svg class="ico"><use href="#i-ok"/></svg><span>{{ _("Cámara enfocada y sin tapa, con el seguimiento en marcha. Mejor sin apilado ni otros trabajos en curso.") }}</span></li>
+                <li><svg class="ico"><use href="#i-ok"/></svg><span>{{ _("El tubo hacia el polo pero no al polo (Dec 60–80°), a más de 15–20° de altura y lejos del este y del oeste. Si está en la posición de inicio apuntando al polo, la app lo aparta sola.") }}</span></li>
+            </ul>
+            <div id="pe-aviso-hora" class="aviso aviso-warn mt-2" hidden>
+                <svg class="ico"><use href="#i-reloj"/></svg>
+                <span>{{ _("El reloj del PC difiere del móvil más de un minuto: cada minuto son 15′ de acimut. Ponlo en hora en Configuración antes de medir.") }}</span>
+            </div>
+            <details class="pe-ajustes mt-2">
+                <summary>{{ _("Ajustes") }}</summary>
+                <div class="tres-campos-asis">
+                    <div class="form-group"><label for="pe-distancia">{{ _("Giro entre fotos (°)") }}</label><input type="number" id="pe-distancia" min="5" max="45" step="1" value="{{ conf_pe.distancia_grados|int }}"></div>
+                    <div class="form-group"><label for="pe-velocidad">{{ _("Velocidad (°/s)") }}</label><input type="number" id="pe-velocidad" min="0.1" max="4" step="0.1" value="{{ conf_pe.velocidad_eje }}"></div>
+                    <div class="form-group"><label for="pe-tolerancia">{{ _("Tolerancia (′)") }}</label><input type="number" id="pe-tolerancia" min="0.2" max="30" step="0.1" value="{{ conf_pe.tolerancia_arcmin }}"></div>
+                </div>
+                <label class="switch"><input type="checkbox" id="pe-este" {% if conf_pe.hacia_el_este %}checked{% endif %}> {{ _("Girar el eje de AR hacia el este") }}</label>
+                <label class="switch"><input type="checkbox" id="pe-voz" {% if conf_pe.voz %}checked{% endif %}> {{ _("Decir las correcciones por voz") }}</label>
+            </details>
+        </section>
+
+        <!-- 2. Medición: tres fotos girando el eje de AR; la app lo hace sola -->
+        <section class="asis-paso" data-paso="medicion" hidden>
+            <div class="modal-titulo"><svg class="ico"><use href="#i-foto"/></svg>{{ _("Midiendo el eje de la montura") }}</div>
+            <div class="centrado-pasos" id="pe-fotos">
+                <span class="paso">{{ _("Foto 1") }}</span><span class="paso">{{ _("Giro + foto 2") }}</span><span class="paso">{{ _("Giro + foto 3") }}</span>
+            </div>
+            <p id="pe-mensaje" class="estado" style="font-size: 15px; color: var(--text);"><span class="spinner"></span> <span id="pe-mensaje-texto"></span></p>
+            <div class="progress alta" id="pe-progreso" hidden><div id="pe-barra" class="progress-bar"></div></div>
+            <div id="pe-avisos-medicion"></div>
+            <div id="pe-resultado" hidden>
+                <div class="pe-grande" id="pe-resultado-texto"></div>
+                <p class="modal-texto centro" id="pe-resultado-total"></p>
+                <p class="modal-texto">{{ _("Ahora toca solo los tornillos de altura y acimut de la montura siguiendo el paso siguiente. No muevas el telescopio con el pad ni con un GoTo.") }}</p>
+            </div>
+        </section>
+
+        <!-- 3. Ajuste: fotos en bucle mientras el usuario toca los tornillos -->
+        <section class="asis-paso" data-paso="ajuste" hidden>
+            <div class="modal-titulo"><svg class="ico"><use href="#i-ajustes"/></svg>{{ _("Ajusta los tornillos") }}</div>
+            <div class="pe-instrucciones">
+                <div class="pe-instr" id="pe-instr-alt"><div class="pe-flecha" id="pe-flecha-alt">↑</div><div class="pe-valor" id="pe-valor-alt">—</div><div class="pe-texto" id="pe-texto-alt">{{ _("Altura") }}</div></div>
+                <div class="pe-instr" id="pe-instr-az"><div class="pe-flecha" id="pe-flecha-az">→</div><div class="pe-valor" id="pe-valor-az">—</div><div class="pe-texto" id="pe-texto-az">{{ _("Acimut") }}</div></div>
+            </div>
+            <div class="pe-total" id="pe-total"><span class="pe-semaforo" id="pe-semaforo"></span><span id="pe-total-texto">{{ _("Esperando la primera foto del ajuste...") }}</span></div>
+            <p class="pe-estado" id="pe-estado-ajuste"></p>
+            <div id="pe-avisos"></div>
+            <div class="centrado-foto pe-foto"><img id="pe-foto" src="" alt="" hidden></div>
+            <p class="pe-estado">{{ _("Las flechas valen mirando hacia el polo desde detrás de la montura. Si el ajuste se alarga más de un cuarto de hora o has movido mucho la montura, «Repetir la medición» vuelve a medir el eje.") }}</p>
+        </section>
+
+        <div id="pe-aviso" class="aviso aviso-err mt-2" hidden></div>
+
+        <div class="modal-acciones asis-acciones">
+            <button type="button" class="btn btn-ghost" id="pe-cancelar" onclick="peCancelar()"><svg><use href="#i-stop"/></svg>{{ _("Cancelar") }}</button>
+            <button type="button" class="btn btn-secondary" id="pe-repetir" onclick="peRepetir()"><svg><use href="#i-refrescar"/></svg>{{ _("Repetir la medición") }}</button>
+            <button type="button" class="btn btn-primary" id="pe-empezar" onclick="peEmpezar()">{{ _("Empezar") }}<svg><use href="#i-flecha"/></svg></button>
+            <button type="button" class="btn btn-primary" id="pe-ajustar" onclick="peAjustar()">{{ _("Ajustar") }}<svg><use href="#i-flecha"/></svg></button>
+            <button type="button" class="btn btn-primary" id="pe-terminar" onclick="peTerminar()"><svg><use href="#i-ok"/></svg>{{ _("Terminar") }}</button>
+            <button type="button" class="btn btn-primary" id="pe-cerrar" onclick="cerrarPuestaEstacion()">{{ _("Cerrar") }}</button>
+        </div>
+    </div>
+</div>

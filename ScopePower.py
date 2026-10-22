@@ -75,6 +75,7 @@ import rastros
 import apuntado_teorico
 import foto_continua
 import alineacion
+import puesta_estacion
 import voz
 import humor
 import esta_noche
@@ -345,7 +346,7 @@ def _trabajos_en_curso():
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo),
                             (N_("centrado"), centrado.trabajo_centrado),
                             (N_("foto continua"), foto_continua.trabajo_continuo),
-                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento), (N_("alineación"), alineacion.trabajo_alineacion)):
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento), (N_("alineación"), alineacion.trabajo_alineacion), (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion)):
         if trabajo.en_curso:
             return _(nombre)
     return None
@@ -564,6 +565,7 @@ def _asegurar_seguimiento(motivo):
 
 # El centrado hace sus propias fotos (centrado.py): mismo vigilante antes de cada una
 centrado.trabajo_centrado.antes_de_foto = lambda: _asegurar_seguimiento("la foto del centrado")
+puesta_estacion.trabajo_puesta_estacion.antes_de_foto = lambda: _asegurar_seguimiento("la foto de la puesta en estación")
 
 # Objetivo del último GOTO (ra en horas, dec en grados): es lo que usa el
 # centrado automático como referencia, no "donde la montura cree que está".
@@ -1106,7 +1108,7 @@ def _trabajo_aparcar():
 def montura_aparcar():
     if _aparcado["en_curso"]:
         return jsonify({"ok": False, "mensaje": _("Ya se está aparcando la montura")}), 409
-    for nombre, trabajo in ((N_("centrado"), centrado.trabajo_centrado), (N_("alineación"), alineacion.trabajo_alineacion),
+    for nombre, trabajo in ((N_("centrado"), centrado.trabajo_centrado), (N_("alineación"), alineacion.trabajo_alineacion), (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion),
                             (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "mensaje": _("Hay un trabajo de {nombre} en marcha; páralo antes de aparcar",
@@ -1818,7 +1820,7 @@ def montura_asentamiento():
         cfg["Montura"]["asentamiento_s"] = f"{segundos:g}"
         # Las secciones con su propio valor mandarían sobre este: se vacían para que
         # el ajuste de la web sea el que se aplica en todos los movimientos.
-        for sec in ("Centrado", "Alineacion", "Dithering"):
+        for sec in ("Centrado", "Alineacion", "PuestaEnEstacion", "Dithering"):
             if sec in cfg and cfg[sec].get("asentamiento_s", "").strip():
                 cfg[sec]["asentamiento_s"] = ""
         with open("config.ini", "w") as f:
@@ -2683,7 +2685,7 @@ def _montura_ocupada():
         return motivo_plan
     if bucle.activo and not bucle.pausado:
         return _("El apilado está capturando; páusalo antes de mover el telescopio.")
-    for nombre, trabajo in ((N_("centrado"), centrado.trabajo_centrado), (N_("alineación"), alineacion.trabajo_alineacion),
+    for nombre, trabajo in ((N_("centrado"), centrado.trabajo_centrado), (N_("alineación"), alineacion.trabajo_alineacion), (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion),
                             (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return _("Hay un trabajo de {nombre} en marcha; espera a que termine.", nombre=_(nombre))
@@ -3506,20 +3508,31 @@ def leer_txt_constelacion():
 
 @app.route('/alineacion')
 def vista_alineacion():
-    return render_template('alineacion.html', mostrar_volver=True, conf=alineacion.leer_config())
+    return render_template('alineacion.html', mostrar_volver=True, conf=alineacion.leer_config(),
+                           conf_pe=puesta_estacion.leer_config())
+
+
+def _otro_trabajo_con_el_equipo(excepto=None):
+    """Mensaje de error si el apilado u otro trabajo tiene la cámara o la montura; None si está libre."""
+    if bucle.activo and not bucle.pausado:
+        return _("El apilado está capturando; páusalo o detenlo antes de alinear")
+    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo),
+                            (N_("centrado"), centrado.trabajo_centrado),
+                            (N_("foto continua"), foto_continua.trabajo_continuo),
+                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento),
+                            (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion)):
+        if trabajo is not excepto and trabajo.en_curso:
+            return _("Espera a que termine el trabajo de {otro}", otro=_(nombre))
+    return None
 
 
 @app.route('/alineacion/iniciar', methods=["POST"])
 def alineacion_iniciar():
     """Alineación automática de varios puntos por plate solving (ver alineacion.py)."""
-    if bucle.activo and not bucle.pausado:
-        return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes de alinear")}), 409
-    for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo),
-                            (N_("centrado"), centrado.trabajo_centrado),
-                            (N_("foto continua"), foto_continua.trabajo_continuo),
-                            (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
-        if trabajo.en_curso:
-            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
+    ocupado = _otro_trabajo_con_el_equipo(excepto=alineacion.trabajo_alineacion)
+    if ocupado:
+        return jsonify({"ok": False, "error": ocupado}), 409
     datos = request.get_json(silent=True) or {}
     conf = alineacion.leer_config()
     if "puntos" in datos:
@@ -3546,6 +3559,90 @@ def alineacion_estado():
 def alineacion_cancelar():
     alineacion.trabajo_alineacion.cancelar()
     return jsonify({"mensaje": _("⏹️ Cancelando alineación...")})
+
+
+# ───────────────────────── Puesta en estación (montura ecuatorial) ─────────────────────────
+# Asistente de tres fotos + ajuste en bucle (puesta_estacion.py); modal en la pantalla de Alineación.
+MODOS_ECUATORIALES = ("ecuatorial", "ecuatorial_alemana")
+
+
+@app.route('/puesta-estacion/iniciar', methods=["POST"])
+def puesta_estacion_iniciar():
+    ocupado = _otro_trabajo_con_el_equipo(excepto=puesta_estacion.trabajo_puesta_estacion)
+    if ocupado:
+        return jsonify({"ok": False, "error": ocupado}), 409
+    if not montura.esta_conectado() or _montura_info["modo"] not in MODOS_ECUATORIALES:
+        return jsonify({"ok": False, "codigo": "no_ecuatorial",
+                        "error": _("La montura no se declara ecuatorial: la puesta en estación solo vale para monturas ecuatoriales")}), 400
+    conf = puesta_estacion.leer_config()
+    if conf["latitud"] == 0 and conf["longitud"] == 0:
+        return jsonify({"ok": False, "codigo": "sin_ubicacion",
+                        "error": _("Falta la ubicación del observatorio: ponla en Configuración")}), 400
+    datos = request.get_json(silent=True) or {}
+    guardar = {}
+    try:
+        if "distancia_grados" in datos:
+            conf["distancia_grados"] = guardar["distancia_grados"] = max(5.0, min(45.0, float(datos["distancia_grados"])))
+        if "velocidad_eje" in datos:
+            conf["velocidad_eje"] = guardar["velocidad_eje"] = max(0.1, min(4.0, float(datos["velocidad_eje"])))
+        if "tolerancia_arcmin" in datos:
+            conf["tolerancia_arcmin"] = guardar["tolerancia_arcmin"] = max(0.2, min(30.0, float(datos["tolerancia_arcmin"])))
+        if "hacia_el_este" in datos:
+            conf["hacia_el_este"] = bool(datos["hacia_el_este"])
+            guardar["hacia_el_este"] = "true" if conf["hacia_el_este"] else "false"
+        if "voz" in datos:
+            conf["voz"] = bool(datos["voz"])
+            guardar["voz"] = "true" if conf["voz"] else "false"
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": _("Ajustes no válidos")}), 400
+    if guardar:
+        _guardar_en_config("PuestaEnEstacion", guardar)
+    try:
+        puesta_estacion.trabajo_puesta_estacion.iniciar(camara, montura, conf=conf, voz=voz,
+                                                        modo_montura=_montura_info["modo"])
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True})
+
+
+@app.route('/puesta-estacion/estado')
+def puesta_estacion_estado():
+    return jsonify(puesta_estacion.trabajo_puesta_estacion.estado())
+
+
+@app.route('/puesta-estacion/cancelar', methods=["POST"])
+def puesta_estacion_cancelar():
+    puesta_estacion.trabajo_puesta_estacion.cancelar()
+    return jsonify({"ok": True})
+
+
+@app.route('/puesta-estacion/terminar', methods=["POST"])
+def puesta_estacion_terminar():
+    """Da por buena la puesta en estación: sale del bucle de ajuste y deja la montura siguiendo."""
+    if puesta_estacion.trabajo_puesta_estacion.estado()["fase"] != "ajustando":
+        return jsonify({"ok": False, "error": _("Aún no se está ajustando")}), 409
+    puesta_estacion.trabajo_puesta_estacion.terminar()
+    return jsonify({"ok": True})
+
+
+@app.route('/puesta-estacion/repetir', methods=["POST"])
+def puesta_estacion_repetir():
+    """Vuelve a medir con tres fotos (tras un ajuste grande o largo)."""
+    if puesta_estacion.trabajo_puesta_estacion.estado()["fase"] != "ajustando":
+        return jsonify({"ok": False, "error": _("Aún no se está ajustando")}), 409
+    puesta_estacion.trabajo_puesta_estacion.repetir()
+    return jsonify({"ok": True})
+
+
+@app.route('/puesta-estacion/imagen')
+def puesta_estacion_imagen():
+    """JPG de la última foto del asistente (puesta_estacion.py lo genera en cada foto)."""
+    ruta = ruta_absoluta(puesta_estacion.RUTA_PREVIEW)
+    if not os.path.exists(ruta):
+        return send_file("static/esperando.png", mimetype="image/png")
+    respuesta = send_file(ruta, mimetype="image/jpeg")
+    respuesta.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return respuesta
 
 
 @app.route('/centrado/estado')
@@ -4366,7 +4463,7 @@ def color_calibrar():
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("flats"), flats.trabajo_flats), (N_("centrado"), centrado.trabajo_centrado),
                             (N_("foto continua"), foto_continua.trabajo_continuo), (N_("foto de día"), foto_dia.trabajo_foto_dia),
-                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion), (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion),
                             (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
@@ -4402,7 +4499,7 @@ def vivo_iniciar():
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("flats"), flats.trabajo_flats), (N_("centrado"), centrado.trabajo_centrado),
                             (N_("foto continua"), foto_continua.trabajo_continuo), (N_("foto de día"), foto_dia.trabajo_foto_dia),
-                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion), (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion),
                             (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento),
                             (N_("calibración del color"), foto_dia.trabajo_balance_blanco)):
         if trabajo.en_curso:
@@ -4901,7 +4998,7 @@ def continuo_iniciar():
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("flats"), flats.trabajo_flats),
                             (N_("centrado"), centrado.trabajo_centrado), (N_("foto de día"), foto_dia.trabajo_foto_dia),
-                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion), (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion),
                             (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
@@ -4996,7 +5093,7 @@ def seguimiento_iniciar():
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("flats"), flats.trabajo_flats),
                             (N_("centrado"), centrado.trabajo_centrado), (N_("foto de día"), foto_dia.trabajo_foto_dia),
-                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion), (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion),
                             (N_("foto continua"), foto_continua.trabajo_continuo), (N_("modo en vivo"), vivo_dia.trabajo_vivo)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
@@ -5133,7 +5230,7 @@ def seguimiento_orientacion_sdk():
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("flats"), flats.trabajo_flats),
                             (N_("centrado"), centrado.trabajo_centrado), (N_("foto de día"), foto_dia.trabajo_foto_dia),
-                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion),
+                            (N_("timelapse"), foto_dia.trabajo_timelapse), (N_("alineación"), alineacion.trabajo_alineacion), (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion),
                             (N_("foto continua"), foto_continua.trabajo_continuo), (N_("modo en vivo"), vivo_dia.trabajo_vivo)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
@@ -5293,7 +5390,7 @@ def flats_iniciar():
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("centrado"), centrado.trabajo_centrado),
-                            (N_("alineación"), alineacion.trabajo_alineacion), (N_("foto continua"), foto_continua.trabajo_continuo),
+                            (N_("alineación"), alineacion.trabajo_alineacion), (N_("puesta en estación"), puesta_estacion.trabajo_puesta_estacion), (N_("foto continua"), foto_continua.trabajo_continuo),
                             (N_("seguimiento de objetos"), seguimiento.trabajo_seguimiento)):
         if trabajo.en_curso:
             return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409

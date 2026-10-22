@@ -64,3 +64,8 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_luna_anotada.py
+
+      - name: Prueba de la puesta en estación (montura falsa con error conocido, sin ASTAP)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_puesta_estacion.py
