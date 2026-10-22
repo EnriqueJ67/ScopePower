@@ -1554,7 +1554,7 @@ msgid "Con estos datos se calcula qué objetos están altos, los puntos de la al
 msgstr ""
 
 #: templates/imagen.html
-msgid "Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras) y se mide la anchura del limbo en píxeles (cuanto menor, mejor foco); en vivo se enseña el fotograma más nítido de los últimos y el mejor valor de la sesión, para girar el enfocador hasta el mínimo."
+msgid "Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»)."
 msgstr ""
 
 #: templates/seguimiento.html
@@ -8670,6 +8670,10 @@ msgstr ""
 msgid "el catálogo no ha quedado en la carpeta de ASTAP"
 msgstr ""
 
+#: enfoque.py
+msgid "el disco no es el de antes (¿cortado por el borde?)"
+msgstr ""
+
 #. js
 #: camara_toupcam.py
 msgid "el dispositivo no responde"
@@ -8684,7 +8688,7 @@ msgid "el driver «{driver}» no está instalado en este PC: elige otro o instal
 msgstr ""
 
 #: enfoque.py
-msgid "el limbo no se ve bien (¿nubes, saturado, casi fuera de campo?)"
+msgid "el limbo no se ve bien (¿disco cortado por el borde, nubes, saturado?)"
 msgstr ""
 
 #: vivo_dia.py
@@ -8725,6 +8729,11 @@ msgstr ""
 
 #: camara_toupcam.py
 msgid "elegir la resolución completa"
+msgstr ""
+
+#. js
+#: enfoque.py templates/imagen.html
+msgid "empeora"
 msgstr ""
 
 #: templates/rastros.html
@@ -9018,6 +9027,11 @@ msgstr ""
 msgid "identificador de cámara no válido"
 msgstr ""
 
+#. js
+#: enfoque.py templates/imagen.html
+msgid "igual"
+msgstr ""
+
 #: vivo_dia.py
 msgid "imagen continua de {objeto}"
 msgstr ""
@@ -9090,6 +9104,10 @@ msgstr ""
 msgid "la del driver"
 msgstr ""
 
+#: enfoque.py
+msgid "la imagen se mueve"
+msgstr ""
+
 #: hardware.py
 msgid "la montura está en uso por {motivo}"
 msgstr ""
@@ -9158,6 +9176,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "libres {tam}"
+msgstr ""
+
+#: enfoque.py
+msgid "limbo"
 msgstr ""
 
 #: apilado_video.py
@@ -9230,6 +9252,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "mejor {v}"
+msgstr ""
+
+#. js
+#: enfoque.py templates/imagen.html
+msgid "mejora"
 msgstr ""
 
 #. js
@@ -9826,6 +9853,10 @@ msgstr ""
 #. js
 #: static/js/mosaico.js static/js/plan.js templates/planetario.html
 msgid "terminado"
+msgstr ""
+
+#: enfoque.py
+msgid "terminador"
 msgstr ""
 
 #: static/js/mosaico.js

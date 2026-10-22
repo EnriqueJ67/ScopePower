@@ -185,6 +185,7 @@ class TrabajoVivo:
         self.balance = None
         self.fotogramas = 0
         self.enfoque = None            # medida de la estrella con el modo enfoque (enfoque.py)
+        self._voz = None
         self._ultimo_visto = time.time()
 
     def estado(self):
@@ -333,11 +334,12 @@ class TrabajoVivo:
                 self.fase = fase
         log.info("En vivo: %s", texto)
 
-    def iniciar(self, camara_ascom, objetivo, campo, compensacion=None, fabrica_camara=None):
+    def iniciar(self, camara_ascom, objetivo, campo, compensacion=None, fabrica_camara=None, voz=None):
         """
         camara_ascom: TrabajadorCOM de la app (se reserva mientras dura).
         compensacion: EV o función que lo devuelve (se relee en cada fotograma).
         fabrica_camara(): objeto con la interfaz de CamaraNativa (el simulador en pruebas).
+        voz: el módulo voz de la app (el veredicto del enfoque de día se dice por el altavoz del PC).
         """
         if objetivo not in foto_dia.OBJETIVOS:
             raise ValueError(_("Objetivo desconocido: {objetivo}", objetivo=objetivo))
@@ -354,6 +356,7 @@ class TrabajoVivo:
             self.objetivo = objetivo
             self.campo = max(0.2, min(1.0, float(campo)))
             self.mensaje = _("Pasando la cámara al SDK...")
+            self._voz = voz
         self._hilo = threading.Thread(target=self._ejecutar, name="vivo-dia", daemon=True,
                                       args=(camara_ascom, compensacion, fabrica_camara))
         self._hilo.start()
@@ -515,6 +518,11 @@ class TrabajoVivo:
                 # Solo el verde, con el limbo del Sol o la Luna ampliado y su anchura (enfoque.py)
                 girada, encuadre, info_enfoque = enfoque.imagen_vivo_disco(cfa, patron, paso, lambda im: a_orientacion_ascom(im, orientacion),
                                                                            giro_camara.girar, historial_limbo, objetivo=self.objetivo)
+                if info_enfoque.get("veredicto"):
+                    # «mejora» / «empeora» / «igual» al girar el enfocador, sin mirar la tablet
+                    log.info("Enfoque de día: %s (%s)", enfoque.texto_veredicto(info_enfoque["veredicto"]), enfoque.texto_info(info_enfoque))
+                    if self._voz:
+                        self._voz.decir(enfoque.texto_veredicto(info_enfoque["veredicto"]))
             elif modo_enfoque:
                 # Solo el verde, con la estrella más brillante ampliada (enfoque.py); foto_actual sigue con la de color
                 girada, encuadre, info_enfoque = enfoque.imagen_vivo(cfa, patron, paso, lambda im: a_orientacion_ascom(im, orientacion),

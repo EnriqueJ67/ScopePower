@@ -4403,7 +4403,7 @@ def vivo_iniciar():
     if conf["seguimiento"] and montura.esta_conectado() and foto_dia.poner_seguimiento(montura, conf["seguimiento"]):
         seguimiento_montura = conf["seguimiento"]
     try:
-        vivo_dia.trabajo_vivo.iniciar(camara, objetivo, _campo_foto_dia(datos), compensacion=_compensacion_foto_dia)
+        vivo_dia.trabajo_vivo.iniciar(camara, objetivo, _campo_foto_dia(datos), compensacion=_compensacion_foto_dia, voz=voz)
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     nombre_objetivo = conf["nombre"]
