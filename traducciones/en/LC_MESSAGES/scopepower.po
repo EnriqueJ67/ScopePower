@@ -18,6 +18,10 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.11.0\n"
 
+#: puesta_estacion.py
+msgid " y "
+msgstr " and "
+
 #: templates/editar_foto.html
 msgid "% que se quita por cada lado antes de procesar (ni el fondo ni nada se calcula con lo recortado). Los bordes negros de la rotación de campo se detectan y se quitan solos; esto es para apurar más."
 msgstr "% removed from each side before processing (neither the background nor anything else is computed with the cropped part). Black edges from field rotation are detected and removed automatically; this is to trim further."
@@ -99,7 +103,7 @@ msgid "(quedan {n} s)"
 msgstr "({n} s left)"
 
 #. js
-#: templates/alineacion.html
+#: static/js/puesta_estacion.js templates/alineacion.html
 msgid "(quedan {s} s)"
 msgstr "({s} s left)"
 
@@ -400,6 +404,10 @@ msgstr "Invalid action"
 msgid "Aceptar, ya está tapado"
 msgstr "OK, it's covered"
 
+#: static/js/puesta_estacion.js templates/_puesta_estacion.html
+msgid "Acimut"
+msgstr "Azimuth"
+
 #: templates/imagen.html
 msgid "Activado"
 msgstr "On"
@@ -460,10 +468,22 @@ msgstr "The camera is currently at {ganancia}."
 msgid "Ahora tiene {actual}. Vacío = no tocarla."
 msgstr "It's at {actual} now. Empty = leave it alone."
 
+#: templates/_puesta_estacion.html
+msgid "Ahora toca solo los tornillos de altura y acimut de la montura siguiendo el paso siguiente. No muevas el telescopio con el pad ni con un GoTo."
+msgstr "Now touch only the mount's altitude and azimuth bolts, following the next step. Do not move the telescope with the pad or a GoTo."
+
 #: templates/seguimiento.html
 #, python-format
 msgid "Ajusta la exposición (no la ganancia) para que el pico del objeto seguido quede en torno al 70 % de la escala, entre {min} y {max} ms"
 msgstr "Adjusts the exposure (not the gain) so the tracked object's peak stays around 70% of the scale, between {min} and {max} ms"
+
+#: templates/_puesta_estacion.html
+msgid "Ajusta los tornillos"
+msgstr "Adjust the bolts"
+
+#: puesta_estacion.py
+msgid "Ajusta los tornillos de altura y acimut; la app va midiendo"
+msgstr "Adjust the altitude and azimuth bolts; the app keeps measuring"
 
 #. js
 #: templates/flats.html
@@ -478,6 +498,10 @@ msgstr "Adjusting the flat exposure"
 msgid "Ajustando la exposición del flat..."
 msgstr "Adjusting the flat exposure..."
 
+#: templates/_puesta_estacion.html
+msgid "Ajustar"
+msgstr "Adjust"
+
 #: templates/apilado.html templates/editar_foto.html templates/imagen.html
 msgid "Ajuste fino del giro"
 msgstr "Fine rotation adjustment"
@@ -486,9 +510,21 @@ msgstr "Fine rotation adjustment"
 msgid "Ajuste no válido: {e}"
 msgstr "Invalid setting: {e}"
 
+#: puesta_estacion.py
+msgid "Ajuste {n}"
+msgstr "Adjustment {n}"
+
+#: templates/_puesta_estacion.html
+msgid "Ajustes"
+msgstr "Settings"
+
 #: templates/apilado.html
 msgid "Ajustes del plan"
 msgstr "Plan settings"
+
+#: ScopePower.py
+msgid "Ajustes no válidos"
+msgstr "Invalid settings"
 
 #: ScopePower.py
 msgid "Al Sol no se va con el plan: usa el GoTo con el filtro solar puesto"
@@ -562,6 +598,7 @@ msgstr "Altitude (m)"
 msgid "Altitud:"
 msgstr "Altitude:"
 
+#: static/js/puesta_estacion.js templates/_puesta_estacion.html
 #: templates/seguimiento.html
 msgid "Altura"
 msgstr "Altitude"
@@ -797,6 +834,10 @@ msgstr "Asinh: lifts faint detail more"
 msgid "Asistente de configuración"
 msgstr "Setup wizard"
 
+#: templates/alineacion.html
+msgid "Asistente de puesta en estación"
+msgstr "Polar alignment assistant"
+
 #. js
 #: catalogo_offline.py templates/planetario.html
 msgid "Asociación estelar"
@@ -906,10 +947,18 @@ msgstr "There's no plate solving with this camera yet: do one at night (centerin
 msgid "Aún no hay recorrido preparado."
 msgstr "No tour ready yet."
 
+#: ScopePower.py
+msgid "Aún no se está ajustando"
+msgstr "Not adjusting yet"
+
 #. js
 #: templates/imagen.html
 msgid "Baja la exposición para encuadrar y enfocar sin esperar; aquí no se guarda. Si hay un dark de esa exposición, se resta."
 msgstr "Lower the exposure to frame and focus without waiting; it isn't saved here. If there is a dark for that exposure, it is subtracted."
+
+#: static/js/puesta_estacion.js
+msgid "Baja la montura"
+msgstr "Lower the mount"
 
 #: templates/apilado.html templates/editar_foto.html templates/imagen.html
 msgid "Bajar"
@@ -923,6 +972,10 @@ msgstr "Balance out of range (R×{r}, B×{b}): is it really white and in direct 
 #: esta_noche.py
 msgid "Bandas y las cuatro lunas galileanas."
 msgstr "Cloud bands and the four Galilean moons."
+
+#: puesta_estacion.py
+msgid "Bien"
+msgstr "Good"
 
 #: templates/bienvenida.html
 msgid "Bienvenida"
@@ -1050,6 +1103,10 @@ msgstr "Each shot is saved developed at full resolution (about 2–4 MB) in stat
 msgid "Cada foto tarda la exposición elegida arriba (o la de Configuración) más unos segundos de descarga y revelado."
 msgstr "Each shot takes the exposure chosen above (or the one in Settings) plus a few seconds to download and develop."
 
+#: puesta_estacion.py
+msgid "Calculando el eje de la montura"
+msgstr "Computing the mount axis"
+
 #: templates/esta_noche.html
 msgid "Calculando qué se ve bien hoy..."
 msgstr "Working out what looks good tonight..."
@@ -1148,9 +1205,10 @@ msgstr "Visible field (zoom)"
 msgid "Campo {ra} {dec}"
 msgstr "Field {ra} {dec}"
 
-#: templates/_asistente.html templates/alineacion.html templates/apagar.html
-#: templates/apilado.html templates/calibracion.html templates/dark.html
-#: templates/flats.html templates/imagen.html
+#: templates/_asistente.html templates/_puesta_estacion.html
+#: templates/alineacion.html templates/apagar.html templates/apilado.html
+#: templates/calibracion.html templates/dark.html templates/flats.html
+#: templates/imagen.html
 msgid "Cancelar"
 msgstr "Cancel"
 
@@ -1338,7 +1396,8 @@ msgstr "Center: <b>{nombre}</b> ({fuente})"
 msgid "Centro: {nombre} ({fuente}) · RA {ra} · Dec {dec}"
 msgstr "Center: {nombre} ({fuente}) · RA {ra} · Dec {dec}"
 
-#: templates/_asistente.html templates/_modal_humor.html templates/apilado.html
+#: templates/_asistente.html templates/_modal_humor.html
+#: templates/_puesta_estacion.html templates/apilado.html
 #: templates/planetario.html
 msgid "Cerrar"
 msgstr "Close"
@@ -1351,9 +1410,9 @@ msgstr "Close application"
 msgid "Cerrar aviso"
 msgstr "Close notice"
 
-#: templates/_asistente.html
+#: templates/_asistente.html templates/_puesta_estacion.html
 msgid "Cerrar el asistente"
-msgstr "Close the wizard"
+msgstr "Close the assistant"
 
 #: templates/apagar.html templates/home.html
 msgid "Cerrar o apagar"
@@ -1501,6 +1560,10 @@ msgstr "Highlight compression"
 #: templates/home.html
 msgid "Comprobando el equipo..."
 msgstr "Checking the equipment..."
+
+#: puesta_estacion.py
+msgid "Comprobando la montura"
+msgstr "Checking the mount"
 
 #: templates/_asistente.html
 msgid "Comprobando..."
@@ -1831,6 +1894,10 @@ msgstr "Camera"
 msgid "Cámara conectada"
 msgstr "Camera connected"
 
+#: templates/_puesta_estacion.html
+msgid "Cámara enfocada y sin tapa, con el seguimiento en marcha. Mejor sin apilado ni otros trabajos en curso."
+msgstr "Camera focused and uncapped, with tracking on. Better with no stacking or other jobs running."
+
 #. js
 #: templates/base.html
 msgid "Cámara sin conectar"
@@ -1966,6 +2033,10 @@ msgstr "Please enter an object name."
 msgid "Decir el objeto"
 msgstr "Say the object"
 
+#: templates/_puesta_estacion.html
+msgid "Decir las correcciones por voz"
+msgstr "Speak the corrections aloud"
+
 #: templates/constelacion.html
 msgid "Decirla"
 msgstr "Say it"
@@ -1981,6 +2052,10 @@ msgstr "Tell ScopePower"
 #: templates/imagen.html
 msgid "Deja la foto como se ve a simple vista: arriba hacia el cénit y el acimut hacia la derecha"
 msgstr "Orients the shot as seen with the naked eye: up toward the zenith and azimuth to the right"
+
+#: templates/_puesta_estacion.html
+msgid "Deja la montura más o menos bien y la app hará el resto: tres fotos para medir el eje y después te dirá cuánto girar cada tornillo."
+msgstr "Set the mount up roughly and the app does the rest: three photos to measure the axis, then it tells you how much to turn each bolt."
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Deja recta la curva de este canal"
@@ -2002,6 +2077,14 @@ msgstr "From filter"
 #: flats.py
 msgid "Demasiada luz: el sensor satura incluso con la exposición mínima. Baja el brillo de la pantalla o añade otra capa de camiseta."
 msgstr "Too much light: the sensor saturates even at the minimum exposure. Turn down the panel brightness or add another layer of T-shirt."
+
+#: static/js/puesta_estacion.js
+msgid "Dentro de la tolerancia ({t}′): la montura está en estación"
+msgstr "Within tolerance ({t}′): the mount is polar aligned"
+
+#: puesta_estacion.py
+msgid "Dentro de la tolerancia: la montura está en estación"
+msgstr "Within tolerance: the mount is polar aligned"
 
 #. js
 #: templates/apilado.html
@@ -2299,6 +2382,10 @@ msgstr "The edge does not match a disk of that size (only {p} %): clouds in fron
 msgid "El borde no parece el de la Luna: ¿está desenfocada, tapada por nubes o fuera de campo?"
 msgstr "The edge does not look like the Moon's: is it out of focus, behind clouds or out of the frame?"
 
+#: puesta_estacion.py
+msgid "El campo está casi al este u oeste: la medida del acimut es poco precisa"
+msgstr "The field is almost due east or west: the azimuth reading is imprecise"
+
 #: mosaico.py
 msgid "El centrado no resolvió ninguna foto; la rejilla va con el giro previsto"
 msgstr "Centering did not solve any shot; the grid uses the expected rotation"
@@ -2346,6 +2433,18 @@ msgstr "Double"
 #: ScopePower.py
 msgid "El driver de la montura no admite cambiar la velocidad de seguimiento"
 msgstr "The mount driver doesn't support changing the tracking rate"
+
+#: puesta_estacion.py
+msgid "El driver de la montura no permite mover el eje de AR (MoveAxis): no se puede medir"
+msgstr "The mount driver cannot move the RA axis (MoveAxis): nothing can be measured"
+
+#: puesta_estacion.py static/js/puesta_estacion.js
+msgid "El eje está {alt} y {az}"
+msgstr "The axis is {alt} and {az}"
+
+#: templates/_puesta_estacion.html
+msgid "El eje polar a la altura de tu latitud, en la escala de la montura:"
+msgstr "The polar axis at the altitude of your latitude, on the mount's scale:"
 
 #: seguimiento.py
 msgid "El eje {eje} no se ha movido ({g}°): ¿montura parada o sin posición?"
@@ -2566,6 +2665,10 @@ msgstr "The point is already centered; no need to move."
 msgid "El reconocimiento de voz está desactivado en este navegador."
 msgstr "Speech recognition is turned off in this browser."
 
+#: templates/_puesta_estacion.html
+msgid "El reloj del PC difiere del móvil más de un minuto: cada minuto son 15′ de acimut. Ponlo en hora en Configuración antes de medir."
+msgstr "The PC clock differs from the phone by more than a minute: every minute is 15′ of azimuth. Set it in Settings before measuring."
+
 #: templates/configuracion.html
 msgid "El reloj del PC no coincide con el del móvil. Un desfase de minutos apenas afecta al GoTo (el centrado lo corrige), pero sí a «Esta noche», a la alineación y a los cometas."
 msgstr "The PC clock doesn't match the phone's. A few minutes off barely affects GoTo (centering fixes it), but it does affect “Tonight”, the alignment and comets."
@@ -2597,6 +2700,14 @@ msgstr "Tracking isn't running"
 msgid "El seguimiento ya está en marcha"
 msgstr "Object tracking is already running"
 
+#: puesta_estacion.py
+msgid "El telescopio apunta al polo (Dec {dec}°): apártalo unos 20° con el pad"
+msgstr "The telescope points at the pole (Dec {dec}°): move it about 20° away with the pad"
+
+#: puesta_estacion.py
+msgid "El telescopio apunta demasiado bajo ({alt}°): apúntalo a más de {minimo}° de altura"
+msgstr "The telescope points too low ({alt}°): point it higher than {minimo}° of altitude"
+
 #: centrado.py
 msgid "El telescopio apunta por debajo de la altura mínima; centrado cancelado"
 msgstr "The telescope is pointing below the minimum altitude; centering canceled"
@@ -2604,6 +2715,14 @@ msgstr "The telescope is pointing below the minimum altitude; centering canceled
 #: templates/constelacion.html
 msgid "El telescopio recorre las estrellas y objetos de una constelación mientras el móvil los explica en voz alta."
 msgstr "The telescope tours the stars and objects of a constellation while the phone describes them out loud."
+
+#: puesta_estacion.py
+msgid "El tubo apunta al polo: apartando el eje de Dec {d}°"
+msgstr "The tube points at the pole: moving the Dec axis {d}° away"
+
+#: templates/_puesta_estacion.html
+msgid "El tubo hacia el polo pero no al polo (Dec 60–80°), a más de 15–20° de altura y lejos del este y del oeste. Si está en la posición de inicio apuntando al polo, la app lo aparta sola."
+msgstr "The tube towards the pole but not at the pole (Dec 60–80°), higher than 15–20° and away from due east and west. If it is in the home position pointing at the pole, the app moves it away by itself."
 
 #: ScopePower.py
 msgid "El usuario solo puede llevar letras sin acentos, números, punto, guion y guion bajo"
@@ -2678,7 +2797,8 @@ msgstr "Starting the timelapse..."
 msgid "Empezando..."
 msgstr "Starting..."
 
-#: static/js/asistente.js templates/apilado.html
+#: static/js/asistente.js templates/_puesta_estacion.html
+#: templates/apilado.html
 msgid "Empezar"
 msgstr "Start"
 
@@ -2978,6 +3098,7 @@ msgid "Error inesperado"
 msgstr "Unexpected error"
 
 #: alineacion.py apilado.py bucle_captura.py centrado.py foto_continua.py
+#: puesta_estacion.py
 msgid "Error inesperado: {e}"
 msgstr "Unexpected error: {e}"
 
@@ -2993,6 +3114,14 @@ msgstr "Previous error"
 msgid "Error procesando {foto}: {e}"
 msgstr "Error processing {foto}: {e}"
 
+#: static/js/puesta_estacion.js
+msgid "Error total {v}′ · objetivo {t}′"
+msgstr "Total error {v}′ · target {t}′"
+
+#: static/js/puesta_estacion.js
+msgid "Error total: {t}′"
+msgstr "Total error: {t}′"
+
 #. js
 #: templates/editar_foto.html
 msgid "Error {codigo}"
@@ -3000,8 +3129,8 @@ msgstr "Error {codigo}"
 
 #. js
 #: ScopePower.py apilado.py apilado_video.py foto_dia.py seguimiento.py
-#: templates/alineacion.html templates/dark.html templates/flats.html
-#: templates/rastros.html vivo_dia.py
+#: static/js/puesta_estacion.js templates/alineacion.html templates/dark.html
+#: templates/flats.html templates/rastros.html vivo_dia.py
 msgid "Error: {e}"
 msgstr "Error: {e}"
 
@@ -3101,6 +3230,10 @@ msgstr "Waiting for nightfall ({hora})"
 msgid "Esperando confirmación del filtro solar…"
 msgstr "Waiting for solar filter confirmation…"
 
+#: static/js/puesta_estacion.js templates/_puesta_estacion.html
+msgid "Esperando la primera foto del ajuste..."
+msgstr "Waiting for the first adjustment photo..."
+
 #: disco.py
 msgid "Esperando una foto nueva..."
 msgstr "Waiting for a new shot..."
@@ -3162,6 +3295,10 @@ msgstr "Settling time after moving (s)"
 #: templates/configuracion.html
 msgid "Estabilización tras mover: segundos que se espera tras cada movimiento de la montura (GOTO, centrado, dithering, alineación, «Apunta aquí») antes de hacer la siguiente foto, para que deje de vibrar. Súbelo si las primeras fotos tras mover salen con las estrellas movidas."
 msgstr "Settling time after moving: seconds to wait after each mount move (GoTo, centering, dithering, alignment, “Point here”) before the next shot, so it stops vibrating. Raise it if the first shots after a move come out with trailed stars."
+
+#: puesta_estacion.py
+msgid "Estabilizando el seguimiento ({s} s)"
+msgstr "Letting tracking settle ({s} s)"
 
 #: templates/alineacion.html
 msgid "Estado"
@@ -3406,6 +3543,10 @@ msgstr "The phone's time is missing"
 msgid "Falta la latitud o la longitud. Pulsa «Usar la ubicación de este móvil» o escríbelas (las da Google Maps al tocar un punto del mapa)."
 msgstr "Latitude or longitude is missing. Press “Use this phone's location” or type them in (Google Maps shows them when you tap a point on the map)."
 
+#: ScopePower.py
+msgid "Falta la ubicación del observatorio: ponla en Configuración"
+msgstr "The observatory location is missing: set it in Settings"
+
 #: editor_fotos.py
 msgid "Falta uno de los dos apilados de la pareja"
 msgstr "One of the two stacks in the pair is missing"
@@ -3540,6 +3681,10 @@ msgstr "Unsupported format"
 msgid "Foto"
 msgstr "Shot"
 
+#: templates/_puesta_estacion.html
+msgid "Foto 1"
+msgstr "Photo 1"
+
 #: templates/apilado.html
 msgid "Foto apilada"
 msgstr "Stacked image"
@@ -3672,6 +3817,14 @@ msgstr "Shot {n} at {hora}"
 #: foto_continua.py
 msgid "Foto {n} a las {hora} · guardada {archivo}"
 msgstr "Shot {n} at {hora} · saved {archivo}"
+
+#: puesta_estacion.py
+msgid "Foto {n} de 3"
+msgstr "Photo {n} of 3"
+
+#: static/js/puesta_estacion.js
+msgid "Foto {n} · {hora}"
+msgstr "Photo {n} · {hora}"
 
 #: foto_dia.py
 msgid "Foto {n}/{total} · {t}"
@@ -3813,15 +3966,39 @@ msgstr "Rotates the preview and the gallery JPG clockwise; the FITS is saved unr
 msgid "Gira en sentido horario lo que se ve y lo que se guarda en JPG desde esta pantalla (foto, continuo, modo en vivo, timelapse y galería); el FITS queda como lo da la cámara. Los cuartos de vuelta no pierden nada; con el ajuste fino se recorta lo justo para que no asomen las esquinas. «Cénit arriba» usa la orientación de la cámara del último plate solving y vale mientras no gires la cámara en el tubo. «Apunta aquí» lo tiene en cuenta."
 msgstr "Rotates clockwise what you see and what is saved as JPG from this screen (shot, continuous, live mode, timelapse and gallery); the FITS stays as the camera delivers it. Quarter turns lose nothing; with the fine adjustment it crops just enough so the corners don't show. “Zenith up” uses the camera orientation from the last plate solve and stays valid as long as you don't rotate the camera in the tube. “Point here” takes it into account."
 
+#: static/js/puesta_estacion.js
+msgid "Gira hacia el este"
+msgstr "Turn towards the east"
+
+#: static/js/puesta_estacion.js
+msgid "Gira hacia el oeste"
+msgstr "Turn towards the west"
+
 #: templates/editar_foto.html
 #, python-format
 msgid "Gira la foto en sentido horario. Los cuartos de vuelta no pierden nada; con el ajuste fino las esquinas se salen del campo y la foto se recorta lo justo (hasta quedarse en el 71 % a 45°). Con el zoom al 50 % o menos el giro no quita campo. «Norte arriba» resuelve la foto y la deja como en los atlas (norte arriba, este a la izquierda), con espejo si hace falta."
 msgstr "Rotates the photo clockwise. Quarter turns lose nothing; with the fine adjustment the corners leave the field and the photo is cropped just enough (down to 71 % at 45°). With zoom at 50 % or less, rotation doesn't lose any field. “North up” solves the photo and orients it like in atlases (north up, east to the left), mirrored if needed."
 
+#: puesta_estacion.py
+msgid "Girando el eje de AR {d}° para la foto {n}"
+msgstr "Turning the RA axis {d}° for photo {n}"
+
+#: templates/_puesta_estacion.html
+msgid "Girar el eje de AR hacia el este"
+msgstr "Turn the RA axis towards the east"
+
 #. js
 #: templates/apilado.html
 msgid "Giro"
 msgstr "Rotation"
+
+#: templates/_puesta_estacion.html
+msgid "Giro + foto 2"
+msgstr "Turn + photo 2"
+
+#: templates/_puesta_estacion.html
+msgid "Giro + foto 3"
+msgstr "Turn + photo 3"
 
 #: mosaico.py
 msgid "Giro de la cámara medido en el centro: {g}°"
@@ -3834,6 +4011,10 @@ msgstr "Shot rotation"
 #: templates/apilado.html templates/editar_foto.html
 msgid "Giro del encuadre"
 msgstr "Framing rotation"
+
+#: templates/_puesta_estacion.html
+msgid "Giro entre fotos (°)"
+msgstr "Turn between photos (°)"
 
 #: ScopePower.py
 msgid "Giro guardado, pero no se pudo volver a girar la foto: {e}"
@@ -4209,6 +4390,10 @@ msgstr "Starting auto centering..."
 msgid "Iniciando centrado..."
 msgstr "Starting centering..."
 
+#: puesta_estacion.py
+msgid "Iniciando la puesta en estación..."
+msgstr "Starting polar alignment..."
+
 #: templates/seguimiento.html
 msgid "Iniciar"
 msgstr "Start"
@@ -4346,7 +4531,7 @@ msgid "La cámara admite de {minima} a {maxima} (ahora tiene {actual}). Vacío =
 msgstr "The camera accepts {minima} to {maxima} (it's at {actual} now). Empty = leave it alone. If you change it, make new darks."
 
 #: alineacion.py centrado.py darks.py flats.py foto_continua.py foto_dia.py
-#: seguimiento.py vivo_dia.py
+#: puesta_estacion.py seguimiento.py vivo_dia.py
 msgid "La cámara está ocupada con otra captura"
 msgstr "The camera is busy with another capture"
 
@@ -4381,6 +4566,10 @@ msgstr "The camera responds."
 #: static/js/asistente.js
 msgid "La descarga sigue en el PC aunque cierres el asistente; la ruta se guardará sola al terminar."
 msgstr "The download continues on the PC even if you close the wizard; the path will be saved by itself when it finishes."
+
+#: puesta_estacion.py
+msgid "La estimación no es fiable en esta posición del cielo: mueve el tubo lejos del este y del oeste"
+msgstr "The estimate is unreliable at this sky position: move the tube away from due east and west"
 
 #. js
 #: templates/constelacion.html
@@ -4468,6 +4657,14 @@ msgstr "Half"
 msgid "La montura NO está aparcada en el cero de los motores: si la apagas, al encenderla apuntará desviada."
 msgstr "The mount is NOT parked at the motors' zero: if you turn it off, it will point off when turned on again."
 
+#: puesta_estacion.py
+msgid "La montura está aparcada: desapárcala antes de empezar"
+msgstr "The mount is parked: unpark it before starting"
+
+#: templates/_puesta_estacion.html
+msgid "La montura mirando al norte (al sur en el hemisferio sur): vale con la brújula del móvil o la estrella Polar."
+msgstr "The mount facing north (south in the southern hemisphere): the phone's compass or Polaris will do."
+
 #: ScopePower.py
 msgid "La montura no aceptó el movimiento; no hay centrado"
 msgstr "The mount didn't accept the move; no centering"
@@ -4497,6 +4694,10 @@ msgstr "The mount didn't accept the sync: {e}"
 msgid "La montura no ha aplicado la sincronización: sigue a {d}′ de la posición enviada. Si usas SynScan Pro, mira si pregunta algo en su ventana y desactiva «Interactively confirm SyncTo samples» en sus ajustes."
 msgstr "The mount did not apply the sync: it is still {d}′ from the position sent. If you use SynScan Pro, check whether it is asking something in its window and turn off “Interactively confirm SyncTo samples” in its settings."
 
+#: puesta_estacion.py
+msgid "La montura no ha recorrido {d}° en {s} s: comprueba que se mueve"
+msgstr "The mount has not travelled {d}° in {s} s: check that it moves"
+
 #: seguimiento.py
 msgid "La montura no informa de su posición; no se puede medir el ángulo recorrido"
 msgstr "The mount does not report its position; the angle traveled cannot be measured"
@@ -4509,6 +4710,14 @@ msgstr "The mount is not responding ({error}). Check SynScan Pro and that the mo
 #: ScopePower.py
 msgid "La montura no responde ({e}); no hay centrado"
 msgstr "The mount isn't responding ({e}); no centering"
+
+#: ScopePower.py
+msgid "La montura no se declara ecuatorial: la puesta en estación solo vale para monturas ecuatoriales"
+msgstr "The mount does not report itself as equatorial: polar alignment only works with equatorial mounts"
+
+#: puesta_estacion.py
+msgid "La montura no se ha movido entre la foto {a} y la {b}: comprueba que gira el eje de AR"
+msgstr "The mount did not move between photo {a} and photo {b}: check that the RA axis turns"
 
 #: ScopePower.py
 msgid "La montura no terminó el movimiento de dithering en 60 s"
@@ -4555,6 +4764,10 @@ msgstr "The night"
 #: templates/constelacion.html
 msgid "La otra gema de Géminis. Es en realidad un sistema sextuple."
 msgstr "The other twin of Gemini. It is actually a sextuple system."
+
+#: static/js/puesta_estacion.js
+msgid "La puesta en estación ha fallado"
+msgstr "Polar alignment failed"
 
 #. js
 #: templates/constelacion.html
@@ -4643,6 +4856,10 @@ msgstr "Player One cameras also work without ASCOM, with “Player One por SDK n
 msgid "Las dos contraseñas no coinciden"
 msgstr "The two passwords don't match"
 
+#: templates/_puesta_estacion.html
+msgid "Las flechas valen mirando hacia el polo desde detrás de la montura. Si el ajuste se alarga más de un cuarto de hora o has movido mucho la montura, «Repetir la medición» vuelve a medir el eje."
+msgstr "The arrows are for someone behind the mount looking towards the pole. If adjusting takes more than a quarter of an hour or you moved the mount a lot, “Measure again” re-measures the axis."
+
 #: seguimiento.py
 msgid "Las medidas no permiten calibrar (ejes sin desplazamiento apreciable)"
 msgstr "The measurements are not enough to calibrate (no noticeable axis movement)"
@@ -4650,6 +4867,10 @@ msgstr "The measurements are not enough to calibrate (no noticeable axis movemen
 #: templates/apilado.html
 msgid "Las teselas apiladas fundidas en una sola imagen (mosaico.py)"
 msgstr "The stacked tiles blended into a single image (mosaico.py)"
+
+#: puesta_estacion.py
+msgid "Las tres fotos están alineadas: la montura no ha girado alrededor de su eje"
+msgstr "The three photos are in a line: the mount did not turn around its axis"
 
 #: templates/seguimiento.html
 msgid "Latencia montura"
@@ -4840,6 +5061,10 @@ msgstr "Stack average"
 msgid "Mediana"
 msgstr "Median"
 
+#: puesta_estacion.py
+msgid "Medición terminada: error de {t}′"
+msgstr "Measurement done: error of {t}′"
+
 #: templates/seguimiento.html
 msgid "Medio (1,25°)"
 msgstr "Medium (1.25°)"
@@ -4869,6 +5094,14 @@ msgstr "Full Messier"
 #: catalogo_offline.py
 msgid "Meteoro"
 msgstr "Meteor"
+
+#: templates/_puesta_estacion.html
+msgid "Midiendo el eje de la montura"
+msgstr "Measuring the mount axis"
+
+#: puesta_estacion.py
+msgid "Midiendo el eje de la montura con tres fotos"
+msgstr "Measuring the mount axis with three photos"
 
 #. js
 #: templates/apilado.html
@@ -4963,6 +5196,10 @@ msgstr "Mount connected"
 #: templates/home.html
 msgid "Montura conectada; la cámara no responde."
 msgstr "Mount connected; the camera isn't responding."
+
+#: templates/alineacion.html
+msgid "Montura ecuatorial"
+msgstr "Equatorial mount"
 
 #. js
 #: templates/planetario.html
@@ -5151,6 +5388,10 @@ msgstr "More… (brightness, color temperature, green)"
 #: templates/configuracion.html
 msgid "Máximo de fotos a apilar"
 msgstr "Maximum frames to stack"
+
+#: static/js/puesta_estacion.js
+msgid "N"
+msgstr "N"
 
 #. js
 #: ScopePower.py
@@ -5496,6 +5737,10 @@ msgstr "Could not measure the color of the central area."
 msgid "No se ha podido resolver este punto"
 msgstr "This point could not be solved"
 
+#: puesta_estacion.py
+msgid "No se ha podido resolver la foto {n}: comprueba el enfoque, la exposición y que se ven estrellas"
+msgstr "Photo {n} could not be solved: check the focus, the exposure and that stars are visible"
+
 #: apilado.py
 msgid "No se ha podido resolver la imagen de referencia. Se intentará con la siguiente"
 msgstr "The reference image could not be solved. The next one will be tried"
@@ -5644,6 +5889,10 @@ msgstr "Could not start"
 msgid "No se pudo empezar la instalación"
 msgstr "Couldn't start the installation"
 
+#: static/js/puesta_estacion.js
+msgid "No se pudo empezar la puesta en estación"
+msgstr "Polar alignment could not start"
+
 #. js
 #: templates/imagen.html
 msgid "No se pudo grabar"
@@ -5736,6 +5985,10 @@ msgstr "Couldn't schedule the shutdown: {e}"
 msgid "No se pudo programar el reinicio: {e}"
 msgstr "Couldn't schedule the restart: {e}"
 
+#: static/js/puesta_estacion.js
+msgid "No se pudo repetir la medición"
+msgstr "The measurement could not be repeated"
+
 #. js
 #: templates/editar_foto.html
 msgid "No se pudo resolver la foto"
@@ -5748,6 +6001,10 @@ msgstr "Could not solve the image on pass {vuelta}"
 #: ScopePower.py
 msgid "No se pudo resolver: {e}"
 msgstr "Couldn't solve: {e}"
+
+#: static/js/puesta_estacion.js
+msgid "No se pudo terminar"
+msgstr "Could not finish"
 
 #: camara_webcam.py
 msgid "No se puede abrir la webcam {n} (¿desconectada o en uso por otro programa?)"
@@ -6401,6 +6658,26 @@ msgstr "Test {n}: {s} s → level {nivel} %"
 msgid "Pruebas: {lista}"
 msgstr "Tries: {lista}"
 
+#: templates/_puesta_estacion.html
+msgid "Puesta en estación"
+msgstr "Polar alignment"
+
+#: puesta_estacion.py
+msgid "Puesta en estación cancelada"
+msgstr "Polar alignment cancelled"
+
+#: puesta_estacion.py
+msgid "Puesta en estación terminada"
+msgstr "Polar alignment finished"
+
+#: puesta_estacion.py
+msgid "Puesta en estación {n}/3"
+msgstr "Polar alignment {n}/3"
+
+#: templates/alineacion.html
+msgid "Puesta en estación: tres fotos miden cuánto se desvía el eje polar y la app te guía tornillo a tornillo hasta dejarlo en el polo."
+msgstr "Polar alignment: three photos measure how far off the polar axis is and the app guides you bolt by bolt until it points at the pole."
+
 #: templates/seguimiento.html
 msgid "Pulsa <b>Iniciar</b> y usa la vista en directo con el pad de abajo como buscador: mueve el telescopio hasta ver el objeto (o apunta por delante de él) y suelta; cuando entre algo que se mueve, el seguimiento lo adquiere solo. Para una luz fija (una prueba de día), tócala en la vista. La cámara se pasa al SDK nativo mientras dura."
 msgstr "Press <b>Start</b> and use the live view with the pad below as a finder: move the telescope until you see the object (or aim ahead of it) and let go; when something moving comes in, tracking acquires it on its own. For a fixed light (a daytime test), tap it in the view. The camera switches to the native SDK while it runs."
@@ -6738,6 +7015,10 @@ msgstr "Supernova remnant"
 msgid "Repasamos la configuración guardada paso a paso; cambia lo que quieras y comprueba que todo responde:"
 msgstr "Let's go through the saved settings step by step; change whatever you like and check that everything responds:"
 
+#: templates/_puesta_estacion.html
+msgid "Repetir la medición"
+msgstr "Measure again"
+
 #: templates/bienvenida.html
 msgid "Repite la contraseña"
 msgstr "Repeat the password"
@@ -6896,6 +7177,10 @@ msgstr "Field rotation"
 msgid "Rápida (1°/s)"
 msgstr "Fast (1°/s)"
 
+#: static/js/puesta_estacion.js
+msgid "S"
+msgstr "S"
+
 #: enfoque.py
 msgid "SATURADA"
 msgstr "SATURATED"
@@ -7027,6 +7312,14 @@ msgstr "The camera and the mount will be disconnected, the app closes, updates a
 #: templates/configuracion.html
 msgid "Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM)."
 msgstr "Set before every shot, dark, flat and centering. Empty = leave it alone (keeps whatever the ASCOM driver has)."
+
+#: puesta_estacion.py
+msgid "Se gira hacia el este para no cruzar el meridiano"
+msgstr "Turning towards the east so as not to cross the meridian"
+
+#: puesta_estacion.py
+msgid "Se gira hacia el oeste para no cruzar el meridiano"
+msgstr "Turning towards the west so as not to cross the meridian"
 
 #: static/js/asistente.js
 msgid "Se ha abierto el selector de ASCOM en la pantalla del PC: elige el driver, pulsa <b>Properties</b> para configurarlo y cierra con <b>OK</b>."
@@ -7489,6 +7782,10 @@ msgstr "Its name means 'guardian of the bear'. It belongs to the constellation B
 msgid "Sube la ganancia para enfocar con exposiciones cortas; aquí no se guarda."
 msgstr "Raise the gain to focus with short exposures; it isn't saved here."
 
+#: static/js/puesta_estacion.js
+msgid "Sube la montura"
+msgstr "Raise the mount"
+
 #: templates/apilado.html templates/editar_foto.html templates/imagen.html
 msgid "Subir"
 msgstr "Move up"
@@ -7590,6 +7887,10 @@ msgstr[1] "Telescope synced. It was off by {n} arcminutes"
 #: templates/apilado.html templates/editar_foto.html
 msgid "Temperatura de color"
 msgstr "Color temperature"
+
+#: templates/_puesta_estacion.html
+msgid "Terminar"
+msgstr "Finish"
 
 #: static/js/mosaico.js
 msgid "Tesela {i}"
@@ -7795,6 +8096,10 @@ msgstr "All"
 msgid "Todos los tipos"
 msgstr "All types"
 
+#: templates/_puesta_estacion.html
+msgid "Tolerancia (′)"
+msgstr "Tolerance (′)"
+
 #: editor_fotos.py
 msgid "Toque no válido"
 msgstr "Invalid tap"
@@ -7944,6 +8249,10 @@ msgstr "You're about to point the telescope at the Sun."
 #: templates/configuracion.html
 msgid "Velocidad (-10 … 10)"
 msgstr "Speed (-10 … 10)"
+
+#: templates/_puesta_estacion.html
+msgid "Velocidad (°/s)"
+msgstr "Speed (°/s)"
 
 #: templates/seguimiento.html
 msgid "Velocidad Az / Alt (°/s)"
@@ -8216,6 +8525,10 @@ msgstr "A day shot is already in progress"
 msgid "Ya hay una instalación en marcha"
 msgstr "An installation is already running"
 
+#: puesta_estacion.py
+msgid "Ya hay una puesta en estación en curso"
+msgstr "A polar alignment is already running"
+
 #: ScopePower.py
 msgid "Ya se está aparcando la montura"
 msgstr "The mount is already parking"
@@ -8382,10 +8695,18 @@ msgstr "blue {px}"
 msgid "azul {v}"
 msgstr "blue {v}"
 
+#: puesta_estacion.py
+msgid "baja {v} minutos"
+msgstr "lower {v} minutes"
+
 #. js
 #: templates/planetario.html
 msgid "bajo la altura mínima ({altura}°)"
 msgstr "below the minimum altitude ({altura}°)"
+
+#: static/js/puesta_estacion.js
+msgid "bien"
+msgstr "good"
 
 #. js
 #: templates/galeria.html templates/imagen.html
@@ -8844,7 +9165,7 @@ msgid "estirando"
 msgstr "stretching"
 
 #. js
-#: templates/alineacion.html
+#: static/js/puesta_estacion.js templates/alineacion.html
 msgid "exponiendo"
 msgstr "exposing"
 
@@ -8976,6 +9297,14 @@ msgstr "driver gain"
 #: templates/apilado.html templates/dark.html templates/imagen.html
 msgid "ganancia {g}"
 msgstr "gain {g}"
+
+#: puesta_estacion.py
+msgid "gira al este {v} minutos"
+msgstr "turn east {v} minutes"
+
+#: puesta_estacion.py
+msgid "gira al oeste {v} minutos"
+msgstr "turn west {v} minutes"
 
 #: actualizar.py
 msgid "git ha fallado: {salida}"
@@ -9628,6 +9957,11 @@ msgstr[0] "next in {n} shot"
 msgstr[1] "next in {n} shots"
 
 #. js
+#: ScopePower.py
+msgid "puesta en estación"
+msgstr "polar alignment"
+
+#. js
 #: camara_toupcam.py
 msgid "puntero no válido"
 msgstr "invalid pointer"
@@ -9673,7 +10007,7 @@ msgid "reinicializar la cámara"
 msgstr "reinitialize the camera"
 
 #. js
-#: templates/alineacion.html
+#: static/js/puesta_estacion.js templates/alineacion.html
 msgid "resolviendo"
 msgstr "solving"
 
@@ -9836,6 +10170,10 @@ msgstr "rises at {sube} and dawn comes at {hora}: only {fp} of {n} fit"
 #: plan_sesion.py
 msgid "sube a las {sube} y se pone a las {hora}: solo caben {fp} de {n}"
 msgstr "rises at {sube} and sets at {hora}: only {fp} of {n} fit"
+
+#: puesta_estacion.py
+msgid "sube {v} minutos"
+msgstr "raise {v} minutes"
 
 #: mosaico.py
 msgid "supuesto (Saturn-C)"
@@ -10271,6 +10609,14 @@ msgstr[1] "{n} shots not saved"
 msgid "{n} fotogramas"
 msgstr "{n} frames"
 
+#: puesta_estacion.py
+msgid "{n} fotos seguidas sin resolver: comprueba el enfoque y que la montura está quieta al disparar"
+msgstr "{n} photos in a row unsolved: check the focus and that the mount is still when shooting"
+
+#: puesta_estacion.py
+msgid "{n} fotos seguidas sin resolver: para de tocar la montura mientras expone"
+msgstr "{n} photos in a row unsolved: stop touching the mount while it exposes"
+
 #: espacio_disco.py
 msgid "{n} gigas"
 msgstr "{n} gigabytes"
@@ -10381,7 +10727,7 @@ msgid "{n} sin alinear"
 msgstr "{n} not aligned"
 
 #. js
-#: templates/apilado.html
+#: static/js/puesta_estacion.js templates/apilado.html
 msgid "{n} sin resolver"
 msgstr "{n} unsolved"
 
@@ -10566,6 +10912,38 @@ msgstr "{ultima} px latest · {inicial} at start · {minima} best"
 msgid "{version} (montura 0x{codigo})"
 msgstr "{version} (mount 0x{codigo})"
 
+#: puesta_estacion.py
+msgid "{v} minutos al este"
+msgstr "{v} minutes to the east"
+
+#: puesta_estacion.py
+msgid "{v} minutos al oeste"
+msgstr "{v} minutes to the west"
+
+#: puesta_estacion.py
+msgid "{v} minutos por debajo del polo"
+msgstr "{v} minutes below the pole"
+
+#: puesta_estacion.py
+msgid "{v} minutos por encima del polo"
+msgstr "{v} minutes above the pole"
+
+#: static/js/puesta_estacion.js
+msgid "{v}′ al este"
+msgstr "{v}′ to the east"
+
+#: static/js/puesta_estacion.js
+msgid "{v}′ al oeste"
+msgstr "{v}′ to the west"
+
+#: static/js/puesta_estacion.js
+msgid "{v}′ por debajo del polo"
+msgstr "{v}′ below the pole"
+
+#: static/js/puesta_estacion.js
+msgid "{v}′ por encima del polo"
+msgstr "{v}′ above the pole"
+
 #. js
 #: templates/apilado.html
 msgid "{w} × {h} px (zona con al menos la mitad de las fotos)"
@@ -10640,6 +11018,10 @@ msgstr "Delete this trail (thumbnail and FITS)?"
 #: templates/rastros.html
 msgid "¿Borrar todos los rastros de avión y satélite? Los posibles meteoros se quedan."
 msgstr "Delete all plane and satellite trails? Possible meteors are kept."
+
+#: static/js/puesta_estacion.js
+msgid "¿Cancelar la puesta en estación?"
+msgstr "Cancel polar alignment?"
 
 #: static/js/mosaico.js
 msgid "¿Dar por terminada la tesela actual con las fotos que tenga y pasar a la siguiente?"

@@ -114,6 +114,7 @@ Las pruebas que no necesitan equipo están en `herramientas/`:
 python herramientas\probar_servidor.py
 python herramientas\probar_mosaico.py
 python herramientas\probar_seguimiento_simulado.py --segundos 10
+python herramientas\probar_puesta_estacion.py
 ```
 
 `probar_servidor.py` importa ScopePower como en un PC recién instalado y pide las pantallas

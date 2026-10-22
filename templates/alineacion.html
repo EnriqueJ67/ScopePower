@@ -45,6 +45,15 @@
     </div>
 </div>
 
+<!-- Puesta en estación: solo aparece cuando la montura se declara ecuatorial (modo_montura del estado del equipo) -->
+<div id="pe-card" class="card card-centrada mt-3" hidden>
+    <div class="seccion-titulo">{{ _("Montura ecuatorial") }}</div>
+    <p class="modal-texto">{{ _("Puesta en estación: tres fotos miden cuánto se desvía el eje polar y la app te guía tornillo a tornillo hasta dejarlo en el polo.") }}</p>
+    <button type="button" class="btn btn-primary btn-lg btn-block" onclick="abrirPuestaEstacion()"><svg><use href="#i-brujula"/></svg>{{ _("Asistente de puesta en estación") }}</button>
+</div>
+{% include '_puesta_estacion.html' %}
+<script src="{{ url_for('static', filename='js/puesta_estacion.js') }}?v=1"></script>
+
 <script>
     let sondeo = null;
     const ICONO = { pendiente: "·", moviendo: "🔭", exponiendo: "📷", resolviendo: "🔍", sincronizando: "🔄", ok: "✅", fallido: "❌", omitido: "⏭️", cancelado: "⏹️" };
