@@ -546,6 +546,11 @@ msgstr ""
 msgid "Alt {alt}° · Az {az}°"
 msgstr ""
 
+#. js
+#: templates/base.html
+msgid "AltAz"
+msgstr ""
+
 #: templates/_asistente.html templates/configuracion.html
 msgid "Altitud (m)"
 msgstr ""
@@ -2831,6 +2836,11 @@ msgstr ""
 #. js
 #: templates/configuracion.html
 msgid "Enviando la hora del móvil al PC..."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Eq"
 msgstr ""
 
 #. js
@@ -8326,6 +8336,11 @@ msgstr ""
 msgid "alt {alt}° az {az}°"
 msgstr ""
 
+#. js
+#: templates/base.html
+msgid "altacimutal"
+msgstr ""
+
 #: plan_sesion.py
 msgid "amanece"
 msgstr ""
@@ -8630,6 +8645,16 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "día · {objetivo}"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "ecuatorial"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "ecuatorial alemana"
 msgstr ""
 
 #. js

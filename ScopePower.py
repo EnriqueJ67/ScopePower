@@ -501,6 +501,10 @@ def _anotar_codificadores_al_conectar():
     threading.Thread(target=_leer, name="codificadores", daemon=True).start()
 
 
+MODOS_MONTURA = {0: "altacimutal", 1: "ecuatorial", 2: "ecuatorial_alemana"}   # ASCOM AlignmentMode
+_montura_info = {"modo": None}      # leído al conectar; no cambia mientras dura la conexión
+
+
 def _activar_seguimiento(tel):
     # El driver SynScanMobile "conecta" con la app SynScan Pro aunque esta no tenga
     # enlace con la montura (apagada, sin WiFi): la conexión ASCOM tiene éxito y luego
@@ -531,6 +535,13 @@ def _activar_seguimiento(tel):
         print(f"🧭 Sistema de coordenadas de la montura: {sistema}")
     except Exception as e:
         print(f"⚠️ No se pudo leer EquatorialSystem de la montura ({e}); se asume J2000")
+    # ¿Altacimutal o ecuatorial? La cabecera lo enseña junto al icono de la montura
+    try:
+        _montura_info["modo"] = MODOS_MONTURA.get(int(tel.AlignmentMode))
+        log.info("Modo de la montura (AlignmentMode): %s", _montura_info["modo"])
+    except Exception as e:
+        _montura_info["modo"] = None
+        log.info("Modo de la montura desconocido (AlignmentMode): %s", e)
     voz.decir(_("Telescopio conectado"))
     humor.decir("conexion_ok")
     # Al conectar NO se borran las sincronizaciones de SynScan Pro: si se apaga el equipo
@@ -711,6 +722,7 @@ def _conectar_equipo_completo():
         humor.decir("conexion_fallo")
     resultado["ok"] = resultado["montura"] and resultado["camara"]
     resultado["sistema"] = coordenadas.sistema() if resultado["montura"] else None
+    resultado["modo_montura"] = _montura_info["modo"] if resultado["montura"] else None
     return resultado
 
 
@@ -1517,6 +1529,7 @@ def estado_conexion():
         "montura": montura.esta_conectado(),
         "camara": camara.esta_conectado(),
         "sistema": coordenadas.sistema() if montura.esta_conectado() else None,
+        "modo_montura": _montura_info["modo"] if montura.esta_conectado() else None,
         "error_montura": montura.ultimo_error,
         "error_camara": camara.ultimo_error,
         # Hora del PC: el móvil la compara con la suya y avisa si difieren (sin Internet el reloj del PC puede irse)
@@ -4498,9 +4511,6 @@ def _config_video():
             "nitidez": _num("nitidez", apilado_video.NITIDEZ_DEFECTO), "duracion_s": _num("duracion_s", 120, int),
             "carpeta": cfg.get("Video", "carpeta", fallback=grabador_video.CARPETA_VIDEOS).strip() or grabador_video.CARPETA_VIDEOS,
             "rotacion_campo": apilado_video.modo_rotacion(cfg.get("Video", "rotacion_campo", fallback=""))}
-
-
-MODOS_MONTURA = {0: "altacimutal", 1: "ecuatorial", 2: "ecuatorial_alemana"}   # ASCOM AlignmentMode
 
 
 def _modo_montura():

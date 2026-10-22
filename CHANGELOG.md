@@ -60,6 +60,9 @@ día de la release. El número de versión vive en `version.py`.
 - Luna anotada: cuando no se puede anotar, el motivo y el tiempo quedan en el log (en Cámara, el
   mismo motivo una vez por minuto, para no llenarlo en vivo). Una foto sin Luna (negra, con la tapa
   puesta) se rechaza al momento, sin buscarla como trozo del interior.
+- La cabecera dice junto al icono de la montura si está en modo altacimutal («AltAz») o ecuatorial
+  («Eq»), también en el móvil; el chip del Inicio lo añade tras el sistema de coordenadas. Es lo que
+  declara el driver por ASCOM (AlignmentMode) al conectar; si no lo dice, no aparece nada.
 
 ## 1.2.2 · 2026-10-16
 
