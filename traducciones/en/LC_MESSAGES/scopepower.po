@@ -529,6 +529,10 @@ msgstr "On startup, the PC reads out these addresses through the speaker every 3
 msgid "Al centro"
 msgstr "To center"
 
+#: templates/configuracion.html
+msgid "Al llegar a un objeto con GoTo, el móvil lee su descripción (sin Internet, solo los del catálogo)"
+msgstr "When a GoTo reaches an object, the phone reads its description (without Internet, catalogue objects only)"
+
 #: templates/alineacion.html
 msgid "Alineación"
 msgstr "Alignment"
@@ -1071,6 +1075,11 @@ msgstr "Looking up the constellation description..."
 #: templates/imagen.html
 msgid "Buscando el disco en la foto y sincronizando..."
 msgstr "Finding the disk in the shot and syncing..."
+
+#. js
+#: templates/goto.html
+msgid "Buscando la descripción del objeto..."
+msgstr "Looking up the object description..."
 
 #: seguimiento.py
 msgid "Buscando un objeto brillante (o pulsa uno en la vista previa)"
@@ -5629,6 +5638,11 @@ msgid "No hay dark para la exposición actual ({exp} s)."
 msgstr "No dark for the current exposure ({exp} s)."
 
 #. js
+#: templates/goto.html
+msgid "No hay descripción de «{objeto}» (fuera del catálogo y sin Internet)."
+msgstr "No description for “{objeto}” (not in the catalogue and no Internet)."
+
+#. js
 #: templates/calibracion.html
 msgid "No hay flat maestro."
 msgstr "No master flat."
@@ -6306,11 +6320,6 @@ msgstr "Recommended objects tonight"
 #: templates/goto.html
 msgid "Obteniendo datos de {objeto}..."
 msgstr "Getting data for {objeto}..."
-
-#. js
-#: templates/goto.html
-msgid "Obteniendo información de Wikipedia..."
-msgstr "Getting info from Wikipedia..."
 
 #: templates/control.html
 msgid "Oeste"

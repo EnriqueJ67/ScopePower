@@ -5,6 +5,13 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Arreglado: la descripción hablada del objeto al llegar con GoTo casi nunca sonaba en el campo. La
+  pantalla mandaba el nombre con el tipo entre paréntesis («M 31 (Galaxia)»), el catálogo propio de
+  172 descripciones sin Internet no lo reconocía y la app acababa en Wikipedia, que sin red no
+  responde, y además leía en voz alta el aviso de «no se encontró información». Ahora el nombre va
+  limpio, solo se sale a Wikipedia si hay red, sin descripción se calla, y la lectura automática se
+  apaga en Configuración > Avisos por voz (`[Voz] describir_objeto`); el botón «Hablar info» sigue
+  disponible a mano. También se evita que la llegada del GoTo se tratase dos veces (dos lecturas).
 - Enfoque de día (Sol y Luna) en vivo más estable: medido con los vídeos reales de la Luna, el
   limbo de cada fotograma varía un 6-7 % por el seeing, así que el número es ahora el percentil 25
   de los últimos 2,5 s (los fotogramas con mejor seeing enseñan el desenfoque real) con histéresis,

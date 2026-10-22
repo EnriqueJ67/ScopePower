@@ -3,7 +3,7 @@
 {% block title %}GoTo{% endblock %}
 
 {% block content %}
-<div id="config" data-palabra-clave="{{ palabra_clave }}"></div>
+<div id="config" data-palabra-clave="{{ palabra_clave }}" data-describir-objeto="{{ '1' if describir_objeto else '' }}"></div>
 
 <div class="pagina-cabecera">
     <div>
@@ -100,6 +100,8 @@
 <script src="{{ url_for('static', filename='centrado.js') }}"></script>
 <script>
     const palabraClave = document.getElementById("config").dataset.palabraClave.toLowerCase();
+    // [Voz] describir_objeto: leer la descripción al llegar; apagado, solo con el botón «Hablar info»
+    const describirAlLlegar = !!document.getElementById("config").dataset.describirObjeto;
     const sonidoClick = new Audio("/static/click.wav");
 
     var infoUtterance = null;
@@ -338,6 +340,7 @@
             fetch("/estado_telescopio")
                 .then(response => response.json())
                 .then(data => {
+                    if (paso === 2) return;   // ya se trató la llegada (un sondeo anterior aún en vuelo)
                     if (paso === 0) {
                         if (data.slewing) {
                             paso = 1;
@@ -348,10 +351,11 @@
                         return;
                     }
                     if (!data.slewing) {
+                        paso = 2;
                         clearInterval(interval);
                         document.getElementById("status").innerHTML = "🧭 " + _("Telescopio en {objeto}", { objeto: `<b>${objeto}</b>` });
                         // Leer la información del objeto (esperando al centrado si el PC va a hablar)
-                        sendWikipediaInfo(window.tipoObjeto, true);
+                        if (describirAlLlegar) sendWikipediaInfo(window.tipoObjeto, true);
                         // El servidor arranca el centrado automático al llegar (centrar_tras_goto),
                         // pero antes espera el asentamiento de la montura: engancharse ya y seguir
                         // sondeando hasta que arranque (mientras, enseña la fase previa que anuncia
@@ -554,29 +558,27 @@
             document.getElementById("status").innerHTML = "❌ " + _("Debe ingresar un objeto celeste.");
             return;
         }
-        let objetoBusqueda = objeto;
-        if (tipo) {
-            objetoBusqueda = objeto + " (" + tipo + ")";
-        }
-
-        document.getElementById("status").innerHTML = `<span class="spinner"></span> ` + _("Obteniendo información de Wikipedia...");
+        // El nombre va tal cual (sin el tipo entre paréntesis): con «M 31 (Galaxia)» el servidor no
+        // encontraba el objeto en el catálogo propio y acababa en Wikipedia, que en el campo no responde
+        const estadoAntes = document.getElementById("status").innerHTML;
+        document.getElementById("status").innerHTML = `<span class="spinner"></span> ` + _("Buscando la descripción del objeto...");
 
         fetch("/info-wikipedia", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: "objeto=" + encodeURIComponent(objetoBusqueda)
+            body: "objeto=" + encodeURIComponent(objeto)
         })
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
                     document.getElementById("status").innerHTML = "❌ " + data.error;
-                } else if (data.wikipedia_info) {
-                    // El servidor manda el texto ya preparado para voz (frase de datos + descripción);
-                    // el montaje antiguo queda por si una versión vieja no lo envía
-                    let textoParaHablar = data.texto_hablar || "";
-                    if (!textoParaHablar) {
-                        textoParaHablar = tipo ? `${objeto} (${tipo}): ${data.wikipedia_info}` : `${objeto}: ${data.wikipedia_info}`;
-                    }
+                } else if (!data.texto_hablar) {
+                    // Sin descripción (objeto fuera del catálogo y sin Internet): callar, sin leer el aviso
+                    document.getElementById("status").innerHTML = esperarCentrado ? estadoAntes
+                        : "ℹ️ " + _("No hay descripción de «{objeto}» (fuera del catálogo y sin Internet).", { objeto: objeto });
+                } else {
+                    // El servidor manda el texto ya preparado para voz (frase de datos + descripción)
+                    const textoParaHablar = data.texto_hablar;
                     document.getElementById("status").innerHTML = "✅ " + _("Información obtenida, reproduciendo...");
                     // Crear el utterance
                     var utterance = new SpeechSynthesisUtterance(textoParaHablar);

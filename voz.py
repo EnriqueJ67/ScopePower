@@ -13,6 +13,7 @@
 # La configuración vive en la sección [Voz] de config.ini:
 #     activada = true            interruptor general (también desde la web)
 #     anunciar_capturas = true   avisar al empezar/terminar cada foto
+#     describir_objeto = true    el móvil lee la descripción del objeto al llegar al GoTo
 #     volumen = 100              0-100
 #     velocidad = 0              -10 (lenta) .. 10 (rápida)
 #     voz = Helena               parte del nombre de la voz SAPI a usar
@@ -33,7 +34,8 @@ import idioma
 log = logging.getLogger("scopepower.voz")
 
 SECCION = "Voz"
-_DEFECTOS = {"activada": "true", "anunciar_capturas": "true", "volumen": "100", "velocidad": "0", "voz": ""}
+_DEFECTOS = {"activada": "true", "anunciar_capturas": "true", "describir_objeto": "true", "volumen": "100",
+             "velocidad": "0", "voz": ""}
 _MAX_COLA = 6
 
 
@@ -44,6 +46,8 @@ def _leer_config():
     return {
         "activada": str(v.get("activada", _DEFECTOS["activada"])).lower() == "true",
         "anunciar_capturas": str(v.get("anunciar_capturas", _DEFECTOS["anunciar_capturas"])).lower() == "true",
+        # Lo lee el móvil (pantalla GoTo), no el altavoz del PC; vive aquí por ser un ajuste de voz más
+        "describir_objeto": str(v.get("describir_objeto", _DEFECTOS["describir_objeto"])).lower() == "true",
         "volumen": int(v.get("volumen", _DEFECTOS["volumen"])),
         "velocidad": int(v.get("velocidad", _DEFECTOS["velocidad"])),
         "voz": str(v.get("voz", _DEFECTOS["voz"])),
@@ -108,11 +112,11 @@ class Locutor:
         return self.config["activada"]
 
     def configurar(self, **cambios):
-        permitidas = {"anunciar_capturas", "volumen", "velocidad", "voz"}
+        permitidas = {"anunciar_capturas", "describir_objeto", "volumen", "velocidad", "voz"}
         cambios = {k: v for k, v in cambios.items() if k in permitidas}
         with self._lock:
             for k, v in cambios.items():
-                if k == "anunciar_capturas":
+                if k in ("anunciar_capturas", "describir_objeto"):
                     self.config[k] = bool(v)
                 elif k in ("volumen", "velocidad"):
                     self.config[k] = int(v)

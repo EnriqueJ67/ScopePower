@@ -227,6 +227,7 @@
             </p>
             <div id="voz-disponible" class="estado mb-2"></div>
             <label class="switch mb-2"><input type="checkbox" id="voz-capturas"> {{ _("Anunciar el inicio y el final de cada foto") }}</label>
+            <label class="switch mb-2"><input type="checkbox" id="voz-describir"> {{ _("Al llegar a un objeto con GoTo, el móvil lee su descripción (sin Internet, solo los del catálogo)") }}</label>
             <div class="form-group">
                 <label>{{ _("Voz") }}</label>
                 <select id="voz-voz" class="form-control"></select>
@@ -566,6 +567,7 @@
 
     function pintarVozConfig(e) {
         document.getElementById("voz-capturas").checked = !!e.anunciar_capturas;
+        document.getElementById("voz-describir").checked = !!e.describir_objeto;
         document.getElementById("voz-volumen").value = e.volumen;
         document.getElementById("voz-velocidad").value = e.velocidad;
         const sel = document.getElementById("voz-voz");
@@ -588,6 +590,7 @@
     function guardarVoz() {
         const datos = {
             anunciar_capturas: document.getElementById("voz-capturas").checked,
+            describir_objeto: document.getElementById("voz-describir").checked,
             volumen: parseInt(document.getElementById("voz-volumen").value),
             velocidad: parseInt(document.getElementById("voz-velocidad").value),
             voz: document.getElementById("voz-voz").value
