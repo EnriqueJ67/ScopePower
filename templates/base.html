@@ -90,7 +90,7 @@
     <div class="header-titulo">{% block titulo_cabecera %}{{ self.title() }}{% endblock %}</div>
     <div class="header-estado">
         {% if session.get('usuario') %}
-        <span class="chip chip-icono" id="chip-montura" title="{{ _('Montura') }}"><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">{{ _("Montura") }}</span></span>
+        <span class="chip chip-icono" id="chip-montura" title="{{ _('Montura') }}"><svg><use href="#i-telescopio"/></svg><span class="oculto-movil">{{ _("Montura") }}</span><span class="chip-modo" id="chip-montura-modo" hidden></span></span>
         <span class="chip chip-icono" id="chip-camara" title="{{ _('Cámara') }}"><svg><use href="#i-foto"/></svg><span class="oculto-movil">{{ _("Cámara") }}</span></span>
         <!-- Solo aparece si el reloj del PC difiere del móvil más de un minuto -->
         <a class="chip chip-icono chip-warn" id="chip-hora" href="/configuracion#hora" hidden><svg><use href="#i-reloj"/></svg><span class="oculto-movil" id="chip-hora-texto"></span></a>
@@ -278,6 +278,12 @@
         try { sessionStorage.setItem(CLAVE_AVISO_DISCO, aviso.dataset.nivel || "1"); } catch (err) {}
     }
 
+    // Modo que declara la montura por ASCOM (AlignmentMode): [abreviatura para el chip, nombre completo]
+    function modoMontura(d) {
+        const modos = { altacimutal: [_("AltAz"), _("altacimutal")], ecuatorial: [_("Eq"), _("ecuatorial")],
+                        ecuatorial_alemana: [_("Eq"), _("ecuatorial alemana")] };
+        return d.montura ? modos[d.modo_montura] || null : null;
+    }
     function pintarChipsEquipo(d) {
         comprobarHora(d);
         comprobarDisco(d);
@@ -286,7 +292,11 @@
         const clase = (ok, busy) => "chip chip-icono " + (busy ? "chip-busy" : (ok ? "chip-ok" : "chip-err"));
         m.className = clase(d.montura, d.conectando && !d.montura);
         c.className = clase(d.camara, d.conectando && !d.camara);
-        m.title = d.conectando && !d.montura ? _("Conectando la montura...") : (d.montura ? _("Montura conectada") + (d.sistema ? " (" + d.sistema + ")" : "") : _("Montura sin conectar") + (d.error_montura ? ": " + d.error_montura : ""));
+        const modo = modoMontura(d);
+        const etiqueta = document.getElementById("chip-montura-modo");
+        if (etiqueta) { etiqueta.textContent = modo ? modo[0] : ""; etiqueta.hidden = !modo; }
+        const detalle = [d.sistema, modo && modo[1]].filter(Boolean).join(", ");
+        m.title = d.conectando && !d.montura ? _("Conectando la montura...") : (d.montura ? _("Montura conectada") + (detalle ? " (" + detalle + ")" : "") : _("Montura sin conectar") + (d.error_montura ? ": " + d.error_montura : ""));
         c.title = d.conectando && !d.camara ? _("Conectando la cámara...") : (d.camara ? _("Cámara conectada") : _("Cámara sin conectar") + (d.error_camara ? ": " + d.error_camara : ""));
     }
     let _sondeoEquipo = null;
