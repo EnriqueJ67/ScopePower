@@ -13,6 +13,8 @@
 //   wolfRecontar(d)                                -> rehace d.grupos y d.wolf a partir de d.manchas
 //   textoWolf(d)                                   -> «R = 10·3 + 11 = 41 · 3 grupos, 11 manchas · guardado»
 //   textoTamano(g, d)                              -> «66.000 km · 5,2 Tierras» (el largo del grupo de punta a punta)
+//   rellenarListaGrupos(caja, d, alPasar)          -> la lista de grupos con su tamaño, manchas y coordenadas
+//                                                     (en la foto solo va el número: los rótulos largos se pisaban)
 //   pintarSerieWolf(svg, serie)                    -> la gráfica de la serie guardada
 //
 // Los grupos se enlazan por la separación angular sobre la esfera (igual que en el servidor):
@@ -162,26 +164,63 @@ function pintarManchasSolares(svg, d, k, w, h, estado) {
     d.manchas.forEach((m, i) => {
         const x = m.x * k, y = m.y * k, r = Math.max(m.r_px * k, 3) + 2;
         const clase = "sol-mancha " + (m.umbra ? "sol-umbra" : "sol-penumbra") + (estado && estado.seleccionada === i ? " sol-seleccionada" : "");
-        nuevo("circle", { cx: x, cy: y, r: r }, clase);
+        nuevo("circle", { cx: x, cy: y, r: r, "data-grupo": m.grupo }, clase);
     });
-    // Cada grupo, encima de su centro: su número (y sus coordenadas heliográficas si se conocen) y, debajo,
-    // su tamaño en km y en Tierras (al pasar el ratón, el diámetro equivalente y el área)
+    // Cada grupo, encima de su centro: solo su número; el tamaño y las coordenadas van en la lista de grupos
     d.grupos.forEach(g => {
         const ms = d.manchas.filter(m => m.grupo === g.id);
         const arriba = Math.min(...ms.map(m => m.y - Math.max(m.r_px, 3 / k)));
-        const tam = textoTamano(g, d);
-        const y = Math.max(tam ? 25 : 12, arriba * k - 6);
-        const texto = nuevo("text", { x: g.x * k, y: tam ? y - 14 : y, "text-anchor": "middle" }, "sol-grupo");
-        texto.textContent = g.lat != null ? `${g.id} · ${_wolfHelio(g.lat, g.dlon)}` : String(g.id);
-        if (tam) {
-            const t2 = nuevo("text", { x: g.x * k, y: y, "text-anchor": "middle" }, "sol-grupo sol-grupo-km");
-            t2.textContent = tam;
-            const ayuda = document.createElementNS(NS, "title");
-            ayuda.textContent = _("De punta a punta. Diámetro equivalente {d} km; área {a} millones de km².",
-                { d: _kmRedondo(g.diametro_km), a: fmtNum(g.km2 / 1e6, 0) });
-            t2.appendChild(ayuda);
-        }
+        const texto = nuevo("text", { x: g.x * k, y: Math.max(12, arriba * k - 6), "text-anchor": "middle", "data-grupo": g.id }, "sol-grupo");
+        texto.textContent = String(g.id);
     });
+}
+
+// La lista de grupos: número, tamaño en km y en Tierras (de punta a punta) y, debajo, manchas, coordenadas
+// heliográficas si se conocen y área. alPasar(id o null) al pasar el ratón por una fila (resaltar el grupo).
+function rellenarListaGrupos(caja, d, alPasar) {
+    caja.replaceChildren();
+    const titulo = document.createElement("h4");
+    titulo.textContent = _("Grupos");
+    caja.appendChild(titulo);
+    if (!d.grupos.length) {
+        const p = document.createElement("p");
+        p.className = "wolf-det";
+        p.textContent = _("Ninguna mancha en el disco.");
+        caja.appendChild(p);
+        return;
+    }
+    d.grupos.forEach(g => {
+        const fila = document.createElement("div");
+        fila.className = "wolf-fila";
+        fila.dataset.grupo = g.id;
+        const num = document.createElement("span");
+        num.className = "wolf-num";
+        num.textContent = g.id;
+        const km = document.createElement("span");
+        km.className = "wolf-km";
+        km.textContent = textoTamano(g, d) || _("sin tamaño");
+        const det = document.createElement("span");
+        det.className = "wolf-det";
+        const partes = [ngettext("{n} mancha", "{n} manchas", g.n)];
+        if (g.lat != null) partes.push(_wolfHelio(g.lat, g.dlon));
+        if (g.km2 != null) partes.push(_("área {a} millones de km²", { a: fmtNum(g.km2 / 1e6, 0) }));
+        det.textContent = partes.join(" · ");
+        if (g.diametro_km != null)
+            fila.title = _("De punta a punta. Diámetro equivalente {d} km; área {a} millones de km².",
+                { d: _kmRedondo(g.diametro_km), a: fmtNum(g.km2 / 1e6, 0) });
+        fila.append(num, km, det);
+        if (alPasar) {
+            fila.addEventListener("mouseenter", () => alPasar(g.id));
+            fila.addEventListener("mouseleave", () => alPasar(null));
+        }
+        caja.appendChild(fila);
+    });
+    if (d.grupos.some(g => g.largo_km == null)) {
+        const p = document.createElement("p");
+        p.className = "wolf-det";
+        p.textContent = _("Conteo guardado antes de medir tamaños: pulsa «Volver a contar» para verlos.");
+        caja.appendChild(p);
+    }
 }
 
 function textoWolf(d) {
@@ -189,8 +228,6 @@ function textoWolf(d) {
     let texto = _("R = 10·{g} + {f} = {R}", { g: w.g, f: w.f, R: fmtNum(w.R, w.k === 1 ? 0 : 1) });
     if (w.k !== 1) texto += " " + _("(k = {k})", { k: fmtNum(w.k, 2) });
     texto += " · " + ngettext("{n} grupo", "{n} grupos", w.g) + ", " + ngettext("{n} mancha", "{n} manchas", w.f);
-    const mayor = (d.grupos || []).filter(g => g.largo_km != null).sort((a, b) => b.largo_km - a.largo_km)[0];
-    if (mayor) texto += " · " + _("el grupo {n} mide {tam}", { n: mayor.id, tam: textoTamano(mayor, d) });
     if (d.disco && d.disco.cortado) texto += " · " + _("disco cortado: conteo parcial");
     if (d.guardado) texto += " · " + _("guardado");
     else if (d.editado) texto += " · " + _("sin guardar");

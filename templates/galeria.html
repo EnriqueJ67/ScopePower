@@ -108,6 +108,8 @@
         <button type="button" class="btn btn-secondary btn-sm" onclick="wolfOlvidar()" title="{{ _('Quita el conteo guardado y vuelve a detectar las manchas') }}">{{ _("Volver a contar") }}</button>
         <div class="wolf-ayuda" id="wolf-ayuda"></div>
     </div>
+    <!-- La lista de grupos (tamaño en km y Tierras, coordenadas): a la derecha de la foto si cabe, si no debajo -->
+    <div id="wolf-lista" class="wolf-lista" style="display: none;" onclick="event.stopPropagation()"></div>
     <!-- Fotos del Sol con crudo: el limbo por colores, la temperatura según la profundidad y el diámetro -->
     <button type="button" id="lightbox-sol" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); alternarPanelSol()" style="display: none;">{{ _("Limbo y diámetro") }}</button>
     <div id="panel-sol" class="panel-sol" style="display: none;" onclick="event.stopPropagation()">
@@ -125,7 +127,7 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/luna_anotada.js') }}?v=1"></script>
-<script src="{{ url_for('static', filename='js/manchas_solares.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/manchas_solares.js') }}?v=3"></script>
 <script src="{{ url_for('static', filename='js/fotometria_solar.js') }}?v=1"></script>
 <script>
     const CON_FITS = {{ con_fits|list|tojson }};
@@ -338,6 +340,7 @@
         if (d.sol) {
             pintarManchasSolares(svgAnot, d, k, w, h, WOLF);
             wolfBarra(true, d);
+            colocarListaWolf(d);
             pieLightbox(textoWolf(d));
             return;
         }
@@ -396,11 +399,40 @@
         const barra = document.getElementById("wolf-barra");
         barra.style.display = ver ? "" : "none";
         svgAnot.classList.toggle("tocable", !!ver);
-        if (!ver) { WOLF.seleccionada = null; return; }
+        if (!ver) { WOLF.seleccionada = null; document.getElementById("wolf-lista").style.display = "none"; return; }
         document.querySelectorAll("#wolf-modo button").forEach(b => b.classList.toggle("activo", b.dataset.modo === WOLF.modo));
         document.getElementById("wolf-sensibilidad").value = d.sensibilidad || WOLF.sensibilidad;
         document.getElementById("wolf-guardar").disabled = !!d.guardado && !d.editado;
         document.getElementById("wolf-ayuda").textContent = AYUDA_WOLF[WOLF.modo];
+    }
+    // La lista de grupos: a la derecha de la foto si hay hueco; si no, debajo; si tampoco, sobre la parte de abajo de la foto
+    function colocarListaWolf(d) {
+        const lista = document.getElementById("wolf-lista");
+        rellenarListaGrupos(lista, d, resaltarGrupo);
+        Object.assign(lista.style, { display: "", left: "", top: "", bottom: "", width: "", maxHeight: "" });
+        const img = svgAnot.getBoundingClientRect();
+        const caja = document.getElementById("lightbox").getBoundingClientRect();
+        const barra = document.getElementById("wolf-barra").getBoundingClientRect();
+        const pie = document.getElementById("lightbox-pie").getBoundingClientRect();
+        const MARGEN = 12, ANCHO = 240;
+        const derecha = caja.right - img.right - 2 * MARGEN;
+        if (derecha >= ANCHO) {
+            const arriba = Math.max(img.top, barra.bottom + MARGEN);
+            Object.assign(lista.style, { left: (img.right + MARGEN) + "px", top: arriba + "px", width: Math.min(320, derecha) + "px",
+                                         maxHeight: Math.max(120, pie.top - arriba - MARGEN) + "px" });
+            return;
+        }
+        const ancho = Math.min(img.width, caja.width - 16);
+        Object.assign(lista.style, { left: Math.max(8, img.left + (img.width - ancho) / 2) + "px", width: ancho + "px" });
+        const debajo = pie.top - img.bottom - MARGEN;
+        if (debajo >= Math.min(lista.scrollHeight, 110))
+            Object.assign(lista.style, { top: (img.bottom + 8) + "px", maxHeight: debajo + "px" });
+        else
+            Object.assign(lista.style, { bottom: (caja.bottom - pie.top + 6) + "px", maxHeight: "38%" });
+    }
+    function resaltarGrupo(id) {
+        svgAnot.querySelectorAll("[data-grupo]").forEach(el => el.classList.toggle("sol-resaltada", id != null && Number(el.dataset.grupo) === id));
+        document.querySelectorAll("#wolf-lista .wolf-fila").forEach(f => f.classList.toggle("activa", id != null && Number(f.dataset.grupo) === id));
     }
     function wolfModo(modo) {
         WOLF.modo = modo;

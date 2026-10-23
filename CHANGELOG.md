@@ -5,9 +5,11 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
-- Nuevo: el tamaño de cada grupo de manchas del Sol, en kilómetros y en Tierras, junto a su número
-  en el visor («134.000 km · 10,5 Tierras», de punta a punta; al pasar el ratón, el diámetro
-  equivalente y el área). Sale de la zona oscura entera (umbra y penumbra) sobre la esfera, con el
+- Nuevo: el tamaño de cada grupo de manchas del Sol, en kilómetros y en Tierras («134.000 km · 10,5
+  Tierras», de punta a punta), en una lista de grupos del visor con sus manchas, sus coordenadas y
+  su área; la lista va a la derecha de la foto si cabe y, si no, debajo, y al pasar el ratón por
+  una fila se resalta su grupo. Sobre la foto queda solo el número de cada grupo: con los tamaños
+  encima, los rótulos de grupos cercanos se pisaban. Sale de la zona oscura entera (umbra y penumbra) sobre la esfera, con el
   escorzo corregido, y del radio del disco (695 700 km), sin necesitar la escala de placa. Se
   recalcula al corregir el conteo a mano y se guarda con él. Por debajo de lo que emborrona el día
   (la anchura del limbo, unos 8000 km en las fotos de octubre) se da como «menos de».
