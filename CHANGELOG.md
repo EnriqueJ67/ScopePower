@@ -5,6 +5,12 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Nuevo: el tamaño de cada grupo de manchas del Sol, en kilómetros y en Tierras, junto a su número
+  en el visor («134.000 km · 10,5 Tierras», de punta a punta; al pasar el ratón, el diámetro
+  equivalente y el área). Sale de la zona oscura entera (umbra y penumbra) sobre la esfera, con el
+  escorzo corregido, y del radio del disco (695 700 km), sin necesitar la escala de placa. Se
+  recalcula al corregir el conteo a mano y se guarda con él. Por debajo de lo que emborrona el día
+  (la anchura del limbo, unos 8000 km en las fotos de octubre) se da como «menos de».
 - Nuevo: Número de Wolf de las fotos del Sol. En la galería, el interruptor «Anotaciones» sobre una
   foto del Sol (suelta o apilada de un vídeo) localiza el disco, aplana el oscurecimiento del limbo
   sobre el crudo lineal y cuenta las umbras (f) y los grupos (g, por separación angular sobre la

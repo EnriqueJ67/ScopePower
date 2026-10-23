@@ -2074,6 +2074,10 @@ msgstr ""
 msgid "De noche se usa {valor} (Configuración)."
 msgstr ""
 
+#: static/js/manchas_solares.js
+msgid "De punta a punta. Diámetro equivalente {d} km; área {a} millones de km²."
+msgstr ""
+
 #. js
 #: templates/goto.html
 msgid "Debe decir \"{palabra}\" antes del objeto."
@@ -9419,6 +9423,10 @@ msgstr ""
 msgid "el driver «{driver}» no está instalado en este PC: elige otro o instala el de tu equipo"
 msgstr ""
 
+#: static/js/manchas_solares.js
+msgid "el grupo {n} mide {tam}"
+msgstr ""
+
 #: enfoque.py
 msgid "el limbo no se ve bien (¿disco cortado por el borde, nubes, saturado?)"
 msgstr ""
@@ -10021,6 +10029,10 @@ msgstr ""
 #. js
 #: foto_dia.py
 msgid "memoria"
+msgstr ""
+
+#: static/js/manchas_solares.js
+msgid "menos de {km} km · {t} Tierras"
 msgstr ""
 
 #: mosaico.py
@@ -10896,6 +10908,10 @@ msgstr ""
 
 #: anuncio_ip.py
 msgid "{ip}, dos puntos, puerto {puerto}."
+msgstr ""
+
+#: static/js/manchas_solares.js
+msgid "{km} km · {t} Tierras"
 msgstr ""
 
 #: camara_sdk.py

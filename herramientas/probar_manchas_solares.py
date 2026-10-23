@@ -12,6 +12,8 @@
 #      JSON y en la serie (la segunda vez sustituye la fila), olvidar lo quita, y la orientación
 #      de la cámara, si se conoce, gira con la foto.
 #   5. es_sol por el objeto del JSON y por el nombre.
+#   6. El tamaño en km de cada grupo (zonas oscuras sobre la esfera, con el escorzo): las manchas
+#      sintéticas de radio conocido dan su diámetro y su largo; se guarda con el conteo.
 #
 # Uso: python herramientas/probar_manchas_solares.py   (desde la carpeta de ScopePower)
 
@@ -136,6 +138,39 @@ def _resumen(manchas):
     return ", ".join(f"g{gid}: {len(ms)}" for gid, ms in sorted(grupos.items()))
 
 
+def probar_tamanos(manchas, zonas, disco, medida):
+    """Tamaño en km de los grupos del Sol sintético (r = 400 px: 1739 km por píxel en el centro)."""
+    km_px = M.RADIO_SOL_KM / disco["r"]
+    grupos = M.grupos_de(manchas, zonas, disco)
+    # Cinco zonas: las dos del par bipolar, la suelta, la penumbra con tres umbras y el poro
+    comprobar(len(zonas) == 5 and all(m["zona"] is not None for m in manchas), f"{len(zonas)} zonas oscuras, cada mancha con la suya")
+    comprobar(all(g["largo_km"] and g["diametro_km"] and g["km2"] for g in grupos), "todos los grupos tienen tamaño")
+
+    def grupo_en(X, Y):
+        x, y = 450 + X * 400, 450 + Y * 400
+        return min(grupos, key=lambda g: math.hypot(g["x"] - x, g["y"] - y))
+
+    # Una mancha redonda de radio r px a ρ del centro: en la esfera, una elipse de r/μ (radial) por r. El
+    # borde detectado (7 % más oscuro que la fotosfera) queda ~0,8 px fuera del dibujado por el desenfoque
+    for nombre, X, Y, r_px in (("B", 0.40, -0.30, 13), ("C", 0.10, 0.55, 22)):
+        mu = math.sqrt(1 - X * X - Y * Y)
+        rr = (r_px + 0.8) * km_px
+        d_esp, largo_esp = 2 * rr / math.sqrt(mu), 2 * rr / mu
+        g = grupo_en(X, Y)
+        comprobar(abs(g["diametro_km"] / d_esp - 1) < 0.12 and abs(g["largo_km"] / largo_esp - 1) < 0.12,
+                  f"grupo {nombre}: diámetro {g['diametro_km']} km (esperado {d_esp:.0f}), largo {g['largo_km']} km (esperado {largo_esp:.0f})")
+    # El par bipolar: sus centros están a 7° (85 000 km); de punta a punta, más
+    g = grupo_en(-0.30, 0.20)
+    comprobar(95000 < g["largo_km"] < 140000 and g["n"] == 2, f"par bipolar: largo {g['largo_km']} km (los centros a 85 000 km)")
+    comprobar(medida["resolucion_km"] and 2000 < medida["resolucion_km"] < 8000,
+              f"resolución del día (anchura del limbo): {medida['resolucion_km']} km (desenfoque σ = 1 px ≈ 4100 km)")
+    # Una mancha añadida a mano (sin zona) cuenta como un círculo de su radio y alarga su grupo
+    a_mano = dict(x=450 + 0.40 * 400 + 40, y=450 - 0.30 * 400, r_px=3.0, grupo=grupo_en(0.40, -0.30)["id"], zona=None)
+    g2 = [x for x in M.grupos_de(manchas + [a_mano], zonas, disco) if x["id"] == a_mano["grupo"]][0]
+    comprobar(g2["largo_km"] > grupo_en(0.40, -0.30)["largo_km"] + 30 * km_px, f"con una mancha a mano 40 px más allá: largo {g2['largo_km']} km")
+    comprobar(all(g["largo_km"] is None for g in M.grupos_de(manchas)), "sin zonas (conteos guardados antes): sin tamaño")
+
+
 def probar_sintetico():
     print("Sol sintético con cuatro grupos (g = 4, f = 7, R = 47)")
     lum, esperadas = sol_sintetico()
@@ -143,7 +178,7 @@ def probar_sintetico():
     comprobar(abs(disco["cx"] - 450) < 2 and abs(disco["cy"] - 450) < 2 and abs(disco["r"] - 400) < 3 and not disco["cortado"],
               f"disco en ({disco['cx']:.1f}, {disco['cy']:.1f}) r {disco['r']:.1f} (450, 450, 400)")
     for sensibilidad in ("normal", "alta", "baja"):
-        manchas, area, medida = M.detectar(lum, disco, sensibilidad)
+        manchas, area, medida, zonas = M.detectar(lum, disco, sensibilidad)
         M.agrupar(manchas, disco)
         g, f = len(M.grupos_de(manchas)), len(manchas)
         bien = g == 4 and f == 7
@@ -163,10 +198,11 @@ def probar_sintetico():
             poro = [m for m in manchas if not m["umbra"]]
             comprobar(len(poro) == 1 and poro[0]["area_mhs"] > 0 and all(m["area_mhs"] > 0 for m in manchas),
                       f"el poro cuenta como una mancha sin umbra ({poro[0]['area_mhs'] if poro else '-'} millonésimas)")
+            probar_tamanos(manchas, zonas, disco, medida)
     # Girada un cuarto de vuelta: el mismo conteo
     lum90 = np.ascontiguousarray(np.rot90(lum))
     d90 = M.localizar_disco(lum90)
-    m90, __, __ = M.detectar(lum90, d90, "normal")
+    m90, __, __, __ = M.detectar(lum90, d90, "normal")
     M.agrupar(m90, d90)
     comprobar(len(M.grupos_de(m90)) == 4 and len(m90) == 7, f"girada 90°: g={len(M.grupos_de(m90))} f={len(m90)}")
     # Umbrales por sensibilidad y texto del factor k
@@ -245,8 +281,12 @@ def probar_galeria(lum):
     for m in manchas:
         if m["grupo"] == 2:
             m["grupo"] = 1
-    r = M.guardar(nombre, {"manchas": manchas, "disco": d["disco"], "sensibilidad": "normal"}, (40.0, -3.7))
+    r = M.guardar(nombre, {"manchas": manchas, "disco": d["disco"], "sensibilidad": "normal", "zonas": d["zonas"],
+                           "resolucion_km": d["resolucion_km"]}, (40.0, -3.7))
     comprobar(r["guardado"] and r["wolf"]["f"] == 6 and r["wolf"]["g"] == 3 and r["wolf"]["R"] == 36.0, f"guardado: {r['wolf']}")
+    esperado = M.grupos_de([dict(m) for m in manchas], d["zonas"], d["disco"])
+    comprobar(all(g["largo_km"] for g in r["grupos"]) and sorted(g["largo_km"] for g in r["grupos"]) == sorted(g["largo_km"] for g in esperado)
+              and r["resolucion_km"] == d["resolucion_km"], f"lo guardado conserva el tamaño de los grupos: {[g['largo_km'] for g in r['grupos']]} km")
     with open(os.path.join(fotos, nombre.replace(".jpg", ".json")), encoding="utf-8") as f:
         w = json.load(f)["wolf"]
     comprobar(w["g"] == 3 and w["f"] == 6 and w["a_mano"] and len(w["manchas"]) == 6 and w["fecha"].startswith("2026-10-23T12:00"),

@@ -62,6 +62,7 @@ RADIO_MIN_MANCHA = 0.0045      # fracción del radio: una mancha real, desenfoca
 AREA_MIN_UMBRA = 2
 OSCURO_MAX = 0.08              # más de esta fracción del disco «oscura»: nubes o el disco mal medido
 SEP_GRUPO_DEG = 8.0            # dos manchas a menos de esto (sobre la esfera) van al mismo grupo
+RADIO_SOL_KM = 695700.0        # radio nominal del Sol (IAU 2015): el radio del disco en píxeles son estos km
 FONDO_LOCAL = 0.12             # fracción del radio: tamaño del cierre que estima la fotosfera local (quita gradientes)
 # Por sensibilidad: (contraste mínimo de una mancha, veces el ruido de la fotosfera, umbral de umbra).
 # Una zona es mancha si queda por debajo de 1 − max(contraste mínimo, n·σ) de la fotosfera local;
@@ -229,20 +230,68 @@ def renumerar_grupos(manchas, etiquetas=None):
     return manchas
 
 
-def grupos_de(manchas):
-    """Lista de grupos (id, n, centro, coordenadas medias si todas sus manchas las tienen, área)."""
+def largo_km(puntos, disco):
+    """
+    La mayor distancia sobre la esfera (km) entre los puntos dados (px de la imagen), más un píxel: entre
+    centros de píxel se queda medio píxel corta por cada lado.
+    """
+    P = np.asarray(puntos, dtype=np.float64).reshape(-1, 2)
+    if len(P) == 0:
+        return 0.0
+    X, Y = (P[:, 0] - disco["cx"]) / disco["r"], (P[:, 1] - disco["cy"]) / disco["r"]
+    rho = np.hypot(X, Y)
+    fuera = rho > 0.9999
+    X[fuera], Y[fuera] = X[fuera] / rho[fuera] * 0.9999, Y[fuera] / rho[fuera] * 0.9999
+    V = np.c_[X, Y, np.sqrt(np.clip(1.0 - X * X - Y * Y, 0.0, 1.0))]
+    return float(np.arccos(np.clip(np.min(V @ V.T), -1.0, 1.0))) * RADIO_SOL_KM + RADIO_SOL_KM / disco["r"]
+
+
+def tamano_grupo(ms, zonas_por_id, disco):
+    """
+    (área en km², diámetro equivalente en km, largo de punta a punta en km) de un grupo: sus zonas
+    oscuras (umbra y penumbra) cuentan una vez cada una aunque tengan varias umbras; una mancha
+    añadida a mano, sin zona, cuenta como un círculo de su radio. El largo es la mayor distancia sobre
+    la esfera entre dos puntos de los contornos de sus zonas.
+    """
+    km_px = RADIO_SOL_KM / disco["r"]
+    area, puntos, vistas = 0.0, [], set()
+    for m in ms:
+        z = zonas_por_id.get(m.get("zona"))
+        if z is not None:
+            if z["id"] not in vistas:
+                vistas.add(z["id"])
+                area += z["area_km2"]
+                puntos += z["contorno"]
+        else:
+            __, __, Z = _xyz(m["x"], m["y"], disco)
+            rp = float(m.get("r_px") or 2.0)
+            area += math.pi * (rp * km_px) ** 2 / max(Z, 0.15)
+            puntos += [[m["x"] + rp * math.cos(a), m["y"] + rp * math.sin(a)] for a in np.linspace(0, 2 * math.pi, 8, endpoint=False)]
+    return area, 2.0 * math.sqrt(area / math.pi), largo_km(puntos, disco)
+
+
+def grupos_de(manchas, zonas=None, disco=None):
+    """
+    Lista de grupos (id, n, centro, coordenadas medias si todas sus manchas las tienen, área) y, si se
+    dan las zonas oscuras de la foto (detectar) y el disco, su tamaño en km.
+    """
     por_id = {}
     for m in manchas:
         por_id.setdefault(int(m["grupo"]), []).append(m)
+    zonas_por_id = {z["id"]: z for z in (zonas or [])}
     salida = []
     for gid in sorted(por_id):
         ms = por_id[gid]
         g = {"id": gid, "n": len(ms), "x": round(sum(m["x"] for m in ms) / len(ms), 1),
              "y": round(sum(m["y"] for m in ms) / len(ms), 1),
-             "area_mhs": round(sum(float(m.get("area_mhs") or 0.0) for m in ms), 1), "lat": None, "dlon": None}
+             "area_mhs": round(sum(float(m.get("area_mhs") or 0.0) for m in ms), 1), "lat": None, "dlon": None,
+             "km2": None, "diametro_km": None, "largo_km": None}
         if all(m.get("lat") is not None for m in ms):
             g["lat"] = round(sum(m["lat"] for m in ms) / len(ms), 1)
             g["dlon"] = round(sum(m["dlon"] for m in ms) / len(ms), 1)
+        if zonas is not None and disco:
+            a, d_eq, largo = tamano_grupo(ms, zonas_por_id, disco)
+            g.update({"km2": round(a), "diametro_km": round(d_eq), "largo_km": round(largo)})
         salida.append(g)
     return salida
 
@@ -324,9 +373,10 @@ def fotosfera_local(plano, disco):
 def detectar(lum, disco, sensibilidad="normal"):
     """
     Manchas sobre la fotosfera local: lista de dicts (x, y, r_px, umbra, area_px, area_mhs,
-    contraste) en píxeles de `lum`, el total de la zona de penumbra y {ruido, umbral}. f = una
-    mancha por núcleo de umbra; una penumbra sin umbra cuenta una. Lanza ErrorSol si el disco no
-    es limpio.
+    contraste, zona) en píxeles de `lum`, el total de la zona de penumbra, {ruido, umbral,
+    resolucion_km} y las zonas oscuras (umbra y penumbra juntas: lo que se ve como una mancha) con su
+    tamaño en km: [{id, x, y, area_km2, largo_km}]. f = una mancha por núcleo de umbra; una penumbra
+    sin umbra cuenta una. Lanza ErrorSol si el disco no es limpio.
     """
     import cv2
     c_min, n_sigma, u_umb = SENSIBILIDADES[sensibilidad_valida(sensibilidad)]
@@ -348,7 +398,22 @@ def detectar(lum, disco, sensibilidad="normal"):
         X, Y, Z = _xyz(x, y, disco)
         return {"x": round(x, 1), "y": round(y, 1), "r_px": round(math.sqrt(area / math.pi), 2), "umbra": bool(umbra),
                 "area_px": int(area), "area_mhs": round(area * 1e6 / (2.0 * math.pi * r * r * max(Z, 0.15)), 1),
-                "contraste": round(float(1.0 - suave[ys, xs].mean()), 3)}
+                "contraste": round(float(1.0 - suave[ys, xs].mean()), 3), "zona": None}
+
+    km_px = RADIO_SOL_KM / r
+
+    def _zona(lab):
+        """
+        La zona oscura `lab` sobre la esfera: área (cada píxel vale 1/μ por el escorzo), contorno (la
+        envolvente convexa: con ella se mide el largo de la zona y el de su grupo) y largo de punta a punta.
+        """
+        ys, xs = np.nonzero(et_p == lab)
+        X, Y = (xs - disco["cx"]) / r, (ys - disco["cy"]) / r
+        Z = np.sqrt(np.clip(1.0 - X * X - Y * Y, 0.0, 1.0))
+        contorno = cv2.convexHull(np.c_[xs, ys].astype(np.float32)).reshape(-1, 2)
+        return {"id": int(lab), "x": round(float(xs.mean()), 1), "y": round(float(ys.mean()), 1),
+                "area_km2": round(float(np.sum(1.0 / np.maximum(Z, 0.15))) * km_px * km_px),
+                "largo_km": round(largo_km(contorno, disco)), "contorno": [[float(a), float(b)] for a, b in contorno]}
 
     def _en_el_disco(m):
         return math.hypot(m["x"] - disco["cx"], m["y"] - disco["cy"]) < CENTRO_MAX * r
@@ -364,9 +429,10 @@ def detectar(lum, disco, sensibilidad="normal"):
         m = _mancha(et_u, lab, area, True)
         if not _en_el_disco(m):
             continue
-        con_umbra.add(int(et_p[int(round(cen_u[lab][1])), int(round(cen_u[lab][0]))]))
+        m["zona"] = int(et_p[int(round(cen_u[lab][1])), int(round(cen_u[lab][0]))]) or None
+        con_umbra.add(m["zona"])
         manchas.append(m)
-    area_pen = 0
+    area_pen, zonas = 0, []
     for lab in range(1, n_p):
         area = int(st_p[lab, cv2.CC_STAT_AREA])
         if area < area_min:
@@ -375,10 +441,32 @@ def detectar(lum, disco, sensibilidad="normal"):
         if not _en_el_disco(m):
             continue
         area_pen += area
+        zonas.append(_zona(lab))
         if lab in con_umbra:
             continue
+        m["zona"] = int(lab)
         manchas.append(m)
-    return manchas, area_pen, {"ruido": round(sigma, 4), "umbral": round(u_pen, 3)}
+    ids = {z["id"] for z in zonas}
+    for m in manchas:
+        if m["zona"] not in ids:
+            m["zona"] = None
+    medida = {"ruido": round(sigma, 4), "umbral": round(u_pen, 3), "resolucion_km": resolucion_km(lum, disco)}
+    return manchas, area_pen, medida, zonas
+
+
+def resolucion_km(lum, disco):
+    """
+    Lo que emborronan el desenfoque y el seeing, en km sobre el Sol: la anchura del limbo (la caída del
+    brillo en el borde del disco). Una mancha más pequeña sale con este tamaño, no con el suyo.
+    """
+    import enfoque
+    try:
+        anch, __, __ = enfoque.anchura_limbo(np.asarray(lum, dtype=np.float32), disco["cx"], disco["cy"], disco["r"])
+    except Exception:
+        return None
+    if len(anch) < 30:
+        return None
+    return round(float(np.median(anch)) * RADIO_SOL_KM / disco["r"])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -535,8 +623,9 @@ def _observatorio_de(meta, observatorio):
     return (float(lat), float(lon))
 
 
-def _paquete(nombre, meta, disco, manchas, area_mhs, geo, cielo, k, sensibilidad, ancho, alto, guardado, origen=""):
-    grupos = grupos_de(manchas)
+def _paquete(nombre, meta, disco, manchas, area_mhs, geo, cielo, k, sensibilidad, ancho, alto, guardado, origen="",
+             zonas=None, resolucion=None):
+    grupos = grupos_de(manchas, zonas, disco)
     g, f = len(grupos), len(manchas)
     return {"ok": True, "sol": True, "ancho": ancho, "alto": alto,
             "disco": {"cx": round(disco["cx"], 1), "cy": round(disco["cy"], 1), "r": round(disco["r"], 1), "cortado": bool(disco.get("cortado"))},
@@ -545,7 +634,8 @@ def _paquete(nombre, meta, disco, manchas, area_mhs, geo, cielo, k, sensibilidad
             "area_mhs": round(float(area_mhs), 1),
             "geometria": {"P": round(geo["P"], 2), "B0": round(geo["B0"], 2), "L0": round(geo["L0"], 2),
                           "norte_deg": round(cielo["norte_deg"], 1) if cielo else None},
-            "sensibilidad": sensibilidad, "guardado": bool(guardado), "sep_grupo_deg": SEP_GRUPO_DEG, "origen": origen}
+            "sensibilidad": sensibilidad, "guardado": bool(guardado), "sep_grupo_deg": SEP_GRUPO_DEG, "origen": origen,
+            "zonas": zonas, "resolucion_km": resolucion, "radio_sol_km": RADIO_SOL_KM}
 
 
 def _desde_guardado(nombre, meta, ruta_jpg, observatorio):
@@ -563,7 +653,8 @@ def _desde_guardado(nombre, meta, ruta_jpg, observatorio):
     _completar_coordenadas(manchas, disco, cielo)
     renumerar_grupos(manchas)
     return _paquete(nombre, meta, disco, manchas, w.get("area_mhs", 0.0), geo, cielo, float(w.get("k") or factor_k()),
-                    sensibilidad_valida(w.get("sensibilidad")), wj, hj, True, "guardado")
+                    sensibilidad_valida(w.get("sensibilidad")), wj, hj, True, "guardado",
+                    w.get("zonas"), w.get("resolucion_km"))
 
 
 def objetos_foto(nombre, observatorio=None, sensibilidad="normal", forzar=False):
@@ -588,7 +679,7 @@ def objetos_foto(nombre, observatorio=None, sensibilidad="normal", forzar=False)
         lum, T, origen = _imagen(nombre, meta, ruta_jpg)
         lum, escala = _reducir(lum)
         disco_a = localizar_disco(lum)
-        manchas, area_pen, medida = detectar(lum, disco_a, sensibilidad)
+        manchas, area_pen, medida, zonas = detectar(lum, disco_a, sensibilidad)
     except ErrorSol as e:
         log.info("Sol sin contar en %s: %s (%.1f s)", nombre, e, time.time() - t0)
         raise ErrorEditor(str(e))
@@ -599,13 +690,17 @@ def objetos_foto(nombre, observatorio=None, sensibilidad="normal", forzar=False)
     for m in manchas:
         m["x"], m["y"] = (round(v, 1) for v in _a_jpg(Tj, m["x"], m["y"]))
         m["r_px"] = round(m["r_px"] / escala, 2)
+    for z in zonas:                                        # los km no cambian: solo la posición
+        z["x"], z["y"] = (round(v, 1) for v in _a_jpg(Tj, z["x"], z["y"]))
+        z["contorno"] = [[round(v, 1) for v in _a_jpg(Tj, a, b)] for a, b in z["contorno"]]
     wj, hj = _tamano_jpg(ruta_jpg)
     instante = _fecha_local_de(nombre, meta) or time.time()
     geo, cielo = contexto_cielo(nombre, meta, instante, T, _observatorio_de(meta, observatorio))
     _completar_coordenadas(manchas, disco, cielo)
     agrupar(manchas, disco)
     area_mhs = area_pen * 1e6 / (2.0 * math.pi * disco_a["r"] ** 2)
-    salida = _paquete(nombre, meta, disco, manchas, area_mhs, geo, cielo, factor_k(), sensibilidad, wj, hj, False, origen)
+    salida = _paquete(nombre, meta, disco, manchas, area_mhs, geo, cielo, factor_k(), sensibilidad, wj, hj, False, origen,
+                      zonas, medida.get("resolucion_km"))
     salida["medida"] = medida
     log.info("Wolf en %s (%s, sensibilidad %s, ruido %.4f, umbral %.3f): g=%d f=%d R=%s%s, P=%.1f° B0=%.1f°%s, %.1f s", nombre, origen,
              sensibilidad, medida["ruido"], medida["umbral"], salida["wolf"]["g"], salida["wolf"]["f"], salida["wolf"]["R"],
@@ -631,8 +726,8 @@ def _fecha_iso(nombre, meta):
 
 def guardar(nombre, datos, observatorio=None):
     """
-    Guarda el conteo corregido en el visor: datos = {manchas: [{x, y, r_px, umbra, grupo, area_mhs}],
-    disco: {cx, cy, r}, sensibilidad, k (opcional)}. Va al JSON de la foto (meta["wolf"]) y a la
+    Guarda el conteo corregido en el visor: datos = {manchas: [{x, y, r_px, umbra, grupo, area_mhs, zona}],
+    disco: {cx, cy, r}, sensibilidad, k (opcional), zonas y resolucion_km (los tamaños en km)}. Va al JSON de la foto (meta["wolf"]) y a la
     serie datos/numero_wolf.csv (una fila por foto). Devuelve el paquete para el visor.
     """
     from editor_fotos import ErrorEditor
@@ -652,7 +747,15 @@ def guardar(nombre, datos, observatorio=None):
                 area_mhs = math.pi * r_px * r_px * 1e6 / (2.0 * math.pi * disco["r"] ** 2 * max(Z, 0.15))
             manchas.append({"x": round(x, 1), "y": round(y, 1), "r_px": round(r_px, 2), "umbra": bool(m.get("umbra")),
                             "grupo": int(m.get("grupo") or 1), "area_mhs": round(float(area_mhs), 1),
-                            "contraste": float(m.get("contraste") or 0.0)})
+                            "contraste": float(m.get("contraste") or 0.0),
+                            "zona": int(m["zona"]) if m.get("zona") is not None else None})
+        zonas = None
+        if isinstance(datos.get("zonas"), list):
+            zonas = [{"id": int(z["id"]), "x": round(float(z["x"]), 1), "y": round(float(z["y"]), 1),
+                      "area_km2": round(float(z["area_km2"])), "largo_km": round(float(z["largo_km"])),
+                      "contorno": [[round(float(a), 1), round(float(b), 1)] for a, b in z["contorno"]]} for z in datos["zonas"]]
+        resolucion = datos.get("resolucion_km")
+        resolucion = round(float(resolucion)) if resolucion is not None else None
         if disco["r"] <= 0:
             raise ValueError("radio")
         k = float(datos.get("k") or factor_k())
@@ -668,7 +771,7 @@ def guardar(nombre, datos, observatorio=None):
                     "guardado_en": datetime.now().replace(microsecond=0).isoformat(), "a_mano": True,
                     "sensibilidad": sensibilidad_valida(datos.get("sensibilidad")), "area_mhs": area_mhs,
                     "disco": {k_: round(disco[k_], 1) for k_ in ("cx", "cy", "r")} | {"cortado": disco["cortado"]},
-                    "manchas": manchas}
+                    "manchas": manchas, "zonas": zonas, "resolucion_km": resolucion}
     firma.guardar_meta(ruta_jpg, meta)
     _anotar_serie(nombre, fecha, g, f, k, area_mhs)
     _olvidar_cache(nombre)
