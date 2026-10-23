@@ -70,6 +70,10 @@ msgstr "({m} min ago)"
 msgid "(hace {t})"
 msgstr "({t} ago)"
 
+#: static/js/manchas_solares.js
+msgid "(k = {k})"
+msgstr "(k = {k})"
+
 #: static/js/plan.js
 msgid "(la general de config.ini es {alt}°)"
 msgstr "(the general one in config.ini is {alt}°)"
@@ -1758,6 +1762,10 @@ msgstr "Checking the latest flat..."
 msgid "Consultando..."
 msgstr "Checking..."
 
+#: manchas_solares.py
+msgid "Conteo no válido: {e}"
+msgstr "Invalid count: {e}"
+
 #. js
 #: templates/apilado.html templates/constelacion.html
 msgid "Continuar"
@@ -1887,6 +1895,10 @@ msgstr "Curves changed · press \"Apply to the preview\""
 #: templates/apilado.html
 msgid "Curvas por puntos (RGB y por canal)"
 msgstr "Point curves (RGB and per channel)"
+
+#: templates/galeria.html
+msgid "Cuánto más oscura que la fotosfera tiene que ser una zona para contar como mancha"
+msgstr "How much darker than the photosphere an area must be to count as a spot"
 
 #: templates/apilado.html
 msgid "Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas)."
@@ -2086,6 +2098,10 @@ msgstr "From filter"
 #: flats.py
 msgid "Demasiada luz: el sensor satura incluso con la exposición mínima. Baja el brillo de la pantalla o añade otra capa de camiseta."
 msgstr "Too much light: the sensor saturates even at the minimum exposure. Turn down the panel brightness or add another layer of T-shirt."
+
+#: manchas_solares.py
+msgid "Demasiado oscuro dentro del disco: ¿nubes, o el disco mal medido?"
+msgstr "Too dark inside the disc: clouds, or the disc was measured wrongly?"
 
 #: static/js/puesta_estacion.js
 msgid "Dentro de la tolerancia ({t}′): la montura está en estación"
@@ -2441,6 +2457,10 @@ msgstr "The heart of the scorpion. Its name means 'rival of Mars'."
 #: templates/base.html
 msgid "El disco del PC está casi lleno: {libre} GB libres de {total} GB ({pct} %)."
 msgstr "The PC disk is almost full: {libre} GB free of {total} GB ({pct}%)."
+
+#: manchas_solares.py
+msgid "El disco del Sol sale demasiado oscuro o plano para medirlo"
+msgstr "The solar disc is too dark or too flat to measure"
 
 #: ScopePower.py
 msgid "El disco está casi lleno ({libre} GB libres, hace falta al menos {minimo} GB). Libera espacio en el PC para seguir capturando."
@@ -3550,6 +3570,10 @@ msgstr "Exposure {exposicion} s · gain {ganancia}"
 msgid "Exposición:"
 msgstr "Exposure:"
 
+#: static/js/manchas_solares.js
+msgid "E{lon}"
+msgstr "E{lon}"
+
 #: ScopePower.py
 msgid "FITS en bruto eliminado."
 msgstr "Raw FITS deleted."
@@ -4167,6 +4191,10 @@ msgstr "Record video on the mini PC"
 msgid "Grupo de galaxias"
 msgstr "Galaxy group"
 
+#: templates/galeria.html
+msgid "Grupos"
+msgstr "Groups"
+
 #: templates/apilado.html
 msgid "Guarda el plan con su progreso en un fichero"
 msgstr "Saves the plan and its progress to a file"
@@ -4210,7 +4238,7 @@ msgid "Guardando..."
 msgstr "Saving..."
 
 #: templates/apilado.html templates/configuracion.html
-#: templates/editar_foto.html
+#: templates/editar_foto.html templates/galeria.html
 msgid "Guardar"
 msgstr "Save"
 
@@ -4282,6 +4310,10 @@ msgstr "Talking about {nombre}…"
 #: templates/goto.html
 msgid "Hablar info"
 msgstr "Speak info"
+
+#: ScopePower.py
+msgid "Hace falta iniciar sesión"
+msgstr "You need to sign in"
 
 #: foto_dia.py
 msgid "Hacen falta al menos dos fotos para montar un vídeo"
@@ -4392,7 +4424,7 @@ msgid "Imagen guardada en la galería"
 msgstr "Image saved to the gallery"
 
 #: ScopePower.py editor_dia.py editor_fotos.py galeria_anotada.py
-#: luna_anotada.py
+#: luna_anotada.py manchas_solares.py
 msgid "Imagen no encontrada"
 msgstr "Image not found"
 
@@ -4687,6 +4719,10 @@ msgstr "The webcam shot didn't finish in time"
 #: luna_anotada.py
 msgid "La foto no es de la Luna"
 msgstr "The photo is not of the Moon"
+
+#: manchas_solares.py
+msgid "La foto no es del Sol"
+msgstr "This photo is not of the Sun"
 
 #: disco.py
 msgid "La foto no está disponible."
@@ -5070,9 +5106,13 @@ msgstr "Invalid magnitude"
 msgid "Mancha quieta en ({x}, {y}) descartada"
 msgstr "Still blob at ({x}, {y}) discarded"
 
-#: templates/seguimiento.html
+#: templates/galeria.html templates/seguimiento.html
 msgid "Manchas"
 msgstr "Blobs"
+
+#: templates/galeria.html
+msgid "Manchas y grupos encima de la foto, con el Número de Wolf; el conteo se corrige tocando y se guarda"
+msgstr "Spots and groups over the photo, with the Wolf number; tap to correct the count and save it"
 
 #: templates/imagen.html
 msgid "Mantener el disco centrado"
@@ -5993,7 +6033,7 @@ msgstr "Could not save the balance to {ruta}"
 msgid "No se pudo guardar el mosaico en la galería: {e}"
 msgstr "Could not save the mosaic to the gallery: {e}"
 
-#: static/js/asistente.js
+#: ScopePower.py static/js/asistente.js
 msgid "No se pudo guardar: {e}"
 msgstr "Couldn't save: {e}"
 
@@ -6038,7 +6078,7 @@ msgstr "Could not read the PC status: {error}"
 msgid "No se pudo leer el mosaico: {e}"
 msgstr "Couldn't read the mosaic: {e}"
 
-#: ScopePower.py luna_anotada.py
+#: ScopePower.py luna_anotada.py manchas_solares.py
 msgid "No se pudo leer la imagen"
 msgstr "Couldn't read the image"
 
@@ -6095,6 +6135,10 @@ msgstr "Could not develop: {e}"
 msgid "No se pudo terminar"
 msgstr "Could not finish"
 
+#: ScopePower.py
+msgid "No se pudo volver a contar: {e}"
+msgstr "Could not count again: {e}"
+
 #: camara_webcam.py
 msgid "No se puede abrir la webcam {n} (¿desconectada o en uso por otro programa?)"
 msgstr "Can't open webcam {n} (disconnected or in use by another program?)"
@@ -6130,6 +6174,10 @@ msgstr "It is not known where the photo was taken from: set the observatory in S
 #: luna_anotada.py
 msgid "No se ve el borde de la Luna y este trozo encaja en más de un sitio (una zona lisa, sin nada destacado): no se puede saber qué parte es."
 msgstr "The edge of the Moon is not visible and this piece fits in more than one place (a smooth area with nothing distinctive): it is not possible to tell which part it is."
+
+#: manchas_solares.py
+msgid "No se ve el disco del Sol en la foto"
+msgstr "The solar disc is not visible in the photo"
 
 #: luna_anotada.py
 msgid "No se ve la Luna en la foto."
@@ -6220,10 +6268,18 @@ msgstr "North and east are positive; west is negative (Valencia: 39.47 and −0.
 msgid "Nueva"
 msgstr "New"
 
+#: static/js/manchas_solares.js
+msgid "N{lat}"
+msgstr "N{lat}"
+
 #. js
 #: templates/apilado.html
 msgid "Núcleo del cometa"
 msgstr "Comet nucleus"
+
+#: templates/galeria.html
+msgid "Número de Wolf"
+msgstr "Wolf number"
 
 #: camara_sdk.py
 msgid "Número de cámara no válido en el driver «{driver}»"
@@ -6361,6 +6417,10 @@ msgstr "Orion, Cassiopeia, Scorpius…"
 #: static/js/plan.js
 msgid "Otra noche"
 msgstr "Another night"
+
+#: static/js/manchas_solares.js
+msgid "O{lon}"
+msgstr "W{lon}"
 
 #: static/js/seguimiento.js
 msgid "Pad"
@@ -6862,6 +6922,10 @@ msgstr "Disk space is running low: {p} percent free, {espacio}."
 msgid "Quedan {s} s de esta toma"
 msgstr "{s} s left in this frame"
 
+#: templates/galeria.html
+msgid "Quita el conteo guardado y vuelve a detectar las manchas"
+msgstr "Removes the saved count and detects the spots again"
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Quita el punto seleccionado (los extremos no se quitan)"
 msgstr "Removes the selected point (the end points cannot be removed)"
@@ -6895,6 +6959,14 @@ msgstr "Remove light pollution gradient"
 #: templates/configuracion.html
 msgid "Qué ocupa ScopePower"
 msgstr "What ScopePower uses"
+
+#: static/js/manchas_solares.js
+msgid "R = 10·{g} + {f} = {R}"
+msgstr "R = 10·{g} + {f} = {R}"
+
+#: templates/galeria.html
+msgid "R = k · (10·g + f): g grupos y f manchas contadas en cada foto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia."
+msgstr "R = k · (10·g + f): g groups and f spots counted in each photo. A small telescope shows fewer spots than the SILSO index; the k factor (config.ini, [Sol]) corrects that difference."
 
 #: templates/editar_foto.html
 msgid "Radio del cometa"
@@ -7533,6 +7605,18 @@ msgstr "Keep observing without shutting down"
 msgid "Segunda estrella más brillante. Su nombre proviene del piloto de Menelao en la mitología griega."
 msgstr "The second brightest star. Its name comes from Menelaus's helmsman in Greek mythology."
 
+#: templates/galeria.html
+msgid "Sensibilidad alta"
+msgstr "High sensitivity"
+
+#: templates/galeria.html
+msgid "Sensibilidad baja"
+msgstr "Low sensitivity"
+
+#: templates/galeria.html
+msgid "Sensibilidad normal"
+msgstr "Normal sensitivity"
+
 #: static/js/asistente.js
 msgid "Sensor de {ancho} × {alto} píxeles de {pixel} µm."
 msgstr "{ancho} × {alto} pixel sensor, {pixel} µm pixels."
@@ -7540,6 +7624,10 @@ msgstr "{ancho} × {alto} pixel sensor, {pixel} µm pixels."
 #: static/js/asistente.js
 msgid "Sensor de {ancho} × {alto} píxeles."
 msgstr "{ancho} × {alto} pixel sensor."
+
+#: templates/galeria.html
+msgid "Serie del Número de Wolf"
+msgstr "Wolf number series"
 
 #. js
 #: templates/apilado.html
@@ -7893,6 +7981,10 @@ msgstr "Move up"
 msgid "Sur"
 msgstr "South"
 
+#: static/js/manchas_solares.js
+msgid "S{lat}"
+msgstr "S{lat}"
+
 #: static/js/filtro_solar.js
 msgid "SÍ, el filtro está puesto · Ir a {objeto}"
 msgstr "YES, the filter is on · Go to {objeto}"
@@ -8126,6 +8218,14 @@ msgstr "Tap or drag on the shot to place the pointer where you want the telescop
 #: templates/apilado.html
 msgid "Toca para elegir los darks"
 msgstr "Tap to choose the darks"
+
+#: templates/galeria.html
+msgid "Toca una mancha para quitarla; toca el disco donde falte una para añadirla."
+msgstr "Tap a spot to remove it; tap the disc where one is missing to add it."
+
+#: templates/galeria.html
+msgid "Toca una mancha y luego otra para unir sus grupos; toca dos veces la misma para separarla en un grupo nuevo."
+msgstr "Tap a spot and then another to merge their groups; tap the same one twice to split it into a new group."
 
 #: templates/apilado.html
 msgid "Toca una miniatura para verla en grande"
@@ -8455,6 +8555,10 @@ msgstr "Volume (0-100)"
 #: templates/editar_dia.html
 msgid "Volver a apilar"
 msgstr "Stack again"
+
+#: templates/galeria.html
+msgid "Volver a contar"
+msgstr "Count again"
 
 #: templates/apilado.html
 msgid "Volver a fotografiarlo"
@@ -8937,6 +9041,11 @@ msgstr "query frame"
 msgid "consultar la exposición"
 msgstr "query the exposure"
 
+#. js
+#: templates/galeria.html
+msgid "contando las manchas…"
+msgstr "counting the spots…"
+
 #: camara_nativa.py camara_zwo.py
 msgid "contar ajustes"
 msgstr "count settings"
@@ -9043,6 +9152,10 @@ msgstr "measured offset: {dx}, {dy} px"
 #: grabador_video.py
 msgid "disco casi lleno ({libre} GB libres, hace falta al menos {minimo} GB)"
 msgstr "disk almost full ({libre} GB free, at least {minimo} GB needed)"
+
+#: static/js/manchas_solares.js
+msgid "disco cortado: conteo parcial"
+msgstr "disc cut off: partial count"
 
 #. js
 #: foto_dia.py
@@ -9426,6 +9539,10 @@ msgstr "git failed: {salida}"
 msgid "guardada en Rastros"
 msgstr "saved in Trails"
 
+#: static/js/manchas_solares.js
+msgid "guardado"
+msgstr "saved"
+
 #: static/js/plan.js
 msgid "guardado parcial de {n} foto"
 msgid_plural "guardado parcial de {n} fotos"
@@ -9436,6 +9553,11 @@ msgstr[1] "partial save of {n} shots"
 #: templates/planetario.html
 msgid "guardando"
 msgstr "saving"
+
+#. js
+#: templates/galeria.html
+msgid "guardando el conteo…"
+msgstr "saving the count…"
 
 #: static/js/mosaico.js static/js/plan.js
 msgid "guardando en la galería"
@@ -9868,6 +9990,11 @@ msgstr "not solved"
 msgid "no se apila por el núcleo"
 msgstr "not stacked on the nucleus"
 
+#. js
+#: templates/galeria.html
+msgid "no se pudo"
+msgstr "could not"
+
 #: mosaico.py
 msgid "no se pudo ajustar la homografía"
 msgstr "could not fit the homography"
@@ -10270,6 +10397,10 @@ msgstr "no accepted shots in {n} min"
 msgid "sin giro"
 msgstr "no rotation"
 
+#: static/js/manchas_solares.js
+msgid "sin guardar"
+msgstr "not saved"
+
 #: vivo_dia.py
 msgid "sin límite"
 msgstr "no limit"
@@ -10647,6 +10778,13 @@ msgstr[0] "{n} set aside, will be added later"
 msgstr[1] "{n} set aside, will be added later"
 
 #. js
+#: templates/galeria.html
+msgid "{n} conteo guardado"
+msgid_plural "{n} conteos guardados"
+msgstr[0] "{n} saved count"
+msgstr[1] "{n} saved counts"
+
+#. js
 #: templates/imagen.html
 msgid "{n} corrección"
 msgid_plural "{n} correcciones"
@@ -10763,6 +10901,12 @@ msgstr "{n} photos in a row unsolved: stop touching the mount while it exposes"
 msgid "{n} gigas"
 msgstr "{n} gigabytes"
 
+#: static/js/manchas_solares.js
+msgid "{n} grupo"
+msgid_plural "{n} grupos"
+msgstr[0] "{n} group"
+msgstr[1] "{n} groups"
+
 #: static/js/plan.js
 msgid "{n} hechos"
 msgstr "{n} done"
@@ -10793,6 +10937,12 @@ msgstr[1] "{n} orbital element lists updated"
 #: templates/rastros.html
 msgid "{n} líneas"
 msgstr "{n} lines"
+
+#: static/js/manchas_solares.js
+msgid "{n} mancha"
+msgid_plural "{n} manchas"
+msgstr[0] "{n} spot"
+msgstr[1] "{n} spots"
 
 #: espacio_disco.py
 msgid "{n} megas"
@@ -11345,6 +11495,11 @@ msgstr "last GoTo: {objeto}"
 #: mosaico.py
 msgid "último plate solving ({fecha})"
 msgstr "last plate solve ({fecha})"
+
+#. js
+#: templates/galeria.html
+msgid "último: R = {R} el {fecha} ({g} grupos, {f} manchas)"
+msgstr "latest: R = {R} on {fecha} ({g} groups, {f} spots)"
 
 #. js
 #: templates/apilado.html

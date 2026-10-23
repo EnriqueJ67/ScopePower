@@ -5,6 +5,17 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Nuevo: Número de Wolf de las fotos del Sol. En la galería, el interruptor «Anotaciones» sobre una
+  foto del Sol (suelta o apilada de un vídeo) localiza el disco, aplana el oscurecimiento del limbo
+  sobre el crudo lineal y cuenta las umbras (f) y los grupos (g, por separación angular sobre la
+  esfera, sin necesitar saber dónde está el norte) → R = k·(10·g + f). El conteo se corrige
+  tocando la foto (quitar o añadir manchas, unir o separar grupos), se guarda en el JSON de la
+  foto y en la serie `datos/numero_wolf.csv`, que se ve en una gráfica con el filtro Sol. Con la
+  orientación de la cámara conocida se dan las coordenadas heliográficas de cada grupo; P, B0 y
+  L0 salen de las fórmulas de Meeus sin Internet. El factor k del observador va en `[Sol]
+  factor_k` (`config.example.ini`). Módulo `manchas_solares.py`, capa
+  `static/js/manchas_solares.js`, prueba `herramientas/probar_manchas_solares.py`. Probado con
+  Soles sintéticos y simuladores; pendiente afinar los umbrales con fotos reales.
 - Arreglado: la descripción hablada del objeto al llegar con GoTo casi nunca sonaba en el campo. La
   pantalla mandaba el nombre con el tipo entre paréntesis («M 31 (Galaxia)»), el catálogo propio de
   172 descripciones sin Internet no lo reconocía y la app acababa en Wikipedia, que sin red no
