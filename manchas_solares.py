@@ -6,17 +6,19 @@
 # de la Luna): las manchas y los grupos se pintan encima de la foto y el conteo se corrige
 # a mano tocando (separar grupos tiene parte de criterio) antes de guardarlo.
 #
-#   1. La imagen: el crudo lineal de la foto (editor_dia.cargar_lineal, sin curva de tonos),
-#      que es donde los umbrales de brillo significan algo; si la foto no tiene crudo, el
-#      JPG aproximado a lineal. El disco se localiza con enfoque.circulo_disco (radio libre:
-#      el JPG puede estar recortado o con zoom).
+#   1. La imagen: el crudo lineal de la foto (editor_dia.cargar_lineal, sin curva de tonos)
+#      cuando se sabe con qué giro de Cámara se hizo su JPG (meta["giro"]: así las manchas se
+#      pintan donde toca); si no, el JPG aproximado a lineal, que medido en las fotos reales
+#      vale casi igual. El disco se localiza con enfoque.circulo_disco (radio libre: el JPG
+#      puede estar recortado o con zoom).
 #   2. El oscurecimiento del limbo se aplana: el perfil radial (la mediana del brillo por
-#      anillos de μ = cos ρ) y se divide por él, así la fotosfera vale 1,0 en todo el disco y
-#      una penumbra es «menos de 0,82» igual en el centro que cerca del borde. Fuera del
-#      97 % del radio no se cuenta: el limbo engaña.
-#   3. Penumbra = por debajo de un umbral; umbra = por debajo de otro más bajo (los dos
-#      relativos a la fotosfera y según la sensibilidad). Componentes conexas: f = núcleos de
-#      umbra; una penumbra sin umbra distinguible (un poro) cuenta como una mancha.
+#      anillos de μ = cos ρ) y se divide por él; y lo que queda (gradientes de calima o viñeteo,
+#      de varios % en las fotos reales) se quita dividiendo por la fotosfera local, un cierre
+#      morfológico más grande que cualquier mancha. Fuera del 95 % del radio no se cuenta.
+#   3. Mancha = por debajo de un umbral relativo al ruido medido de la fotosfera (según la
+#      sensibilidad); umbra = por debajo de otro más bajo. Componentes conexas: f = núcleos de
+#      umbra; una penumbra sin umbra distinguible (un poro) cuenta como una mancha. Las motas
+#      de 3 px (polvo, píxeles calientes) y lo pegado al limbo se descartan.
 #   4. Los grupos: manchas encadenadas a menos de una separación angular sobre la esfera. Esa
 #      separación sale de la posición en el disco sin saber dónde está el norte (la geometría
 #      de la esfera no depende de la orientación), así que g, f y R salen siempre. Con la
@@ -50,16 +52,22 @@ RUTA_SERIE = os.path.join("datos", "numero_wolf.csv")
 COLUMNAS_SERIE = ("fecha", "foto", "g", "f", "R", "k", "area_mhs", "a_mano")
 NOMBRES_SOL = {"sol", "sun"}
 ANCHO_ANALISIS = 2000          # la imagen se analiza como mucho a este lado mayor
-RADIO_UTIL = 0.97              # fracción del radio dentro de la cual se cuentan manchas
+RADIO_UTIL = 0.95              # fracción del radio dentro de la cual se mide (más allá, el aplanado del limbo engaña)
+CENTRO_MAX = 0.93              # una mancha con el centro más allá de esto es casi seguro el limbo mal aplanado
 RADIO_MIN_PX = 40.0            # un disco más pequeño no tiene manchas que contar
 ANILLOS_PERFIL = 48            # anillos de μ para el perfil del oscurecimiento del limbo
 SIGMA_SUAVIZADO = 1.0          # desenfoque (px del análisis) antes de umbralizar
-AREA_MIN_PENUMBRA = 3          # px del análisis
+AREA_MIN_PENUMBRA = 4          # px del análisis, como poco; crece con el radio (ver detectar)
+RADIO_MIN_MANCHA = 0.0045      # fracción del radio: una mancha real, desenfocada por la óptica, no es más pequeña
 AREA_MIN_UMBRA = 2
 OSCURO_MAX = 0.08              # más de esta fracción del disco «oscura»: nubes o el disco mal medido
 SEP_GRUPO_DEG = 8.0            # dos manchas a menos de esto (sobre la esfera) van al mismo grupo
-# Umbrales (penumbra, umbra) relativos a la fotosfera aplanada, según la sensibilidad
-SENSIBILIDADES = {"baja": (0.75, 0.50), "normal": (0.82, 0.55), "alta": (0.88, 0.62)}
+FONDO_LOCAL = 0.12             # fracción del radio: tamaño del cierre que estima la fotosfera local (quita gradientes)
+# Por sensibilidad: (contraste mínimo de una mancha, veces el ruido de la fotosfera, umbral de umbra).
+# Una zona es mancha si queda por debajo de 1 − max(contraste mínimo, n·σ) de la fotosfera local;
+# medido en las fotos reales del 10 y el 17-oct-2026: σ ≈ 0,005–0,006 en las limpias, las manchas
+# pequeñas contrastan un 7–10 % y las grandes un 20–45 % (solo el núcleo de la mayor baja del 50 %).
+SENSIBILIDADES = {"baja": (0.10, 6.0, 0.45), "normal": (0.07, 4.0, 0.50), "alta": (0.05, 3.0, 0.55)}
 
 _lock = threading.Lock()
 _cache = {}
@@ -284,16 +292,47 @@ def aplanar_limbo(lum, disco):
     return plano, util
 
 
-def detectar(lum, disco, sensibilidad="normal"):
+def fotosfera_local(plano, disco):
     """
-    Manchas de la fotosfera aplanada: lista de dicts (x, y, r_px, umbra, area_px, area_mhs,
-    contraste) en píxeles de `lum`, y el total de la zona de penumbra. f = una mancha por
-    núcleo de umbra; una penumbra sin umbra cuenta una. Lanza ErrorSol si el disco no es limpio.
+    (brillo relativo a la fotosfera local, ruido σ): el aplanado radial deja gradientes (calima,
+    viñeteo con el Sol descentrado) de varios % que parecerían manchas; un cierre morfológico más
+    grande que cualquier mancha da la fotosfera de alrededor y se divide por ella. El ruido es la
+    desviación robusta (MAD) dentro del 90 % del radio.
     """
     import cv2
-    u_pen, u_umb = SENSIBILIDADES[sensibilidad_valida(sensibilidad)]
-    plano, util = aplanar_limbo(lum, disco)
     suave = cv2.GaussianBlur(plano, (0, 0), SIGMA_SUAVIZADO)
+    k = max(9, int(round(FONDO_LOCAL * disco["r"])) | 1)
+    if k > 25:                                   # el cierre grande, a mitad de resolución: igual de bueno y 4× más rápido
+        h, w = suave.shape
+        peq = cv2.resize(suave, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+        fondo = cv2.morphologyEx(peq, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k // 2 | 1, k // 2 | 1)))
+        fondo = cv2.resize(fondo, (w, h), interpolation=cv2.INTER_LINEAR)
+    else:
+        fondo = cv2.morphologyEx(suave, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    local = suave / np.maximum(fondo, 1e-3)
+    h, w = local.shape
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    centro = np.hypot(xx - disco["cx"], yy - disco["cy"]) < 0.9 * disco["r"]
+    v = local[centro]
+    if v.size < 100:
+        raise ErrorSol(_("El disco del Sol sale demasiado oscuro o plano para medirlo"))
+    mediana = float(np.median(v))
+    sigma = float(1.4826 * np.median(np.abs(v - mediana)))
+    return local, max(sigma, 1e-4)
+
+
+def detectar(lum, disco, sensibilidad="normal"):
+    """
+    Manchas sobre la fotosfera local: lista de dicts (x, y, r_px, umbra, area_px, area_mhs,
+    contraste) en píxeles de `lum`, el total de la zona de penumbra y {ruido, umbral}. f = una
+    mancha por núcleo de umbra; una penumbra sin umbra cuenta una. Lanza ErrorSol si el disco no
+    es limpio.
+    """
+    import cv2
+    c_min, n_sigma, u_umb = SENSIBILIDADES[sensibilidad_valida(sensibilidad)]
+    plano, util = aplanar_limbo(lum, disco)
+    suave, sigma = fotosfera_local(plano, disco)
+    u_pen = 1.0 - max(c_min, n_sigma * sigma)
     pen = (suave < u_pen) & util
     n_util = int(np.count_nonzero(util))
     if n_util and np.count_nonzero(pen) > OSCURO_MAX * n_util:
@@ -311,24 +350,35 @@ def detectar(lum, disco, sensibilidad="normal"):
                 "area_px": int(area), "area_mhs": round(area * 1e6 / (2.0 * math.pi * r * r * max(Z, 0.15)), 1),
                 "contraste": round(float(1.0 - suave[ys, xs].mean()), 3)}
 
+    def _en_el_disco(m):
+        return math.hypot(m["x"] - disco["cx"], m["y"] - disco["cy"]) < CENTRO_MAX * r
+
+    # Medido en las fotos reales: los puntos de 3 px con el 7 % de contraste son ruido (polvo,
+    # píxeles calientes); las manchas reales más pequeñas miden 8 px a r = 330 px
+    area_min = max(AREA_MIN_PENUMBRA, int(round(math.pi * (RADIO_MIN_MANCHA * r) ** 2)))
     manchas, con_umbra = [], set()
     for lab in range(1, n_u):
         area = int(st_u[lab, cv2.CC_STAT_AREA])
         if area < AREA_MIN_UMBRA:
             continue
         m = _mancha(et_u, lab, area, True)
+        if not _en_el_disco(m):
+            continue
         con_umbra.add(int(et_p[int(round(cen_u[lab][1])), int(round(cen_u[lab][0]))]))
         manchas.append(m)
     area_pen = 0
     for lab in range(1, n_p):
         area = int(st_p[lab, cv2.CC_STAT_AREA])
-        if area < AREA_MIN_PENUMBRA:
+        if area < area_min:
+            continue
+        m = _mancha(et_p, lab, area, False)
+        if not _en_el_disco(m):
             continue
         area_pen += area
         if lab in con_umbra:
             continue
-        manchas.append(_mancha(et_p, lab, area, False))
-    return manchas, area_pen
+        manchas.append(m)
+    return manchas, area_pen, {"ruido": round(sigma, 4), "umbral": round(u_pen, 3)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -343,38 +393,33 @@ def _tamano_jpg(ruta_jpg):
 def _imagen(nombre, meta, ruta_jpg):
     """
     (luminancia float32 2D para detectar, T 3×3 que lleva un píxel de esa imagen a píxeles del
-    JPG, origen): el crudo lineal si la foto lo tiene (editor_dia), si no el JPG aproximado a
-    lineal. El crudo está sin el giro de Cámara y el JPG con él: se prueba el giro guardado con la
-    foto y el actual, y vale el que deja el tamaño del JPG.
+    JPG o None si no se sabe, origen): el crudo lineal si la foto lo tiene (editor_dia) y se
+    sabe con qué giro de Cámara se hizo su JPG (meta["giro"]: el giro de hoy puede no ser el de
+    entonces, y con el giro equivocado las manchas caen fuera de sitio); si no, el JPG aproximado a
+    lineal, que vale casi igual (medido en las fotos reales: ruido 0,009 frente a 0,006).
     """
     import cv2
     import editor_dia
-    import giro_camara
     import procesado
     import revelado_dia
     wj, hj = _tamano_jpg(ruta_jpg)
-    try:
-        lineal, __ = editor_dia.cargar_lineal(nombre)
-    except editor_dia.ErrorEditorDia:
-        lineal = None
+    enc = meta.get("giro") if isinstance(meta.get("giro"), dict) else None
+    lineal = None
+    if enc is not None:
+        try:
+            lineal, __ = editor_dia.cargar_lineal(nombre)
+        except editor_dia.ErrorEditorDia:
+            lineal = None
     if lineal is not None:
         h, w = lineal.shape[:2]
-        candidatos = []
-        if isinstance(meta.get("giro"), dict):
-            candidatos.append(meta["giro"])
-        candidatos += [giro_camara.leer(), dict(giro_camara.SIN_GIRO)]
-        for enc in candidatos:
-            g = procesado.geometria_giro(w, h, 1.0, enc.get("giro", 0.0), bool(enc.get("espejo")))
-            if (g["ancho"], g["alto"]) == (wj, hj):
-                return revelado_dia.luminancia(lineal).astype(np.float32), np.asarray(g["T"], dtype=np.float64), "crudo"
-        if abs(wj / w - hj / h) < 0.01:          # mismo encuadre a otro tamaño
-            s = wj / w
-            return revelado_dia.luminancia(lineal).astype(np.float32), np.diag([s, s, 1.0]), "crudo"
-        log.info("Wolf en %s: el crudo (%d×%d) no casa con el JPG (%d×%d); se cuenta sobre el JPG", nombre, w, h, wj, hj)
+        g = procesado.geometria_giro(w, h, 1.0, enc.get("giro", 0.0), bool(enc.get("espejo")))
+        if (g["ancho"], g["alto"]) == (wj, hj):
+            return revelado_dia.luminancia(lineal).astype(np.float32), np.asarray(g["T"], dtype=np.float64), "crudo"
+        log.info("Wolf en %s: el crudo girado (%d×%d) no casa con el JPG (%d×%d); se cuenta sobre el JPG", nombre, g["ancho"], g["alto"], wj, hj)
     gris = cv2.imread(ruta_jpg, cv2.IMREAD_GRAYSCALE)
     if gris is None:
         raise ErrorSol(_("No se pudo leer la imagen"))
-    return (gris.astype(np.float32) / 255.0) ** 2.2, np.eye(3), "jpg"
+    return (gris.astype(np.float32) / 255.0) ** 2.2, None, "jpg"
 
 
 def _reducir(lum):
@@ -451,6 +496,8 @@ def contexto_cielo(nombre, meta, instante, T_jpg, observatorio):
     geometría P, B0, L0. La geometría se devuelve aparte aunque no haya orientación.
     """
     geo = geometria_sol(instante)
+    if T_jpg is None:                            # no se sabe cómo está girado el JPG respecto al crudo
+        return geo, None
     try:
         dirs = _direcciones_cielo(nombre, meta, instante, T_jpg, observatorio)
     except Exception as e:
@@ -508,7 +555,11 @@ def _desde_guardado(nombre, meta, ruta_jpg, observatorio):
     manchas = [dict(m) for m in w["manchas"]]
     wj, hj = _tamano_jpg(ruta_jpg)
     instante = _fecha_local_de(nombre, meta) or time.time()
-    geo, cielo = contexto_cielo(nombre, meta, instante, np.eye(3), _observatorio_de(meta, observatorio))
+    try:
+        __, T, __ = _imagen(nombre, meta, ruta_jpg)          # solo para saber cómo está girado el JPG
+    except ErrorSol:
+        T = None
+    geo, cielo = contexto_cielo(nombre, meta, instante, T, _observatorio_de(meta, observatorio))
     _completar_coordenadas(manchas, disco, cielo)
     renumerar_grupos(manchas)
     return _paquete(nombre, meta, disco, manchas, w.get("area_mhs", 0.0), geo, cielo, float(w.get("k") or factor_k()),
@@ -537,12 +588,12 @@ def objetos_foto(nombre, observatorio=None, sensibilidad="normal", forzar=False)
         lum, T, origen = _imagen(nombre, meta, ruta_jpg)
         lum, escala = _reducir(lum)
         disco_a = localizar_disco(lum)
-        manchas, area_pen = detectar(lum, disco_a, sensibilidad)
+        manchas, area_pen, medida = detectar(lum, disco_a, sensibilidad)
     except ErrorSol as e:
         log.info("Sol sin contar en %s: %s (%.1f s)", nombre, e, time.time() - t0)
         raise ErrorEditor(str(e))
     # A píxeles del JPG: deshacer la reducción y aplicar el giro de Cámara
-    Tj = T @ np.diag([1.0 / escala, 1.0 / escala, 1.0])
+    Tj = (np.eye(3) if T is None else T) @ np.diag([1.0 / escala, 1.0 / escala, 1.0])
     cx, cy = _a_jpg(Tj, disco_a["cx"], disco_a["cy"])
     disco = {"cx": cx, "cy": cy, "r": disco_a["r"] / escala, "cortado": disco_a["cortado"]}
     for m in manchas:
@@ -555,9 +606,10 @@ def objetos_foto(nombre, observatorio=None, sensibilidad="normal", forzar=False)
     agrupar(manchas, disco)
     area_mhs = area_pen * 1e6 / (2.0 * math.pi * disco_a["r"] ** 2)
     salida = _paquete(nombre, meta, disco, manchas, area_mhs, geo, cielo, factor_k(), sensibilidad, wj, hj, False, origen)
-    log.info("Wolf en %s (%s, sensibilidad %s): g=%d f=%d R=%s%s, P=%.1f° B0=%.1f°%s, %.1f s", nombre, origen, sensibilidad,
-             salida["wolf"]["g"], salida["wolf"]["f"], salida["wolf"]["R"], " (disco cortado)" if disco["cortado"] else "",
-             geo["P"], geo["B0"], "" if cielo else " (sin orientación)", time.time() - t0)
+    salida["medida"] = medida
+    log.info("Wolf en %s (%s, sensibilidad %s, ruido %.4f, umbral %.3f): g=%d f=%d R=%s%s, P=%.1f° B0=%.1f°%s, %.1f s", nombre, origen,
+             sensibilidad, medida["ruido"], medida["umbral"], salida["wolf"]["g"], salida["wolf"]["f"], salida["wolf"]["R"],
+             " (disco cortado)" if disco["cortado"] else "", geo["P"], geo["B0"], "" if cielo else " (sin orientación)", time.time() - t0)
     with _lock:
         if len(_cache) > 20:
             for k_ in list(_cache)[:10]:

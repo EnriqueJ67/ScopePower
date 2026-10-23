@@ -143,11 +143,11 @@ def probar_sintetico():
     comprobar(abs(disco["cx"] - 450) < 2 and abs(disco["cy"] - 450) < 2 and abs(disco["r"] - 400) < 3 and not disco["cortado"],
               f"disco en ({disco['cx']:.1f}, {disco['cy']:.1f}) r {disco['r']:.1f} (450, 450, 400)")
     for sensibilidad in ("normal", "alta", "baja"):
-        manchas, area = M.detectar(lum, disco, sensibilidad)
+        manchas, area, medida = M.detectar(lum, disco, sensibilidad)
         M.agrupar(manchas, disco)
         g, f = len(M.grupos_de(manchas)), len(manchas)
         bien = g == 4 and f == 7
-        comprobar(bien, f"sensibilidad {sensibilidad}: g={g} f={f} R={M.numero_wolf(g, f)} ({_resumen(manchas)}; penumbra {area} px)")
+        comprobar(bien, f"sensibilidad {sensibilidad}: g={g} f={f} R={M.numero_wolf(g, f)} ({_resumen(manchas)}; penumbra {area} px, ruido {medida['ruido']}, umbral {medida['umbral']})")
         if sensibilidad == "normal":
             # Cada mancha esperada tiene una detectada a menos de 3 px, con su umbra, y las del mismo grupo van juntas
             asignado = {}
@@ -166,7 +166,7 @@ def probar_sintetico():
     # Girada un cuarto de vuelta: el mismo conteo
     lum90 = np.ascontiguousarray(np.rot90(lum))
     d90 = M.localizar_disco(lum90)
-    m90, __ = M.detectar(lum90, d90, "normal")
+    m90, __, __ = M.detectar(lum90, d90, "normal")
     M.agrupar(m90, d90)
     comprobar(len(M.grupos_de(m90)) == 4 and len(m90) == 7, f"girada 90°: g={len(M.grupos_de(m90))} f={len(m90)}")
     # Umbrales por sensibilidad y texto del factor k
@@ -262,6 +262,16 @@ def probar_galeria(lum):
     # Olvidar: vuelve a detectar y la serie queda vacía
     r = M.olvidar(nombre, (40.0, -3.7), "alta")
     comprobar(not r["guardado"] and r["wolf"]["f"] == 7 and r["sensibilidad"] == "alta" and M.serie() == [], "olvidar: vuelve a detectar y quita la fila")
+    # Con crudo pero sin el giro en el JSON se cuenta sobre el JPG: el giro de hoy puede no ser el de entonces
+    sin_giro = {k: v for k, v in meta.items() if k != "giro"}
+    with open(os.path.join(fotos, nombre.replace(".jpg", ".json")), "w", encoding="utf-8") as f:
+        json.dump(sin_giro, f)
+    M._olvidar_cache(nombre)
+    d = M.objetos_foto(nombre, (40.0, -3.7), forzar=True)
+    comprobar(d["origen"] == "jpg" and d["wolf"]["g"] == 4 and d["wolf"]["f"] == 7 and d["geometria"]["norte_deg"] is None,
+              f"con crudo pero sin giro guardado: sobre el JPG y sin coordenadas, {d['wolf']}")
+    with open(os.path.join(fotos, nombre.replace(".jpg", ".json")), "w", encoding="utf-8") as f:
+        json.dump(meta, f)
     # Sin crudo, se cuenta sobre el JPG (aproximado a lineal)
     os.remove(os.path.join(crudos, "Sol_20261023_120000_video.fits"))
     editor_dia.olvidar_cache()

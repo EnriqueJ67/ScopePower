@@ -3068,8 +3068,10 @@ def guardar_foto_en_galeria():
     meta = apilado.metadatos_firma(None, ruta_crudo, 1, float(exposicion or 0))
     meta.update({"objeto": objeto, "fecha": fecha})
     if f["modo"] in ("dia", "vivo"):
-        # Sol, Luna o paisaje: el tipo sale del objetivo del modo día, no del GoTo
+        # Sol, Luna o paisaje: el tipo sale del objetivo del modo día, no del GoTo. El giro de Cámara
+        # con que se hizo el JPG se anota para poder volver del crudo al JPG (manchas_solares.py)
         meta["tipo"] = catalogo_offline.categoria_objeto(objeto)
+        meta["giro"] = f.get("encuadre") or giro_camara.leer()
 
     if imagen is not None:
         _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)

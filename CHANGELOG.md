@@ -14,8 +14,11 @@ día de la release. El número de versión vive en `version.py`.
   orientación de la cámara conocida se dan las coordenadas heliográficas de cada grupo; P, B0 y
   L0 salen de las fórmulas de Meeus sin Internet. El factor k del observador va en `[Sol]
   factor_k` (`config.example.ini`). Módulo `manchas_solares.py`, capa
-  `static/js/manchas_solares.js`, prueba `herramientas/probar_manchas_solares.py`. Probado con
-  Soles sintéticos y simuladores; pendiente afinar los umbrales con fotos reales.
+  `static/js/manchas_solares.js`, prueba `herramientas/probar_manchas_solares.py`. Umbrales
+  afinados con 14 fotos reales del 27-sep, 10-oct y 17-oct-2026 (fotosfera local por cierre
+  morfológico, umbral relativo al ruido, motas y limbo descartados): las nueve del 10-oct dan
+  el mismo R. Las fotos sueltas guardan ahora el giro de Cámara en su JSON; las antiguas, sin
+  él, se cuentan sobre el JPG.
 - Arreglado: la descripción hablada del objeto al llegar con GoTo casi nunca sonaba en el campo. La
   pantalla mandaba el nombre con el tipo entre paréntesis («M 31 (Galaxia)»), el catálogo propio de
   172 descripciones sin Internet no lo reconocía y la app acababa en Wikipedia, que sin red no
