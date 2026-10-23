@@ -126,6 +126,30 @@ def main():
     finally:
         sp.vivo_dia.trabajo_vivo.imagen = original
 
+    print("Número de Wolf en la galería (Sol sintético solo con JPG, sin crudo):")
+    from probar_manchas_solares import sol_sintetico
+    import numpy as np
+    lum, __ = sol_sintetico()
+    os.makedirs(os.path.join("static", "fotos"), exist_ok=True)
+    nombre_sol = "Sol_20261023_120000.jpg"
+    cv2.imwrite(os.path.join("static", "fotos", nombre_sol), (np.clip(lum / lum.max(), 0, 1) ** (1 / 2.2) * 255).astype(np.uint8),
+                [cv2.IMWRITE_JPEG_QUALITY, 92])
+    with open(os.path.join("static", "fotos", "Sol_20261023_120000.json"), "w", encoding="utf-8") as f:
+        f.write('{"objeto": "Sol", "fecha": "23/10/2026 12:00", "latitud": 40.0, "longitud": -3.7}')
+    r = pedir("/galeria")
+    bien = nombre_sol in r.get_data(as_text=True)
+    d = pedir("/galeria/anotaciones/" + nombre_sol + "?sensibilidad=normal").get_json() or {}
+    bien = bien and d.get("ok") and d.get("sol") and d.get("origen") == "jpg" and d["wolf"]["g"] == 4 and d["wolf"]["f"] == 7
+    print(f"  {'✅' if bien else '❌'} conteo automático: {d.get('wolf')} ({d.get('origen')})")
+    cuerpo = {"manchas": (d.get("manchas") or [])[:-1], "disco": d.get("disco"), "sensibilidad": "normal"}
+    g = cliente.post("/galeria/wolf/" + nombre_sol, json=cuerpo).get_json() or {}
+    o = cliente.post("/galeria/wolf/" + nombre_sol + "/olvidar", json={"sensibilidad": "alta"}).get_json() or {}
+    bien2 = g.get("ok") and g.get("guardado") and g["wolf"]["f"] == 6 and o.get("ok") and not o.get("guardado") and o["wolf"]["f"] == 7
+    print(f"  {'✅' if bien2 else '❌'} guardar ({g.get('wolf')}) y volver a contar ({o.get('wolf')})")
+    r = pedir("/galeria")
+    if not (bien and bien2):
+        fallos.append("Número de Wolf")
+
     if fallos:
         print(f"\n❌ Fallan {len(fallos)}: {', '.join(fallos)}")
         return 1

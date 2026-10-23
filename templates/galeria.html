@@ -30,6 +30,16 @@
 </div>
 {% endif %}
 
+{% if serie_wolf %}
+<!-- La serie de Números de Wolf guardados en las fotos del Sol (se ve con el filtro Sol) -->
+<div class="card" id="wolf-serie" style="display: none;">
+    <h2 class="card-title">{{ _("Número de Wolf") }}</h2>
+    <p class="card-sub" id="wolf-serie-texto"></p>
+    <svg id="wolf-serie-svg" class="wolf-serie" role="img" aria-label="{{ _('Serie del Número de Wolf') }}"></svg>
+    <p class="card-sub mt-2 texto-3">{{ _("R = k · (10·g + f): g grupos y f manchas contadas en cada foto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia.") }}</p>
+</div>
+{% endif %}
+
 {% if not imagenes %}
 <div class="card centro">
     <svg class="ico" style="width: 40px; height: 40px; color: var(--text-3);"><use href="#i-galeria"/></svg>
@@ -68,6 +78,21 @@
     <img id="imagen-grande" src="" alt="">
     <!-- Objetos del campo pintados encima de la foto (/galeria/anotaciones): en las fotos con FITS y en las de la Luna -->
     <svg id="lightbox-anotaciones" class="lightbox-anotaciones" aria-hidden="true"></svg>
+    <!-- Fotos del Sol: el conteo de manchas se corrige tocando la foto y se guarda (Número de Wolf) -->
+    <div id="wolf-barra" class="wolf-barra" style="display: none;" onclick="event.stopPropagation()">
+        <div class="segmentado" id="wolf-modo">
+            <button type="button" class="activo" data-modo="manchas" onclick="wolfModo('manchas')">{{ _("Manchas") }}</button>
+            <button type="button" data-modo="grupos" onclick="wolfModo('grupos')">{{ _("Grupos") }}</button>
+        </div>
+        <select id="wolf-sensibilidad" onchange="wolfSensibilidad(this.value)" title="{{ _('Cuánto más oscura que la fotosfera tiene que ser una zona para contar como mancha') }}">
+            <option value="baja">{{ _("Sensibilidad baja") }}</option>
+            <option value="normal" selected>{{ _("Sensibilidad normal") }}</option>
+            <option value="alta">{{ _("Sensibilidad alta") }}</option>
+        </select>
+        <button type="button" class="btn btn-primary btn-sm" id="wolf-guardar" onclick="wolfGuardar()">{{ _("Guardar") }}</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="wolfOlvidar()" title="{{ _('Quita el conteo guardado y vuelve a detectar las manchas') }}">{{ _("Volver a contar") }}</button>
+        <div class="wolf-ayuda" id="wolf-ayuda"></div>
+    </div>
     <label class="switch" id="lightbox-anotar" onclick="event.stopPropagation()" style="display: none;" title="{{ _('Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos') }}"><input type="checkbox" id="anotar-activo" onchange="cambiarAnotaciones()"> {{ _("Anotaciones") }}</label>
     <button id="lightbox-compartir" class="btn btn-primary" onclick="event.stopPropagation(); compartirImagen(this.dataset.nombre, this)"><svg><use href="#i-compartir"/></svg>{{ _("Compartir") }}</button>
     <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>{{ _("Editar") }}</a>
@@ -79,13 +104,17 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/luna_anotada.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/manchas_solares.js') }}?v=1"></script>
 <script>
     const CON_FITS = {{ con_fits|list|tojson }};
     const CON_DIA = {{ con_dia|list|tojson }};
     const CON_LUNA = {{ con_luna|list|tojson }};
+    const CON_SOL = {{ con_sol|list|tojson }};
+    const SERIE_WOLF = {{ serie_wolf|tojson }};
     const TITULO_ANOTAR = {{ _('Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos')|tojson }};
     const TITULO_ANOTAR_LUNA = {{ _('Nombres de los mares, cráteres y montes de la Luna encima de la foto')|tojson }};
-    const anotable = nombre => CON_FITS.includes(nombre) || CON_LUNA.includes(nombre);
+    const TITULO_ANOTAR_SOL = {{ _('Manchas y grupos encima de la foto, con el Número de Wolf; el conteo se corrige tocando y se guarda')|tojson }};
+    const anotable = nombre => CON_FITS.includes(nombre) || CON_LUNA.includes(nombre) || CON_SOL.includes(nombre);
     const TOTAL_FOTOS = {{ imagenes|length }};
 
     // Filtro por tipo de objeto (se recuerda entre visitas en este navegador)
@@ -100,6 +129,11 @@
             if (ver) visibles++;
         });
         document.getElementById("galeria-vacia").style.display = (visibles === 0 && TOTAL_FOTOS > 0) ? "" : "none";
+        const serie = document.getElementById("wolf-serie");
+        if (serie) {
+            serie.style.display = tipo === "Sol" && SERIE_WOLF.length ? "" : "none";
+            if (tipo === "Sol" && SERIE_WOLF.length) pintarSerieWolfGaleria();
+        }
         const resumen = document.getElementById("galeria-resumen");
         if (resumen) resumen.textContent = tipo ? _("{n} de {total} imágenes · {tipo}", { n: visibles, total: TOTAL_FOTOS, tipo: _(tipo) })
             : ngettext("{n} imagen guardada desde el apilado.", "{n} imágenes guardadas desde el apilado.", TOTAL_FOTOS);
@@ -122,7 +156,8 @@
         editar.style.display = CON_FITS.includes(nombre_archivo) || CON_DIA.includes(nombre_archivo) ? "" : "none";
         const anotar = document.getElementById('lightbox-anotar');
         anotar.style.display = anotable(nombre_archivo) ? "" : "none";
-        anotar.title = CON_LUNA.includes(nombre_archivo) ? TITULO_ANOTAR_LUNA : TITULO_ANOTAR;
+        anotar.title = CON_SOL.includes(nombre_archivo) ? TITULO_ANOTAR_SOL : CON_LUNA.includes(nombre_archivo) ? TITULO_ANOTAR_LUNA : TITULO_ANOTAR;
+        wolfBarra(false);
         document.getElementById('lightbox').classList.add("abierto");
         // Las anotaciones se colocan sobre la foto ya cargada (hace falta su tamaño)
         const img = document.getElementById('imagen-grande');
@@ -133,6 +168,7 @@
     function cerrarLightbox() {
         document.getElementById('lightbox').classList.remove("abierto");
         ANOT.nombre = "";
+        wolfBarra(false);
     }
     document.getElementById('lightbox').onclick = cerrarLightbox;
     document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarLightbox(); });
@@ -156,13 +192,14 @@
         const nombre = ANOT.nombre;
         svgAnot.replaceChildren();
         if (!nombre) return;
-        if (!chkAnot.checked || !anotable(nombre)) { pieLightbox(""); return; }
+        if (!chkAnot.checked || !anotable(nombre)) { pieLightbox(""); wolfBarra(false); return; }
         if (!ANOT.datos[nombre]) {
             if (ANOT.pidiendo === nombre) return;
             ANOT.pidiendo = nombre;
-            pieLightbox(CON_LUNA.includes(nombre) ? _("buscando los accidentes de la Luna…") : _("resolviendo el campo…"));
+            pieLightbox(CON_SOL.includes(nombre) ? _("contando las manchas…") : CON_LUNA.includes(nombre) ? _("buscando los accidentes de la Luna…") : _("resolviendo el campo…"));
             try {
-                const d = await (await fetch("/galeria/anotaciones/" + encodeURIComponent(nombre))).json();
+                const extra = CON_SOL.includes(nombre) ? "?sensibilidad=" + encodeURIComponent(WOLF.sensibilidad) : "";
+                const d = await (await fetch("/galeria/anotaciones/" + encodeURIComponent(nombre) + extra)).json();
                 if (!d.ok) throw new Error(d.mensaje || _("no se pudo anotar"));
                 ANOT.datos[nombre] = d;
             } catch (e) {
@@ -190,6 +227,12 @@
         svgAnot.setAttribute("viewBox", `0 0 ${w} ${h}`);
         const k = w / d.ancho;                                // de píxeles del JPG a píxeles de pantalla
         const NS = "http://www.w3.org/2000/svg";
+        if (d.sol) {
+            pintarManchasSolares(svgAnot, d, k, w, h, WOLF);
+            wolfBarra(true, d);
+            pieLightbox(textoWolf(d));
+            return;
+        }
         if (d.luna) { pieLightbox(textoLunaAnotada(d, pintarLunaAnotada(svgAnot, d, k, w, h))); return; }
         // Sitio ocupado: los nombres ya puestos y los círculos pequeños (un nombre encima los taparía)
         const ocupados = [];
@@ -230,6 +273,83 @@
         pieLightbox(n ? ngettext("{n} objeto en el campo", "{n} objetos en el campo", n) : _("ningún objeto conocido en el campo"));
     }
     window.addEventListener("resize", pintarAnotaciones);
+
+    // ── Número de Wolf: corregir el conteo tocando la foto del Sol y guardarlo ──
+    const WOLF = { modo: "manchas", seleccionada: null, sensibilidad: "normal", ocupado: false };
+    try {
+        WOLF.sensibilidad = localStorage.getItem("galeria_wolf_sensibilidad") || "normal";
+        WOLF.modo = localStorage.getItem("galeria_wolf_modo") || "manchas";
+    } catch (e) {}
+    const AYUDA_WOLF = {
+        manchas: {{ _("Toca una mancha para quitarla; toca el disco donde falte una para añadirla.")|tojson }},
+        grupos: {{ _("Toca una mancha y luego otra para unir sus grupos; toca dos veces la misma para separarla en un grupo nuevo.")|tojson }}
+    };
+    function wolfBarra(ver, d) {
+        const barra = document.getElementById("wolf-barra");
+        barra.style.display = ver ? "" : "none";
+        svgAnot.classList.toggle("tocable", !!ver);
+        if (!ver) { WOLF.seleccionada = null; return; }
+        document.querySelectorAll("#wolf-modo button").forEach(b => b.classList.toggle("activo", b.dataset.modo === WOLF.modo));
+        document.getElementById("wolf-sensibilidad").value = d.sensibilidad || WOLF.sensibilidad;
+        document.getElementById("wolf-guardar").disabled = !!d.guardado && !d.editado;
+        document.getElementById("wolf-ayuda").textContent = AYUDA_WOLF[WOLF.modo];
+    }
+    function wolfModo(modo) {
+        WOLF.modo = modo;
+        WOLF.seleccionada = null;
+        try { localStorage.setItem("galeria_wolf_modo", modo); } catch (e) {}
+        pintarAnotaciones();
+    }
+    // Un toque en la capa: en píxeles del JPG (la capa ocupa justo la foto en pantalla)
+    svgAnot.addEventListener("click", e => {
+        const d = ANOT.datos[ANOT.nombre];
+        if (!d || !d.sol || !chkAnot.checked) return;
+        e.stopPropagation();
+        const caja = svgAnot.getBoundingClientRect();
+        const k = caja.width / d.ancho;
+        if (wolfTocar(d, (e.clientX - caja.left) / k, (e.clientY - caja.top) / k, WOLF, k)) pintarAnotaciones();
+    });
+    async function wolfPedir(url, cuerpo, mensaje) {
+        const nombre = ANOT.nombre;
+        if (!nombre || WOLF.ocupado) return;
+        WOLF.ocupado = true;
+        pieLightbox(mensaje);
+        try {
+            const r = await fetch(url, cuerpo ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) } : undefined);
+            const d = await r.json();
+            if (!d.ok) throw new Error(d.mensaje || _("no se pudo"));
+            ANOT.datos[nombre] = d;
+            WOLF.seleccionada = null;
+            if (ANOT.nombre === nombre) pintarAnotaciones();
+        } catch (e) {
+            if (ANOT.nombre === nombre) pieLightbox(e.message);
+        } finally {
+            WOLF.ocupado = false;
+        }
+    }
+    function wolfSensibilidad(valor) {
+        WOLF.sensibilidad = valor;
+        try { localStorage.setItem("galeria_wolf_sensibilidad", valor); } catch (e) {}
+        wolfPedir("/galeria/anotaciones/" + encodeURIComponent(ANOT.nombre) + "?detectar=1&sensibilidad=" + encodeURIComponent(valor), null, _("contando las manchas…"));
+    }
+    function wolfGuardar() {
+        const d = ANOT.datos[ANOT.nombre];
+        if (!d || !d.sol) return;
+        const cuerpo = { manchas: d.manchas.map(m => ({ x: m.x, y: m.y, r_px: m.r_px, umbra: m.umbra, grupo: m.grupo, area_mhs: m.area_mhs, contraste: m.contraste })),
+                         disco: d.disco, sensibilidad: d.sensibilidad, area_mhs: d.area_mhs };
+        wolfPedir("/galeria/wolf/" + encodeURIComponent(ANOT.nombre), cuerpo, _("guardando el conteo…"));
+    }
+    function wolfOlvidar() {
+        wolfPedir("/galeria/wolf/" + encodeURIComponent(ANOT.nombre) + "/olvidar", { sensibilidad: WOLF.sensibilidad }, _("contando las manchas…"));
+    }
+    function pintarSerieWolfGaleria() {
+        const svg = document.getElementById("wolf-serie-svg");
+        if (!svg || !SERIE_WOLF.length) return;
+        pintarSerieWolf(svg, SERIE_WOLF);
+        const u = SERIE_WOLF[SERIE_WOLF.length - 1];
+        document.getElementById("wolf-serie-texto").textContent = ngettext("{n} conteo guardado", "{n} conteos guardados", SERIE_WOLF.length) + " · "
+            + _("último: R = {R} el {fecha} ({g} grupos, {f} manchas)", { R: fmtNum(u.R, 0), fecha: fmtFecha(new Date(u.fecha), false), g: u.g, f: u.f });
+    }
 
     // Compartir la foto firmada. El menú nativo del móvil (WhatsApp, Fotos...) solo existe
     // en HTTPS; en HTTP se abre la foto en una pestaña (móvil: mantener pulsado para guardar

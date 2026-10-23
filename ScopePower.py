@@ -86,6 +86,7 @@ import editor_fotos
 import editor_dia
 import galeria_anotada
 import luna_anotada
+import manchas_solares
 import anuncio_ip
 import punto_acceso
 import coordenadas
@@ -3067,8 +3068,10 @@ def guardar_foto_en_galeria():
     meta = apilado.metadatos_firma(None, ruta_crudo, 1, float(exposicion or 0))
     meta.update({"objeto": objeto, "fecha": fecha})
     if f["modo"] in ("dia", "vivo"):
-        # Sol, Luna o paisaje: el tipo sale del objetivo del modo día, no del GoTo
+        # Sol, Luna o paisaje: el tipo sale del objetivo del modo día, no del GoTo. El giro de Cámara
+        # con que se hizo el JPG se anota para poder volver del crudo al JPG (manchas_solares.py)
         meta["tipo"] = catalogo_offline.categoria_objeto(objeto)
+        meta["giro"] = f.get("encuadre") or giro_camara.leer()
 
     if imagen is not None:
         _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
@@ -5720,6 +5723,9 @@ def galeria():
     con_dia = {f for f in imagenes if f not in con_fits and editor_dia.es_foto_dia(f)}
     # Las de la Luna se anotan sin FITS: con sus accidentes (luna_anotada.py)
     con_luna = {f for f in imagenes if luna_anotada.es_luna(f, luna_anotada.meta_de(os.path.join(carpeta, f)))}
+    # Las del Sol llevan sus manchas y el Número de Wolf (manchas_solares.py); la serie de los guardados va en una tarjeta
+    con_sol = {f for f in imagenes if manchas_solares.es_sol(f, luna_anotada.meta_de(os.path.join(carpeta, f)))}
+    serie_wolf = manchas_solares.serie() if con_sol else []
     # Tipo de objeto (galaxia, nebulosa, cúmulo...) para filtrar: del JSON hermano si la
     # foto se guardó con él; las antiguas se deducen del nombre y el catálogo local
     tipos = {f: _tipo_foto_galeria(carpeta, f) for f in imagenes}
@@ -5730,7 +5736,8 @@ def galeria():
     filtros = sorted(conteo.items(), key=lambda kv: orden.index(kv[0]) if kv[0] in orden else len(orden))
     lista_rastros = rastros.listar()
     n_meteoros = sum(1 for d in lista_rastros if d.get("tipo") == "meteoro")
-    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_dia=con_dia, con_luna=con_luna, tipos=tipos, filtros=filtros,
+    return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_dia=con_dia, con_luna=con_luna, con_sol=con_sol,
+                           serie_wolf=serie_wolf, factor_k=manchas_solares.factor_k(), tipos=tipos, filtros=filtros,
                            n_rastros=len(lista_rastros), n_meteoros=n_meteoros)
 
 
@@ -5926,11 +5933,18 @@ def galeria_anotaciones(nombre):
     Objetos del campo de una foto de la galería, situados sobre su JPG (galeria_anotada.py):
     los pinta el visor como una capa encima de la foto. La primera vez resuelve el FITS con
     ASTAP (unos segundos); después sale de datos/anotaciones_galeria.json. Las fotos de la
-    Luna no se resuelven: llevan sus mares, cráteres y montes (luna_anotada.py).
+    Luna no se resuelven: llevan sus mares, cráteres y montes (luna_anotada.py); las del Sol,
+    sus manchas y el Número de Wolf (manchas_solares.py; ?sensibilidad=baja|normal|alta y
+    ?detectar=1 para volver a contar aunque haya un conteo guardado).
     """
     try:
         __, ruta_jpg, __, __ = editor_fotos.rutas(nombre)
-        if luna_anotada.es_luna(nombre, luna_anotada.meta_de(ruta_jpg)):
+        meta = luna_anotada.meta_de(ruta_jpg)
+        if manchas_solares.es_sol(nombre, meta):
+            obs = firma.datos_observatorio()
+            return jsonify(manchas_solares.objetos_foto(nombre, (obs["latitud"], obs["longitud"]), request.args.get("sensibilidad"),
+                                                        forzar=request.args.get("detectar") == "1"))
+        if luna_anotada.es_luna(nombre, meta):
             obs = firma.datos_observatorio()
             return jsonify(luna_anotada.objetos_foto(nombre, (obs["latitud"], obs["longitud"])))
         return jsonify(galeria_anotada.objetos_foto(nombre))
@@ -5939,6 +5953,40 @@ def galeria_anotaciones(nombre):
     except Exception as e:
         log.exception("Error anotando la foto de la galería")
         return jsonify({"ok": False, "mensaje": _("No se pudo anotar: {e}", e=e)}), 500
+
+
+@app.route("/galeria/wolf/<nombre>", methods=["POST"])
+def galeria_wolf_guardar(nombre):
+    """
+    Guarda el conteo de manchas corregido en el visor ({manchas, disco, sensibilidad}): queda en el
+    JSON de la foto y en la serie datos/numero_wolf.csv. Devuelve la capa ya guardada.
+    """
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "mensaje": _("Hace falta iniciar sesión")}), 401
+    try:
+        obs = firma.datos_observatorio()
+        return jsonify(manchas_solares.guardar(nombre, request.get_json(silent=True) or {}, (obs["latitud"], obs["longitud"])))
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    except Exception as e:
+        log.exception("Error guardando el Número de Wolf")
+        return jsonify({"ok": False, "mensaje": _("No se pudo guardar: {e}", e=e)}), 500
+
+
+@app.route("/galeria/wolf/<nombre>/olvidar", methods=["POST"])
+def galeria_wolf_olvidar(nombre):
+    """Quita el conteo guardado de la foto y vuelve a detectar las manchas ({sensibilidad})."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "mensaje": _("Hace falta iniciar sesión")}), 401
+    try:
+        obs = firma.datos_observatorio()
+        datos = request.get_json(silent=True) or {}
+        return jsonify(manchas_solares.olvidar(nombre, (obs["latitud"], obs["longitud"]), datos.get("sensibilidad")))
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    except Exception as e:
+        log.exception("Error olvidando el Número de Wolf")
+        return jsonify({"ok": False, "mensaje": _("No se pudo volver a contar: {e}", e=e)}), 500
 
 
 # ─── Editor de fotos de la galería (editor_fotos.py) ─────────────────────────

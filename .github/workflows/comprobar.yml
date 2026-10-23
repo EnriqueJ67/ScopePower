@@ -79,3 +79,8 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_guiado_disco.py
+
+      - name: Prueba del Número de Wolf (efemérides de Meeus, Sol sintético y galería de mentira)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_manchas_solares.py
