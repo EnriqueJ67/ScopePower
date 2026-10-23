@@ -84,3 +84,8 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_manchas_solares.py
+
+      - name: Prueba de la fotometría del Sol (limbo por colores, temperatura, diámetro y órbita con Soles sintéticos)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_fotometria_solar.py

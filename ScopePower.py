@@ -87,6 +87,7 @@ import editor_dia
 import galeria_anotada
 import luna_anotada
 import manchas_solares
+import fotometria_solar
 import anuncio_ip
 import punto_acceso
 import coordenadas
@@ -5726,6 +5727,17 @@ def galeria():
     # Las del Sol llevan sus manchas y el Número de Wolf (manchas_solares.py); la serie de los guardados va en una tarjeta
     con_sol = {f for f in imagenes if manchas_solares.es_sol(f, luna_anotada.meta_de(os.path.join(carpeta, f)))}
     serie_wolf = manchas_solares.serie() if con_sol else []
+    # Las del Sol con crudo se miden (limbo por colores, diámetro): fotometria_solar.py
+    sol_crudo = sorted(f for f in con_sol if f in con_dia)
+    serie_sol, curva_sol, orbita_sol, n_sol_pendientes = [], [], None, 0
+    if sol_crudo:
+        try:
+            serie_sol = fotometria_solar.serie(set(sol_crudo))
+            curva_sol = fotometria_solar.curva_anual(serie_sol)
+            orbita_sol = fotometria_solar.ajustar_orbita(serie_sol)
+            n_sol_pendientes = len(fotometria_solar.pendientes(sol_crudo))
+        except Exception:
+            log.exception("Error preparando la serie del diámetro del Sol")
     # Tipo de objeto (galaxia, nebulosa, cúmulo...) para filtrar: del JSON hermano si la
     # foto se guardó con él; las antiguas se deducen del nombre y el catálogo local
     tipos = {f: _tipo_foto_galeria(carpeta, f) for f in imagenes}
@@ -5737,7 +5749,8 @@ def galeria():
     lista_rastros = rastros.listar()
     n_meteoros = sum(1 for d in lista_rastros if d.get("tipo") == "meteoro")
     return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_dia=con_dia, con_luna=con_luna, con_sol=con_sol,
-                           serie_wolf=serie_wolf, factor_k=manchas_solares.factor_k(), tipos=tipos, filtros=filtros,
+                           serie_wolf=serie_wolf, factor_k=manchas_solares.factor_k(), sol_crudo=sol_crudo, serie_sol=serie_sol,
+                           curva_sol=curva_sol, orbita_sol=orbita_sol, n_sol_pendientes=n_sol_pendientes, tipos=tipos, filtros=filtros,
                            n_rastros=len(lista_rastros), n_meteoros=n_meteoros)
 
 
@@ -5971,6 +5984,47 @@ def galeria_wolf_guardar(nombre):
     except Exception as e:
         log.exception("Error guardando el Número de Wolf")
         return jsonify({"ok": False, "mensaje": _("No se pudo guardar: {e}", e=e)}), 500
+
+
+@app.route("/galeria/sol/medidas/<nombre>")
+def galeria_sol_medidas(nombre):
+    """
+    Oscurecimiento del limbo por colores, temperatura según la profundidad y diámetro de una foto
+    del Sol (fotometria_solar.py), medidos sobre su crudo; se guardan en datos/medidas_sol.json.
+    """
+    try:
+        __, ruta_jpg, __, __ = editor_fotos.rutas(nombre)
+        if not manchas_solares.es_sol(nombre, luna_anotada.meta_de(ruta_jpg)):
+            return jsonify({"ok": False, "mensaje": _("La foto no es del Sol")}), 409
+        obs = firma.datos_observatorio()
+        r = fotometria_solar.medir(nombre, (obs["latitud"], obs["longitud"]), forzar=request.args.get("forzar") == "1")
+        return jsonify(dict(r, ok=True))
+    except (editor_fotos.ErrorEditor, fotometria_solar.ErrorFotometria) as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    except Exception as e:
+        log.exception("Error midiendo la foto del Sol")
+        return jsonify({"ok": False, "mensaje": _("No se pudo medir: {e}", e=e)}), 500
+
+
+@app.route("/galeria/sol/medir", methods=["POST"])
+def galeria_sol_medir():
+    """Mide en segundo plano las fotos del Sol con crudo que aún no tienen medida (la serie del diámetro)."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "mensaje": _("Hace falta iniciar sesión")}), 401
+    carpeta = editor_fotos.CARPETA_FOTOS
+    nombres = [f for f in os.listdir(carpeta) if f.lower().endswith(".jpg")
+               and manchas_solares.es_sol(f, luna_anotada.meta_de(os.path.join(carpeta, f))) and editor_dia.es_foto_dia(f)]
+    obs = firma.datos_observatorio()
+    try:
+        estado = fotometria_solar.medir_varias(fotometria_solar.pendientes(nombres), (obs["latitud"], obs["longitud"]))
+    except RuntimeError as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    return jsonify(dict(estado, ok=True))
+
+
+@app.route("/galeria/sol/medir/estado")
+def galeria_sol_medir_estado():
+    return jsonify(dict(fotometria_solar.TRABAJO))
 
 
 @app.route("/galeria/wolf/<nombre>/olvidar", methods=["POST"])
