@@ -50,7 +50,7 @@ from idioma import _, ngettext
 log = logging.getLogger("scopepower.fotometria_solar")
 
 RUTA_MEDIDAS = os.path.join("datos", "medidas_sol.json")
-VERSION = 1                     # sube si cambia la forma de medir: las medidas guardadas se repiten
+VERSION = 2                     # sube si cambia la forma de medir: las medidas guardadas se repiten
 TEFF = 5772.0                   # temperatura efectiva del Sol (K, IAU 2015)
 C2_UM_K = 14387.77              # segunda constante de radiación hc/k (µm·K)
 LAMBDA_EF_UM = {"R": 0.610, "G": 0.535, "B": 0.465, "L": 0.550}    # longitudes de onda efectivas aproximadas
@@ -252,11 +252,12 @@ def medir_planos(planos, px_por_plano=1.0):
         avisos.append("calima")
     t03 = {c: temps[c][TAUS.index(0.3)] for c in nombres}
     k = px_por_plano
+    o = (k - 1.0) / 2.0              # el píxel i del superpíxel cubre los 2i y 2i+1 del crudo: su centro es 2i + 0,5
     return {"canales": nombres, "perfil": perfil, "ajuste": ajuste, "calima": cal_g,
             "temperatura": {"tau": TAUS, **temps, "eddington": [round(float(t)) for t in t_eddington(TAUS)],
                             "t1": round(float(t_eddington(1.0))), "t03": t03,
                             "dispersion03": round(max(t03.values()) - min(t03.values())) if len(t03) > 1 else 0},
-            "disco": {"cx": round(d["cx"] * k, 2), "cy": round(d["cy"] * k, 2), "r": round(d["r"] * k, 3),
+            "disco": {"cx": round(d["cx"] * k + o, 2), "cy": round(d["cy"] * k + o, 2), "r": round(d["r"] * k, 3),
                       "a": round(d["a"] * k, 3) if d["a"] else None, "b": round(d["b"] * k, 3) if d["b"] else None,
                       "angulo_menor": round(d["angulo_menor"], 1) if d["angulo_menor"] is not None else None,
                       "fwhm": round(d["fwhm"] * k, 2) if d["fwhm"] else None, "n": d["n"]},

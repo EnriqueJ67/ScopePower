@@ -21,7 +21,7 @@ import sys
 import json
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 
@@ -36,7 +36,6 @@ from astropy.io import fits            # noqa: E402
 import editor_fotos                    # noqa: E402
 import editor_dia                      # noqa: E402
 import orientacion_camara              # noqa: E402
-import luna_anotada                    # noqa: E402
 import disco                           # noqa: E402
 import fotometria_solar as F           # noqa: E402
 
@@ -121,14 +120,20 @@ def galeria_falsa():
     return raiz, fotos, crudos
 
 
-def guardar_foto(fotos, crudos, base, datos, cabecera):
+def utc(*a):
+    """Instante unix de una fecha y hora UTC. Las fotos de prueba llevan el instante en su JSON: con la
+    hora del nombre (local) la prueba dependería del huso horario del PC (en GitHub es UTC)."""
+    return datetime(*a, tzinfo=timezone.utc).timestamp()
+
+
+def guardar_foto(fotos, crudos, base, datos, cabecera, instante):
     hdu = fits.PrimaryHDU(datos)
     for k, v in cabecera.items():
         hdu.header[k] = v
     hdu.writeto(os.path.join(crudos, base + ".fits"), overwrite=True)
     cv2.imwrite(os.path.join(fotos, base + ".jpg"), np.full((64, 64, 3), 128, np.uint8))
     with open(os.path.join(fotos, base + ".json"), "w", encoding="utf-8") as f:
-        json.dump({"objeto": "Sol", "latitud": LAT, "longitud": LON, "firmada": False}, f)
+        json.dump({"objeto": "Sol", "latitud": LAT, "longitud": LON, "instante": instante, "firmada": False}, f)
     return base + ".jpg"
 
 
@@ -137,14 +142,14 @@ def probar_soles():
     raiz, fotos, crudos = galeria_falsa()
     orientacion_camara.ultima = lambda buscar=True: {"escala_arcsec": ESCALA, "binning_foto": 1}
     base = "Sol_20261010_180632"
-    instante = luna_anotada.instante_de(base + ".jpg")
+    instante = utc(2026, 10, 10, 16, 6, 32)             # 18:06 en España: el Sol a 15° en Valencia
     r_efem = disco.radio_esperado_arcsec("sol", instante, LAT, LON, 0.0)
     a = r_efem / ESCALA                                    # el radio en píxeles que daría la efeméride
     cx, cy = 612.3, 597.8
     planos = sol_sintetico(1216, cx, cy, a)
     cab = {"EXPTIME": 0.0004, "BAYERPAT": "RGGB", "MODO": "dia", "OBJETIVO": "sol", "CAMPO": 1.0, "NEGRO": 1500.0,
            "XBINNING": 1, "XPIXSZ": 3.76}
-    nombre = guardar_foto(fotos, crudos, base, a_cfa(planos, 1500.0), cab)
+    nombre = guardar_foto(fotos, crudos, base, a_cfa(planos, 1500.0), cab, instante)
     d = F.medir(nombre, (LAT, LON))
     i95 = {c: d["ajuste"][c]["i95"] for c in "RGB"}
     comprobar(all(abs(i95[c] - verdad_i95(c)) < 0.01 for c in "RGB"),
@@ -152,13 +157,16 @@ def probar_soles():
     # La calima es cielo / centro tal como salen en la foto (el centro lleva también el velo): 0,03 / 1,03
     comprobar(abs(d["calima"] - 0.03 / 1.03) < 0.004 and not d["avisos"], f"calima {d['calima']} (verdad {0.03 / 1.03:.4f}), sin avisos {d['avisos']}")
     dd, di = d["disco"], d["diametro"]
-    comprobar(abs(dd["cx"] - cx) < 0.5 and abs(dd["cy"] - cy) < 0.5, f"centro ({dd['cx']}, {dd['cy']}) (verdad {cx}, {cy})")
+    comprobar(abs(dd["cx"] - cx) < 0.2 and abs(dd["cy"] - cy) < 0.2, f"centro ({dd['cx']}, {dd['cy']}) (verdad {cx}, {cy})")
     comprobar(abs(dd["a"] - a) < 0.35 and di["medida"] == "elipse", f"semieje mayor {dd['a']} px (verdad {a:.3f})")
     comprobar(abs(di["achatamiento"] - 0.4) < 0.1 and abs(((dd["angulo_menor"] - 90 + 90) % 180) - 90) < 10,
               f"achatamiento {di['achatamiento']} % (verdad 0,4) con el eje menor a {dd['angulo_menor']}° (vertical: 90°)")
-    comprobar(abs(di["desvio_pct"]) < 0.1 and di["escala_origen"] == "plate_solving" and abs(di["distancia"] - di["distancia_efem"]) < 0.001,
+    # El punto de inflexión de un limbo oscurecido y emborronado queda un poco hacia dentro: −0,1 % aquí
+    # (σ = 1,5 px) y −0,08 % de media en las fotos reales; el margen deja sitio a otras versiones de OpenCV
+    comprobar(abs(di["desvio_pct"]) < 0.2 and di["escala_origen"] == "plate_solving" and abs(di["distancia"] - di["distancia_efem"]) < 0.002,
               f"radio {di['r_arcsec']}″ frente a {di['r_efem']}″ de la efeméride ({di['desvio_pct']} %), distancia {di['distancia']} ua")
-    comprobar(di["altura"] is not None and di["achatamiento_previsto"] is not None, f"altura del Sol {di['altura']}°, achatamiento previsto {di['achatamiento_previsto']} %")
+    comprobar(di["altura"] is not None and abs(di["altura"] - 15.0) < 1.0 and abs(di["achatamiento_previsto"] - 0.41) < 0.03,
+              f"altura del Sol {di['altura']}° (unos 15°), achatamiento previsto {di['achatamiento_previsto']} %")
     t = d["temperatura"]
     comprobar(len(t["tau"]) == len(t["R"]) == len(t["eddington"]) and all(4000 < x < 7500 for x in t["R"] + t["G"] + t["B"]),
               f"temperaturas a τ = 0,3: {t['t03']} K")
@@ -180,24 +188,26 @@ def probar_soles():
 
     # 3. El apilado de un vídeo: cubo en color normalizado al blanco
     base_v = "Sol_20261017_131524_video"
-    instante_v = luna_anotada.instante_de(base_v + ".jpg")
+    instante_v = utc(2026, 10, 17, 11, 15, 24)
     a_v = disco.radio_esperado_arcsec("sol", instante_v, LAT, LON, 0.0) / ESCALA
     pv = sol_sintetico(760, 380.4, 371.1, a_v, achatamiento=0.0007, semilla=2)
     m = max(float(p.max()) for p in pv.values())
     cubo = np.stack([np.clip(pv[c] / m * 65535.0, 0, 65535).astype(np.uint16) for c in "RGB"])
-    nombre_v = guardar_foto(fotos, crudos, base_v, cubo, {"MODO": "video", "OBJETIVO": "sol", "XBINNING": 1, "XPIXSZ": 3.76})
+    nombre_v = guardar_foto(fotos, crudos, base_v, cubo, {"MODO": "video", "OBJETIVO": "sol", "XBINNING": 1, "XPIXSZ": 3.76}, instante_v)
     dv = F.medir(nombre_v, (LAT, LON))
     comprobar(all(abs(dv["ajuste"][c]["i95"] - verdad_i95(c)) < 0.01 for c in "RGB") and abs(dv["diametro"]["desvio_pct"]) < 0.1,
               f"apilado de vídeo: i95 { {c: dv['ajuste'][c]['i95'] for c in 'RGB'} }, radio {dv['diametro']['desvio_pct']} % de la efeméride")
 
     # Con calima del 12 %, y con el centro saturado, la medida sale marcada
     base_c = "Sol_20260927_130740"
-    a_c = disco.radio_esperado_arcsec("sol", luna_anotada.instante_de(base_c + ".jpg"), LAT, LON, 0.0) / ESCALA
-    nombre_c = guardar_foto(fotos, crudos, base_c, a_cfa(sol_sintetico(1216, 600, 600, a_c, calima=0.12, semilla=3), 1500.0), cab)
+    instante_c = utc(2026, 9, 27, 11, 7, 40)
+    a_c = disco.radio_esperado_arcsec("sol", instante_c, LAT, LON, 0.0) / ESCALA
+    nombre_c = guardar_foto(fotos, crudos, base_c, a_cfa(sol_sintetico(1216, 600, 600, a_c, calima=0.12, semilla=3), 1500.0), cab, instante_c)
     dc = F.medir(nombre_c, (LAT, LON))
     comprobar("calima" in dc["avisos"] and abs(dc["calima"] - 0.12 / 1.12) < 0.01, f"velo del 12 %: calima {dc['calima']}, avisos {dc['avisos']}")
     base_s = "Sol_20261017_130747"
-    nombre_s = guardar_foto(fotos, crudos, base_s, a_cfa(sol_sintetico(1216, 600, 600, a_v, saturar=True, semilla=4), 1500.0), cab)
+    nombre_s = guardar_foto(fotos, crudos, base_s, a_cfa(sol_sintetico(1216, 600, 600, a_v, saturar=True, semilla=4), 1500.0), cab,
+                            utc(2026, 10, 17, 11, 7, 47))
     ds = F.medir(nombre_s, (LAT, LON))
     comprobar("saturado" in ds["avisos"], f"centro saturado: avisos {ds['avisos']}")
     s = F.serie()
