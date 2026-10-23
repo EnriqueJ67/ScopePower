@@ -40,6 +40,21 @@
 </div>
 {% endif %}
 
+{% if sol_crudo %}
+<!-- El radio del Sol medido en cada foto sobre la curva de la efeméride: la órbita de la Tierra (se ve con el filtro Sol) -->
+<div class="card" id="sol-diametro" style="display: none;">
+    <h2 class="card-title">{{ _("Diámetro del Sol y órbita de la Tierra") }}</h2>
+    <p class="card-sub" id="sol-diametro-texto"></p>
+    <svg id="sol-diametro-svg" class="wolf-serie fs-serie" role="img" aria-label="{{ _('Radio del Sol medido en cada foto y el de la efeméride a lo largo del año') }}"></svg>
+    <p class="card-sub mt-2" id="sol-orbita-texto"></p>
+    <div class="fs-medir" id="sol-medir-fila" {% if not n_sol_pendientes %}style="display: none;"{% endif %}>
+        <button type="button" class="btn btn-secondary btn-sm" id="sol-medir" onclick="solMedirTodas()">{{ ngettext("Medir {n} foto", "Medir {n} fotos", n_sol_pendientes) }}</button>
+        <span class="texto-3" id="sol-medir-estado"></span>
+    </div>
+    <p class="card-sub mt-2 texto-3">{{ _("El radio es el semieje mayor del disco (la refracción achata el vertical) por la escala del último plate solving. El Sol se ve más grande en enero, en el perihelio, y más pequeño en julio: la curva es la efeméride y los puntos, tus fotos.") }}</p>
+</div>
+{% endif %}
+
 {% if not imagenes %}
 <div class="card centro">
     <svg class="ico" style="width: 40px; height: 40px; color: var(--text-3);"><use href="#i-galeria"/></svg>
@@ -93,6 +108,12 @@
         <button type="button" class="btn btn-secondary btn-sm" onclick="wolfOlvidar()" title="{{ _('Quita el conteo guardado y vuelve a detectar las manchas') }}">{{ _("Volver a contar") }}</button>
         <div class="wolf-ayuda" id="wolf-ayuda"></div>
     </div>
+    <!-- Fotos del Sol con crudo: el limbo por colores, la temperatura según la profundidad y el diámetro -->
+    <button type="button" id="lightbox-sol" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); alternarPanelSol()" style="display: none;">{{ _("Limbo y diámetro") }}</button>
+    <div id="panel-sol" class="panel-sol" style="display: none;" onclick="event.stopPropagation()">
+        <div class="panel-sol-cab"><b>{{ _("El disco del Sol") }}</b><button type="button" class="panel-sol-cerrar" onclick="alternarPanelSol(false)" aria-label="{{ _('Cerrar') }}">×</button></div>
+        <div id="panel-sol-cuerpo"></div>
+    </div>
     <label class="switch" id="lightbox-anotar" onclick="event.stopPropagation()" style="display: none;" title="{{ _('Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos') }}"><input type="checkbox" id="anotar-activo" onchange="cambiarAnotaciones()"> {{ _("Anotaciones") }}</label>
     <button id="lightbox-compartir" class="btn btn-primary" onclick="event.stopPropagation(); compartirImagen(this.dataset.nombre, this)"><svg><use href="#i-compartir"/></svg>{{ _("Compartir") }}</button>
     <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>{{ _("Editar") }}</a>
@@ -105,12 +126,18 @@
 
 <script src="{{ url_for('static', filename='js/luna_anotada.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/manchas_solares.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/fotometria_solar.js') }}?v=1"></script>
 <script>
     const CON_FITS = {{ con_fits|list|tojson }};
     const CON_DIA = {{ con_dia|list|tojson }};
     const CON_LUNA = {{ con_luna|list|tojson }};
     const CON_SOL = {{ con_sol|list|tojson }};
     const SERIE_WOLF = {{ serie_wolf|tojson }};
+    const SOL_CRUDO = {{ sol_crudo|tojson }};
+    const SERIE_SOL = {{ serie_sol|tojson }};
+    const CURVA_SOL = {{ curva_sol|tojson }};
+    const ORBITA_SOL = {{ orbita_sol|tojson }};
+    const N_SOL_PENDIENTES = {{ n_sol_pendientes }};
     const TITULO_ANOTAR = {{ _('Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos')|tojson }};
     const TITULO_ANOTAR_LUNA = {{ _('Nombres de los mares, cráteres y montes de la Luna encima de la foto')|tojson }};
     const TITULO_ANOTAR_SOL = {{ _('Manchas y grupos encima de la foto, con el Número de Wolf; el conteo se corrige tocando y se guarda')|tojson }};
@@ -133,6 +160,11 @@
         if (serie) {
             serie.style.display = tipo === "Sol" && SERIE_WOLF.length ? "" : "none";
             if (tipo === "Sol" && SERIE_WOLF.length) pintarSerieWolfGaleria();
+        }
+        const diam = document.getElementById("sol-diametro");
+        if (diam) {
+            diam.style.display = tipo === "Sol" ? "" : "none";
+            if (tipo === "Sol") pintarDiametroGaleria();
         }
         const resumen = document.getElementById("galeria-resumen");
         if (resumen) resumen.textContent = tipo ? _("{n} de {total} imágenes · {tipo}", { n: visibles, total: TOTAL_FOTOS, tipo: _(tipo) })
@@ -158,6 +190,8 @@
         anotar.style.display = anotable(nombre_archivo) ? "" : "none";
         anotar.title = CON_SOL.includes(nombre_archivo) ? TITULO_ANOTAR_SOL : CON_LUNA.includes(nombre_archivo) ? TITULO_ANOTAR_LUNA : TITULO_ANOTAR;
         wolfBarra(false);
+        document.getElementById('lightbox-sol').style.display = SOL_CRUDO.includes(nombre_archivo) ? "" : "none";
+        cargarPanelSol();
         document.getElementById('lightbox').classList.add("abierto");
         // Las anotaciones se colocan sobre la foto ya cargada (hace falta su tamaño)
         const img = document.getElementById('imagen-grande');
@@ -169,6 +203,80 @@
         document.getElementById('lightbox').classList.remove("abierto");
         ANOT.nombre = "";
         wolfBarra(false);
+        document.getElementById("panel-sol").style.display = "none";
+    }
+
+    // ── El disco del Sol: limbo por colores, temperatura y diámetro (fotometria_solar.js) ──
+    const SOL = { abierto: false, datos: {} };
+    try { SOL.abierto = localStorage.getItem("galeria_panel_sol") === "1"; } catch (e) {}
+    function alternarPanelSol(abrir) {
+        SOL.abierto = abrir === undefined ? !SOL.abierto : !!abrir;
+        try { localStorage.setItem("galeria_panel_sol", SOL.abierto ? "1" : "0"); } catch (e) {}
+        cargarPanelSol();
+    }
+    async function cargarPanelSol() {
+        const panel = document.getElementById("panel-sol");
+        const cuerpo = document.getElementById("panel-sol-cuerpo");
+        const nombre = ANOT.nombre;
+        const ver = SOL.abierto && nombre && SOL_CRUDO.includes(nombre);
+        panel.style.display = ver ? "" : "none";
+        document.getElementById("lightbox-sol").classList.toggle("activo", !!ver);
+        if (!ver) return;
+        if (!SOL.datos[nombre]) {
+            cuerpo.replaceChildren();
+            const p = document.createElement("p");
+            p.textContent = _("Midiendo el disco…");
+            cuerpo.appendChild(p);
+            try {
+                const d = await (await fetch("/galeria/sol/medidas/" + encodeURIComponent(nombre))).json();
+                if (!d.ok) throw new Error(d.mensaje || _("no se pudo"));
+                SOL.datos[nombre] = d;
+            } catch (e) {
+                if (ANOT.nombre === nombre) p.textContent = e.message;
+                return;
+            }
+        }
+        if (ANOT.nombre === nombre && SOL.abierto) rellenarPanelSol(cuerpo, SOL.datos[nombre]);
+    }
+    function pintarDiametroGaleria() {
+        const svg = document.getElementById("sol-diametro-svg");
+        if (!svg) return;
+        pintarSerieDiametro(svg, SERIE_SOL, CURVA_SOL);
+        svg.style.display = SERIE_SOL.length ? "" : "none";
+        let texto;
+        if (SERIE_SOL.length) {
+            const fiables = SERIE_SOL.filter(s => s.fiable);
+            const usar = fiables.length ? fiables : SERIE_SOL;
+            const media = usar.reduce((a, s) => a + s.desvio_pct, 0) / usar.length;
+            texto = ngettext("{n} foto medida", "{n} fotos medidas", SERIE_SOL.length) + " · "
+                + _("el radio difiere de la efeméride un {m} % de media", { m: (media > 0 ? "+" : "") + fmtNum(media, 2) });
+        } else {
+            texto = _("Todavía no hay fotos del Sol medidas.");
+        }
+        document.getElementById("sol-diametro-texto").textContent = texto;
+        document.getElementById("sol-orbita-texto").textContent = ORBITA_SOL
+            ? _("Excentricidad de la órbita medida: {e} (la real, 0,0167) · perihelio hacia el {fecha} (el real, hacia el 3 de enero), con {n} fotos de {dias} días.",
+                { e: fmtNum(ORBITA_SOL.e, 4), fecha: new Date(ORBITA_SOL.perihelio + "T12:00").toLocaleDateString(IDIOMA.lang, { day: "numeric", month: "long" }), n: ORBITA_SOL.n, dias: ORBITA_SOL.dias })
+            : _("Con fotos fiables de al menos cuatro meses se calculan la excentricidad de la órbita de la Tierra y la fecha del perihelio.");
+    }
+    async function solMedirTodas() {
+        const boton = document.getElementById("sol-medir");
+        const estado = document.getElementById("sol-medir-estado");
+        boton.disabled = true;
+        try {
+            const r = await (await fetch("/galeria/sol/medir", { method: "POST" })).json();
+            if (!r.ok) throw new Error(r.mensaje || _("no se pudo"));
+            for (;;) {
+                await new Promise(res => setTimeout(res, 1000));
+                const e = await (await fetch("/galeria/sol/medir/estado")).json();
+                estado.textContent = _("Midiendo {h} de {t}…", { h: e.hechas, t: e.total });
+                if (!e.en_curso) break;
+            }
+            location.reload();
+        } catch (e) {
+            estado.textContent = e.message;
+            boton.disabled = false;
+        }
     }
     document.getElementById('lightbox').onclick = cerrarLightbox;
     document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarLightbox(); });

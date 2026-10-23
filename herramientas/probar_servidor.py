@@ -150,6 +150,16 @@ def main():
     if not (bien and bien2):
         fallos.append("Número de Wolf")
 
+    print("Fotometría del Sol (la foto solo tiene JPG: el brillo no se mide sobre el JPG):")
+    r = cliente.get("/galeria/sol/medidas/" + nombre_sol)
+    d = r.get_json() or {}
+    bien = r.status_code == 409 and not d.get("ok") and "crudo" in (d.get("mensaje") or "")
+    print(f"  {'✅' if bien else '❌'} /galeria/sol/medidas/{nombre_sol} → {r.status_code}: {d.get('mensaje')}")
+    e = pedir("/galeria/sol/medir/estado").get_json() or {}
+    bien = bien and e.get("en_curso") is False
+    if not bien:
+        fallos.append("fotometría del Sol")
+
     if fallos:
         print(f"\n❌ Fallan {len(fallos)}: {', '.join(fallos)}")
         return 1

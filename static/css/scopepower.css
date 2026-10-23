@@ -800,3 +800,31 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .wolf-serie .wolf-eje { fill: var(--text-3); font-size: 11px; }
 .wolf-serie .wolf-linea { fill: none; stroke: var(--accent); stroke-width: 2px; stroke-linejoin: round; }
 .wolf-serie .wolf-punto { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5px; }
+
+/* El disco del Sol en el visor (fotometria_solar.js): botón junto a «Anotaciones» y panel con las medidas */
+.lightbox #lightbox-sol { position: absolute; top: 72px; left: 182px; z-index: 1; cursor: pointer; background: rgba(0,0,0,0.6); color: #fff; border-color: rgba(255,255,255,0.18); backdrop-filter: blur(4px); }
+.lightbox #lightbox-sol.activo { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+@media (min-width: 700px) { .lightbox #lightbox-sol { top: 18px; } }
+.lightbox .panel-sol { position: absolute; left: 8px; right: 8px; bottom: 44px; max-height: 52vh; overflow-y: auto; padding: 10px 14px 12px;
+    border-radius: 14px; background: rgba(0,0,0,0.8); color: #eee; backdrop-filter: blur(6px); z-index: 2; cursor: default; font-size: 13px; line-height: 1.4; }
+@media (min-width: 700px) { .lightbox .panel-sol { left: 18px; right: auto; width: 400px; bottom: 46px; max-height: calc(100% - 140px); } }
+.panel-sol .panel-sol-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+.panel-sol .panel-sol-cerrar { border: 0; background: transparent; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.panel-sol h3 { font-size: 13px; font-weight: 700; margin: 12px 0 4px; color: #fff; }
+.panel-sol p { margin: 4px 0; }
+.panel-sol .fs-nota { color: rgba(255,255,255,0.62); font-size: 12px; }
+.panel-sol .fs-aviso { color: #ffb35c; font-size: 12px; }
+.panel-sol .fs-grafica { display: block; width: 100%; height: auto; }
+.panel-sol .fs-rejilla { stroke: rgba(255,255,255,0.12); stroke-width: 1px; }
+.panel-sol .fs-eje { fill: rgba(255,255,255,0.6); font-size: 10px; }
+.panel-sol .fs-rotulo { fill: rgba(255,255,255,0.78); font-size: 10px; }
+.panel-sol .fs-linea { fill: none; stroke-width: 1.8px; stroke-linejoin: round; }
+.panel-sol .fs-modelo { fill: none; stroke: rgba(255,255,255,0.7); stroke-width: 1.4px; stroke-dasharray: 4 3; }
+/* La serie del diámetro en la galería (colores del tema) */
+.fs-serie .fs-rejilla { stroke: var(--border); stroke-width: 1px; }
+.fs-serie .fs-eje { fill: var(--text-3); font-size: 11px; }
+.fs-serie .fs-rotulo { fill: var(--text-2); font-size: 11px; }
+.fs-serie .fs-efemeride { fill: none; stroke: var(--text-3); stroke-width: 1.5px; stroke-dasharray: 5 4; }
+.fs-serie .fs-medida { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5px; }
+.fs-serie .fs-medida.fs-dudosa { fill: none; stroke: var(--accent); }
+.fs-medir { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }

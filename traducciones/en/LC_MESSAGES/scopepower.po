@@ -343,6 +343,14 @@ msgstr "Nothing to add at this level. Turn it up a bit."
 msgid "A la galería"
 msgstr "To the gallery"
 
+#: static/js/fotometria_solar.js
+msgid "A profundidad óptica 0,3 los tres colores dan {r}, {g} y {b} K (el modelo gris de Eddington, {e} K, en discontinua). Si los tres coinciden, la medida cuadra con la física."
+msgstr "At optical depth 0.3 the three colours give {r}, {g} and {b} K (the grey Eddington model, {e} K, dashed). If the three agree, the measurement is physically consistent."
+
+#: static/js/fotometria_solar.js
+msgid "A profundidad óptica 0,3: {l} K (el modelo gris de Eddington, {e} K, en discontinua)."
+msgstr "At optical depth 0.3: {l} K (the grey Eddington model, {e} K, dashed)."
+
 #: firma.py
 msgid "AR {h}h {m}m · Dec {signo}{g}° {mg}′"
 msgstr "RA {h}h {m}m · Dec {signo}{g}° {mg}′"
@@ -402,6 +410,14 @@ msgstr "Invalid action"
 #: templates/apilado.html
 msgid "Aceptar, ya está tapado"
 msgstr "OK, it's covered"
+
+#: static/js/fotometria_solar.js
+msgid "Achatamiento vertical {a} %."
+msgstr "Vertical flattening {a} %."
+
+#: static/js/fotometria_solar.js
+msgid "Achatamiento vertical {a} %; la refracción con el Sol a {h}° de altura da {p} %. Por eso el radio es el semieje mayor."
+msgstr "Vertical flattening {a} %; refraction with the Sun {h}° high gives {p} %. That is why the radius is the semi-major axis."
 
 #: static/js/puesta_estacion.js templates/_puesta_estacion.html
 msgid "Acimut"
@@ -778,6 +794,10 @@ msgstr "Apply to preview"
 #: templates/calibracion.html
 msgid "Aprendido de la Luna el {fecha}: {valores}. Una calibración con un blanco es más fiable."
 msgstr "Learned from the Moon on {fecha}: {valores}. Calibrating with a white target is more reliable."
+
+#: static/js/fotometria_solar.js
+msgid "Aproximación de Eddington-Barbier: supone {t1} K a profundidad 1 y longitudes de onda efectivas aproximadas de los canales de la cámara."
+msgstr "Eddington-Barbier approximation: assumes {t1} K at depth 1 and approximate effective wavelengths for the camera channels."
 
 #: templates/calibracion.html
 msgid "Apunta a algo <b>blanco iluminado por el Sol directo</b>: una pared o fachada soleada, o un folio o una tela blanca al Sol justo delante del objetivo. Da igual que salga desenfocado; solo cuenta que llene el centro de la foto. A la sombra saldría azulado y con luz artificial, naranja. Se usa en las fotos de paisaje y en el Sol «Del filtro»."
@@ -1409,9 +1429,19 @@ msgstr "Center: <b>{nombre}</b> ({fuente})"
 msgid "Centro: {nombre} ({fuente}) · RA {ra} · Dec {dec}"
 msgstr "Center: {nombre} ({fuente}) · RA {ra} · Dec {dec}"
 
+#: static/js/fotometria_solar.js
+#, python-format
+msgid "Cerca del borde (95 % del radio) brilla el {l} % de lo que brilla en el centro."
+msgstr "Near the edge (95 % of the radius) it is {l} % as bright as at the centre."
+
+#: static/js/fotometria_solar.js
+#, python-format
+msgid "Cerca del borde (95 % del radio) brilla el {r} % en rojo, el {g} % en verde y el {b} % en azul de lo que brilla en el centro. En el borde se ven capas más altas y frías, y el azul es el color que más cae al bajar la temperatura."
+msgstr "Near the edge (95 % of the radius) it is {r} % as bright as at the centre in red, {g} % in green and {b} % in blue. At the edge we see higher, cooler layers, and blue is the colour that drops most as the temperature falls."
+
 #: templates/_asistente.html templates/_modal_humor.html
 #: templates/_puesta_estacion.html templates/apilado.html
-#: templates/planetario.html
+#: templates/galeria.html templates/planetario.html
 msgid "Cerrar"
 msgstr "Close"
 
@@ -1471,6 +1501,11 @@ msgstr "Chrome has blocked location for this address."
 #: static/js/ayuda_voz.js
 msgid "Chrome tiene denegado el permiso del micrófono para esta dirección. Toca el candado o el icono de ajustes junto a la dirección, entra en Permisos y permite el Micrófono; después recarga la página."
 msgstr "Chrome has denied microphone permission for this address. Tap the padlock or the settings icon next to the address, go to Permissions and allow the Microphone; then reload the page."
+
+#: static/js/fotometria_solar.js
+#, python-format
+msgid "Cielo junto al Sol: {c} % del brillo del centro."
+msgstr "Sky next to the Sun: {c} % of the centre brightness."
 
 #. js
 #: ScopePower.py templates/editar_dia.html
@@ -1635,6 +1670,11 @@ msgstr "It's used to compute object altitudes, GoTo, astronomical night and ephe
 #: templates/configuracion.html
 msgid "Con estos datos se calcula qué objetos están altos, los puntos de la alineación y la posición de cometas y asteroides. La montura tiene su propia ubicación, configurada en su driver, app o mando."
 msgstr "These values are used to work out which objects are high, the alignment points and the position of comets and asteroids. The mount has its own location, set in its driver, app or hand controller."
+
+#. js
+#: templates/galeria.html
+msgid "Con fotos fiables de al menos cuatro meses se calculan la excentricidad de la órbita de la Tierra y la fecha del perihelio."
+msgstr "With reliable photos spanning at least four months, the eccentricity of the Earth's orbit and the date of perihelion are calculated."
 
 #: templates/imagen.html
 msgid "Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»)."
@@ -2222,6 +2262,10 @@ msgstr "Disk in place ({desvio}′ off; corrects from {umbral}′)"
 msgid "Disco pequeño y rojizo; mejor cerca de la oposición."
 msgstr "Small reddish disk; best near opposition."
 
+#: static/js/fotometria_solar.js
+msgid "Distancia Tierra-Sol: {d} ua medida · {e} ua según la efeméride."
+msgstr "Earth-Sun distance: {d} au measured · {e} au from the ephemeris."
+
 #: templates/_asistente.html
 msgid "Distancia focal (mm)"
 msgstr "Focal length (mm)"
@@ -2242,6 +2286,14 @@ msgstr "Dither every"
 #: ScopePower.py
 msgid "Dithering desactivado"
 msgstr "Dithering off"
+
+#: static/js/fotometria_solar.js
+msgid "Diámetro"
+msgstr "Diameter"
+
+#: templates/galeria.html
+msgid "Diámetro del Sol y órbita de la Tierra"
+msgstr "Sun's diameter and the Earth's orbit"
 
 #: templates/_asistente.html templates/configuracion.html
 msgid "Driver de la cámara"
@@ -2305,7 +2357,7 @@ msgstr "Planetary ephemeris (Astropy)"
 msgid "El 'perro antes de Can Mayor'. Brilla en invierno y es parte del triángulo invernal."
 msgstr "The 'dog before Canis Major'. It shines in winter and is part of the Winter Triangle."
 
-#: editor_dia.py
+#: editor_dia.py fotometria_solar.py
 msgid "El FITS de esta foto no es un apilado en color"
 msgstr "This photo's FITS is not a colour stack"
 
@@ -2427,6 +2479,10 @@ msgstr "The edge does not match a disk of that size (only {p} %): clouds in fron
 msgid "El borde no parece el de la Luna: ¿está desenfocada, tapada por nubes o fuera de campo?"
 msgstr "The edge does not look like the Moon's: is it out of focus, behind clouds or out of the frame?"
 
+#: static/js/fotometria_solar.js
+msgid "El borde se emborrona en {s}″: el desenfoque más el seeing."
+msgstr "The edge is blurred over {s}″: defocus plus seeing."
+
 #: puesta_estacion.py
 msgid "El campo está casi al este u oeste: la medida del acimut es poco precisa"
 msgstr "The field is almost due east or west: the azimuth reading is imprecise"
@@ -2438,6 +2494,10 @@ msgstr "Centering did not solve any shot; the grid uses the expected rotation"
 #: ScopePower.py
 msgid "El centrado tras el GoTo está desactivado en la configuración"
 msgstr "Centering after GoTo is turned off in Settings"
+
+#: static/js/fotometria_solar.js
+msgid "El centro del disco está saturado: el perfil no es fiable."
+msgstr "The centre of the disc is saturated: the profile is not reliable."
 
 #: foto_dia.py
 msgid "El color del centro no es uniforme (varía un {p} %): acerca o encuadra el blanco para que llene todo el centro de la foto."
@@ -2458,9 +2518,17 @@ msgstr "The heart of the scorpion. Its name means 'rival of Mars'."
 msgid "El disco del PC está casi lleno: {libre} GB libres de {total} GB ({pct} %)."
 msgstr "The PC disk is almost full: {libre} GB free of {total} GB ({pct}%)."
 
+#: templates/galeria.html
+msgid "El disco del Sol"
+msgstr "The solar disc"
+
 #: manchas_solares.py
 msgid "El disco del Sol sale demasiado oscuro o plano para medirlo"
 msgstr "The solar disc is too dark or too flat to measure"
+
+#: fotometria_solar.py
+msgid "El disco del Sol sale demasiado oscuro para medirlo"
+msgstr "The solar disc is too dark to measure"
 
 #: ScopePower.py
 msgid "El disco está casi lleno ({libre} GB libres, hace falta al menos {minimo} GB). Libera espacio en el PC para seguir capturando."
@@ -2470,6 +2538,10 @@ msgstr "The disk is almost full ({libre} GB free, at least {minimo} GB needed). 
 #: templates/imagen.html
 msgid "El disco gris neutro: la luz del Sol sin color."
 msgstr "Neutral gray disk: sunlight without color."
+
+#: static/js/fotometria_solar.js
+msgid "El disco sale cortado por el borde de la foto: sin diámetro."
+msgstr "The disc is cut off by the edge of the photo: no diameter."
 
 #: ScopePower.py
 msgid "El disco salía cortado por el borde: la medida es algo menos precisa."
@@ -2708,6 +2780,10 @@ msgstr "The point has to be inside the shot."
 #: ScopePower.py
 msgid "El punto ya está en el centro; no hace falta mover."
 msgstr "The point is already centered; no need to move."
+
+#: templates/galeria.html
+msgid "El radio es el semieje mayor del disco (la refracción achata el vertical) por la escala del último plate solving. El Sol se ve más grande en enero, en el perihelio, y más pequeño en julio: la curva es la efeméride y los puntos, tus fotos."
+msgstr "The radius is the semi-major axis of the disc (refraction flattens the vertical) times the scale from the last plate solve. The Sun looks bigger in January, at perihelion, and smaller in July: the curve is the ephemeris and the dots are your photos."
 
 #. js
 #: static/js/humor.js templates/goto.html
@@ -3213,6 +3289,14 @@ msgstr "It's a <b>hub</b> that shares the mount among several programs: first ch
 msgid "Es una de las cuatro estrellas reales mesopotámicas, junto a Aldebarán, Antares y Fomalhaut. El nombre más común de la estrella, Regulus, procede del latín y significa pequeño rey."
 msgstr "It is one of the four Mesopotamian royal stars, along with Aldebaran, Antares and Fomalhaut. Its most common name, Regulus, comes from Latin and means little king."
 
+#: static/js/fotometria_solar.js
+msgid "Escala de placa {s}″/px, de la focal de Configuración (aproximada: un plate solving la afina)."
+msgstr "Plate scale {s}″/px, from the focal length in Settings (approximate: a plate solve refines it)."
+
+#: static/js/fotometria_solar.js
+msgid "Escala de placa {s}″/px, del último plate solving."
+msgstr "Plate scale {s}″/px, from the last plate solve."
+
 #. js
 #: templates/constelacion.html
 msgid "Escriba una constelación válida."
@@ -3330,6 +3414,10 @@ msgstr "This photo doesn't have its stacked FITS saved next to it, so it can't b
 #: editor_fotos.py
 msgid "Esta foto no tiene original apartado"
 msgstr "This shot has no original set aside"
+
+#: fotometria_solar.py
+msgid "Esta foto no tiene su imagen en crudo guardada: el brillo solo se puede medir sobre el crudo."
+msgstr "This photo has no raw image saved: brightness can only be measured on the raw image."
 
 #: editor_dia.py
 msgid "Esta foto no tiene su imagen en crudo guardada; no se puede volver a revelar."
@@ -3492,6 +3580,11 @@ msgstr "You're in the installed app, which has no address bar: open {direccion} 
 #: espacio_disco.py templates/apilado.html
 msgid "Evolución del apilado"
 msgstr "Stacking progress"
+
+#. js
+#: templates/galeria.html
+msgid "Excentricidad de la órbita medida: {e} (la real, 0,0167) · perihelio hacia el {fecha} (el real, hacia el 3 de enero), con {n} fotos de {dias} días."
+msgstr "Measured orbital eccentricity: {e} (the real one, 0.0167) · perihelion around {fecha} (the real one, around 3 January), from {n} photos over {dias} days."
 
 #: templates/home.html
 msgid "Experimental: aviones, satélites e ISS con la cámara como guía"
@@ -4659,6 +4752,10 @@ msgstr "The camera responds."
 msgid "La descarga sigue en el PC aunque cierres el asistente; la ruta se guardará sola al terminar."
 msgstr "The download continues on the PC even if you close the wizard; the path will be saved by itself when it finishes."
 
+#: static/js/fotometria_solar.js
+msgid "La escala de placa no casa con el tamaño del Sol: ¿otro telescopio o reductor desde el último plate solving?"
+msgstr "The plate scale does not match the size of the Sun: a different telescope or reducer since the last plate solve?"
+
 #: puesta_estacion.py
 msgid "La estimación no es fiable en esta posición del cielo: mueve el tubo lejos del este y del oeste"
 msgstr "The estimate is unreliable at this sky position: move the tube away from due east and west"
@@ -4720,7 +4817,7 @@ msgstr "The webcam shot didn't finish in time"
 msgid "La foto no es de la Luna"
 msgstr "The photo is not of the Moon"
 
-#: manchas_solares.py
+#: ScopePower.py manchas_solares.py
 msgid "La foto no es del Sol"
 msgstr "This photo is not of the Sun"
 
@@ -5009,6 +5106,10 @@ msgstr "Reading the shot..."
 msgid "Leyendo la posición de la montura"
 msgstr "Reading the mount position"
 
+#: templates/galeria.html
+msgid "Limbo y diámetro"
+msgstr "Limb and diameter"
+
 #: enfoque.py
 msgid "Limbo {px} px"
 msgstr "Limb {px} px"
@@ -5177,6 +5278,12 @@ msgstr "Medium (1.25°)"
 msgid "Medir"
 msgstr "Measure"
 
+#: templates/galeria.html
+msgid "Medir {n} foto"
+msgid_plural "Medir {n} fotos"
+msgstr[0] "Measure {n} photo"
+msgstr[1] "Measure {n} photos"
+
 #: templates/apilado.html
 msgid "Mejor"
 msgstr "Best"
@@ -5203,6 +5310,11 @@ msgstr "Full Messier"
 msgid "Meteoro"
 msgstr "Meteor"
 
+#. js
+#: templates/galeria.html
+msgid "Midiendo el disco…"
+msgstr "Measuring the disc…"
+
 #: templates/_puesta_estacion.html
 msgid "Midiendo el eje de la montura"
 msgstr "Measuring the mount axis"
@@ -5215,6 +5327,11 @@ msgstr "Measuring the mount axis with three photos"
 #: templates/apilado.html
 msgid "Midiendo la calidad"
 msgstr "Measuring quality"
+
+#. js
+#: templates/galeria.html
+msgid "Midiendo {h} de {t}…"
+msgstr "Measuring {h} of {t}…"
 
 #: templates/apilado.html
 msgid "Minutos sin fotos aceptadas para saltar"
@@ -5459,6 +5576,10 @@ msgstr "Moving the telescope to {nombre}"
 #: static/js/seguimiento.js
 msgid "Moviendo los ejes y midiendo..."
 msgstr "Moving the axes and measuring..."
+
+#: static/js/fotometria_solar.js
+msgid "Mucha calima: la luz difusa del cielo altera el perfil; esta medida es poco fiable."
+msgstr "Heavy haze: diffuse skylight distorts the profile; this measurement is unreliable."
 
 #: templates/seguimiento.html
 msgid "Mueve cada eje 1 s y mide el desplazamiento de una luz fija (con el seguimiento en marcha)"
@@ -6083,6 +6204,10 @@ msgid "No se pudo leer la imagen"
 msgstr "Couldn't read the image"
 
 #: ScopePower.py
+msgid "No se pudo medir: {e}"
+msgstr "Could not measure: {e}"
+
+#: ScopePower.py
 msgid "No se pudo obtener coordenadas para el cometa '{objeto}' desde JPL Horizons."
 msgstr "Couldn't get coordinates for comet '{objeto}' from JPL Horizons."
 
@@ -6171,11 +6296,15 @@ msgstr "It is not known when the photo was taken: that is needed to know how the
 msgid "No se sabe desde dónde se hizo la foto: falta el observatorio en Configuración."
 msgstr "It is not known where the photo was taken from: set the observatory in Settings."
 
+#: static/js/fotometria_solar.js
+msgid "No se ve cielo alrededor del Sol: no se ha restado su brillo."
+msgstr "No sky is visible around the Sun: its brightness has not been subtracted."
+
 #: luna_anotada.py
 msgid "No se ve el borde de la Luna y este trozo encaja en más de un sitio (una zona lisa, sin nada destacado): no se puede saber qué parte es."
 msgstr "The edge of the Moon is not visible and this piece fits in more than one place (a smooth area with nothing distinctive): it is not possible to tell which part it is."
 
-#: manchas_solares.py
+#: fotometria_solar.py manchas_solares.py
 msgid "No se ve el disco del Sol en la foto"
 msgstr "The solar disc is not visible in the photo"
 
@@ -6413,6 +6542,10 @@ msgstr "Original"
 #: templates/constelacion.html
 msgid "Orión, Casiopea, Escorpio…"
 msgstr "Orion, Cassiopeia, Scorpius…"
+
+#: static/js/fotometria_solar.js
+msgid "Oscurecimiento del limbo"
+msgstr "Limb darkening"
 
 #: static/js/plan.js
 msgid "Otra noche"
@@ -6968,9 +7101,21 @@ msgstr "R = 10·{g} + {f} = {R}"
 msgid "R = k · (10·g + f): g grupos y f manchas contadas en cada foto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia."
 msgstr "R = k · (10·g + f): g groups and f spots counted in each photo. A small telescope shows fewer spots than the SILSO index; the k factor (config.ini, [Sol]) corrects that difference."
 
+#: templates/galeria.html
+msgid "Radio del Sol medido en cada foto y el de la efeméride a lo largo del año"
+msgstr "Sun's radius measured in each photo and the ephemeris value through the year"
+
 #: templates/editar_foto.html
 msgid "Radio del cometa"
 msgstr "Comet radius"
+
+#: static/js/fotometria_solar.js
+msgid "Radio {r} px (efeméride {e}″). Sin escala de placa: haz un plate solving de noche o pon la focal en Configuración."
+msgstr "Radius {r} px (ephemeris {e}″). No plate scale: do a plate solve at night or enter the focal length in Settings."
+
+#: static/js/fotometria_solar.js
+msgid "Radio {r}″ medido · {e}″ según la efeméride ({d} %)."
+msgstr "Radius {r}″ measured · {e}″ from the ephemeris ({d} %)."
 
 #. js
 #: templates/configuracion.html
@@ -7754,6 +7899,10 @@ msgstr "No darks"
 msgid "Sin datos guardados todavía"
 msgstr "No data saved yet"
 
+#: static/js/fotometria_solar.js
+msgid "Sin diámetro: el disco sale cortado o falta la fecha de la foto."
+msgstr "No diameter: the disc is cut off or the photo date is missing."
+
 #: static/js/asistente.js
 msgid "Sin driver elegido"
 msgstr "No driver chosen"
@@ -8079,6 +8228,10 @@ msgstr[1] "Telescope synced. It was off by {n} arcminutes"
 msgid "Temperatura de color"
 msgstr "Color temperature"
 
+#: static/js/fotometria_solar.js
+msgid "Temperatura según la profundidad"
+msgstr "Temperature by depth"
+
 #: templates/_puesta_estacion.html
 msgid "Terminar"
 msgstr "Finish"
@@ -8244,6 +8397,11 @@ msgstr "All"
 #: templates/apilado.html
 msgid "Todavía no hay fotos apiladas."
 msgstr "No shots stacked yet."
+
+#. js
+#: templates/galeria.html
+msgid "Todavía no hay fotos del Sol medidas."
+msgstr "No Sun photos measured yet."
 
 #: ScopePower.py
 msgid "Todavía no hay imagen del modo en vivo."
@@ -8783,6 +8941,10 @@ msgstr "Darks are already being generated"
 msgid "Ya se están generando flats"
 msgstr "Flats are already being generated"
 
+#: fotometria_solar.py
+msgid "Ya se están midiendo fotos del Sol"
+msgstr "Sun photos are already being measured"
+
 #: templates/apilado.html
 msgid "Zoom (recorte)"
 msgstr "Zoom (crop)"
@@ -8909,6 +9071,10 @@ msgstr "below the minimum altitude ({altura}°)"
 #: static/js/puesta_estacion.js
 msgid "bien"
 msgstr "good"
+
+#: static/js/fotometria_solar.js
+msgid "brillo relativo al centro"
+msgstr "brightness relative to centre"
 
 #. js
 #: templates/galeria.html templates/imagen.html
@@ -9167,6 +9333,10 @@ msgstr "Moon disk"
 msgid "disco de sol"
 msgstr "Sun disk"
 
+#: static/js/fotometria_solar.js
+msgid "distancia al centro (fracción del radio)"
+msgstr "distance from centre (fraction of radius)"
+
 #: bucle_captura.py
 msgid "dithering (moviendo la montura)"
 msgstr "dithering (moving the mount)"
@@ -9277,6 +9447,12 @@ msgstr "the most used; fields of 0.6° or more"
 #: templates/imagen.html
 msgid "el paisaje"
 msgstr "the landscape"
+
+#. js
+#: templates/galeria.html
+#, python-format
+msgid "el radio difiere de la efeméride un {m} % de media"
+msgstr "the radius differs from the ephemeris by {m} % on average"
 
 #. js
 #: camara_zwo.py
@@ -10210,6 +10386,10 @@ msgstr "predicted ({x}, {y})"
 msgid "procesando la vista previa"
 msgstr "processing the preview"
 
+#: static/js/fotometria_solar.js
+msgid "profundidad óptica τ (más hondo a la derecha)"
+msgstr "optical depth τ (deeper to the right)"
+
 #. js
 #: templates/apilado.html
 msgid "próximo en {n} foto"
@@ -10244,6 +10424,10 @@ msgstr "removing the gradient"
 #: camara_toupcam.py
 msgid "quitar la zona"
 msgstr "clear the region"
+
+#: static/js/fotometria_solar.js
+msgid "radio del Sol (″)"
+msgstr "Sun's radius (″)"
 
 #: apilado.py
 msgid "rastro de avión"
@@ -10452,6 +10636,10 @@ msgstr "assumed (Saturn-C)"
 #: camara_zwo.py
 msgid "tamaño de imagen no válido"
 msgstr "invalid image size"
+
+#: static/js/fotometria_solar.js
+msgid "temperatura (K)"
+msgstr "temperature (K)"
 
 #: static/js/plan.js
 msgid "termina hacia las {hora}"
@@ -10869,6 +11057,13 @@ msgid "{n} foto guardada"
 msgid_plural "{n} fotos guardadas"
 msgstr[0] "{n} shot saved"
 msgstr[1] "{n} shots saved"
+
+#. js
+#: fotometria_solar.py templates/galeria.html
+msgid "{n} foto medida"
+msgid_plural "{n} fotos medidas"
+msgstr[0] "{n} photo measured"
+msgstr[1] "{n} photos measured"
 
 #. js
 #: templates/apilado.html

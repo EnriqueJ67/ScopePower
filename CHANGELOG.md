@@ -19,6 +19,19 @@ día de la release. El número de versión vive en `version.py`.
   morfológico, umbral relativo al ruido, motas y limbo descartados): las nueve del 10-oct dan
   el mismo R. Las fotos sueltas guardan ahora el giro de Cámara en su JSON; las antiguas, sin
   él, se cuentan sobre el JPG.
+- Nuevo: el disco del Sol medido sobre el crudo de cada foto (botón «Limbo y diámetro» del
+  visor). El oscurecimiento del limbo en rojo, verde y azul (ley cuadrática ajustada al perfil
+  radial, con el cielo restado); la temperatura de la fotosfera según la profundidad que se
+  deduce de él (aproximación de Eddington-Barbier: en las fotos del 10-oct-2026 los tres colores
+  dan 5380 K a profundidad óptica 0,3, el modelo gris de Eddington 5330 K); el radio, como el
+  semieje mayor de la elipse ajustada al limbo, porque la refracción achata el vertical (medido
+  0,40 % con el Sol a 15°, lo previsto); la distancia Tierra-Sol y el brillo del cielo junto al
+  Sol (la calima, que marca la medida como poco fiable por encima del 8 %). En las 12 fotos
+  reales con crudo el radio queda a ±0,15 % de la efeméride. Con el filtro Sol, la galería
+  pinta el radio de cada foto sobre la curva del año (la órbita de la Tierra) y, con fotos de
+  al menos cuatro meses, ajusta la excentricidad y la fecha del perihelio. Módulo
+  `fotometria_solar.py` (medidas en `datos/medidas_sol.json`), gráficas
+  `static/js/fotometria_solar.js`, prueba `herramientas/probar_fotometria_solar.py`.
 - Arreglado: la descripción hablada del objeto al llegar con GoTo casi nunca sonaba en el campo. La
   pantalla mandaba el nombre con el tipo entre paréntesis («M 31 (Galaxia)»), el catálogo propio de
   172 descripciones sin Internet no lo reconocía y la app acababa en Wikipedia, que sin red no
