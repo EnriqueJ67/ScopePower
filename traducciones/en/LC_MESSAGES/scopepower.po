@@ -2076,6 +2076,10 @@ msgstr "No plate solving during the day: the move is computed with the camera or
 msgid "De noche se usa {valor} (Configuración)."
 msgstr "At night {valor} is used (Settings)."
 
+#: static/js/manchas_solares.js
+msgid "De punta a punta. Diámetro equivalente {d} km; área {a} millones de km²."
+msgstr "End to end. Equivalent diameter {d} km; area {a} million km²."
+
 #. js
 #: templates/goto.html
 msgid "Debe decir \"{palabra}\" antes del objeto."
@@ -9421,6 +9425,10 @@ msgstr "the driver does not support the {velocidad} rate"
 msgid "el driver «{driver}» no está instalado en este PC: elige otro o instala el de tu equipo"
 msgstr "the “{driver}” driver isn't installed on this PC: choose another one or install the one for your equipment"
 
+#: static/js/manchas_solares.js
+msgid "el grupo {n} mide {tam}"
+msgstr "group {n} measures {tam}"
+
 #: enfoque.py
 msgid "el limbo no se ve bien (¿disco cortado por el borde, nubes, saturado?)"
 msgstr "the limb is not clearly visible (disk cut off by the edge, clouds, saturated?)"
@@ -10024,6 +10032,10 @@ msgstr "better"
 #: foto_dia.py
 msgid "memoria"
 msgstr "memory"
+
+#: static/js/manchas_solares.js
+msgid "menos de {km} km · {t} Tierras"
+msgstr "under {km} km · {t} Earths"
 
 #: mosaico.py
 msgid "midiendo los fondos"
@@ -10899,6 +10911,10 @@ msgstr "{icono} {texto} ({px} px at {angulo}°)"
 #: anuncio_ip.py
 msgid "{ip}, dos puntos, puerto {puerto}."
 msgstr "{ip}, colon, port {puerto}."
+
+#: static/js/manchas_solares.js
+msgid "{km} km · {t} Tierras"
+msgstr "{km} km · {t} Earths"
 
 #: camara_sdk.py
 msgid "{marca} por SDK nativo (sin ASCOM) — ninguna conectada ahora"

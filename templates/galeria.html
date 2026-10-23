@@ -125,7 +125,7 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/luna_anotada.js') }}?v=1"></script>
-<script src="{{ url_for('static', filename='js/manchas_solares.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/manchas_solares.js') }}?v=2"></script>
 <script src="{{ url_for('static', filename='js/fotometria_solar.js') }}?v=1"></script>
 <script>
     const CON_FITS = {{ con_fits|list|tojson }};
@@ -443,8 +443,8 @@
     function wolfGuardar() {
         const d = ANOT.datos[ANOT.nombre];
         if (!d || !d.sol) return;
-        const cuerpo = { manchas: d.manchas.map(m => ({ x: m.x, y: m.y, r_px: m.r_px, umbra: m.umbra, grupo: m.grupo, area_mhs: m.area_mhs, contraste: m.contraste })),
-                         disco: d.disco, sensibilidad: d.sensibilidad, area_mhs: d.area_mhs };
+        const cuerpo = { manchas: d.manchas.map(m => ({ x: m.x, y: m.y, r_px: m.r_px, umbra: m.umbra, grupo: m.grupo, area_mhs: m.area_mhs, contraste: m.contraste, zona: m.zona ?? null })),
+                         disco: d.disco, sensibilidad: d.sensibilidad, area_mhs: d.area_mhs, zonas: d.zonas ?? null, resolucion_km: d.resolucion_km ?? null };
         wolfPedir("/galeria/wolf/" + encodeURIComponent(ANOT.nombre), cuerpo, _("guardando el conteo…"));
     }
     function wolfOlvidar() {

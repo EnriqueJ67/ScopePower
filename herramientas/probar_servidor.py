@@ -140,7 +140,9 @@ def main():
     bien = nombre_sol in r.get_data(as_text=True)
     d = pedir("/galeria/anotaciones/" + nombre_sol + "?sensibilidad=normal").get_json() or {}
     bien = bien and d.get("ok") and d.get("sol") and d.get("origen") == "jpg" and d["wolf"]["g"] == 4 and d["wolf"]["f"] == 7
-    print(f"  {'✅' if bien else '❌'} conteo automático: {d.get('wolf')} ({d.get('origen')})")
+    bien = bien and all(g.get("largo_km") for g in d.get("grupos") or [])
+    print(f"  {'✅' if bien else '❌'} conteo automático: {d.get('wolf')} ({d.get('origen')}), "
+          f"grupos de {', '.join(str(g.get('largo_km')) for g in d.get('grupos') or [])} km")
     cuerpo = {"manchas": (d.get("manchas") or [])[:-1], "disco": d.get("disco"), "sensibilidad": "normal"}
     g = cliente.post("/galeria/wolf/" + nombre_sol, json=cuerpo).get_json() or {}
     o = cliente.post("/galeria/wolf/" + nombre_sol + "/olvidar", json={"sensibilidad": "alta"}).get_json() or {}

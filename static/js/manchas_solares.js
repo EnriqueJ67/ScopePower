@@ -12,6 +12,7 @@
 //   wolfTocar(d, x, y, estado)                     -> aplica un toque (x, y en px del JPG); true si cambió algo
 //   wolfRecontar(d)                                -> rehace d.grupos y d.wolf a partir de d.manchas
 //   textoWolf(d)                                   -> «R = 10·3 + 11 = 41 · 3 grupos, 11 manchas · guardado»
+//   textoTamano(g, d)                              -> «66.000 km · 5,2 Tierras» (el largo del grupo de punta a punta)
 //   pintarSerieWolf(svg, serie)                    -> la gráfica de la serie guardada
 //
 // Los grupos se enlazan por la separación angular sobre la esfera (igual que en el servidor):
@@ -29,6 +30,51 @@ function wolfSeparacion(a, b, disco) {
     return Math.acos(Math.max(-1, Math.min(1, p[0] * q[0] + p[1] * q[1] + p[2] * q[2]))) * 180 / Math.PI;
 }
 
+const DIAMETRO_TIERRA_KM = 12742;
+
+// La mayor distancia sobre la esfera (km) entre puntos de la foto, más un píxel (como largo_km del servidor)
+function _wolfLargoKm(puntos, d) {
+    const R = d.radio_sol_km || 695700;
+    const v = puntos.map(p => _wolfXYZ({ x: p[0], y: p[1] }, d.disco));
+    let minimo = 1;
+    for (let i = 0; i < v.length; i++)
+        for (let j = i + 1; j < v.length; j++)
+            minimo = Math.min(minimo, v[i][0] * v[j][0] + v[i][1] * v[j][1] + v[i][2] * v[j][2]);
+    return Math.acos(Math.max(-1, Math.min(1, minimo))) * R + R / d.disco.r;
+}
+
+// Tamaño de un grupo (como tamano_grupo del servidor): sus zonas oscuras una vez cada una; una mancha
+// añadida a mano, un círculo de su radio. null si la foto no trae zonas (conteos guardados antes).
+function _wolfTamano(ms, d) {
+    if (!Array.isArray(d.zonas)) return null;
+    const R = d.radio_sol_km || 695700, kmPx = R / d.disco.r;
+    const porId = {};
+    d.zonas.forEach(z => { porId[z.id] = z; });
+    const vistas = new Set(), puntos = [];
+    let area = 0;
+    ms.forEach(m => {
+        const z = m.zona != null ? porId[m.zona] : null;
+        if (z) {
+            if (!vistas.has(z.id)) { vistas.add(z.id); area += z.area_km2; puntos.push(...z.contorno); }
+        } else {
+            const Z = _wolfXYZ(m, d.disco)[2], rp = m.r_px || 2;
+            area += Math.PI * (rp * kmPx) ** 2 / Math.max(Z, 0.15);
+            for (let a = 0; a < 8; a++) puntos.push([m.x + rp * Math.cos(a * Math.PI / 4), m.y + rp * Math.sin(a * Math.PI / 4)]);
+        }
+    });
+    return { km2: area, diametro_km: 2 * Math.sqrt(area / Math.PI), largo_km: _wolfLargoKm(puntos, d) };
+}
+
+function _kmRedondo(km) { return (Math.round(km / 1000) * 1000).toLocaleString(IDIOMA.locale); }
+
+// «66.000 km · 5,2 Tierras»; por debajo de lo que emborrona el día (el seeing), «menos de 8.000 km»
+function textoTamano(g, d) {
+    if (g.largo_km == null) return "";
+    if (d.resolucion_km && g.largo_km < d.resolucion_km)
+        return _("menos de {km} km · {t} Tierras", { km: _kmRedondo(d.resolucion_km), t: fmtNum(d.resolucion_km / DIAMETRO_TIERRA_KM, 1) });
+    return _("{km} km · {t} Tierras", { km: _kmRedondo(g.largo_km), t: fmtNum(g.largo_km / DIAMETRO_TIERRA_KM, 1) });
+}
+
 // Grupos 1..g de izquierda a derecha y el Número de Wolf con el k de la foto
 function wolfRecontar(d) {
     const centros = {};
@@ -43,7 +89,9 @@ function wolfRecontar(d) {
     d.grupos = orden.map((g, i) => {
         const ms = d.manchas.filter(m => m.grupo === i + 1);
         const media = clave => ms.every(m => m[clave] != null) ? ms.reduce((s, m) => s + m[clave], 0) / ms.length : null;
-        return { id: i + 1, n: ms.length, x: media("x"), y: media("y"), lat: media("lat"), dlon: media("dlon") };
+        const t = _wolfTamano(ms, d) || {};
+        return { id: i + 1, n: ms.length, x: media("x"), y: media("y"), lat: media("lat"), dlon: media("dlon"),
+                 km2: t.km2 ?? null, diametro_km: t.diametro_km ?? null, largo_km: t.largo_km ?? null };
     });
     const g = d.grupos.length, f = d.manchas.length, k = (d.wolf && d.wolf.k) || 1;
     d.wolf = { g, f, R: Math.round(k * (10 * g + f) * 10) / 10, k };
@@ -80,7 +128,7 @@ function wolfTocar(d, x, y, estado, k) {
             d.manchas.splice(i, 1);
         } else {
             if (Math.hypot(x - d.disco.cx, y - d.disco.cy) > 0.97 * d.disco.r) return false;
-            const nueva = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, r_px: Math.max(2, d.disco.r * 0.008), umbra: false, lat: null, dlon: null, lon: null, grupo: 0 };
+            const nueva = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, r_px: Math.max(2, d.disco.r * 0.008), umbra: false, lat: null, dlon: null, lon: null, grupo: 0, zona: null };
             // Al grupo más cercano si está a menos de la separación de grupo; si no, a uno nuevo
             let grupo = 0, mejor = Infinity;
             d.manchas.forEach(m => { const s = wolfSeparacion(nueva, m, d.disco); if (s < mejor) { mejor = s; grupo = m.grupo; } });
@@ -116,12 +164,23 @@ function pintarManchasSolares(svg, d, k, w, h, estado) {
         const clase = "sol-mancha " + (m.umbra ? "sol-umbra" : "sol-penumbra") + (estado && estado.seleccionada === i ? " sol-seleccionada" : "");
         nuevo("circle", { cx: x, cy: y, r: r }, clase);
     });
-    // Cada grupo: su número (y sus coordenadas heliográficas si se conocen) encima de su centro
+    // Cada grupo, encima de su centro: su número (y sus coordenadas heliográficas si se conocen) y, debajo,
+    // su tamaño en km y en Tierras (al pasar el ratón, el diámetro equivalente y el área)
     d.grupos.forEach(g => {
         const ms = d.manchas.filter(m => m.grupo === g.id);
         const arriba = Math.min(...ms.map(m => m.y - Math.max(m.r_px, 3 / k)));
-        const texto = nuevo("text", { x: g.x * k, y: Math.max(12, arriba * k - 6), "text-anchor": "middle" }, "sol-grupo");
+        const tam = textoTamano(g, d);
+        const y = Math.max(tam ? 25 : 12, arriba * k - 6);
+        const texto = nuevo("text", { x: g.x * k, y: tam ? y - 14 : y, "text-anchor": "middle" }, "sol-grupo");
         texto.textContent = g.lat != null ? `${g.id} · ${_wolfHelio(g.lat, g.dlon)}` : String(g.id);
+        if (tam) {
+            const t2 = nuevo("text", { x: g.x * k, y: y, "text-anchor": "middle" }, "sol-grupo sol-grupo-km");
+            t2.textContent = tam;
+            const ayuda = document.createElementNS(NS, "title");
+            ayuda.textContent = _("De punta a punta. Diámetro equivalente {d} km; área {a} millones de km².",
+                { d: _kmRedondo(g.diametro_km), a: fmtNum(g.km2 / 1e6, 0) });
+            t2.appendChild(ayuda);
+        }
     });
 }
 
@@ -130,6 +189,8 @@ function textoWolf(d) {
     let texto = _("R = 10·{g} + {f} = {R}", { g: w.g, f: w.f, R: fmtNum(w.R, w.k === 1 ? 0 : 1) });
     if (w.k !== 1) texto += " " + _("(k = {k})", { k: fmtNum(w.k, 2) });
     texto += " · " + ngettext("{n} grupo", "{n} grupos", w.g) + ", " + ngettext("{n} mancha", "{n} manchas", w.f);
+    const mayor = (d.grupos || []).filter(g => g.largo_km != null).sort((a, b) => b.largo_km - a.largo_km)[0];
+    if (mayor) texto += " · " + _("el grupo {n} mide {tam}", { n: mayor.id, tam: textoTamano(mayor, d) });
     if (d.disco && d.disco.cortado) texto += " · " + _("disco cortado: conteo parcial");
     if (d.guardado) texto += " · " + _("guardado");
     else if (d.editado) texto += " · " + _("sin guardar");
