@@ -1800,6 +1800,10 @@ msgstr ""
 msgid "Consultando..."
 msgstr ""
 
+#: static/js/manchas_solares.js
+msgid "Conteo guardado antes de medir tamaños: pulsa «Volver a contar» para verlos."
+msgstr ""
+
 #: manchas_solares.py
 msgid "Conteo no válido: {e}"
 msgstr ""
@@ -4286,7 +4290,7 @@ msgstr ""
 msgid "Grupo de galaxias"
 msgstr ""
 
-#: templates/galeria.html
+#: static/js/manchas_solares.js templates/galeria.html
 msgid "Grupos"
 msgstr ""
 
@@ -5703,6 +5707,10 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "Ninguna"
+msgstr ""
+
+#: static/js/manchas_solares.js
+msgid "Ninguna mancha en el disco."
 msgstr ""
 
 #: grabador_video.py
@@ -9423,10 +9431,6 @@ msgstr ""
 msgid "el driver «{driver}» no está instalado en este PC: elige otro o instala el de tu equipo"
 msgstr ""
 
-#: static/js/manchas_solares.js
-msgid "el grupo {n} mide {tam}"
-msgstr ""
-
 #: enfoque.py
 msgid "el limbo no se ve bien (¿disco cortado por el borde, nubes, saturado?)"
 msgstr ""
@@ -10613,6 +10617,10 @@ msgstr ""
 msgid "sin recortar"
 msgstr ""
 
+#: static/js/manchas_solares.js
+msgid "sin tamaño"
+msgstr ""
+
 #: plan_sesion.py
 msgid "sin éxito"
 msgstr ""
@@ -11672,6 +11680,10 @@ msgstr ""
 #. js
 #: templates/calibracion.html
 msgid "Último flat: {fecha}"
+msgstr ""
+
+#: static/js/manchas_solares.js
+msgid "área {a} millones de km²"
 msgstr ""
 
 #. js

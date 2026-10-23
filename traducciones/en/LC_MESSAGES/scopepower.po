@@ -1802,6 +1802,10 @@ msgstr "Checking the latest flat..."
 msgid "Consultando..."
 msgstr "Checking..."
 
+#: static/js/manchas_solares.js
+msgid "Conteo guardado antes de medir tamaños: pulsa «Volver a contar» para verlos."
+msgstr "Count saved before sizes were measured: press «Count again» to see them."
+
 #: manchas_solares.py
 msgid "Conteo no válido: {e}"
 msgstr "Invalid count: {e}"
@@ -4288,7 +4292,7 @@ msgstr "Record video on the mini PC"
 msgid "Grupo de galaxias"
 msgstr "Galaxy group"
 
-#: templates/galeria.html
+#: static/js/manchas_solares.js templates/galeria.html
 msgid "Grupos"
 msgstr "Groups"
 
@@ -5706,6 +5710,10 @@ msgstr "Neptune"
 #: templates/apilado.html
 msgid "Ninguna"
 msgstr "None"
+
+#: static/js/manchas_solares.js
+msgid "Ninguna mancha en el disco."
+msgstr "No spots on the disc."
 
 #: grabador_video.py
 msgid "Ningún formato de vídeo válido (ser, mp4)"
@@ -9425,10 +9433,6 @@ msgstr "the driver does not support the {velocidad} rate"
 msgid "el driver «{driver}» no está instalado en este PC: elige otro o instala el de tu equipo"
 msgstr "the “{driver}” driver isn't installed on this PC: choose another one or install the one for your equipment"
 
-#: static/js/manchas_solares.js
-msgid "el grupo {n} mide {tam}"
-msgstr "group {n} measures {tam}"
-
 #: enfoque.py
 msgid "el limbo no se ve bien (¿disco cortado por el borde, nubes, saturado?)"
 msgstr "the limb is not clearly visible (disk cut off by the edge, clouds, saturated?)"
@@ -10615,6 +10619,10 @@ msgstr "no reason given"
 msgid "sin recortar"
 msgstr "not cropped"
 
+#: static/js/manchas_solares.js
+msgid "sin tamaño"
+msgstr "no size"
+
 #: plan_sesion.py
 msgid "sin éxito"
 msgstr "no luck"
@@ -11678,6 +11686,10 @@ msgstr "Latest dark for {exp} s: {fecha}"
 #: templates/calibracion.html
 msgid "Último flat: {fecha}"
 msgstr "Latest flat: {fecha}"
+
+#: static/js/manchas_solares.js
+msgid "área {a} millones de km²"
+msgstr "area {a} million km²"
 
 #. js
 #: camara_zwo.py
