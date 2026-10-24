@@ -71,6 +71,7 @@ import enfoque
 import camara_sdk
 import disco
 import correccion_ejes
+import dither
 import espacio_disco
 import rastros
 import apuntado_teorico
@@ -592,49 +593,50 @@ def _config_dithering():
         "activado": str(d.get("activado", "false")).lower() == "true",
         "cada_n_fotos": int(d.get("cada_n_fotos", 3)),
         "amplitud_px": float(d.get("amplitud_px", 15)),
+        "velocidad_deg_s": _velocidad_dither(d.get("velocidad_deg_s", "")),
         "asentamiento_s": asentamiento_montura("Dithering"),
     }
 
 
+def _velocidad_dither(texto):
+    """°/s máximos por eje para el dither con MoveAxis; vacío = la de correccion_ejes, 0 = con GoTo."""
+    try:
+        v = float(texto) if str(texto).strip() else correccion_ejes.VELOCIDAD_DEFECTO
+    except ValueError:
+        v = correccion_ejes.VELOCIDAD_DEFECTO
+    return max(0.0, min(4.0, v))
+
+
+# Punto de partida del dithering y dónde quedó el último movimiento (dither.py)
+estado_dither = dither.Dither()
+
+
 def hacer_dither():
     """
-    Desplaza la montura una distancia aleatoria de hasta `amplitud_px` píxeles
-    en una dirección aleatoria (movimiento relativo, sin Sync) y espera a que
-    termine y se asiente. Se ejecuta desde el bucle de captura entre fotos.
-    Devuelve una descripción tipo "12 px hacia el NE".
+    Lleva la montura a un punto al azar a hasta `amplitud_px` píxeles del punto de partida
+    (dither.py: alrededor del mismo sitio, no un paso más desde el anterior; con MoveAxis y
+    sin Sync) y espera a que se asiente. Se ejecuta desde el bucle de captura entre fotos.
+    Devuelve una descripción tipo "12 px (38") hacia el NE, a 9 px del punto de partida".
     """
-    import random, math
     conf = _config_dithering()
     # Escala de placa ("/px) a partir del tamaño de píxel de la última captura y la focal
     pixel_um = ULTIMA_CAPTURA.get("pixel_um") or 3.76
     disp = _dispositivos()
     escala = 206.265 * pixel_um * disp["binning"] / max(1.0, disp["focal"])
-    px = random.uniform(0.5, 1.0) * conf["amplitud_px"]
-    angulo = random.uniform(0, 2 * math.pi)
-    arcsec = px * escala
-    d_ra_deg, d_dec_deg = arcsec * math.cos(angulo) / 3600.0, arcsec * math.sin(angulo) / 3600.0
-
-    def _mover(tel):
-        dec = tel.Declination
-        ra_dest = (tel.RightAscension + d_ra_deg / 15.0 / max(0.05, math.cos(math.radians(dec)))) % 24.0
-        dec_dest = max(-90.0, min(90.0, dec + d_dec_deg))
-        tel.Tracking = True
-        if getattr(tel, "CanSlewAsync", False):
-            tel.SlewToCoordinatesAsync(ra_dest, dec_dest)
-        else:
-            tel.SlewToCoordinates(ra_dest, dec_dest)
-        inicio = time.time()
-        time.sleep(0.3)
-        while tel.Slewing:
-            if time.time() - inicio > 60:
-                raise ErrorHardware(_("La montura no terminó el movimiento de dithering en 60 s"))
-            time.sleep(0.3)
-
-    montura.ejecutar(_mover, timeout=90)
+    lugar = EarthLocation(lat=LATITUD_OBSERVATORIO * u.deg, lon=LONGITUD_OBSERVATORIO * u.deg, height=ALTITUD_OBSERVATORIO * u.m)
+    r = montura.ejecutar(lambda tel: estado_dither.mover(tel, conf["amplitud_px"] * escala, lugar,
+                                                         velocidad=conf["velocidad_deg_s"]), timeout=120)
     time.sleep(conf["asentamiento_s"])
+    de, dn = r["movido"]
+    arcsec = math.hypot(de, dn)
     rumbos = ["E", "NE", "N", N_("NO"), N_("O"), N_("SO"), "S", "SE"]     # oeste = O: en inglés W
-    rumbo = rumbos[int(((math.degrees(angulo) + 22.5) % 360) // 45)]
-    return _("{px} px ({arcsec}\") hacia el {rumbo}", px=round(px), arcsec=round(arcsec), rumbo=_(rumbo))
+    rumbo = rumbos[int(((math.degrees(math.atan2(dn, de)) + 22.5) % 360) // 45)]
+    log.info("Dither (%s%s): %.0f″ hacia el %s, queda a %.0f″ del punto de partida%s", r["metodo"],
+             f", residuo {r['residuo_arcmin']:.2f}′" if r["residuo_arcmin"] is not None else "",
+             arcsec, rumbo, math.hypot(*r["posicion"]), " (nuevo)" if r["nuevo_origen"] else "")
+    return _("{px} px ({arcsec}\") hacia el {rumbo}, a {lejos} px del punto de partida",
+             px=round(arcsec / escala), arcsec=round(arcsec), rumbo=_(rumbo),
+             lejos=round(math.hypot(*r["posicion"]) / escala))
 
 
 # Bucle de captura del apilado en el servidor (ver bucle_captura.py). Se

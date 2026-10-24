@@ -6,7 +6,8 @@
 #     RightAscension/Declination que se mueven con MoveAxis en acimut y altura, Tracking
 #     que se apaga al mover como hace SynScan, Slewing). Casos: corrección normal; driver
 #     con el eje de acimut al revés (se aprende el signo y se guarda); montura que no se
-#     mueve (ErrorCorreccion, para volver al GoTo); parada que falla dos veces (reintentos).
+#     mueve (ErrorCorreccion, para volver al GoTo); montura que se atasca tras un primer paso
+#     bueno (se para ahí, sin volver al GoTo); parada que falla dos veces (reintentos).
 #     En todos los casos los ejes acaban parados y el seguimiento como estaba.
 #   - disco.GuiadoDisco con fotos y medidas falsas: con un vídeo grabándose la corrección
 #     espera, se hace al terminar la grabación, y más allá de 3 veces el umbral se hace igual.
@@ -181,6 +182,30 @@ def caso_inmovil():
     comprobar(len(paradas) >= 2, f"la parada se envió ({len(paradas)} MoveAxis a 0)")
 
 
+class MonturaQueSeAtasca(MonturaAltAzFalsa):
+    """Hace un cuarto del primer paso y luego ya no avanza (el límite de precisión de la montura)."""
+
+    def MoveAxis(self, eje, v):
+        if v == 0 and any(self._v):
+            super().MoveAxis(eje, v)
+            if not any(self._v):
+                self.inmovil = True
+            return
+        super().MoveAxis(eje, 0.25 * v)
+
+
+def caso_se_atasca():
+    print("Un primer paso bueno y un segundo que no gana nada: se para ahí, sin ErrorCorreccion")
+    m = MonturaQueSeAtasca()
+    try:
+        r = ce.corregir(m, 2.0 / 60, 0.0, LUGAR, signos=(1, 1), guardar=None)
+        comprobar(r["pasos"] == 2 and r["residuo_arcmin"] > ce.TOLERANCIA_ARCMIN,
+                  f"se da por acabada tras el paso que no avanza ({r['pasos']} pasos, residuo {r['residuo_arcmin']:.2f}′)")
+    except ce.ErrorCorreccion as e:
+        comprobar(False, f"no debería volver al GoTo: {e}")
+    comprobar(not any(m._v) and m.Tracking, "ejes parados y seguimiento activo")
+
+
 def caso_parada_con_fallos():
     print("La parada falla dos veces: se reintenta y la montura queda parada")
     m = MonturaAltAzFalsa(fallos_parada=2)
@@ -250,7 +275,7 @@ def main():
     ap.add_argument("--verboso", action="store_true")
     args = ap.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verboso else logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
-    for caso in (caso_normal, caso_signo_invertido, caso_inmovil, caso_parada_con_fallos, caso_guiado_aplaza):
+    for caso in (caso_normal, caso_signo_invertido, caso_inmovil, caso_se_atasca, caso_parada_con_fallos, caso_guiado_aplaza):
         t0 = time.time()
         caso()
         print(f"  ({time.time() - t0:.1f} s)")
