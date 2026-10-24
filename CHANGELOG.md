@@ -30,6 +30,11 @@ día de la release. El número de versión vive en `version.py`.
   la capa de estrellas antes de juntarla con el objeto, al instante en el navegador; las curvas
   del panel Curvas siguen actuando sobre la foto entera. La saturación propia de las estrellas
   ya existía (panel Procesado). Se guardan con la foto y en los presets.
+- Arreglado: borbotones oscuros en el fondo con las estrellas aparte. El contraste local (CLAHE)
+  realzaba en el cielo sin estrellas el ruido de escala media y lo dejaba en manchas oscuras de
+  10 a 30 píxeles (M 27 con contraste 0,7). Con las estrellas aparte ahora solo actúa donde hay
+  señal, a partir de 3 sigmas del cielo: el moteado del fondo baja de 0,0102 a 0,0067 y la
+  nebulosa recibe el mismo contraste que antes.
 - Nuevo: estrellas aparte en el editor de la galería (prototipo). Con StarNet2 instalado (el
   programa de Mikita Misiura, https://starnetastro.com/, aparte y con su propia licencia, como
   ASTAP; `[General] ruta_starnet`), el panel «Estrellas aparte» separa el apilado en objeto y

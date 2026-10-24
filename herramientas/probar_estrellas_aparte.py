@@ -19,6 +19,7 @@
 #   5. el lector de --machine-progress con las líneas reales de StarNet2 2.6.2;
 #   7. reducir las estrellas (catálogo + campanas de Gauss);
 #   8. el estirado propio de las estrellas (intensidad, compresión de los núcleos).
+#   9. el contraste local sin estrellas no levanta el ruido del cielo (borbotones).
 
 import os
 import sys
@@ -254,12 +255,42 @@ def prueba_progreso():
     comprobar(estrellas_aparte._leer_progreso('{"schema":"x","event":"finish"}')[0] == 1.0, "finish → 1,0")
 
 
+
+def prueba_contraste_sin_estrellas():
+    print("9. Contraste local sin estrellas")
+    rng = np.random.default_rng(3)
+    n = 400
+    # Cielo con ruido de escala media (el moteado que deja la reducción de ruido) y una nebulosa
+    ruido = rng.normal(0, 1, (n, n)).astype(np.float32)
+    import cv2
+    ruido = cv2.GaussianBlur(ruido, (0, 0), 6.0)
+    ruido *= 0.012 / ruido.std()
+    yy, xx = np.mgrid[0:n, 0:n]
+    nebulosa = 0.45 * np.exp(-((xx - 200) ** 2 + (yy - 200) ** 2) / (2 * 50.0 ** 2))
+    detalle = 0.06 * np.sin(xx / 6.0) * np.exp(-((xx - 200) ** 2 + (yy - 200) ** 2) / (2 * 40.0 ** 2))
+    L = np.clip(0.10 + ruido + nebulosa + detalle, 0, 1).astype(np.float32)
+    rgb = np.repeat(L[..., None], 3, axis=2)
+    normal = procesado.contraste_local(rgb, 0.7).mean(axis=2)
+    protegido = procesado.contraste_local(rgb, 0.7, proteger_cielo=True).mean(axis=2)
+    cielo = (np.hypot(xx - 200, yy - 200) > 170)
+    centro = (np.hypot(xx - 200, yy - 200) < 30)
+    def moteado(img):
+        return float(img[cielo].std())
+    m0, mn, mp = moteado(L), moteado(normal), moteado(protegido)
+    print(f"     moteado del cielo: original {m0:.4f}, contraste {mn:.4f}, protegido {mp:.4f}")
+    comprobar(mn > 1.3 * m0, "sin proteger, CLAHE agranda el moteado del cielo")
+    comprobar(mp < 1.15 * m0, "protegido, el cielo queda como estaba")
+    dif = float(np.abs(normal[centro] - protegido[centro]).max())
+    comprobar(dif < 0.01, f"la nebulosa recibe el mismo contraste (diferencia {dif:.4f})")
+
+
 if __name__ == "__main__":
     prueba_pantalla()
     base, capa, aj = prueba_procesado()
     prueba_paridad(base, capa, aj)
     prueba_encogido()
     prueba_estirado_estrellas()
+    prueba_contraste_sin_estrellas()
     prueba_capas_guardadas()
     prueba_progreso()
     print()

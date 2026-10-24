@@ -1493,10 +1493,16 @@ def mascara_estrellas(lum8, dilatar=2, solo_pequenas=False):
     return cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.0)   # borde suave 0..1
 
 
-def contraste_local(rgb, cantidad):
+# Sigmas del cielo (MAD de la luminancia estirada) a partir de las que el contraste
+# local actúa del todo con las estrellas aparte
+UMBRAL_CIELO_CONTRASTE = 3.0
+
+
+def contraste_local(rgb, cantidad, proteger_cielo=False):
     """
     CLAHE en luminancia mezclado con el original según `cantidad` (0..1), más curva en S suave.
     rgb: (H, W, 3) float32 en [0, 1] (devuelve float32) o uint8 (devuelve uint8).
+    proteger_cielo: el ajuste de CLAHE solo donde hay señal (la imagen sin estrellas).
 
     La luminancia se retoca en coma flotante: con el fondo muy oscuro (objetivo
     0,03 = nivel 5 de 255) un solo nivel es un 20 % de brillo, y cuantizada a 8
@@ -1547,6 +1553,13 @@ def contraste_local(rgb, cantidad):
     nivel = float(np.median(delta[cielo > 0])) if cielo.any() else 0.0
     # donde no hay cielo cerca (un objeto que llena el campo) vale el nivel medio del cielo
     delta -= cv2.resize((num + 0.02 * nivel) / (den + 0.02), (w, h), interpolation=cv2.INTER_LINEAR)
+    if proteger_cielo:
+        # Sin estrellas (estrellas_aparte) el cielo no tiene detalle que realzar: lo que
+        # CLAHE sube ahí es el ruido de escala media y deja borbotones oscuros (M 27,
+        # 24-oct-2026). El ajuste solo se aplica donde hay señal, medida en suave.
+        L_suave = cv2.GaussianBlur(L_sin, (0, 0), 4.0)
+        senal = np.clip((L_suave - med) / (UMBRAL_CIELO_CONTRASTE * mad), 0.0, None)
+        delta *= (1.0 - np.exp(-senal * senal)).astype(np.float32)
     L_m = L + cantidad * delta
 
     # Curva en S suave alrededor del gris medio (mezcla máxima 35 %)
@@ -2230,7 +2243,7 @@ def _estirar_objeto(cubo_lineal, ajustes, escala, progreso, balance, sin_estrell
         rgbf, curvas = estirar_multiescala(rgb, ajustes, escala_imagen=escala, sigma=sigma,
                                            progreso=lambda f: avisar("estirando", f), devolver_curvas=True)
     avisar("contraste")
-    rgbf = contraste_local(rgbf, ajustes.get("contraste", 0.5))
+    rgbf = contraste_local(rgbf, ajustes.get("contraste", 0.5), proteger_cielo=sin_estrellas)
     avisar("color")
     return rgbf, curvas
 
