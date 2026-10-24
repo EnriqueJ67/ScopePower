@@ -5519,6 +5519,9 @@ def _guardar_con_estrellas_aparte(destino, destino_fits, n, zona, encuadre, bala
                                                  producto=estrellas_aparte.NOMBRE_PRODUCTO, p=int(f * 100)))
     objeto, estrellas = estrellas_aparte.separar_fits(destino_fits, progreso=progreso)
     GUARDADO["mensaje"] = _("⏳ Procesando el objeto y las estrellas por separado...")
+    # La misma zona útil para las dos capas (sin ella, girar_campo la buscaría en cada una
+    # y en la de estrellas, negra casi entera, saldría otra)
+    zona = zona or procesado.zona_automatica(objeto)
     objeto, __ = procesado.girar_campo(objeto, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
     estrellas, __ = procesado.girar_campo(estrellas, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
     rgb8 = procesado.procesar_capas(objeto, estrellas, n, procesado.leer_config(), escala=1.0, balance=balance)
@@ -6143,7 +6146,7 @@ def galeria_editar_vista(nombre):
     except Exception as e:
         log.exception("Error en la vista previa del editor")
         return jsonify({"error": _("No se pudo procesar: {e}", e=e)}), 500
-    partes = ("base", "mascaras", "firma", "estrellas")       # estrellas: la capa de estrellas aparte, o vacía
+    partes = ("base", "mascaras", "firma", "estrellas", "catalogo")   # estrellas y catalogo: estrellas aparte, o vacías
     cabecera = {k: len(paquete[k]) for k in partes}
     cabecera.update(fondo=paquete["fondo"], ancho=paquete["ancho"], alto=paquete["alto"])
     r = Response(b"".join(paquete[k] for k in partes), mimetype="application/octet-stream")

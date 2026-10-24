@@ -248,7 +248,7 @@
                 <div class="campo mt-2" id="controles-estrellas">
                     <div class="rango-titulo"><span>{{ _("Tamaño de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-tamano_estrellas"></span></div>
                     <input type="range" id="c-tamano_estrellas" data-clave="tamano_estrellas" min="0" max="100" step="5">
-                    <small class="ayuda">{{ _("Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cuanto más brillante es una estrella, más encoge (al 50 % las saturadas tienen la mitad de anchura); las débiles casi no cambian, así el campo conserva sus estrellas pequeñas. Conservan su brillo y no se vuelven transparentes; por debajo del 25 % pierden luz todas por igual, hasta desaparecer.") }}</small>
+                    <small class="ayuda">{{ _("Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar como una campana de Gauss más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer.") }}</small>
                 </div>
             </div>
         </section>
@@ -761,6 +761,7 @@
             const trozo = (n, tipo) => { const b = new Blob([todo.subarray(pos, pos + n)], { type: tipo }); pos += n; return b; };
             const paquete = { base: trozo(cab.base, "image/jpeg"), mascaras: trozo(cab.mascaras, "image/png"), firma: trozo(cab.firma, "image/png"), fondo: cab.fondo };
             if (cab.estrellas) paquete.estrellas = trozo(cab.estrellas, "image/jpeg");   // la capa de estrellas (estrellas aparte)
+            if (cab.catalogo) paquete.catalogo = trozo(cab.catalogo, "application/octet-stream");   // y su catálogo, para reducirlas
             await retoque.cargar(paquete);
             hayNueva = true;
             ajustesVista = ajustes;

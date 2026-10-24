@@ -5,17 +5,21 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
-- Cambiado: el deslizador «Tamaño de las estrellas» del editor (estrellas aparte) encoge las
+- Cambiado: el deslizador «Tamaño de las estrellas» del editor (estrellas aparte) reduce las
   estrellas en vez de apagarlas. Antes multiplicaba la capa por un factor, es decir, una
-  transparencia: las mismas estrellas, del mismo tamaño, más tenues. Ahora el perfil de cada
-  estrella, normalizado a su pico P, se eleva a una potencia (`L' = P·(L/P)^k`, con
-  k = 1 + (1/tamaño² − 1)·P): conserva el pico y estrecha el perfil tanto más cuanto más
-  brillante es la estrella (al 50 % una saturada tiene la mitad de anchura; una débil casi no
-  cambia), como una reducción de estrellas: las gordas pierden su bulto y el campo conserva sus
-  estrellas pequeñas. La estrella reducida conserva una falda suave contra el fondo (se queda el
-  máximo entre la nítida y una suavizada de unos 2,5 px a resolución completa). Por debajo del
-  25 % pierden luz todas por igual, hasta desaparecer al 0 % (`procesado.ganancia_encogido`, con
-  la misma aritmética en el navegador). Afinado con la Pacman real.
+  transparencia: las mismas estrellas, del mismo tamaño, más tenues. Ahora se hace un catálogo
+  de la capa (posición, anchura y color de cada estrella, `procesado.catalogo_estrellas`) y
+  cada estrella se vuelve a pintar como una campana de Gauss con su pico y su color y la
+  anchura multiplicada por el tamaño, la misma proporción para todas: las brillantes siguen
+  siendo mayores que las débiles, y ninguna baja de medio píxel ni desaparece por quedarse
+  entre píxeles (suelo suave). Por debajo del 25 % pierden luz todas por igual, hasta
+  desaparecer al 0 %; entre el 100 y el 85 % la capa original y la pintada se funden. El
+  servidor manda el catálogo con la vista previa (8 bytes por estrella) y el navegador pinta
+  igual que el servidor (a ±1 nivel). Antes se probó a encoger el perfil de la propia capa:
+  las estrellas brillantes, de cima plana, quedaban como discos con un anillo oscuro dentro
+  (M 27 en el mini PC). Arreglado de paso: el guardado con estrellas aparte fallaba en las
+  fotos sin la zona útil en la cabecera (apilados anteriores a octubre), porque cada capa se
+  recortaba por su cuenta.
 - Nuevo: estrellas aparte en el editor de la galería (prototipo). Con StarNet2 instalado (el
   programa de Mikita Misiura, https://starnetastro.com/, aparte y con su propia licencia, como
   ASTAP; `[General] ruta_starnet`), el panel «Estrellas aparte» separa el apilado en objeto y

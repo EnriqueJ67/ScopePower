@@ -116,7 +116,6 @@ def prueba_paridad(base, capa, aj):
     servidor = np.clip(procesado.ajustes_rapidos_capas(base, capa, ajustes, fondo=procesado.fondo_cielo(base)) * 255 + 0.5, 0, 255).astype(np.uint8)
     # Lo mismo en 8 bits, paso a paso como retoque.js (tablas de 256 + píxel a píxel)
     b8 = np.clip(base * 255 + 0.5, 0, 255).astype(np.uint8).astype(np.float32) / 255.0
-    c8 = np.clip(capa * 255 + 0.5, 0, 255).astype(np.uint8).astype(np.float32) / 255.0
     fondo = procesado.fondo_cielo(base)
 
     def previas(img, fondo, t, b):
@@ -137,48 +136,61 @@ def prueba_paridad(base, capa, aj):
         g = np.where(gan * S > 1, 1 / np.maximum(S, 1e-9), gan)[..., None]
         return np.where((V > 0)[..., None] & (V > mn)[..., None], V[..., None] - g * (V[..., None] - img), img)
     o = saturar(scnr(previas(b8, fondo, 0.3, 0.2), 0.8), 1.7)
-    e = saturar(scnr(previas(c8, np.zeros(3, np.float32), 0.3, 0.2), 0.8), 1.2)
-    e = e * procesado.ganancia_encogido(c8.max(axis=2), 0.6)[..., None]      # el tamaño encoge, no apaga
+    # El tamaño va antes que el color: la capa reducida (catálogo + gaussianas), cuantizada a 8 bits
+    r8 = np.clip(np.round(procesado.reducir_estrellas(capa, 0.6) * 255), 0, 255).astype(np.float32) / 255.0
+    e = saturar(scnr(previas(r8, np.zeros(3, np.float32), 0.3, 0.2), 0.8), 1.2)
     nav = np.clip((1 - (1 - o) * (1 - e)) * 255 + 0.5, 0, 255).astype(np.uint8)
     dif = np.abs(servidor.astype(int) - nav.astype(int))
     comprobar(np.percentile(dif, 99.5) <= 2 and dif.max() <= 6, f"diferencia p99,5 = {np.percentile(dif, 99.5):.0f}, máx = {dif.max()} niveles")
 
 
 def prueba_encogido():
-    print("7. Encoger las estrellas (ganancia_encogido)")
+    print("7. Reducir las estrellas (catálogo + campanas de Gauss)")
     h, w = 240, 1200
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
-    L = np.zeros((h, w), np.float32)
-    # Tres estrellas aisladas: pequeña débil, media y grande brillante (sigma en px, como en la
-    # vista previa de 1200 px de la Saturn-C)
-    estrellas = ((200, 60, 0.4, 1.2), (600, 120, 0.8, 2.0), (1000, 180, 1.0, 3.0))
-    for x0, y0, p, s in estrellas:
-        L = np.maximum(L, p * np.exp(-((xx - x0) ** 2 + (yy - y0) ** 2) / (2 * s * s)))
-    comprobar(np.all(procesado.ganancia_encogido(L, 1.0) == 1.0), "tamaño 100 %: ganancia 1 en todas partes")
-    g = procesado.ganancia_encogido(L, 0.5)
-    comprobar(g.min() >= 0 and g.max() <= 1.0 + 1e-6, "la ganancia queda en [0, 1]")
-    Le = L * g
+    capa = np.zeros((h, w, 3), np.float32)
+    # Tres estrellas aisladas: pequeña débil, media y grande saturada con la cima plana (como
+    # las deja el estirado), cada una con su color (x, y, pico, sigma, color)
+    estrellas = ((200, 60, 0.4, 1.2, (1.0, 0.8, 0.6)), (600, 120, 0.8, 2.0, (0.7, 0.8, 1.0)), (1000, 180, 1.0, 3.0, (1.0, 1.0, 1.0)))
+    for x0, y0, p, s, col in estrellas:
+        g = np.minimum(1.4 * p * np.exp(-((xx - x0) ** 2 + (yy - y0) ** 2) / (2 * s * s)), p)    # cima plana en p
+        capa = np.maximum(capa, g[..., None] * np.array(col, np.float32))
+    cat = procesado.catalogo_estrellas(capa)
+    comprobar(len(cat) == 3, f"catálogo: {len(cat)} estrellas (3 esperadas)")
+    orden = np.argsort(cat[:, 0])
+    cat_o = cat[orden]
+    comprobar(all(abs(c[0] - e[0]) < 0.5 and abs(c[1] - e[1]) < 0.5 for c, e in zip(cat_o, estrellas)),
+              "centros a menos de medio píxel")
+    comprobar(cat_o[0, 2] < cat_o[1, 2] < cat_o[2, 2], f"sigmas en orden: {[round(float(v), 2) for v in cat_o[:, 2]]} px")
+    comprobar(np.allclose(procesado.reducir_estrellas(capa, 1.0, cat), capa), "tamaño 100 %: la capa original intacta")
 
     def anchura(img, x0, y0):
         """Sigma (px) del perfil por el segundo momento a lo largo de la fila del centro."""
-        fila = img[y0, x0 - 30:x0 + 31].astype(np.float64)
+        fila = img[y0, x0 - 30:x0 + 31].max(axis=1).astype(np.float64)
         d = np.arange(-30, 31, dtype=np.float64)
         return float(np.sqrt(np.sum(d * d * fila) / max(np.sum(fila), 1e-9)))
-    s_antes = [anchura(L, x, y) for x, y, __, __ in estrellas]
-    s_despues = [anchura(Le, x, y) for x, y, __, __ in estrellas]
-    proporciones = [d / a for a, d in zip(s_antes, s_despues)]
-    # Saturada (P = 1): la mitad de anchura en el núcleo (la falda, fuera de la ventana del pico,
-    # se estrecha menos: el segundo momento la cuenta); débil (P = 0,4): 1/raíz(1 + 3·0,4) = 0,67
-    comprobar(proporciones[2] <= 0.85 and proporciones[0] >= 0.6 and proporciones[0] > max(proporciones[1], proporciones[2]),
-              f"al 50 % las brillantes encogen mucho más que la débil: {[round(v, 2) for v in s_antes]} → {[round(v, 2) for v in s_despues]} px")
-    # Falda suave: la estrella reducida no cae a cero de golpe (a 2 px del centro de la brillante queda algo)
-    comprobar(0.02 < float(Le[180, 1003]) < float(L[180, 1003]), f"borde suave: a 3 px del centro de la brillante queda {float(Le[180, 1003]):.2f} (antes {float(L[180, 1003]):.2f})")
-    picos = [(float(L[y, x]), float(Le[y, x])) for x, y, __, __ in estrellas]
-    comprobar(all(abs(d - a) < 1e-3 for a, d in picos), f"y conservan el pico: {[(round(a, 2), round(d, 2)) for a, d in picos]}")
-    g15 = procesado.ganancia_encogido(L, 0.15)
-    visibles = [(L * g15)[y, x] for x, y, __, __ in estrellas]
-    comprobar(all(v > 0.05 for v in visibles), f"al 15 % siguen todas, más tenues: {[round(v, 2) for v in visibles]}")
-    comprobar(procesado.ganancia_encogido(L, 0.0).max() == 0.0, "tamaño 0 %: desaparecen todas")
+    r50 = procesado.reducir_estrellas(capa, 0.5, cat)
+    s_pintada = [float(c[2]) for c in cat_o]
+    s_50 = [anchura(r50, x, y) for x, y, __, __, __ in estrellas]
+    comprobar(s_50[0] < s_50[1] < s_50[2], f"al 50 % las brillantes siguen siendo mayores: {[round(v, 2) for v in s_50]} px")
+    proporciones = [a / b for a, b in zip(s_50, s_pintada)]
+    comprobar(all(0.45 <= q <= 0.75 for q in proporciones[1:]), f"y encogen en la misma proporción (≈ la mitad): {[round(q, 2) for q in proporciones]}")
+    picos = [float(r50[y, x].max()) for x, y, __, __, __ in estrellas]
+    comprobar(all(abs(a - e[2]) < 0.02 for a, e in zip(picos, estrellas)), f"conservan el pico: {[round(v, 2) for v in picos]}")
+    color = r50[120, 600]
+    comprobar(color[2] > color[0], f"y su color (la media, azulada: {np.round(color, 2).tolist()})")
+    # Campana de Gauss: el perfil baja suave, sin cima plana ni borde duro (cada paso, menor que el anterior)
+    fila = r50[180, 1000:1008].max(axis=1)
+    comprobar(fila[0] > fila[1] > fila[2] > fila[3] and fila[0] - fila[1] < 0.3, f"perfil de campana en la saturada: {np.round(fila, 2).tolist()}")
+    r10 = procesado.reducir_estrellas(capa, 0.1, cat)
+    visibles = [float(r10[y, x].max()) for x, y, __, __, __ in estrellas]
+    comprobar(all(v > 0.02 for v in visibles), f"al 10 % siguen todas, más tenues: {[round(v, 2) for v in visibles]}")
+    comprobar(procesado.reducir_estrellas(capa, 0.0, cat).max() == 0.0, "tamaño 0 %: desaparecen todas")
+    # Empaquetado para el navegador (8 bytes por estrella) y vuelta
+    import editor_fotos
+    vuelta = editor_fotos.desempaquetar_catalogo(editor_fotos.empaquetar_catalogo(cat))
+    comprobar(len(editor_fotos.empaquetar_catalogo(cat)) == 8 * len(cat) and np.allclose(vuelta, cat, atol=[0.04, 0.04, 0.04, 0.003, 0.003, 0.003]),
+              "catálogo empaquetado en 8 bytes por estrella y desempaquetado igual")
 
 
 def prueba_capas_guardadas():

@@ -7257,7 +7257,7 @@ msgid "Reducción de ruido"
 msgstr ""
 
 #: templates/editar_foto.html
-msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cuanto más brillante es una estrella, más encoge (al 50 % las saturadas tienen la mitad de anchura); las débiles casi no cambian, así el campo conserva sus estrellas pequeñas. Conservan su brillo y no se vuelven transparentes; por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
+msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar como una campana de Gauss más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
 msgstr ""
 
 #. js
