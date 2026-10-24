@@ -81,7 +81,7 @@ CALIDAD_GUARDADO = 92
 
 # Claves de procesado que acepta el editor (las del panel del apilado + estirado + scnr)
 CLAVES_FLOAT = ("fondo_objetivo", "compresion", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "brillo", "temperatura",
-                "tamano_estrellas")
+                "tamano_estrellas", "intensidad_estrellas", "compresion_estrellas")
 CLAVES_BOOL = ("gradiente", "aplanar", "scnr_estrellas", "color_estrellas_uniforme", "estrellas_aparte")
 ESTIRADOS = ("multiescala", "stf")
 ZOOMS = (0, 25, 50, 75)
@@ -282,6 +282,7 @@ def ajustes_desde(datos):
     except (TypeError, ValueError):
         aj["radio_cometa"] = RADIO_COMETA[2]
     aj["curvas"] = procesado.normalizar_curvas(datos.get("curvas"))
+    aj["curvas_estrellas"] = procesado.normalizar_curvas(datos.get("curvas_estrellas"))     # solo con las estrellas aparte
     # Estrellas aparte: la casilla y el tamaño (0..100 %); una foto de antes no las trae
     aj["estrellas_aparte"] = bool(aj.get("estrellas_aparte", False))
     try:
@@ -322,6 +323,8 @@ def _ajustes_para_json(aj):
         guardar[k] = bool(aj.get(k))
     if aj.get("curvas"):
         guardar["curvas"] = aj["curvas"]
+    if aj.get("curvas_estrellas"):
+        guardar["curvas_estrellas"] = aj["curvas_estrellas"]
     return guardar
 
 

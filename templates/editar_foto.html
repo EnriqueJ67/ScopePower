@@ -249,6 +249,35 @@
                     <div class="rango-titulo"><span>{{ _("Tamaño de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-tamano_estrellas"></span></div>
                     <input type="range" id="c-tamano_estrellas" data-clave="tamano_estrellas" min="0" max="100" step="5">
                     <small class="ayuda">{{ _("Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar como una campana de Gauss más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer.") }}</small>
+                    <!-- Estirado propio de las estrellas (procesado.estirar_capa_estrellas): con los dos a 0, el de la foto -->
+                    <div class="campo mt-2">
+                        <div class="rango-titulo"><span>{{ _("Intensidad de las estrellas") }}</span><span id="v-intensidad_estrellas"></span></div>
+                        <input type="range" id="c-intensidad_estrellas" data-clave="intensidad_estrellas" min="-1" max="1" step="0.05">
+                        <small class="ayuda">{{ _("Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto.") }}</small>
+                    </div>
+                    <div class="campo">
+                        <div class="rango-titulo"><span>{{ _("Compresión de los núcleos") }}</span><span id="v-compresion_estrellas"></span></div>
+                        <input type="range" id="c-compresion_estrellas" data-clave="compresion_estrellas" min="0" max="1" step="0.05">
+                        <small class="ayuda">{{ _("Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en el panel Procesado (⚡).") }}</small>
+                    </div>
+                    <!-- Curvas propias de las estrellas: se aplican a la capa de estrellas antes de juntarla
+                         con el objeto (procesado.ajustes_rapidos_capas: curvas_estrellas) -->
+                    <div class="campo mt-2">
+                        <label>{{ _("Curvas de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></label>
+                        <div class="segmentado" id="curvas-estrellas-seg" style="width: 100%;">
+                            <button type="button" class="activo" data-canal="rgb" onclick="elegirCanalCurvaEstrellas('rgb')" style="flex: 1;"><span class="punto-canal" style="background: linear-gradient(135deg, #ff5a5a, #5ad26b 50%, #5a9bff);"></span>RGB</button>
+                            <button type="button" data-canal="r" onclick="elegirCanalCurvaEstrellas('r')" style="flex: 1;"><span class="punto-canal" style="background: #ff5a5a;"></span>R</button>
+                            <button type="button" data-canal="g" onclick="elegirCanalCurvaEstrellas('g')" style="flex: 1;"><span class="punto-canal" style="background: #5ad26b;"></span>G</button>
+                            <button type="button" data-canal="b" onclick="elegirCanalCurvaEstrellas('b')" style="flex: 1;"><span class="punto-canal" style="background: #5a9bff;"></span>B</button>
+                        </div>
+                        <canvas id="curvas-estrellas-lienzo" class="curvas-lienzo mt-2"></canvas>
+                        <div class="fila mt-2" style="gap: 6px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-curva-estrellas-borrar" onclick="editorCurvasEstrellas.borrarPunto()" disabled style="flex: 1;">{{ _("Borrar punto") }}</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasEstrellas.reiniciar()" style="flex: 1;">{{ _("Reiniciar") }}</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasEstrellas.reiniciarTodo()" style="flex: 1;">{{ _("Todas") }}</button>
+                        </div>
+                        <small class="ayuda">{{ _("Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas del panel Curvas actúan después sobre la foto entera.") }}</small>
+                    </div>
                 </div>
             </div>
         </section>
@@ -401,7 +430,8 @@
     }
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
-    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes", "tamano_estrellas"];
+    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes", "tamano_estrellas",
+                          "intensidad_estrellas", "compresion_estrellas"];
     // Los ajustes rápidos los hace el navegador sobre la base (static/js/retoque.js): no piden
     // vista previa nueva al servidor. Los demás cambian la base y sí la piden.
     const CLAVES_RAPIDAS = ["brillo", "temperatura", "saturacion", "saturacion_estrellas", "scnr", "tamano_estrellas"];
@@ -434,6 +464,7 @@
             const c = document.getElementById("c-" + k);
             if (a[k] !== undefined && a[k] !== null) c.value = a[k];
             else if (inicial && (k === "brillo" || k === "temperatura" || k === "bordes")) c.value = 0;
+            else if (k === "intensidad_estrellas" || k === "compresion_estrellas") c.value = 0;   // foto o preset sin estirado propio de las estrellas
             else if (k === "nitidez") c.value = 0;                 // foto o preset de antes de que existiera el control: apagada
             else if (k === "saturacion_estrellas") c.value = 1;    // foto o preset de antes de que existiera el control
             document.getElementById("v-" + k).textContent = fmtNum(c.value);
@@ -457,6 +488,7 @@
         if (a.curva !== undefined) document.getElementById("c-curva").value = a.curva || "gamma";
         else if (inicial) document.getElementById("c-curva").value = "gamma";
         if (a.curvas !== undefined || inicial) { editorCurvas.poner(a.curvas || {}); pintarCanalesCurvas(); }
+        if (a.curvas_estrellas !== undefined || inicial) { editorCurvasEstrellas.poner(a.curvas_estrellas || {}); pintarCanalesCurvasEstrellas(); }
         if (COMETA) {
             const r = document.getElementById("c-radio_cometa");
             if (a.radio_cometa !== undefined && a.radio_cometa !== null) r.value = a.radio_cometa;
@@ -662,7 +694,8 @@
             centro: centroEncuadre,
             firma: document.getElementById("c-firma").checked,
             objeto: document.getElementById("c-objeto").value.trim(),
-            curvas: editorCurvas.curvas
+            curvas: editorCurvas.curvas,
+            curvas_estrellas: editorCurvasEstrellas.curvas
         };
         if (COMETA) {
             a.composicion = composicion;
@@ -691,7 +724,7 @@
             retoquePedido = false;
             const a = leerAjustes();
             const inicio = performance.now();
-            const hist = retoque.aplicar(a, editorCurvas.tablas(), a.firma);
+            const hist = retoque.aplicar(a, editorCurvas.tablas(), a.firma, estrellasAparte() ? editorCurvasEstrellas.tablas() : null);
             if (hist) editorCurvas.histograma(hist);
             const ms = performance.now() - inicio;
             if (ms > 250) console.debug("retoque en", Math.round(ms), "ms");
@@ -711,6 +744,19 @@
         // El botón «Borrar punto» solo con un punto intermedio seleccionado (los extremos no se quitan)
         alSeleccionar: i => { const p = editorCurvas.puntos[editorCurvas.activo]; document.getElementById("btn-curva-borrar").disabled = !(i > 0 && i < p.length - 1); }
     });
+    // Curvas propias de las estrellas (panel «Estrellas aparte»): otro editor, con sus cuatro curvas
+    const editorCurvasEstrellas = new EditorCurvas(document.getElementById("curvas-estrellas-lienzo"), {
+        alArrastrar: retocar,
+        alCambiar: () => { retocar(); pintarCanalesCurvasEstrellas(); },
+        alSeleccionar: i => { const p = editorCurvasEstrellas.puntos[editorCurvasEstrellas.activo]; document.getElementById("btn-curva-estrellas-borrar").disabled = !(i > 0 && i < p.length - 1); }
+    });
+    function elegirCanalCurvaEstrellas(canal) {
+        editorCurvasEstrellas.canal(canal);
+        document.querySelectorAll("#curvas-estrellas-seg button").forEach(b => b.classList.toggle("activo", b.dataset.canal === canal));
+    }
+    function pintarCanalesCurvasEstrellas() {
+        document.querySelectorAll("#curvas-estrellas-seg button").forEach(b => b.classList.toggle("tocada", editorCurvasEstrellas.tocada(b.dataset.canal)));
+    }
     function elegirCanalCurva(canal) {
         editorCurvas.canal(canal);
         document.querySelectorAll("#curvas-seg button").forEach(b => b.classList.toggle("activo", b.dataset.canal === canal));
@@ -863,8 +909,8 @@
         const p = PRESETS[n];
         // Un preset sin curva (anterior a que existiera el control) es la gamma de siempre
         // Un preset sin curvas (anterior al panel) deja las curvas rectas
-        if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({ curva: "gamma", curvas: {} }, ESTILOS[p.estilo], p));
-        else pintarAjustes(Object.assign({ curva: "gamma", curvas: {} }, p));
+        if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({ curva: "gamma", curvas: {}, curvas_estrellas: {} }, ESTILOS[p.estilo], p));
+        else pintarAjustes(Object.assign({ curva: "gamma", curvas: {}, curvas_estrellas: {} }, p));
         retocar();
         programarVistaPrevia();
     }

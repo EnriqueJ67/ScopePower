@@ -1465,7 +1465,8 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None, sig
     log.debug("estirado %s: mediana %.5f sigma %.5f c0 %.5f blanco %.4f (detalle %.4f) param %.3g",
               S_curva.tipo, m, sigma, S_curva.c0, S_curva.blanco, blanco_detalle, S_curva.param)
     if devolver_curvas:
-        return out, {"m": float(m), "sigma": float(sigma), "S_detalle": S_detalle, "S_curva": S_curva}
+        return out, {"m": float(m), "sigma": float(sigma), "S_detalle": S_detalle, "S_curva": S_curva,
+                     "fondo_objetivo": fondo_objetivo, "agresividad": agresividad, "tipo": curva}
     return out
 
 
@@ -1809,6 +1810,14 @@ def fondo_cielo(rgbf):
     return np.array([m, m, m], dtype=np.float32)
 
 
+def _float(v, defecto=0.0):
+    """Un ajuste numérico tal como llega (número, texto o None); el defecto si no lo es."""
+    try:
+        return float(v) if v is not None and str(v).strip() != "" else defecto
+    except (TypeError, ValueError):
+        return defecto
+
+
 def _bool(v, defecto=True):
     if v is None:
         return defecto
@@ -2012,7 +2021,7 @@ def pantalla(objeto, estrellas):
     return (1.0 - (1.0 - objeto) * (1.0 - estrellas)).astype(np.float32)
 
 
-def estirar_capa_estrellas(U, curvas, balance=None):
+def estirar_capa_estrellas(U, curvas, balance=None, intensidad=0.0, compresion=0.0):
     """
     U: capa unscreen (H, W, 3) float 0..1 (las estrellas sobre negro, lineal).
     curvas: el dict que devuelve estirar_multiescala(devolver_curvas=True) para
@@ -2020,6 +2029,17 @@ def estirar_capa_estrellas(U, curvas, balance=None):
     estrellas se calibra con las mismas que el objeto, sin restar cielo: no lo
     tienen). Devuelve float32 (H, W, 3) en [0, 1], no lineal: cada estrella con
     el brillo que le daría la curva del detalle sobre el cielo y su color intacto.
+
+    El estirado propio de las estrellas (panel «Estrellas aparte»), con los dos a 0
+    el de siempre, el mismo que el objeto:
+      intensidad -1..1: la luz de las estrellas se multiplica por 2^(2·intensidad)
+                 antes de la curva (×4 a ×1/4): más o menos estrellas y más o menos
+                 brillantes, sin tocar la nebulosa ni el fondo;
+      compresion 0..1: el blanco de la curva sube del de la foto hacia el máximo
+                 (como «Compresión de lo brillante», pero solo en las estrellas):
+                 con 0 los núcleos de las brillantes se cortan en su tope y quedan
+                 planos; con 1 nada se corta y conservan el perfil y el color hasta
+                 el centro.
     """
     U = np.clip(np.asarray(U, dtype=np.float32), 0, 1)
     if balance:
@@ -2027,7 +2047,12 @@ def estirar_capa_estrellas(U, curvas, balance=None):
     L = U.mean(axis=2)
     S = curvas["S_detalle"]
     m = np.float32(curvas["m"])
-    Ls = np.clip(S(m + L) - float(S(m)), 0, 1)
+    compresion = float(np.clip(compresion or 0.0, 0.0, 1.0))
+    if compresion > 0 and "fondo_objetivo" in curvas:
+        S = CurvaFondo(float(m), curvas["sigma"], curvas["fondo_objetivo"], curvas["agresividad"], curvas["tipo"],
+                       blanco=float(S.blanco ** (1.0 - compresion)))
+    ganancia_luz = np.float32(2.0 ** (2.0 * float(np.clip(intensidad or 0.0, -1.0, 1.0))))
+    Ls = np.clip(S(m + L * ganancia_luz) - float(S(m)), 0, 1)
     with np.errstate(divide="ignore", invalid="ignore"):
         ganancia = np.where(L > 1e-6, Ls / np.maximum(L, 1e-6), 0.0).astype(np.float32)
     return np.clip(U * ganancia[..., None], 0, 1).astype(np.float32)
@@ -2053,8 +2078,9 @@ def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
     hace lo mismo, static/js/retoque.js, modo capas): sobre el objeto,
     temperatura, brillo, SCNR y saturación general; sobre la capa de estrellas,
     temperatura (sobre negro) y brillo, el SCNR si scnr_estrellas, su propia
-    saturación (el tamaño, 0..100 %, va antes de todo: la capa se vuelve a pintar
-    con reducir_estrellas y su catálogo); pantalla de las dos y, al final, las curvas.
+    saturación y sus propias curvas (curvas_estrellas; el tamaño, 0..100 %, va
+    antes de todo: la capa se vuelve a pintar con reducir_estrellas y su
+    catálogo); pantalla de las dos y, al final, las curvas de la foto.
     """
     f = temperatura_color(f, ajustes.get("temperatura", 0.0), fondo=fondo)
     f = brillo_general(f, ajustes.get("brillo", 0.0))
@@ -2071,6 +2097,7 @@ def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
         c = scnr_verde(c, ajustes.get("scnr", 0.8))
     sat_e = ajustes.get("saturacion_estrellas")
     c = saturar(c, ajustes.get("saturacion", 1.5) if sat_e is None else sat_e)
+    c = aplicar_curvas(c, ajustes.get("curvas_estrellas"))     # las curvas propias de las estrellas, antes de juntarlas
     out = pantalla(f, c)
     return aplicar_curvas(out, ajustes.get("curvas"))
 
@@ -2094,7 +2121,8 @@ def procesar_capas(objeto_lineal, capa_U, n_fotos=1, ajustes=None, escala=1.0, p
         h, w = U.shape[:2]
         U = cv2.resize(U, (max(8, int(w * escala)), max(8, int(h * escala))), interpolation=cv2.INTER_AREA)
     rgbf, curvas = _estirar_objeto(objeto_lineal, ajustes, escala, progreso, balance, sin_estrellas=True)
-    capa = estirar_capa_estrellas(U, curvas, balance)
+    capa = estirar_capa_estrellas(U, curvas, balance, intensidad=_float(ajustes.get("intensidad_estrellas"), 0.0),
+                                  compresion=_float(ajustes.get("compresion_estrellas"), 0.0))
     f, __, __ = color_base(rgbf, ajustes)
     capa, mascara = capa_estrellas_base(capa, ajustes)
     if solo_base:
@@ -2195,7 +2223,9 @@ def _estirar_objeto(cubo_lineal, ajustes, escala, progreso, balance, sin_estrell
             m, s = estadistica_fondo(L)
             S = CurvaFondo(m, sigma_fondo(rgb) or s, float(ajustes.get("fondo_objetivo", 0.13)),
                            float(ajustes.get("agresividad", 0.7)), str(ajustes.get("curva", "gamma")).lower())
-            curvas = {"m": float(m), "sigma": float(s), "S_detalle": S, "S_curva": S}
+            curvas = {"m": float(m), "sigma": float(s), "S_detalle": S, "S_curva": S,
+                      "fondo_objetivo": float(ajustes.get("fondo_objetivo", 0.13)),
+                      "agresividad": float(ajustes.get("agresividad", 0.7)), "tipo": S.tipo}
     else:
         rgbf, curvas = estirar_multiescala(rgb, ajustes, escala_imagen=escala, sigma=sigma,
                                            progreso=lambda f: avisar("estirando", f), devolver_curvas=True)

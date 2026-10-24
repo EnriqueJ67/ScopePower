@@ -20,6 +20,16 @@ día de la release. El número de versión vive en `version.py`.
   (M 27 en el mini PC). Arreglado de paso: el guardado con estrellas aparte fallaba en las
   fotos sin la zona útil en la cabecera (apilados anteriores a octubre), porque cada capa se
   recortaba por su cuenta.
+- Nuevo: estirado y curvas propios de las estrellas en el panel «Estrellas aparte». Hasta ahora
+  las estrellas se estiraban con la misma curva que el objeto. «Intensidad de las estrellas»
+  multiplica su luz antes de la curva (×1/4 a ×4: más o menos estrellas y más o menos brillantes
+  sin tocar la nebulosa ni el fondo) y «Compresión de los núcleos» sube el blanco de su curva
+  hacia el máximo, así los núcleos de las brillantes dejan de cortarse en su tope y conservan el
+  perfil y el color hasta el centro (en M 27, la cima plana pasa de 283 a 6 píxeles con 0,7).
+  «Curvas de las estrellas» es un segundo editor de curvas (RGB, R, G y B) que actúa solo sobre
+  la capa de estrellas antes de juntarla con el objeto, al instante en el navegador; las curvas
+  del panel Curvas siguen actuando sobre la foto entera. La saturación propia de las estrellas
+  ya existía (panel Procesado). Se guardan con la foto y en los presets.
 - Nuevo: estrellas aparte en el editor de la galería (prototipo). Con StarNet2 instalado (el
   programa de Mikita Misiura, https://starnetastro.com/, aparte y con su propia licencia, como
   ASTAP; `[General] ruta_starnet`), el panel «Estrellas aparte» separa el apilado en objeto y

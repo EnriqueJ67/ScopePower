@@ -205,13 +205,33 @@
             return salida;
         }
 
+        // Las mismas tablas pero en float 0..1 (para las curvas propias de las estrellas, que van
+        // antes de la pantalla y no se redondean a 8 bits ahí); null si las tres son la recta
+        _tablasCurvasFloat(curvas) {
+            if (!(curvas && (curvas.rgb || curvas.r || curvas.g || curvas.b))) return null;
+            const salida = [];
+            const rgb = curvas.rgb;
+            for (const k of ["r", "g", "b"]) {
+                const propia = curvas[k];
+                const tb = new Float32Array(1024);
+                for (let i = 0; i < 1024; i++) {
+                    let v = rgb ? rgb[i] : i / 1023;
+                    if (propia) v = propia[Math.round(v * 1023)];
+                    tb[i] = v;
+                }
+                salida.push(tb);
+            }
+            return salida;
+        }
+
         /**
          * Aplica los ajustes y pinta. aj: {temperatura, brillo, scnr, scnr_estrellas, saturacion,
          * saturacion_estrellas, tamano_estrellas}; curvas: tablas de EditorCurvas.tablas() (o null);
-         * conFirma: pintar la firma. Devuelve el histograma {r, g, b, l} (Uint32Array(256)) de la
-         * imagen ANTES de las curvas, que es lo que el editor de curvas enseña de fondo.
+         * conFirma: pintar la firma; curvasEstrellas: las tablas de las curvas propias de las
+         * estrellas (estrellas aparte, o null). Devuelve el histograma {r, g, b, l} (Uint32Array(256))
+         * de la imagen ANTES de las curvas, que es lo que el editor de curvas enseña de fondo.
          */
-        aplicar(aj, curvas, conFirma) {
+        aplicar(aj, curvas, conFirma, curvasEstrellas) {
             if (!this.base) return null;
             const src = this.base.data, dst = this.salida.data, n = this.ancho * this.alto;
             const previas = this._tablasPrevias(aj, this.fondo);
@@ -222,6 +242,7 @@
             const satE = aj.saturacion_estrellas === undefined || aj.saturacion_estrellas === null || !isFinite(Number(aj.saturacion_estrellas)) ? satG : Number(aj.saturacion_estrellas);
             const haySat = Math.abs(satG - 1) >= 1e-3 || Math.abs(satE - 1) >= 1e-3;
             const cR = this._tablasCurvas(curvas), hayCurvas = !!(curvas && (curvas.rgb || curvas.r || curvas.g || curvas.b));
+            const cE = this.capa ? this._tablasCurvasFloat(curvasEstrellas) : null;
             const hR = new Uint32Array(256), hG = new Uint32Array(256), hB = new Uint32Array(256), hL = new Uint32Array(256);
             const est = this.estrellas, peq = this.pequenas;
             // Estrellas aparte: la capa con sus propias tablas (temperatura sobre negro) y el tamaño
@@ -267,6 +288,11 @@
                         if (exceso > 0) { eg -= scnr * exceso; if (eg < 0) eg = 0; }
                     }
                     if (Math.abs(satE - 1) >= 1e-3) { saturar(er, eg, eb, satE); er = rgb3[0]; eg = rgb3[1]; eb = rgb3[2]; }
+                    if (cE) {      // curvas propias de las estrellas (procesado.ajustes_rapidos_capas: curvas_estrellas)
+                        er = cE[0][Math.round(Math.min(1, Math.max(0, er)) * 1023)];
+                        eg = cE[1][Math.round(Math.min(1, Math.max(0, eg)) * 1023)];
+                        eb = cE[2][Math.round(Math.min(1, Math.max(0, eb)) * 1023)];
+                    }
                     // Pantalla: 1 - (1 - objeto)(1 - estrellas)
                     r = 1 - (1 - r) * (1 - er); g = 1 - (1 - g) * (1 - eg); b = 1 - (1 - b) * (1 - eb);
                 }

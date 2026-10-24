@@ -16,7 +16,9 @@
 #   3. ajustes_rapidos_capas y la pantalla del servidor coinciden con lo que hace
 #      el navegador (la misma fórmula, en 8 bits, a ±1 nivel);
 #   4. las capas guardadas: rutas, hay_capas (fecha del FITS), renombrar y borrar;
-#   5. el lector de --machine-progress con las líneas reales de StarNet2 2.6.2.
+#   5. el lector de --machine-progress con las líneas reales de StarNet2 2.6.2;
+#   7. reducir las estrellas (catálogo + campanas de Gauss);
+#   8. el estirado propio de las estrellas (intensidad, compresión de los núcleos).
 
 import os
 import sys
@@ -111,8 +113,9 @@ def prueba_procesado():
 
 def prueba_paridad(base, capa, aj):
     print("3. Paridad servidor / navegador de los ajustes rápidos con capas")
+    curvas_e = {"rgb": [[0.0, 0.0], [0.5, 0.35], [1.0, 1.0]]}
     ajustes = dict(aj, temperatura=0.3, brillo=0.2, scnr=0.8, scnr_estrellas=True, saturacion=1.7, saturacion_estrellas=1.2,
-                   tamano_estrellas=60, curvas=None)
+                   tamano_estrellas=60, curvas=None, curvas_estrellas=curvas_e)
     servidor = np.clip(procesado.ajustes_rapidos_capas(base, capa, ajustes, fondo=procesado.fondo_cielo(base)) * 255 + 0.5, 0, 255).astype(np.uint8)
     # Lo mismo en 8 bits, paso a paso como retoque.js (tablas de 256 + píxel a píxel)
     b8 = np.clip(base * 255 + 0.5, 0, 255).astype(np.uint8).astype(np.float32) / 255.0
@@ -139,6 +142,7 @@ def prueba_paridad(base, capa, aj):
     # El tamaño va antes que el color: la capa reducida (catálogo + gaussianas), cuantizada a 8 bits
     r8 = np.clip(np.round(procesado.reducir_estrellas(capa, 0.6) * 255), 0, 255).astype(np.float32) / 255.0
     e = saturar(scnr(previas(r8, np.zeros(3, np.float32), 0.3, 0.2), 0.8), 1.2)
+    e = procesado.aplicar_curvas(np.clip(e, 0, 1).astype(np.float32), curvas_e)          # curvas propias de las estrellas
     nav = np.clip((1 - (1 - o) * (1 - e)) * 255 + 0.5, 0, 255).astype(np.uint8)
     dif = np.abs(servidor.astype(int) - nav.astype(int))
     comprobar(np.percentile(dif, 99.5) <= 2 and dif.max() <= 6, f"diferencia p99,5 = {np.percentile(dif, 99.5):.0f}, máx = {dif.max()} niveles")
@@ -193,6 +197,24 @@ def prueba_encogido():
               "catálogo empaquetado en 8 bytes por estrella y desempaquetado igual")
 
 
+def prueba_estirado_estrellas():
+    print("8. Estirado propio de las estrellas")
+    original, objeto, U, __ = cielo_sintetico()
+    aj = dict(procesado.ESTILOS["seestar"], estirado="multiescala", curvas=None)
+    balance = {"r": 1.1, "b": 1.3, "n": 50}
+
+    def capa(**extra):
+        return procesado.procesar_capas(objeto, U, 1, dict(aj, **extra), escala=1.0, balance=balance, solo_base=True)[1]
+    c0, c_comp, c_mas, c_menos = capa(), capa(compresion_estrellas=0.8), capa(intensidad_estrellas=0.5), capa(intensidad_estrellas=-0.5)
+    meseta = lambda c: int((c.max(axis=2) >= c.max() - 0.01).sum())
+    comprobar(meseta(c_comp) < meseta(c0), f"la compresión de los núcleos achica la cima plana: {meseta(c0)} → {meseta(c_comp)} px")
+    comprobar(c_menos.sum() < c0.sum() < c_mas.sum(), "la intensidad sube y baja la luz de las estrellas")
+    base0 = procesado.procesar_capas(objeto, U, 1, aj, escala=1.0, balance=balance, solo_base=True)[0]
+    base1 = procesado.procesar_capas(objeto, U, 1, dict(aj, intensidad_estrellas=0.5, compresion_estrellas=0.8), escala=1.0, balance=balance, solo_base=True)[0]
+    comprobar(np.array_equal(base0, base1), "y ninguna de las dos toca el objeto ni el fondo")
+    comprobar(np.allclose(capa(intensidad_estrellas=0.0, compresion_estrellas=0.0), c0), "con las dos a 0, el estirado de la foto")
+
+
 def prueba_capas_guardadas():
     print("4. Capas guardadas junto a la galería")
     carpeta_antes = estrellas_aparte.CARPETA_CAPAS
@@ -237,6 +259,7 @@ if __name__ == "__main__":
     base, capa, aj = prueba_procesado()
     prueba_paridad(base, capa, aj)
     prueba_encogido()
+    prueba_estirado_estrellas()
     prueba_capas_guardadas()
     prueba_progreso()
     print()
