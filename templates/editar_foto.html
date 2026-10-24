@@ -248,7 +248,7 @@
                 <div class="campo mt-2" id="controles-estrellas">
                     <div class="rango-titulo"><span>{{ _("Tamaño de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-tamano_estrellas"></span></div>
                     <input type="range" id="c-tamano_estrellas" data-clave="tamano_estrellas" min="0" max="100" step="5">
-                    <small class="ayuda">{{ _("Cuánto pesan las estrellas al volver a juntarlas (pantalla): 100 % = como salieron, 0 % = solo el objeto y el fondo. A medio camino quedan más pequeñas y discretas.") }}</small>
+                    <small class="ayuda">{{ _("Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cuanto más brillante es una estrella, más encoge (al 50 % las saturadas tienen la mitad de anchura); las débiles casi no cambian, así el campo conserva sus estrellas pequeñas. Conservan su brillo y no se vuelven transparentes; por debajo del 25 % pierden luz todas por igual, hasta desaparecer.") }}</small>
                 </div>
             </div>
         </section>

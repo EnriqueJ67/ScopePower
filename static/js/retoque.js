@@ -19,6 +19,16 @@
 // estrellas, su propia saturación y el tamaño (0..100 %); pantalla de las dos
 // (1 - (1 - a)(1 - b)) y, al final, las curvas.
 //
+// El tamaño ENCOGE las estrellas (procesado.ganancia_encogido, la misma aritmética):
+// el perfil de cada estrella normalizado a su pico P (máximo de la luminancia de la
+// capa en una ventana cuadrada de radio ancho/500) se eleva a k = 1 + (1/tamaño² - 1)·P,
+// que deja el pico y estrecha el perfil tanto más cuanto más brillante es la estrella
+// (P = 1: anchura × tamaño; débil: casi igual), como una reducción de estrellas; la
+// estrella reducida se suaviza con un binomial de 5 ((ancho/1200)² pasadas) y se queda
+// el máximo de nítida y suavizada (falda suave contra el fondo); por debajo del 25 % el
+// pico baja con (tamaño/0,25)² hasta desaparecer al 0 %. Se calcula una vez por valor
+// del deslizador (_ganancia, con caché).
+//
 // Los pasos 1, 2 y 5 son por tabla (256 entradas por canal); 3 y 4 píxel a píxel.
 // Si se cambia algo aquí hay que cambiarlo también en procesado.py, y al revés.
 //
@@ -49,6 +59,52 @@
         return ctx.getImageData(0, 0, w, h);
     }
 
+    // ── Máximo local para el pico de cada estrella (como cv2.dilate con ventana cuadrada
+    //    2r+1 recortada en los bordes): máximo por filas y después por columnas ──
+    function maximoVentana(src, w, h, r) {
+        const tmp = new Float32Array(w * h), dst = new Float32Array(w * h);
+        for (let y = 0; y < h; y++) {
+            const f = y * w;
+            for (let x = 0; x < w; x++) {
+                let v = src[f + x];
+                const a = Math.max(0, x - r), b = Math.min(w - 1, x + r);
+                for (let k = a; k <= b; k++) if (src[f + k] > v) v = src[f + k];
+                tmp[f + x] = v;
+            }
+        }
+        for (let x = 0; x < w; x++) {
+            for (let y = 0; y < h; y++) {
+                let v = tmp[y * w + x];
+                const a = Math.max(0, y - r), b = Math.min(h - 1, y + r);
+                for (let k = a; k <= b; k++) if (tmp[k * w + x] > v) v = tmp[k * w + x];
+                dst[y * w + x] = v;
+            }
+        }
+        return dst;
+    }
+
+    // Binomial [1 4 6 4 1]/16 por filas y columnas, bordes replicados (cv2.sepFilter2D BORDER_REPLICATE)
+    function suavizarBinomial(src, w, h) {
+        const k = [1 / 16, 4 / 16, 6 / 16, 4 / 16, 1 / 16];
+        const tmp = new Float32Array(w * h), dst = new Float32Array(w * h);
+        for (let y = 0; y < h; y++) {
+            const f = y * w;
+            for (let x = 0; x < w; x++) {
+                let s = 0;
+                for (let d = -2; d <= 2; d++) s += k[d + 2] * src[f + Math.min(w - 1, Math.max(0, x + d))];
+                tmp[f + x] = s;
+            }
+        }
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let s = 0;
+                for (let d = -2; d <= 2; d++) s += k[d + 2] * tmp[Math.min(h - 1, Math.max(0, y + d)) * w + x];
+                dst[y * w + x] = s;
+            }
+        }
+        return dst;
+    }
+
     class Retoque {
         constructor(canvas) {
             this.canvas = canvas;
@@ -57,6 +113,8 @@
             this.estrellas = null;    // Uint8ClampedArray (w·h) 0..255
             this.pequenas = null;
             this.capa = null;         // ImageData de la capa de estrellas (estrellas aparte) o null
+            this.capaL = null;        // Float32Array (w·h): luminancia (máximo RGB) de la capa, 0..1
+            this.ganancia = null;     // {tamano, g: Float32Array} la última ganancia de encogido calculada
             this.firma = null;        // ImageBitmap / Image con transparencia
             this.fondo = [0, 0, 0];
             this.salida = null;       // ImageData de trabajo
@@ -85,6 +143,12 @@
             this.pequenas = new Uint8ClampedArray(n);
             for (let i = 0, j = 0; i < n; i++, j += 4) { this.estrellas[i] = e[j]; this.pequenas[i] = p[j]; }
             this.capa = imgCapa ? pixeles(imgCapa, w, h) : null;
+            this.capaL = null; this.ganancia = null;
+            if (this.capa) {
+                const d = this.capa.data;
+                this.capaL = new Float32Array(n);
+                for (let i = 0, j = 0; i < n; i++, j += 4) this.capaL[i] = Math.max(d[j], d[j + 1], d[j + 2]) / 255;
+            }
             this.firma = imgFirma;
             this.fondo = (paquete.fondo || [0, 0, 0]).map(Number);
             this.canvas.width = w; this.canvas.height = h;
@@ -96,6 +160,37 @@
 
         get lista() { return !!this.base; }
         get conCapas() { return !!this.capa; }
+
+        // Ganancia (w·h) con que encoger las estrellas a `tamano` (0..1): procesado.ganancia_encogido
+        _ganancia(tamano) {
+            if (this.ganancia && this.ganancia.tamano === tamano) return this.ganancia.g;
+            const w = this.ancho, h = this.alto, n = w * h, L = this.capaL;
+            const g = new Float32Array(n);
+            if (tamano > 0) {
+                const radioPico = Math.max(2, Math.round(w / 500));          // procesado.RADIO_PICO
+                const k1 = 1 / (tamano * tamano) - 1;
+                const P = maximoVentana(L, w, h, radioPico);
+                const pico = tamano < 0.25 ? Math.pow(tamano / 0.25, 2) : 1;   // procesado.TAMANO_PICO
+                const L1 = new Float32Array(n);
+                for (let i = 0; i < n; i++) {
+                    const Li = L[i];
+                    if (Li <= 0) continue;                                        // fuera de las estrellas no hay nada que encoger
+                    const Pi = Math.min(1, Math.max(0, P[i]));
+                    const razon = Pi > 1e-6 ? Math.min(1, Math.max(0, Li / Math.max(Pi, 1e-6))) : 0;
+                    L1[i] = Li * Math.pow(razon, k1 * Pi);
+                }
+                let suave = L1;                                                    // procesado.ANCHO_SUAVIDAD
+                for (let p = Math.max(1, Math.round(Math.pow(w / 1200, 2))); p > 0; p--) suave = suavizarBinomial(suave, w, h);
+                for (let i = 0; i < n; i++) {
+                    const Li = L[i];
+                    if (Li <= 1e-6) continue;
+                    const L2 = Math.min(Math.max(L1[i], suave[i]), Li);
+                    g[i] = Math.min(1, Math.max(0, (L2 / Math.max(Li, 1e-6)) * pico));
+                }
+            }
+            this.ganancia = { tamano, g };
+            return g;
+        }
 
         // Tablas por canal de temperatura + brillo (pasos 1 y 2), en float 0..1.
         // fondo: el nivel del cielo alrededor del que gira la temperatura ([0, 0, 0] para la capa de estrellas)
@@ -159,20 +254,23 @@
             const est = this.estrellas, peq = this.pequenas;
             // Estrellas aparte: la capa con sus propias tablas (temperatura sobre negro) y el tamaño
             const capa = this.capa ? this.capa.data : null;
-            let cRt = null, cGt = null, cBt = null, tamano = 1;
+            let cRt = null, cGt = null, cBt = null, encogido = null;
             if (capa) {
                 const tc = this._tablasPrevias(aj, [0, 0, 0]);
                 cRt = tc[0]; cGt = tc[1]; cBt = tc[2];
                 const t = Number(aj.tamano_estrellas);
-                tamano = isFinite(t) ? Math.min(100, Math.max(0, t)) / 100 : 1;
+                const tamano = isFinite(t) ? Math.min(100, Math.max(0, t)) / 100 : 1;
+                if (tamano < 1) encogido = this._ganancia(tamano);
             }
+            // Saturación en HSV (V y H fijos), sin crear arrays por píxel: deja el resultado en `rgb3`
+            const rgb3 = new Float32Array(3);
             const saturar = (r, g, b, gan) => {
                 const V = r > g ? (r > b ? r : b) : (g > b ? g : b);
                 const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
-                if (V <= 0 || V <= mn) return [r, g, b];
+                if (V <= 0 || V <= mn) { rgb3[0] = r; rgb3[1] = g; rgb3[2] = b; return; }
                 const S = (V - mn) / V;
                 if (gan * S > 1) gan = 1 / S;       // la saturación no pasa de 1 (como el clip del servidor)
-                return [V - gan * (V - r), V - gan * (V - g), V - gan * (V - b)];
+                rgb3[0] = V - gan * (V - r); rgb3[1] = V - gan * (V - g); rgb3[2] = V - gan * (V - b);
             };
             for (let i = 0, j = 0; i < n; i++, j += 4) {
                 let r = tR[src[j]], g = tG[src[j + 1]], b = tB[src[j + 2]];
@@ -188,7 +286,7 @@
                     // Sin capas, la saturación de las estrellas va por la máscara de las pequeñas; con
                     // capas el objeto lleva la general y la capa la suya
                     const pe = capa ? 0 : peq[i] / 255;
-                    [r, g, b] = saturar(r, g, b, satG * (1 - pe) + satE * pe);
+                    saturar(r, g, b, satG * (1 - pe) + satE * pe); r = rgb3[0]; g = rgb3[1]; b = rgb3[2];
                 }
                 if (capa) {
                     let er = cRt[capa[j]], eg = cGt[capa[j + 1]], eb = cBt[capa[j + 2]];
@@ -196,9 +294,10 @@
                         const exceso = eg - (er + eb) / 2;
                         if (exceso > 0) { eg -= scnr * exceso; if (eg < 0) eg = 0; }
                     }
-                    if (Math.abs(satE - 1) >= 1e-3) [er, eg, eb] = saturar(er, eg, eb, satE);
-                    // Pantalla: 1 - (1 - objeto)(1 - estrellas · tamaño)
-                    r = 1 - (1 - r) * (1 - er * tamano); g = 1 - (1 - g) * (1 - eg * tamano); b = 1 - (1 - b) * (1 - eb * tamano);
+                    if (Math.abs(satE - 1) >= 1e-3) { saturar(er, eg, eb, satE); er = rgb3[0]; eg = rgb3[1]; eb = rgb3[2]; }
+                    if (encogido) { const ge = encogido[i]; er *= ge; eg *= ge; eb *= ge; }
+                    // Pantalla: 1 - (1 - objeto)(1 - estrellas)
+                    r = 1 - (1 - r) * (1 - er); g = 1 - (1 - g) * (1 - eg); b = 1 - (1 - b) * (1 - eb);
                 }
                 r = r < 0 ? 0 : r > 1 ? 1 : r; g = g < 0 ? 0 : g > 1 ? 1 : g; b = b < 0 ? 0 : b > 1 ? 1 : b;
                 let r8 = Math.round(r * 255), g8 = Math.round(g * 255), b8 = Math.round(b * 255);

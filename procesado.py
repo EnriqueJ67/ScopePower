@@ -1877,8 +1877,76 @@ def color(rgb, ajustes):
 # y «tamaño» (tamano_estrellas, 0..100 %) es el deslizador del editor: 0 = sin
 # estrellas, 100 = como salieron. El navegador repite la pantalla y los ajustes
 # de la capa en vivo (static/js/retoque.js); al guardar se hacen aquí en float.
+#
+# El tamaño ENCOGE las estrellas, no las apaga (ganancia_encogido): una
+# transparencia dejaba las mismas estrellas, del mismo tamaño, más tenues, que
+# no es lo que hace una estrella al ser más débil. El perfil de cada estrella,
+# normalizado a su pico P, se eleva a una potencia: L' = P·(L/P)^k. Una
+# gaussiana conserva el pico y queda con la anchura dividida por raíz de k. El
+# exponente crece con el pico, k = 1 + (1/tamaño² - 1)·P: una estrella saturada
+# (P = 1) queda con la anchura multiplicada por el tamaño (50 % = la mitad) y
+# una débil casi no cambia, como hacen las herramientas de «reducción de
+# estrellas»: las gordas pierden su bulto y el campo conserva sus estrellas
+# pequeñas (si todas encogieran por igual, o con una erosión de radio fijo,
+# las pequeñas bajarían de un píxel y se perderían antes que las gordas, que
+# queda fatal). La estrella reducida se suaviza con un binomial de 5 pasado
+# n veces (sigma = raíz de n px, con n según el ancho de la imagen: 2,5 px a
+# resolución completa, 1 px en la vista previa) y se queda con el máximo entre
+# la nítida y la suavizada: conserva el pico y gana una falda suave contra el
+# fondo, que sin ella quedaba dura. Por debajo del 25 % se baja también el pico
+# de todas por igual, hasta desaparecer al 0 %. La misma aritmética en retoque.js.
 
 TAMANO_ESTRELLAS = 100.0      # por defecto: las estrellas tal como salen
+RADIO_PICO = 500.0            # ventana donde se busca el pico de cada estrella: ancho / 500 px (6 px en 3008)
+TAMANO_PICO = 0.25            # por debajo de este tamaño el pico baja con (tamaño / 0,25)²
+ANCHO_SUAVIDAD = 1200.0       # pasadas del binomial = (ancho / 1200)²: sigma 1 px en la vista previa, 2,5 px en 3008
+NUCLEO_SUAVIZADO = np.array([1, 4, 6, 4, 1], dtype=np.float32) / 16.0   # binomial, sigma 1 px (igual en el navegador)
+
+
+def ganancia_encogido(L, tamano, radio_pico=None):
+    """
+    L: luminancia de la capa de estrellas (H, W) float [0, 1] (el máximo de los
+    tres canales). tamano 0..1 (1 = sin cambio). Devuelve la ganancia (H, W) por
+    la que multiplicar los tres canales para encoger las estrellas:
+      P = pico de cada estrella (máximo de L en una ventana cuadrada de radio
+          ancho/500, recortada en los bordes);
+      k = 1 + (1/tamaño² - 1)·P: con P = 1 la anchura queda multiplicada por
+          tamaño (en el núcleo: más allá de la ventana del pico la falda se
+          estrecha menos); con P pequeño apenas cambia. La ventana es pequeña
+          a propósito: con una mayor, una estrella débil pegada a una brillante
+          tomaría el pico de esta y desaparecería (Pacman: del 84 % al 23 % de
+          las débiles a menos de 15 px de una brillante al 50 %);
+      L1 = L·(L/P)^(k-1): deja el pico y estrecha el perfil;
+      L2 = máximo de L1 y de L1 suavizada (binomial de 5, (ancho/1200)² pasadas):
+           la falda suave contra el fondo;
+      ganancia = L2/L, por (tamaño/0,25)² cuando tamaño < 0,25 (las estrellas ya
+                 no caben en un píxel: pierden luz hasta desaparecer al 0 %).
+    Exactamente lo mismo que static/js/retoque.js: cambiar algo aquí es cambiarlo allí.
+    """
+    L = np.asarray(L, dtype=np.float32)
+    h, w = L.shape
+    tamano = float(np.clip(tamano, 0.0, 1.0))
+    if tamano >= 1.0:
+        return np.ones_like(L)
+    if tamano <= 0.0:
+        return np.zeros_like(L)
+    radio_pico = int(radio_pico or max(2, int(round(w / RADIO_PICO))))
+    P = np.clip(cv2.dilate(L, np.ones((2 * radio_pico + 1, 2 * radio_pico + 1), np.uint8)), 0.0, 1.0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        razon = np.where(P > 1e-6, L / np.maximum(P, 1e-6), 0.0)
+    exponente = (np.float32(1.0 / (tamano * tamano) - 1.0) * P).astype(np.float32)     # k - 1
+    L1 = (L * np.power(np.clip(razon, 0.0, 1.0), exponente)).astype(np.float32)
+    suave = L1
+    for __ in range(max(1, int(round((w / ANCHO_SUAVIDAD) ** 2)))):
+        suave = cv2.sepFilter2D(suave, -1, NUCLEO_SUAVIZADO, NUCLEO_SUAVIZADO, borderType=cv2.BORDER_REPLICATE)
+    L2 = np.minimum(np.maximum(L1, suave), L)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ganancia = np.where(L > 1e-6, L2 / np.maximum(L, 1e-6), 0.0).astype(np.float32)
+    if tamano < TAMANO_PICO:
+        ganancia *= np.float32((tamano / TAMANO_PICO) ** 2)
+    return np.clip(ganancia, 0.0, 1.0).astype(np.float32)
+
+
 # Sin estrellas, el fondo se modela con más detalle: una rejilla más fina en
 # quitar_gradiente (sin estrellas la mediana de cada celda es limpia) para que
 # se lleve las sombras de polvo y los restos del viñeteo, que la foto normal
@@ -1934,7 +2002,8 @@ def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
     hace lo mismo, static/js/retoque.js, modo capas): sobre el objeto,
     temperatura, brillo, SCNR y saturación general; sobre la capa de estrellas,
     temperatura (sobre negro) y brillo, el SCNR si scnr_estrellas, su propia
-    saturación y el tamaño (0..100 %); pantalla de las dos y, al final, las curvas.
+    saturación y el tamaño (0..100 %, ganancia_encogido medida en la capa tal
+    como llega); pantalla de las dos y, al final, las curvas.
     """
     f = temperatura_color(f, ajustes.get("temperatura", 0.0), fondo=fondo)
     f = brillo_general(f, ajustes.get("brillo", 0.0))
@@ -1945,13 +2014,16 @@ def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
     except (TypeError, ValueError):
         tamano = 1.0
     c = np.clip(np.asarray(capa, dtype=np.float32), 0, 1)
+    encogido = ganancia_encogido(c.max(axis=2), tamano) if tamano < 1.0 else None
     c = temperatura_color(c, ajustes.get("temperatura", 0.0), fondo=np.zeros(3, dtype=np.float32))
     c = brillo_general(c, ajustes.get("brillo", 0.0))
     if _bool(ajustes.get("scnr_estrellas", True)):
         c = scnr_verde(c, ajustes.get("scnr", 0.8))
     sat_e = ajustes.get("saturacion_estrellas")
     c = saturar(c, ajustes.get("saturacion", 1.5) if sat_e is None else sat_e)
-    out = pantalla(f, c * np.float32(tamano))
+    if encogido is not None:
+        c = c * encogido[..., None]
+    out = pantalla(f, c)
     return aplicar_curvas(out, ajustes.get("curvas"))
 
 

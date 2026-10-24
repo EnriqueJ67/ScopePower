@@ -1944,10 +1944,6 @@ msgstr "Point curves (RGB and per channel)"
 msgid "Cuánto más oscura que la fotosfera tiene que ser una zona para contar como mancha"
 msgstr "How much darker than the photosphere an area must be to count as a spot"
 
-#: templates/editar_foto.html
-msgid "Cuánto pesan las estrellas al volver a juntarlas (pantalla): 100 % = como salieron, 0 % = solo el objeto y el fondo. A medio camino quedan más pequeñas y discretas."
-msgstr "How much the stars weigh when put back (screen blend): 100% = as they came out, 0% = only the object and the background. Halfway they look smaller and more discreet."
-
 #: templates/apilado.html
 msgid "Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas)."
 msgstr "How much the background is raised (0.10-0.20 normal; more for extended nebulae)."
@@ -7261,6 +7257,10 @@ msgstr "Recovers detail and sharpens stars by undoing the blur measured on the p
 #: templates/apilado.html templates/editar_foto.html
 msgid "Reducción de ruido"
 msgstr "Noise reduction"
+
+#: templates/editar_foto.html
+msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cuanto más brillante es una estrella, más encoge (al 50 % las saturadas tienen la mitad de anchura); las débiles casi no cambian, así el campo conserva sus estrellas pequeñas. Conservan su brillo y no se vuelven transparentes; por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
+msgstr "Reduces the stars: 100% = as they came out, 0% = only the object and the background. The brighter a star, the more it shrinks (at 50% the saturated ones have half the width); the faint ones barely change, so the field keeps its small stars. They keep their brightness and do not become transparent; below 25% they all lose light equally, until they vanish."
 
 #. js
 #: ScopePower.py
