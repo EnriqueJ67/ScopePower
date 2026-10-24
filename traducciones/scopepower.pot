@@ -349,6 +349,10 @@ msgstr ""
 msgid "A profundidad óptica 0,3: {l} K (el modelo gris de Eddington, {e} K, en discontinua)."
 msgstr ""
 
+#: estrellas_aparte.py
+msgid "A {producto} le falta una biblioteca de Windows para arrancar, casi siempre el Visual C++ de Microsoft (MSVCP140.dll). Instálalo en este PC desde {url} y vuelve a probar, sin reiniciar; si ya estaba instalado, reinstala {producto}."
+msgstr ""
+
 #: firma.py
 msgid "AR {h}h {m}m · Dec {signo}{g}° {mg}′"
 msgstr ""
@@ -2764,6 +2768,10 @@ msgstr ""
 
 #: procesado.py
 msgid "El preset necesita un nombre"
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "El procesador de este PC no tiene las instrucciones que usa {producto}: no puede funcionar aquí."
 msgstr ""
 
 #: ScopePower.py
@@ -11432,7 +11440,7 @@ msgid "{producto} no está instalado (o no está en ruta_starnet de config.ini)"
 msgstr ""
 
 #: templates/editar_foto.html
-msgid "{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini."
+msgid "{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini. Necesita además el Visual C++ de Microsoft (vc_redist.x64.exe), que muchos PC ya tienen."
 msgstr ""
 
 #: ScopePower.py

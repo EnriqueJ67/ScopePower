@@ -16,7 +16,9 @@
 #   3. ajustes_rapidos_capas y la pantalla del servidor coinciden con lo que hace
 #      el navegador (la misma fórmula, en 8 bits, a ±1 nivel);
 #   4. las capas guardadas: rutas, hay_capas (fecha del FITS), renombrar y borrar;
-#   5. el lector de --machine-progress con las líneas reales de StarNet2 2.6.2.
+#   5. el lector de --machine-progress con las líneas reales de StarNet2 2.6.2;
+#   6. los códigos de Windows de un programa que no arranca (falta el Visual C++)
+#      se traducen a un aviso, y el modo sin diálogos se pone y se quita.
 
 import os
 import sys
@@ -182,12 +184,31 @@ def prueba_progreso():
     comprobar(estrellas_aparte._leer_progreso('{"schema":"x","event":"finish"}')[0] == 1.0, "finish → 1,0")
 
 
+def prueba_arranque_fallido():
+    print("6. StarNet2 que no arranca: códigos de Windows y modo sin diálogos")
+    for codigo in (0xC0000135, -1073741515, 0xC0000139, 0xC0000142):
+        comprobar("Visual C++" in estrellas_aparte._explicar_codigo(codigo), f"código {codigo} → aviso del Visual C++")
+    comprobar("procesador" in estrellas_aparte._explicar_codigo(0xC000001D), "instrucción ilegal → aviso del procesador")
+    comprobar(estrellas_aparte._explicar_codigo(1) == "" and estrellas_aparte._explicar_codigo(None) == "",
+              "un fallo normal (código 1) no se confunde con un arranque fallido")
+    if os.name == "nt":
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        antes = k32.GetErrorMode()
+        with estrellas_aparte._sin_dialogos():
+            dentro = k32.GetErrorMode()
+        despues = k32.GetErrorMode()
+        comprobar(dentro & estrellas_aparte.SIN_DIALOGOS == estrellas_aparte.SIN_DIALOGOS and despues == antes,
+                  f"modo de errores: 0x{antes:X} → 0x{dentro:X} dentro → 0x{despues:X} al salir")
+
+
 if __name__ == "__main__":
     prueba_pantalla()
     base, capa, aj = prueba_procesado()
     prueba_paridad(base, capa, aj)
     prueba_capas_guardadas()
     prueba_progreso()
+    prueba_arranque_fallido()
     print()
     if FALLOS:
         print(f"❌ {len(FALLOS)} fallo(s):")

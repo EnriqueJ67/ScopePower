@@ -72,7 +72,8 @@ traducción, en [CONTRIBUTING.md](CONTRIBUTING.md#textos-de-la-interfaz-y-traduc
 - Opcional: [StarNet2](https://starnetastro.com/) (Command-line Tools), para separar las estrellas
   del apilado y procesarlas aparte en el editor de la galería. Es un programa de otro autor con
   su propia licencia (gratis), que se acepta al instalarlo; ScopePower no lo incluye, solo lo
-  ejecuta si está.
+  ejecuta si está. Necesita el [Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+  de Microsoft (x64), que su instalador no trae y un Windows recién instalado no tiene.
 - Python 3.11. El instalador lo pone si no está.
 - Un móvil o tablet en la misma red que el PC. Nada que instalar en el móvil: es una web.
 

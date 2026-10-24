@@ -5,6 +5,12 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Arreglado: si a StarNet2 le falta el Visual C++ de Microsoft (MSVCP140.dll, que su instalador no
+  trae; pasó en el mini PC de campo), Windows abría un diálogo de error y la separación de estrellas
+  se quedaba parada hasta que alguien pulsara Aceptar, algo imposible con la tablet como única
+  pantalla. Ahora StarNet2 se lanza sin diálogos de Windows y el panel «Estrellas aparte» dice qué
+  falta y dónde descargarlo (`vc_redist.x64.exe`); también avisa si el procesador no tiene las
+  instrucciones que usa.
 - Nuevo: estrellas aparte en el editor de la galería (prototipo). Con StarNet2 instalado (el
   programa de Mikita Misiura, https://starnetastro.com/, aparte y con su propia licencia, como
   ASTAP; `[General] ruta_starnet`), el panel «Estrellas aparte» separa el apilado en objeto y
