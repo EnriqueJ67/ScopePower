@@ -69,6 +69,10 @@ traducción, en [CONTRIBUTING.md](CONTRIBUTING.md#textos-de-la-interfaz-y-traduc
   Para la montura SynScan hace falta también la app SynScan Pro de Sky-Watcher.
 - [ASTAP](https://www.hnsky.org/astap.htm) con una base de datos de estrellas (D05, D20 o D50).
   El instalador lo descarga si falta.
+- Opcional: [StarNet2](https://starnetastro.com/) (Command-line Tools), para separar las estrellas
+  del apilado y procesarlas aparte en el editor de la galería. Es un programa de otro autor con
+  su propia licencia (gratis), que se acepta al instalarlo; ScopePower no lo incluye, solo lo
+  ejecuta si está.
 - Python 3.11. El instalador lo pone si no está.
 - Un móvil o tablet en la misma red que el PC. Nada que instalar en el móvil: es una web.
 

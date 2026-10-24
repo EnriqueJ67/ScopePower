@@ -23,6 +23,13 @@
 #
 #   - curvas por puntos de control (como las del Seestar): una para los tres
 #     canales y una por canal, que se dibujan en el navegador.
+#   - estrellas aparte (oct-2026): con StarNet2 instalado (estrellas_aparte.py),
+#     el apilado se separa en objeto y estrellas (una vez por foto, en un hilo,
+#     varios minutos; la pareja queda en static/fotos/capas/) y se procesan por
+#     separado (procesado.procesar_capas): el objeto sin que las estrellas
+#     estorben y las estrellas con su color; un deslizador de tamaño (0 = sin
+#     estrellas) las devuelve con una pantalla. En la vista previa el navegador
+#     recibe las dos capas y hace la pantalla él.
 #
 # Vista previa (oct-2026): el servidor procesa a media resolución (como en el
 # apilado) solo hasta la BASE de color (procesado.color_base: estirado, contraste
@@ -54,6 +61,7 @@ from unidecode import unidecode
 import firma
 import procesado
 import cometa
+import estrellas_aparte
 from idioma import _
 
 SUFIJO_NUCLEO = "_nucleo"
@@ -72,8 +80,9 @@ CALIDAD_PREVIEW = 85
 CALIDAD_GUARDADO = 92
 
 # Claves de procesado que acepta el editor (las del panel del apilado + estirado + scnr)
-CLAVES_FLOAT = ("fondo_objetivo", "compresion", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "brillo", "temperatura")
-CLAVES_BOOL = ("gradiente", "aplanar", "scnr_estrellas", "color_estrellas_uniforme")
+CLAVES_FLOAT = ("fondo_objetivo", "compresion", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "brillo", "temperatura",
+                "tamano_estrellas")
+CLAVES_BOOL = ("gradiente", "aplanar", "scnr_estrellas", "color_estrellas_uniforme", "estrellas_aparte")
 ESTIRADOS = ("multiescala", "stf")
 ZOOMS = (0, 25, 50, 75)
 
@@ -85,6 +94,8 @@ _lock_norte = threading.Lock()
 _cache_norte = {}      # (ruta_fits, mtime) -> (giro, espejo) que dejan el norte arriba y el este a la izquierda
 _lock_compuesto = threading.Lock()
 _cache_compuesto = {"clave": None, "cubo": None}
+_lock_capas = threading.Lock()
+_cache_capas = {"ruta": None, "mtime": None, "capas": None}     # (objeto, estrellas) de estrellas_aparte.cargar_capas
 
 
 class ErrorEditor(Exception):
@@ -196,6 +207,9 @@ def info_foto(nombre):
         completos["composicion"] = "cometa" if pareja["es_nucleo"] else "estrellas"
     return {
         "nombre": os.path.basename(ruta_jpg),
+        # Estrellas aparte: si StarNet2 está instalado y si esta foto ya tiene las capas separadas
+        "starnet": {"disponible": estrellas_aparte.disponible(), "producto": estrellas_aparte.NOMBRE_PRODUCTO,
+                    "capas": os.path.isfile(ruta_fits) and estrellas_aparte.hay_capas(ruta_fits)},
         "cometa": ({"hermano": pareja["hermano"], "es_nucleo": pareja["es_nucleo"], "nucleo": pareja["nucleo"],
                     "desplazamiento": pareja["desplazamiento"], "hay_nucleo": pareja["nucleo"] is not None}
                    if pareja else None),
@@ -268,6 +282,12 @@ def ajustes_desde(datos):
     except (TypeError, ValueError):
         aj["radio_cometa"] = RADIO_COMETA[2]
     aj["curvas"] = procesado.normalizar_curvas(datos.get("curvas"))
+    # Estrellas aparte: la casilla y el tamaño (0..100 %); una foto de antes no las trae
+    aj["estrellas_aparte"] = bool(aj.get("estrellas_aparte", False))
+    try:
+        aj["tamano_estrellas"] = float(min(max(float(aj.get("tamano_estrellas", procesado.TAMANO_ESTRELLAS)), 0.0), 100.0))
+    except (TypeError, ValueError):
+        aj["tamano_estrellas"] = procesado.TAMANO_ESTRELLAS
     return aj
 
 
@@ -379,6 +399,47 @@ def cargar_cubo_compuesto(pareja, radio, progreso=None):
         return _cache_compuesto["cubo"], n, exposicion, _cache_compuesto["zona"], balance
 
 
+def cargar_capas(ruta_fits):
+    """
+    (objeto, estrellas) de estrellas_aparte.cargar_capas para el FITS, o None si
+    aún no están separadas. La última pareja se queda en memoria (160 MB en
+    3008×3008): cambiar un deslizador no debe releerla del disco.
+    """
+    with _lock_capas:
+        if not estrellas_aparte.hay_capas(ruta_fits):
+            return None
+        mtime = os.path.getmtime(estrellas_aparte.rutas_capas(ruta_fits)[0])
+        c = _cache_capas
+        if c["ruta"] != ruta_fits or c["mtime"] != mtime or c["capas"] is None:
+            c.update({"ruta": ruta_fits, "mtime": mtime, "capas": estrellas_aparte.cargar_capas(ruta_fits)})
+        return c["capas"]
+
+
+def separar_estrellas(nombre):
+    """Lanza la separación de estrellas de la foto en un hilo (estrellas_aparte.separar_en_hilo). Devuelve su estado."""
+    __, __, ruta_fits, __ = rutas(nombre)
+    if not os.path.isfile(ruta_fits):
+        raise ErrorEditor(_("Esta foto no tiene FITS guardado; no se puede reprocesar"))
+    if estrellas_aparte.hay_capas(ruta_fits):
+        return dict(estrellas_aparte.estado(), listas=True)
+    try:
+        return dict(estrellas_aparte.separar_en_hilo(ruta_fits, nombre), listas=False)
+    except estrellas_aparte.ErrorSeparacion as e:
+        raise ErrorEditor(str(e))
+
+
+def estado_separacion(nombre=None):
+    """Estado de la separación en curso y, con `nombre`, si esa foto ya tiene sus capas."""
+    d = estrellas_aparte.estado()
+    if nombre:
+        try:
+            __, __, ruta_fits, __ = rutas(nombre)
+            d["listas"] = estrellas_aparte.hay_capas(ruta_fits)
+        except ErrorEditor:
+            d["listas"] = False
+    return d
+
+
 def _meta_firma(ruta_jpg, ruta_fits, objeto, n, exposicion):
     meta = firma.meta_de_archivo(ruta_jpg)
     # Autor y lugar: los del config actual, pero sin borrar los que la foto ya
@@ -410,8 +471,11 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None, solo_base=Fal
     (imagen BGR uint8, meta de la firma). completa=False: media resolución (o
     completa si el zoom es del 50 % o más, como en el apilado); True: todo.
     solo_base: se para en la base de color (procesado.color_base) y devuelve
-    (base RGB float32 [0, 1], estrellas, pequenas, meta), sin firmar: es lo que
-    la vista previa manda al navegador para que haga él los ajustes rápidos.
+    (base RGB float32 [0, 1], estrellas, pequenas, meta, capa), sin firmar: es lo
+    que la vista previa manda al navegador para que haga él los ajustes rápidos.
+    `capa` es la capa de estrellas estirada (float32 [0, 1]) con las estrellas
+    aparte, y None si no. Con estrellas aparte pedidas y la foto sin separar
+    todavía, ErrorEditor (la web lanza antes la separación).
     """
     base, ruta_jpg, ruta_fits, __ = rutas(nombre)
     if not os.path.isfile(ruta_fits):
@@ -433,16 +497,36 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None, solo_base=Fal
     else:
         cubo, n, exposicion, zona, balance = cargar_cubo(ruta_fits)
     fraccion = (100 - aj["zoom"]) / 100.0
-    recorte, __ = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, margen=aj.get("bordes", 0) / 100.0,
-                                       espejo=bool(aj.get("espejo")), centro=aj.get("centro"))
+    encuadre = dict(margen=aj.get("bordes", 0) / 100.0, espejo=bool(aj.get("espejo")), centro=aj.get("centro"))
     escala = 1.0 if completa or fraccion <= 0.5 else 0.5
     meta = _meta_firma(ruta_jpg, ruta_fits, objeto, n, exposicion)
-    if solo_base:
-        base, estrellas, pequenas = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso,
-                                                       balance=balance, solo_base=True)
-        meta["ajustes"] = _ajustes_para_json(aj)
-        return base, estrellas, pequenas, meta
-    rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso, balance=balance)
+    # Estrellas aparte: solo sobre el apilado de la propia foto (no sobre la
+    # composición del cometa ni el apilado hermano, que no tienen capas)
+    capas = None
+    apilado_propio = "" if pareja is None else ("cometa" if pareja["es_nucleo"] else "estrellas")
+    if aj["estrellas_aparte"] and aj["composicion"] == apilado_propio:
+        capas = cargar_capas(ruta_fits)
+        if capas is None:
+            raise ErrorEditor(_("Las estrellas de esta foto aún no están separadas"))
+    else:
+        aj["estrellas_aparte"] = False
+    if capas is not None:
+        objeto_cubo, __ = procesado.girar_campo(capas[0], fraccion, aj.get("giro", 0.0), zona, **encuadre)
+        capa_U, __ = procesado.girar_campo(capas[1], fraccion, aj.get("giro", 0.0), zona, **encuadre)
+        if solo_base:
+            base, capa, mascara = procesado.procesar_capas(objeto_cubo, capa_U, n, aj, escala=escala, progreso=progreso,
+                                                           balance=balance, solo_base=True)
+            meta["ajustes"] = _ajustes_para_json(aj)
+            return base, mascara, mascara, meta, capa
+        rgb8 = procesado.procesar_capas(objeto_cubo, capa_U, n, aj, escala=escala, progreso=progreso, balance=balance)
+    else:
+        recorte, __ = procesado.girar_campo(cubo, fraccion, aj.get("giro", 0.0), zona, **encuadre)
+        if solo_base:
+            base, estrellas, pequenas = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso,
+                                                           balance=balance, solo_base=True)
+            meta["ajustes"] = _ajustes_para_json(aj)
+            return base, estrellas, pequenas, meta, None
+        rgb8 = procesado.procesar(recorte, n, aj, escala=escala, progreso=progreso, balance=balance)
     imagen = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
     if aj["firma"]:
         imagen = firma.firmar(imagen, meta)
@@ -488,15 +572,22 @@ def vista_previa(nombre, opciones):
     "mascaras" (PNG gris con las dos máscaras lado a lado, estrellas | pequeñas,
     a la mitad del tamaño de la base, bytes), "firma"
     (PNG BGRA con transparencia, bytes) y "fondo" ([r, g, b] del cielo, 0..1),
-    todo con el lado mayor a ANCHO_PREVIEW. Solo una a la vez.
+    todo con el lado mayor a ANCHO_PREVIEW. Con las estrellas aparte, además
+    "estrellas" (JPEG de la capa de estrellas sobre negro, del tamaño de la base;
+    b"" si no). Solo una a la vez.
     """
     if not _lock_preview.acquire(blocking=False):
         raise ErrorEditor(_("Hay otra vista previa en marcha; espera a que termine"))
     try:
-        base, estrellas, pequenas, meta = procesar_foto(nombre, opciones, completa=False, solo_base=True)
+        base, estrellas, pequenas, meta, capa = procesar_foto(nombre, opciones, completa=False, solo_base=True)
         fondo = procesado.fondo_cielo(base)
         base = _reducir(base, ANCHO_PREVIEW)
         alto, ancho = base.shape[:2]
+        jpg_capa = b""
+        if capa is not None:
+            capa8 = np.clip(_reducir(capa, ANCHO_PREVIEW) * 255.0 + 0.5, 0, 255).astype(np.uint8)
+            ok, jpg_capa = cv2.imencode(".jpg", cv2.cvtColor(capa8, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, CALIDAD_PREVIEW])
+            jpg_capa = jpg_capa.tobytes() if ok else b""
         # Máscaras: las dos lado a lado en un solo gris (estrellas | pequeñas), a la
         # mitad del lado de la base y en 16 niveles: son pesos de mezcla suaves y
         # así pesan ~100 KB en vez de 650 KB (el wifi del campo da 0,5-2 Mbit/s)
@@ -508,7 +599,7 @@ def vista_previa(nombre, opciones):
         ok3, png_f = cv2.imencode(".png", capa_firma(ancho, alto, meta), [cv2.IMWRITE_PNG_COMPRESSION, 6])
         if not (ok1 and ok2 and ok3):
             raise ErrorEditor(_("No se pudo codificar la vista previa"))
-        return {"base": jpg.tobytes(), "mascaras": png_m.tobytes(), "firma": png_f.tobytes(),
+        return {"base": jpg.tobytes(), "mascaras": png_m.tobytes(), "firma": png_f.tobytes(), "estrellas": jpg_capa,
                 "fondo": [round(float(v), 5) for v in fondo], "ancho": int(ancho), "alto": int(alto)}
     finally:
         _lock_preview.release()
@@ -725,6 +816,7 @@ def _renombrar(base, objeto_nuevo):
         for ext in (".jpg", ".fits", ".json"):
             if os.path.isfile(vieja + ext):
                 os.replace(vieja + ext, nueva + ext)
+        estrellas_aparte.renombrar_capas(vieja, nueva)
         orig = ruta_original(vieja)
         if os.path.isfile(orig):
             os.replace(orig, ruta_original(nueva))
@@ -787,11 +879,12 @@ def restaurar(nombre):
 
 
 def borrar_original(base):
-    """Al eliminar una foto de la galería, quitar también su original apartado."""
+    """Al eliminar una foto de la galería, quitar también su original apartado y sus capas de estrellas."""
     for ext in (".jpg", ".json"):
         ruta = os.path.splitext(ruta_original(base))[0] + ext
         if os.path.isfile(ruta):
             os.remove(ruta)
+    estrellas_aparte.borrar_capas(base)
 
 
 def jpg_original(nombre):

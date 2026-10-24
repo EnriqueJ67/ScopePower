@@ -5490,6 +5490,47 @@ def descargar_fits_apilado():
 GUARDADO = {"en_curso": False, "mensaje": "", "archivo": "", "ok": None}
 
 
+def _estrellas_aparte_al_guardar():
+    """[Procesado] estrellas_aparte = true y StarNet2 instalado (estrellas_aparte.py)."""
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    if cfg.get("Procesado", "estrellas_aparte", fallback="false").strip().lower() != "true":
+        return False
+    import estrellas_aparte
+    if not estrellas_aparte.disponible():
+        log.warning("estrellas_aparte = true pero StarNet2 no está instalado: la foto se guarda sin separar")
+        return False
+    return True
+
+
+def _guardar_con_estrellas_aparte(destino, destino_fits, n, zona, encuadre, balance, meta):
+    """
+    Segunda pasada del guardado en la galería con las estrellas aparte: separa el
+    FITS con StarNet2 (la pareja queda en static/fotos/capas/, el editor la
+    reutiliza), procesa objeto y estrellas por separado (procesado.procesar_capas)
+    con el mismo encuadre y sustituye el JPG. El JSON hermano apunta que la foto
+    lleva las estrellas aparte, para que el editor parta de ahí.
+    """
+    import procesado
+    import estrellas_aparte
+
+    def progreso(f, texto):
+        GUARDADO["mensaje"] = "⏳ " + (texto or _("Separando las estrellas con {producto} ({p} %)...",
+                                                 producto=estrellas_aparte.NOMBRE_PRODUCTO, p=int(f * 100)))
+    objeto, estrellas = estrellas_aparte.separar_fits(destino_fits, progreso=progreso)
+    GUARDADO["mensaje"] = _("⏳ Procesando el objeto y las estrellas por separado...")
+    objeto, __ = procesado.girar_campo(objeto, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
+    estrellas, __ = procesado.girar_campo(estrellas, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
+    rgb8 = procesado.procesar_capas(objeto, estrellas, n, procesado.leer_config(), escala=1.0, balance=balance)
+    imagen_bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
+    if meta["activa"]:
+        imagen_bgr = firma.firmar(imagen_bgr, meta)
+    cv2.imwrite(destino, imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    meta["ajustes"] = dict(meta.get("ajustes") or {}, estrellas_aparte=True, tamano_estrellas=procesado.TAMANO_ESTRELLAS)
+    firma.guardar_meta(destino, meta)
+    log.info("Foto %s guardada con las estrellas aparte (StarNet2)", os.path.basename(destino))
+
+
 def guardar_apilado_en_galeria():
     """
     Guarda el apilado en la galería: el FITS se copia al momento (campo completo)
@@ -5554,6 +5595,16 @@ def guardar_apilado_en_galeria():
             meta["encuadre"] = {"zoom": int(round((1.0 - encuadre["fraccion"]) * 100)), "giro": encuadre["giro"],
                                 "espejo": encuadre["espejo"]}
             firma.guardar_meta(destino, meta)
+            # Estrellas aparte ([Procesado] estrellas_aparte = true y StarNet2 instalado):
+            # el JPG normal ya está a salvo; ahora se separan las estrellas (minutos) y se
+            # vuelve a procesar con el objeto y las estrellas por separado. Si algo falla,
+            # queda el JPG de siempre.
+            if _estrellas_aparte_al_guardar():
+                try:
+                    _guardar_con_estrellas_aparte(destino, destinoFits, n, zona, encuadre, balance, meta)
+                except Exception as e:
+                    log.exception("Error con las estrellas aparte al guardar en la galería")
+                    GUARDADO["mensaje"] = _("⚠️ Guardada sin las estrellas aparte: {e}", e=e)
             # Cometa: el apilado por el núcleo se guarda como una segunda foto
             # (<objeto>_<fecha>_nucleo), con el mismo encuadre y color
             a = apilado.apilador_global
@@ -6092,7 +6143,7 @@ def galeria_editar_vista(nombre):
     except Exception as e:
         log.exception("Error en la vista previa del editor")
         return jsonify({"error": _("No se pudo procesar: {e}", e=e)}), 500
-    partes = ("base", "mascaras", "firma")
+    partes = ("base", "mascaras", "firma", "estrellas")       # estrellas: la capa de estrellas aparte, o vacía
     cabecera = {k: len(paquete[k]) for k in partes}
     cabecera.update(fondo=paquete["fondo"], ancho=paquete["ancho"], alto=paquete["alto"])
     r = Response(b"".join(paquete[k] for k in partes), mimetype="application/octet-stream")
@@ -6149,6 +6200,26 @@ def galeria_editar_centrar(nombre):
 @app.route("/galeria/editar-estado")
 def galeria_editar_estado():
     return jsonify(editor_fotos.EDICION)
+
+
+@app.route("/galeria/editar/<nombre>/separar", methods=["POST"])
+def galeria_editar_separar(nombre):
+    """
+    Separa las estrellas de la foto con StarNet2 (estrellas_aparte.py) en un hilo:
+    varios minutos; la web sondea /galeria/separar-estado. Si ya están separadas,
+    contesta al momento con listas=True.
+    """
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "mensaje": _("No autorizado")}), 403
+    try:
+        return jsonify(dict(editor_fotos.separar_estrellas(nombre), ok=True))
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+
+
+@app.route("/galeria/separar-estado")
+def galeria_separar_estado():
+    return jsonify(editor_fotos.estado_separacion(request.args.get("nombre")))
 
 
 @app.route("/galeria/editar/<nombre>/restaurar", methods=["POST"])

@@ -1,10 +1,12 @@
 // static/js/curvas.js — editor de curvas por puntos de control (como el del Seestar).
 //
-// Una curva es una lista de puntos [x, y] en [0, 1] ordenados por x, con los extremos
-// en x = 0 y x = 1, que pasa por todos ellos con un spline cúbico monótono
-// (Fritsch-Carlson). Hay cuatro: "rgb" (los tres canales a la vez, se aplica
-// primero) y "r", "g", "b". El MISMO algoritmo está en Python en
-// procesado.evaluar_curva: lo que se ve aquí es lo que se guarda.
+// Una curva es una lista de puntos [x, y] en [0, 1] ordenados por x que pasa por
+// todos ellos con un spline cúbico monótono (Fritsch-Carlson); fuera de los
+// extremos vale lo mismo que en el extremo (el primero corrido a la derecha
+// recorta el negro y oscurece el fondo; el último corrido a la izquierda recorta
+// el blanco). Hay cuatro: "rgb" (los tres canales a la vez, se aplica primero) y
+// "r", "g", "b". El MISMO algoritmo está en Python en procesado.evaluar_curva:
+// lo que se ve aquí es lo que se guarda.
 //
 //   const ed = new EditorCurvas(canvas, { alCambiar: curvas => ..., alArrastrar: curvas => ..., alSeleccionar: i => ... });
 //   ed.curvas                       {rgb: [[x, y], ...], r: ..., g: ..., b: ...} (solo las que no son la identidad)
@@ -14,7 +16,8 @@
 //   ed.canal("r") / ed.reiniciar() / ed.borrarPunto()
 //
 // Gestos: tocar la curva añade un punto; arrastrar mueve el más cercano; tocar un punto
-// lo selecciona (se borra con el botón); los extremos solo se mueven en vertical.
+// lo selecciona (se borra con el botón); los extremos se mueven también en horizontal,
+// sin pasar al punto vecino.
 (function () {
     "use strict";
 
@@ -48,14 +51,16 @@
         const t = new Float32Array(largo), ult = largo - 1;
         if (esIdentidad(puntos)) { for (let i = 0; i < largo; i++) t[i] = i / ult; return t; }
         const xs = puntos.map(p => p[0]), ys = puntos.map(p => p[1]), n = xs.length;
+        // Fuera de los extremos la curva es constante (negro recortado, blanco recortado)
+        const acotar = x => Math.min(xs[n - 1], Math.max(xs[0], x));
         if (n === 2) {
-            for (let i = 0; i < largo; i++) t[i] = Math.min(1, Math.max(0, ys[0] + (ys[1] - ys[0]) * (i / ult - xs[0]) / (xs[1] - xs[0])));
+            for (let i = 0; i < largo; i++) t[i] = Math.min(1, Math.max(0, ys[0] + (ys[1] - ys[0]) * (acotar(i / ult) - xs[0]) / (xs[1] - xs[0])));
             return t;
         }
         const m = pendientes(xs, ys);
         let k = 0;
         for (let i = 0; i < largo; i++) {
-            const x = i / ult;
+            const x = acotar(i / ult);
             while (k < n - 2 && x > xs[k + 1]) k++;
             const h = xs[k + 1] - xs[k], u = (x - xs[k]) / h, u2 = u * u, u3 = u2 * u;
             const y = (2 * u3 - 3 * u2 + 1) * ys[k] + (u3 - 2 * u2 + u) * h * m[k] + (-2 * u3 + 3 * u2) * ys[k + 1] + (u3 - u2) * h * m[k + 1];
@@ -64,7 +69,7 @@
         return t;
     }
 
-    // Puntos limpios: ordenados, extremos en 0 y 1, sin dos con la misma x (como procesado.normalizar_curva)
+    // Puntos limpios: ordenados, sin dos con la misma x (como procesado.normalizar_curva)
     function normalizar(puntos) {
         const limpios = [];
         for (const p of puntos || []) {
@@ -73,11 +78,9 @@
         }
         if (limpios.length < 2) return IDENTIDAD();
         limpios.sort((a, b) => a[0] - b[0]);
-        limpios[0][0] = 0; limpios[limpios.length - 1][0] = 1;
         const salida = [limpios[0]];
         for (const p of limpios.slice(1)) if (p[0] - salida[salida.length - 1][0] >= 0.002) salida.push(p);
         if (salida.length < 2) return IDENTIDAD();
-        salida[salida.length - 1][0] = 1;
         return salida.slice(0, MAX_PUNTOS).map(p => [Math.round(p[0] * 1e4) / 1e4, Math.round(p[1] * 1e4) / 1e4]);
     }
 
@@ -192,8 +195,9 @@
             const t = this._tam(), p = this.puntos[this.activo], i = this.arrastre.i;
             let [x, y] = this._aUnidad(ev, t);
             y = Math.min(1, Math.max(0, y));
-            if (i === 0) x = 0;
-            else if (i === p.length - 1) x = 1;
+            // Los extremos también se mueven en horizontal (punto negro y blanco), sin pasar al vecino
+            if (i === 0) x = Math.min(p[1][0] - 0.01, Math.max(0, x));
+            else if (i === p.length - 1) x = Math.max(p[i - 1][0] + 0.01, Math.min(1, x));
             else x = Math.min(p[i + 1][0] - 0.01, Math.max(p[i - 1][0] + 0.01, x));
             p[i] = [Math.round(x * 1e4) / 1e4, Math.round(y * 1e4) / 1e4];
             this.arrastre.movido = true;

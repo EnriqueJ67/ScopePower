@@ -94,3 +94,8 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_fotometria_solar.py
+
+      - name: Prueba de las estrellas aparte (capas sintéticas, sin StarNet2)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_estrellas_aparte.py
