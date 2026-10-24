@@ -158,6 +158,17 @@ día de la release. El número de versión vive en `version.py`.
 - La cabecera dice junto al icono de la montura si está en modo altacimutal («AltAz») o ecuatorial
   («Eq»), también en el móvil; el chip del Inicio lo añade tras el sistema de coordenadas. Es lo que
   declara el driver por ASCOM (AlignmentMode) al conectar; si no lo dice, no aparece nada.
+- Arreglado: el dithering del apilado ya no hace que el encuadre se vaya desplazando durante la
+  noche. Antes cada movimiento salía de donde había quedado el anterior y se acumulaban (del orden
+  de 100 px en 300 fotos con 15 px de amplitud). Ahora cada movimiento va a un punto al azar a
+  hasta `amplitud_px` del punto de partida, y cada punto queda a al menos media amplitud del
+  anterior. Si otra cosa mueve la montura (un GoTo, un centrado), ese sitio pasa a ser el punto de
+  partida. Se mueve con MoveAxis a velocidad baja, como el guiado por el disco, en vez de con un
+  GoTo, que en la AZ GoTo se pasa unos 25′ y vuelve. Clave nueva `[Dithering] velocidad_deg_s`
+  (0 = con GoTo). Módulo `dither.py`, prueba `herramientas/probar_dither.py`.
+- Arreglado: la corrección por ejes del guiado por el disco ya no vuelve al GoTo cuando, tras un
+  primer paso bueno, otro paso no gana nada: es el límite de precisión (el cielo corre unos 15″/s
+  mientras el eje se mueve sin seguimiento), no una montura que no responde.
 
 ## 1.2.2 · 2026-10-16
 

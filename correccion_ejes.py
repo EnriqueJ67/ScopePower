@@ -1,7 +1,8 @@
 # correccion_ejes.py
 #
 # Corrección pequeña del apuntado moviendo los ejes a velocidad baja (MoveAxis),
-# en vez de con un GoTo. La usa el guiado por el disco del Sol o la Luna.
+# en vez de con un GoTo. La usan el guiado por el disco del Sol o la Luna y el
+# dithering del apilado (dither.py).
 #
 # Por qué: un GoTo corto en la AZ GoTo no es corto. La montura remata todo GoTo
 # acercándose siempre por el mismo lado de cada eje (compensación de holgura):
@@ -183,6 +184,18 @@ def corregir(tel, du, dv, lugar, velocidad_max=VELOCIDAD_DEFECTO, signos=None, d
     detalle de cada paso; lanza ErrorCorreccion si la montura no se mueve o no se para.
     `guardar(signo0, signo1, modo)` se llama si se ha aprendido un signo (None = no guardar).
     """
+    destino = _destino(tel, du, dv, lugar)      # fijo en el cielo: el seguimiento no lo mueve
+    return ir_a(tel, destino, lugar, velocidad_max=velocidad_max, signos=signos, dormir=dormir,
+                guardar=guardar, tolerancia_arcmin=tolerancia_arcmin)
+
+
+def ir_a(tel, destino, lugar, velocidad_max=VELOCIDAD_DEFECTO, signos=None, dormir=time.sleep,
+         guardar=guardar_signos, tolerancia_arcmin=TOLERANCIA_ARCMIN):
+    """
+    Como corregir(), pero hacia un `destino` dado (SkyCoord ICRS, fijo en el cielo) en vez de
+    un desplazamiento desde donde apunta la montura. Lo usa el dithering, que vuelve siempre
+    alrededor del mismo punto de partida.
+    """
     modo = modo_montura(tel)
     signo0, signo1 = signos if signos else leer_signos(modo)
     nombre0, nombre1 = (NOMBRE_EJE[e] for e in EJES[modo])
@@ -193,11 +206,11 @@ def corregir(tel, du, dv, lugar, velocidad_max=VELOCIDAD_DEFECTO, signos=None, d
     except Exception:
         velocidad_seguimiento = None
 
-    destino = _destino(tel, du, dv, lugar)      # fijo en el cielo: el seguimiento no lo mueve
     tol = tolerancia_arcmin / 60.0
 
     pasos = []
     e0, e1, factor0 = _error(tel, destino, lugar, modo)
+    pedido0, pedido1 = e0, e1
     try:
         for n in range(PASOS_MAXIMOS):
             if math.hypot(e0, e1) <= tol:
@@ -237,8 +250,15 @@ def corregir(tel, du, dv, lugar, velocidad_max=VELOCIDAD_DEFECTO, signos=None, d
                 elif abs(fraccion) < 0.25:
                     quietos += 1
             if evaluados and quietos == evaluados:
-                raise ErrorCorreccion(_("La montura no se ha movido con MoveAxis (error {antes}′ → {despues}′)",
-                                        antes=f"{math.hypot(e0, e1) * 60:.1f}", despues=f"{math.hypot(n0, n1) * 60:.1f}"))
+                if n == 0:
+                    raise ErrorCorreccion(_("La montura no se ha movido con MoveAxis (error {antes}′ → {despues}′)",
+                                            antes=f"{math.hypot(e0, e1) * 60:.1f}", despues=f"{math.hypot(n0, n1) * 60:.1f}"))
+                # Tras un primer paso bueno, un paso que no gana nada no es una montura que no
+                # responde: es el límite de precisión (el cielo corre unos 15″/s mientras el eje
+                # se mueve sin seguimiento, visto con el simulador ASCOM). Se para aquí; volver
+                # al GoTo daría el bandazo que se quería evitar.
+                e0, e1 = n0, n1
+                break
             e0, e1 = n0, n1
     finally:
         _parar(tel, seguia, velocidad_seguimiento)
@@ -250,5 +270,5 @@ def corregir(tel, du, dv, lugar, velocidad_max=VELOCIDAD_DEFECTO, signos=None, d
 
     residuo = math.hypot(e0, e1) * 60.0
     log.info("Corrección por ejes (%s): pedido (%+.2f′, %+.2f′), %d paso(s), residuo %.2f′, signos %s %+d / %s %+d",
-             modo, du * 60, dv * 60, len(pasos), residuo, nombre0, signo0, nombre1, signo1)
+             modo, pedido0 * 60, pedido1 * 60, len(pasos), residuo, nombre0, signo0, nombre1, signo1)
     return {"modo": modo, "pasos": len(pasos), "residuo_arcmin": round(residuo, 3), "signos": (signo0, signo1), "detalle": pasos}

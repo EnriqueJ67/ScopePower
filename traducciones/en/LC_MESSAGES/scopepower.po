@@ -4936,7 +4936,7 @@ msgstr "The mount did not move with MoveAxis (error {antes}′ → {despues}′)
 msgid "La montura no se ha movido entre la foto {a} y la {b}: comprueba que gira el eje de AR"
 msgstr "The mount did not move between photo {a} and photo {b}: check that the RA axis turns"
 
-#: ScopePower.py
+#: dither.py
 msgid "La montura no terminó el movimiento de dithering en 60 s"
 msgstr "The mount didn't finish the dithering move within 60 s"
 
@@ -11438,8 +11438,8 @@ msgid "{producto} no está instalado. Es un programa aparte de Mikita Misiura co
 msgstr "{producto} is not installed. It is a separate program by Mikita Misiura with its own licence (free): download it from starnetastro.com (Command-line Tools) and, if it does not end up in its usual folder, say where in ruta_starnet of config.ini."
 
 #: ScopePower.py
-msgid "{px} px ({arcsec}\") hacia el {rumbo}"
-msgstr "{px} px ({arcsec}\") to the {rumbo}"
+msgid "{px} px ({arcsec}\") hacia el {rumbo}, a {lejos} px del punto de partida"
+msgstr "{px} px ({arcsec}\") to the {rumbo}, {lejos} px from the starting point"
 
 #: static/js/plan.js
 #, python-format
