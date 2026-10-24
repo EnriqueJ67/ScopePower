@@ -4922,7 +4922,7 @@ msgstr ""
 msgid "La montura no se ha movido entre la foto {a} y la {b}: comprueba que gira el eje de AR"
 msgstr ""
 
-#: ScopePower.py
+#: dither.py
 msgid "La montura no terminó el movimiento de dithering en 60 s"
 msgstr ""
 
@@ -11363,7 +11363,7 @@ msgid "{pct} % hacia arriba"
 msgstr ""
 
 #: ScopePower.py
-msgid "{px} px ({arcsec}\") hacia el {rumbo}"
+msgid "{px} px ({arcsec}\") hacia el {rumbo}, a {lejos} px del punto de partida"
 msgstr ""
 
 #: static/js/plan.js
