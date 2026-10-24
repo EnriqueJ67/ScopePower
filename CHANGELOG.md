@@ -5,6 +5,23 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Nuevo: estrellas aparte en el editor de la galería (prototipo). Con StarNet2 instalado (el
+  programa de Mikita Misiura, https://starnetastro.com/, aparte y con su propia licencia, como
+  ASTAP; `[General] ruta_starnet`), el panel «Estrellas aparte» separa el apilado en objeto y
+  estrellas (una vez por foto, varios minutos; la pareja queda en `static/fotos/capas/` y sigue a
+  la foto al renombrarla o borrarla) y los procesa por separado: el objeto se estira y se limpia
+  sin que las estrellas estorben, con el color y los huecos del fondo suavizados a gran escala
+  (`procesado.suavizar_fondo_sin_estrellas`: el moteado que aparece al quitar las estrellas), y las
+  estrellas se estiran con la misma curva del detalle que les habría dado el multiescala, con su
+  color y sin saturar. Se vuelven a juntar con una pantalla (screen) y el deslizador «Tamaño de las
+  estrellas» (0 = sin estrellas, 100 = como salieron) se aplica al instante en el navegador, como
+  el color y las curvas. Con `[Procesado] estrellas_aparte = true` se hace también al guardar un
+  apilado en la galería. Medido con la Pacman real: el moteado de color del fondo a 32 px baja de
+  1,06 a 0,51; StarNet2 tarda 222 s la foto completa de la Saturn-C en un PC de sobremesa solo con
+  CPU (55 s a la mitad). DeepSNR, del mismo autor, se probó y se descartó (pensado para cámaras
+  mono; con la Saturn-C deja manchas). Módulo `estrellas_aparte.py`, prueba
+  `herramientas/probar_estrellas_aparte.py` (sin StarNet2: su licencia no permite usar sus salidas
+  como datos de prueba).
 - Nuevo: el tamaño de cada grupo de manchas del Sol, en kilómetros y en Tierras («134.000 km · 10,5
   Tierras», de punta a punta), en una lista de grupos del visor con sus manchas, sus coordenadas y
   su área; la lista va a la derecha de la foto si cabe y, si no, debajo, y al pasar el ratón por

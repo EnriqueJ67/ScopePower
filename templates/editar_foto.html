@@ -226,6 +226,33 @@
             </div>
         </section>
 
+        <!-- Estrellas aparte: StarNet2 (programa externo, estrellas_aparte.py) separa el apilado en
+             objeto y estrellas, que se procesan por separado y se juntan con una pantalla -->
+        <section class="card panel" data-panel="estrellas">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title">✨ {{ _("Estrellas aparte") }}</h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <label class="fila-check"><input type="checkbox" id="c-estrellas_aparte" {% if not info.starnet.disponible %}disabled{% endif %}> {{ _("Separar las estrellas con {producto} y procesarlas aparte", producto=info.starnet.producto) }}</label>
+                <div id="estado-estrellas" class="estado"></div>
+                {% if info.starnet.disponible %}
+                <small class="ayuda">{{ _("La primera vez {producto} separa el apilado en objeto y estrellas (varios minutos; después queda guardado). El objeto se estira y se limpia sin que las estrellas estorben (el fondo pierde el moteado de color) y las estrellas conservan su color sin saturar. La nitidez no actúa con las estrellas aparte.", producto=info.starnet.producto) }}</small>
+                {% else %}
+                <small class="ayuda">{{ _("{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini.", producto=info.starnet.producto) }}</small>
+                {% endif %}
+                <div class="campo mt-2" id="controles-estrellas">
+                    <div class="rango-titulo"><span>{{ _("Tamaño de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-tamano_estrellas"></span></div>
+                    <input type="range" id="c-tamano_estrellas" data-clave="tamano_estrellas" min="0" max="100" step="5">
+                    <small class="ayuda">{{ _("Cuánto pesan las estrellas al volver a juntarlas (pantalla): 100 % = como salieron, 0 % = solo el objeto y el fondo. A medio camino quedan más pequeñas y discretas.") }}</small>
+                </div>
+            </div>
+        </section>
+
         {% if info.cometa %}
         <section class="card panel" data-panel="cometa">
             <div class="panel-header" onclick="alternarPanel(this)">
@@ -277,7 +304,7 @@
                     <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciar()" title="{{ _('Deja recta la curva de este canal') }}" style="flex: 1;">{{ _("Reiniciar") }}</button>
                     <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciarTodo()" title="{{ _('Deja rectas las cuatro curvas') }}" style="flex: 1;">{{ _("Todas") }}</button>
                 </div>
-                <small class="ayuda">{{ _("Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Se guardan con la foto y en los presets.") }}</small>
+                <small class="ayuda">{{ _("Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste. Los extremos también se mueven en horizontal: el de la izquierda hacia la derecha recorta el negro y oscurece el fondo; el de la derecha hacia la izquierda recorta el blanco. RGB va primero y después la curva de cada color. Se guardan con la foto y en los presets.") }}</small>
             </div>
         </section>
 
@@ -374,10 +401,12 @@
     }
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
-    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes"];
+    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes", "tamano_estrellas"];
     // Los ajustes rápidos los hace el navegador sobre la base (static/js/retoque.js): no piden
     // vista previa nueva al servidor. Los demás cambian la base y sí la piden.
-    const CLAVES_RAPIDAS = ["brillo", "temperatura", "saturacion", "saturacion_estrellas", "scnr"];
+    const CLAVES_RAPIDAS = ["brillo", "temperatura", "saturacion", "saturacion_estrellas", "scnr", "tamano_estrellas"];
+    const STARNET = {{ info.starnet|tojson }};      // {disponible, producto, capas: la foto ya tiene las capas}
+    let capasListas = !!STARNET.capas;
     const CLAVES_SERVIDOR = CLAVES_RANGO.filter(k => !CLAVES_RAPIDAS.includes(k));
     const COMETA = {{ info.cometa|tojson }};      // pareja de apilados (estrellas + núcleo) o null
     let composicion = COMETA ? (COMETA.es_nucleo ? "cometa" : "estrellas") : "";
@@ -413,6 +442,11 @@
         document.getElementById("c-aplanar").checked = !!a.aplanar;
         document.getElementById("c-scnr_estrellas").checked = a.scnr_estrellas !== false;   // fotos y presets anteriores: activado
         document.getElementById("c-color_estrellas_uniforme").checked = a.color_estrellas_uniforme !== false;
+        if (a.estrellas_aparte !== undefined || inicial) {
+            document.getElementById("c-estrellas_aparte").checked = !!a.estrellas_aparte && STARNET.disponible;
+            if (a.tamano_estrellas === undefined || a.tamano_estrellas === null) { document.getElementById("c-tamano_estrellas").value = 100; document.getElementById("v-tamano_estrellas").textContent = "100"; }
+            pintarEstrellasAparte();
+        }
         if (a.estilo) document.getElementById("c-estilo").value = a.estilo;
         if (a.zoom !== undefined) document.getElementById("c-zoom").value = String(a.zoom);
         if (a.giro !== undefined) pintarGiro(a.giro);
@@ -437,6 +471,55 @@
         const e = ESTILOS[document.getElementById("c-estilo").value];
         if (e) { pintarAjustes(e); retocar(); programarVistaPrevia(); }
     }
+
+    // ——— Estrellas aparte (StarNet2): la casilla, la separación en el servidor y el deslizador ———
+    function estrellasAparte() { return STARNET.disponible && document.getElementById("c-estrellas_aparte").checked; }
+    function pintarEstrellasAparte() {
+        document.getElementById("controles-estrellas").style.display = estrellasAparte() ? "" : "none";
+        const estado = document.getElementById("estado-estrellas");
+        if (!STARNET.disponible) estado.textContent = "";
+        else if (!estrellasAparte()) estado.textContent = "";
+        else if (capasListas) estado.textContent = _("✅ Estrellas separadas (guardadas con la foto)");
+    }
+    let separando = false;
+    // Lanza la separación en el servidor (o la reutiliza si ya está) y espera a que termine
+    async function separarEstrellas() {
+        if (capasListas) return true;
+        if (separando) return false;
+        separando = true;
+        const estado = document.getElementById("estado-estrellas"), chip = document.getElementById("chip-tiempo");
+        try {
+            const d = await fetch(`/galeria/editar/${encodeURIComponent(NOMBRE)}/separar`, { method: "POST" }).then(r => r.json());
+            if (!d.ok) throw new Error(d.mensaje || _("No se pudieron separar las estrellas"));
+            if (d.listas) { capasListas = true; return true; }
+            while (true) {
+                await new Promise(ok => setTimeout(ok, 2000));
+                const e = await fetch(`/galeria/separar-estado?nombre=${encodeURIComponent(NOMBRE)}`).then(r => r.json()).catch(() => null);
+                if (!e) continue;
+                const t = Math.round(e.segundos || 0);
+                estado.textContent = "⏳ " + e.mensaje + (t ? ` · ${t} s` : "");
+                chip.textContent = `${STARNET.producto} ${Math.round((e.fraccion || 0) * 100)} %`; chip.style.display = "";
+                if (e.listas) { capasListas = true; estado.textContent = "✅ " + e.mensaje; return true; }
+                if (!e.en_curso) throw new Error(e.mensaje || _("No se pudieron separar las estrellas"));
+            }
+        } catch (err) {
+            estado.textContent = "⚠️ " + err.message;
+            document.getElementById("c-estrellas_aparte").checked = false;
+            pintarEstrellasAparte();
+            return false;
+        } finally {
+            separando = false;
+            chip.style.display = "none";
+        }
+    }
+    document.getElementById("c-estrellas_aparte").addEventListener("change", async () => {
+        pintarEstrellasAparte();
+        if (estrellasAparte() && !capasListas) {
+            document.getElementById("estado-estrellas").textContent = _("⏳ Separando las estrellas con {producto} (varios minutos)...", { producto: STARNET.producto });
+            if (!(await separarEstrellas())) return;
+        }
+        programarVistaPrevia();
+    });
 
     function elegirEstirado(tipo, refrescar = true) {
         document.querySelectorAll("#estirado-seg button").forEach(b => b.classList.toggle("activo", b.dataset.estirado === tipo));
@@ -572,6 +655,7 @@
             aplanar: document.getElementById("c-aplanar").checked,
             scnr_estrellas: document.getElementById("c-scnr_estrellas").checked,
             color_estrellas_uniforme: document.getElementById("c-color_estrellas_uniforme").checked,
+            estrellas_aparte: estrellasAparte(),
             zoom: parseInt(document.getElementById("c-zoom").value) || 0,
             giro: leerGiro(),
             espejo: document.getElementById("c-espejo").checked,
@@ -645,6 +729,8 @@
 
     async function pedirVistaPrevia(manual) {
         if (preparando) { pendiente = true; return; }
+        // Con las estrellas aparte pedidas, primero hay que tenerlas separadas (minutos la primera vez)
+        if (estrellasAparte() && !capasListas && !(await separarEstrellas())) return;
         preparando = true; pendiente = false;
         const estado = document.getElementById("estado-preview");
         const chip = document.getElementById("chip-tiempo");
@@ -674,6 +760,7 @@
             let pos = 0;
             const trozo = (n, tipo) => { const b = new Blob([todo.subarray(pos, pos + n)], { type: tipo }); pos += n; return b; };
             const paquete = { base: trozo(cab.base, "image/jpeg"), mascaras: trozo(cab.mascaras, "image/png"), firma: trozo(cab.firma, "image/png"), fondo: cab.fondo };
+            if (cab.estrellas) paquete.estrellas = trozo(cab.estrellas, "image/jpeg");   // la capa de estrellas (estrellas aparte)
             await retoque.cargar(paquete);
             hayNueva = true;
             ajustesVista = ajustes;
@@ -747,6 +834,7 @@
     }
     for (const id of ["c-gradiente", "c-aplanar", "c-color_estrellas_uniforme", "c-zoom", "c-giro-fino", "c-espejo", "c-curva"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
     for (const id of ["c-scnr_estrellas", "c-firma"]) document.getElementById(id).addEventListener("change", retocar);
+    document.getElementById("c-tamano_estrellas").addEventListener("input", () => document.getElementById("v-tamano_estrellas").textContent = document.getElementById("c-tamano_estrellas").value);
     document.getElementById("c-giro-fino").addEventListener("input", pintarValorGiro);
     if (COMETA) {
         const r = document.getElementById("c-radio_cometa");

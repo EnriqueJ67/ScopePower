@@ -1942,6 +1942,10 @@ msgstr ""
 msgid "Cuánto más oscura que la fotosfera tiene que ser una zona para contar como mancha"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Cuánto pesan las estrellas al volver a juntarlas (pantalla): 100 % = como salieron, 0 % = solo el objeto y el fondo. A medio camino quedan más pequeñas y discretas."
+msgstr ""
+
 #: templates/apilado.html
 msgid "Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas)."
 msgstr ""
@@ -3569,9 +3573,17 @@ msgstr ""
 msgid "Estrellas"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Estrellas aparte"
+msgstr ""
+
 #. js
 #: templates/constelacion.html
 msgid "Estrellas preparadas."
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "Estrellas separadas en {s} s"
 msgstr ""
 
 #: templates/constelacion.html
@@ -4968,6 +4980,10 @@ msgstr ""
 msgid "La otra gema de Géminis. Es en realidad un sistema sextuple."
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "La primera vez {producto} separa el apilado en objeto y estrellas (varios minutos; después queda guardado). El objeto se estira y se limpia sin que las estrellas estorben (el fondo pierde el moteado de color) y las estrellas conservan su color sin saturar. La nitidez no actúa con las estrellas aparte."
+msgstr ""
+
 #: static/js/puesta_estacion.js
 msgid "La puesta en estación ha fallado"
 msgstr ""
@@ -4975,6 +4991,10 @@ msgstr ""
 #. js
 #: templates/constelacion.html
 msgid "La segunda estrella más brillante de Escorpio. Marca el aguijón del escorpión. Su nombre significa 'aguijón' en árabe."
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "La separación de estrellas necesita un apilado RGB"
 msgstr ""
 
 #: static/js/ayuda_voz.js
@@ -5057,6 +5077,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Las dos contraseñas no coinciden"
+msgstr ""
+
+#: editor_fotos.py
+msgid "Las estrellas de esta foto aún no están separadas"
 msgstr ""
 
 #: templates/_puesta_estacion.html
@@ -6009,6 +6033,11 @@ msgstr ""
 msgid "No se pudieron leer los datos guardados: {e}"
 msgstr ""
 
+#. js
+#: templates/editar_foto.html
+msgid "No se pudieron separar las estrellas"
+msgstr ""
+
 #: static/js/asistente.js
 msgid "No se pudo abrir el selector de ASCOM en el PC: {e}"
 msgstr ""
@@ -6193,6 +6222,10 @@ msgstr ""
 #. js
 #: templates/constelacion.html templates/goto.html
 msgid "No se pudo iniciar la escucha: {error}"
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "No se pudo lanzar {producto}: {e}"
 msgstr ""
 
 #. js
@@ -7780,6 +7813,18 @@ msgstr ""
 msgid "Sensor de {ancho} × {alto} píxeles."
 msgstr ""
 
+#: ScopePower.py estrellas_aparte.py
+msgid "Separando las estrellas con {producto} ({p} %)..."
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "Separando las estrellas con {producto}..."
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Separar las estrellas con {producto} y procesarlas aparte"
+msgstr ""
+
 #: templates/galeria.html
 msgid "Serie del Número de Wolf"
 msgstr ""
@@ -8157,6 +8202,10 @@ msgstr ""
 msgid "Tamaño"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Tamaño de las estrellas"
+msgstr ""
+
 #. js
 #: templates/constelacion.html
 msgid "También conocida como Alpha Centauri. El sistema estelar más cercano al Sol."
@@ -8361,7 +8410,7 @@ msgid "Toca el objeto para elegirlo · {n} px de lado"
 msgstr ""
 
 #: templates/editar_foto.html
-msgid "Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste; los extremos solo suben o bajan (punto negro y blanco). RGB va primero y después la curva de cada color. Se guardan con la foto y en los presets."
+msgid "Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste. Los extremos también se mueven en horizontal: el de la izquierda hacia la derecha recorta el negro y oscurece el fondo; el de la derecha hacia la izquierda recorta el blanco. RGB va primero y después la curva de cada color. Se guardan con la foto y en los presets."
 msgstr ""
 
 #: templates/apilado.html
@@ -8955,6 +9004,10 @@ msgstr ""
 msgid "Ya se están midiendo fotos del Sol"
 msgstr ""
 
+#: estrellas_aparte.py
+msgid "Ya se están separando las estrellas de {archivo}; espera a que termine"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Zoom (recorte)"
 msgstr ""
@@ -9512,7 +9565,7 @@ msgstr ""
 msgid "en pausa"
 msgstr ""
 
-#: static/js/plan.js
+#: estrellas_aparte.py static/js/plan.js
 msgid "error"
 msgstr ""
 
@@ -11362,6 +11415,26 @@ msgstr ""
 msgid "{pct} % hacia arriba"
 msgstr ""
 
+#: estrellas_aparte.py
+msgid "{producto} ha devuelto una imagen de otro tamaño"
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "{producto} ha fallado (código {codigo}) {detalle}"
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "{producto} necesita al menos 512×512 píxeles"
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "{producto} no está instalado (o no está en ruta_starnet de config.ini)"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini."
+msgstr ""
+
 #: ScopePower.py
 msgid "{px} px ({arcsec}\") hacia el {rumbo}"
 msgstr ""
@@ -11854,6 +11927,15 @@ msgid "⏳ Procesando el mosaico a resolución completa..."
 msgstr ""
 
 #: ScopePower.py
+msgid "⏳ Procesando el objeto y las estrellas por separado..."
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "⏳ Separando las estrellas con {producto} (varios minutos)..."
+msgstr ""
+
+#: ScopePower.py
 msgid "⏳ Ya hay un guardado en curso"
 msgstr ""
 
@@ -12008,6 +12090,10 @@ msgstr ""
 msgid "⚠️ Esta carpeta es una copia, no un clon de GitHub. Ejecuta una vez actualizar_desde_github.bat en el mini PC para convertirla (no toca tu configuración ni tus fotos); después se podrá actualizar desde aquí."
 msgstr ""
 
+#: ScopePower.py
+msgid "⚠️ Guardada sin las estrellas aparte: {e}"
+msgstr ""
+
 #. js
 #: templates/configuracion.html
 msgid "⚠️ Hay una actualización pedida que no llegó a ejecutarse (la app no la arrancó lanzar_scopepower.bat). Ejecuta actualizar_desde_github.bat en el mini PC."
@@ -12125,6 +12211,11 @@ msgstr ""
 
 #: ScopePower.py
 msgid "✅ Configuración guardada correctamente ({avisos})"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "✅ Estrellas separadas (guardadas con la foto)"
 msgstr ""
 
 #: static/js/plan.js

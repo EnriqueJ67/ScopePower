@@ -1031,6 +1031,59 @@ def reducir_ruido(rgb, fuerza, progreso=None):
     return out
 
 
+def suavizar_fondo_sin_estrellas(rgb, fuerza, escala_imagen=1.0, sigma_px=128.0):
+    """
+    rgb: (H, W, 3) float lineal (ADU), ya con el ruido reducido. Para la imagen SIN
+    estrellas (estrellas_aparte.py): al quitarlas aparece un moteado de gran
+    escala (manchas de color y huecos oscuros de 50-100 px, medido en la Pacman
+    el 24-oct-2026) que en la foto normal queda tapado por el campo de estrellas
+    y que reducir_ruido, que llega a 16 px, no toca. Dos cosas, solo donde no
+    hay señal (el peso cae con (L - cielo)/sigma, así una nebulosa conserva su
+    color y su forma):
+      - el COLOR (cada canal respecto a la luminancia) se suaviza con una
+        gaussiana de `sigma_px` píxeles: el fondo queda de un tinte uniforme;
+      - los HUECOS de la luminancia (lo que queda por debajo de su media a gran
+        escala) se rellenan: en el cielo no hay detalles oscuros, un hueco es
+        ruido o una sombra de polvo; lo que sobresale (nebulosidad débil) se deja.
+    fuerza 0..1 (la de la reducción de ruido).
+    """
+    fuerza = float(np.clip(fuerza, 0, 1))
+    rgb = np.asarray(rgb, dtype=np.float32)
+    h, w = rgb.shape[:2]
+    if fuerza <= 0 or min(h, w) < 64:
+        return rgb
+    L = rgb.mean(axis=2)
+    m, sigma = estadistica_fondo(L)
+    if sigma <= 0:
+        return rgb
+    s = max(2.0, sigma_px * float(escala_imagen))
+    pw, ph = max(16, w // 4), max(16, h // 4)
+
+    def gran_escala(img):
+        # A 1/4 de resolución: la gaussiana grande sale 16 veces más barata y a esta escala no hay detalle fino
+        peq = cv2.resize(img, (pw, ph), interpolation=cv2.INTER_AREA)
+        peq = cv2.GaussianBlur(peq, (0, 0), s / 4.0, borderType=cv2.BORDER_REFLECT)
+        return cv2.resize(peq, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    # Peso: 1 en el cielo, 0 a partir de unas sigmas de señal (menos sigmas cuanta más fuerza)
+    umbral = (2.0 + 6.0 * (1.0 - fuerza)) * sigma
+    senal = np.clip((L - m) / umbral, 0.0, None)
+    peso = (fuerza * np.exp(-senal * senal)).astype(np.float32)
+    # Color
+    cociente = rgb / np.maximum(L, 1e-3)[..., None]
+    suave = gran_escala(cociente)
+    cociente += (suave - cociente) * peso[..., None]
+    # Huecos de la luminancia, a dos escalas: la grande (sombras de polvo, viñeteo) y
+    # una intermedia (el moteado de 30-100 px que el contraste local, CLAHE, convierte
+    # en celdas oscuras al guardar a resolución completa)
+    L2 = L.astype(np.float32)
+    for s_hueco in (s / 4.0, s):
+        B = gran_escala(L2) if s_hueco == s else cv2.GaussianBlur(L2, (0, 0), s_hueco, borderType=cv2.BORDER_REFLECT)
+        hueco = np.minimum(L2 - B, 0.0)
+        L2 = (L2 - hueco * peso).astype(np.float32)
+    return (cociente * L2[..., None]).astype(np.float32)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  3. Estirado adaptativo multiescala (de lineal a no lineal)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1332,14 +1385,17 @@ def sigma_fondo(rgb):
     return estadistica_fondo(L)[1]
 
 
-def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None, sigma=None):
+def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None, sigma=None, devolver_curvas=False):
     """
     rgb: (H, W, 3) float lineal en ADU (0..65535), ya sin gradiente.
     escala_imagen: 0.5 si la imagen viene a media resolución (la escala de fondo
     en px se reduce en proporción). progreso(fraccion): opcional, 0..1.
     sigma: el del fondo antes de reducir el ruido (sigma_fondo); el punto negro
     va a k sigmas del cielo y, medido en la imagen ya limpia, se pegaría a él.
-    Devuelve float32 (H, W, 3) en [0, 1], no lineal.
+    Devuelve float32 (H, W, 3) en [0, 1], no lineal. Con devolver_curvas, además
+    un dict con la mediana del cielo (m, en [0, 1]), sigma y la curva del detalle
+    (S_detalle), con los que estirar_capa_estrellas estira las estrellas igual
+    que las habría estirado esta función si siguieran en la foto.
     """
     aj = ajustes or {}
     fondo_objetivo = float(aj.get("fondo_objetivo", 0.13))
@@ -1408,6 +1464,8 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None, sig
     avisar(1.0)
     log.debug("estirado %s: mediana %.5f sigma %.5f c0 %.5f blanco %.4f (detalle %.4f) param %.3g",
               S_curva.tipo, m, sigma, S_curva.c0, S_curva.blanco, blanco_detalle, S_curva.param)
+    if devolver_curvas:
+        return out, {"m": float(m), "sigma": float(sigma), "S_detalle": S_detalle, "S_curva": S_curva}
     return out
 
 
@@ -1635,8 +1693,11 @@ MAX_PUNTOS_CURVA = 16
 def normalizar_curva(puntos):
     """
     Puntos de una curva tal como llegan de la web o del JSON -> lista limpia
-    [[x, y], ...] ordenada por x, con los extremos en x=0 y x=1, o None si es la
-    identidad (así el JSON de la foto no arrastra curvas vacías).
+    [[x, y], ...] ordenada por x, o None si es la identidad (así el JSON de la
+    foto no arrastra curvas vacías). Los extremos no tienen por qué estar en
+    x=0 y x=1: fuera de ellos la curva vale lo mismo que en el extremo, así el
+    primer punto corrido a la derecha recorta el negro (oscurece el fondo) y el
+    último corrido a la izquierda recorta el blanco.
     """
     limpios = []
     for p in puntos or ():
@@ -1646,19 +1707,14 @@ def normalizar_curva(puntos):
             continue
         if math.isfinite(x) and math.isfinite(y):
             limpios.append([min(max(x, 0.0), 1.0), min(max(y, 0.0), 1.0)])
-    if not limpios:
+    if len(limpios) < 2:
         return None
     limpios.sort(key=lambda p: p[0])
-    limpios[0][0], limpios[-1][0] = 0.0, 1.0
-    if len(limpios) == 1:
-        return None
     # dos puntos no pueden compartir x (el spline divide por la distancia)
     salida = [limpios[0]]
     for p in limpios[1:]:
         if p[0] - salida[-1][0] >= 0.002:
             salida.append(p)
-    if salida[-1][0] < 1.0:
-        salida[-1][0] = 1.0
     salida = salida[:MAX_PUNTOS_CURVA]
     salida = [[round(x, 4), round(y, 4)] for x, y in salida]
     if len(salida) == 2 and salida[0] == [0.0, 0.0] and salida[1] == [1.0, 1.0]:
@@ -1706,7 +1762,8 @@ def evaluar_curva(puntos, x):
     ys = np.array([p[1] for p in puntos], dtype=np.float64)
     x = np.asarray(x, dtype=np.float32)
     forma = x.shape
-    xf = np.clip(x.ravel().astype(np.float64), 0.0, 1.0)
+    # Fuera de los extremos la curva es constante (negro recortado, blanco recortado)
+    xf = np.clip(x.ravel().astype(np.float64), xs[0], xs[-1])
     if len(puntos) == 2:
         y = ys[0] + (ys[1] - ys[0]) * (xf - xs[0]) / (xs[1] - xs[0])
         return np.clip(y, 0, 1).astype(np.float32).reshape(forma)
@@ -1805,6 +1862,128 @@ def color(rgb, ajustes):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  Estrellas aparte (estrellas_aparte.py separa las capas con StarNet2)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Con las estrellas separadas, el objeto y el fondo pasan por el mismo pipeline
+# (con dos diferencias: sin nitidez, que mide su PSF en las estrellas, y con el
+# color del fondo suavizado a gran escala, suavizar_color_fondo) y las estrellas
+# por el suyo: la capa unscreen U (fracción 0..1 sobre negro) se estira con la
+# MISMA curva del detalle que les habría aplicado estirar_multiescala si
+# siguieran en la foto, así salen con el brillo de siempre y con su color (la
+# ganancia multiplica los tres canales por igual), y después tienen su propia
+# saturación y SCNR. Las dos capas se juntan con una pantalla (screen):
+#   final = 1 - (1 - objeto)·(1 - estrellas·tamaño)
+# y «tamaño» (tamano_estrellas, 0..100 %) es el deslizador del editor: 0 = sin
+# estrellas, 100 = como salieron. El navegador repite la pantalla y los ajustes
+# de la capa en vivo (static/js/retoque.js); al guardar se hacen aquí en float.
+
+TAMANO_ESTRELLAS = 100.0      # por defecto: las estrellas tal como salen
+# Sin estrellas, el fondo se modela con más detalle: una rejilla más fina en
+# quitar_gradiente (sin estrellas la mediana de cada celda es limpia) para que
+# se lleve las sombras de polvo y los restos del viñeteo, que la foto normal
+# esconde detrás del campo de estrellas y que al subir el brillo salen como
+# manchas de otro tono; y el suavizado del color y los huecos a esta escala.
+REJILLA_SIN_ESTRELLAS = 32
+SIGMA_SUAVIZADO_SIN_ESTRELLAS = 128.0
+
+
+def pantalla(objeto, estrellas):
+    """Mezcla «pantalla» (screen) de dos imágenes float [0, 1] del mismo tamaño."""
+    return (1.0 - (1.0 - objeto) * (1.0 - estrellas)).astype(np.float32)
+
+
+def estirar_capa_estrellas(U, curvas, balance=None):
+    """
+    U: capa unscreen (H, W, 3) float 0..1 (las estrellas sobre negro, lineal).
+    curvas: el dict que devuelve estirar_multiescala(devolver_curvas=True) para
+    el objeto. balance: ganancias {"r", "b"} de balance_estrellas (el color de las
+    estrellas se calibra con las mismas que el objeto, sin restar cielo: no lo
+    tienen). Devuelve float32 (H, W, 3) en [0, 1], no lineal: cada estrella con
+    el brillo que le daría la curva del detalle sobre el cielo y su color intacto.
+    """
+    U = np.clip(np.asarray(U, dtype=np.float32), 0, 1)
+    if balance:
+        U = np.clip(U * np.array([balance["r"], 1.0, balance["b"]], dtype=np.float32), 0, 1)
+    L = U.mean(axis=2)
+    S = curvas["S_detalle"]
+    m = np.float32(curvas["m"])
+    Ls = np.clip(S(m + L) - float(S(m)), 0, 1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ganancia = np.where(L > 1e-6, Ls / np.maximum(L, 1e-6), 0.0).astype(np.float32)
+    return np.clip(U * ganancia[..., None], 0, 1).astype(np.float32)
+
+
+def capa_estrellas_base(capa, ajustes):
+    """
+    La capa de estrellas estirada, lista para los ajustes rápidos: un solo color
+    por estrella (como en color_base) y la máscara de dónde hay estrella.
+    Devuelve (capa float32 [0, 1], mascara 0..1).
+    """
+    capa = np.clip(np.asarray(capa, dtype=np.float32), 0, 1)
+    gris = np.clip(capa.mean(axis=2) * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    mascara = cv2.GaussianBlur((gris > 2).astype(np.float32), (0, 0), 1.0)
+    if _bool(ajustes.get("color_estrellas_uniforme", True)):
+        capa = color_estrellas_uniforme(capa, mascara, cociente=True)
+    return capa, mascara
+
+
+def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
+    """
+    Los ajustes rápidos con las estrellas aparte, en este orden (el navegador
+    hace lo mismo, static/js/retoque.js, modo capas): sobre el objeto,
+    temperatura, brillo, SCNR y saturación general; sobre la capa de estrellas,
+    temperatura (sobre negro) y brillo, el SCNR si scnr_estrellas, su propia
+    saturación y el tamaño (0..100 %); pantalla de las dos y, al final, las curvas.
+    """
+    f = temperatura_color(f, ajustes.get("temperatura", 0.0), fondo=fondo)
+    f = brillo_general(f, ajustes.get("brillo", 0.0))
+    f = scnr_verde(f, ajustes.get("scnr", 0.8))
+    f = saturar(f, ajustes.get("saturacion", 1.5))
+    try:
+        tamano = float(np.clip(float(ajustes.get("tamano_estrellas", TAMANO_ESTRELLAS)), 0, 100)) / 100.0
+    except (TypeError, ValueError):
+        tamano = 1.0
+    c = np.clip(np.asarray(capa, dtype=np.float32), 0, 1)
+    c = temperatura_color(c, ajustes.get("temperatura", 0.0), fondo=np.zeros(3, dtype=np.float32))
+    c = brillo_general(c, ajustes.get("brillo", 0.0))
+    if _bool(ajustes.get("scnr_estrellas", True)):
+        c = scnr_verde(c, ajustes.get("scnr", 0.8))
+    sat_e = ajustes.get("saturacion_estrellas")
+    c = saturar(c, ajustes.get("saturacion", 1.5) if sat_e is None else sat_e)
+    out = pantalla(f, c * np.float32(tamano))
+    return aplicar_curvas(out, ajustes.get("curvas"))
+
+
+def procesar_capas(objeto_lineal, capa_U, n_fotos=1, ajustes=None, escala=1.0, progreso=None, balance=None, solo_base=False):
+    """
+    Como procesar(), pero con las estrellas aparte: objeto_lineal es el apilado
+    sin estrellas (3, H, W) o (H, W, 3) en ADU y capa_U la capa unscreen del mismo
+    tamaño (fracción 0..1), las dos de estrellas_aparte.separar. balance: el de
+    balance_estrellas medido en el apilado ORIGINAL (en el objeto ya no hay
+    estrellas con que medirlo; None deja el color sin calibrar).
+    Devuelve uint8 (h, w, 3) RGB. Con solo_base, (base del objeto float32 [0, 1],
+    capa de estrellas float32 [0, 1], mascara de estrellas): lo que el editor
+    manda al navegador para que haga él los ajustes rápidos y la pantalla.
+    """
+    ajustes = ajustes or leer_config()
+    U = np.asarray(capa_U, dtype=np.float32)
+    if U.ndim == 3 and U.shape[0] == 3:
+        U = np.transpose(U, (1, 2, 0))
+    if escala != 1.0:
+        h, w = U.shape[:2]
+        U = cv2.resize(U, (max(8, int(w * escala)), max(8, int(h * escala))), interpolation=cv2.INTER_AREA)
+    rgbf, curvas = _estirar_objeto(objeto_lineal, ajustes, escala, progreso, balance, sin_estrellas=True)
+    capa = estirar_capa_estrellas(U, curvas, balance)
+    f, __, __ = color_base(rgbf, ajustes)
+    capa, mascara = capa_estrellas_base(capa, ajustes)
+    if solo_base:
+        return f, capa, mascara
+    out = ajustes_rapidos_capas(f, capa, ajustes)
+    return np.clip(out * 255.0 + 0.5, 0, 255).astype(np.uint8)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  Pipeline completo
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1814,20 +1993,14 @@ def color(rgb, ajustes):
 SUBFASES = (("gradiente", 0.05), ("ruido", 0.35), ("nitidez", 0.10), ("estirando", 0.20), ("contraste", 0.12), ("color", 0.18))
 
 
-def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, balance="auto", solo_base=False):
+def _estirar_objeto(cubo_lineal, ajustes, escala, progreso, balance, sin_estrellas=False):
     """
-    cubo_lineal: (3, H, W) o (H, W, 3) float lineal (el apilado).
-    escala: 0.5 para la vista previa (4 veces más rápido), 1.0 para guardar.
-    progreso(subfase, fraccion): opcional; se llama al empezar cada paso (y
-    dentro del estirado) con la fracción 0..1 del procesado completo.
-    balance: el de balance_estrellas() medido en el campo completo, cuando lo
-    que llega aquí es un recorte de zoom; "auto" lo mide en la propia imagen y
-    None deja el color como antes (fondo igualado multiplicando).
-    Devuelve uint8 (h, w, 3) RGB listo para JPG. Con solo_base, se para antes
-    de los ajustes rápidos y devuelve (base float32 [0, 1], estrellas, pequenas),
-    lo que el editor de la galería manda al navegador para que los haga él.
+    Del cubo lineal a la imagen estirada con el contraste local, en float [0, 1]:
+    los pasos 1 a 4 de la cabecera. Devuelve (rgbf, curvas), con `curvas` el dict
+    de estirar_multiescala(devolver_curvas=True) (None con el STF). sin_estrellas:
+    la imagen es el objeto sin estrellas (procesar_capas): sin nitidez y con el
+    color del fondo suavizado a gran escala.
     """
-    ajustes = ajustes or leer_config()
     inicio = {}
     acumulado = 0.0
     for nombre, peso in SUBFASES:
@@ -1850,8 +2023,10 @@ def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, ba
 
     avisar("gradiente")
     if ajustes.get("gradiente", True):
-        rgb = quitar_gradiente(rgb)
-    if ajustes.get("aplanar", False):
+        rgb = quitar_gradiente(rgb, rejilla=REJILLA_SIN_ESTRELLAS if sin_estrellas else 12)
+    # Sin estrellas no se aplana: la rejilla fina ya se lleva las sombras de polvo y el
+    # aplanado (pensado para una foto con estrellas) dejaba manchas al guardar (Pacman, 24-oct-2026)
+    if ajustes.get("aplanar", False) and not sin_estrellas:
         rgb = aplanar_fondo(rgb, float(ajustes.get("escala_aplanado", 0.16)))
     if isinstance(balance, str):
         balance = balance_estrellas(rgb)
@@ -1874,28 +2049,57 @@ def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, ba
 
     avisar("ruido")
     rgb = reducir_ruido(rgb, ajustes.get("ruido", 0.5), progreso=lambda f: avisar("ruido", f))
+    if sin_estrellas:
+        rgb = suavizar_fondo_sin_estrellas(rgb, ajustes.get("ruido", 0.5), escala_imagen=escala,
+                                           sigma_px=SIGMA_SUAVIZADO_SIN_ESTRELLAS)
 
     # Nitidez (deconvolución) en lineal, con el ruido ya reducido y antes de
-    # estirar; 0 (lo normal) no hace nada
+    # estirar; 0 (lo normal) no hace nada. Sin estrellas no hay con qué medir la PSF.
     avisar("nitidez")
     try:
         nitidez = float(ajustes.get("nitidez", 0) or 0)
     except (TypeError, ValueError):
         nitidez = 0.0
-    if nitidez > 0:
+    if nitidez > 0 and not sin_estrellas:
         rgb = deconvolucionar(rgb, nitidez, progreso=lambda f: avisar("nitidez", f), escala=escala)
 
     # Neutralización + estirado, en coma flotante; de aquí al final todo sigue
     # así y se cuantiza a 8 bits una sola vez, al salir de color()
     avisar("estirando")
+    curvas = None
     if stf:
         rgbf = aplicar_parametros_stf(neutralizar_fondo(rgb), *parametros_stf).astype(np.float32)
+        if sin_estrellas:
+            # Para estirar la capa de estrellas hace falta una curva: la del multiescala con los ajustes
+            L = np.clip(neutralizar_fondo(rgb) / 65535.0, 0, None).mean(axis=2)
+            m, s = estadistica_fondo(L)
+            S = CurvaFondo(m, sigma_fondo(rgb) or s, float(ajustes.get("fondo_objetivo", 0.13)),
+                           float(ajustes.get("agresividad", 0.7)), str(ajustes.get("curva", "gamma")).lower())
+            curvas = {"m": float(m), "sigma": float(s), "S_detalle": S, "S_curva": S}
     else:
-        rgbf = estirar_multiescala(rgb, ajustes, escala_imagen=escala, sigma=sigma,
-                                   progreso=lambda f: avisar("estirando", f))
+        rgbf, curvas = estirar_multiescala(rgb, ajustes, escala_imagen=escala, sigma=sigma,
+                                           progreso=lambda f: avisar("estirando", f), devolver_curvas=True)
     avisar("contraste")
     rgbf = contraste_local(rgbf, ajustes.get("contraste", 0.5))
     avisar("color")
+    return rgbf, curvas
+
+
+def procesar(cubo_lineal, n_fotos=1, ajustes=None, escala=1.0, progreso=None, balance="auto", solo_base=False):
+    """
+    cubo_lineal: (3, H, W) o (H, W, 3) float lineal (el apilado).
+    escala: 0.5 para la vista previa (4 veces más rápido), 1.0 para guardar.
+    progreso(subfase, fraccion): opcional; se llama al empezar cada paso (y
+    dentro del estirado) con la fracción 0..1 del procesado completo.
+    balance: el de balance_estrellas() medido en el campo completo, cuando lo
+    que llega aquí es un recorte de zoom; "auto" lo mide en la propia imagen y
+    None deja el color como antes (fondo igualado multiplicando).
+    Devuelve uint8 (h, w, 3) RGB listo para JPG. Con solo_base, se para antes
+    de los ajustes rápidos y devuelve (base float32 [0, 1], estrellas, pequenas),
+    lo que el editor de la galería manda al navegador para que los haga él.
+    """
+    ajustes = ajustes or leer_config()
+    rgbf, __ = _estirar_objeto(cubo_lineal, ajustes, escala, progreso, balance)
     if solo_base:
         return color_base(rgbf, ajustes)
     return color(rgbf, ajustes)
