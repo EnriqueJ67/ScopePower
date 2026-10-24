@@ -1465,7 +1465,8 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None, sig
     log.debug("estirado %s: mediana %.5f sigma %.5f c0 %.5f blanco %.4f (detalle %.4f) param %.3g",
               S_curva.tipo, m, sigma, S_curva.c0, S_curva.blanco, blanco_detalle, S_curva.param)
     if devolver_curvas:
-        return out, {"m": float(m), "sigma": float(sigma), "S_detalle": S_detalle, "S_curva": S_curva}
+        return out, {"m": float(m), "sigma": float(sigma), "S_detalle": S_detalle, "S_curva": S_curva,
+                     "fondo_objetivo": fondo_objetivo, "agresividad": agresividad, "tipo": curva}
     return out
 
 
@@ -1809,6 +1810,14 @@ def fondo_cielo(rgbf):
     return np.array([m, m, m], dtype=np.float32)
 
 
+def _float(v, defecto=0.0):
+    """Un ajuste numérico tal como llega (número, texto o None); el defecto si no lo es."""
+    try:
+        return float(v) if v is not None and str(v).strip() != "" else defecto
+    except (TypeError, ValueError):
+        return defecto
+
+
 def _bool(v, defecto=True):
     if v is None:
         return defecto
@@ -1877,8 +1886,127 @@ def color(rgb, ajustes):
 # y «tamaño» (tamano_estrellas, 0..100 %) es el deslizador del editor: 0 = sin
 # estrellas, 100 = como salieron. El navegador repite la pantalla y los ajustes
 # de la capa en vivo (static/js/retoque.js); al guardar se hacen aquí en float.
+#
+# El tamaño REDUCE las estrellas, no las apaga ni las recorta: cada estrella se
+# vuelve a pintar como una campana de Gauss más estrecha, con su pico y su color.
+# Primero se hace un catálogo de la capa (catalogo_estrellas: posición, anchura y
+# color en el pico de cada una) y luego se pinta (pintar_estrellas). Todas
+# encogen en la MISMA proporción, sigma·tamaño, para que conserven su jerarquía
+# (las brillantes siguen siendo mayores que las débiles; encogiendo más las
+# brillantes, todas acababan del mismo tamaño y la foto perdía naturalidad), y
+# con un suelo suave, raíz((sigma·tamaño)² + SIGMA_MINIMA²): una estrella
+# pequeña nunca baja de medio píxel ni desaparece por quedarse entre píxeles,
+# y como conserva su pico se sigue viendo. Por debajo del 25 % el pico baja
+# con (tamaño/0,25)², hasta desaparecer todas al 0 %. Entre el 100 y el 85 % la
+# capa original y la pintada se funden poco a poco.
+#
+# Se probó antes a encoger el perfil de la propia capa (erosión, potencias con
+# el pico buscado en una ventana): las estrellas brillantes tienen la cima plana
+# (el estirado las lleva a su tope) y quedaban como discos de borde duro, y con
+# la ventana más pequeña que la estrella salía un anillo oscuro dentro (M 27 en
+# el mini PC, 24-oct-2026). La misma aritmética de pintar en static/js/retoque.js;
+# el catálogo lo hace solo el servidor y se manda al navegador con la vista previa.
 
 TAMANO_ESTRELLAS = 100.0      # por defecto: las estrellas tal como salen
+TAMANO_PICO = 0.25            # por debajo de este tamaño el pico baja con (tamaño / 0,25)²
+TAMANO_FUNDIDO = 0.85         # entre 1 y este tamaño se funde la capa original con la pintada
+UMBRAL_ESTRELLA = 0.03        # pico mínimo (capa estirada, 0..1) para entrar en el catálogo
+SIGMA_MINIMA = 0.5            # px: suelo suave de la anchura (se perdería entre píxeles)
+
+
+def catalogo_estrellas(capa):
+    """
+    capa: capa de estrellas estirada (H, W, 3) float [0, 1]. Devuelve un array
+    float32 (N, 6): x, y (centro, px), sigma (px) y r, g, b (color en el pico) de
+    cada estrella con pico por encima de UMBRAL_ESTRELLA.
+      - semillas: máximos locales (5×5) de la luminancia suavizada (0,8 px); las
+        de una misma cima plana se unen (dilatación 3×3 + componentes);
+      - cada píxel de estrella va a la semilla más cercana (distanceTransformWithLabels);
+      - pico P = máximo de la luminancia; sigma por el área por encima de P/2
+        (radio a media altura / 1,1774); centro y color pesados con L² en esa área.
+    """
+    c = np.clip(np.asarray(capa, dtype=np.float32), 0, 1)
+    L = c.max(axis=2)
+    Ls = cv2.GaussianBlur(L, (0, 0), 0.8)
+    semillas = ((Ls >= cv2.dilate(Ls, np.ones((5, 5), np.uint8)) - 1e-6) & (Ls > UMBRAL_ESTRELLA)).astype(np.uint8)
+    if not semillas.any():
+        return np.zeros((0, 6), np.float32)
+    semillas = cv2.dilate(semillas, np.ones((3, 3), np.uint8))
+    __, etiquetas = cv2.distanceTransformWithLabels(1 - semillas, cv2.DIST_L2, 3, labelType=cv2.DIST_LABEL_CCOMP)
+    ys, xs = np.nonzero(L > UMBRAL_ESTRELLA * 0.5)
+    lab = etiquetas[ys, xs].astype(np.int64)
+    Lm = L[ys, xs]
+    n = int(etiquetas.max()) + 1
+    P = np.zeros(n, np.float32)
+    np.maximum.at(P, lab, Lm)
+    sel = Lm >= P[lab] * 0.5
+    ys, xs, lab, Lm = ys[sel], xs[sel], lab[sel], Lm[sel]
+    area = np.bincount(lab, minlength=n).astype(np.float64)
+    peso = Lm.astype(np.float64) ** 2
+    sw = np.bincount(lab, peso, minlength=n)
+    ok = (area > 0) & (P > UMBRAL_ESTRELLA) & (sw > 0)
+    sw = np.where(sw > 0, sw, 1.0)
+    cx = np.bincount(lab, peso * xs, minlength=n) / sw
+    cy = np.bincount(lab, peso * ys, minlength=n) / sw
+    rgb = np.stack([np.bincount(lab, peso * c[ys, xs, k], minlength=n) / sw for k in range(3)], axis=1)
+    sigma = np.sqrt(area / np.pi) / 1.1774
+    tope = np.maximum(rgb.max(axis=1), 1e-6)
+    rgb = rgb / tope[:, None] * P[:, None]               # el color medio, llevado al pico
+    return np.column_stack([cx, cy, sigma, rgb])[ok].astype(np.float32)
+
+
+def pintar_estrellas(cat, forma, tamano):
+    """
+    Pinta el catálogo (catalogo_estrellas) en una capa (H, W, 3) float [0, 1] con
+    el tamaño 0..1: cada estrella una gaussiana de pico P = max(r, g, b) y sigma
+    = raíz((sigma·tamaño)² + SIGMA_MINIMA²) hasta 3,5 sigmas; donde
+    se solapan, manda la más brillante en ese píxel. Por debajo de TAMANO_PICO el
+    pico baja con (tamaño/TAMANO_PICO)². Igual que en static/js/retoque.js.
+    """
+    h, w = forma
+    out = np.zeros((h, w, 3), np.float32)
+    tamano = float(np.clip(tamano, 0.0, 1.0))
+    if tamano <= 0.0 or len(cat) == 0:
+        return out
+    Lout = np.zeros((h, w), np.float32)
+    apagado = (tamano / TAMANO_PICO) ** 2 if tamano < TAMANO_PICO else 1.0
+    for x, y, s, r, g, b in cat:
+        P = float(max(r, g, b))
+        s2 = math.sqrt((float(s) * tamano) ** 2 + SIGMA_MINIMA ** 2)
+        R = int(math.ceil(3.5 * s2))
+        xc, yc = int(round(float(x))), int(round(float(y)))
+        x0, x1 = max(0, xc - R), min(w, xc + R + 1)
+        y0, y1 = max(0, yc - R), min(h, yc + R + 1)
+        if x0 >= x1 or y0 >= y1:
+            continue
+        gx = np.exp(-((np.arange(x0, x1, dtype=np.float32) - np.float32(x)) ** 2) / np.float32(2 * s2 * s2))
+        gy = np.exp(-((np.arange(y0, y1, dtype=np.float32) - np.float32(y)) ** 2) / np.float32(2 * s2 * s2))
+        v = np.float32(P * apagado) * gy[:, None] * gx[None, :]
+        ventana = Lout[y0:y1, x0:x1]
+        mayor = v > ventana
+        ventana[mayor] = v[mayor]
+        f = v[mayor] / np.float32(P)
+        bloque = out[y0:y1, x0:x1]
+        bloque[mayor] = np.stack([f * r, f * g, f * b], axis=1)
+    return out
+
+
+def reducir_estrellas(capa, tamano, cat=None):
+    """
+    La capa de estrellas con el tamaño 0..1: la original al 100 %; entre el 100 y
+    el 85 % la original fundida con la pintada; por debajo, solo la pintada.
+    """
+    capa = np.clip(np.asarray(capa, dtype=np.float32), 0, 1)
+    tamano = float(np.clip(tamano, 0.0, 1.0))
+    if tamano >= 1.0:
+        return capa
+    if cat is None:
+        cat = catalogo_estrellas(capa)
+    pintada = pintar_estrellas(cat, capa.shape[:2], tamano)
+    a = float(np.clip((1.0 - tamano) / (1.0 - TAMANO_FUNDIDO), 0.0, 1.0))
+    return (capa * (1.0 - a) + pintada * a).astype(np.float32)
+
+
 # Sin estrellas, el fondo se modela con más detalle: una rejilla más fina en
 # quitar_gradiente (sin estrellas la mediana de cada celda es limpia) para que
 # se lleve las sombras de polvo y los restos del viñeteo, que la foto normal
@@ -1893,7 +2021,7 @@ def pantalla(objeto, estrellas):
     return (1.0 - (1.0 - objeto) * (1.0 - estrellas)).astype(np.float32)
 
 
-def estirar_capa_estrellas(U, curvas, balance=None):
+def estirar_capa_estrellas(U, curvas, balance=None, intensidad=0.0, compresion=0.0):
     """
     U: capa unscreen (H, W, 3) float 0..1 (las estrellas sobre negro, lineal).
     curvas: el dict que devuelve estirar_multiescala(devolver_curvas=True) para
@@ -1901,6 +2029,17 @@ def estirar_capa_estrellas(U, curvas, balance=None):
     estrellas se calibra con las mismas que el objeto, sin restar cielo: no lo
     tienen). Devuelve float32 (H, W, 3) en [0, 1], no lineal: cada estrella con
     el brillo que le daría la curva del detalle sobre el cielo y su color intacto.
+
+    El estirado propio de las estrellas (panel «Estrellas aparte»), con los dos a 0
+    el de siempre, el mismo que el objeto:
+      intensidad -1..1: la luz de las estrellas se multiplica por 2^(2·intensidad)
+                 antes de la curva (×4 a ×1/4): más o menos estrellas y más o menos
+                 brillantes, sin tocar la nebulosa ni el fondo;
+      compresion 0..1: el blanco de la curva sube del de la foto hacia el máximo
+                 (como «Compresión de lo brillante», pero solo en las estrellas):
+                 con 0 los núcleos de las brillantes se cortan en su tope y quedan
+                 planos; con 1 nada se corta y conservan el perfil y el color hasta
+                 el centro.
     """
     U = np.clip(np.asarray(U, dtype=np.float32), 0, 1)
     if balance:
@@ -1908,7 +2047,12 @@ def estirar_capa_estrellas(U, curvas, balance=None):
     L = U.mean(axis=2)
     S = curvas["S_detalle"]
     m = np.float32(curvas["m"])
-    Ls = np.clip(S(m + L) - float(S(m)), 0, 1)
+    compresion = float(np.clip(compresion or 0.0, 0.0, 1.0))
+    if compresion > 0 and "fondo_objetivo" in curvas:
+        S = CurvaFondo(float(m), curvas["sigma"], curvas["fondo_objetivo"], curvas["agresividad"], curvas["tipo"],
+                       blanco=float(S.blanco ** (1.0 - compresion)))
+    ganancia_luz = np.float32(2.0 ** (2.0 * float(np.clip(intensidad or 0.0, -1.0, 1.0))))
+    Ls = np.clip(S(m + L * ganancia_luz) - float(S(m)), 0, 1)
     with np.errstate(divide="ignore", invalid="ignore"):
         ganancia = np.where(L > 1e-6, Ls / np.maximum(L, 1e-6), 0.0).astype(np.float32)
     return np.clip(U * ganancia[..., None], 0, 1).astype(np.float32)
@@ -1934,7 +2078,9 @@ def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
     hace lo mismo, static/js/retoque.js, modo capas): sobre el objeto,
     temperatura, brillo, SCNR y saturación general; sobre la capa de estrellas,
     temperatura (sobre negro) y brillo, el SCNR si scnr_estrellas, su propia
-    saturación y el tamaño (0..100 %); pantalla de las dos y, al final, las curvas.
+    saturación y sus propias curvas (curvas_estrellas; el tamaño, 0..100 %, va
+    antes de todo: la capa se vuelve a pintar con reducir_estrellas y su
+    catálogo); pantalla de las dos y, al final, las curvas de la foto.
     """
     f = temperatura_color(f, ajustes.get("temperatura", 0.0), fondo=fondo)
     f = brillo_general(f, ajustes.get("brillo", 0.0))
@@ -1944,14 +2090,15 @@ def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
         tamano = float(np.clip(float(ajustes.get("tamano_estrellas", TAMANO_ESTRELLAS)), 0, 100)) / 100.0
     except (TypeError, ValueError):
         tamano = 1.0
-    c = np.clip(np.asarray(capa, dtype=np.float32), 0, 1)
+    c = reducir_estrellas(capa, tamano)
     c = temperatura_color(c, ajustes.get("temperatura", 0.0), fondo=np.zeros(3, dtype=np.float32))
     c = brillo_general(c, ajustes.get("brillo", 0.0))
     if _bool(ajustes.get("scnr_estrellas", True)):
         c = scnr_verde(c, ajustes.get("scnr", 0.8))
     sat_e = ajustes.get("saturacion_estrellas")
     c = saturar(c, ajustes.get("saturacion", 1.5) if sat_e is None else sat_e)
-    out = pantalla(f, c * np.float32(tamano))
+    c = aplicar_curvas(c, ajustes.get("curvas_estrellas"))     # las curvas propias de las estrellas, antes de juntarlas
+    out = pantalla(f, c)
     return aplicar_curvas(out, ajustes.get("curvas"))
 
 
@@ -1974,7 +2121,8 @@ def procesar_capas(objeto_lineal, capa_U, n_fotos=1, ajustes=None, escala=1.0, p
         h, w = U.shape[:2]
         U = cv2.resize(U, (max(8, int(w * escala)), max(8, int(h * escala))), interpolation=cv2.INTER_AREA)
     rgbf, curvas = _estirar_objeto(objeto_lineal, ajustes, escala, progreso, balance, sin_estrellas=True)
-    capa = estirar_capa_estrellas(U, curvas, balance)
+    capa = estirar_capa_estrellas(U, curvas, balance, intensidad=_float(ajustes.get("intensidad_estrellas"), 0.0),
+                                  compresion=_float(ajustes.get("compresion_estrellas"), 0.0))
     f, __, __ = color_base(rgbf, ajustes)
     capa, mascara = capa_estrellas_base(capa, ajustes)
     if solo_base:
@@ -2075,7 +2223,9 @@ def _estirar_objeto(cubo_lineal, ajustes, escala, progreso, balance, sin_estrell
             m, s = estadistica_fondo(L)
             S = CurvaFondo(m, sigma_fondo(rgb) or s, float(ajustes.get("fondo_objetivo", 0.13)),
                            float(ajustes.get("agresividad", 0.7)), str(ajustes.get("curva", "gamma")).lower())
-            curvas = {"m": float(m), "sigma": float(s), "S_detalle": S, "S_curva": S}
+            curvas = {"m": float(m), "sigma": float(s), "S_detalle": S, "S_curva": S,
+                      "fondo_objetivo": float(ajustes.get("fondo_objetivo", 0.13)),
+                      "agresividad": float(ajustes.get("agresividad", 0.7)), "tipo": S.tipo}
     else:
         rgbf, curvas = estirar_multiescala(rgb, ajustes, escala_imagen=escala, sigma=sigma,
                                            progreso=lambda f: avisar("estirando", f), devolver_curvas=True)

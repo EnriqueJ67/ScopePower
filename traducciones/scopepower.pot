@@ -1603,6 +1603,10 @@ msgstr ""
 msgid "Compresión de lo brillante"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Compresión de los núcleos"
+msgstr ""
+
 #: templates/home.html
 msgid "Comprobando el equipo..."
 msgstr ""
@@ -1633,6 +1637,10 @@ msgstr ""
 
 #: static/js/asistente.js
 msgid "Comprueba que la montura está encendida y conectada al PC y que el driver es el de tu modelo."
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en el panel Procesado (⚡)."
 msgstr ""
 
 #: templates/imagen.html
@@ -1934,16 +1942,16 @@ msgstr ""
 msgid "Curvas cambiadas · pulsa \"Aplicar a la vista previa\""
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Curvas de las estrellas"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Curvas por puntos (RGB y por canal)"
 msgstr ""
 
 #: templates/galeria.html
 msgid "Cuánto más oscura que la fotosfera tiene que ser una zona para contar como mancha"
-msgstr ""
-
-#: templates/editar_foto.html
-msgid "Cuánto pesan las estrellas al volver a juntarlas (pantalla): 100 % = como salieron, 0 % = solo el objeto y el fondo. A medio camino quedan más pequeñas y discretas."
 msgstr ""
 
 #: templates/apilado.html
@@ -3529,6 +3537,10 @@ msgstr ""
 msgid "Estirado"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto."
+msgstr ""
+
 #. js
 #: ScopePower.py
 msgid "Estirando"
@@ -4641,6 +4653,10 @@ msgstr ""
 
 #: templates/configuracion.html
 msgid "Intensidad de color"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Intensidad de las estrellas"
 msgstr ""
 
 #: ScopePower.py
@@ -7260,6 +7276,10 @@ msgstr ""
 msgid "Reducción de ruido"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar como una campana de Gauss más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
+msgstr ""
+
 #. js
 #: ScopePower.py
 msgid "Reduciendo el ruido"
@@ -8121,6 +8141,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Solo para fotos de noche; haz una foto primero."
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas del panel Curvas actúan después sobre la foto entera."
 msgstr ""
 
 #: templates/apilado.html
