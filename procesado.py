@@ -1934,6 +1934,7 @@ HALO_SIGMAS = 6.0             # radio del modelo del halo, en sigmas de la estre
 HALO_RADIO_MAX = 120          # px
 CIMA = 0.97                   # luminancia (canal mayor) a partir de la que la cima de una estrella está cortada
 CIMA_Q_MAX = 0.85             # tope de cima / media altura (sobreexposición hasta 2^5,7 = 50)
+MESETA = 0.9                  # por encima, lo conectado es la cima de una sola estrella
 
 
 def catalogo_estrellas(capa):
@@ -2007,7 +2008,8 @@ def _medir_estrellas(c):
     """
     Una pasada del catálogo sobre c (H, W, 3) float [0, 1]:
       - semillas: máximos locales (5×5) de la luminancia suavizada (0,8 px); las
-        de una misma cima plana se unen (dilatación 3×3 + componentes);
+        de una misma cima plana se unen (dilatación 3×3, más lo que pasa de
+        MESETA, + componentes);
       - cada píxel de estrella va a la semilla más cercana (distanceTransformWithLabels);
       - pico P = máximo de la luminancia; sigma por el área por encima de P/2
         (radio a media altura / 1,1774); centro y color pesados con L² en esa área.
@@ -2023,6 +2025,11 @@ def _medir_estrellas(c):
     if not semillas.any():
         return np.zeros((0, 7), np.float32)
     semillas = cv2.dilate(semillas, np.ones((3, 3), np.uint8))
+    # Una cima cortada con huecos (0,93 entre zonas de 0,99) daba varios máximos
+    # locales: la misma estrella partida en dos, y la segunda salía al reducir como
+    # una estrella inventada a su lado (M 17 en la vista previa, 25-oct-2026). Todo
+    # lo que está por encima de MESETA y conectado es una sola semilla.
+    semillas |= (Ls >= MESETA).astype(np.uint8)
     __, etiquetas = cv2.distanceTransformWithLabels(1 - semillas, cv2.DIST_L2, 3, labelType=cv2.DIST_LABEL_CCOMP)
     ys, xs = np.nonzero(L > UMBRAL_ESTRELLA * 0.5)
     lab = etiquetas[ys, xs].astype(np.int64)

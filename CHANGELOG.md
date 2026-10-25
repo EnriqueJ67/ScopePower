@@ -50,6 +50,10 @@ día de la release. El número de versión vive en `version.py`.
   recortado a 1 canal a canal, y la cima encoge con la estrella. Las débiles no cambian. El
   catálogo pasa a 10 bytes por estrella en la vista previa (60 KB en M 17), y el navegador pinta
   igual que el servidor (1 nivel como mucho).
+- Arreglado: una estrella brillante con huecos en la cima cortada (0,93 entre zonas de 0,99) se
+  partía en dos en el catálogo y al reducir salía al lado una estrella inventada, oliva y grande,
+  rodeada de otras naranjas (M 17 en la vista previa del mini PC). Ahora todo lo que pasa de 0,9 y
+  está conectado es la cima de una sola estrella.
 - Cambiado: «Un solo color por estrella» en la capa de estrellas aparte reparte el color en
   1,5 px en vez de 4. Con 4 px, en campos densos como M 17 se mezclaba el color de estrellas
   vecinas y la variedad de colores bajaba un 17 %; ahora, un 6 %.

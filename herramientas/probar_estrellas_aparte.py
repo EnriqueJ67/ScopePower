@@ -21,7 +21,8 @@
 #   8. el estirado propio de las estrellas (intensidad, compresión de los núcleos).
 #   9. el contraste local sin estrellas no levanta el ruido del cielo (borbotones).
 #  10. el catálogo no convierte en estrellas grandes las débiles sobre el halo de una brillante;
-#  11. al reducir, las brillantes conservan la cima blanca (sobreexposición y recorte).
+#  11. al reducir, las brillantes conservan la cima blanca (sobreexposición y recorte), y
+#      una cima con huecos sigue siendo una sola estrella.
 
 import os
 import sys
@@ -351,6 +352,13 @@ def prueba_cima_blanca():
     r10 = procesado.pintar_estrellas(cat, capa.shape[:2], 0.1)
     comprobar(r10[60, 60].max() < 0.97 and r10[60, 60, 2] < 0.6 * r10[60, 60, 0],
               f"al 10 % se apaga, cima incluida, y queda de su color: {np.round(r10[60, 60], 2).tolist()}")
+    # Cima con huecos (como la brillante de M 17 en la vista previa: 0,93 entre zonas de 0,99):
+    # varios máximos locales en la misma cima, pero una sola estrella
+    hueco = 1.0 - 0.07 * np.exp(-((xx - 60) ** 2 + (yy - 60) ** 2) / (2 * 1.5 ** 2))
+    con_huecos = (capa * np.minimum(hueco, 1.0)[..., None] * (1.0 - 0.06 * (np.sin(xx) * np.sin(yy) > 0.7))[..., None]).astype(np.float32)
+    cat_h = procesado.catalogo_estrellas(con_huecos)
+    d = np.hypot(cat_h[:, 0] - 60, cat_h[:, 1] - 60)
+    comprobar(int((d < 15).sum()) == 1, f"cima con huecos: una sola estrella ({int((d < 15).sum())})")
 
 
 if __name__ == "__main__":
