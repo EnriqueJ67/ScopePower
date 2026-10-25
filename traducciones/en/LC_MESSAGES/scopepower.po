@@ -182,6 +182,14 @@ msgstr "0°, 0° is in the middle of the ocean: enter your observatory's locatio
 msgid "1 minuto"
 msgstr "1 minute"
 
+#: templates/visor_video.html
+msgid "10 fotogramas adelante"
+msgstr "10 frames forward"
+
+#: templates/visor_video.html
+msgid "10 fotogramas atrás"
+msgstr "10 frames back"
+
 #: templates/apilado.html
 msgid "10 menos"
 msgstr "10 fewer"
@@ -335,6 +343,10 @@ msgstr "<b>iOptron</b>: USB or serial cable to the PC. The port is chosen with �
 msgid "<b>{libre} GB libres</b> de {total} GB en {unidad} · {pct} % libre"
 msgstr "<b>{libre} GB free</b> of {total} GB on {unidad} · {pct}% free"
 
+#: templates/visor_video.html
+msgid "A cámara lenta (¼)"
+msgstr "Slow motion (¼)"
+
 #: humor.py
 msgid "A este nivel no tengo nada que añadir. Sube un poco."
 msgstr "Nothing to add at this level. Turn it up a bit."
@@ -350,6 +362,10 @@ msgstr "At optical depth 0.3 the three colours give {r}, {g} and {b} K (the grey
 #: static/js/fotometria_solar.js
 msgid "A profundidad óptica 0,3: {l} K (el modelo gris de Eddington, {e} K, en discontinua)."
 msgstr "At optical depth 0.3: {l} K (the grey Eddington model, {e} K, dashed)."
+
+#: templates/visor_video.html
+msgid "A tiempo real se saltan los fotogramas que no llegan a tiempo (con el wifi de campo, casi todos); «Todos los fotogramas» los enseña uno a uno, tan rápido como llegan. Las flechas del teclado mueven de uno en uno."
+msgstr "In real time, frames that do not arrive in time are skipped (on the field wifi, almost all of them); \"Every frame\" shows them one by one, as fast as they arrive. The arrow keys move one frame at a time."
 
 #: estrellas_aparte.py
 msgid "A {producto} le falta una biblioteca de Windows para arrancar, casi siempre el Visual C++ de Microsoft (MSVCP140.dll). Instálalo en este PC desde {url} y vuelve a probar, sin reiniciar; si ya estaba instalado, reinstala {producto}."
@@ -702,6 +718,10 @@ msgstr "Announce IP by voice"
 msgid "Anunciar el inicio y el final de cada foto"
 msgstr "Announce the start and end of each shot"
 
+#: visor_video.py
+msgid "Análisis cancelado"
+msgstr "Analysis cancelled"
+
 #: ScopePower.py
 msgid "Apagado cancelado"
 msgstr "Shutdown canceled"
@@ -794,6 +814,11 @@ msgstr "Stacked {usados} of {frames} frames in {s} s"
 msgid "Apilando"
 msgstr "Stacking"
 
+#. js
+#: templates/visor_video.html
+msgid "Apilando otro vídeo ({nombre})"
+msgstr "Stacking another video ({nombre})"
+
 #: apilado_video.py
 msgid "Apilando {nombre}..."
 msgstr "Stacking {nombre}..."
@@ -802,6 +827,10 @@ msgstr "Stacking {nombre}..."
 #: templates/imagen.html
 msgid "Apilar"
 msgstr "Stack"
+
+#: templates/visor_video.html
+msgid "Apilar los mejores fotogramas"
+msgstr "Stack the best frames"
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Aplanar fondo a gran escala (no usar con nebulosas extensas)"
@@ -1083,7 +1112,7 @@ msgid "Borrar el preset seleccionado"
 msgstr "Delete the selected preset"
 
 #. js
-#: templates/imagen.html
+#: templates/galeria.html templates/imagen.html templates/visor_video.html
 msgid "Borrar el vídeo del mini PC"
 msgstr "Delete the video from the mini PC"
 
@@ -1262,7 +1291,7 @@ msgstr "Field {ra} {dec}"
 #: templates/_asistente.html templates/_puesta_estacion.html
 #: templates/alineacion.html templates/apagar.html templates/apilado.html
 #: templates/calibracion.html templates/dark.html templates/editar_dia.html
-#: templates/flats.html templates/imagen.html
+#: templates/flats.html templates/imagen.html templates/visor_video.html
 msgid "Cancelar"
 msgstr "Cancel"
 
@@ -1890,6 +1919,11 @@ msgstr "Contrast"
 #: ScopePower.py templates/apilado.html templates/editar_foto.html
 msgid "Contraste local"
 msgstr "Local contrast"
+
+#. js
+#: templates/visor_video.html
+msgid "Contraste {z} veces el ruido"
+msgstr "Contrast {z} times the noise"
 
 #: templates/control.html templates/home.html
 msgid "Control manual"
@@ -2926,6 +2960,10 @@ msgstr "This photo's video is no longer on the mini PC; it cannot be stacked aga
 msgid "El vídeo está vacío"
 msgstr "The video is empty"
 
+#: visor_video.py
+msgid "El vídeo no tiene el fotograma {i}"
+msgstr "The video has no frame {i}"
+
 #: apilado_video.py
 msgid "El vídeo no tiene ningún fotograma aprovechable"
 msgstr "The video has no usable frame"
@@ -2972,7 +3010,7 @@ msgid "Eliminar imagen"
 msgstr "Delete image"
 
 #. js
-#: templates/imagen.html
+#: templates/imagen.html templates/visor_video.html
 msgid "Empezando el apilado..."
 msgstr "Starting the stacking..."
 
@@ -3079,6 +3117,11 @@ msgstr "In Sagittarius. A name of Babylonian origin. Used in navigation."
 #: templates/apilado.html
 msgid "En azul claro, además de los objetos populares (en amarillo). 0 = no anotarlos. Se aplica en la siguiente vista previa y en la galería."
 msgstr "In light blue, in addition to the popular objects (in yellow). 0 = don't annotate them. Applies to the next preview and in the gallery."
+
+#. js
+#: templates/visor_video.html
+msgid "En cola detrás de otro vídeo…"
+msgstr "Queued behind another video…"
 
 #: templates/configuracion.html
 msgid "En el PC donde corre ScopePower (no en el móvil), descarga StarNet2 de su web, en «Command-line Tools», la versión de Windows:"
@@ -3562,6 +3605,10 @@ msgstr "This driver doesn't support ClearSyncTo or the app didn't respond: {e}"
 #: templates/configuracion.html
 msgid "Este driver no permite cambiar la ganancia desde la app."
 msgstr "This driver doesn't allow changing the gain from the app."
+
+#: templates/visor_video.html
+msgid "Este fotograma"
+msgstr "This frame"
 
 #: static/js/ubicacion_movil.js
 msgid "Este navegador no da la ubicación."
@@ -4106,9 +4153,25 @@ msgstr "Shot {n}/{total}: {exposicion}, level {nivel} % (saturated)"
 msgid "Foto {n}: exponiendo"
 msgstr "Shot {n}: exposing"
 
+#: templates/visor_video.html
+msgid "Fotograma"
+msgstr "Frame"
+
+#: templates/visor_video.html
+msgid "Fotograma anterior (←)"
+msgstr "Previous frame (←)"
+
+#: ScopePower.py
+msgid "Fotograma no válido"
+msgstr "Invalid frame"
+
 #: seguimiento.py
 msgid "Fotograma perdido: {e}"
 msgstr "Frame lost: {e}"
+
+#: templates/visor_video.html
+msgid "Fotograma siguiente (→)"
+msgstr "Next frame (→)"
 
 #: templates/seguimiento.html
 msgid "Fotogramas perdidos"
@@ -4173,7 +4236,7 @@ msgstr "NGC/IC galaxies and nebulae down to magnitude"
 #. js
 #: espacio_disco.py templates/base.html templates/editar_dia.html
 #: templates/editar_foto.html templates/galeria.html templates/home.html
-#: templates/rastros.html
+#: templates/rastros.html templates/visor_video.html
 msgid "Galería"
 msgstr "Gallery"
 
@@ -4359,6 +4422,10 @@ msgstr "Recording mono video to {nombre} ({formatos})"
 msgid "Grabando {nombre} · {t}{total} · {n} fotogramas · {mb} MB"
 msgstr "Recording {nombre} · {t}{total} · {n} frames · {mb} MB"
 
+#: templates/galeria.html
+msgid "Grabando…"
+msgstr "Recording…"
+
 #. js
 #: templates/imagen.html
 msgid "Grabar vídeo"
@@ -4392,6 +4459,10 @@ msgstr "Saved to the gallery as {archivo}"
 #: ScopePower.py
 msgid "Guardada en la galería como {archivo} (falló el procesado del apilado; guardada con el revelado rápido)"
 msgstr "Saved to the gallery as {archivo} (the stacking processing failed; saved with the quick development)"
+
+#: ScopePower.py
+msgid "Guardado en la galería como {archivo}"
+msgstr "Saved to the gallery as {archivo}"
 
 #. js
 #: templates/apilado.html
@@ -4447,7 +4518,7 @@ msgid "Guardar el mosaico en la galería al terminar"
 msgstr "Save the mosaic to the gallery when done"
 
 #: templates/apilado.html templates/editar_dia.html templates/editar_foto.html
-#: templates/imagen.html
+#: templates/imagen.html templates/visor_video.html
 msgid "Guardar en la galería"
 msgstr "Save to gallery"
 
@@ -5251,6 +5322,10 @@ msgstr "Moving the tube to altitude 0°, azimuth 0°..."
 msgid "Llevando el tubo al cero de los motores (movimiento {n})..."
 msgstr "Bringing the tube to the motors' zero position (move {n})..."
 
+#: templates/visor_video.html
+msgid "Lo que cruza por delante"
+msgstr "What crosses in front"
+
 #: templates/configuracion.html
 msgid "Lo que más crece son las fotos de la sesión (FITS) y la galería. Para liberar espacio copia la galería a otro equipo por la red y borra lo que ya no necesites desde la Galería."
 msgstr "What grows the most are the session shots (FITS) and the gallery. To free space, copy the gallery to another computer over the network and delete what you no longer need from the Gallery."
@@ -5845,6 +5920,10 @@ msgstr "Sharpness"
 msgid "Nitidez (deconvolución)"
 msgstr "Sharpening (deconvolution)"
 
+#: templates/visor_video.html
+msgid "Nitidez de cada fotograma y momentos en que algo cruza"
+msgstr "Sharpness of each frame and moments when something crosses"
+
 #: templates/_modal_humor.html
 msgid "Nivel de humor"
 msgstr "Humor level"
@@ -5901,6 +5980,11 @@ msgstr "It's not a ScopePower fault: Chrome only allows the microphone on https 
 #: grabador_video.py
 msgid "No es un fichero SER"
 msgstr "Not a SER file"
+
+#. js
+#: templates/visor_video.html
+msgid "No ha cruzado nada por delante."
+msgstr "Nothing crossed in front."
 
 #: actualizar.py
 msgid "No había nada que actualizar"
@@ -6161,6 +6245,11 @@ msgstr "Couldn't annotate: {e}"
 msgid "No se pudo añadir"
 msgstr "Couldn't add it"
 
+#. js
+#: templates/galeria.html templates/visor_video.html
+msgid "No se pudo borrar"
+msgstr "Could not delete"
+
 #: ScopePower.py
 msgid "No se pudo borrar: {e}"
 msgstr "Could not delete: {e}"
@@ -6214,7 +6303,7 @@ msgstr "Couldn't center the object"
 msgid "No se pudo centrar: {e}"
 msgstr "Couldn't center: {e}"
 
-#: vivo_dia.py
+#: visor_video.py vivo_dia.py
 msgid "No se pudo codificar el JPG"
 msgstr "Could not encode the JPG"
 
@@ -6266,6 +6355,7 @@ msgstr "Couldn't run git: {e}"
 #. js
 #: static/js/seguimiento.js templates/calibracion.html
 #: templates/editar_dia.html templates/imagen.html templates/planetario.html
+#: templates/visor_video.html
 msgid "No se pudo empezar"
 msgstr "Could not start"
 
@@ -6780,7 +6870,9 @@ msgstr "Stopping"
 msgid "Parando el seguimiento..."
 msgstr "Stopping tracking..."
 
+#. js
 #: templates/control.html templates/imagen.html templates/seguimiento.html
+#: templates/visor_video.html
 msgid "Parar"
 msgstr "Stop"
 
@@ -7194,6 +7286,10 @@ msgstr "Points to visit"
 msgid "Puntuación"
 msgstr "Score"
 
+#: templates/visor_video.html
+msgid "Pájaros, aviones o nubes: cada fotograma se compara con los de alrededor y salen los momentos en que aparece algo que ni estaba antes ni está después."
+msgstr "Birds, planes or clouds: each frame is compared with its neighbours, revealing the moments when something appears that was neither there before nor after."
+
 #: templates/editar_foto.html
 msgid "Píxeles alrededor del núcleo (y a lo largo de su recorrido) donde manda el apilado del cometa: dentro no se tocan los rastros ni se añaden estrellas. Súbelo si la coma o la cola se ven cortadas; bájalo si quedan rastros alrededor."
 msgstr "Pixels around the nucleus (and along its path) where the comet stack rules: inside, trails aren't touched and no stars are added. Raise it if the coma or tail look cut off; lower it if trails remain around it."
@@ -7352,6 +7448,11 @@ msgstr "Constellation tour"
 #: templates/constelacion.html
 msgid "Recorridos preparados"
 msgstr "Ready-made tours"
+
+#. js
+#: templates/visor_video.html
+msgid "Recorriendo el vídeo… {p} %"
+msgstr "Scanning the video… {p} %"
 
 #: templates/imagen.html
 #, python-format
@@ -7512,6 +7613,15 @@ msgstr "Reprocessed"
 msgid "Reprocesada (vista previa)"
 msgstr "Reprocessed (preview)"
 
+#. js
+#: templates/visor_video.html
+msgid "Reproducir"
+msgstr "Play"
+
+#: templates/visor_video.html
+msgid "Reproducir o parar (espacio)"
+msgstr "Play or stop (space)"
+
 #: templates/apilado.html
 msgid "Reserva su hueco cuando esté más alto (paso por el meridiano); los demás objetos se reparten alrededor"
 msgstr "Reserves its slot when it is highest (meridian transit); the other objects are spread around it"
@@ -7628,6 +7738,11 @@ msgstr "Developing at full resolution ({p} %)..."
 #: editor_dia.py
 msgid "Revelando a resolución completa..."
 msgstr "Developing at full resolution..."
+
+#. js
+#: templates/visor_video.html
+msgid "Revelando a resolución completa…"
+msgstr "Developing at full resolution…"
 
 #: ScopePower.py
 msgid "Revelando con el procesado del apilado..."
@@ -7802,6 +7917,10 @@ msgstr "Turning towards the east so as not to cross the meridian"
 #: puesta_estacion.py
 msgid "Se gira hacia el oeste para no cruzar el meridiano"
 msgstr "Turning towards the west so as not to cross the meridian"
+
+#: templates/visor_video.html
+msgid "Se guarda a resolución completa como una foto de día más, firmada y con su crudo: en la galería se puede editar como cualquier otra."
+msgstr "It is saved at full resolution as another daytime photo, signed and with its raw data: in the gallery it can be edited like any other."
 
 #: static/js/asistente.js
 msgid "Se ha abierto el selector de ASCOM en la pantalla del PC: elige el driver, pulsa <b>Properties</b> para configurarlo y cierra con <b>OK</b>."
@@ -8306,6 +8425,10 @@ msgstr "StarNet2 is a separate program by Mikita Misiura, free and with its own 
 msgid "Stellarium (catálogo local no cargado)"
 msgstr "Stellarium (local catalog not loaded)"
 
+#: templates/galeria.html
+msgid "Su apilado: volver a revelarlo o a apilar el vídeo"
+msgstr "Its stack: develop it again or restack the video"
+
 #. js
 #: templates/constelacion.html
 msgid "Su nombre significa 'guardián del oso'. Pertenece a la constelación del Boyero."
@@ -8490,6 +8613,10 @@ msgstr "Tile {i}: {motivo}; skipped"
 msgid "Teselas del mosaico"
 msgstr "Mosaic tiles"
 
+#: templates/visor_video.html
+msgid "Tiempo real"
+msgstr "Real time"
+
 #: templates/imagen.html
 msgid "Timelapse"
 msgstr "Timelapse"
@@ -8647,9 +8774,17 @@ msgstr "No GoTo has been done yet."
 msgid "Todavía no se ha medido ninguna foto."
 msgstr "No shot has been measured yet."
 
+#: templates/visor_video.html
+msgid "Todo el vídeo"
+msgstr "The whole video"
+
 #: templates/rastros.html
 msgid "Todos"
 msgstr "All"
+
+#: templates/visor_video.html
+msgid "Todos los fotogramas"
+msgstr "Every frame"
 
 #: templates/esta_noche.html
 msgid "Todos los tipos"
@@ -8813,6 +8948,10 @@ msgstr "Speed (°/s)"
 msgid "Velocidad Az / Alt (°/s)"
 msgstr "Az / Alt speed (°/s)"
 
+#: templates/visor_video.html
+msgid "Velocidad de reproducción"
+msgstr "Playback speed"
+
 #: ScopePower.py
 msgid "Velocidad desconocida"
 msgstr "Unknown rate"
@@ -8844,6 +8983,15 @@ msgstr "View the stacking-style development"
 msgid "Ver el revelado rápido"
 msgstr "View the quick development"
 
+#: templates/galeria.html
+msgid "Ver el vídeo"
+msgstr "View the video"
+
+#. js
+#: templates/galeria.html templates/imagen.html
+msgid "Ver el vídeo fotograma a fotograma"
+msgstr "View the video frame by frame"
+
 #: templates/planetario.html
 msgid "Ver en el mapa"
 msgstr "Show on map"
@@ -8868,6 +9016,11 @@ msgstr "View the gallery"
 #: templates/apilado.html
 msgid "Ver la noche"
 msgstr "View the night"
+
+#. js
+#: templates/imagen.html
+msgid "Ver los {n} vídeos en la galería"
+msgstr "See all {n} videos in the gallery"
 
 #: templates/base.html
 msgid "Ver qué ocupa"
@@ -8999,7 +9152,7 @@ msgid "Vuelve al recorte central de siempre"
 msgstr "Goes back to the usual central crop"
 
 #. js
-#: templates/imagen.html templates/seguimiento.html
+#: templates/galeria.html templates/imagen.html templates/seguimiento.html
 msgid "Vídeo"
 msgstr "Video"
 
@@ -9021,12 +9174,16 @@ msgstr "Video ready:"
 msgid "Vídeo {nombre}: {n} fotogramas en {s} s ({mb} MB)"
 msgstr "Video {nombre}: {n} frames in {s} s ({mb} MB)"
 
+#: templates/visor_video.html
+msgid "Vídeo · {objeto}"
+msgstr "Video · {objeto}"
+
 #: seguimiento.py
 msgid "Vídeo: {e}. El seguimiento continúa sin grabar"
 msgstr "Video: {e}. Tracking continues without recording"
 
 #. js
-#: espacio_disco.py
+#: espacio_disco.py templates/galeria.html
 msgid "Vídeos"
 msgstr "Videos"
 
@@ -9054,6 +9211,10 @@ msgstr "Already in the plan"
 #: ScopePower.py
 msgid "Ya estaba en la galería ({archivo})."
 msgstr "It was already in the gallery ({archivo})."
+
+#: templates/visor_video.html
+msgid "Ya está apilado:"
+msgstr "Already stacked:"
 
 #: editor_fotos.py
 msgid "Ya existe una foto llamada {nombre}"
@@ -9568,7 +9729,7 @@ msgid "ecuatorial alemana"
 msgstr "German equatorial"
 
 #. js
-#: templates/imagen.html
+#: templates/imagen.html templates/visor_video.html
 msgid "editar"
 msgstr "edit"
 
@@ -10390,7 +10551,7 @@ msgid "no se apila por el núcleo"
 msgstr "not stacked on the nucleus"
 
 #. js
-#: templates/galeria.html
+#: templates/galeria.html templates/visor_video.html
 msgid "no se pudo"
 msgstr "could not"
 
@@ -10978,6 +11139,11 @@ msgstr "see the stacked photo in the gallery"
 msgid "ver en la galería"
 msgstr "see it in the gallery"
 
+#. js
+#: templates/visor_video.html
+msgid "ver y editar el apilado"
+msgstr "view and edit the stack"
+
 #: templates/apilado.html
 msgid "visible"
 msgstr "visible"
@@ -10999,6 +11165,10 @@ msgstr "visible {desde}–{hasta}"
 #: templates/calibracion.html templates/flats.html
 msgid "viñeteo {v} %"
 msgstr "vignetting {v} %"
+
+#: templates/visor_video.html
+msgid "vídeo"
+msgstr "video"
 
 #: ScopePower.py
 msgid "{archivo} ha cambiado mientras se separaban las estrellas: se deja como estaba (las estrellas separadas quedan para el editor)"
@@ -11110,7 +11280,7 @@ msgid "{foto}: sin estrellas detectables (¿nubes, tapa, desenfoque?)"
 msgstr "{foto}: no detectable stars (clouds, cap on, out of focus?)"
 
 #. js
-#: templates/imagen.html
+#: templates/imagen.html templates/visor_video.html
 msgid "{fps} fotos/s"
 msgstr "{fps} frames/s"
 
@@ -11320,6 +11490,13 @@ msgstr[0] "{n} shot not saved"
 msgstr[1] "{n} shots not saved"
 
 #. js
+#: templates/galeria.html templates/visor_video.html
+msgid "{n} fotograma"
+msgid_plural "{n} fotogramas"
+msgstr[0] "{n} frame"
+msgstr[1] "{n} frames"
+
+#. js
 #: static/js/seguimiento.js templates/imagen.html
 msgid "{n} fotogramas"
 msgstr "{n} frames"
@@ -11350,7 +11527,6 @@ msgstr "{n} done"
 msgid "{n} hechos esta noche"
 msgstr "{n} done tonight"
 
-#. js
 #: templates/galeria.html
 msgid "{n} imagen guardada desde el apilado."
 msgid_plural "{n} imágenes guardadas desde el apilado."
@@ -11388,6 +11564,13 @@ msgid "{n} meteoro"
 msgid_plural "{n} meteoros"
 msgstr[0] "{n} meteor"
 msgstr[1] "{n} meteors"
+
+#. js
+#: templates/visor_video.html
+msgid "{n} momento con algo delante."
+msgid_plural "{n} momentos con algo delante."
+msgstr[0] "{n} moment with something in front."
+msgstr[1] "{n} moments with something in front."
 
 #. js
 #: templates/apilado.html
@@ -11465,6 +11648,12 @@ msgid "{n} toma"
 msgid_plural "{n} tomas"
 msgstr[0] "{n} frame"
 msgstr[1] "{n} frames"
+
+#: templates/galeria.html
+msgid "{n} vídeo grabado."
+msgid_plural "{n} vídeos grabados."
+msgstr[0] "{n} video recorded."
+msgstr[1] "{n} videos recorded."
 
 #: static/js/plan.js
 msgid "{n} ya estaban"
@@ -11630,13 +11819,19 @@ msgstr "{p} % illuminated"
 msgid "{rotulo}: esperando {s} s a que se asiente la montura"
 msgstr "{rotulo}: waiting {s} s for the mount to settle"
 
-#: vivo_dia.py
+#. js
+#: templates/visor_video.html vivo_dia.py
 msgid "{s} s"
 msgstr "{s} s"
 
 #: static/js/plan.js
 msgid "{s} s por foto apilada con {exp} s de exposición"
 msgstr "{s} s per stacked shot with {exp} s exposure"
+
+#. js
+#: templates/visor_video.html
+msgid "{s} s · fotograma {i} de {n}"
+msgstr "{s} s · frame {i} of {n}"
 
 #. js
 #: templates/imagen.html
@@ -11775,6 +11970,11 @@ msgstr "Delete the preset “{nombre}”?"
 #: templates/imagen.html
 msgid "¿Borrar el vídeo {nombre} del mini PC? El apilado de la galería, si lo hay, se queda."
 msgstr "Delete the video {nombre} from the mini PC? The stacked photo in the gallery, if any, stays."
+
+#. js
+#: templates/galeria.html templates/visor_video.html
+msgid "¿Borrar el vídeo {nombre} del mini PC? Son {gb} GB y no se puede deshacer. Su apilado, si lo tiene, se queda en la galería."
+msgstr "Delete the video {nombre} from the mini PC? It is {gb} GB and cannot be undone. Its stack, if any, stays in the gallery."
 
 #. js
 #: templates/rastros.html

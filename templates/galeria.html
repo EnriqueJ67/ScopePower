@@ -6,7 +6,7 @@
 <div class="pagina-cabecera">
     <div>
         <h1 class="pagina-titulo">{{ _("Galería") }}</h1>
-        <p class="pagina-sub" id="galeria-resumen">{{ ngettext("{n} imagen guardada desde el apilado.", "{n} imágenes guardadas desde el apilado.", imagenes|length) }}</p>
+        <p class="pagina-sub" id="galeria-resumen">{% if imagenes or not videos %}{{ ngettext("{n} imagen guardada desde el apilado.", "{n} imágenes guardadas desde el apilado.", imagenes|length) }}{% endif %}{% if videos %} {{ ngettext("{n} vídeo grabado.", "{n} vídeos grabados.", videos|length) }}{% endif %}</p>
     </div>
     <div class="pagina-acciones">
         <!-- Fotos que el apilado descartó por un rastro (aviones, satélites, posibles meteoros) -->
@@ -20,13 +20,16 @@
     </div>
 </div>
 
-{% if filtros|length > 1 %}
-<!-- Filtro por tipo de objeto: un chip por tipo con las fotos que hay de cada uno -->
+{% if filtros|length > 1 or (videos and imagenes) %}
+<!-- Filtro por tipo de objeto: un chip por tipo con las fotos y vídeos que hay de cada uno, y otro con solo los vídeos -->
 <div class="galeria-filtros" id="galeria-filtros">
-    <button type="button" class="chip activo" data-tipo="" onclick="filtrarGaleria('')">{{ _("Todas") }} <span class="n">{{ imagenes|length }}</span></button>
+    <button type="button" class="chip activo" data-tipo="" onclick="filtrarGaleria('')">{{ _("Todas") }} <span class="n">{{ imagenes|length + videos|length }}</span></button>
     {% for tipo, n in filtros %}
     <button type="button" class="chip" data-tipo="{{ tipo }}" onclick="filtrarGaleria('{{ tipo }}')">{{ _(tipo) }} <span class="n">{{ n }}</span></button>
     {% endfor %}
+    {% if videos %}
+    <button type="button" class="chip" data-tipo="__videos__" onclick="filtrarGaleria('__videos__')">▶ {{ _("Vídeos") }} <span class="n">{{ videos|length }}</span></button>
+    {% endif %}
 </div>
 {% endif %}
 
@@ -55,7 +58,7 @@
 </div>
 {% endif %}
 
-{% if not imagenes %}
+{% if not imagenes and not videos %}
 <div class="card centro">
     <svg class="ico" style="width: 40px; height: 40px; color: var(--text-3);"><use href="#i-galeria"/></svg>
     <p class="card-sub mt-2">{{ _("Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí.")|safe }}</p>
@@ -83,6 +86,32 @@
         <a class="foto-editar" href="/galeria/editar/{{ nombre }}" title="{{ _('Editar: reprocesar el FITS apilado con otros ajustes, firma y nombre') }}"><svg class="ico"><use href="#i-ajustes"/></svg></a>
         {% elif nombre in con_dia %}
         <a class="foto-editar" href="/galeria/editar-dia/{{ nombre }}" title="{{ _('Editar: volver a revelar la foto de día (exposición, contraste, detalle, nitidez, color) o volver a apilar el vídeo') }}"><svg class="ico"><use href="#i-ajustes"/></svg></a>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {# Los vídeos del mini PC (carpeta [Video]): la tarjeta abre el visor; se ordenan con las fotos por la fecha del nombre #}
+    {% for v in videos %}
+    {% set partes = v.nombre.rsplit('_', 2) %}
+    <div class="foto tarjeta tarjeta-video" data-video="{{ v.nombre }}" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes|length == 3 else v.nombre }}" data-tipo="{{ v.tipo }}">
+        <a class="foto-video" href="/galeria/video/{{ v.nombre }}" title="{{ _('Ver el vídeo fotograma a fotograma') }}">
+            {% if v.grabando %}<span class="foto-video-grabando">{{ _("Grabando…") }}</span>
+            {% else %}<img src="/videos/miniatura/{{ v.nombre }}" alt="{{ v.nombre }}" loading="lazy">{% endif %}
+            <span class="foto-video-insignia"><svg class="ico"><use href="#i-play"/></svg>{% if v.duracion_s %}{{ '%d:%02d'|format((v.duracion_s // 60)|int, (v.duracion_s % 60)|int) }} · {% endif %}{% if v.gb >= 0.1 %}{{ idioma.fmt_num(v.gb, 1) }} GB{% else %}{{ idioma.fmt_num(v.gb * 1000, 0) }} MB{% endif %}</span>
+        </a>
+        <div class="foto-pie">
+            <div class="foto-nombre">{{ v.objeto }}</div>
+            <div class="foto-tipo">{{ _("Vídeo") }}{% if v.error %} · ⚠️ {{ v.error }}{% elif v.frames %} · {{ ngettext("{n} fotograma", "{n} fotogramas", v.frames) }}{% endif %}</div>
+            <div class="foto-fecha">
+                {% if partes|length == 3 and partes[1]|length == 8 %}
+                {% if idioma.idioma_actual() == 'es' %}{{ partes[1][6:8] }}/{{ partes[1][4:6] }}/{{ partes[1][0:4] }}{% else %}{{ partes[1][0:4] }}-{{ partes[1][4:6] }}-{{ partes[1][6:8] }}{% endif %} · {{ partes[2][0:2] }}:{{ partes[2][2:4] }}
+                {% else %}{{ v.nombre }}{% endif %}
+            </div>
+        </div>
+        {% if not v.grabando %}
+        <button class="foto-borrar" onclick="eliminarVideo('{{ v.nombre }}', {{ v.gb }})" title="{{ _('Borrar el vídeo del mini PC') }}">×</button>
+        {% endif %}
+        {% if v.apilado %}
+        <a class="foto-editar" href="/galeria/editar-dia/{{ v.apilado }}" title="{{ _('Su apilado: volver a revelarlo o a apilar el vídeo') }}"><svg class="ico"><use href="#i-apilado"/></svg></a>
         {% endif %}
     </div>
     {% endfor %}
@@ -119,6 +148,8 @@
     <label class="switch" id="lightbox-anotar" onclick="event.stopPropagation()" style="display: none;" title="{{ _('Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos') }}"><input type="checkbox" id="anotar-activo" onchange="cambiarAnotaciones()"> {{ _("Anotaciones") }}</label>
     <button id="lightbox-compartir" class="btn btn-primary" onclick="event.stopPropagation(); compartirImagen(this.dataset.nombre, this)"><svg><use href="#i-compartir"/></svg>{{ _("Compartir") }}</button>
     <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>{{ _("Editar") }}</a>
+    <!-- Apilados y fotogramas que salen de un vídeo que sigue en el mini PC: abrir el vídeo en el visor -->
+    <a id="lightbox-video" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-play"/></svg>{{ _("Ver el vídeo") }}</a>
     <div class="lightbox-pie" id="lightbox-pie"></div>
 </div>
 
@@ -144,7 +175,9 @@
     const TITULO_ANOTAR_LUNA = {{ _('Nombres de los mares, cráteres y montes de la Luna encima de la foto')|tojson }};
     const TITULO_ANOTAR_SOL = {{ _('Manchas y grupos encima de la foto, con el Número de Wolf; el conteo se corrige tocando y se guarda')|tojson }};
     const anotable = nombre => CON_FITS.includes(nombre) || CON_LUNA.includes(nombre) || CON_SOL.includes(nombre);
-    const TOTAL_FOTOS = {{ imagenes|length }};
+    const TOTAL_FOTOS = {{ imagenes|length + videos|length }};
+    const DE_VIDEO = {{ de_video|tojson }};
+    const SOLO_VIDEOS = "__videos__";
 
     // Filtro por tipo de objeto (se recuerda entre visitas en este navegador)
     function filtrarGaleria(tipo) {
@@ -153,7 +186,7 @@
         chips.forEach(c => c.classList.toggle("activo", c.dataset.tipo === tipo));
         let visibles = 0;
         document.querySelectorAll("#galeria .foto").forEach(t => {
-            const ver = !tipo || t.dataset.tipo === tipo;
+            const ver = !tipo || (tipo === SOLO_VIDEOS ? !!t.dataset.video : t.dataset.tipo === tipo);
             t.style.display = ver ? "" : "none";
             if (ver) visibles++;
         });
@@ -169,10 +202,12 @@
             if (tipo === "Sol") pintarDiametroGaleria();
         }
         const resumen = document.getElementById("galeria-resumen");
-        if (resumen) resumen.textContent = tipo ? _("{n} de {total} imágenes · {tipo}", { n: visibles, total: TOTAL_FOTOS, tipo: _(tipo) })
-            : ngettext("{n} imagen guardada desde el apilado.", "{n} imágenes guardadas desde el apilado.", TOTAL_FOTOS);
+        if (resumen && tipo) resumen.textContent = _("{n} de {total} imágenes · {tipo}", { n: visibles, total: TOTAL_FOTOS, tipo: tipo === SOLO_VIDEOS ? _("Vídeos") : _(tipo) });
+        else if (resumen) resumen.textContent = resumen.dataset.inicial || resumen.textContent;
         try { localStorage.setItem("galeria_filtro_tipo", tipo); } catch (e) {}
     }
+    const resumenInicial = document.getElementById("galeria-resumen");
+    if (resumenInicial) resumenInicial.dataset.inicial = resumenInicial.textContent.trim();
     if (document.getElementById("galeria-filtros")) {
         let guardado = "";
         try { guardado = localStorage.getItem("galeria_filtro_tipo") || ""; } catch (e) {}
@@ -188,6 +223,9 @@
         const editar = document.getElementById('lightbox-editar');
         editar.href = (CON_DIA.includes(nombre_archivo) ? "/galeria/editar-dia/" : "/galeria/editar/") + encodeURIComponent(nombre_archivo);
         editar.style.display = CON_FITS.includes(nombre_archivo) || CON_DIA.includes(nombre_archivo) ? "" : "none";
+        const video = document.getElementById('lightbox-video'), origen = DE_VIDEO[nombre_archivo];
+        video.style.display = origen ? "" : "none";
+        if (origen) video.href = "/galeria/video/" + encodeURIComponent(origen.nombre) + (origen.fotograma != null ? "?f=" + origen.fotograma : "");
         const anotar = document.getElementById('lightbox-anotar');
         anotar.style.display = anotable(nombre_archivo) ? "" : "none";
         anotar.title = CON_SOL.includes(nombre_archivo) ? TITULO_ANOTAR_SOL : CON_LUNA.includes(nombre_archivo) ? TITULO_ANOTAR_LUNA : TITULO_ANOTAR;
@@ -535,6 +573,29 @@
     }
     ordenarGaleria("fecha");
 
+    // Un chip menos en el filtro del tipo de la tarjeta, en "Todas" y, si es un vídeo, en "Vídeos"
+    function descontarTarjeta(tarjeta) {
+        document.querySelectorAll("#galeria-filtros .chip").forEach(c => {
+            if (c.dataset.tipo === "" || c.dataset.tipo === tarjeta.dataset.tipo || (c.dataset.tipo === SOLO_VIDEOS && tarjeta.dataset.video)) {
+                const n = c.querySelector(".n");
+                if (n) n.textContent = Math.max(0, parseInt(n.textContent, 10) - 1);
+            }
+        });
+    }
+    // Borrar un vídeo quita varios GB del mini PC y no se puede deshacer: aviso propio, distinto del de las fotos
+    function eliminarVideo(nombre, gb) {
+        if (!confirm(_("¿Borrar el vídeo {nombre} del mini PC? Son {gb} GB y no se puede deshacer. Su apilado, si lo tiene, se queda en la galería.",
+                       { nombre, gb: fmtNum(gb, 1) }))) return;
+        fetch("/videos/borrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre }) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { alert(d.error || _("No se pudo borrar")); return; }
+                const tarjeta = document.querySelector(`.tarjeta-video[data-video="${CSS.escape(nombre)}"]`);
+                if (tarjeta) { descontarTarjeta(tarjeta); tarjeta.remove(); }
+            })
+            .catch(e => alert(e));
+    }
+
     function eliminarImagen(nombre) {
         if (!confirm(_("¿Seguro que quieres eliminar esta imagen?"))) return;
         fetch("/eliminar-imagen", {
@@ -547,13 +608,7 @@
                 if (data.ok) {
                     const tarjeta = document.querySelector(`.tarjeta button[onclick*="'${nombre}'"]`).closest(".foto");
                     tarjeta.remove();
-                    // Un chip menos en el filtro de su tipo (y en "Todas")
-                    document.querySelectorAll("#galeria-filtros .chip").forEach(c => {
-                        if (c.dataset.tipo === "" || c.dataset.tipo === tarjeta.dataset.tipo) {
-                            const n = c.querySelector(".n");
-                            if (n) n.textContent = Math.max(0, parseInt(n.textContent, 10) - 1);
-                        }
-                    });
+                    descontarTarjeta(tarjeta);
                 } else {
                     alert(data.mensaje || data.error);
                 }

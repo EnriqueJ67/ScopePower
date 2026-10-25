@@ -1197,7 +1197,12 @@
             }
             if (!d.videos.length) { cont.innerHTML = '<div class="texto-3">' + _("Todavía no hay ningún vídeo grabado.") + "</div>"; return; }
             const tApilar = _("Apilar"), tBorrar = _("Borrar el vídeo del mini PC"), tVerApilado = _("ver el apilado en la galería"), tEditar = _("editar");
-            cont.innerHTML = d.videos.map(v => {
+            const tVer = _("Ver el vídeo fotograma a fotograma");
+            // Aquí solo los últimos; todos están en la galería, con el visor
+            const RECIENTES = 3;
+            const tTodos = _("Ver los {n} vídeos en la galería", { n: d.videos.length });
+            const todos = d.videos.length > RECIENTES ? `<div class="mt-1"><a href="/galeria" onclick="verVideosEnGaleria()">${tTodos}</a></div>` : "";
+            cont.innerHTML = d.videos.slice(0, RECIENTES).map(v => {
                 const fecha = new Date(1000 * v.fecha);
                 const datos = v.error ? "⚠️ " + v.error
                     : _("{n} fotogramas", { n: v.frames }) + (v.duracion_s ? " · " + mmss(v.duracion_s) + (v.fps ? " · " + _("{fps} fotos/s", { fps: fmtNum(v.fps, 0) }) : "") : "") + ` · ${v.ancho}×${v.alto} · ${fmtNum(v.mb, 0)} MB`;
@@ -1207,12 +1212,15 @@
                     <div style="min-width: 0;"><div><strong>${v.nombre}</strong> <span class="texto-3">${fecha.toLocaleString()}</span></div>
                         <div class="texto-3" style="font-size: 12.5px;">${datos}</div>${apilado}</div>
                     <div class="fila" style="gap: 6px; flex-shrink: 0;">
+                        <a class="btn btn-secondary btn-sm" href="/galeria/video/${encodeURIComponent(v.nombre)}" title="${tVer}"><svg><use href="#i-play"/></svg></a>
                         <button type="button" class="btn btn-primary btn-sm" ${v.error || ocupado ? "disabled" : ""} onclick="apilarVideo('${v.nombre}')"><svg><use href="#i-apilado"/></svg>${tApilar}</button>
                         <button type="button" class="btn btn-secondary btn-sm" ${ocupado ? "disabled" : ""} onclick="borrarVideo('${v.nombre}')" title="${tBorrar}"><svg><use href="#i-papelera"/></svg></button>
                     </div></div>`;
-            }).join("");
+            }).join("") + todos;
         }).catch(() => {});
     }
+    // La galería se abre con el filtro de los vídeos (lo recuerda en este navegador)
+    function verVideosEnGaleria() { try { localStorage.setItem("galeria_filtro_tipo", "__videos__"); } catch (e) {} }
     function apilarVideo(nombre) {
         const est = document.getElementById("video-estado");
         est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Empezando el apilado...");
