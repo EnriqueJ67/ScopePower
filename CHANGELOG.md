@@ -5,6 +5,16 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Cambiado: con «Separar las estrellas al guardar» (`[Procesado] estrellas_aparte`), el guardado
+  del apilado termina con el JPG de siempre y la separación con StarNet2 y el reprocesado van
+  después, en una cola propia en segundo plano (`cola_estrellas.py`): de una foto en una, por
+  orden, con StarNet2 y el hilo de la cola a prioridad baja para que la captura y el apilado vayan
+  primero. Antes el guardado no terminaba hasta el final: el plan de la noche y el mosaico se
+  quedaban parados hasta 3 minutos por objeto y no se podía guardar otra foto mientras tanto. Si la
+  foto se edita, se renombra o se borra antes de que llegue su turno, no se toca (las estrellas
+  separadas quedan para el editor). Nunca hay dos StarNet2 a la vez: si el editor y la cola
+  coinciden, uno espera al otro, y con el mismo apilado el segundo usa las capas del primero. Si se
+  cierra ScopePower con fotos en la cola, se quedan con el JPG normal.
 - Nuevo: tarjeta «Estrellas aparte» en Configuración. Comprueba si StarNet2 está en el PC y si
   arranca de verdad (lo lanza con `--version`, sin diálogos de Windows), y lo dice con su versión
   y su ruta. Con StarNet2 funcionando se puede activar «Separar las estrellas al guardar el apilado
@@ -46,6 +56,12 @@ día de la release. El número de versión vive en `version.py`.
   la capa de estrellas antes de juntarla con el objeto, al instante en el navegador; las curvas
   del panel Curvas siguen actuando sobre la foto entera. La saturación propia de las estrellas
   ya existía (panel Procesado). Se guardan con la foto y en los presets.
+- Arreglado: si a StarNet2 le falta el Visual C++ de Microsoft (MSVCP140.dll, que su instalador no
+  trae; pasó en el mini PC de campo), Windows abría un diálogo de error y la separación de estrellas
+  se quedaba parada hasta que alguien pulsara Aceptar, algo imposible con la tablet como única
+  pantalla. Ahora StarNet2 se lanza sin diálogos de Windows y el panel «Estrellas aparte» dice qué
+  falta y dónde descargarlo (`vc_redist.x64.exe`); también avisa si el procesador no tiene las
+  instrucciones que usa.
 - Arreglado: borbotones oscuros en el fondo con las estrellas aparte. El contraste local (CLAHE)
   realzaba en el cielo sin estrellas el ruido de escala media y lo dejaba en manchas oscuras de
   10 a 30 píxeles (M 27 con contraste 0,7). Con las estrellas aparte ahora solo actúa donde hay
@@ -87,12 +103,6 @@ día de la release. El número de versión vive en `version.py`.
 - Cambiado: «Un solo color por estrella» en la capa de estrellas aparte reparte el color en
   1,5 px en vez de 4. Con 4 px, en campos densos como M 17 se mezclaba el color de estrellas
   vecinas y la variedad de colores bajaba un 17 %; ahora, un 6 %.
-- Arreglado: si a StarNet2 le falta el Visual C++ de Microsoft (MSVCP140.dll, que su instalador no
-  trae; pasó en el mini PC de campo), Windows abría un diálogo de error y la separación de estrellas
-  se quedaba parada hasta que alguien pulsara Aceptar, algo imposible con la tablet como única
-  pantalla. Ahora StarNet2 se lanza sin diálogos de Windows y el panel «Estrellas aparte» dice qué
-  falta y dónde descargarlo (`vc_redist.x64.exe`); también avisa si el procesador no tiene las
-  instrucciones que usa.
 - Nuevo: estrellas aparte en el editor de la galería (prototipo). Con StarNet2 instalado (el
   programa de Mikita Misiura, https://starnetastro.com/, aparte y con su propia licencia, como
   ASTAP; `[General] ruta_starnet`), el panel «Estrellas aparte» separa el apilado en objeto y

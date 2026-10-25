@@ -5572,24 +5572,28 @@ def estrellas_aparte_abrir():
     return jsonify({"ok": True})
 
 
-def _guardar_con_estrellas_aparte(destino, destino_fits, n, zona, encuadre, balance, meta):
+def _guardar_con_estrellas_aparte(destino, destino_fits, n, zona, encuadre, balance, meta, progreso, mtime_jpg):
     """
-    Segunda pasada del guardado en la galería con las estrellas aparte: separa el
-    FITS con StarNet2 (la pareja queda en static/fotos/capas/, el editor la
-    reutiliza), procesa objeto y estrellas por separado (procesado.procesar_capas)
+    Segunda pasada del guardado en la galería con las estrellas aparte, en la cola de
+    cola_estrellas.py (el guardado ya terminó con el JPG de siempre): separa el FITS
+    con StarNet2 a prioridad baja (la pareja queda en static/fotos/capas/, el editor
+    la reutiliza), procesa objeto y estrellas por separado (procesado.procesar_capas)
     con el mismo encuadre y sustituye el JPG. El JSON hermano apunta que la foto
-    lleva las estrellas aparte, para que el editor parta de ahí.
+    lleva las estrellas aparte, para que el editor parta de ahí. Si mientras tanto la
+    foto se ha editado, renombrado o borrado (su JPG ya no es el de mtime_jpg), no
+    se toca: las capas quedan para el editor. Devuelve el mensaje para la web.
     """
     import procesado
     import estrellas_aparte
+    archivo = os.path.basename(destino)
 
-    def progreso(f, texto):
-        GUARDADO["mensaje"] = "⏳ " + (texto or _("Separando las estrellas con {producto} ({p} %)...",
-                                                 producto=estrellas_aparte.NOMBRE_PRODUCTO, p=int(f * 100)))
-    objeto, estrellas = estrellas_aparte.separar_fits(destino_fits, progreso=progreso)
-    GUARDADO["mensaje"] = _("⏳ Procesando el objeto y las estrellas por separado...")
-    # La misma zona útil para las dos capas (sin ella, girar_campo la buscaría en cada una
-    # y en la de estrellas, negra casi entera, saldría otra)
+    def avance(f, texto):
+        progreso(texto or _("Separando las estrellas de {archivo} con {producto} ({p} %)...", archivo=archivo,
+                            producto=estrellas_aparte.NOMBRE_PRODUCTO, p=int(f * 100)))
+    objeto, estrellas = estrellas_aparte.separar_fits(destino_fits, progreso=avance, prioridad_baja=True)
+    progreso(_("Procesando el objeto y las estrellas de {archivo} por separado...", archivo=archivo))
+    # La misma zona útil para las dos capas (apilados sin ZONA* en la cabecera: cada
+    # capa daba otra y no casaban al juntarlas)
     zona = zona or procesado.zona_automatica(objeto)
     objeto, __ = procesado.girar_campo(objeto, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
     estrellas, __ = procesado.girar_campo(estrellas, encuadre["fraccion"], encuadre["giro"], zona, espejo=encuadre["espejo"])
@@ -5597,10 +5601,16 @@ def _guardar_con_estrellas_aparte(destino, destino_fits, n, zona, encuadre, bala
     imagen_bgr = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
     if meta["activa"]:
         imagen_bgr = firma.firmar(imagen_bgr, meta)
+    if not os.path.isfile(destino) or os.path.getmtime(destino) != mtime_jpg:
+        log.info("Estrellas aparte de %s: la foto ha cambiado en la galería mientras tanto; se deja como está "
+                 "(las capas quedan para el editor)", archivo)
+        return _("{archivo} ha cambiado mientras se separaban las estrellas: se deja como estaba (las estrellas "
+                 "separadas quedan para el editor)", archivo=archivo)
     cv2.imwrite(destino, imagen_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92])
     meta["ajustes"] = dict(meta.get("ajustes") or {}, estrellas_aparte=True, tamano_estrellas=procesado.TAMANO_ESTRELLAS)
     firma.guardar_meta(destino, meta)
-    log.info("Foto %s guardada con las estrellas aparte (StarNet2)", os.path.basename(destino))
+    log.info("Foto %s guardada con las estrellas aparte (StarNet2)", archivo)
+    return _("✅ {archivo} con las estrellas aparte", archivo=archivo)
 
 
 def guardar_apilado_en_galeria():
@@ -5667,16 +5677,6 @@ def guardar_apilado_en_galeria():
             meta["encuadre"] = {"zoom": int(round((1.0 - encuadre["fraccion"]) * 100)), "giro": encuadre["giro"],
                                 "espejo": encuadre["espejo"]}
             firma.guardar_meta(destino, meta)
-            # Estrellas aparte ([Procesado] estrellas_aparte = true y StarNet2 instalado):
-            # el JPG normal ya está a salvo; ahora se separan las estrellas (minutos) y se
-            # vuelve a procesar con el objeto y las estrellas por separado. Si algo falla,
-            # queda el JPG de siempre.
-            if _estrellas_aparte_al_guardar():
-                try:
-                    _guardar_con_estrellas_aparte(destino, destinoFits, n, zona, encuadre, balance, meta)
-                except Exception as e:
-                    log.exception("Error con las estrellas aparte al guardar en la galería")
-                    GUARDADO["mensaje"] = _("⚠️ Guardada sin las estrellas aparte: {e}", e=e)
             # Cometa: el apilado por el núcleo se guarda como una segunda foto
             # (<objeto>_<fecha>_nucleo), con el mismo encuadre y color
             a = apilado.apilador_global
@@ -5705,7 +5705,21 @@ def guardar_apilado_en_galeria():
                     print(f"☄️ Apilado por el núcleo guardado como {base_nucleo}.jpg")
                 except Exception as e:
                     log.exception("Error guardando el apilado por el núcleo del cometa")
-            GUARDADO.update({"ok": True, "mensaje": _("✅ Imagen guardada como {archivo} (y su FITS)", archivo=nombre_archivo)})
+            mensaje = _("✅ Imagen guardada como {archivo} (y su FITS)", archivo=nombre_archivo)
+            # Estrellas aparte ([Procesado] estrellas_aparte = true y StarNet2 instalado):
+            # el JPG normal ya está a salvo y el guardado termina aquí; la separación con
+            # StarNet2 (minutos) y el reprocesado van a la cola en segundo plano, así el
+            # plan de la noche, el mosaico y el siguiente guardado no esperan. Si algo
+            # falla, queda el JPG de siempre.
+            if _estrellas_aparte_al_guardar():
+                import cola_estrellas
+                mtime_jpg = os.path.getmtime(destino)
+                datos = (destino, destinoFits, n, zona, encuadre, balance, dict(meta))
+                delante = cola_estrellas.encolar(nombre_archivo, lambda progreso, d=datos, t=mtime_jpg:
+                                                 _guardar_con_estrellas_aparte(*d, progreso, t))
+                mensaje += " · " + (_("las estrellas se separan en segundo plano") if not delante else
+                                    _("las estrellas se separan en segundo plano ({n} por delante)", n=delante))
+            GUARDADO.update({"ok": True, "mensaje": mensaje})
             voz.decir(_("Imagen guardada en la galería"))
             humor.decir("foto_guardada")
         except Exception as e:
@@ -5740,7 +5754,8 @@ def esperar_guardado(timeout=180):
 
 @app.route('/guardar-imagen-estado')
 def guardar_imagen_estado():
-    return jsonify(GUARDADO)
+    import cola_estrellas
+    return jsonify(dict(GUARDADO, estrellas=cola_estrellas.estado()))
 
 
 @app.route('/config-procesado')

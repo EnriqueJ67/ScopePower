@@ -3433,6 +3433,10 @@ msgstr ""
 msgid "Esperando a que suba {objeto} ({hora})"
 msgstr ""
 
+#: estrellas_aparte.py
+msgid "Esperando a que termine la otra separación de estrellas..."
+msgstr ""
+
 #: plan_sesion.py
 msgid "Esperando al anochecer ({hora})"
 msgstr ""
@@ -3636,6 +3640,10 @@ msgstr ""
 
 #: templates/configuracion.html templates/editar_foto.html
 msgid "Estrellas aparte"
+msgstr ""
+
+#: cola_estrellas.py
+msgid "Estrellas aparte de {archivo} en {s} s"
 msgstr ""
 
 #. js
@@ -6123,6 +6131,10 @@ msgstr ""
 msgid "No se pudieron separar las estrellas"
 msgstr ""
 
+#: cola_estrellas.py
+msgid "No se pudieron separar las estrellas de {archivo}: {e}"
+msgstr ""
+
 #: ScopePower.py
 msgid "No se pudo abrir el navegador en el PC"
 msgstr ""
@@ -7058,6 +7070,10 @@ msgstr ""
 msgid "Procesando a resolución completa..."
 msgstr ""
 
+#: ScopePower.py
+msgid "Procesando el objeto y las estrellas de {archivo} por separado..."
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "Procesando..."
@@ -7918,12 +7934,20 @@ msgstr ""
 msgid "Sensor de {ancho} × {alto} píxeles."
 msgstr ""
 
-#: ScopePower.py estrellas_aparte.py
+#: estrellas_aparte.py
 msgid "Separando las estrellas con {producto} ({p} %)..."
 msgstr ""
 
 #: estrellas_aparte.py
 msgid "Separando las estrellas con {producto}..."
+msgstr ""
+
+#: ScopePower.py
+msgid "Separando las estrellas de {archivo} con {producto} ({p} %)..."
+msgstr ""
+
+#: cola_estrellas.py
+msgid "Separando las estrellas..."
 msgstr ""
 
 #: templates/configuracion.html
@@ -10074,6 +10098,14 @@ msgstr ""
 msgid "la zona se sale del sensor"
 msgstr ""
 
+#: ScopePower.py
+msgid "las estrellas se separan en segundo plano"
+msgstr ""
+
+#: ScopePower.py
+msgid "las estrellas se separan en segundo plano ({n} por delante)"
+msgstr ""
+
 #: camara_nativa.py
 msgid "leer ajuste"
 msgstr ""
@@ -10954,6 +10986,10 @@ msgstr ""
 #. js
 #: templates/calibracion.html templates/flats.html
 msgid "viñeteo {v} %"
+msgstr ""
+
+#: ScopePower.py
+msgid "{archivo} ha cambiado mientras se separaban las estrellas: se deja como estaba (las estrellas separadas quedan para el editor)"
 msgstr ""
 
 #. js
@@ -12060,10 +12096,6 @@ msgstr ""
 msgid "⏳ Procesando el mosaico a resolución completa..."
 msgstr ""
 
-#: ScopePower.py
-msgid "⏳ Procesando el objeto y las estrellas por separado..."
-msgstr ""
-
 #. js
 #: templates/editar_foto.html
 msgid "⏳ Separando las estrellas con {producto} (varios minutos)..."
@@ -12227,10 +12259,6 @@ msgstr ""
 #. js
 #: templates/configuracion.html
 msgid "⚠️ Esta carpeta es una copia, no un clon de GitHub. Ejecuta una vez actualizar_desde_github.bat en el mini PC para convertirla (no toca tu configuración ni tus fotos); después se podrá actualizar desde aquí."
-msgstr ""
-
-#: ScopePower.py
-msgid "⚠️ Guardada sin las estrellas aparte: {e}"
 msgstr ""
 
 #. js
@@ -12548,6 +12576,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "✅ Zoom guardado correctamente"
+msgstr ""
+
+#: ScopePower.py
+msgid "✅ {archivo} con las estrellas aparte"
 msgstr ""
 
 #. js

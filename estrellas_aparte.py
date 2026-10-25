@@ -83,6 +83,10 @@ SIN_DIALOGOS = 0x0001 | 0x0002 | 0x8000   # SEM_FAILCRITICALERRORS | SEM_NOGPFAU
 # Estado de la separación en curso (una sola a la vez), para la web
 ESTADO = {"en_curso": False, "archivo": "", "fraccion": 0.0, "mensaje": "", "ok": None, "segundos": 0.0}
 _lock = threading.Lock()
+# Un solo StarNet2 a la vez (el editor y la cola de cola_estrellas.py): usa todos los
+# núcleos y dos a la vez solo irían el doble de lentos
+_lock_starnet = threading.Lock()
+BAJA_PRIORIDAD = 0x00004000     # BELOW_NORMAL_PRIORITY_CLASS de Windows
 
 
 class ErrorSeparacion(Exception):
@@ -292,12 +296,14 @@ def _leer_progreso(linea):
     return None, ""
 
 
-def separar(cubo, progreso=None, cabecera=None):
+def separar(cubo, progreso=None, cabecera=None, prioridad_baja=False):
     """
     Pasa StarNet2 al cubo lineal (3, H, W) en ADU y devuelve (objeto, estrellas):
     el apilado sin estrellas en ADU y la capa unscreen (fracción 0..1), los dos
     float32 (3, H, W). progreso(fraccion, mensaje): opcional. Lanza ErrorSeparacion
-    si StarNet2 no está o falla. Bloquea: llamar desde un hilo.
+    si StarNet2 no está o falla. Bloquea: llamar desde un hilo. prioridad_baja: el
+    proceso de StarNet2 con prioridad por debajo de lo normal (la cola de después de
+    guardar: la captura y el apilado van primero).
     """
     ruta = ruta_starnet()
     if not ruta:
@@ -334,9 +340,10 @@ def separar(cubo, progreso=None, cabecera=None):
         log.info("StarNet2: %s", " ".join(orden[1:]))
         inicio = datetime.now()
         try:
+            banderas = getattr(subprocess, "CREATE_NO_WINDOW", 0) | (BAJA_PRIORIDAD if prioridad_baja and os.name == "nt" else 0)
             with _sin_dialogos():
                 proc = subprocess.Popen(orden, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
-                                        cwd=carpeta, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                                        cwd=carpeta, creationflags=banderas)
         except OSError as e:
             raise ErrorSeparacion(_("No se pudo lanzar {producto}: {e}", producto=NOMBRE_PRODUCTO, e=e))
         avisos = []
@@ -381,12 +388,31 @@ def separar(cubo, progreso=None, cabecera=None):
     return np.ascontiguousarray(objeto), np.ascontiguousarray(estrellas)
 
 
-def separar_fits(ruta_fits, progreso=None):
+def separar_fits(ruta_fits, progreso=None, prioridad_baja=False):
     """
     Separa el apilado de una foto de la galería y guarda la pareja en
     static/fotos/capas/. Devuelve (objeto, estrellas) como cargar_capas. Si ya
     estaban separadas del mismo FITS, las devuelve sin volver a pasar StarNet2.
+    Una sola a la vez: si hay otra en marcha, espera (y si era de este mismo FITS,
+    usa sus capas).
     """
+    capas = cargar_capas(ruta_fits)
+    if capas is not None:
+        return capas
+    if not _lock_starnet.acquire(blocking=False):
+        if progreso:
+            try:
+                progreso(0.0, _("Esperando a que termine la otra separación de estrellas..."))
+            except Exception:
+                pass
+        _lock_starnet.acquire()
+    try:
+        return _separar_fits(ruta_fits, progreso, prioridad_baja)
+    finally:
+        _lock_starnet.release()
+
+
+def _separar_fits(ruta_fits, progreso, prioridad_baja):
     capas = cargar_capas(ruta_fits)
     if capas is not None:
         return capas
@@ -395,7 +421,7 @@ def separar_fits(ruta_fits, progreso=None):
         if cubo.ndim == 3 and cubo.shape[0] != 3:
             cubo = np.transpose(cubo, (2, 0, 1))
         cabecera = hdul[0].header
-    objeto, estrellas = separar(cubo, progreso=progreso, cabecera=cabecera)
+    objeto, estrellas = separar(cubo, progreso=progreso, cabecera=cabecera, prioridad_baja=prioridad_baja)
     os.makedirs(CARPETA_CAPAS, exist_ok=True)
     r_obj, r_est = rutas_capas(ruta_fits)
     hdr = fits.Header()

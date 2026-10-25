@@ -27,7 +27,8 @@
 #      una cima con huecos sigue siendo una sola estrella;
 #  12. el suavizado del fondo sin estrellas no deja un resplandor ni una sombra alrededor del objeto;
 #  13. el halo de las estrellas reducidas (perfil de Moffat): misma media altura, alas más largas;
-#  14. la comprobación de la instalación de StarNet2 de la tarjeta de Configuración.
+#  14. la comprobación de la instalación de StarNet2 de la tarjeta de Configuración;
+#  15. la cola de después de guardar (cola_estrellas.py) y un solo StarNet2 a la vez.
 
 import os
 import sys
@@ -268,6 +269,22 @@ def prueba_progreso():
     comprobar(estrellas_aparte._leer_progreso('{"schema":"x","event":"finish"}')[0] == 1.0, "finish → 1,0")
 
 
+def prueba_arranque_fallido():
+    print("6. StarNet2 que no arranca: códigos de Windows y modo sin diálogos")
+    for codigo in (0xC0000135, -1073741515, 0xC0000139, 0xC0000142):
+        comprobar("Visual C++" in estrellas_aparte._explicar_codigo(codigo), f"código {codigo} → aviso del Visual C++")
+    comprobar("procesador" in estrellas_aparte._explicar_codigo(0xC000001D), "instrucción ilegal → aviso del procesador")
+    comprobar(estrellas_aparte._explicar_codigo(1) == "" and estrellas_aparte._explicar_codigo(None) == "",
+              "un fallo normal (código 1) no se confunde con un arranque fallido")
+    if os.name == "nt":
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        antes = k32.GetErrorMode()
+        with estrellas_aparte._sin_dialogos():
+            dentro = k32.GetErrorMode()
+        despues = k32.GetErrorMode()
+        comprobar(dentro & estrellas_aparte.SIN_DIALOGOS == estrellas_aparte.SIN_DIALOGOS and despues == antes,
+                  f"modo de errores: 0x{antes:X} → 0x{dentro:X} dentro → 0x{despues:X} al salir")
 
 def prueba_contraste_sin_estrellas():
     print("9. Contraste local sin estrellas")
@@ -410,22 +427,6 @@ def prueba_halo_moffat():
     comprobar(m[80, hasta].max() * 255 < 1.0 and hasta - 80 < procesado.HALO_RADIO_PINTADO, f"hasta medio nivel de 8 bits ({hasta - 80} px)")
     # Por defecto, Moffat beta 2 en los ajustes rápidos
     comprobar(procesado.HALO_ESTRELLAS == 0.75, "por defecto halo 0,75 (beta 2)")
-def prueba_arranque_fallido():
-    print("6. StarNet2 que no arranca: códigos de Windows y modo sin diálogos")
-    for codigo in (0xC0000135, -1073741515, 0xC0000139, 0xC0000142):
-        comprobar("Visual C++" in estrellas_aparte._explicar_codigo(codigo), f"código {codigo} → aviso del Visual C++")
-    comprobar("procesador" in estrellas_aparte._explicar_codigo(0xC000001D), "instrucción ilegal → aviso del procesador")
-    comprobar(estrellas_aparte._explicar_codigo(1) == "" and estrellas_aparte._explicar_codigo(None) == "",
-              "un fallo normal (código 1) no se confunde con un arranque fallido")
-    if os.name == "nt":
-        import ctypes
-        k32 = ctypes.windll.kernel32
-        antes = k32.GetErrorMode()
-        with estrellas_aparte._sin_dialogos():
-            dentro = k32.GetErrorMode()
-        despues = k32.GetErrorMode()
-        comprobar(dentro & estrellas_aparte.SIN_DIALOGOS == estrellas_aparte.SIN_DIALOGOS and despues == antes,
-                  f"modo de errores: 0x{antes:X} → 0x{dentro:X} dentro → 0x{despues:X} al salir")
 
 
 
@@ -449,6 +450,64 @@ def prueba_comprobar_instalacion():
     finally:
         estrellas_aparte.ruta_starnet = antes
 
+def prueba_cola():
+    print("15. Cola de estrellas aparte y un solo StarNet2 a la vez")
+    import time
+    import threading
+    import cola_estrellas
+    hechas, errores = [], []
+
+    def trabajo(nombre, segundos, fallar=False):
+        def t(progreso):
+            progreso("trabajando en " + nombre)
+            time.sleep(segundos)
+            if fallar:
+                raise RuntimeError("fallo a propósito")
+            hechas.append(nombre)
+            return "hecha " + nombre
+        return t
+    inicio = time.time()
+    d1 = cola_estrellas.encolar("a.jpg", trabajo("a", 0.3))
+    d2 = cola_estrellas.encolar("b.jpg", trabajo("b", 0.1, fallar=True))
+    d3 = cola_estrellas.encolar("c.jpg", trabajo("c", 0.1))
+    comprobar(time.time() - inicio < 0.1, "encolar vuelve al momento (el guardado no espera)")
+    comprobar((d1, d2, d3) == (0, 1, 2), f"cuántas hay por delante: {(d1, d2, d3)}")
+    time.sleep(0.1)
+    e = cola_estrellas.estado()
+    comprobar(e["archivo"] == "a.jpg" and e["pendientes"] == ["b.jpg", "c.jpg"] and "a" in e["mensaje"], f"estado para la web: {e['archivo']}, {e['pendientes']}")
+    comprobar(cola_estrellas.esperar(5), "la cola se vacía")
+    e = cola_estrellas.estado()
+    comprobar(hechas == ["a", "c"], f"de una en una y por orden; un fallo no para las demás: {hechas}")
+    comprobar(e["hechas"] >= 2 and e["ultima"] == "hecha c" and e["ultimo_ok"], f"la última: {e['ultima']}")
+
+    # Un solo StarNet2 a la vez: dos separaciones del mismo FITS a la vez → una pasa StarNet2, la otra usa sus capas
+    carpeta_antes, separar_antes = estrellas_aparte.CARPETA_CAPAS, estrellas_aparte.separar
+    with tempfile.TemporaryDirectory() as tmp:
+        estrellas_aparte.CARPETA_CAPAS = os.path.join(tmp, "capas")
+        ruta_fits = os.path.join(tmp, "Objeto_20261025_210000.fits")
+        fits.writeto(ruta_fits, np.full((3, 16, 16), 1000.0, np.float32))
+        a_la_vez, maximo, llamadas, prioridades = [0], [0], [0], []
+        def falso(cubo, progreso=None, cabecera=None, prioridad_baja=False):
+            a_la_vez[0] += 1; llamadas[0] += 1; prioridades.append(prioridad_baja)
+            maximo[0] = max(maximo[0], a_la_vez[0])
+            time.sleep(0.3)
+            a_la_vez[0] -= 1
+            return cubo * 0.5, np.zeros_like(cubo)
+        estrellas_aparte.separar = falso
+        try:
+            mensajes = []
+            hilos = [threading.Thread(target=estrellas_aparte.separar_fits, args=(ruta_fits,),
+                                      kwargs={"progreso": lambda f, t: mensajes.append(t), "prioridad_baja": i == 0}) for i in range(2)]
+            for h in hilos:
+                h.start(); time.sleep(0.05)
+            for h in hilos:
+                h.join()
+        finally:
+            estrellas_aparte.separar, estrellas_aparte.CARPETA_CAPAS = separar_antes, carpeta_antes
+        comprobar(maximo[0] == 1 and llamadas[0] == 1, f"un solo StarNet2 a la vez y la segunda usa las capas de la primera ({llamadas[0]} llamada)")
+        comprobar(any("Esperando" in (t or "") for t in mensajes), "la segunda dice que espera")
+        comprobar(prioridades == [True], "la de la cola, con prioridad baja")
+
 
 if __name__ == "__main__":
     prueba_pantalla()
@@ -465,6 +524,7 @@ if __name__ == "__main__":
     prueba_progreso()
     prueba_comprobar_instalacion()
     prueba_arranque_fallido()
+    prueba_cola()
     print()
     if FALLOS:
         print(f"❌ {len(FALLOS)} fallo(s):")
