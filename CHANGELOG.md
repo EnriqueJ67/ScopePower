@@ -5,6 +5,15 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Vídeos en la galería con un visor fotograma a fotograma. Cada vídeo del Sol o de la Luna sale
+  como una tarjeta más (miniatura, duración, tamaño y filtro «Vídeos») y abre un visor con barra,
+  ±1/±10 fotogramas, teclado y reproducción a tiempo real, a cámara lenta o de uno en uno. Los
+  fotogramas llegan como JPG pequeños, así que se recorre también con el wifi de campo. La primera
+  vez se analiza el vídeo en el mini PC: nitidez de cada fotograma y los momentos en que algo cruza
+  por delante (pájaros, aviones, nubes), con un círculo donde está. Con el vídeo del Sol del 25-oct
+  sale el pájaro (750 veces el ruido) y otro lejano (60) sin falsas alarmas. Cualquier fotograma se
+  guarda en la galería como una foto de día más, firmada y editable; desde el visor también se
+  apila o se borra el vídeo, y los apilados llevan «Ver el vídeo».
 - Enfoque de día: ayuda de la curva en V. Con el Sol del 25-oct se vio que cerca del foco el
   número se queda plano aunque se siga girando: el limbo es √(suelo² + desenfoque²) con un suelo
   de seeing y óptica de ~4,1 px, y entre 0,9 y 1,8 px de desenfoque apenas cambia 0,3 px. Ahora,
