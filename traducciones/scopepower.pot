@@ -667,12 +667,21 @@ msgstr ""
 msgid "Anotando objetos"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Anterior"
+msgstr ""
+
 #: templates/apagar.html
 msgid "Antes de apagar para cambiar la batería: para el seguimiento y deja el tubo donde estaba al encender la montura (el cero de los motores), horizontal y hacia el norte"
 msgstr ""
 
 #: templates/_asistente.html
 msgid "Antes de seguir: enciende la montura y conéctala al PC (por cable o por red, según tu modelo) y enchufa la cámara al USB. Si el driver de tu montura trabaja con un programa intermedio (SynScan Pro, EQMOD, GSServer...), ábrelo y conéctalo primero."
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "Antes del último cambio"
 msgstr ""
 
 #: templates/configuracion.html
@@ -5031,6 +5040,10 @@ msgstr ""
 
 #: static/js/ayuda_voz.js
 msgid "La ubicación del móvil no está disponible"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "La vista previa antes del último cambio, para compararlo con el anterior"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -12112,6 +12125,11 @@ msgid "⚠️ Advertencia: El objeto está por debajo de altura mínima. Proceso
 msgstr ""
 
 #. js
+#: templates/editar_foto.html
+msgid "⚠️ El mini PC no contesta; mira en la galería si se ha guardado"
+msgstr ""
+
+#. js
 #: templates/configuracion.html
 msgid "⚠️ En este PC no está instalado Git. Instálalo desde git-scm.com (opciones por defecto) para poder actualizar."
 msgstr ""
@@ -12409,7 +12427,7 @@ msgstr ""
 
 #. js
 #: templates/editar_foto.html
-msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar"
+msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» o «Anterior» para comparar"
 msgstr ""
 
 #. js

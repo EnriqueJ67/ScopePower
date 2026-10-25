@@ -669,6 +669,10 @@ msgstr "Annotations"
 msgid "Anotando objetos"
 msgstr "Annotating objects"
 
+#: templates/editar_foto.html
+msgid "Anterior"
+msgstr "Previous"
+
 #: templates/apagar.html
 msgid "Antes de apagar para cambiar la batería: para el seguimiento y deja el tubo donde estaba al encender la montura (el cero de los motores), horizontal y hacia el norte"
 msgstr "Before turning off to change the battery: stops tracking and leaves the tube where it was when the mount was turned on (the motors' zero), level and facing north"
@@ -676,6 +680,11 @@ msgstr "Before turning off to change the battery: stops tracking and leaves the 
 #: templates/_asistente.html
 msgid "Antes de seguir: enciende la montura y conéctala al PC (por cable o por red, según tu modelo) y enchufa la cámara al USB. Si el driver de tu montura trabaja con un programa intermedio (SynScan Pro, EQMOD, GSServer...), ábrelo y conéctalo primero."
 msgstr "Before continuing: turn on the mount and connect it to the PC (by cable or network, depending on your model) and plug the camera into USB. If your mount driver works through an intermediate program (SynScan Pro, EQMOD, GSServer...), open it and connect it first."
+
+#. js
+#: templates/editar_foto.html
+msgid "Antes del último cambio"
+msgstr "Before the last change"
 
 #: templates/configuracion.html
 msgid "Anunciar IP por voz"
@@ -5034,6 +5043,10 @@ msgstr "Star separation needs an RGB stack"
 #: static/js/ayuda_voz.js
 msgid "La ubicación del móvil no está disponible"
 msgstr "The phone's location isn't available"
+
+#: templates/editar_foto.html
+msgid "La vista previa antes del último cambio, para compararlo con el anterior"
+msgstr "The preview before the last change, to compare it with the previous one"
 
 #: templates/seguimiento.html
 msgid "La vista se estira para que se vea la escena; con exposición automática, si no encuentra nada sube la exposición hasta el máximo ({max} ms)."
@@ -12117,6 +12130,11 @@ msgid "⚠️ Advertencia: El objeto está por debajo de altura mínima. Proceso
 msgstr "⚠️ Warning: The object is below the minimum altitude. Process canceled."
 
 #. js
+#: templates/editar_foto.html
+msgid "⚠️ El mini PC no contesta; mira en la galería si se ha guardado"
+msgstr "⚠️ The mini PC is not answering; check the gallery to see whether it was saved"
+
+#. js
 #: templates/configuracion.html
 msgid "⚠️ En este PC no está instalado Git. Instálalo desde git-scm.com (opciones por defecto) para poder actualizar."
 msgstr "⚠️ Git isn't installed on this PC. Install it from git-scm.com (default options) to be able to update."
@@ -12414,8 +12432,8 @@ msgstr "✅ Preview in {s} s · tap “Original” to compare"
 
 #. js
 #: templates/editar_foto.html
-msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar"
-msgstr "✅ Preview ready in {s} s · colour and curves apply instantly · tap “Original” to compare"
+msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» o «Anterior» para comparar"
+msgstr "✅ Preview ready in {s} s · colour and curves are instant · tap “Original” or “Previous” to compare"
 
 #. js
 #: templates/configuracion.html

@@ -5,6 +5,14 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Nuevo: «Anterior» en el editor de la galería, junto a «Original» y «Reprocesada»: la vista
+  previa tal como estaba antes del último cambio, para comparar cada cambio con el anterior y no
+  solo con la foto del apilado. Arrastrar un deslizador cuenta como un solo cambio (se da por
+  terminado a los 0,8 s sin moverlo), y una vista previa del mini PC que llega después, como otro.
+- Cambiado: al guardar en la galería, el editor ya no recarga la página. Se sigue editando con la
+  misma vista previa y el mismo «Anterior», y el botón queda listo para volver a guardar. Si el
+  mini PC deja de contestar mientras guarda (por ejemplo, al reiniciarlo), el botón se libera
+  pasados 30 s en vez de quedarse esperando.
 - Cambiado: el deslizador «Tamaño de las estrellas» del editor (estrellas aparte) reduce las
   estrellas en vez de apagarlas. Antes multiplicaba la capa por un factor, es decir, una
   transparencia: las mismas estrellas, del mismo tamaño, más tenues. Ahora se hace un catálogo
