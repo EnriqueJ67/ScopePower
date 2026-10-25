@@ -1609,6 +1609,10 @@ msgstr "Composite"
 msgid "Compresión de lo brillante"
 msgstr "Highlight compression"
 
+#: templates/editar_foto.html
+msgid "Compresión de los núcleos"
+msgstr "Core compression"
+
 #: templates/home.html
 msgid "Comprobando el equipo..."
 msgstr "Checking the equipment..."
@@ -1640,6 +1644,10 @@ msgstr "Check that the camera is plugged into the PC's USB (and powered if it ne
 #: static/js/asistente.js
 msgid "Comprueba que la montura está encendida y conectada al PC y que el driver es el de tu modelo."
 msgstr "Check that the mount is on and connected to the PC and that the driver is the one for your model."
+
+#: templates/editar_foto.html
+msgid "Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en el panel Procesado (⚡)."
+msgstr "At 0 the cores of the bright stars are clipped at their top and come out flat; the higher the value, the less they are clipped and the more they keep their profile and colour up to the centre. The stars' own saturation is in the Processing panel (⚡)."
 
 #: templates/imagen.html
 msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes. Mientras se graba un vídeo, la corrección espera a que termine."
@@ -1940,6 +1948,10 @@ msgstr "Curves"
 msgid "Curvas cambiadas · pulsa \"Aplicar a la vista previa\""
 msgstr "Curves changed · press \"Apply to the preview\""
 
+#: templates/editar_foto.html
+msgid "Curvas de las estrellas"
+msgstr "Star curves"
+
 #: templates/apilado.html
 msgid "Curvas por puntos (RGB y por canal)"
 msgstr "Point curves (RGB and per channel)"
@@ -1947,10 +1959,6 @@ msgstr "Point curves (RGB and per channel)"
 #: templates/galeria.html
 msgid "Cuánto más oscura que la fotosfera tiene que ser una zona para contar como mancha"
 msgstr "How much darker than the photosphere an area must be to count as a spot"
-
-#: templates/editar_foto.html
-msgid "Cuánto pesan las estrellas al volver a juntarlas (pantalla): 100 % = como salieron, 0 % = solo el objeto y el fondo. A medio camino quedan más pequeñas y discretas."
-msgstr "How much the stars weigh when put back (screen blend): 100% = as they came out, 0% = only the object and the background. Halfway they look smaller and more discreet."
 
 #: templates/apilado.html
 msgid "Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas)."
@@ -3539,6 +3547,10 @@ msgstr "Style"
 msgid "Estirado"
 msgstr "Stretch"
 
+#: templates/editar_foto.html
+msgid "Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto."
+msgstr "The stars' own stretch, without touching the nebula or the background: to the right more and brighter stars, to the left fewer and more discreet ones. 0 = the same stretch as the photo."
+
 #. js
 #: ScopePower.py
 msgid "Estirando"
@@ -4453,6 +4465,10 @@ msgstr "Also take flat darks ({n} frames, it will ask you to cover the tube). Re
 msgid "Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro."
 msgstr "To the left bluer (cool), to the right redder (warm). The sky background stays neutral."
 
+#: templates/editar_foto.html
+msgid "Halo de las estrellas"
+msgstr "Star halo"
+
 #: templates/imagen.html
 msgid "Hasta pulsar Parar"
 msgstr "Until Stop is pressed"
@@ -4653,6 +4669,10 @@ msgstr "Integral"
 msgid "Intensidad de color"
 msgstr "Color intensity"
 
+#: templates/editar_foto.html
+msgid "Intensidad de las estrellas"
+msgstr "Star intensity"
+
 #: ScopePower.py
 msgid "Introduce usuario y contraseña"
 msgstr "Enter user and password"
@@ -4827,6 +4847,10 @@ msgstr "The signature is drawn on the preview and on the gallery photos: logo, a
 #: ScopePower.py
 msgid "La focal tiene que ser un número entre 50 y 5000 mm"
 msgstr "The focal length must be a number between 50 and 5000 mm"
+
+#: templates/editar_foto.html
+msgid "La forma de las estrellas reducidas (por debajo del 100 %). 0 = campana de Gauss: bolitas redondas de borde suave. A más valor, núcleo más picudo y un halo que se apaga despacio, como las estrellas de un telescopio (perfil de Moffat); 0,75 = Moffat beta 2. La anchura a media altura no cambia."
+msgstr "The shape of the reduced stars (below 100%). 0 = Gaussian bell: round dots with a soft edge. Higher values give a sharper core and a halo that fades slowly, like the stars of a telescope (Moffat profile); 0.75 = Moffat beta 2. The width at half height does not change."
 
 #. js
 #: templates/imagen.html
@@ -7270,6 +7294,10 @@ msgstr "Recovers detail and sharpens stars by undoing the blur measured on the p
 msgid "Reducción de ruido"
 msgstr "Noise reduction"
 
+#: templates/editar_foto.html
+msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
+msgstr "Reduces the stars: 100% = as they came out, 0% = only the object and the background. Each star is redrawn narrower, with its brightness and colour, and all shrink in the same proportion (at 50%, half the width), so the bright ones stay bigger than the faint ones; the smallest do not go below half a pixel and do not vanish. Below 25% they all lose light equally, until they vanish."
+
 #. js
 #: ScopePower.py
 msgid "Reduciendo el ruido"
@@ -8132,6 +8160,10 @@ msgstr "Just the app; the PC stays on and it's back in a few seconds"
 #: ScopePower.py
 msgid "Solo para fotos de noche; haz una foto primero."
 msgstr "Night shots only; take one first."
+
+#: templates/editar_foto.html
+msgid "Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas del panel Curvas actúan después sobre la foto entera."
+msgstr "Only for the stars, before putting them back with the object: lowering the middle of the curve makes them more discreet without dimming the bright ones; raising it, more present. The curves of the Curves panel act afterwards on the whole photo."
 
 #: templates/apilado.html
 msgid "Solo para pruebas con simuladores: la noche empieza ahora y dura 6 h"
