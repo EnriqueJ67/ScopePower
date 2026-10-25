@@ -179,9 +179,7 @@ def fotograma_lineal(ruta_ser, i):
     rgb = apilado_video.desmosaicar(cfa, lector.patron)
     instante = None
     if tiempos is not None and len(tiempos) > i:
-        # Las marcas del SER se escriben con una hora de desfase (grabador_video._ticks toma la hora UTC
-        # por local): vale lo que pasa entre fotogramas, y el inicio del .json, que sí es la hora buena
-        instante = float(tiempos[i]) if not meta.get("instante") else float(meta["instante"]) + float(tiempos[i] - tiempos[0])
+        instante = float(tiempos[i])           # UTC; los vídeos con el desfase antiguo ya vienen corregidos
     elif meta.get("instante"):
         instante = float(meta["instante"])
     return rgb, dict(meta, negro=rev["negro"], balance=rev["balance"], orientacion=rev["orientacion"]), instante
