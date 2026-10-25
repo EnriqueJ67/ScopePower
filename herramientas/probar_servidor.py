@@ -162,6 +162,40 @@ def main():
     if not bien:
         fallos.append("fotometría del Sol")
 
+    print("Vídeos en la galería y su visor (SER sintético en videos/):")
+    from probar_visor_video import escribir_video
+    nombre_v = "Sol_20261025_160129"
+    ruta_v = escribir_video(sp._config_video()["carpeta"], nombre_v)
+    r = pedir("/galeria")
+    html = r.get_data(as_text=True)
+    bien = f'data-video="{nombre_v}"' in html and "/videos/miniatura/" + nombre_v in html
+    for codigo in ("es", "en"):
+        sp.idioma.cambiar(codigo)
+        pedir("/galeria/video/" + nombre_v + "?f=70")
+    sp.idioma.cambiar("es")
+    bien = bien and pedir("/videos/miniatura/" + nombre_v).mimetype == "image/jpeg"
+    bien = bien and pedir(f"/videos/fotograma/{nombre_v}/71?lado=320").mimetype == "image/jpeg"
+    pedir(f"/videos/fotograma/{nombre_v}/9999", 404)
+    d = cliente.post("/videos/analisis/" + nombre_v).get_json() or {}
+    for __ in range(600):
+        if d.get("estado") not in ("en_curso", "en_cola"):
+            break
+        time.sleep(0.1)
+        d = cliente.get("/videos/analisis/" + nombre_v).get_json() or {}
+    sucesos = (d.get("resultado") or {}).get("sucesos") or []
+    bien = bien and d.get("estado") == "hecho" and len(sucesos) == 2 and all(0 <= s["px"] <= 1 and 0 <= s["py"] <= 1 for s in sucesos)
+    print(f"  {'✅' if bien else '❌'} tarjeta en la galería, miniatura, fotograma y {len(sucesos)} sucesos ({d.get('estado')})")
+    g = cliente.post("/videos/guardar-fotograma", json={"nombre": nombre_v, "fotograma": 71}).get_json() or {}
+    archivo = g.get("archivo") or ""
+    html = pedir("/galeria").get_data(as_text=True)
+    bien2 = g.get("ok") and os.path.isfile(os.path.join("static", "fotos", archivo)) and f'"fotograma": 71' in html
+    bien2 = bien2 and sp.editor_dia.es_foto_dia(archivo) and pedir("/galeria/editar-dia/" + archivo).status_code == 200
+    b = cliente.post("/videos/borrar", json={"nombre": nombre_v}).get_json() or {}
+    bien2 = bien2 and b.get("ok") and not any(os.path.exists(p) for p in [ruta_v] + sp.visor_video.archivos_auxiliares(ruta_v))
+    print(f"  {'✅' if bien2 else '❌'} fotograma guardado en la galería ({archivo}), editable, y vídeo borrado con lo suyo")
+    if not (bien and bien2):
+        fallos.append("visor de vídeos")
+
     if fallos:
         print(f"\n❌ Fallan {len(fallos)}: {', '.join(fallos)}")
         return 1

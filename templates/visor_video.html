@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _("Vídeo · {objeto}", objeto=video.objeto) }}{% endblock %}
+
+{% block content %}
+<!-- Visor de un vídeo SER (visor_video.py): fotograma a fotograma, con la nitidez de cada uno y
+     los momentos en que algo cruza por delante. Cada fotograma llega como un JPG pequeño: con el
+     wifi de campo el vídeo no se reproduce a tiempo real, pero se recorre. -->
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">{{ video.objeto }} · {{ _("vídeo") }}</h1>
+        <p class="pagina-sub">
+            {{ video.nombre }}
+            {% if video.frames %} · {{ ngettext("{n} fotograma", "{n} fotogramas", video.frames) }}{% endif %}
+            {% if video.duracion_s %} · {{ '%d:%02d'|format((video.duracion_s // 60)|int, (video.duracion_s % 60)|int) }}{% endif %}
+            {% if video.fps %} · {{ _("{fps} fotos/s", fps=idioma.fmt_num(video.fps, 0)) }}{% endif %}
+            · {% if video.gb >= 0.1 %}{{ idioma.fmt_num(video.gb, 1) }} GB{% else %}{{ idioma.fmt_num(video.gb * 1000, 0) }} MB{% endif %}
+        </p>
+    </div>
+    <div class="pagina-acciones">
+        <a href="/galeria" class="btn btn-secondary"><svg><use href="#i-galeria"/></svg>{{ _("Galería") }}</a>
+    </div>
+</div>
+
+{% if video.error %}
+<div class="card"><p class="estado err">⚠️ {{ video.error }}</p></div>
+{% else %}
+<div class="grid-2 ancha apilado-layout">
+    <!-- ─── El fotograma y cómo moverse por el vídeo ─── -->
+    <div class="columna">
+        <div class="visor visor-video" id="visor">
+            <img id="fotograma" alt="{{ video.objeto }}">
+            <!-- Círculo sobre lo que cruza, en los fotogramas de un suceso -->
+            <div id="marca-suceso" class="marca-suceso" hidden></div>
+            <div class="visor-overlay">
+                <span class="chip" id="chip-tiempo"></span>
+                <span class="chip" id="chip-cargando" hidden><span class="spinner"></span></span>
+            </div>
+        </div>
+        <input type="range" id="barra" min="0" max="{{ video.frames - 1 }}" value="{{ inicial }}" step="1" aria-label="{{ _('Fotograma') }}">
+        <!-- La nitidez de cada fotograma (más alta, mejor seeing) y los sucesos encima; tocar salta ahí -->
+        <svg id="tira" class="tira-video" role="img" aria-label="{{ _('Nitidez de cada fotograma y momentos en que algo cruza') }}"></svg>
+        <div class="fila controles-video">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="mover(-10)" title="{{ _('10 fotogramas atrás') }}">−10</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="mover(-1)" title="{{ _('Fotograma anterior (←)') }}">−1</button>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-reproducir" onclick="alternarReproduccion()" title="{{ _('Reproducir o parar (espacio)') }}"><svg><use href="#i-play" id="ico-reproducir"/></svg><span id="txt-reproducir">{{ _("Reproducir") }}</span></button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="mover(1)" title="{{ _('Fotograma siguiente (→)') }}">+1</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="mover(10)" title="{{ _('10 fotogramas adelante') }}">+10</button>
+            <select id="velocidad" class="form-control"title="{{ _('Velocidad de reproducción') }}">
+                <option value="1">{{ _("Tiempo real") }}</option>
+                <option value="0.25">{{ _("A cámara lenta (¼)") }}</option>
+                <option value="0">{{ _("Todos los fotogramas") }}</option>
+            </select>
+        </div>
+        <small class="ayuda">{{ _("A tiempo real se saltan los fotogramas que no llegan a tiempo (con el wifi de campo, casi todos); «Todos los fotogramas» los enseña uno a uno, tan rápido como llegan. Las flechas del teclado mueven de uno en uno.") }}</small>
+    </div>
+
+    <!-- ─── Lo que cruza y lo que se puede hacer con el vídeo ─── -->
+    <div class="columna lateral">
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-info"/></svg>{{ _("Lo que cruza por delante") }}</h3>
+            <p class="card-sub">{{ _("Pájaros, aviones o nubes: cada fotograma se compara con los de alrededor y salen los momentos en que aparece algo que ni estaba antes ni está después.") }}</p>
+            <div id="estado-analisis" class="estado"></div>
+            <div id="lista-sucesos" class="lista-sucesos"></div>
+        </section>
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-foto"/></svg>{{ _("Este fotograma") }}</h3>
+            <button type="button" class="btn btn-success btn-block" id="btn-guardar" onclick="guardarFotograma()"><svg><use href="#i-guardar"/></svg>{{ _("Guardar en la galería") }}</button>
+            <div id="estado-guardar" class="estado mt-1"></div>
+            <small class="ayuda">{{ _("Se guarda a resolución completa como una foto de día más, firmada y con su crudo: en la galería se puede editar como cualquier otra.") }}</small>
+        </section>
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-apilado"/></svg>{{ _("Todo el vídeo") }}</h3>
+            {% if video.apilado %}
+            <p class="card-sub">{{ _("Ya está apilado:") }} <a href="/galeria/editar-dia/{{ video.apilado }}">{{ _("ver y editar el apilado") }}</a></p>
+            {% endif %}
+            <button type="button" class="btn btn-primary btn-block" id="btn-apilar" onclick="apilar()"><svg><use href="#i-apilado"/></svg>{{ _("Apilar los mejores fotogramas") }}</button>
+            <div id="apilado-progreso" class="mt-1" hidden>
+                <div class="fila entre"><span id="apilado-texto" class="estado"></span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="cancelarApilado()">{{ _("Cancelar") }}</button></div>
+                <div class="progress alta mt-1"><div id="apilado-barra" class="progress-bar"></div></div>
+            </div>
+            <div id="estado-apilado" class="estado mt-1"></div>
+            <button type="button" class="btn btn-outline-warning btn-block mt-2" onclick="borrarVideo()"><svg><use href="#i-papelera"/></svg>{{ _("Borrar el vídeo del mini PC") }}</button>
+        </section>
+    </div>
+</div>
+
+<script>
+    const VIDEO = {{ {"nombre": video.nombre, "frames": video.frames, "fps": video.fps or 20, "gb": video.gb}|tojson }};
+    const img = document.getElementById("fotograma");
+    const barra = document.getElementById("barra");
+    const ESTADO = { i: {{ inicial }}, mostrado: -1, cargando: false, reproduciendo: false, inicioReloj: 0, inicioFotograma: 0,
+                     nitidez: null, sucesos: [] };
+    const enc = encodeURIComponent;
+
+    // El lado del JPG: lo que ocupa el visor en pantalla (en píxeles reales), en pasos de 160 px para que la caché del navegador sirva
+    function ladoPedido() {
+        const px = document.getElementById("visor").clientWidth * (window.devicePixelRatio || 1);
+        return Math.max(320, Math.min(1600, Math.ceil(px / 160) * 160));
+    }
+    function urlFotograma(i) { return `/videos/fotograma/${enc(VIDEO.nombre)}/${i}?lado=${ladoPedido()}`; }
+
+    // Se pide un fotograma cada vez: si mientras llega se piden otros, solo se carga el último
+    function ir(i) {
+        ESTADO.i = Math.max(0, Math.min(VIDEO.frames - 1, Math.round(i)));
+        barra.value = ESTADO.i;
+        pintarTiempo();
+        pintarPosicion();
+        cargar();
+    }
+    function cargar() {
+        if (ESTADO.cargando || ESTADO.mostrado === ESTADO.i) return;
+        ESTADO.cargando = true;
+        const pedido = ESTADO.i;
+        const t = setTimeout(() => { document.getElementById("chip-cargando").hidden = false; }, 250);
+        const sig = new Image();
+        sig.onload = sig.onerror = () => {
+            clearTimeout(t);
+            document.getElementById("chip-cargando").hidden = true;
+            ESTADO.cargando = false;
+            if (sig.naturalWidth) { img.src = sig.src; ESTADO.mostrado = pedido; pintarMarca(); }
+            if (ESTADO.reproduciendo) siguienteReproduccion();
+            else cargar();
+        };
+        sig.src = urlFotograma(pedido);
+    }
+    function mover(d) { parar(); ir(ESTADO.i + d); }
+    barra.addEventListener("input", () => { parar(); ir(Number(barra.value)); });
+    document.addEventListener("keydown", e => {
+        if (e.target.closest("input, select, textarea") && e.target !== barra) return;
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            e.preventDefault();
+            mover((e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 10 : 1));
+        } else if (e.key === " ") {
+            e.preventDefault();
+            alternarReproduccion();
+        }
+    });
+
+    function segundos(i) { return i / VIDEO.fps; }
+    function pintarTiempo() {
+        document.getElementById("chip-tiempo").textContent = _("{s} s · fotograma {i} de {n}",
+            { s: fmtNum(segundos(ESTADO.i), 2), i: ESTADO.i + 1, n: VIDEO.frames });
+        try { history.replaceState(null, "", "?f=" + ESTADO.i); } catch (e) {}
+    }
+
+    // ── Reproducir: a tiempo real (o a cámara lenta) se salta lo que no llega; «todos» va de uno en uno ──
+    function alternarReproduccion() {
+        if (ESTADO.reproduciendo) { parar(); return; }
+        if (ESTADO.i >= VIDEO.frames - 1) ir(0);
+        ESTADO.reproduciendo = true;
+        ESTADO.inicioReloj = performance.now();
+        ESTADO.inicioFotograma = ESTADO.i;
+        document.getElementById("ico-reproducir").setAttribute("href", "#i-pausa");
+        document.getElementById("txt-reproducir").textContent = _("Parar");
+        siguienteReproduccion();
+    }
+    function parar() {
+        if (!ESTADO.reproduciendo) return;
+        ESTADO.reproduciendo = false;
+        document.getElementById("ico-reproducir").setAttribute("href", "#i-play");
+        document.getElementById("txt-reproducir").textContent = _("Reproducir");
+    }
+    function siguienteReproduccion() {
+        if (!ESTADO.reproduciendo) return;
+        const vel = Number(document.getElementById("velocidad").value);
+        let destino;
+        if (vel > 0) {
+            destino = ESTADO.inicioFotograma + Math.floor((performance.now() - ESTADO.inicioReloj) / 1000 * VIDEO.fps * vel);
+            if (destino <= ESTADO.mostrado) {      // va por delante del reloj: espera al siguiente fotograma
+                setTimeout(siguienteReproduccion, Math.max(10, 1000 / (VIDEO.fps * vel) / 2));
+                return;
+            }
+        } else {
+            destino = ESTADO.mostrado + 1;
+        }
+        if (destino >= VIDEO.frames) { ir(VIDEO.frames - 1); parar(); return; }
+        ir(destino);
+    }
+    document.getElementById("velocidad").addEventListener("change", () => {
+        ESTADO.inicioReloj = performance.now();
+        ESTADO.inicioFotograma = ESTADO.i;
+    });
+
+    // ── La tira: nitidez de cada fotograma y los sucesos; tocar salta a ese fotograma ──
+    const tira = document.getElementById("tira");
+    const NS = "http://www.w3.org/2000/svg";
+    function pintarTira() {
+        tira.replaceChildren();
+        const w = tira.clientWidth || 600, h = 56, arriba = 14;
+        tira.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        const x = i => (i + 0.5) / VIDEO.frames * w;
+        if (ESTADO.nitidez && ESTADO.nitidez.length) {
+            // Un punto por columna de píxeles: el máximo y el mínimo de los fotogramas que caen en ella
+            const n = ESTADO.nitidez.length, cols = Math.min(n, Math.floor(w));
+            let arribaP = "", abajoP = "";
+            for (let c = 0; c < cols; c++) {
+                const a = Math.floor(c * n / cols), b = Math.max(a + 1, Math.floor((c + 1) * n / cols));
+                let mx = 0, mn = 1;
+                for (let k = a; k < b; k++) { mx = Math.max(mx, ESTADO.nitidez[k]); mn = Math.min(mn, ESTADO.nitidez[k]); }
+                const cx = (c + 0.5) / cols * w;
+                arribaP += `${cx.toFixed(1)},${(h - 2 - mx * (h - arriba - 4)).toFixed(1)} `;
+                abajoP = `${cx.toFixed(1)},${(h - 2 - mn * (h - arriba - 4)).toFixed(1)} ` + abajoP;
+            }
+            const area = document.createElementNS(NS, "polygon");
+            area.setAttribute("points", arribaP + abajoP);
+            area.setAttribute("class", "tira-nitidez");
+            tira.appendChild(area);
+        }
+        for (const s of ESTADO.sucesos) {
+            const r = document.createElementNS(NS, "rect");
+            const x0 = x(s.inicio) - 2, x1 = x(s.fin) + 2;
+            r.setAttribute("x", x0); r.setAttribute("y", 1); r.setAttribute("width", Math.max(4, x1 - x0)); r.setAttribute("height", 10);
+            r.setAttribute("rx", 2);
+            r.setAttribute("class", "tira-suceso");
+            tira.appendChild(r);
+        }
+        const pos = document.createElementNS(NS, "line");
+        pos.setAttribute("id", "tira-posicion");
+        pos.setAttribute("y1", 0); pos.setAttribute("y2", h);
+        pos.setAttribute("class", "tira-posicion");
+        tira.appendChild(pos);
+        pintarPosicion();
+    }
+    function pintarPosicion() {
+        const pos = document.getElementById("tira-posicion");
+        if (!pos) return;
+        const w = tira.clientWidth || 600, xp = (ESTADO.i + 0.5) / VIDEO.frames * w;
+        pos.setAttribute("x1", xp); pos.setAttribute("x2", xp);
+    }
+    tira.addEventListener("click", e => {
+        const caja = tira.getBoundingClientRect();
+        let i = Math.floor((e.clientX - caja.left) / caja.width * VIDEO.frames);
+        // Cerca de un suceso, a su fotograma más claro
+        const tol = 6 / caja.width * VIDEO.frames;
+        const s = ESTADO.sucesos.find(s => i >= s.inicio - tol && i <= s.fin + tol);
+        if (s && (e.clientY - caja.top) < 20) i = s.pico;
+        parar();
+        ir(i);
+    });
+    window.addEventListener("resize", () => { pintarTira(); pintarMarca(); });
+
+    // ── El círculo sobre lo que cruza (en los fotogramas del suceso, donde estaba en el más claro) ──
+    function pintarMarca() {
+        const marca = document.getElementById("marca-suceso");
+        const s = ESTADO.sucesos.find(s => ESTADO.mostrado >= s.inicio && ESTADO.mostrado <= s.fin && s.px != null);
+        if (!s || !img.naturalWidth) { marca.hidden = true; return; }
+        // La foto se encaja dentro de su caja (object-fit: contain): lo que ocupa de verdad
+        const caja = img.getBoundingClientRect(), visor = document.getElementById("visor").getBoundingClientRect();
+        const k = Math.min(caja.width / img.naturalWidth, caja.height / img.naturalHeight);
+        const w = img.naturalWidth * k, h = img.naturalHeight * k;
+        marca.style.left = (caja.left - visor.left + (caja.width - w) / 2 + s.px * w) + "px";
+        marca.style.top = (caja.top - visor.top + (caja.height - h) / 2 + s.py * h) + "px";
+        marca.classList.toggle("marca-pico", ESTADO.mostrado === s.pico);
+        marca.hidden = false;
+    }
+
+    // ── El análisis (nitidez y sucesos) se hace en el mini PC la primera vez que se abre el vídeo ──
+    async function pedirAnalisis(lanzar) {
+        const est = document.getElementById("estado-analisis");
+        try {
+            const r = await fetch("/videos/analisis/" + enc(VIDEO.nombre), lanzar ? { method: "POST" } : undefined);
+            const d = await r.json();
+            if (!d.ok) throw new Error(d.error || _("no se pudo"));
+            if (d.estado === "sin_hacer" && !lanzar) return pedirAnalisis(true);
+            if (d.estado === "en_curso" || d.estado === "en_cola") {
+                est.className = "estado";
+                est.innerHTML = '<span class="spinner"></span>' + (d.estado === "en_cola" ? _("En cola detrás de otro vídeo…")
+                    : _("Recorriendo el vídeo… {p} %", { p: Math.round(100 * d.progreso) }));
+                setTimeout(() => pedirAnalisis(false), 1500);
+                return;
+            }
+            if (d.estado === "error") { est.className = "estado err"; est.textContent = "❌ " + (d.error || _("no se pudo")); return; }
+            const res = d.resultado || {};
+            ESTADO.nitidez = res.nitidez || null;
+            ESTADO.sucesos = res.sucesos || [];
+            est.className = "estado";
+            est.textContent = ESTADO.sucesos.length
+                ? ngettext("{n} momento con algo delante.", "{n} momentos con algo delante.", ESTADO.sucesos.length)
+                : _("No ha cruzado nada por delante.");
+            pintarSucesos();
+            pintarTira();
+            pintarMarca();
+        } catch (e) {
+            est.className = "estado err";
+            est.textContent = "❌ " + e.message;
+        }
+    }
+    function pintarSucesos() {
+        const cont = document.getElementById("lista-sucesos");
+        cont.replaceChildren();
+        // Los más claros primero: el de un pájaro grande se ve mucho más que el de uno lejano
+        for (const s of [...ESTADO.sucesos].sort((a, b) => b.z - a.z)) {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "chip";
+            const n = s.fin - s.inicio + 1;
+            b.textContent = _("{s} s", { s: fmtNum(segundos(s.pico), 1) }) + " · " + ngettext("{n} fotograma", "{n} fotogramas", n);
+            b.title = _("Contraste {z} veces el ruido", { z: fmtNum(s.z, 0) });
+            b.onclick = () => { parar(); ir(s.pico); };
+            cont.appendChild(b);
+        }
+    }
+
+    // ── Guardar el fotograma en la galería ──
+    async function guardarFotograma() {
+        const est = document.getElementById("estado-guardar"), boton = document.getElementById("btn-guardar");
+        parar();
+        boton.disabled = true;
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Revelando a resolución completa…");
+        try {
+            const r = await fetch("/videos/guardar-fotograma", { method: "POST", headers: { "Content-Type": "application/json" },
+                                                                 body: JSON.stringify({ nombre: VIDEO.nombre, fotograma: ESTADO.i }) });
+            const d = await r.json();
+            if (!d.ok) throw new Error(d.error || _("no se pudo"));
+            est.className = "estado ok mt-1";
+            est.innerHTML = "";
+            const a = document.createElement("a");
+            a.href = "/galeria/editar-dia/" + enc(d.archivo);
+            a.textContent = _("editar");
+            est.append("✅ " + d.mensaje + " · ", a);
+        } catch (e) {
+            est.className = "estado err mt-1"; est.textContent = "❌ " + e.message;
+        } finally {
+            boton.disabled = false;
+        }
+    }
+
+    // ── Apilar todo el vídeo (el mismo apilado que el panel Vídeo de Cámara) ──
+    let sondeo = null;
+    async function apilar() {
+        const est = document.getElementById("estado-apilado");
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Empezando el apilado...");
+        try {
+            const r = await fetch("/videos/apilar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: VIDEO.nombre }) });
+            const d = await r.json();
+            if (!d.ok) throw new Error(d.error || _("No se pudo empezar"));
+            est.textContent = "";
+            if (!sondeo) sondeo = setInterval(sondearApilado, 1000);
+            sondearApilado();
+        } catch (e) {
+            est.className = "estado err mt-1"; est.textContent = "❌ " + e.message;
+        }
+    }
+    function cancelarApilado() { fetch("/videos/apilar/cancelar", { method: "POST" }).catch(() => {}); }
+    async function sondearApilado() {
+        let e;
+        try { e = await (await fetch("/videos/apilar/estado")).json(); } catch (err) { return; }
+        const mio = e.nombre === VIDEO.nombre;
+        document.getElementById("apilado-progreso").hidden = !(e.en_curso && mio);
+        document.getElementById("btn-apilar").disabled = !!e.en_curso;
+        if (e.en_curso) {
+            document.getElementById("apilado-texto").textContent = mio ? e.fase_texto : _("Apilando otro vídeo ({nombre})", { nombre: e.nombre });
+            document.getElementById("apilado-barra").style.width = Math.round(100 * (e.progreso || 0)) + "%";
+            if (!sondeo) sondeo = setInterval(sondearApilado, 1000);
+            return;
+        }
+        if (sondeo) { clearInterval(sondeo); sondeo = null; }
+        if (e.terminado && mio) {
+            const est = document.getElementById("estado-apilado");
+            est.className = "estado " + (e.error ? "err" : "ok") + " mt-1";
+            est.textContent = (e.error ? "❌ " : "✅ ") + e.mensaje;
+            if (e.resultado && e.resultado.archivo) {
+                const a = document.createElement("a");
+                a.href = "/galeria/editar-dia/" + enc(e.resultado.archivo);
+                a.textContent = _("ver y editar el apilado");
+                est.append(" · ", a);
+            }
+        }
+    }
+
+    async function borrarVideo() {
+        parar();
+        if (!confirm(_("¿Borrar el vídeo {nombre} del mini PC? Son {gb} GB y no se puede deshacer. Su apilado, si lo tiene, se queda en la galería.",
+                       { nombre: VIDEO.nombre, gb: fmtNum(VIDEO.gb, 1) }))) return;
+        try {
+            const d = await (await fetch("/videos/borrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: VIDEO.nombre }) })).json();
+            if (!d.ok) throw new Error(d.error || _("No se pudo borrar"));
+            location.href = "/galeria";
+        } catch (e) {
+            alert(e.message);
+        }
+    }
+
+    ir(ESTADO.i);
+    pintarTira();
+    pedirAnalisis(false);
+    sondearApilado();
+</script>
+{% endif %}
+{% endblock %}

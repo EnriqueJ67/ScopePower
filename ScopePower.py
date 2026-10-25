@@ -46,7 +46,7 @@ import json
 from AutoStrechSTF import apply_stf_color, debayer_rgb, miniatura_cfa_rgb, guardar_jpg_web
 from ScopePower_ObjetosAnotados import resolver_y_generar_imagen_con_objetos
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import cv2
 import logging
 from registro import configurar_logging
@@ -67,6 +67,7 @@ import giro_camara
 import vivo_dia
 import grabador_video
 import apilado_video
+import visor_video
 import enfoque
 import camara_sdk
 import disco
@@ -4754,15 +4755,25 @@ def videos_lista():
                     "config": conf, "apilado": apilado_video.trabajo_apilado_video.estado()})
 
 
-def _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info):
+def _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info, fotograma=None, instante=None):
     """
     El apilado de un vídeo (RGB uint8 revelado y cubo lineal uint16, en la orientación del SDK)
     a la galería como una foto de día más: JPG firmado con el giro de Cámara y FITS en color
     (3 planos) en crudos/. Devuelve {"archivo"}.
+    Con `fotograma` (índice) es un fotograma suelto guardado desde el visor: se nombra con su hora
+    (`instante`, UTC) y el FITS no apunta al vídeo, para que el editor de día revele el fotograma y
+    no el apilado del vídeo.
     """
     import orientacion_camara
     meta_v = info.get("meta") or {}
     objeto, base = _nombre_apilado_video(nombre, meta_v)
+    if fotograma is not None:
+        fecha = datetime.fromtimestamp(instante) if instante else apilado_video.fecha_de_nombre(nombre, meta_v)
+        raiz = editor_fotos.nombre_archivo_objeto(objeto)
+        base = f"{raiz}_{fecha:%Y%m%d_%H%M%S}"
+        while os.path.exists(os.path.join("static", "fotos", base + ".jpg")):   # varios fotogramas del mismo segundo
+            fecha += timedelta(seconds=1)
+            base = f"{raiz}_{fecha:%Y%m%d_%H%M%S}"
     orientacion = meta_v.get("orientacion") or orientacion_camara.leer_sdk()["transformacion"]
     bgr = cv2.cvtColor(vivo_dia.a_orientacion_ascom(rgb8, orientacion), cv2.COLOR_RGB2BGR)
     imagen = giro_camara.aplicar(bgr, giro_camara.leer())
@@ -4779,14 +4790,22 @@ def _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info):
     hdu.header["OBJETIVO"] = (str(meta_v.get("objetivo") or ""), "Sol, luna o paisaje")
     hdu.header["NFRAMES"] = (int(info["frames"]), "Fotogramas del video")
     hdu.header["NUSADOS"] = (int(info["usados"]), "Fotogramas apilados")
-    hdu.header["VIDEO"] = (str(nombre)[:60], "Fichero SER de origen")
+    if fotograma is None:
+        hdu.header["VIDEO"] = (str(nombre)[:60], "Fichero SER de origen")
+    else:
+        hdu.header["VIDEOORG"] = (str(nombre)[:60], "Video del que sale el fotograma")
+        hdu.header["FOTOGRAM"] = (int(fotograma), "Fotograma del video (desde 0)")
     if meta_v.get("ganancia") is not None:
         hdu.header["GAIN"] = (int(meta_v["ganancia"]), "Ganancia de la camara")
     hdu.writeto(ruta_crudo, overwrite=True)
     meta = apilado.metadatos_firma(None, None, int(info["usados"]), exposicion)
     fecha = apilado_video.fecha_de_nombre(nombre, meta_v)
+    video = {"nombre": nombre, "frames": info["frames"], "usados": info["usados"], "pct": info["pct"]}
+    if fotograma is not None:
+        fecha = datetime.fromtimestamp(instante) if instante else fecha
+        video = {"nombre": nombre, "frames": info["frames"], "fotograma": int(fotograma)}
     meta.update({"objeto": objeto, "fecha": fecha, "tipo": catalogo_offline.categoria_objeto(objeto),
-                 "video": {"nombre": nombre, "frames": info["frames"], "usados": info["usados"], "pct": info["pct"]},
+                 "video": video,
                  "ajustes_dia": {k: v for k, v in (info.get("ajustes") or {}).items() if k != "firma"},
                  "giro": giro_camara.leer()})
     _firmar_y_guardar_en_galeria(imagen, ruta_jpg, meta, base)
@@ -4843,8 +4862,9 @@ def videos_borrar():
     g = vivo_dia.trabajo_vivo.estado().get("grabacion")
     if g and g.get("nombre") == nombre:
         return jsonify({"ok": False, "error": _("Ese vídeo se está grabando ahora")}), 409
+    visor_video.trabajo_analisis.quitar(ruta)            # si se está analizando, suelta el SER antes de borrarlo
     base_video = os.path.splitext(ruta)[0]
-    for r in (ruta, base_video + ".json", base_video + ".apilado.npy", base_video + ".apilado.json"):
+    for r in [ruta, base_video + ".json", base_video + ".apilado.npy", base_video + ".apilado.json"] + visor_video.archivos_auxiliares(ruta):
         try:
             os.remove(r)
         except FileNotFoundError:
@@ -4853,6 +4873,171 @@ def videos_borrar():
             return jsonify({"ok": False, "error": _("No se pudo borrar: {e}", e=err)}), 500
     log.info("Vídeo borrado: %s", nombre)
     return jsonify({"ok": True})
+
+
+# ─── Visor de vídeos (visor_video.py): los SER en la galería, fotograma a fotograma ───
+
+def _videos_galeria():
+    """Los vídeos grabados como tarjetas de la galería: nombre, objeto, tipo, duración, tamaño y su apilado."""
+    carpeta = _config_video()["carpeta"]
+    lista = []
+    if not os.path.isdir(carpeta):
+        return lista
+    g = vivo_dia.trabajo_vivo.estado().get("grabacion")
+    for f in sorted(os.listdir(carpeta)):
+        if not f.lower().endswith(".ser"):
+            continue
+        ruta = os.path.join(carpeta, f)
+        nombre = f[:-4]
+        meta = apilado_video.leer_meta(ruta)
+        try:
+            info = apilado_video.info_video(ruta)
+        except apilado_video.ErrorVideo as e:
+            info = {"error": str(e), "frames": 0, "duracion_s": None}
+        objeto, base = _nombre_apilado_video(nombre, meta)
+        lista.append({"nombre": nombre, "objeto": objeto, "tipo": catalogo_offline.categoria_objeto(objeto) or SIN_TIPO,
+                      "frames": info.get("frames") or 0, "duracion_s": info.get("duracion_s"), "error": info.get("error"),
+                      "gb": round(os.path.getsize(ruta) / 1e9, 3),
+                      "grabando": bool(g and g.get("nombre") == nombre),
+                      "apilado": base + ".jpg" if os.path.isfile(os.path.join("static", "fotos", base + ".jpg")) else None})
+    return lista
+
+
+def _video_de_foto(carpeta, nombre):
+    """{"nombre", "fotograma"} del vídeo del que sale una foto de la galería, si el SER sigue en el mini PC; None si no."""
+    try:
+        with open(os.path.join(carpeta, os.path.splitext(nombre)[0] + ".json"), encoding="utf-8") as f:
+            video = (json.load(f) or {}).get("video") or {}
+    except (OSError, ValueError, AttributeError):
+        return None
+    if not isinstance(video, dict) or not video.get("nombre") or _ruta_video(video["nombre"]) is None:
+        return None
+    return {"nombre": video["nombre"], "fotograma": video.get("fotograma")}
+
+
+@app.route('/galeria/video/<nombre>')
+def galeria_video(nombre):
+    """El visor de un vídeo: fotograma a fotograma, con la nitidez y lo que cruza por delante."""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    ruta = _ruta_video(nombre)
+    if ruta is None:
+        return redirect(url_for('galeria'))
+    nombre = os.path.splitext(os.path.basename(ruta))[0]
+    try:
+        info = apilado_video.info_video(ruta)
+    except apilado_video.ErrorVideo as e:
+        info = {"nombre": nombre, "error": str(e), "frames": 0}
+    meta = apilado_video.leer_meta(ruta)
+    objeto, base = _nombre_apilado_video(nombre, meta)
+    info.update({"objeto": objeto, "gb": round(os.path.getsize(ruta) / 1e9, 3),
+                 "apilado": base + ".jpg" if os.path.isfile(os.path.join("static", "fotos", base + ".jpg")) else None})
+    try:
+        inicial = max(0, min(int(info.get("frames") or 1) - 1, int(request.args.get("f", 0))))
+    except ValueError:
+        inicial = 0
+    return render_template("visor_video.html", video=info, inicial=inicial, lado=visor_video.LADO_FOTOGRAMA)
+
+
+def _ruta_video_legible(nombre):
+    """(ruta del SER, None) si se puede leer ya (no se está grabando); si no, (None, respuesta de error)."""
+    ruta = _ruta_video(nombre)
+    if ruta is None:
+        return None, (jsonify({"ok": False, "error": _("Vídeo desconocido")}), 404)
+    g = vivo_dia.trabajo_vivo.estado().get("grabacion")
+    if g and g.get("nombre") == os.path.splitext(os.path.basename(ruta))[0]:
+        return None, (jsonify({"ok": False, "error": _("Ese vídeo se está grabando ahora")}), 409)
+    return ruta, None
+
+
+@app.route('/videos/fotograma/<nombre>/<int:i>')
+def videos_fotograma(nombre, i):
+    """Un fotograma en JPG (?lado= lado mayor en px). No cambia: el navegador lo guarda y al volver atrás no se pide otra vez."""
+    ruta, error = _ruta_video_legible(nombre)
+    if error:
+        return error
+    try:
+        lado = int(request.args.get("lado", visor_video.LADO_FOTOGRAMA))
+    except ValueError:
+        lado = visor_video.LADO_FOTOGRAMA
+    try:
+        datos = visor_video.a_jpg(visor_video.fotograma_bgr(ruta, i, lado, giro_camara.leer()))
+    except (visor_video.ErrorVisor, apilado_video.ErrorVideo) as e:
+        return jsonify({"ok": False, "error": str(e)}), 404
+    r = Response(datos, mimetype="image/jpeg")
+    r.headers["Cache-Control"] = "private, max-age=86400"
+    return r
+
+
+@app.route('/videos/miniatura/<nombre>')
+def videos_miniatura(nombre):
+    """La miniatura de la tarjeta de la galería (se hace la primera vez y se guarda junto al SER)."""
+    ruta, error = _ruta_video_legible(nombre)
+    if error:
+        return send_file("static/esperando.png", mimetype="image/png")
+    try:
+        mini = visor_video.miniatura(ruta, giro_camara.leer())
+    except (visor_video.ErrorVisor, apilado_video.ErrorVideo, OSError) as e:
+        log.warning("Miniatura de %s: %s", nombre, e)
+        return send_file("static/esperando.png", mimetype="image/png")
+    r = send_file(os.path.abspath(mini), mimetype="image/jpeg")
+    r.headers["Cache-Control"] = "private, max-age=3600"
+    return r
+
+
+@app.route('/videos/analisis/<nombre>', methods=["GET", "POST"])
+def videos_analisis(nombre):
+    """
+    GET: estado del análisis (nitidez y sucesos) y, si está hecho, el resultado con la posición de
+    cada suceso en la imagen que se ve. POST: lo pide (se hace en segundo plano, uno detrás de otro).
+    """
+    ruta, error = _ruta_video_legible(nombre)
+    if error:
+        return error
+    if request.method == "POST":
+        visor_video.trabajo_analisis.pedir(ruta)
+    e = visor_video.trabajo_analisis.estado(ruta)
+    if e["estado"] == "hecho":
+        r = visor_video.leer_analisis(ruta) or {}
+        try:
+            import orientacion_camara
+            lector = apilado_video.LectorSER(ruta)
+            ancho, alto = lector.ancho, lector.alto
+            lector.cerrar()
+            orientacion = apilado_video.leer_meta(ruta).get("orientacion") or orientacion_camara.leer_sdk()["transformacion"]
+            encuadre = giro_camara.leer()
+            for s in r.get("sucesos", []):
+                s["px"], s["py"] = visor_video.a_pantalla(s["x"], s["y"], orientacion, ancho, alto, encuadre)
+        except Exception:
+            log.exception("Visor: no se pudieron situar los sucesos de %s", nombre)
+        e["resultado"] = r
+    return jsonify(dict(e, ok=True))
+
+
+@app.route('/videos/guardar-fotograma', methods=["POST"])
+def videos_guardar_fotograma():
+    """{nombre, fotograma}: ese fotograma a la galería como una foto de día (JPG firmado + FITS en color)."""
+    datos = request.get_json(silent=True) or {}
+    ruta, error = _ruta_video_legible(datos.get("nombre"))
+    if error:
+        return error
+    nombre = os.path.splitext(os.path.basename(ruta))[0]
+    try:
+        i = int(datos.get("fotograma"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": _("Fotograma no válido")}), 400
+    try:
+        rgb, meta, instante = visor_video.fotograma_lineal(ruta, i)
+        # Un fotograma suelto tiene el ruido de uno solo: sin afinado (el editor de día lo pone si se quiere)
+        rgb8, cubo16, afinado = apilado_video.revelar(rgb, meta["negro"], meta["balance"],
+                                                      ajustes={"nitidez": 0.0, "exposicion": _compensacion_foto_dia()})
+        info = {"meta": meta, "frames": 1, "usados": 1, "pct": None, "ajustes": afinado["ajustes"]}
+        r = _guardar_apilado_video_en_galeria(nombre, rgb8, cubo16, info, fotograma=i, instante=instante)
+    except (visor_video.ErrorVisor, apilado_video.ErrorVideo) as e:
+        return jsonify({"ok": False, "error": str(e)}), 404
+    log.info("Fotograma %d del vídeo %s guardado en la galería como %s", i, nombre, r["archivo"])
+    return jsonify({"ok": True, "archivo": r["archivo"],
+                    "mensaje": _("Guardado en la galería como {archivo}", archivo=r["archivo"])})
 
 
 @app.route('/timelapse/iniciar', methods=["POST"])
@@ -5881,8 +6066,12 @@ def galeria():
     # Tipo de objeto (galaxia, nebulosa, cúmulo...) para filtrar: del JSON hermano si la
     # foto se guardó con él; las antiguas se deducen del nombre y el catálogo local
     tipos = {f: _tipo_foto_galeria(carpeta, f) for f in imagenes}
+    # Los vídeos grabados van como una tarjeta más (abren el visor); los apilados y fotogramas que salen
+    # de un vídeo que sigue en el mini PC llevan a él
+    videos = _videos_galeria()
+    de_video = {f: v for f in imagenes if (v := _video_de_foto(carpeta, f))}
     conteo = {}
-    for t in tipos.values():
+    for t in list(tipos.values()) + [v["tipo"] for v in videos]:
         conteo[t] = conteo.get(t, 0) + 1
     orden = list(catalogo_offline.CATEGORIAS) + [SIN_TIPO]
     filtros = sorted(conteo.items(), key=lambda kv: orden.index(kv[0]) if kv[0] in orden else len(orden))
@@ -5891,7 +6080,7 @@ def galeria():
     return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_dia=con_dia, con_luna=con_luna, con_sol=con_sol,
                            serie_wolf=serie_wolf, factor_k=manchas_solares.factor_k(), sol_crudo=sol_crudo, serie_sol=serie_sol,
                            curva_sol=curva_sol, orbita_sol=orbita_sol, n_sol_pendientes=n_sol_pendientes, tipos=tipos, filtros=filtros,
-                           n_rastros=len(lista_rastros), n_meteoros=n_meteoros)
+                           n_rastros=len(lista_rastros), n_meteoros=n_meteoros, videos=videos, de_video=de_video)
 
 
 SIN_TIPO = N_("Sin tipo")      # clave del filtro de la galería: se traduce al pintarla

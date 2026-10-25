@@ -358,6 +358,16 @@ details[open] > .proc-mas-titulo::before { content: "▾ "; }
 .foto-editar .ico { width: 16px; height: 16px; }
 .foto-editar:hover { background: var(--accent-2); opacity: 1; }
 .lightbox #lightbox-editar { position: absolute; top: 18px; right: 150px; cursor: pointer; }
+/* «Ver el vídeo»: en el móvil arriba a la izquierda (Anotaciones va debajo); en pantallas anchas, junto a Editar */
+.lightbox #lightbox-video { position: absolute; top: 18px; left: 18px; cursor: pointer; }
+@media (min-width: 700px) { .lightbox #lightbox-video { left: auto; right: 270px; } }
+/* Tarjeta de un vídeo en la galería: la miniatura con la duración y el tamaño encima; abre el visor */
+.foto-video { position: relative; display: block; aspect-ratio: 1 / 1; background: #000; overflow: hidden; }
+.foto-video img { cursor: pointer; }
+.foto-video-insignia { position: absolute; left: 8px; bottom: 8px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 6px; border-radius: 999px; background: rgba(0,0,0,0.65); color: #fff; font-size: 12px; font-weight: 600; backdrop-filter: blur(4px); }
+.foto-video-insignia .ico { width: 12px; height: 12px; }
+.foto-video-grabando { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; }
+.tarjeta-video .foto-editar { right: 44px; }
 .lightbox #lightbox-compartir { position: absolute; top: 18px; right: 18px; cursor: pointer; }
 .lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.94); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 14px; cursor: zoom-out; }
 .lightbox.abierto { display: flex; }
@@ -840,3 +850,18 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .wolf-lista .wolf-det { font-size: 11px; color: rgba(255,255,255,0.68); }
 .lightbox-anotaciones .sol-resaltada { stroke: #7ef0ff; stroke-width: 2.5px; }
 .lightbox-anotaciones text.sol-resaltada { fill: #7ef0ff; }
+
+/* ── Visor de vídeos (visor_video.html) ─────────────────────────────────────── */
+.visor-video { min-height: 200px; }
+.visor-video img { max-height: 72vh; object-fit: contain; margin: 0 auto; }
+.marca-suceso { position: absolute; width: 56px; height: 56px; margin: -28px 0 0 -28px; border: 2px solid #ff5a5a; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.5); pointer-events: none; opacity: 0.7; }
+.marca-suceso.marca-pico { opacity: 1; border-width: 3px; }
+#barra { width: 100%; }
+.tira-video { display: block; width: 100%; height: 56px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.tira-video .tira-nitidez { fill: color-mix(in srgb, var(--accent-2) 55%, transparent); stroke: var(--accent-2); stroke-width: 0.6; }
+.tira-video .tira-suceso { fill: #ff5a5a; }
+.tira-video .tira-posicion { stroke: var(--text); stroke-width: 1.5; }
+.controles-video { gap: 6px; flex-wrap: wrap; align-items: center; }
+.controles-video select { width: auto; flex: 1 1 140px; }
+.lista-sucesos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.lista-sucesos .chip { cursor: pointer; font-family: inherit; }
