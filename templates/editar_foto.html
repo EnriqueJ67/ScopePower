@@ -33,6 +33,8 @@
             <!-- La vista reprocesada: la base que manda el servidor con los ajustes rápidos
                  (color, curvas) aplicados aquí mismo (static/js/retoque.js) -->
             <canvas id="lienzo" style="display: none;"></canvas>
+            <!-- «Anterior»: la vista previa tal como estaba antes del último cambio -->
+            <canvas id="lienzo-anterior" style="display: none;"></canvas>
             <div class="visor-overlay">
                 <span class="chip" id="chip-vista">{{ _("Original") }}</span>
                 <span class="chip" id="chip-tiempo" style="display: none;"></span>
@@ -42,6 +44,7 @@
         <div class="fila entre" style="gap: 8px; flex-wrap: wrap;">
             <div class="segmentado" id="vista-seg">
                 <button type="button" class="activo" data-vista="original" onclick="mostrarVista('original')">{{ _("Original") }}</button>
+                <button type="button" data-vista="anterior" onclick="mostrarVista('anterior')" id="btn-vista-anterior" disabled title="{{ _('La vista previa antes del último cambio, para compararlo con el anterior') }}">{{ _("Anterior") }}</button>
                 <button type="button" data-vista="nueva" onclick="mostrarVista('nueva')" id="btn-vista-nueva" disabled>{{ _("Reprocesada") }}</button>
             </div>
             <button class="btn btn-primary" id="btn-preview" onclick="pedirVistaPrevia(true)"><svg><use href="#i-refrescar"/></svg>{{ _("Vista previa") }}</button>
@@ -50,9 +53,7 @@
 
         <button class="btn btn-success btn-lg btn-block" id="btn-guardar" onclick="guardarFoto()" title="{{ _('Procesa el FITS a resolución completa con estos ajustes y sustituye el JPG de la galería (el original se conserva)') }}"><svg><use href="#i-guardar"/></svg>{{ _("Guardar en la galería") }}</button>
         <div id="estado-guardar" class="estado centro" style="margin-top: -4px;"></div>
-        {% if info.hay_original %}
-        <button class="btn btn-outline-warning btn-block" id="btn-restaurar" onclick="restaurarFoto()">{{ _("Restaurar la foto original") }}</button>
-        {% endif %}
+        <button class="btn btn-outline-warning btn-block" id="btn-restaurar" onclick="restaurarFoto()"{% if not info.hay_original %} style="display: none;"{% endif %}>{{ _("Restaurar la foto original") }}</button>
         <small class="ayuda">{{ _("El encuadre, el estirado, el ruido y la nitidez se calculan a media resolución en el mini PC (unos segundos). Los controles con ⚡ (color, firma y curvas) se aplican al instante en este dispositivo, sin esperar al mini PC. Al guardar se procesa todo el FITS con todos los ajustes y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos.") }}</small>
     </div>
 
@@ -429,6 +430,33 @@
     let ultimaDuracion = 0;        // segundos que tardó la última vista previa (para la cuenta atrás)
     let temporizadorAuto = null;
 
+    // ——— «Anterior»: la vista previa antes del último cambio ———
+    // Cada vez que se pinta el lienzo se arranca un temporizador; si pasan ASENTADO_MS
+    // sin pintar otra vez, ese cuadro queda asentado. El primer cuadro de un cambio nuevo
+    // pasa el último asentado a «Anterior»: arrastrar un deslizador cuenta como un solo
+    // cambio, y una vista previa del mini PC que llega después, como otro.
+    const ASENTADO_MS = 800;
+    const cuadroEstable = document.createElement("canvas");
+    let hayEstable = false, enCambio = false, temporizadorAsentado = null;
+    function cuadroPintado() {
+        const lienzo = document.getElementById("lienzo");
+        if (!enCambio) {
+            enCambio = true;
+            if (hayEstable) {
+                const anterior = document.getElementById("lienzo-anterior");
+                anterior.width = cuadroEstable.width; anterior.height = cuadroEstable.height;
+                anterior.getContext("2d").drawImage(cuadroEstable, 0, 0);
+                document.getElementById("btn-vista-anterior").disabled = false;
+            }
+        }
+        clearTimeout(temporizadorAsentado);
+        temporizadorAsentado = setTimeout(() => {
+            cuadroEstable.width = lienzo.width; cuadroEstable.height = lienzo.height;
+            cuadroEstable.getContext("2d").drawImage(lienzo, 0, 0);
+            hayEstable = true; enCambio = false;
+        }, ASENTADO_MS);
+    }
+
     function pintarAjustes(a, inicial = false) {
         for (const k of CLAVES_RANGO) {
             const c = document.getElementById("c-" + k);
@@ -676,10 +704,13 @@
     function mostrarVista(cual) {
         const img = document.getElementById("imagen"), lienzo = document.getElementById("lienzo");
         if (cual === "nueva" && !hayNueva) return;
+        if (cual === "anterior" && document.getElementById("btn-vista-anterior").disabled) return;
         document.querySelectorAll("#vista-seg button").forEach(b => b.classList.toggle("activo", b.dataset.vista === cual));
-        img.style.display = cual === "nueva" ? "none" : "";
+        img.style.display = cual === "original" ? "" : "none";
         lienzo.style.display = cual === "nueva" ? "" : "none";
-        document.getElementById("chip-vista").textContent = cual === "nueva" ? _("Reprocesada (vista previa)") : _("Original");
+        document.getElementById("lienzo-anterior").style.display = cual === "anterior" ? "" : "none";
+        document.getElementById("chip-vista").textContent = cual === "nueva" ? _("Reprocesada (vista previa)") :
+            cual === "anterior" ? _("Antes del último cambio") : _("Original");
     }
 
     // ——— Ajustes rápidos: se aplican en el navegador sobre la base, agrupados por fotograma ———
@@ -693,6 +724,7 @@
             const inicio = performance.now();
             const hist = retoque.aplicar(a, editorCurvas.tablas(), a.firma);
             if (hist) editorCurvas.histograma(hist);
+            cuadroPintado();
             const ms = performance.now() - inicio;
             if (ms > 250) console.debug("retoque en", Math.round(ms), "ms");
         });
@@ -769,7 +801,7 @@
             document.getElementById("btn-vista-nueva").disabled = false;
             ultimaDuracion = (Date.now() - inicio) / 1000;
             mostrarVista("nueva");
-            estado.textContent = _("✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar", { s: fmtNum(ultimaDuracion, 1) });
+            estado.textContent = _("✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» o «Anterior» para comparar", { s: fmtNum(ultimaDuracion, 1) });
         } catch (e) {
             estado.textContent = "❌ " + e.message;
         } finally {
@@ -792,9 +824,23 @@
             });
             const d = await r.json();
             if (!r.ok || d.ok === false) { estado.textContent = "⚠️ " + (d.mensaje || _("No se pudo guardar")); boton.disabled = false; return; }
+            // Sin recargar la página al terminar: se sigue editando con la misma vista previa y
+            // el mismo «Anterior», y el botón queda listo para volver a guardar. Si el mini PC
+            // deja de contestar (se reinicia), el botón se libera en vez de quedarse esperando.
+            let ocupado = false, fallos = 0;
             const sondeo = setInterval(async () => {
+                if (ocupado) return;
+                ocupado = true;
                 const e = await fetch("/galeria/editar-estado").then(r => r.json()).catch(() => null);
-                if (!e) return;
+                ocupado = false;
+                if (!e || (e.archivo && e.archivo !== NOMBRE)) {
+                    if (++fallos < 20) return;
+                    clearInterval(sondeo);
+                    boton.disabled = false;
+                    estado.textContent = _("⚠️ El mini PC no contesta; mira en la galería si se ha guardado");
+                    return;
+                }
+                fallos = 0;
                 estado.textContent = (e.en_curso ? "⏳ " : (e.ok ? "✅ " : "❌ ")) + e.mensaje;
                 if (e.en_curso) return;
                 clearInterval(sondeo);
@@ -804,11 +850,9 @@
                         // Renombrada: la página nueva ya sabe su nombre
                         setTimeout(() => location.href = "/galeria/editar/" + encodeURIComponent(e.nombre_nuevo), 800);
                     } else {
-                        // La "original" pasa a ser la apartada y el JPG de la galería es el nuevo
-                        hayNueva = false;
-                        document.getElementById("btn-vista-nueva").disabled = true;
-                        mostrarVista("original");
-                        setTimeout(() => location.reload(), 800);
+                        // «Original» es la foto del apilado, que el primer guardado aparta: se recarga y ya se puede restaurar
+                        document.getElementById("imagen").src = `/galeria/editar/${encodeURIComponent(NOMBRE)}/original?t=${Date.now()}`;
+                        document.getElementById("btn-restaurar").style.display = "";
                     }
                 }
             }, 1500);
