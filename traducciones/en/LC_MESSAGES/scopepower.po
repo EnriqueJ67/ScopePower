@@ -3378,6 +3378,10 @@ msgstr "Waiting for the telescope to reach {nombre}"
 msgid "Esperando a que suba {objeto} ({hora})"
 msgstr "Waiting for {objeto} to rise ({hora})"
 
+#: estrellas_aparte.py
+msgid "Esperando a que termine la otra separación de estrellas..."
+msgstr "Waiting for the other star separation to finish..."
+
 #: plan_sesion.py
 msgid "Esperando al anochecer ({hora})"
 msgstr "Waiting for nightfall ({hora})"
@@ -3578,6 +3582,10 @@ msgstr "Stars"
 #: templates/editar_foto.html
 msgid "Estrellas aparte"
 msgstr "Stars apart"
+
+#: cola_estrellas.py
+msgid "Estrellas aparte de {archivo} en {s} s"
+msgstr "Stars apart for {archivo} in {s} s"
 
 #. js
 #: templates/constelacion.html
@@ -6040,6 +6048,10 @@ msgstr "Couldn't read the saved data: {e}"
 msgid "No se pudieron separar las estrellas"
 msgstr "The stars could not be separated"
 
+#: cola_estrellas.py
+msgid "No se pudieron separar las estrellas de {archivo}: {e}"
+msgstr "Could not separate the stars of {archivo}: {e}"
+
 #: static/js/asistente.js
 msgid "No se pudo abrir el selector de ASCOM en el PC: {e}"
 msgstr "Couldn't open the ASCOM chooser on the PC: {e}"
@@ -6963,6 +6975,10 @@ msgstr "Processing at full resolution ({p} %)..."
 msgid "Procesando a resolución completa..."
 msgstr "Processing at full resolution..."
 
+#: ScopePower.py
+msgid "Procesando el objeto y las estrellas de {archivo} por separado..."
+msgstr "Processing the object and the stars of {archivo} separately..."
+
 #. js
 #: templates/apilado.html
 msgid "Procesando..."
@@ -7815,13 +7831,21 @@ msgstr "{ancho} × {alto} pixel sensor, {pixel} µm pixels."
 msgid "Sensor de {ancho} × {alto} píxeles."
 msgstr "{ancho} × {alto} pixel sensor."
 
-#: ScopePower.py estrellas_aparte.py
+#: estrellas_aparte.py
 msgid "Separando las estrellas con {producto} ({p} %)..."
 msgstr "Separating the stars with {producto} ({p}%)..."
 
 #: estrellas_aparte.py
 msgid "Separando las estrellas con {producto}..."
 msgstr "Separating the stars with {producto}..."
+
+#: ScopePower.py
+msgid "Separando las estrellas de {archivo} con {producto} ({p} %)..."
+msgstr "Separating the stars of {archivo} with {producto} ({p}%)..."
+
+#: cola_estrellas.py
+msgid "Separando las estrellas..."
+msgstr "Separating the stars..."
 
 #: templates/editar_foto.html
 msgid "Separar las estrellas con {producto} y procesarlas aparte"
@@ -9959,6 +9983,14 @@ msgstr "the tile falls outside the mosaic plane"
 msgid "la zona se sale del sensor"
 msgstr "the region is outside the sensor"
 
+#: ScopePower.py
+msgid "las estrellas se separan en segundo plano"
+msgstr "the stars are being separated in the background"
+
+#: ScopePower.py
+msgid "las estrellas se separan en segundo plano ({n} por delante)"
+msgstr "the stars are being separated in the background ({n} ahead)"
+
 #: camara_nativa.py
 msgid "leer ajuste"
 msgstr "read setting"
@@ -10840,6 +10872,10 @@ msgstr "visible {desde}–{hasta}"
 #: templates/calibracion.html templates/flats.html
 msgid "viñeteo {v} %"
 msgstr "vignetting {v} %"
+
+#: ScopePower.py
+msgid "{archivo} ha cambiado mientras se separaban las estrellas: se deja como estaba (las estrellas separadas quedan para el editor)"
+msgstr "{archivo} changed while the stars were being separated: it is left as it was (the separated stars stay for the editor)"
 
 #. js
 #: templates/imagen.html
@@ -11931,10 +11967,6 @@ msgstr "⏳ Processing at full resolution..."
 msgid "⏳ Procesando el mosaico a resolución completa..."
 msgstr "⏳ Processing the mosaic at full resolution..."
 
-#: ScopePower.py
-msgid "⏳ Procesando el objeto y las estrellas por separado..."
-msgstr "⏳ Processing the object and the stars separately..."
-
 #. js
 #: templates/editar_foto.html
 msgid "⏳ Separando las estrellas con {producto} (varios minutos)..."
@@ -12094,10 +12126,6 @@ msgstr "⚠️ Type a name."
 #: templates/configuracion.html
 msgid "⚠️ Esta carpeta es una copia, no un clon de GitHub. Ejecuta una vez actualizar_desde_github.bat en el mini PC para convertirla (no toca tu configuración ni tus fotos); después se podrá actualizar desde aquí."
 msgstr "⚠️ This folder is a copy, not a GitHub clone. Run actualizar_desde_github.bat once on the mini PC to convert it (it doesn't touch your settings or your photos); after that you can update from here."
-
-#: ScopePower.py
-msgid "⚠️ Guardada sin las estrellas aparte: {e}"
-msgstr "⚠️ Saved without the stars apart: {e}"
 
 #. js
 #: templates/configuracion.html
@@ -12390,6 +12418,10 @@ msgstr "✅ The latest release is already installed ({version})."
 #: ScopePower.py
 msgid "✅ Zoom guardado correctamente"
 msgstr "✅ Zoom saved"
+
+#: ScopePower.py
+msgid "✅ {archivo} con las estrellas aparte"
+msgstr "✅ {archivo} with the stars apart"
 
 #. js
 #: templates/imagen.html
