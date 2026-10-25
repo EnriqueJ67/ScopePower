@@ -27,12 +27,23 @@
 # solo al guardar en la galería (si [Procesado] estrellas_aparte = true) y en el
 # editor, en un hilo, y la pareja de capas se guarda en static/fotos/capas/ para
 # no repetirlo (se borra y se renombra con la foto).
+#
+# Sin diálogos de Windows: si a StarNet2 le falta algo para arrancar (MSVCP140.dll
+# del Visual C++ de Microsoft, que su instalador no trae: pasó en el mini PC el
+# 24-oct-2026), Windows abre un diálogo de error y deja el proceso parado hasta que
+# alguien pulse Aceptar; en el campo, con la tablet como única pantalla, nadie lo
+# vería y la separación se quedaría «en curso» hasta TIEMPO_MAXIMO_S. Se lanza con
+# el modo de errores de Windows que no enseña diálogos (_sin_dialogos): el proceso
+# termina enseguida con un código NTSTATUS que _explicar_codigo traduce a un aviso.
 
 import os
+import re
 import json
 import glob
+import ctypes
 import shutil
 import logging
+import contextlib
 import subprocess
 import tempfile
 import threading
@@ -52,6 +63,22 @@ RUTAS_TIPICAS = (r"C:\Program Files\StarNet2\bin\starnet2.exe",
 CARPETA_CAPAS = os.path.abspath(os.path.join("static", "fotos", "capas"))
 SUFIJO_OBJETO, SUFIJO_ESTRELLAS = "_objeto.fits", "_estrellas.fits"
 TIEMPO_MAXIMO_S = 3600                 # por si el proceso se queda colgado
+
+# Visual C++ Redistributable de Microsoft (x64, 2015-2022): lo necesita StarNet2 y no lo trae
+URL_VC_REDIST = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+DLL_VISUAL_CPP = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+# Donde se descarga StarNet2 (Command-line Tools). No se descarga ni se instala desde
+# ScopePower: su licencia no permite redistribuirlo, el instalador pide administrador
+# y sus condiciones las acepta el usuario.
+URL_DESCARGA = "https://www.starnetastro.com/cli-tools/"
+# Códigos de salida de Windows (NTSTATUS) de un programa que no llega a arrancar
+STATUS_DLL_NO_ENCONTRADA = 0xC0000135   # falta una DLL (MSVCP140.dll, VCRUNTIME140.dll...)
+STATUS_PUNTO_ENTRADA = 0xC0000139       # la DLL está pero es de una versión vieja
+STATUS_INICIO_FALLIDO = 0xC0000142      # una DLL no se pudo inicializar
+STATUS_INSTRUCCION_ILEGAL = 0xC000001D  # el procesador no tiene las instrucciones que usa
+# Modo de errores de Windows sin diálogos: errores críticos (DLL que falta), fallos de
+# protección general y ficheros que no se abren
+SIN_DIALOGOS = 0x0001 | 0x0002 | 0x8000   # SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX
 
 # Estado de la separación en curso (una sola a la vez), para la web
 ESTADO = {"en_curso": False, "archivo": "", "fraccion": 0.0, "mensaje": "", "ok": None, "segundos": 0.0}
@@ -90,18 +117,111 @@ def disponible():
     return bool(ruta_starnet())
 
 
+@contextlib.contextmanager
+def _sin_dialogos():
+    """
+    Mientras dura, el modo de errores de este proceso no enseña diálogos
+    (SIN_DIALOGOS); un proceso hijo creado dentro lo hereda al nacer, así que basta
+    con rodear el Popen. Al salir se deja el modo que había. Fuera de Windows no hace nada.
+    """
+    if os.name != "nt":
+        yield
+        return
+    k32 = ctypes.windll.kernel32
+    anterior = k32.SetErrorMode(SIN_DIALOGOS)
+    k32.SetErrorMode(anterior | SIN_DIALOGOS)      # sin quitar los que ya hubiera
+    try:
+        yield
+    finally:
+        k32.SetErrorMode(anterior)
+
+
+def _explicar_codigo(codigo):
+    """
+    Aviso para el usuario de un código de salida de StarNet2 que dice que ni ha
+    llegado a arrancar (NTSTATUS de Windows), o "" si es un fallo normal suyo.
+    """
+    try:
+        c = int(codigo) & 0xFFFFFFFF             # Python lo da en negativo o en positivo según la versión
+    except (TypeError, ValueError):
+        return ""
+    if c in (STATUS_DLL_NO_ENCONTRADA, STATUS_PUNTO_ENTRADA, STATUS_INICIO_FALLIDO):
+        return _("A {producto} le falta una biblioteca de Windows para arrancar, casi siempre el Visual C++ de "
+                 "Microsoft (MSVCP140.dll). Instálalo en este PC desde {url} y vuelve a probar, sin reiniciar; "
+                 "si ya estaba instalado, reinstala {producto}.", producto=NOMBRE_PRODUCTO, url=URL_VC_REDIST)
+    if c == STATUS_INSTRUCCION_ILEGAL:
+        return _("El procesador de este PC no tiene las instrucciones que usa {producto}: no puede funcionar aquí.",
+                 producto=NOMBRE_PRODUCTO)
+    return ""
+
+
 def version():
     """'2.6.2' o '' si no responde."""
     ruta = ruta_starnet()
     if not ruta:
         return ""
     try:
-        salida = subprocess.run([ruta, "--version"], capture_output=True, text=True, timeout=30,
-                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
-        return salida.replace("starnet2", "").replace("version:", "").strip()
+        with _sin_dialogos():
+            salida = subprocess.run([ruta, "--version"], capture_output=True, text=True, timeout=30,
+                                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+        return _numero_version(salida)
     except Exception as e:
         log.warning("StarNet2 no responde a --version: %s", e)
         return ""
+
+
+def _numero_version(salida):
+    """'2.6.2' de lo que escribe --version («starnet2.EXE version: 2.6.2»), o la salida tal cual."""
+    m = re.search(r"\d+(?:\.\d+)+", salida or "")
+    return m.group(0) if m else (salida or "").strip()
+
+
+def visual_cpp_instalado():
+    """
+    True si están en System32 las DLL del Visual C++ 2015-2022 x64 que usa StarNet2
+    (DLL_VISUAL_CPP), False si falta alguna, None fuera de Windows.
+    """
+    if os.name != "nt":
+        return None
+    sistema = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+    return all(os.path.isfile(os.path.join(sistema, d)) for d in DLL_VISUAL_CPP)
+
+
+def comprobar_instalacion():
+    """
+    Estado de StarNet2 para la tarjeta de Configuración: lo busca (ruta_starnet) y lo
+    arranca de verdad con --version, sin diálogos de Windows, para saber si funciona
+    (con el ejecutable en su sitio puede faltarle el Visual C++). Devuelve un dict con
+    producto, ruta, instalado, funciona, version, visual_cpp (visual_cpp_instalado),
+    aviso (qué pasa, "" si funciona) y las dos direcciones de descarga.
+    """
+    ruta = ruta_starnet()
+    info = {"producto": NOMBRE_PRODUCTO, "ruta": ruta, "instalado": bool(ruta), "funciona": False, "version": "",
+            "visual_cpp": visual_cpp_instalado(), "aviso": "",
+            "url_descarga": URL_DESCARGA, "url_visual_cpp": URL_VC_REDIST}
+    if not ruta:
+        info["aviso"] = _("{producto} no está instalado en este PC: no aparece en [General] ruta_starnet de "
+                          "config.ini, ni en el PATH, ni en C:\\Program Files\\StarNet2.", producto=NOMBRE_PRODUCTO)
+        return info
+    try:
+        with _sin_dialogos():
+            r = subprocess.run([ruta, "--version"], capture_output=True, text=True, timeout=60,
+                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except subprocess.TimeoutExpired:
+        info["aviso"] = _("{producto} no contesta (más de 60 s para dar su versión).", producto=NOMBRE_PRODUCTO)
+        return info
+    except OSError as e:
+        info["aviso"] = _("No se puede ejecutar {ruta}: {e}", ruta=ruta, e=e)
+        return info
+    if r.returncode == 0:
+        info["funciona"] = True
+        info["version"] = _numero_version(r.stdout)
+    else:
+        info["aviso"] = _explicar_codigo(r.returncode) or _(
+            "{producto} no arranca (código {codigo}).", producto=NOMBRE_PRODUCTO, codigo=r.returncode)
+        log.warning("StarNet2 no arranca al comprobarlo desde Configuración: código %s, %s", r.returncode,
+                    (r.stderr or "").strip()[:300])
+    return info
 
 
 # ── Las capas guardadas junto a la galería ───────────────────────────────────
@@ -221,8 +341,9 @@ def separar(cubo, progreso=None, cabecera=None, prioridad_baja=False):
         inicio = datetime.now()
         try:
             banderas = getattr(subprocess, "CREATE_NO_WINDOW", 0) | (BAJA_PRIORIDAD if prioridad_baja and os.name == "nt" else 0)
-            proc = subprocess.Popen(orden, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
-                                    cwd=carpeta, creationflags=banderas)
+            with _sin_dialogos():
+                proc = subprocess.Popen(orden, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                                        cwd=carpeta, creationflags=banderas)
         except OSError as e:
             raise ErrorSeparacion(_("No se pudo lanzar {producto}: {e}", producto=NOMBRE_PRODUCTO, e=e))
         avisos = []
@@ -251,6 +372,10 @@ def separar(cubo, progreso=None, cabecera=None, prioridad_baja=False):
         proc.wait()
         segundos = (datetime.now() - inicio).total_seconds()
         if proc.returncode != 0 or not (os.path.isfile(salida_obj) and os.path.isfile(salida_est)):
+            explicacion = _explicar_codigo(proc.returncode)
+            if explicacion:
+                log.warning("StarNet2 no arranca (código 0x%08X): %s", proc.returncode & 0xFFFFFFFF, explicacion)
+                raise ErrorSeparacion(explicacion)
             raise ErrorSeparacion(_("{producto} ha fallado (código {codigo}) {detalle}", producto=NOMBRE_PRODUCTO,
                                     codigo=proc.returncode, detalle="; ".join(avisos)[:300]))
         objeto = fits.getdata(salida_obj).astype(np.float32) * np.float32(65535.0)

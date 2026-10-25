@@ -351,6 +351,10 @@ msgstr "At optical depth 0.3 the three colours give {r}, {g} and {b} K (the grey
 msgid "A profundidad óptica 0,3: {l} K (el modelo gris de Eddington, {e} K, en discontinua)."
 msgstr "At optical depth 0.3: {l} K (the grey Eddington model, {e} K, dashed)."
 
+#: estrellas_aparte.py
+msgid "A {producto} le falta una biblioteca de Windows para arrancar, casi siempre el Visual C++ de Microsoft (MSVCP140.dll). Instálalo en este PC desde {url} y vuelve a probar, sin reiniciar; si ya estaba instalado, reinstala {producto}."
+msgstr "{producto} is missing a Windows library to start, almost always Microsoft's Visual C++ (MSVCP140.dll). Install it on this PC from {url} and try again, no restart needed; if it was already installed, reinstall {producto}."
+
 #: firma.py
 msgid "AR {h}h {m}m · Dec {signo}{g}° {mg}′"
 msgstr "RA {h}h {m}m · Dec {signo}{g}° {mg}′"
@@ -402,6 +406,10 @@ msgstr "Open a new tab in Chrome and go to this address:"
 #: static/centrado.js
 msgid "Abrir a tamaño completo"
 msgstr "Open full size"
+
+#: templates/configuracion.html
+msgid "Abrir en el PC"
+msgstr "Open on the PC"
 
 #: ScopePower.py
 msgid "Acción no válida"
@@ -550,6 +558,10 @@ msgid "Al centro"
 msgstr "To center"
 
 #: templates/configuracion.html
+msgid "Al guardar un apilado, StarNet2 separa el objeto y las estrellas y cada uno se estira y se limpia por su lado, como «Estrellas aparte» del editor. Tarda unos minutos más por foto (unos 2,5 en el mini PC) y se hace después de guardar el JPG de siempre, que queda si algo falla. Las estrellas salen a su tamaño; el tamaño, el halo y su estirado se ajustan luego en el editor. Sin la casilla, se puede hacer en el editor, foto a foto."
+msgstr "When a stack is saved, StarNet2 separates the object and the stars and each is stretched and cleaned on its own, like “Stars apart” in the editor. It takes a few more minutes per photo (about 2.5 on the mini PC) and happens after the usual JPG is saved, which stays if something fails. The stars come out at their size; their size, halo and stretch are adjusted later in the editor. Without the checkbox, it can be done in the editor, photo by photo."
+
+#: templates/configuracion.html
 msgid "Al llegar a un objeto con GoTo, el móvil lee su descripción (sin Internet, solo los del catálogo)"
 msgstr "When a GoTo reaches an object, the phone reads its description (without Internet, catalogue objects only)"
 
@@ -665,6 +677,10 @@ msgstr "Annotations"
 msgid "Anotando objetos"
 msgstr "Annotating objects"
 
+#: templates/editar_foto.html
+msgid "Anterior"
+msgstr "Previous"
+
 #: templates/apagar.html
 msgid "Antes de apagar para cambiar la batería: para el seguimiento y deja el tubo donde estaba al encender la montura (el cero de los motores), horizontal y hacia el norte"
 msgstr "Before turning off to change the battery: stops tracking and leaves the tube where it was when the mount was turned on (the motors' zero), level and facing north"
@@ -672,6 +688,11 @@ msgstr "Before turning off to change the battery: stops tracking and leaves the 
 #: templates/_asistente.html
 msgid "Antes de seguir: enciende la montura y conéctala al PC (por cable o por red, según tu modelo) y enchufa la cámara al USB. Si el driver de tu montura trabaja con un programa intermedio (SynScan Pro, EQMOD, GSServer...), ábrelo y conéctalo primero."
 msgstr "Before continuing: turn on the mount and connect it to the PC (by cable or network, depending on your model) and plug the camera into USB. If your mount driver works through an intermediate program (SynScan Pro, EQMOD, GSServer...), open it and connect it first."
+
+#. js
+#: templates/editar_foto.html
+msgid "Antes del último cambio"
+msgstr "Before the last change"
 
 #: templates/configuracion.html
 msgid "Anunciar IP por voz"
@@ -1293,6 +1314,10 @@ msgstr "Loading..."
 msgid "Carpeta de timelapse desconocida"
 msgstr "Unknown timelapse folder"
 
+#: templates/configuracion.html
+msgid "Carpeta o ruta de starnet2.exe (vacío = buscarlo solo)"
+msgstr "Folder or path of starnet2.exe (empty = find it automatically)"
+
 #: luna_anotada.py
 msgid "Casi todo el borde de la Luna queda fuera de la foto."
 msgstr "Almost all of the Moon's edge is outside the photo."
@@ -1605,6 +1630,14 @@ msgstr "Composite"
 msgid "Compresión de lo brillante"
 msgstr "Highlight compression"
 
+#: templates/editar_foto.html
+msgid "Compresión de los núcleos"
+msgstr "Core compression"
+
+#: templates/configuracion.html
+msgid "Comprobando StarNet2..."
+msgstr "Checking StarNet2..."
+
 #: templates/home.html
 msgid "Comprobando el equipo..."
 msgstr "Checking the equipment..."
@@ -1621,6 +1654,10 @@ msgstr "Checking..."
 msgid "Comprobar"
 msgstr "Check"
 
+#: templates/configuracion.html
+msgid "Comprobar de nuevo"
+msgstr "Check again"
+
 #: templates/seguimiento.html
 msgid "Comprobar moviendo los ejes"
 msgstr "Check by moving the axes"
@@ -1636,6 +1673,10 @@ msgstr "Check that the camera is plugged into the PC's USB (and powered if it ne
 #: static/js/asistente.js
 msgid "Comprueba que la montura está encendida y conectada al PC y que el driver es el de tu modelo."
 msgstr "Check that the mount is on and connected to the PC and that the driver is the one for your model."
+
+#: templates/editar_foto.html
+msgid "Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en el panel Procesado (⚡)."
+msgstr "At 0 the cores of the bright stars are clipped at their top and come out flat; the higher the value, the less they are clipped and the more they keep their profile and colour up to the centre. The stars' own saturation is in the Processing panel (⚡)."
 
 #: templates/imagen.html
 msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes. Mientras se graba un vídeo, la corrección espera a que termine."
@@ -1936,6 +1977,10 @@ msgstr "Curves"
 msgid "Curvas cambiadas · pulsa \"Aplicar a la vista previa\""
 msgstr "Curves changed · press \"Apply to the preview\""
 
+#: templates/editar_foto.html
+msgid "Curvas de las estrellas"
+msgstr "Star curves"
+
 #: templates/apilado.html
 msgid "Curvas por puntos (RGB y por canal)"
 msgstr "Point curves (RGB and per channel)"
@@ -1943,10 +1988,6 @@ msgstr "Point curves (RGB and per channel)"
 #: templates/galeria.html
 msgid "Cuánto más oscura que la fotosfera tiene que ser una zona para contar como mancha"
 msgstr "How much darker than the photosphere an area must be to count as a spot"
-
-#: templates/editar_foto.html
-msgid "Cuánto pesan las estrellas al volver a juntarlas (pantalla): 100 % = como salieron, 0 % = solo el objeto y el fondo. A medio camino quedan más pequeñas y discretas."
-msgstr "How much the stars weigh when put back (screen blend): 100% = as they came out, 0% = only the object and the background. Halfway they look smaller and more discreet."
 
 #: templates/apilado.html
 msgid "Cuánto se levanta el fondo (0,10-0,20 normal; más para nebulosas extensas)."
@@ -1983,6 +2024,10 @@ msgstr "Camera: {e}"
 #: templates/imagen.html
 msgid "Cénit arriba"
 msgstr "Zenith up"
+
+#: templates/configuracion.html
+msgid "Cómo instalar StarNet2"
+msgstr "How to install StarNet2"
 
 #: templates/apilado.html
 msgid "Cómo se reparten los objetos a lo largo de la noche"
@@ -2768,6 +2813,10 @@ msgstr "The planetarium did not start within 20 s. It needs Chrome 80 or newer (
 msgid "El preset necesita un nombre"
 msgstr "The preset needs a name"
 
+#: estrellas_aparte.py
+msgid "El procesador de este PC no tiene las instrucciones que usa {producto}: no puede funcionar aquí."
+msgstr "This PC's processor lacks the instructions {producto} uses: it cannot run here."
+
 #: ScopePower.py
 msgid "El puerto {puerto} está ocupado por otro programa. ScopePower no puede arrancar."
 msgstr "Port {puerto} is in use by another program. ScopePower can't start."
@@ -3031,9 +3080,17 @@ msgstr "In Sagittarius. A name of Babylonian origin. Used in navigation."
 msgid "En azul claro, además de los objetos populares (en amarillo). 0 = no anotarlos. Se aplica en la siguiente vista previa y en la galería."
 msgstr "In light blue, in addition to the popular objects (in yellow). 0 = don't annotate them. Applies to the next preview and in the gallery."
 
+#: templates/configuracion.html
+msgid "En el PC donde corre ScopePower (no en el móvil), descarga StarNet2 de su web, en «Command-line Tools», la versión de Windows:"
+msgstr "On the PC where ScopePower runs (not on the phone), download StarNet2 from its website, under “Command-line Tools”, the Windows version:"
+
 #: actualizar.py
 msgid "En este PC no está instalado Git. Instálalo desde https://git-scm.com/download/win (todas las opciones por defecto) y vuelve a comprobar."
 msgstr "Git isn't installed on this PC. Install it from https://git-scm.com/download/win (all default options) and check again."
+
+#: ScopePower.py
+msgid "En este PC no existe {ruta}"
+msgstr "{ruta} does not exist on this PC"
 
 #. js
 #: templates/constelacion.html
@@ -3535,6 +3592,10 @@ msgstr "Style"
 msgid "Estirado"
 msgstr "Stretch"
 
+#: templates/editar_foto.html
+msgid "Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto."
+msgstr "The stars' own stretch, without touching the nebula or the background: to the right more and brighter stars, to the left fewer and more discreet ones. 0 = the same stretch as the photo."
+
 #. js
 #: ScopePower.py
 msgid "Estirando"
@@ -3579,7 +3640,7 @@ msgstr "A lonely star known as the 'mouth of the fish'. It has an observed plane
 msgid "Estrellas"
 msgstr "Stars"
 
-#: templates/editar_foto.html
+#: templates/configuracion.html templates/editar_foto.html
 msgid "Estrellas aparte"
 msgstr "Stars apart"
 
@@ -4453,6 +4514,10 @@ msgstr "Also take flat darks ({n} frames, it will ask you to cover the tube). Re
 msgid "Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro."
 msgstr "To the left bluer (cool), to the right redder (warm). The sky background stays neutral."
 
+#: templates/editar_foto.html
+msgid "Halo de las estrellas"
+msgstr "Star halo"
+
 #: templates/imagen.html
 msgid "Hasta pulsar Parar"
 msgstr "Until Stop is pressed"
@@ -4632,6 +4697,10 @@ msgstr "Home"
 msgid "Instala ASTAP con su catálogo, o pulsa «Saltar este paso»."
 msgstr "Install ASTAP with its catalog, or press “Skip this step”."
 
+#: templates/configuracion.html
+msgid "Instala también el Visual C++ de Microsoft (x64), que StarNet2 necesita y no trae:"
+msgstr "Also install Microsoft Visual C++ (x64), which StarNet2 needs and does not include:"
+
 #: instalar_astap.py
 msgid "Instalación cancelada"
 msgstr "Installation canceled"
@@ -4639,6 +4708,10 @@ msgstr "Installation canceled"
 #: templates/configuracion.html
 msgid "Instalada"
 msgstr "Installed"
+
+#: templates/configuracion.html
+msgid "Instálalo: queda en C:\\Program Files\\StarNet2 y ScopePower lo encuentra solo. Si lo pones en otra carpeta, escríbela abajo."
+msgstr "Install it: it goes to C:\\Program Files\\StarNet2 and ScopePower finds it on its own. If you put it in another folder, type it below."
 
 #. js
 #: templates/apilado.html
@@ -4652,6 +4725,10 @@ msgstr "Integral"
 #: templates/configuracion.html
 msgid "Intensidad de color"
 msgstr "Color intensity"
+
+#: templates/editar_foto.html
+msgid "Intensidad de las estrellas"
+msgstr "Star intensity"
 
 #: ScopePower.py
 msgid "Introduce usuario y contraseña"
@@ -4827,6 +4904,10 @@ msgstr "The signature is drawn on the preview and on the gallery photos: logo, a
 #: ScopePower.py
 msgid "La focal tiene que ser un número entre 50 y 5000 mm"
 msgstr "The focal length must be a number between 50 and 5000 mm"
+
+#: templates/editar_foto.html
+msgid "La forma de las estrellas reducidas (por debajo del 100 %). 0 = campana de Gauss: bolitas redondas de borde suave. A más valor, núcleo más picudo y un halo que se apaga despacio, como las estrellas de un telescopio (perfil de Moffat); 0,75 = Moffat beta 2. La anchura a media altura no cambia."
+msgstr "The shape of the reduced stars (below 100%). 0 = Gaussian bell: round dots with a soft edge. Higher values give a sharper core and a halo that fades slowly, like the stars of a telescope (Moffat profile); 0.75 = Moffat beta 2. The width at half height does not change."
 
 #. js
 #: templates/imagen.html
@@ -5010,6 +5091,10 @@ msgstr "Star separation needs an RGB stack"
 #: static/js/ayuda_voz.js
 msgid "La ubicación del móvil no está disponible"
 msgstr "The phone's location isn't available"
+
+#: templates/editar_foto.html
+msgid "La vista previa antes del último cambio, para compararlo con el anterior"
+msgstr "The preview before the last change, to compare it with the previous one"
 
 #: templates/seguimiento.html
 msgid "La vista se estira para que se vea la escena; con exposición automática, si no encuentra nada sube la exposición hasta el máximo ({max} ms)."
@@ -6052,6 +6137,10 @@ msgstr "The stars could not be separated"
 msgid "No se pudieron separar las estrellas de {archivo}: {e}"
 msgstr "Could not separate the stars of {archivo}: {e}"
 
+#: ScopePower.py
+msgid "No se pudo abrir el navegador en el PC"
+msgstr "Could not open the browser on the PC"
+
 #: static/js/asistente.js
 msgid "No se pudo abrir el selector de ASCOM en el PC: {e}"
 msgstr "Couldn't open the ASCOM chooser on the PC: {e}"
@@ -6329,6 +6418,10 @@ msgstr "Can't open webcam {n} (disconnected or in use by another program?)"
 msgid "No se puede calcular el tamaño del disco: {e}"
 msgstr "Cannot work out the disk size: {e}"
 
+#: estrellas_aparte.py
+msgid "No se puede ejecutar {ruta}: {e}"
+msgstr "Cannot run {ruta}: {e}"
+
 #: apilado_video.py
 msgid "No se puede leer el apilado guardado: {e}"
 msgstr "The saved stack cannot be read: {e}"
@@ -6352,6 +6445,10 @@ msgstr "It is not known when the photo was taken: that is needed to know how the
 #: luna_anotada.py
 msgid "No se sabe desde dónde se hizo la foto: falta el observatorio en Configuración."
 msgstr "It is not known where the photo was taken from: set the observatory in Settings."
+
+#: ScopePower.py
+msgid "No se sabe qué abrir"
+msgstr "Nothing to open"
 
 #: static/js/fotometria_solar.js
 msgid "No se ve cielo alrededor del Sol: no se ha restado su brillo."
@@ -7029,6 +7126,10 @@ msgstr "Press <b>Start</b> and use the live view with the pad below as a finder:
 msgid "Pulsa Iniciar para mover con la vista en directo"
 msgstr "Press Start to move with the live view"
 
+#: templates/configuracion.html
+msgid "Pulsa «Comprobar de nuevo», sin reiniciar ScopePower."
+msgstr "Press “Check again”, without restarting ScopePower."
+
 #: static/js/asistente.js
 msgid "Pulsa «Probar conexión» para comprobar que la cámara responde, o «Saltar este paso» si ahora no la tienes."
 msgstr "Press “Test connection” to check that the camera responds, or “Skip this step” if you don't have it now."
@@ -7277,6 +7378,10 @@ msgstr "Recovers detail and sharpens stars by undoing the blur measured on the p
 #: templates/apilado.html templates/editar_foto.html
 msgid "Reducción de ruido"
 msgstr "Noise reduction"
+
+#: templates/editar_foto.html
+msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
+msgstr "Reduces the stars: 100% = as they came out, 0% = only the object and the background. Each star is redrawn narrower, with its brightness and colour, and all shrink in the same proportion (at 50%, half the width), so the bright ones stay bigger than the faint ones; the smallest do not go below half a pixel and do not vanish. Below 25% they all lose light equally, until they vanish."
 
 #. js
 #: ScopePower.py
@@ -7847,6 +7952,10 @@ msgstr "Separating the stars of {archivo} with {producto} ({p}%)..."
 msgid "Separando las estrellas..."
 msgstr "Separating the stars..."
 
+#: templates/configuracion.html
+msgid "Separar las estrellas al guardar el apilado en la galería"
+msgstr "Separate the stars when saving the stack to the gallery"
+
 #: templates/editar_foto.html
 msgid "Separar las estrellas con {producto} y procesarlas aparte"
 msgstr "Separate the stars with {producto} and process them apart"
@@ -8149,6 +8258,10 @@ msgstr "Just the app; the PC stays on and it's back in a few seconds"
 msgid "Solo para fotos de noche; haz una foto primero."
 msgstr "Night shots only; take one first."
 
+#: templates/editar_foto.html
+msgid "Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas del panel Curvas actúan después sobre la foto entera."
+msgstr "Only for the stars, before putting them back with the object: lowering the middle of the curve makes them more discreet without dimming the bright ones; raising it, more present. The curves of the Curves panel act afterwards on the whole photo."
+
 #: templates/apilado.html
 msgid "Solo para pruebas con simuladores: la noche empieza ahora y dura 6 h"
 msgstr "Only for testing with simulators: the night starts now and lasts 6 h"
@@ -8183,6 +8296,10 @@ msgstr[1] "Only {n} points synced; alignment is not enough"
 #: instalar_astap.py
 msgid "SourceForge ha devuelto una página web en vez del fichero; prueba más tarde"
 msgstr "SourceForge returned a web page instead of the file; try again later"
+
+#: templates/configuracion.html
+msgid "StarNet2 es un programa aparte de Mikita Misiura, gratuito y con su propia licencia: ScopePower no lo incluye ni lo instala, solo lo usa si está en el PC."
+msgstr "StarNet2 is a separate program by Mikita Misiura, free and with its own licence: ScopePower does not include or install it, it only uses it if it is on the PC."
 
 #. js
 #: templates/goto.html
@@ -11466,12 +11583,24 @@ msgid "{producto} necesita al menos 512×512 píxeles"
 msgstr "{producto} needs at least 512×512 pixels"
 
 #: estrellas_aparte.py
+msgid "{producto} no arranca (código {codigo})."
+msgstr "{producto} does not start (code {codigo})."
+
+#: estrellas_aparte.py
+msgid "{producto} no contesta (más de 60 s para dar su versión)."
+msgstr "{producto} does not answer (more than 60 s to report its version)."
+
+#: estrellas_aparte.py
 msgid "{producto} no está instalado (o no está en ruta_starnet de config.ini)"
 msgstr "{producto} is not installed (or not in ruta_starnet of config.ini)"
 
+#: estrellas_aparte.py
+msgid "{producto} no está instalado en este PC: no aparece en [General] ruta_starnet de config.ini, ni en el PATH, ni en C:\\Program Files\\StarNet2."
+msgstr "{producto} is not installed on this PC: it is not in [General] ruta_starnet of config.ini, nor in the PATH, nor in C:\\Program Files\\StarNet2."
+
 #: templates/editar_foto.html
-msgid "{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini."
-msgstr "{producto} is not installed. It is a separate program by Mikita Misiura with its own licence (free): download it from starnetastro.com (Command-line Tools) and, if it does not end up in its usual folder, say where in ruta_starnet of config.ini."
+msgid "{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini. Necesita además el Visual C++ de Microsoft (vc_redist.x64.exe), que muchos PC ya tienen."
+msgstr "{producto} is not installed. It is a separate program by Mikita Misiura with its own licence (free): download it from starnetastro.com (Command-line Tools) and, if it does not end up in its usual folder, say where in ruta_starnet of config.ini. It also needs Microsoft's Visual C++ (vc_redist.x64.exe), which many PCs already have."
 
 #: ScopePower.py
 msgid "{px} px ({arcsec}\") hacia el {rumbo}, a {lejos} px del punto de partida"
@@ -11918,6 +12047,11 @@ msgstr "⏳ Centering..."
 
 #. js
 #: templates/configuracion.html
+msgid "⏳ Comprobando StarNet2..."
+msgstr "⏳ Checking StarNet2..."
+
+#. js
+#: templates/configuracion.html
 msgid "⏳ Descargando del Minor Planet Center..."
 msgstr "⏳ Downloading from the Minor Planet Center..."
 
@@ -12109,6 +12243,11 @@ msgid "⚠️ Advertencia: El objeto está por debajo de altura mínima. Proceso
 msgstr "⚠️ Warning: The object is below the minimum altitude. Process canceled."
 
 #. js
+#: templates/editar_foto.html
+msgid "⚠️ El mini PC no contesta; mira en la galería si se ha guardado"
+msgstr "⚠️ The mini PC is not answering; check the gallery to see whether it was saved"
+
+#. js
 #: templates/configuracion.html
 msgid "⚠️ En este PC no está instalado Git. Instálalo desde git-scm.com (opciones por defecto) para poder actualizar."
 msgstr "⚠️ Git isn't installed on this PC. Install it from git-scm.com (default options) to be able to update."
@@ -12205,8 +12344,23 @@ msgstr "⚠️ {p}% wider than at the start: has the focus drifted?"
 
 #. js
 #: templates/configuracion.html
+msgid "✅ Abierta en el navegador del PC"
+msgstr "✅ Opened in the PC's browser"
+
+#. js
+#: templates/configuracion.html
 msgid "✅ Ajustes de voz guardados"
 msgstr "✅ Voice settings saved"
+
+#. js
+#: templates/configuracion.html
+msgid "✅ Al guardar el apilado no se separarán las estrellas"
+msgstr "✅ The stars will not be separated when the stack is saved"
+
+#. js
+#: templates/configuracion.html
+msgid "✅ Al guardar el apilado se separarán las estrellas"
+msgstr "✅ The stars will be separated when the stack is saved"
 
 #. js
 #: templates/apilado.html
@@ -12334,6 +12488,16 @@ msgid "✅ Posición del móvil recibida (precisión {m} m). Se guardará al ter
 msgstr "✅ Phone position received (accuracy {m} m). It will be saved when you finish."
 
 #. js
+#: templates/configuracion.html
+msgid "✅ Ruta guardada"
+msgstr "✅ Path saved"
+
+#. js
+#: templates/configuracion.html
+msgid "✅ Ruta guardada: StarNet2 funciona"
+msgstr "✅ Path saved: StarNet2 works"
+
+#. js
 #: templates/apilado.html
 msgid "✅ Rótulo: {nombre}"
 msgstr "✅ Caption: {nombre}"
@@ -12402,8 +12566,8 @@ msgstr "✅ Preview in {s} s · tap “Original” to compare"
 
 #. js
 #: templates/editar_foto.html
-msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar"
-msgstr "✅ Preview ready in {s} s · colour and curves apply instantly · tap “Original” to compare"
+msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» o «Anterior» para comparar"
+msgstr "✅ Preview ready in {s} s · colour and curves are instant · tap “Original” or “Previous” to compare"
 
 #. js
 #: templates/configuracion.html
@@ -12422,6 +12586,11 @@ msgstr "✅ Zoom saved"
 #: ScopePower.py
 msgid "✅ {archivo} con las estrellas aparte"
 msgstr "✅ {archivo} with the stars apart"
+
+#. js
+#: templates/configuracion.html
+msgid "✅ {producto} {version} listo en {ruta}"
+msgstr "✅ {producto} {version} ready at {ruta}"
 
 #. js
 #: templates/imagen.html
