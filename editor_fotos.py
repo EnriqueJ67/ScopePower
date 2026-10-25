@@ -81,7 +81,7 @@ CALIDAD_GUARDADO = 92
 
 # Claves de procesado que acepta el editor (las del panel del apilado + estirado + scnr)
 CLAVES_FLOAT = ("fondo_objetivo", "compresion", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "brillo", "temperatura",
-                "tamano_estrellas", "intensidad_estrellas", "compresion_estrellas")
+                "tamano_estrellas", "intensidad_estrellas", "compresion_estrellas", "halo_estrellas")
 CLAVES_BOOL = ("gradiente", "aplanar", "scnr_estrellas", "color_estrellas_uniforme", "estrellas_aparte")
 ESTIRADOS = ("multiescala", "stf")
 ZOOMS = (0, 25, 50, 75)
@@ -289,6 +289,10 @@ def ajustes_desde(datos):
         aj["tamano_estrellas"] = float(min(max(float(aj.get("tamano_estrellas", procesado.TAMANO_ESTRELLAS)), 0.0), 100.0))
     except (TypeError, ValueError):
         aj["tamano_estrellas"] = procesado.TAMANO_ESTRELLAS
+    try:
+        aj["halo_estrellas"] = float(min(max(float(aj.get("halo_estrellas", procesado.HALO_ESTRELLAS)), 0.0), 1.0))
+    except (TypeError, ValueError):
+        aj["halo_estrellas"] = procesado.HALO_ESTRELLAS
     return aj
 
 

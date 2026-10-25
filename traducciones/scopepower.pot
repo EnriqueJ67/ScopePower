@@ -4455,6 +4455,10 @@ msgstr ""
 msgid "Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro."
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Halo de las estrellas"
+msgstr ""
+
 #: templates/imagen.html
 msgid "Hasta pulsar Parar"
 msgstr ""
@@ -4832,6 +4836,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "La focal tiene que ser un número entre 50 y 5000 mm"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "La forma de las estrellas reducidas (por debajo del 100 %). 0 = campana de Gauss: bolitas redondas de borde suave. A más valor, núcleo más picudo y un halo que se apaga despacio, como las estrellas de un telescopio (perfil de Moffat); 0,75 = Moffat beta 2. La anchura a media altura no cambia."
 msgstr ""
 
 #. js
@@ -7277,7 +7285,7 @@ msgid "Reducción de ruido"
 msgstr ""
 
 #: templates/editar_foto.html
-msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar como una campana de Gauss más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
+msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
 msgstr ""
 
 #. js

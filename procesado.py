@@ -1917,7 +1917,8 @@ def color(rgb, ajustes):
 # de la capa en vivo (static/js/retoque.js); al guardar se hacen aquí en float.
 #
 # El tamaño REDUCE las estrellas, no las apaga ni las recorta: cada estrella se
-# vuelve a pintar como una campana de Gauss más estrecha, con su pico y su color.
+# vuelve a pintar más estrecha, con su pico y su color, como una campana de Gauss
+# o, según «Halo de las estrellas», con un perfil de Moffat (núcleo picudo y halo).
 # Primero se hace un catálogo de la capa (catalogo_estrellas: posición, anchura y
 # color en el pico de cada una) y luego se pinta (pintar_estrellas). Todas
 # encogen en la MISMA proporción, sigma·tamaño, para que conserven su jerarquía
@@ -1944,6 +1945,9 @@ TAMANO_PICO = 0.25            # por debajo de este tamaño el pico baja con (tam
 TAMANO_FUNDIDO = 0.85         # entre 1 y este tamaño se funde la capa original con la pintada
 UMBRAL_ESTRELLA = 0.03        # pico mínimo (capa estirada, 0..1) para entrar en el catálogo
 SIGMA_MINIMA = 0.5            # px: suelo suave de la anchura (se perdería entre píxeles)
+HALO_ESTRELLAS = 0.75         # forma al reducir: 0 = campana de Gauss; 0,75 = Moffat beta 2 (núcleo picudo y halo suave)
+HALO_BETA_MIN = 1.5           # beta de Moffat con el halo a 1 (1/beta va de 0 a 1/1,5 con el control)
+HALO_RADIO_PINTADO = 120      # px: tope de la ventana de cada estrella (las alas de Moffat llegan lejos)
 SIGMA_HALO = 2.5              # px: anchura mínima de una estrella cuyo halo se resta antes de medir las demás
 HALO_RELATIVO = 1.5           # ...y al menos estas veces la anchura mediana de la foto
 HALO_SIGMAS = 6.0             # radio del modelo del halo, en sigmas de la estrella
@@ -2079,16 +2083,30 @@ def _medir_estrellas(c):
     return np.column_stack([cx, cy, sigma, rgb, A])[ok].astype(np.float32)
 
 
-def pintar_estrellas(cat, forma, tamano):
+def beta_halo(halo):
+    """
+    El beta de Moffat del control «Halo de las estrellas» (0..1), o None para la
+    campana de Gauss (halo 0): 1/beta va de 0 a 1/HALO_BETA_MIN, así el control
+    es parejo (0,75 = beta 2, 1 = beta 1,5). Igual que en static/js/retoque.js.
+    """
+    q = float(np.clip(_float(halo, HALO_ESTRELLAS), 0.0, 1.0)) / HALO_BETA_MIN
+    return None if q < 0.02 else 1.0 / q
+
+
+def pintar_estrellas(cat, forma, tamano, halo=HALO_ESTRELLAS):
     """
     Pinta el catálogo (catalogo_estrellas) en una capa (H, W, 3) float [0, 1] con
-    el tamaño 0..1: cada estrella una gaussiana de sigma = raíz((sigma·tamaño)² +
-    SIGMA_MINIMA²) hasta 3,5 sigmas, con su color (r, g, b) por la sobreexposición
-    A y recortada a 1 canal a canal: las brillantes conservan la cima blanca y el
-    color en el halo, y la cima encoge con la estrella (sin cima, A = 1, pico
-    P = max(r, g, b)). Donde se solapan, manda la más brillante en ese píxel.
-    Por debajo de TAMANO_PICO la luz baja con (tamaño/TAMANO_PICO)². Igual que en
-    static/js/retoque.js.
+    el tamaño 0..1: cada estrella con su anchura a media altura por el tamaño, de
+    sigma = raíz((sigma·tamaño)² + SIGMA_MINIMA²), y su color (r, g, b) por la
+    sobreexposición A, recortada a 1 canal a canal: las brillantes conservan la
+    cima blanca y el color en el halo, y la cima encoge con la estrella (sin
+    cima, A = 1, pico P = max(r, g, b)). Donde se solapan, manda la más brillante
+    en ese píxel. Por debajo de TAMANO_PICO la luz baja con (tamaño/TAMANO_PICO)².
+    La forma, según halo (0..1, beta_halo): con 0 una campana de Gauss hasta 3,5
+    sigmas; si no, un perfil de Moffat (1 + r²/alfa²)^-beta con la misma media
+    altura, de núcleo más picudo y halo que se apaga despacio, como las estrellas
+    de un telescopio: la gaussiana dejaba bolitas (M 27, 25-oct-2026). Hasta
+    donde baja de medio nivel de 8 bits. Igual que en static/js/retoque.js.
     """
     h, w = forma
     out = np.zeros((h, w, 3), np.float32)
@@ -2097,20 +2115,33 @@ def pintar_estrellas(cat, forma, tamano):
         return out
     Lout = np.zeros((h, w), np.float32)
     apagado = (tamano / TAMANO_PICO) ** 2 if tamano < TAMANO_PICO else 1.0
+    beta = beta_halo(halo)
+    k50 = math.sqrt(2.0 ** (1.0 / beta) - 1.0) if beta else 1.0
     for x, y, s, r, g, b, A in np.asarray(cat, dtype=np.float32).reshape(-1, 7):
         P = float(max(r, g, b))
         if P <= 0:
             continue
         s2 = math.sqrt((float(s) * tamano) ** 2 + SIGMA_MINIMA ** 2)
-        R = int(math.ceil(3.5 * s2))
+        if beta:
+            alfa = 1.1774 * s2 / k50                    # la misma media altura que la gaussiana
+            luz = max(P * float(A) * apagado * 510.0, 1.0)
+            R = min(int(math.ceil(alfa * math.sqrt(luz ** (1.0 / beta) - 1.0))), HALO_RADIO_PINTADO)
+        else:
+            R = int(math.ceil(3.5 * s2))
         xc, yc = int(round(float(x))), int(round(float(y)))
         x0, x1 = max(0, xc - R), min(w, xc + R + 1)
         y0, y1 = max(0, yc - R), min(h, yc + R + 1)
         if x0 >= x1 or y0 >= y1:
             continue
-        gx = np.exp(-((np.arange(x0, x1, dtype=np.float32) - np.float32(x)) ** 2) / np.float32(2 * s2 * s2))
-        gy = np.exp(-((np.arange(y0, y1, dtype=np.float32) - np.float32(y)) ** 2) / np.float32(2 * s2 * s2))
-        k = np.float32(float(A) * apagado) * gy[:, None] * gx[None, :]      # la luz por el color, sin recortar
+        dx = np.arange(x0, x1, dtype=np.float32) - np.float32(x)
+        dy = np.arange(y0, y1, dtype=np.float32) - np.float32(y)
+        if beta:
+            r2 = dy[:, None] ** 2 + dx[None, :] ** 2
+            k = np.float32(float(A) * apagado) * (1.0 + r2 / np.float32(alfa * alfa)) ** np.float32(-beta)
+        else:
+            gx = np.exp(-(dx ** 2) / np.float32(2 * s2 * s2))
+            gy = np.exp(-(dy ** 2) / np.float32(2 * s2 * s2))
+            k = np.float32(float(A) * apagado) * gy[:, None] * gx[None, :]      # la luz por el color, sin recortar
         v = np.minimum(np.float32(P) * k, 1.0)
         ventana = Lout[y0:y1, x0:x1]
         mayor = v > ventana
@@ -2121,10 +2152,11 @@ def pintar_estrellas(cat, forma, tamano):
     return out
 
 
-def reducir_estrellas(capa, tamano, cat=None):
+def reducir_estrellas(capa, tamano, cat=None, halo=HALO_ESTRELLAS):
     """
     La capa de estrellas con el tamaño 0..1: la original al 100 %; entre el 100 y
-    el 85 % la original fundida con la pintada; por debajo, solo la pintada.
+    el 85 % la original fundida con la pintada (con la forma de halo); por debajo,
+    solo la pintada.
     """
     capa = np.clip(np.asarray(capa, dtype=np.float32), 0, 1)
     tamano = float(np.clip(tamano, 0.0, 1.0))
@@ -2132,7 +2164,7 @@ def reducir_estrellas(capa, tamano, cat=None):
         return capa
     if cat is None:
         cat = catalogo_estrellas(capa)
-    pintada = pintar_estrellas(cat, capa.shape[:2], tamano)
+    pintada = pintar_estrellas(cat, capa.shape[:2], tamano, halo)
     a = float(np.clip((1.0 - tamano) / (1.0 - TAMANO_FUNDIDO), 0.0, 1.0))
     return (capa * (1.0 - a) + pintada * a).astype(np.float32)
 
@@ -2227,7 +2259,7 @@ def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
         tamano = float(np.clip(float(ajustes.get("tamano_estrellas", TAMANO_ESTRELLAS)), 0, 100)) / 100.0
     except (TypeError, ValueError):
         tamano = 1.0
-    c = reducir_estrellas(capa, tamano)
+    c = reducir_estrellas(capa, tamano, halo=ajustes.get("halo_estrellas", HALO_ESTRELLAS))
     c = temperatura_color(c, ajustes.get("temperatura", 0.0), fondo=np.zeros(3, dtype=np.float32))
     c = brillo_general(c, ajustes.get("brillo", 0.0))
     if _bool(ajustes.get("scnr_estrellas", True)):

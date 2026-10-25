@@ -23,7 +23,8 @@
 // (procesado.pintar_estrellas, la misma aritmética) desde el catálogo que manda el
 // servidor (procesado.catalogo_estrellas: x, y, sigma, r, g, b y sobreexposición A de cada
 // estrella): sigma nueva = raíz((sigma·tamaño)² + 0,5²), la misma proporción para todas,
-// hasta 3,5 sigmas; el color por A y recortado a 1 (la cima blanca de las brillantes);
+// hasta 3,5 sigmas (o con perfil de Moffat de la misma media altura, según el halo:
+// procesado.beta_halo); el color por A y recortado a 1 (la cima blanca de las brillantes);
 // donde se solapan manda la más brillante; por debajo del 25 % el pico baja con
 // (tamaño/0,25)², y entre el 100 y el 85 % se funde con la capa original. Se pinta una
 // vez por valor del deslizador (_reducida, con caché).
@@ -60,6 +61,13 @@
 
     // Catálogo de estrellas, 10 bytes por estrella (editor_fotos.empaquetar_catalogo: x·16, y·16 y
     // sigma·100 en uint16 little-endian, r, g, b ·255 y log2(A)·32 en uint8) → Float32Array(7·N) con los valores reales
+    // procesado.beta_halo: el beta de Moffat del control «Halo de las estrellas», o 0 para la campana de Gauss
+    function betaHalo(halo) {
+        const h = Number(halo);
+        const q = Math.min(1, Math.max(0, isFinite(h) ? h : 0.75)) / 1.5;      // procesado.HALO_ESTRELLAS, HALO_BETA_MIN
+        return q < 0.02 ? 0 : 1 / q;
+    }
+
     function leerCatalogo(buffer) {
         const v = new DataView(buffer), n = Math.floor(buffer.byteLength / 10), cat = new Float32Array(n * 7);
         for (let i = 0; i < n; i++) {
@@ -126,24 +134,30 @@
 
         // Capa de estrellas con el tamaño 0..1 (procesado.reducir_estrellas): las estrellas del
         // catálogo pintadas como gaussianas, fundidas con la original entre el 100 y el 85 %
-        _reducida(tamano) {
-            if (this.reducida && this.reducida.tamano === tamano) return this.reducida.datos;
+        _reducida(tamano, halo) {
+            const beta = betaHalo(halo);
+            if (this.reducida && this.reducida.tamano === tamano && this.reducida.beta === beta) return this.reducida.datos;
             const w = this.ancho, h = this.alto, n = w * h, cat = this.catalogo || new Float32Array(0);
             const pintada = new Float32Array(n * 3), Lout = new Float32Array(n);
             if (tamano > 0) {
                 const apagado = tamano < 0.25 ? Math.pow(tamano / 0.25, 2) : 1;          // procesado.TAMANO_PICO
+                const k50 = beta ? Math.sqrt(Math.pow(2, 1 / beta) - 1) : 1;
                 for (let e = 0; e < cat.length; e += 7) {
                     const x = cat[e], y = cat[e + 1], s = cat[e + 2], r = cat[e + 3], g = cat[e + 4], b = cat[e + 5], A = cat[e + 6];
                     const P = Math.max(r, g, b);
                     if (P <= 0) continue;
                     const s2 = Math.sqrt((s * tamano) * (s * tamano) + 0.25);          // procesado.SIGMA_MINIMA = 0,5
-                    const R = Math.ceil(3.5 * s2), xc = Math.round(x), yc = Math.round(y);
+                    const alfa = 1.1774 * s2 / k50, alfa2 = alfa * alfa;               // Moffat: la misma media altura
+                    const R = beta ? Math.min(Math.ceil(alfa * Math.sqrt(Math.pow(Math.max(P * A * apagado * 510, 1), 1 / beta) - 1)), 120)   // procesado.HALO_RADIO_PINTADO
+                                   : Math.ceil(3.5 * s2);
+                    const xc = Math.round(x), yc = Math.round(y);
                     const x0 = Math.max(0, xc - R), x1 = Math.min(w, xc + R + 1), y0 = Math.max(0, yc - R), y1 = Math.min(h, yc + R + 1);
                     const dos = 2 * s2 * s2;
                     for (let yy = y0; yy < y1; yy++) {
-                        const gy = Math.exp(-((yy - y) * (yy - y)) / dos);
+                        const gy = Math.exp(-((yy - y) * (yy - y)) / dos), dy2 = (yy - y) * (yy - y);
                         for (let xx = x0; xx < x1; xx++) {
-                            const k = A * apagado * gy * Math.exp(-((xx - x) * (xx - x)) / dos);   // sin recortar
+                            const k = beta ? A * apagado * Math.pow(1 + (dy2 + (xx - x) * (xx - x)) / alfa2, -beta)
+                                           : A * apagado * gy * Math.exp(-((xx - x) * (xx - x)) / dos);   // sin recortar
                             const v = Math.min(P * k, 1);
                             const i = yy * w + xx;
                             if (v > Lout[i]) {
@@ -162,7 +176,7 @@
                 datos[j + 2] = Math.round(d[j + 2] * (1 - a) + pintada[i * 3 + 2] * 255 * a);
                 datos[j + 3] = 255;
             }
-            this.reducida = { tamano, datos };
+            this.reducida = { tamano, beta, datos };
             return datos;
         }
 
@@ -255,7 +269,7 @@
                 cRt = tc[0]; cGt = tc[1]; cBt = tc[2];
                 const t = Number(aj.tamano_estrellas);
                 const tamano = isFinite(t) ? Math.min(100, Math.max(0, t)) / 100 : 1;
-                if (tamano < 1) capa = this._reducida(tamano);      // el tamaño va antes que el color, como en el servidor
+                if (tamano < 1) capa = this._reducida(tamano, aj.halo_estrellas);      // el tamaño va antes que el color, como en el servidor
             }
             // Saturación en HSV (V y H fijos), sin crear arrays por píxel: deja el resultado en `rgb3`
             const rgb3 = new Float32Array(3);

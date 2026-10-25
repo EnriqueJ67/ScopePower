@@ -60,6 +60,14 @@ día de la release. El número de versión vive en `version.py`.
   llevaba también la luz y el color de la nebulosa: el cielo de alrededor se levantaba (+6 % a
   120 px con ruido 0,65) y se teñía, y entre ese resplandor y el borde de la nebulosa quedaba la
   sombra. Ahora la media se mide solo con el cielo (lo que no pasa de 3 sigmas del fondo).
+- Nuevo: «Halo de las estrellas» (⚡) en el panel «Estrellas aparte»: la forma de las estrellas
+  reducidas. Con 0 se pintan como una campana de Gauss, como hasta ahora, y en fotos como M 27, cuyas
+  estrellas ya son casi gaussianas y pocas llegan a cortarse en su tope, quedaban como bolitas. Con
+  más valor se pintan con un perfil de Moffat de la misma anchura a media altura: núcleo más picudo
+  y un halo que se apaga despacio, como las estrellas de un telescopio. Por defecto 0,75 (beta 2:
+  al 5 % del pico llegan a 2,9 medias alturas, frente a 2,1 la gaussiana). Al instante en el
+  navegador, que pinta igual que el servidor (1 nivel como mucho), y se guarda con la foto y en
+  los presets; las fotos y presets anteriores toman el 0,75.
 - Cambiado: «Un solo color por estrella» en la capa de estrellas aparte reparte el color en
   1,5 px en vez de 4. Con 4 px, en campos densos como M 17 se mezclaba el color de estrellas
   vecinas y la variedad de colores bajaba un 17 %; ahora, un 6 %.

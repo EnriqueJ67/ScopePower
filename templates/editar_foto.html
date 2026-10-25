@@ -248,7 +248,12 @@
                 <div class="campo mt-2" id="controles-estrellas">
                     <div class="rango-titulo"><span>{{ _("Tamaño de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-tamano_estrellas"></span></div>
                     <input type="range" id="c-tamano_estrellas" data-clave="tamano_estrellas" min="0" max="100" step="5">
-                    <small class="ayuda">{{ _("Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar como una campana de Gauss más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer.") }}</small>
+                    <small class="ayuda">{{ _("Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer.") }}</small>
+                    <div class="campo mt-2">
+                        <div class="rango-titulo"><span>{{ _("Halo de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-halo_estrellas"></span></div>
+                        <input type="range" id="c-halo_estrellas" data-clave="halo_estrellas" min="0" max="1" step="0.05">
+                        <small class="ayuda">{{ _("La forma de las estrellas reducidas (por debajo del 100 %). 0 = campana de Gauss: bolitas redondas de borde suave. A más valor, núcleo más picudo y un halo que se apaga despacio, como las estrellas de un telescopio (perfil de Moffat); 0,75 = Moffat beta 2. La anchura a media altura no cambia.") }}</small>
+                    </div>
                     <!-- Estirado propio de las estrellas (procesado.estirar_capa_estrellas): con los dos a 0, el de la foto -->
                     <div class="campo mt-2">
                         <div class="rango-titulo"><span>{{ _("Intensidad de las estrellas") }}</span><span id="v-intensidad_estrellas"></span></div>
@@ -431,10 +436,10 @@
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
     const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes", "tamano_estrellas",
-                          "intensidad_estrellas", "compresion_estrellas"];
+                          "intensidad_estrellas", "compresion_estrellas", "halo_estrellas"];
     // Los ajustes rápidos los hace el navegador sobre la base (static/js/retoque.js): no piden
     // vista previa nueva al servidor. Los demás cambian la base y sí la piden.
-    const CLAVES_RAPIDAS = ["brillo", "temperatura", "saturacion", "saturacion_estrellas", "scnr", "tamano_estrellas"];
+    const CLAVES_RAPIDAS = ["brillo", "temperatura", "saturacion", "saturacion_estrellas", "scnr", "tamano_estrellas", "halo_estrellas"];
     const STARNET = {{ info.starnet|tojson }};      // {disponible, producto, capas: la foto ya tiene las capas}
     let capasListas = !!STARNET.capas;
     const CLAVES_SERVIDOR = CLAVES_RANGO.filter(k => !CLAVES_RAPIDAS.includes(k));
@@ -465,6 +470,7 @@
             if (a[k] !== undefined && a[k] !== null) c.value = a[k];
             else if (inicial && (k === "brillo" || k === "temperatura" || k === "bordes")) c.value = 0;
             else if (k === "intensidad_estrellas" || k === "compresion_estrellas") c.value = 0;   // foto o preset sin estirado propio de las estrellas
+            else if (k === "halo_estrellas") c.value = 0.75;     // foto o preset de antes del control: Moffat beta 2 (procesado.HALO_ESTRELLAS)
             else if (k === "nitidez") c.value = 0;                 // foto o preset de antes de que existiera el control: apagada
             else if (k === "saturacion_estrellas") c.value = 1;    // foto o preset de antes de que existiera el control
             document.getElementById("v-" + k).textContent = fmtNum(c.value);

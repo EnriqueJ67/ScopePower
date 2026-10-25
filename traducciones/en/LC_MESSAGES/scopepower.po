@@ -4457,6 +4457,10 @@ msgstr "Also take flat darks ({n} frames, it will ask you to cover the tube). Re
 msgid "Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro."
 msgstr "To the left bluer (cool), to the right redder (warm). The sky background stays neutral."
 
+#: templates/editar_foto.html
+msgid "Halo de las estrellas"
+msgstr "Star halo"
+
 #: templates/imagen.html
 msgid "Hasta pulsar Parar"
 msgstr "Until Stop is pressed"
@@ -4835,6 +4839,10 @@ msgstr "The signature is drawn on the preview and on the gallery photos: logo, a
 #: ScopePower.py
 msgid "La focal tiene que ser un número entre 50 y 5000 mm"
 msgstr "The focal length must be a number between 50 and 5000 mm"
+
+#: templates/editar_foto.html
+msgid "La forma de las estrellas reducidas (por debajo del 100 %). 0 = campana de Gauss: bolitas redondas de borde suave. A más valor, núcleo más picudo y un halo que se apaga despacio, como las estrellas de un telescopio (perfil de Moffat); 0,75 = Moffat beta 2. La anchura a media altura no cambia."
+msgstr "The shape of the reduced stars (below 100%). 0 = Gaussian bell: round dots with a soft edge. Higher values give a sharper core and a halo that fades slowly, like the stars of a telescope (Moffat profile); 0.75 = Moffat beta 2. The width at half height does not change."
 
 #. js
 #: templates/imagen.html
@@ -7279,8 +7287,8 @@ msgid "Reducción de ruido"
 msgstr "Noise reduction"
 
 #: templates/editar_foto.html
-msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar como una campana de Gauss más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
-msgstr "Reduces the stars: 100% = as they came out, 0% = only the object and the background. Each star is redrawn as a narrower Gaussian bell, with its brightness and colour, and all shrink in the same proportion (at 50%, half the width), so the bright ones stay bigger than the faint ones; the smallest do not go below half a pixel and do not vanish. Below 25% they all lose light equally, until they vanish."
+msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
+msgstr "Reduces the stars: 100% = as they came out, 0% = only the object and the background. Each star is redrawn narrower, with its brightness and colour, and all shrink in the same proportion (at 50%, half the width), so the bright ones stay bigger than the faint ones; the smallest do not go below half a pixel and do not vanish. Below 25% they all lose light equally, until they vanish."
 
 #. js
 #: ScopePower.py

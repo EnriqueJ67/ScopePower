@@ -23,7 +23,8 @@
 #  10. el catálogo no convierte en estrellas grandes las débiles sobre el halo de una brillante;
 #  11. al reducir, las brillantes conservan la cima blanca (sobreexposición y recorte), y
 #      una cima con huecos sigue siendo una sola estrella;
-#  12. el suavizado del fondo sin estrellas no deja un resplandor ni una sombra alrededor del objeto.
+#  12. el suavizado del fondo sin estrellas no deja un resplandor ni una sombra alrededor del objeto;
+#  13. el halo de las estrellas reducidas (perfil de Moffat): misma media altura, alas más largas.
 
 import os
 import sys
@@ -178,7 +179,7 @@ def prueba_encogido():
         fila = img[y0, x0 - 30:x0 + 31].max(axis=1).astype(np.float64)
         d = np.arange(-30, 31, dtype=np.float64)
         return float(np.sqrt(np.sum(d * d * fila) / max(np.sum(fila), 1e-9)))
-    r50 = procesado.reducir_estrellas(capa, 0.5, cat)
+    r50 = procesado.reducir_estrellas(capa, 0.5, cat, halo=0.0)          # campana de Gauss (la 13 prueba el halo)
     s_pintada = [float(c[2]) for c in cat_o]
     s_50 = [anchura(r50, x, y) for x, y, __, __, __ in estrellas]
     comprobar(s_50[0] < s_50[1] < s_50[2], f"al 50 % las brillantes siguen siendo mayores: {[round(v, 2) for v in s_50]} px")
@@ -195,7 +196,7 @@ def prueba_encogido():
     fuera = fila[cima_50:cima_50 + 4]
     comprobar(cima_100 >= 2 and 0.3 <= cima_50 / cima_100 <= 0.7 and all(a > b for a, b in zip(fuera, fuera[1:])),
               f"la saturada, con la cima encogida ({cima_100} → {cima_50} px) y en campana fuera: {np.round(fila, 2).tolist()}")
-    r10 = procesado.reducir_estrellas(capa, 0.1, cat)
+    r10 = procesado.reducir_estrellas(capa, 0.1, cat, halo=0.0)
     visibles = [float(r10[y, x].max()) for x, y, __, __, __ in estrellas]
     comprobar(all(v > 0.02 for v in visibles), f"al 10 % siguen todas, más tenues: {[round(v, 2) for v in visibles]}")
     comprobar(procesado.reducir_estrellas(capa, 0.0, cat).max() == 0.0, "tamaño 0 %: desaparecen todas")
@@ -341,16 +342,16 @@ def prueba_cima_blanca():
     comprobar(abs(s - 3.0) < 0.3, f"sigma de la gaussiana, no la de la cima plana: {s:.2f} px (real 3)")
     col = np.array([r, g, b]) / max(r, g, b)
     comprobar(np.allclose(col, color, atol=0.05), f"color de los píxeles sin cortar: {np.round(col, 2).tolist()}")
-    pintada = procesado.pintar_estrellas(cat, capa.shape[:2], 1.0)
+    pintada = procesado.pintar_estrellas(cat, capa.shape[:2], 1.0, halo=0.0)
     comprobar(np.abs(pintada - capa).max() < 0.08, f"pintada al 100 %, igual que la original (máx {np.abs(pintada - capa).max():.3f})")
-    r50 = procesado.pintar_estrellas(cat, capa.shape[:2], 0.5)
+    r50 = procesado.pintar_estrellas(cat, capa.shape[:2], 0.5, halo=0.0)
     comprobar(r50[60, 60].min() > 0.97, f"al 50 %, la cima sigue blanca: {np.round(r50[60, 60], 2).tolist()}")
     halo = r50[60, 60 + 4]
     comprobar(halo[2] < 0.6 * halo[0], f"y el halo sigue naranja: {np.round(halo, 2).tolist()}")
     def radio_cima(img):
         return int(np.sum(img[60, 60:90].min(axis=1) >= 0.97))
     comprobar(0.3 <= radio_cima(r50) / max(radio_cima(capa), 1) <= 0.7, f"cima blanca de {radio_cima(capa)} a {radio_cima(r50)} px")
-    r10 = procesado.pintar_estrellas(cat, capa.shape[:2], 0.1)
+    r10 = procesado.pintar_estrellas(cat, capa.shape[:2], 0.1, halo=0.0)
     comprobar(r10[60, 60].max() < 0.97 and r10[60, 60, 2] < 0.6 * r10[60, 60, 0],
               f"al 10 % se apaga, cima incluida, y queda de su color: {np.round(r10[60, 60], 2).tolist()}")
     # Cima con huecos (como la brillante de M 17 en la vista previa: 0,93 entre zonas de 0,99):
@@ -384,6 +385,30 @@ def prueba_sombra_objeto():
     comprobar(abs(color[2] / color[0] - 1.0) < 0.01, f"ni se tiñe del color de la nebulosa (B/R {color[2] / color[0]:.3f})")
 
 
+
+def prueba_halo_moffat():
+    print("13. Halo de las estrellas (perfil de Moffat)")
+    n = 160
+    cat = np.array([[80.0, 80.0, 3.0, 0.6, 0.45, 0.3, 1.0]], np.float32)      # una estrella naranja sin cima
+    comprobar(procesado.beta_halo(0.0) is None and abs(procesado.beta_halo(0.75) - 2.0) < 1e-6 and abs(procesado.beta_halo(1.0) - 1.5) < 1e-6,
+              "halo 0 = campana de Gauss, 0,75 = beta 2, 1 = beta 1,5")
+    def radio(img, f):
+        fila = img[80, 80:160].max(axis=1)
+        return float(np.interp(f * fila[0], fila[::-1], np.arange(len(fila))[::-1]))
+    g = procesado.pintar_estrellas(cat, (n, n), 0.5, halo=0.0)
+    m = procesado.pintar_estrellas(cat, (n, n), 0.5, halo=0.75)
+    comprobar(abs(float(m[80, 80].max()) - 0.6) < 0.01 and abs(float(g[80, 80].max()) - 0.6) < 0.01, "el mismo pico")
+    comprobar(abs(radio(m, 0.5) - radio(g, 0.5)) < 0.15, f"la misma media altura ({radio(g, 0.5):.2f} y {radio(m, 0.5):.2f} px)")
+    alas_g, alas_m = radio(g, 0.05) / radio(g, 0.5), radio(m, 0.05) / radio(m, 0.5)
+    comprobar(abs(alas_g - 2.08) < 0.1 and abs(alas_m - 2.89) < 0.15, f"alas más largas: al 5 % del pico, {alas_g:.2f} frente a {alas_m:.2f} medias alturas (teoría 2,08 y 2,89)")
+    col = m[80, 86] / m[80, 86].max()
+    comprobar(np.allclose(col, [1.0, 0.75, 0.5], atol=0.02), f"y el halo de su color: {np.round(col, 2).tolist()}")
+    hasta = int(np.max(np.nonzero(m[80].max(axis=1) > 0)[0]))
+    comprobar(m[80, hasta].max() * 255 < 1.0 and hasta - 80 < procesado.HALO_RADIO_PINTADO, f"hasta medio nivel de 8 bits ({hasta - 80} px)")
+    # Por defecto, Moffat beta 2 en los ajustes rápidos
+    comprobar(procesado.HALO_ESTRELLAS == 0.75, "por defecto halo 0,75 (beta 2)")
+
+
 if __name__ == "__main__":
     prueba_pantalla()
     base, capa, aj = prueba_procesado()
@@ -394,6 +419,7 @@ if __name__ == "__main__":
     prueba_halo_brillante()
     prueba_cima_blanca()
     prueba_sombra_objeto()
+    prueba_halo_moffat()
     prueba_capas_guardadas()
     prueba_progreso()
     print()
