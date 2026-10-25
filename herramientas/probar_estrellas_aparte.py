@@ -18,7 +18,8 @@
 #   4. las capas guardadas: rutas, hay_capas (fecha del FITS), renombrar y borrar;
 #   5. el lector de --machine-progress con las líneas reales de StarNet2 2.6.2;
 #   6. los códigos de Windows de un programa que no arranca (falta el Visual C++)
-#      se traducen a un aviso, y el modo sin diálogos se pone y se quita.
+#      se traducen a un aviso, y el modo sin diálogos se pone y se quita;
+#  14. la comprobación de la instalación de StarNet2 de la tarjeta de Configuración.
 
 import os
 import sys
@@ -202,12 +203,35 @@ def prueba_arranque_fallido():
                   f"modo de errores: 0x{antes:X} → 0x{dentro:X} dentro → 0x{despues:X} al salir")
 
 
+
+def prueba_comprobar_instalacion():
+    print("14. Comprobar la instalación de StarNet2 (tarjeta de Configuración)")
+    comprobar(estrellas_aparte._numero_version("starnet2.EXE version: 2.6.2\n") == "2.6.2", "versión leída de «starnet2.EXE version: 2.6.2»")
+    vc = estrellas_aparte.visual_cpp_instalado()
+    comprobar(vc in (True, False) if os.name == "nt" else vc is None, f"Visual C++ en System32: {vc}")
+    antes = estrellas_aparte.ruta_starnet
+    try:
+        estrellas_aparte.ruta_starnet = lambda: ""
+        i = estrellas_aparte.comprobar_instalacion()
+        comprobar(not i["instalado"] and not i["funciona"] and "ruta_starnet" in i["aviso"] and i["url_descarga"].startswith("https://"),
+                  "sin StarNet2: no instalado, aviso con dónde se busca y la página de descarga")
+        estrellas_aparte.ruta_starnet = lambda: sys.executable
+        i = estrellas_aparte.comprobar_instalacion()     # python --version contesta: «funciona» con su número
+        comprobar(i["funciona"] and i["version"].count(".") >= 1 and not i["aviso"], f"un ejecutable que arranca: funciona, versión {i['version']}")
+        estrellas_aparte.ruta_starnet = lambda: os.path.join(tempfile.gettempdir(), "no_existe_starnet2.exe")
+        i = estrellas_aparte.comprobar_instalacion()
+        comprobar(i["instalado"] and not i["funciona"] and i["aviso"], f"una ruta que no arranca: aviso «{i['aviso'][:60]}»")
+    finally:
+        estrellas_aparte.ruta_starnet = antes
+
+
 if __name__ == "__main__":
     prueba_pantalla()
     base, capa, aj = prueba_procesado()
     prueba_paridad(base, capa, aj)
     prueba_capas_guardadas()
     prueba_progreso()
+    prueba_comprobar_instalacion()
     prueba_arranque_fallido()
     print()
     if FALLOS:

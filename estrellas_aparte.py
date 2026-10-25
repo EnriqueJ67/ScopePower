@@ -37,6 +37,7 @@
 # termina enseguida con un código NTSTATUS que _explicar_codigo traduce a un aviso.
 
 import os
+import re
 import json
 import glob
 import ctypes
@@ -65,6 +66,11 @@ TIEMPO_MAXIMO_S = 3600                 # por si el proceso se queda colgado
 
 # Visual C++ Redistributable de Microsoft (x64, 2015-2022): lo necesita StarNet2 y no lo trae
 URL_VC_REDIST = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+DLL_VISUAL_CPP = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+# Donde se descarga StarNet2 (Command-line Tools). No se descarga ni se instala desde
+# ScopePower: su licencia no permite redistribuirlo, el instalador pide administrador
+# y sus condiciones las acepta el usuario.
+URL_DESCARGA = "https://www.starnetastro.com/cli-tools/"
 # Códigos de salida de Windows (NTSTATUS) de un programa que no llega a arrancar
 STATUS_DLL_NO_ENCONTRADA = 0xC0000135   # falta una DLL (MSVCP140.dll, VCRUNTIME140.dll...)
 STATUS_PUNTO_ENTRADA = 0xC0000139       # la DLL está pero es de una versión vieja
@@ -154,10 +160,64 @@ def version():
         with _sin_dialogos():
             salida = subprocess.run([ruta, "--version"], capture_output=True, text=True, timeout=30,
                                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
-        return salida.replace("starnet2", "").replace("version:", "").strip()
+        return _numero_version(salida)
     except Exception as e:
         log.warning("StarNet2 no responde a --version: %s", e)
         return ""
+
+
+def _numero_version(salida):
+    """'2.6.2' de lo que escribe --version («starnet2.EXE version: 2.6.2»), o la salida tal cual."""
+    m = re.search(r"\d+(?:\.\d+)+", salida or "")
+    return m.group(0) if m else (salida or "").strip()
+
+
+def visual_cpp_instalado():
+    """
+    True si están en System32 las DLL del Visual C++ 2015-2022 x64 que usa StarNet2
+    (DLL_VISUAL_CPP), False si falta alguna, None fuera de Windows.
+    """
+    if os.name != "nt":
+        return None
+    sistema = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+    return all(os.path.isfile(os.path.join(sistema, d)) for d in DLL_VISUAL_CPP)
+
+
+def comprobar_instalacion():
+    """
+    Estado de StarNet2 para la tarjeta de Configuración: lo busca (ruta_starnet) y lo
+    arranca de verdad con --version, sin diálogos de Windows, para saber si funciona
+    (con el ejecutable en su sitio puede faltarle el Visual C++). Devuelve un dict con
+    producto, ruta, instalado, funciona, version, visual_cpp (visual_cpp_instalado),
+    aviso (qué pasa, "" si funciona) y las dos direcciones de descarga.
+    """
+    ruta = ruta_starnet()
+    info = {"producto": NOMBRE_PRODUCTO, "ruta": ruta, "instalado": bool(ruta), "funciona": False, "version": "",
+            "visual_cpp": visual_cpp_instalado(), "aviso": "",
+            "url_descarga": URL_DESCARGA, "url_visual_cpp": URL_VC_REDIST}
+    if not ruta:
+        info["aviso"] = _("{producto} no está instalado en este PC: no aparece en [General] ruta_starnet de "
+                          "config.ini, ni en el PATH, ni en C:\\Program Files\\StarNet2.", producto=NOMBRE_PRODUCTO)
+        return info
+    try:
+        with _sin_dialogos():
+            r = subprocess.run([ruta, "--version"], capture_output=True, text=True, timeout=60,
+                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except subprocess.TimeoutExpired:
+        info["aviso"] = _("{producto} no contesta (más de 60 s para dar su versión).", producto=NOMBRE_PRODUCTO)
+        return info
+    except OSError as e:
+        info["aviso"] = _("No se puede ejecutar {ruta}: {e}", ruta=ruta, e=e)
+        return info
+    if r.returncode == 0:
+        info["funciona"] = True
+        info["version"] = _numero_version(r.stdout)
+    else:
+        info["aviso"] = _explicar_codigo(r.returncode) or _(
+            "{producto} no arranca (código {codigo}).", producto=NOMBRE_PRODUCTO, codigo=r.returncode)
+        log.warning("StarNet2 no arranca al comprobarlo desde Configuración: código %s, %s", r.returncode,
+                    (r.stderr or "").strip()[:300])
+    return info
 
 
 # ── Las capas guardadas junto a la galería ───────────────────────────────────

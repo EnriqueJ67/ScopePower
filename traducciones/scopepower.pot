@@ -405,6 +405,10 @@ msgstr ""
 msgid "Abrir a tamaño completo"
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Abrir en el PC"
+msgstr ""
+
 #: ScopePower.py
 msgid "Acción no válida"
 msgstr ""
@@ -549,6 +553,10 @@ msgstr ""
 
 #: templates/editar_foto.html templates/imagen.html
 msgid "Al centro"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Al guardar un apilado, StarNet2 separa el objeto y las estrellas y cada uno se estira y se limpia por su lado, como «Estrellas aparte» del editor. Tarda unos minutos más por foto (unos 2,5 en el mini PC) y se hace después de guardar el JPG de siempre, que queda si algo falla. Las estrellas salen a su tamaño; el tamaño, el halo y su estirado se ajustan luego en el editor. Sin la casilla, se puede hacer en el editor, foto a foto."
 msgstr ""
 
 #: templates/configuracion.html
@@ -1295,6 +1303,10 @@ msgstr ""
 msgid "Carpeta de timelapse desconocida"
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Carpeta o ruta de starnet2.exe (vacío = buscarlo solo)"
+msgstr ""
+
 #: luna_anotada.py
 msgid "Casi todo el borde de la Luna queda fuera de la foto."
 msgstr ""
@@ -1607,6 +1619,10 @@ msgstr ""
 msgid "Compresión de lo brillante"
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Comprobando StarNet2..."
+msgstr ""
+
 #: templates/home.html
 msgid "Comprobando el equipo..."
 msgstr ""
@@ -1621,6 +1637,10 @@ msgstr ""
 
 #: templates/configuracion.html
 msgid "Comprobar"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Comprobar de nuevo"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -1984,6 +2004,10 @@ msgstr ""
 
 #: templates/imagen.html
 msgid "Cénit arriba"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Cómo instalar StarNet2"
 msgstr ""
 
 #: templates/apilado.html
@@ -3037,8 +3061,16 @@ msgstr ""
 msgid "En azul claro, además de los objetos populares (en amarillo). 0 = no anotarlos. Se aplica en la siguiente vista previa y en la galería."
 msgstr ""
 
+#: templates/configuracion.html
+msgid "En el PC donde corre ScopePower (no en el móvil), descarga StarNet2 de su web, en «Command-line Tools», la versión de Windows:"
+msgstr ""
+
 #: actualizar.py
 msgid "En este PC no está instalado Git. Instálalo desde https://git-scm.com/download/win (todas las opciones por defecto) y vuelve a comprobar."
+msgstr ""
+
+#: ScopePower.py
+msgid "En este PC no existe {ruta}"
 msgstr ""
 
 #. js
@@ -3581,7 +3613,7 @@ msgstr ""
 msgid "Estrellas"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/configuracion.html templates/editar_foto.html
 msgid "Estrellas aparte"
 msgstr ""
 
@@ -4630,12 +4662,20 @@ msgstr ""
 msgid "Instala ASTAP con su catálogo, o pulsa «Saltar este paso»."
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Instala también el Visual C++ de Microsoft (x64), que StarNet2 necesita y no trae:"
+msgstr ""
+
 #: instalar_astap.py
 msgid "Instalación cancelada"
 msgstr ""
 
 #: templates/configuracion.html
 msgid "Instalada"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Instálalo: queda en C:\\Program Files\\StarNet2 y ScopePower lo encuentra solo. Si lo pones en otra carpeta, escríbela abajo."
 msgstr ""
 
 #. js
@@ -6046,6 +6086,10 @@ msgstr ""
 msgid "No se pudieron separar las estrellas"
 msgstr ""
 
+#: ScopePower.py
+msgid "No se pudo abrir el navegador en el PC"
+msgstr ""
+
 #: static/js/asistente.js
 msgid "No se pudo abrir el selector de ASCOM en el PC: {e}"
 msgstr ""
@@ -6323,6 +6367,10 @@ msgstr ""
 msgid "No se puede calcular el tamaño del disco: {e}"
 msgstr ""
 
+#: estrellas_aparte.py
+msgid "No se puede ejecutar {ruta}: {e}"
+msgstr ""
+
 #: apilado_video.py
 msgid "No se puede leer el apilado guardado: {e}"
 msgstr ""
@@ -6345,6 +6393,10 @@ msgstr ""
 
 #: luna_anotada.py
 msgid "No se sabe desde dónde se hizo la foto: falta el observatorio en Configuración."
+msgstr ""
+
+#: ScopePower.py
+msgid "No se sabe qué abrir"
 msgstr ""
 
 #: static/js/fotometria_solar.js
@@ -7017,6 +7069,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Pulsa Iniciar para mover con la vista en directo"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Pulsa «Comprobar de nuevo», sin reiniciar ScopePower."
 msgstr ""
 
 #: static/js/asistente.js
@@ -7829,6 +7885,10 @@ msgstr ""
 msgid "Separando las estrellas con {producto}..."
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Separar las estrellas al guardar el apilado en la galería"
+msgstr ""
+
 #: templates/editar_foto.html
 msgid "Separar las estrellas con {producto} y procesarlas aparte"
 msgstr ""
@@ -8164,6 +8224,10 @@ msgstr[1] ""
 
 #: instalar_astap.py
 msgid "SourceForge ha devuelto una página web en vez del fichero; prueba más tarde"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "StarNet2 es un programa aparte de Mikita Misiura, gratuito y con su propia licencia: ScopePower no lo incluye ni lo instala, solo lo usa si está en el PC."
 msgstr ""
 
 #. js
@@ -11436,7 +11500,19 @@ msgid "{producto} necesita al menos 512×512 píxeles"
 msgstr ""
 
 #: estrellas_aparte.py
+msgid "{producto} no arranca (código {codigo})."
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "{producto} no contesta (más de 60 s para dar su versión)."
+msgstr ""
+
+#: estrellas_aparte.py
 msgid "{producto} no está instalado (o no está en ruta_starnet de config.ini)"
+msgstr ""
+
+#: estrellas_aparte.py
+msgid "{producto} no está instalado en este PC: no aparece en [General] ruta_starnet de config.ini, ni en el PATH, ni en C:\\Program Files\\StarNet2."
 msgstr ""
 
 #: templates/editar_foto.html
@@ -11885,6 +11961,11 @@ msgstr ""
 
 #. js
 #: templates/configuracion.html
+msgid "⏳ Comprobando StarNet2..."
+msgstr ""
+
+#. js
+#: templates/configuracion.html
 msgid "⏳ Descargando del Minor Planet Center..."
 msgstr ""
 
@@ -12180,7 +12261,22 @@ msgstr ""
 
 #. js
 #: templates/configuracion.html
+msgid "✅ Abierta en el navegador del PC"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
 msgid "✅ Ajustes de voz guardados"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "✅ Al guardar el apilado no se separarán las estrellas"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "✅ Al guardar el apilado se separarán las estrellas"
 msgstr ""
 
 #. js
@@ -12309,6 +12405,16 @@ msgid "✅ Posición del móvil recibida (precisión {m} m). Se guardará al ter
 msgstr ""
 
 #. js
+#: templates/configuracion.html
+msgid "✅ Ruta guardada"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "✅ Ruta guardada: StarNet2 funciona"
+msgstr ""
+
+#. js
 #: templates/apilado.html
 msgid "✅ Rótulo: {nombre}"
 msgstr ""
@@ -12392,6 +12498,11 @@ msgstr ""
 
 #: ScopePower.py
 msgid "✅ Zoom guardado correctamente"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "✅ {producto} {version} listo en {ruta}"
 msgstr ""
 
 #. js
