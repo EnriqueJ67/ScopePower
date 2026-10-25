@@ -16,6 +16,8 @@
 #      emborronado sin ella.
 #   6. Cuándo se corrige: automático salvo montura ecuatorial (la del .json al grabar o la de
 #      ahora), «siempre» aunque lo sea, «nunca» nunca, y nada con el paisaje.
+#   7. Marcas de tiempo: el SER guarda la hora UTC exacta de cada fotograma y la cabecera la
+#      local y la UTC; los vídeos grabados con una o dos horas de desfase se corrigen con el .json.
 #
 # Uso: python herramientas/probar_apilado_video.py   (desde la carpeta de ScopePower)
 
@@ -367,9 +369,59 @@ def probar_apilado_con_giro(carpeta):
           f"(giro máximo {con['giro_max_deg']:.2f}°; ruido de un fotograma 300)")
 
 
+def probar_marcas_de_tiempo(carpeta):
+    """El SER guarda la hora UTC exacta de cada fotograma, y los grabados con el desfase antiguo se corrigen al leer."""
+    import struct
+    from datetime import datetime
+    cuadro = np.zeros((8, 8), np.uint16)
+    for nombre, t0 in (("invierno", 1793026889.25), ("verano", 1782900000.5)):     # 26-oct-2026 y 1-jul-2026
+        ruta = os.path.join(carpeta, f"hora_{nombre}.ser")
+        g = grabador_video.GrabadorSER(ruta, 8, 8, bayer="RGGB", bits=16)
+        antes = time.time()
+        for i in range(5):
+            g.escribir(cuadro, datetime.fromtimestamp(t0 + 0.05 * i))
+        g.cerrar()
+        lector = apilado_video.LectorSER(ruta)
+        t = lector.tiempos()
+        lector.cerrar()
+        assert np.allclose(t, t0 + 0.05 * np.arange(5), atol=1e-6), (nombre, t - t0)
+        # Cabecera: DateTime en hora de pared local y DateTime_UTC en UTC (especificación SER)
+        with open(ruta, "rb") as f:
+            f.seek(162)
+            local, utc = struct.unpack("<qq", f.read(16))
+        inicio_utc = (utc - grabador_video._TICKS_EPOCA) / 1e7
+        assert abs(inicio_utc - antes) < 5, (inicio_utc, antes)
+        desfase_local = datetime.fromtimestamp(inicio_utc).astimezone().utcoffset().total_seconds()
+        assert abs((local - utc) / 1e7 - desfase_local) < 1e-3, ((local - utc) / 1e7, desfase_local)
+        # Un vídeo bien grabado con su .json no se toca
+        with open(os.path.splitext(ruta)[0] + ".json", "w", encoding="utf-8") as f:
+            json.dump({"instante": t0 - 0.4}, f)
+        lector = apilado_video.LectorSER(ruta)
+        assert np.allclose(lector.tiempos(), t0 + 0.05 * np.arange(5), atol=1e-6)
+        lector.cerrar()
+    # Vídeos grabados antes del arreglo: marcas una hora antes en invierno, dos en verano, y el .json con la hora buena
+    for horas in (1, 2, -1):
+        ruta = os.path.join(carpeta, f"hora_antigua_{horas}.ser")
+        t0 = 1793026889.25
+        g = grabador_video.GrabadorSER(ruta, 8, 8, bayer="RGGB", bits=16)
+        for i in range(5):
+            g.escribir(cuadro, datetime.fromtimestamp(t0 - 3600 * horas + 0.05 * i))
+        g.cerrar()
+        with open(os.path.splitext(ruta)[0] + ".json", "w", encoding="utf-8") as f:
+            json.dump({"instante": t0 - 0.4}, f)
+        lector = apilado_video.LectorSER(ruta)
+        assert np.allclose(lector.tiempos(), t0 + 0.05 * np.arange(5), atol=1e-6), (horas, lector.tiempos() - t0)
+        lector.cerrar()
+    # Diferencias que no son horas enteras (un .json de otro vídeo, un reloj atrasado) no se corrigen
+    assert apilado_video.corregir_desfase_horario(np.array([1000.0]), 1000.0 + 3600 + 300)[0] == 1000.0
+    assert apilado_video.corregir_desfase_horario(np.array([1000.0]), None)[0] == 1000.0
+    print("✅ marcas de tiempo del SER: hora UTC exacta, cabecera local/UTC, y los vídeos con el desfase antiguo se corrigen")
+
+
 if __name__ == "__main__":
     carpeta = tempfile.mkdtemp(prefix="scopepower_video_")
     try:
+        probar_marcas_de_tiempo(carpeta)
         probar_angulos_norte()
         probar_apilado_con_giro(carpeta)
         probar_desmosaicado()

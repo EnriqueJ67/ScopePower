@@ -66,6 +66,7 @@ FACTOR_PSF = 0.85                # PSF algo más estrecha que la FWHM del limbo 
 PASOS_REFINADO = 3              # medidas del desplazamiento que quedan tras girar el fotograma (probado con Soles
 AMORTIGUACION = 0.5             # sintéticos: mediana de 0,25 a 0,07 px con limbo nítido, de 0,5 a 0,25 con limbo blando)
 GIRO_MINIMO_REFINAR = 0.05      # grados: por debajo el giro no sesga la medida y no se refina
+DESFASE_HORARIO_TOLERANCIA_S = 60.0   # SER con las marcas desplazadas horas enteras respecto al .json (ver corregir_desfase_horario)
 CLAVES_INFO = ("frames", "puntuados", "usados", "no_alineados", "descartados_brillo", "desplazamiento_max_px", "patron",
                "giro_max_deg")
 
@@ -112,7 +113,7 @@ class LectorSER:
         with open(self.ruta, "rb") as f:
             f.seek(CABECERA_SER + tam)
             ticks = np.frombuffer(f.read(8 * self.frames), dtype="<i8")
-        return (ticks - 621355968000000000) / 1e7
+        return corregir_desfase_horario((ticks - 621355968000000000) / 1e7, leer_meta(self.ruta).get("instante"))
 
     def duracion_s(self):
         t = self.tiempos()
@@ -135,6 +136,22 @@ def info_video(ruta):
             "duracion_s": None if duracion is None else round(duracion, 1),
             "fps": None if not duracion else round(lector.frames / duracion, 1),
             "fecha": meta.get("instante") or os.path.getmtime(ruta), "objetivo": meta.get("objetivo", "")}
+
+
+def corregir_desfase_horario(tiempos, instante):
+    """
+    Los SER grabados antes del 25-oct-2026 llevan las marcas una hora antes en invierno (dos en verano):
+    grabador_video tomaba la hora UTC por local. El `instante` del .json (time.time() al empezar) sí
+    es bueno: si el primer fotograma difiere de él en un número entero de horas (±1 min), se
+    desplazan todos. Los vídeos sin .json o ya bien grabados no cambian.
+    """
+    if tiempos is None or not len(tiempos) or not instante:
+        return tiempos
+    desfase = float(instante) - float(tiempos[0])
+    horas = round(desfase / 3600.0)
+    if horas == 0 or abs(horas) > 14 or abs(desfase - horas * 3600.0) > DESFASE_HORARIO_TOLERANCIA_S:
+        return tiempos
+    return tiempos + horas * 3600.0
 
 
 def leer_meta(ruta_ser):

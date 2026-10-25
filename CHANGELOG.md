@@ -281,6 +281,13 @@ día de la release. El número de versión vive en `version.py`.
   si ASTAP no resuelve, ahora se repite con `-t 0.01` y la solución solo se acepta si la escala
   cuadra con FOCALLEN y XPIXSZ (±10 %) y el centro queda a menos de 5° de donde apuntaba la
   montura. El fallo queda además en el log. Prueba `herramientas/probar_tolerancia_astap.py`.
+- Arreglado: las marcas de tiempo de los vídeos SER iban una hora antes en invierno (dos en
+  verano): `grabador_video.py` pasaba la hora UTC como si fuera local. La rotación de campo del
+  apilado se calculaba con el Sol de una hora antes; en los tres vídeos del Sol del 25-oct el giro
+  en 2 min salía de 0,34° en vez de 0,25° (un 27 % de más, hasta 0,09° de error, medio píxel en el
+  limbo). Ahora cada fotograma lleva la hora UTC exacta y la cabecera la local y la UTC, como pide
+  el formato (lo leen bien AutoStakkert, PIPP y SER Player). Los vídeos ya grabados se corrigen al
+  leerlos con la hora de inicio de su `.json`. Prueba en `herramientas/probar_apilado_video.py`.
 
 ## 1.2.2 · 2026-10-16
 

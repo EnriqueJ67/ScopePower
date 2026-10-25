@@ -29,7 +29,7 @@ import shutil
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 
 import numpy as np
 
@@ -49,9 +49,15 @@ SER_COLOR = {"MONO": 0, "RGGB": 8, "GRBG": 9, "GBRG": 10, "BGGR": 11, "RGB": 100
 _TICKS_EPOCA = 621355968000000000      # ticks de 100 ns entre 0001-01-01 y 1970-01-01
 
 
-def _ticks(dt):
-    """datetime → ticks .NET (100 ns desde 0001-01-01), lo que usa la cabecera SER."""
-    return _TICKS_EPOCA + int(dt.timestamp() * 10_000_000)
+def _ticks_utc(dt):
+    """datetime (ingenuo = hora local, o con zona) → ticks .NET (100 ns desde 0001-01-01) en UTC."""
+    return _TICKS_EPOCA + int(round(dt.timestamp() * 10_000_000))
+
+
+def _ticks_local(dt):
+    """Los mismos ticks en la hora de pared local, como pide la especificación SER para DateTime."""
+    local = dt.astimezone()
+    return _ticks_utc(local) + int(local.utcoffset().total_seconds() * 10_000_000)
 
 
 def espacio_libre(ruta):
@@ -85,7 +91,7 @@ class GrabadorSER:
         self._f.write(b"LUCAM-RECORDER")
         self._f.write(struct.pack("<iiiiiii", 0, self.color, 0, self.ancho, self.alto, self.bits, self.frames))
         self._f.write(campo(observador, 40) + campo(instrumento, 40) + campo(telescopio, 40))
-        self._f.write(struct.pack("<qq", _ticks(self._inicio), _ticks(self._inicio.astimezone(timezone.utc).replace(tzinfo=None))))
+        self._f.write(struct.pack("<qq", _ticks_local(self._inicio), _ticks_utc(self._inicio)))
 
     def escribir(self, frame, cuando=None):
         datos = np.ascontiguousarray(frame)
@@ -93,7 +99,7 @@ class GrabadorSER:
             datos = (datos >> 8).astype(np.uint8)
         self._f.write(datos.tobytes())
         self.frames += 1
-        self.tiempos.append(_ticks((cuando or datetime.now()).astimezone(timezone.utc).replace(tzinfo=None)))
+        self.tiempos.append(_ticks_utc(cuando or datetime.now()))
 
     def cerrar(self):
         if self._f is None:
