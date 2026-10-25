@@ -35,6 +35,16 @@ día de la release. El número de versión vive en `version.py`.
   10 a 30 píxeles (M 27 con contraste 0,7). Con las estrellas aparte ahora solo actúa donde hay
   señal, a partir de 3 sigmas del cielo: el moteado del fondo baja de 0,0102 a 0,0067 y la
   nebulosa recibe el mismo contraste que antes.
+- Arreglado: al reducir las estrellas aparecían estrellas inventadas alrededor de las brillantes
+  (M 17: un anillo de ocho bolas naranjas). Eran estrellas débiles reales sobre el halo de la
+  brillante, pero el catálogo medía su pico, su anchura y su color con la luz del halo debajo, y
+  las pintaba grandes y del color de la brillante. Ahora el catálogo va en dos pasadas: mide las
+  estrellas grandes, modela su halo con la mediana por anillos, lo resta y mide las demás en lo
+  que queda. Las débiles salen con su anchura (1,5 px frente a 4-6 px) y su color, y el catálogo
+  tarda 1,5 s en una foto de 1 470 px.
+- Cambiado: «Un solo color por estrella» en la capa de estrellas aparte reparte el color en
+  1,5 px en vez de 4. Con 4 px, en campos densos como M 17 se mezclaba el color de estrellas
+  vecinas y la variedad de colores bajaba un 17 %; ahora, un 6 %.
 - Nuevo: estrellas aparte en el editor de la galería (prototipo). Con StarNet2 instalado (el
   programa de Mikita Misiura, https://starnetastro.com/, aparte y con su propia licencia, como
   ASTAP; `[General] ruta_starnet`), el panel «Estrellas aparte» separa el apilado en objeto y

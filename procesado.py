@@ -1925,6 +1925,10 @@ TAMANO_PICO = 0.25            # por debajo de este tamaño el pico baja con (tam
 TAMANO_FUNDIDO = 0.85         # entre 1 y este tamaño se funde la capa original con la pintada
 UMBRAL_ESTRELLA = 0.03        # pico mínimo (capa estirada, 0..1) para entrar en el catálogo
 SIGMA_MINIMA = 0.5            # px: suelo suave de la anchura (se perdería entre píxeles)
+SIGMA_HALO = 2.5              # px: anchura mínima de una estrella cuyo halo se resta antes de medir las demás
+HALO_RELATIVO = 1.5           # ...y al menos estas veces la anchura mediana de la foto
+HALO_SIGMAS = 6.0             # radio del modelo del halo, en sigmas de la estrella
+HALO_RADIO_MAX = 120          # px
 
 
 def catalogo_estrellas(capa):
@@ -1932,13 +1936,72 @@ def catalogo_estrellas(capa):
     capa: capa de estrellas estirada (H, W, 3) float [0, 1]. Devuelve un array
     float32 (N, 6): x, y (centro, px), sigma (px) y r, g, b (color en el pico) de
     cada estrella con pico por encima de UMBRAL_ESTRELLA.
+
+    En dos pasadas: las estrellas grandes (sigma de al menos HALO_RELATIVO veces
+    la mediana y SIGMA_HALO px) se miden en la
+    capa tal cual, y las demás en la capa sin el halo de las grandes. Medidas
+    sobre el halo, las débiles que lo rodean se llevaban su luz: el pico, la
+    anchura a media altura y el color de la brillante, y al reducir salía un
+    anillo de bolas naranjas que no existen (M 17, 25-oct-2026). El halo de cada
+    grande se modela con la mediana por anillos (las vecinas son pocos píxeles
+    de cada anillo y la mediana no las ve).
+    """
+    c = np.clip(np.asarray(capa, dtype=np.float32), 0, 1)
+    cat = _medir_estrellas(c)
+    # Las grandes, de mayor a menor: una que cae dentro del halo de otra mayor ya
+    # elegida no cuenta (su anchura la infla ese halo) y se mide en el resto
+    if not len(cat):
+        return cat
+    minima = max(SIGMA_HALO, HALO_RELATIVO * float(np.median(cat[:, 2])))
+    elegidas = []
+    for i in np.argsort(-cat[:, 2]):
+        x, y, sg = cat[i, :3]
+        if sg < minima:
+            break
+        if all((x - cat[j, 0]) ** 2 + (y - cat[j, 1]) ** 2 > (HALO_SIGMAS * cat[j, 2]) ** 2 for j in elegidas):
+            elegidas.append(i)
+    if not elegidas:
+        return cat
+    grandes = cat[elegidas]
+    h, w = c.shape[:2]
+    halos = np.zeros_like(c)
+    for x, y, sg in grandes[:, :3]:
+        R = int(min(HALO_SIGMAS * sg, HALO_RADIO_MAX))
+        xi, yi = int(round(x)), int(round(y))
+        x0, x1, y0, y1 = max(0, xi - R), min(w, xi + R + 1), max(0, yi - R), min(h, yi + R + 1)
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        r = np.hypot(xx - x, yy - y).astype(np.int32)
+        dentro = r <= R
+        ventana = c[y0:y1, x0:x1]
+        perfil = np.zeros((R + 1, 3), np.float32)
+        orden = np.argsort(r[dentro], kind="stable")
+        rs = r[dentro][orden]
+        vs = ventana[dentro][orden]
+        cortes = np.searchsorted(rs, np.arange(R + 2))
+        for k in range(R + 1):
+            if cortes[k + 1] > cortes[k]:
+                perfil[k] = np.median(vs[cortes[k]:cortes[k + 1]], axis=0)
+        perfil = np.minimum.accumulate(perfil, axis=0)      # el halo solo baja hacia fuera
+        modelo = np.where(dentro[..., None], perfil[np.minimum(r, R)], 0.0)
+        halos[y0:y1, x0:x1] = np.maximum(halos[y0:y1, x0:x1], modelo)
+    resto = _medir_estrellas(np.clip(c - halos, 0, 1))
+    # En el resto, lo que queda dentro de una grande hasta su radio a media altura
+    # (1,18 sigmas) es su propio residuo, no estrellas: restos de color del núcleo
+    if len(resto):
+        d2 = (resto[:, 0, None] - grandes[None, :, 0]) ** 2 + (resto[:, 1, None] - grandes[None, :, 1]) ** 2
+        resto = resto[(d2 >= (1.25 * grandes[None, :, 2]) ** 2).all(axis=1)]
+    return np.vstack([grandes, resto]).astype(np.float32)
+
+
+def _medir_estrellas(c):
+    """
+    Una pasada del catálogo sobre c (H, W, 3) float [0, 1]:
       - semillas: máximos locales (5×5) de la luminancia suavizada (0,8 px); las
         de una misma cima plana se unen (dilatación 3×3 + componentes);
       - cada píxel de estrella va a la semilla más cercana (distanceTransformWithLabels);
       - pico P = máximo de la luminancia; sigma por el área por encima de P/2
         (radio a media altura / 1,1774); centro y color pesados con L² en esa área.
     """
-    c = np.clip(np.asarray(capa, dtype=np.float32), 0, 1)
     L = c.max(axis=2)
     Ls = cv2.GaussianBlur(L, (0, 0), 0.8)
     semillas = ((Ls >= cv2.dilate(Ls, np.ones((5, 5), np.uint8)) - 1e-6) & (Ls > UMBRAL_ESTRELLA)).astype(np.uint8)
@@ -2071,6 +2134,12 @@ def estirar_capa_estrellas(U, curvas, balance=None, intensidad=0.0, compresion=0
     return np.clip(U * ganancia[..., None], 0, 1).astype(np.float32)
 
 
+# Radio (sigma, px) del color compartido en la capa de estrellas. Con los 4 px de
+# la foto normal, en un campo denso (M 17) se mezclaba el color de estrellas
+# vecinas: la variedad de color bajaba un 17 %; con 1,5 px, un 6 %.
+SIGMA_COLOR_CAPA = 1.5
+
+
 def capa_estrellas_base(capa, ajustes):
     """
     La capa de estrellas estirada, lista para los ajustes rápidos: un solo color
@@ -2081,7 +2150,7 @@ def capa_estrellas_base(capa, ajustes):
     gris = np.clip(capa.mean(axis=2) * 255.0 + 0.5, 0, 255).astype(np.uint8)
     mascara = cv2.GaussianBlur((gris > 2).astype(np.float32), (0, 0), 1.0)
     if _bool(ajustes.get("color_estrellas_uniforme", True)):
-        capa = color_estrellas_uniforme(capa, mascara, cociente=True)
+        capa = color_estrellas_uniforme(capa, mascara, sigma_px=SIGMA_COLOR_CAPA, cociente=True)
     return capa, mascara
 
 

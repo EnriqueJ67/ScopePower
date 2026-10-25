@@ -20,6 +20,7 @@
 #   7. reducir las estrellas (catálogo + campanas de Gauss);
 #   8. el estirado propio de las estrellas (intensidad, compresión de los núcleos).
 #   9. el contraste local sin estrellas no levanta el ruido del cielo (borbotones).
+#  10. el catálogo no convierte en estrellas grandes las débiles sobre el halo de una brillante.
 
 import os
 import sys
@@ -284,6 +285,38 @@ def prueba_contraste_sin_estrellas():
     comprobar(dif < 0.01, f"la nebulosa recibe el mismo contraste (diferencia {dif:.4f})")
 
 
+
+def prueba_halo_brillante():
+    print("10. Estrellas débiles sobre el halo de una brillante")
+    n = 240
+    yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
+    r2 = (xx - 120) ** 2 + (yy - 120) ** 2
+    # Una brillante naranja con el núcleo cortado (cima plana) y un halo ancho
+    perfil = np.clip(2.5 * np.exp(-r2 / (2 * 10.0 ** 2)) + 0.5 * np.exp(-r2 / (2 * 22.0 ** 2)), 0, 1)
+    capa = perfil[..., None] * np.array([1.0, 0.7, 0.35], np.float32)
+    # Seis débiles blancas a 32 px, encima del halo, y una aislada
+    debiles = [(120 + 32 * np.cos(a), 120 + 32 * np.sin(a)) for a in np.linspace(0, 2 * np.pi, 6, endpoint=False)]
+    for x, y in debiles + [(30.0, 30.0)]:
+        g = 0.2 * np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / (2 * 1.6 ** 2))
+        capa = 1 - (1 - capa) * (1 - g[..., None])
+    capa = capa.astype(np.float32)
+    cat = procesado.catalogo_estrellas(capa)
+    def cerca(x, y, r=3.0):
+        d = np.hypot(cat[:, 0] - x, cat[:, 1] - y)
+        return cat[d < r]
+    halladas = [cerca(x, y) for x, y in debiles]
+    comprobar(all(len(h) == 1 for h in halladas), "las seis débiles, una vez cada una")
+    sig = [float(h[0, 2]) for h in halladas if len(h)]
+    comprobar(sig and max(sig) < 2.6, f"con su anchura, no la del halo (sigma hasta {max(sig or [0]):.2f} px; reales 1,6)")
+    color = [h[0, 3:] / h[0, 3:].max() for h in halladas if len(h)]
+    comprobar(color and min(float(c[2]) for c in color) > 0.75, "con su color blanco, no el naranja de la brillante")
+    sobran = [e for e in cat if np.hypot(e[0] - 120, e[1] - 120) < 28 and np.hypot(e[0] - 120, e[1] - 120) > 3]
+    comprobar(not sobran, f"ninguna estrella inventada dentro del halo ({len(sobran)})")
+    comprobar(len(cerca(120, 120)) == 1 and float(cerca(120, 120)[0, 2]) > 8, "la brillante sigue siendo una, y grande")
+    aislada = cerca(30, 30)
+    comprobar(len(aislada) == 1 and abs(float(aislada[0, 2]) - 1.6) < 0.4, "la aislada se mide igual")
+
+
 if __name__ == "__main__":
     prueba_pantalla()
     base, capa, aj = prueba_procesado()
@@ -291,6 +324,7 @@ if __name__ == "__main__":
     prueba_encogido()
     prueba_estirado_estrellas()
     prueba_contraste_sin_estrellas()
+    prueba_halo_brillante()
     prueba_capas_guardadas()
     prueba_progreso()
     print()
