@@ -21,8 +21,9 @@
 //
 // El tamaño REDUCE las estrellas pintándolas de nuevo como campanas de Gauss
 // (procesado.pintar_estrellas, la misma aritmética) desde el catálogo que manda el
-// servidor (procesado.catalogo_estrellas: x, y, sigma, r, g, b de cada estrella): sigma
-// nueva = raíz((sigma·tamaño)² + 0,5²), la misma proporción para todas, hasta 3,5 sigmas;
+// servidor (procesado.catalogo_estrellas: x, y, sigma, r, g, b y sobreexposición A de cada
+// estrella): sigma nueva = raíz((sigma·tamaño)² + 0,5²), la misma proporción para todas,
+// hasta 3,5 sigmas; el color por A y recortado a 1 (la cima blanca de las brillantes);
 // donde se solapan manda la más brillante; por debajo del 25 % el pico baja con
 // (tamaño/0,25)², y entre el 100 y el 85 % se funde con la capa original. Se pinta una
 // vez por valor del deslizador (_reducida, con caché).
@@ -57,14 +58,15 @@
         return ctx.getImageData(0, 0, w, h);
     }
 
-    // Catálogo de estrellas, 8 bytes por estrella (editor_fotos.empaquetar_catalogo: x·16 y y·16
-    // en uint16 little-endian, sigma·16 y r, g, b ·255 en uint8) → Float32Array(6·N) con los valores reales
+    // Catálogo de estrellas, 10 bytes por estrella (editor_fotos.empaquetar_catalogo: x·16, y·16 y
+    // sigma·100 en uint16 little-endian, r, g, b ·255 y log2(A)·32 en uint8) → Float32Array(7·N) con los valores reales
     function leerCatalogo(buffer) {
-        const v = new DataView(buffer), n = Math.floor(buffer.byteLength / 8), cat = new Float32Array(n * 6);
+        const v = new DataView(buffer), n = Math.floor(buffer.byteLength / 10), cat = new Float32Array(n * 7);
         for (let i = 0; i < n; i++) {
-            const o = i * 8, k = i * 6;
-            cat[k] = v.getUint16(o, true) / 16; cat[k + 1] = v.getUint16(o + 2, true) / 16; cat[k + 2] = v.getUint8(o + 4) / 16;
-            cat[k + 3] = v.getUint8(o + 5) / 255; cat[k + 4] = v.getUint8(o + 6) / 255; cat[k + 5] = v.getUint8(o + 7) / 255;
+            const o = i * 10, k = i * 7;
+            cat[k] = v.getUint16(o, true) / 16; cat[k + 1] = v.getUint16(o + 2, true) / 16; cat[k + 2] = v.getUint16(o + 4, true) / 100;
+            cat[k + 3] = v.getUint8(o + 6) / 255; cat[k + 4] = v.getUint8(o + 7) / 255; cat[k + 5] = v.getUint8(o + 8) / 255;
+            cat[k + 6] = Math.pow(2, v.getUint8(o + 9) / 32);
         }
         return cat;
     }
@@ -77,7 +79,7 @@
             this.estrellas = null;    // Uint8ClampedArray (w·h) 0..255
             this.pequenas = null;
             this.capa = null;         // ImageData de la capa de estrellas (estrellas aparte) o null
-            this.catalogo = null;     // Float32Array(6·N): x, y, sigma, r, g, b de cada estrella (leerCatalogo)
+            this.catalogo = null;     // Float32Array(7·N): x, y, sigma, r, g, b, A de cada estrella (leerCatalogo)
             this.reducida = null;     // {tamano, datos: Uint8ClampedArray (w·h·4)} la última capa reducida
             this.firma = null;        // ImageBitmap / Image con transparencia
             this.fondo = [0, 0, 0];
@@ -130,8 +132,8 @@
             const pintada = new Float32Array(n * 3), Lout = new Float32Array(n);
             if (tamano > 0) {
                 const apagado = tamano < 0.25 ? Math.pow(tamano / 0.25, 2) : 1;          // procesado.TAMANO_PICO
-                for (let e = 0; e < cat.length; e += 6) {
-                    const x = cat[e], y = cat[e + 1], s = cat[e + 2], r = cat[e + 3], g = cat[e + 4], b = cat[e + 5];
+                for (let e = 0; e < cat.length; e += 7) {
+                    const x = cat[e], y = cat[e + 1], s = cat[e + 2], r = cat[e + 3], g = cat[e + 4], b = cat[e + 5], A = cat[e + 6];
                     const P = Math.max(r, g, b);
                     if (P <= 0) continue;
                     const s2 = Math.sqrt((s * tamano) * (s * tamano) + 0.25);          // procesado.SIGMA_MINIMA = 0,5
@@ -141,12 +143,12 @@
                     for (let yy = y0; yy < y1; yy++) {
                         const gy = Math.exp(-((yy - y) * (yy - y)) / dos);
                         for (let xx = x0; xx < x1; xx++) {
-                            const v = P * apagado * gy * Math.exp(-((xx - x) * (xx - x)) / dos);
+                            const k = A * apagado * gy * Math.exp(-((xx - x) * (xx - x)) / dos);   // sin recortar
+                            const v = Math.min(P * k, 1);
                             const i = yy * w + xx;
                             if (v > Lout[i]) {
                                 Lout[i] = v;
-                                const f = v / P;
-                                pintada[i * 3] = f * r; pintada[i * 3 + 1] = f * g; pintada[i * 3 + 2] = f * b;
+                                pintada[i * 3] = Math.min(k * r, 1); pintada[i * 3 + 1] = Math.min(k * g, 1); pintada[i * 3 + 2] = Math.min(k * b, 1);
                             }
                         }
                     }

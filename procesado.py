@@ -1911,7 +1911,10 @@ def color(rgb, ajustes):
 # pequeña nunca baja de medio píxel ni desaparece por quedarse entre píxeles,
 # y como conserva su pico se sigue viendo. Por debajo del 25 % el pico baja
 # con (tamaño/0,25)², hasta desaparecer todas al 0 %. Entre el 100 y el 85 % la
-# capa original y la pintada se funden poco a poco.
+# capa original y la pintada se funden poco a poco. Las brillantes, que el
+# estirado corta en su tope, se pintan igual que salen del estirado: su color
+# por una sobreexposición y recortado a 1, así conservan la cima blanca y el
+# color en el halo (con un solo color de arriba abajo parecían bolas pintadas).
 #
 # Se probó antes a encoger el perfil de la propia capa (erosión, potencias con
 # el pico buscado en una ventana): las estrellas brillantes tienen la cima plana
@@ -1929,13 +1932,16 @@ SIGMA_HALO = 2.5              # px: anchura mínima de una estrella cuyo halo se
 HALO_RELATIVO = 1.5           # ...y al menos estas veces la anchura mediana de la foto
 HALO_SIGMAS = 6.0             # radio del modelo del halo, en sigmas de la estrella
 HALO_RADIO_MAX = 120          # px
+CIMA = 0.97                   # luminancia (canal mayor) a partir de la que la cima de una estrella está cortada
+CIMA_Q_MAX = 0.85             # tope de cima / media altura (sobreexposición hasta 2^5,7 = 50)
 
 
 def catalogo_estrellas(capa):
     """
     capa: capa de estrellas estirada (H, W, 3) float [0, 1]. Devuelve un array
-    float32 (N, 6): x, y (centro, px), sigma (px) y r, g, b (color en el pico) de
-    cada estrella con pico por encima de UMBRAL_ESTRELLA.
+    float32 (N, 7): x, y (centro, px), sigma (px), r, g, b (color en el pico) y la
+    sobreexposición A (1 sin cima cortada; ver _medir_estrellas) de cada estrella
+    con pico por encima de UMBRAL_ESTRELLA.
 
     En dos pasadas: las estrellas grandes (sigma de al menos HALO_RELATIVO veces
     la mediana y SIGMA_HALO px) se miden en la
@@ -1952,20 +1958,24 @@ def catalogo_estrellas(capa):
     # elegida no cuenta (su anchura la infla ese halo) y se mide en el resto
     if not len(cat):
         return cat
-    minima = max(SIGMA_HALO, HALO_RELATIVO * float(np.median(cat[:, 2])))
+    # Para el halo cuenta el tamaño que se ve (el radio a media altura / 1,1774), no
+    # la sigma de la gaussiana recortada, que en las brillantes es menor
+    aparente = cat[:, 2] * np.sqrt(2.0 * np.log(2.0 * cat[:, 6])) / 1.1774
+    minima = max(SIGMA_HALO, HALO_RELATIVO * float(np.median(aparente)))
     elegidas = []
-    for i in np.argsort(-cat[:, 2]):
-        x, y, sg = cat[i, :3]
-        if sg < minima:
+    for i in np.argsort(-aparente):
+        x, y = cat[i, :2]
+        if aparente[i] < minima:
             break
-        if all((x - cat[j, 0]) ** 2 + (y - cat[j, 1]) ** 2 > (HALO_SIGMAS * cat[j, 2]) ** 2 for j in elegidas):
+        if all((x - cat[j, 0]) ** 2 + (y - cat[j, 1]) ** 2 > (HALO_SIGMAS * aparente[j]) ** 2 for j in elegidas):
             elegidas.append(i)
     if not elegidas:
         return cat
     grandes = cat[elegidas]
+    s_grandes = aparente[elegidas]
     h, w = c.shape[:2]
     halos = np.zeros_like(c)
-    for x, y, sg in grandes[:, :3]:
+    for (x, y), sg in zip(grandes[:, :2], s_grandes):
         R = int(min(HALO_SIGMAS * sg, HALO_RADIO_MAX))
         xi, yi = int(round(x)), int(round(y))
         x0, x1, y0, y1 = max(0, xi - R), min(w, xi + R + 1), max(0, yi - R), min(h, yi + R + 1)
@@ -1989,7 +1999,7 @@ def catalogo_estrellas(capa):
     # (1,18 sigmas) es su propio residuo, no estrellas: restos de color del núcleo
     if len(resto):
         d2 = (resto[:, 0, None] - grandes[None, :, 0]) ** 2 + (resto[:, 1, None] - grandes[None, :, 1]) ** 2
-        resto = resto[(d2 >= (1.25 * grandes[None, :, 2]) ** 2).all(axis=1)]
+        resto = resto[(d2 >= (1.25 * s_grandes[None, :]) ** 2).all(axis=1)]
     return np.vstack([grandes, resto]).astype(np.float32)
 
 
@@ -2001,12 +2011,17 @@ def _medir_estrellas(c):
       - cada píxel de estrella va a la semilla más cercana (distanceTransformWithLabels);
       - pico P = máximo de la luminancia; sigma por el área por encima de P/2
         (radio a media altura / 1,1774); centro y color pesados con L² en esa área.
+    Con la cima cortada (pico >= CIMA, las brillantes que el estirado lleva a su
+    tope) la estrella es A·gaussiana recortada a 1: de la cima (radio r_c) y la
+    media altura (r_m) sale la sobreexposición A = 2^(q/(1-q)), q = r_c²/r_m², y
+    la sigma de verdad, r_m / raíz(2·ln(2A)) (sin cima, A = 1 y r_m / 1,1774); el
+    color, de los píxeles sin cortar, que en la cima son blancos.
     """
     L = c.max(axis=2)
     Ls = cv2.GaussianBlur(L, (0, 0), 0.8)
     semillas = ((Ls >= cv2.dilate(Ls, np.ones((5, 5), np.uint8)) - 1e-6) & (Ls > UMBRAL_ESTRELLA)).astype(np.uint8)
     if not semillas.any():
-        return np.zeros((0, 6), np.float32)
+        return np.zeros((0, 7), np.float32)
     semillas = cv2.dilate(semillas, np.ones((3, 3), np.uint8))
     __, etiquetas = cv2.distanceTransformWithLabels(1 - semillas, cv2.DIST_L2, 3, labelType=cv2.DIST_LABEL_CCOMP)
     ys, xs = np.nonzero(L > UMBRAL_ESTRELLA * 0.5)
@@ -2015,9 +2030,14 @@ def _medir_estrellas(c):
     n = int(etiquetas.max()) + 1
     P = np.zeros(n, np.float32)
     np.maximum.at(P, lab, Lm)
+    # Color sin cortar de las estrellas con cima: la estrella entera menos la cima (y menos lo muy débil)
+    peso_t = np.where((Lm < CIMA) & (Lm >= P[lab] * 0.25), Lm.astype(np.float64) ** 2, 0.0)
+    sw_t = np.bincount(lab, peso_t, minlength=n)
+    rgb_t = np.stack([np.bincount(lab, peso_t * c[ys, xs, k], minlength=n) for k in range(3)], axis=1)
     sel = Lm >= P[lab] * 0.5
     ys, xs, lab, Lm = ys[sel], xs[sel], lab[sel], Lm[sel]
     area = np.bincount(lab, minlength=n).astype(np.float64)
+    area_cima = np.bincount(lab, (Lm >= CIMA).astype(np.float64), minlength=n)
     peso = Lm.astype(np.float64) ** 2
     sw = np.bincount(lab, peso, minlength=n)
     ok = (area > 0) & (P > UMBRAL_ESTRELLA) & (sw > 0)
@@ -2025,19 +2045,27 @@ def _medir_estrellas(c):
     cx = np.bincount(lab, peso * xs, minlength=n) / sw
     cy = np.bincount(lab, peso * ys, minlength=n) / sw
     rgb = np.stack([np.bincount(lab, peso * c[ys, xs, k], minlength=n) / sw for k in range(3)], axis=1)
-    sigma = np.sqrt(area / np.pi) / 1.1774
+    con_cima = (P >= CIMA) & (area_cima > 0)
+    q = np.where(con_cima, np.clip(area_cima / np.maximum(area, 1.0), 0.0, CIMA_Q_MAX), 0.0)
+    A = np.power(2.0, q / (1.0 - q))
+    sigma = np.sqrt(area / np.pi) / np.sqrt(2.0 * np.log(2.0 * A))
+    usar_t = con_cima & (sw_t > 0)
+    rgb = np.where(usar_t[:, None], rgb_t / np.where(sw_t > 0, sw_t, 1.0)[:, None], rgb)
     tope = np.maximum(rgb.max(axis=1), 1e-6)
     rgb = rgb / tope[:, None] * P[:, None]               # el color medio, llevado al pico
-    return np.column_stack([cx, cy, sigma, rgb])[ok].astype(np.float32)
+    return np.column_stack([cx, cy, sigma, rgb, A])[ok].astype(np.float32)
 
 
 def pintar_estrellas(cat, forma, tamano):
     """
     Pinta el catálogo (catalogo_estrellas) en una capa (H, W, 3) float [0, 1] con
-    el tamaño 0..1: cada estrella una gaussiana de pico P = max(r, g, b) y sigma
-    = raíz((sigma·tamaño)² + SIGMA_MINIMA²) hasta 3,5 sigmas; donde
-    se solapan, manda la más brillante en ese píxel. Por debajo de TAMANO_PICO el
-    pico baja con (tamaño/TAMANO_PICO)². Igual que en static/js/retoque.js.
+    el tamaño 0..1: cada estrella una gaussiana de sigma = raíz((sigma·tamaño)² +
+    SIGMA_MINIMA²) hasta 3,5 sigmas, con su color (r, g, b) por la sobreexposición
+    A y recortada a 1 canal a canal: las brillantes conservan la cima blanca y el
+    color en el halo, y la cima encoge con la estrella (sin cima, A = 1, pico
+    P = max(r, g, b)). Donde se solapan, manda la más brillante en ese píxel.
+    Por debajo de TAMANO_PICO la luz baja con (tamaño/TAMANO_PICO)². Igual que en
+    static/js/retoque.js.
     """
     h, w = forma
     out = np.zeros((h, w, 3), np.float32)
@@ -2046,8 +2074,10 @@ def pintar_estrellas(cat, forma, tamano):
         return out
     Lout = np.zeros((h, w), np.float32)
     apagado = (tamano / TAMANO_PICO) ** 2 if tamano < TAMANO_PICO else 1.0
-    for x, y, s, r, g, b in cat:
+    for x, y, s, r, g, b, A in np.asarray(cat, dtype=np.float32).reshape(-1, 7):
         P = float(max(r, g, b))
+        if P <= 0:
+            continue
         s2 = math.sqrt((float(s) * tamano) ** 2 + SIGMA_MINIMA ** 2)
         R = int(math.ceil(3.5 * s2))
         xc, yc = int(round(float(x))), int(round(float(y)))
@@ -2057,13 +2087,14 @@ def pintar_estrellas(cat, forma, tamano):
             continue
         gx = np.exp(-((np.arange(x0, x1, dtype=np.float32) - np.float32(x)) ** 2) / np.float32(2 * s2 * s2))
         gy = np.exp(-((np.arange(y0, y1, dtype=np.float32) - np.float32(y)) ** 2) / np.float32(2 * s2 * s2))
-        v = np.float32(P * apagado) * gy[:, None] * gx[None, :]
+        k = np.float32(float(A) * apagado) * gy[:, None] * gx[None, :]      # la luz por el color, sin recortar
+        v = np.minimum(np.float32(P) * k, 1.0)
         ventana = Lout[y0:y1, x0:x1]
         mayor = v > ventana
         ventana[mayor] = v[mayor]
-        f = v[mayor] / np.float32(P)
+        f = k[mayor]
         bloque = out[y0:y1, x0:x1]
-        bloque[mayor] = np.stack([f * r, f * g, f * b], axis=1)
+        bloque[mayor] = np.minimum(np.stack([f * r, f * g, f * b], axis=1), 1.0)
     return out
 
 

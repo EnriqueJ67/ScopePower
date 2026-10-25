@@ -20,7 +20,8 @@
 #   7. reducir las estrellas (catálogo + campanas de Gauss);
 #   8. el estirado propio de las estrellas (intensidad, compresión de los núcleos).
 #   9. el contraste local sin estrellas no levanta el ruido del cielo (borbotones).
-#  10. el catálogo no convierte en estrellas grandes las débiles sobre el halo de una brillante.
+#  10. el catálogo no convierte en estrellas grandes las débiles sobre el halo de una brillante;
+#  11. al reducir, las brillantes conservan la cima blanca (sobreexposición y recorte).
 
 import os
 import sys
@@ -185,18 +186,23 @@ def prueba_encogido():
     comprobar(all(abs(a - e[2]) < 0.02 for a, e in zip(picos, estrellas)), f"conservan el pico: {[round(v, 2) for v in picos]}")
     color = r50[120, 600]
     comprobar(color[2] > color[0], f"y su color (la media, azulada: {np.round(color, 2).tolist()})")
-    # Campana de Gauss: el perfil baja suave, sin cima plana ni borde duro (cada paso, menor que el anterior)
-    fila = r50[180, 1000:1008].max(axis=1)
-    comprobar(fila[0] > fila[1] > fila[2] > fila[3] and fila[0] - fila[1] < 0.3, f"perfil de campana en la saturada: {np.round(fila, 2).tolist()}")
+    # La saturada conserva una cima, encogida en la misma proporción, y fuera de ella baja en campana
+    fila = r50[180, 1000:1010].max(axis=1)
+    cima_50 = int(np.sum(fila >= 0.99))
+    cima_100 = int(np.sum(capa[180, 1000:1010].max(axis=1) >= 0.99))
+    fuera = fila[cima_50:cima_50 + 4]
+    comprobar(cima_100 >= 2 and 0.3 <= cima_50 / cima_100 <= 0.7 and all(a > b for a, b in zip(fuera, fuera[1:])),
+              f"la saturada, con la cima encogida ({cima_100} → {cima_50} px) y en campana fuera: {np.round(fila, 2).tolist()}")
     r10 = procesado.reducir_estrellas(capa, 0.1, cat)
     visibles = [float(r10[y, x].max()) for x, y, __, __, __ in estrellas]
     comprobar(all(v > 0.02 for v in visibles), f"al 10 % siguen todas, más tenues: {[round(v, 2) for v in visibles]}")
     comprobar(procesado.reducir_estrellas(capa, 0.0, cat).max() == 0.0, "tamaño 0 %: desaparecen todas")
-    # Empaquetado para el navegador (8 bytes por estrella) y vuelta
+    # Empaquetado para el navegador (10 bytes por estrella) y vuelta
     import editor_fotos
     vuelta = editor_fotos.desempaquetar_catalogo(editor_fotos.empaquetar_catalogo(cat))
-    comprobar(len(editor_fotos.empaquetar_catalogo(cat)) == 8 * len(cat) and np.allclose(vuelta, cat, atol=[0.04, 0.04, 0.04, 0.003, 0.003, 0.003]),
-              "catálogo empaquetado en 8 bytes por estrella y desempaquetado igual")
+    comprobar(len(editor_fotos.empaquetar_catalogo(cat)) == 10 * len(cat) and np.allclose(vuelta[:, :6], cat[:, :6], atol=[0.04, 0.04, 0.006, 0.003, 0.003, 0.003])
+              and np.allclose(vuelta[:, 6], cat[:, 6], rtol=0.012),
+              "catálogo empaquetado en 10 bytes por estrella y desempaquetado igual")
 
 
 def prueba_estirado_estrellas():
@@ -308,13 +314,43 @@ def prueba_halo_brillante():
     comprobar(all(len(h) == 1 for h in halladas), "las seis débiles, una vez cada una")
     sig = [float(h[0, 2]) for h in halladas if len(h)]
     comprobar(sig and max(sig) < 2.6, f"con su anchura, no la del halo (sigma hasta {max(sig or [0]):.2f} px; reales 1,6)")
-    color = [h[0, 3:] / h[0, 3:].max() for h in halladas if len(h)]
+    color = [h[0, 3:6] / h[0, 3:6].max() for h in halladas if len(h)]
     comprobar(color and min(float(c[2]) for c in color) > 0.75, "con su color blanco, no el naranja de la brillante")
     sobran = [e for e in cat if np.hypot(e[0] - 120, e[1] - 120) < 28 and np.hypot(e[0] - 120, e[1] - 120) > 3]
     comprobar(not sobran, f"ninguna estrella inventada dentro del halo ({len(sobran)})")
     comprobar(len(cerca(120, 120)) == 1 and float(cerca(120, 120)[0, 2]) > 8, "la brillante sigue siendo una, y grande")
     aislada = cerca(30, 30)
     comprobar(len(aislada) == 1 and abs(float(aislada[0, 2]) - 1.6) < 0.4, "la aislada se mide igual")
+
+
+
+def prueba_cima_blanca():
+    print("11. La cima blanca de las brillantes al reducir")
+    n = 120
+    yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
+    # Como la deja el estirado: color naranja por una sobreexposición de 4, recortado canal a canal
+    color = np.array([1.0, 0.7, 0.4], np.float32)
+    G = np.exp(-((xx - 60) ** 2 + (yy - 60) ** 2) / (2 * 3.0 ** 2))
+    capa = np.minimum(4.0 * G[..., None] * color, 1.0).astype(np.float32)
+    cat = procesado.catalogo_estrellas(capa)
+    comprobar(len(cat) == 1, f"una estrella ({len(cat)})")
+    x, y, s, r, g, b, A = cat[0]
+    comprobar(abs(A - 4.0) < 0.6, f"sobreexposición medida {A:.2f} (real 4)")
+    comprobar(abs(s - 3.0) < 0.3, f"sigma de la gaussiana, no la de la cima plana: {s:.2f} px (real 3)")
+    col = np.array([r, g, b]) / max(r, g, b)
+    comprobar(np.allclose(col, color, atol=0.05), f"color de los píxeles sin cortar: {np.round(col, 2).tolist()}")
+    pintada = procesado.pintar_estrellas(cat, capa.shape[:2], 1.0)
+    comprobar(np.abs(pintada - capa).max() < 0.08, f"pintada al 100 %, igual que la original (máx {np.abs(pintada - capa).max():.3f})")
+    r50 = procesado.pintar_estrellas(cat, capa.shape[:2], 0.5)
+    comprobar(r50[60, 60].min() > 0.97, f"al 50 %, la cima sigue blanca: {np.round(r50[60, 60], 2).tolist()}")
+    halo = r50[60, 60 + 4]
+    comprobar(halo[2] < 0.6 * halo[0], f"y el halo sigue naranja: {np.round(halo, 2).tolist()}")
+    def radio_cima(img):
+        return int(np.sum(img[60, 60:90].min(axis=1) >= 0.97))
+    comprobar(0.3 <= radio_cima(r50) / max(radio_cima(capa), 1) <= 0.7, f"cima blanca de {radio_cima(capa)} a {radio_cima(r50)} px")
+    r10 = procesado.pintar_estrellas(cat, capa.shape[:2], 0.1)
+    comprobar(r10[60, 60].max() < 0.97 and r10[60, 60, 2] < 0.6 * r10[60, 60, 0],
+              f"al 10 % se apaga, cima incluida, y queda de su color: {np.round(r10[60, 60], 2).tolist()}")
 
 
 if __name__ == "__main__":
@@ -325,6 +361,7 @@ if __name__ == "__main__":
     prueba_estirado_estrellas()
     prueba_contraste_sin_estrellas()
     prueba_halo_brillante()
+    prueba_cima_blanca()
     prueba_capas_guardadas()
     prueba_progreso()
     print()

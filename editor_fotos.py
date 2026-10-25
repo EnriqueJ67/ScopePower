@@ -575,27 +575,29 @@ def capa_firma(ancho, alto, meta):
 
 def empaquetar_catalogo(cat):
     """
-    Catálogo de estrellas (procesado.catalogo_estrellas) en 8 bytes por estrella
-    para el navegador (static/js/retoque.js lo desempaqueta igual): x·16 y y·16
-    en uint16 little-endian, sigma·16 en uint8 (hasta 15,9 px) y r, g, b ·255
-    en uint8. 20 000 estrellas de un campo denso a 1200 px son 160 KB.
+    Catálogo de estrellas (procesado.catalogo_estrellas) en 10 bytes por estrella
+    para el navegador (static/js/retoque.js lo desempaqueta igual): x·16, y·16 y
+    sigma·100 en uint16 little-endian (sigma hasta 655 px), r, g, b ·255 en uint8
+    y la sobreexposición como log2(A)·32 en uint8 (A hasta 250). 20 000
+    estrellas de un campo denso a 1200 px son 200 KB.
     """
-    cat = np.asarray(cat, dtype=np.float32).reshape(-1, 6)
-    paquete = np.zeros((len(cat), 8), np.uint8)
-    xy = np.clip(np.round(cat[:, :2] * 16.0), 0, 65535).astype("<u2")
-    paquete[:, 0:4] = xy.view(np.uint8).reshape(-1, 4)
-    paquete[:, 4] = np.clip(np.round(cat[:, 2] * 16.0), 0, 255).astype(np.uint8)
-    paquete[:, 5:8] = np.clip(np.round(cat[:, 3:6] * 255.0), 0, 255).astype(np.uint8)
+    cat = np.asarray(cat, dtype=np.float32).reshape(-1, 7)
+    paquete = np.zeros((len(cat), 10), np.uint8)
+    u16 = np.column_stack([np.clip(np.round(cat[:, :2] * 16.0), 0, 65535),
+                           np.clip(np.round(cat[:, 2] * 100.0), 0, 65535)]).astype("<u2")
+    paquete[:, 0:6] = u16.view(np.uint8).reshape(-1, 6)
+    paquete[:, 6:9] = np.clip(np.round(cat[:, 3:6] * 255.0), 0, 255).astype(np.uint8)
+    paquete[:, 9] = np.clip(np.round(np.log2(np.maximum(cat[:, 6], 1.0)) * 32.0), 0, 255).astype(np.uint8)
     return paquete.tobytes()
 
 
 def desempaquetar_catalogo(datos):
-    """Lo contrario de empaquetar_catalogo: array float32 (N, 6) con x, y, sigma, r, g, b."""
-    paquete = np.frombuffer(datos, np.uint8).reshape(-1, 8)
-    xy = paquete[:, 0:4].copy().view("<u2").reshape(-1, 2).astype(np.float32) / 16.0
-    sigma = paquete[:, 4:5].astype(np.float32) / 16.0
-    rgb = paquete[:, 5:8].astype(np.float32) / 255.0
-    return np.hstack([xy, sigma, rgb]).astype(np.float32)
+    """Lo contrario de empaquetar_catalogo: array float32 (N, 7) con x, y, sigma, r, g, b, A."""
+    paquete = np.frombuffer(datos, np.uint8).reshape(-1, 10)
+    u16 = paquete[:, 0:6].copy().view("<u2").reshape(-1, 3).astype(np.float32)
+    rgb = paquete[:, 6:9].astype(np.float32) / 255.0
+    A = np.power(2.0, paquete[:, 9:10].astype(np.float32) / 32.0)
+    return np.hstack([u16[:, :2] / 16.0, u16[:, 2:3] / 100.0, rgb, A]).astype(np.float32)
 
 
 def vista_previa(nombre, opciones):

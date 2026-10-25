@@ -42,6 +42,14 @@ día de la release. El número de versión vive en `version.py`.
   estrellas grandes, modela su halo con la mediana por anillos, lo resta y mide las demás en lo
   que queda. Las débiles salen con su anchura (1,5 px frente a 4-6 px) y su color, y el catálogo
   tarda 1,5 s en una foto de 1 470 px.
+- Cambiado: al reducir, las estrellas brillantes conservan la cima. El estirado corta su núcleo
+  en el tope y por eso tienen el centro claro y el color en el halo; repintadas como una campana
+  de un solo color salían como bolas pintadas, apagadas y más anchas. Ahora el catálogo mide de
+  cada una la cima cortada: su sobreexposición, la anchura de verdad de la campana y el color de
+  los píxeles sin cortar. Se pinta igual que sale del estirado: el color por la sobreexposición,
+  recortado a 1 canal a canal, y la cima encoge con la estrella. Las débiles no cambian. El
+  catálogo pasa a 10 bytes por estrella en la vista previa (60 KB en M 17), y el navegador pinta
+  igual que el servidor (1 nivel como mucho).
 - Cambiado: «Un solo color por estrella» en la capa de estrellas aparte reparte el color en
   1,5 px en vez de 4. Con 4 px, en campos densos como M 17 se mezclaba el color de estrellas
   vecinas y la variedad de colores bajaba un 17 %; ahora, un 6 %.
