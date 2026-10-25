@@ -169,6 +169,12 @@ día de la release. El número de versión vive en `version.py`.
 - Arreglado: la corrección por ejes del guiado por el disco ya no vuelve al GoTo cuando, tras un
   primer paso bueno, otro paso no gana nada: es el límite de precisión (el cielo corre unos 15″/s
   mientras el eje se mueve sin seguimiento), no una montura que no responde.
+- Arreglado: las anotaciones de la galería, del editor y del apilado en vivo ya no fallan en
+  campos muy densos de la Vía Láctea (M 17 del 8-oct: «ASTAP no ha podido resolver la foto»). Con
+  la tolerancia de serie (0,007) casi ningún cuadrilátero de estrellas cuadraba con el catálogo;
+  si ASTAP no resuelve, ahora se repite con `-t 0.01` y la solución solo se acepta si la escala
+  cuadra con FOCALLEN y XPIXSZ (±10 %) y el centro queda a menos de 5° de donde apuntaba la
+  montura. El fallo queda además en el log. Prueba `herramientas/probar_tolerancia_astap.py`.
 
 ## 1.2.2 · 2026-10-16
 
