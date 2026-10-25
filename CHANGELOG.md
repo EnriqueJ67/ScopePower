@@ -5,6 +5,14 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Enfoque de día: ayuda de la curva en V. Con el Sol del 25-oct se vio que cerca del foco el
+  número se queda plano aunque se siga girando: el limbo es √(suelo² + desenfoque²) con un suelo
+  de seeing y óptica de ~4,1 px, y entre 0,9 y 1,8 px de desenfoque apenas cambia 0,3 px. Ahora,
+  al cruzar esa zona plana y subir claramente, el PC dice «te has pasado del foco, vuelve atrás»,
+  la gráfica sombrea la zona y marca su centro (el foco bueno) y al volver dice «estás en la zona
+  buena». La gráfica enseña los últimos 30 s con la escala centrada en el mínimo, y el número va
+  con dos decimales y sin histéresis cerca del mejor. Probado con barridos simulados (sin falsas
+  alarmas quieto en el foco, centro a ±0,2 s) y sobre el vídeo real del Sol del 25-oct.
 - Cambiado: con «Separar las estrellas al guardar» (`[Procesado] estrellas_aparte`), el guardado
   del apilado termina con el JPG de siempre y la separación con StarNet2 y el reprocesado van
   después, en una cola propia en segundo plano (`cola_estrellas.py`): de una foto en una, por

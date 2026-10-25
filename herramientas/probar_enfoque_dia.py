@@ -7,13 +7,18 @@
 #      el borde de la imagen (medio disco fuera) no da número: pocos ángulos de limbo (con el
 #      umbral viejo de 12 el círculo se ajustaba al terminador y el limbo salía falso y más fino).
 #   2. HistorialLimbo con un reloj falso: el número es el percentil bajo de la ventana (no la
-#      última medida), con histéresis; el «mejor» solo cuenta ventanas llenas; se descartan las
+#      última medida), con histéresis lejos del mejor y sin ella cerca; el «mejor» solo cuenta ventanas llenas; se descartan las
 #      medidas con otro radio o con el disco moviéndose deprisa; tras un corte, el número cae.
 #   3. veredicto(): calla mientras la ventana anterior no está llena, dice «empeora» al subir el
 #      limbo, «igual» una sola vez al estabilizarse, «mejora» al bajar, y no habla con el ruido
 #      (fotogramas que varían un 7 % como los reales).
 #   4. componer con la etiqueta del recorte y la gráfica de tendencia: dibuja sin fallar en los
 #      dos tamaños de vista (móvil y tablet) y la gráfica queda dentro de la imagen.
+#   5. Curva en V: un barrido del enfocador a velocidad constante a través del foco, con el limbo
+#      √(suelo² + desenfoque²) del Sol del 25-oct-2026 (suelo 4,1 px) y el ruido de seeing de los
+#      fotogramas reales: dice «te has pasado» una vez al cruzar, la zona plana queda centrada en
+#      el foco (con el retraso de la ventana), dice «estás en la zona buena» al volver, y quieto en
+#      el foco un minuto no avisa nunca. Cerca del mínimo el número no tiene histéresis.
 #
 # Uso: python herramientas/probar_enfoque_dia.py   (desde la carpeta de ScopePower)
 
@@ -92,10 +97,15 @@ def probar_historial():
     assert mejor is not None and mejor <= actual + 1e-9, (mejor, actual)
     assert recorte == int(np.argmin(valores)) or valores[recorte] <= np.percentile(valores[-50:], 5), recorte
     print(f"  ventana de 2,5 s: número {actual:.2f} (percentil {enfoque.PERCENTIL_VENTANA} de {n} fotogramas), mejor {mejor:.2f}")
-    # Histéresis: un cambio pequeño de la ventana no mueve el número enseñado
-    mostrado = h.mostrado
+    # Histéresis: lejos del mejor, un cambio pequeño de la ventana no mueve el número enseñado;
+    # cerca del mejor (donde se afina el foco) no hay histéresis y el número sigue a la ventana
+    mostrado, mejor_real = h.mostrado, h.mejor
+    h.mejor = actual / 1.5
     h.mostrado = actual + 0.5 * enfoque.HISTERESIS_PX
     assert h.resumen()[0] == actual + 0.5 * enfoque.HISTERESIS_PX
+    h.mejor = mejor_real
+    h.mostrado = actual + 0.5 * enfoque.HISTERESIS_PX
+    assert abs(h.resumen()[0] - actual) < 1e-9
     h.mostrado = mostrado
     # Otro radio (el círculo se ajustó al terminador) y el disco moviéndose deprisa: se descartan
     reloj.t += paso
@@ -166,6 +176,60 @@ def probar_composicion():
     print("  composición: etiqueta del recorte y gráfica dibujadas en 600 y 1200 px")
 
 
+def barrido(tramos, suelo=4.1, ruido=0.07, fps=20, semilla=3):
+    """
+    Simula el vivo mientras se gira el enfocador. `tramos`: [(segundos, velocidad en px de
+    desenfoque por segundo)], empezando con un desenfoque de -6 px. Devuelve el historial, los
+    avisos [(t, clave)], la serie del desenfoque real [(t, d)] y la del número enseñado.
+    """
+    reloj = Reloj()
+    h = enfoque.HistorialLimbo(reloj=reloj)
+    rng = np.random.default_rng(semilla)
+    d, avisos, real, mostrado = -6.0, [], [], []
+    for segundos, velocidad in tramos:
+        for __ in range(int(round(segundos * fps))):
+            reloj.t += 1.0 / fps
+            d += velocidad / fps
+            h.anotar(medida(np.hypot(suelo, d) * (1 + ruido * rng.normal())), recorte=None)
+            actual = h.resumen()[0]
+            v = h.curva_v() or h.veredicto()
+            if v:
+                avisos.append((round(reloj.t, 2), v))
+            real.append((reloj.t, d))
+            mostrado.append((reloj.t, actual))
+    return h, avisos, real, mostrado
+
+
+def probar_curva_v():
+    # Ida: de -6 px a +3,6 px a 0,6 px/s (cruza el foco a los 10 s); vuelta a la misma velocidad 8 s; quieto 6 s
+    h, avisos, real, mostrado = barrido([(16.0, 0.6), (8.0, -0.6), (6.0, 0.0)])
+    claves = [v for __, v in avisos]
+    pasados = [tv for tv, v in avisos if v == "pasado"]
+    assert len(pasados) == 1, avisos
+    assert 11.0 < pasados[0] < 16.5, avisos                      # después de cruzar, antes de dar la vuelta
+    assert "zona" in claves[claves.index("pasado"):], avisos       # al volver
+    t_foco = 10.0
+    ini, fin, centro, minimo = h.zona_v
+    assert abs(centro - (t_foco + enfoque.VENTANA_S / 2)) < 1.5, (h.zona_v, t_foco)
+    assert 3.9 < minimo < 4.4, h.zona_v
+    print(f"  barrido: avisos {avisos}")
+    print(f"  zona plana {ini:.1f}–{fin:.1f} s, centro {centro:.1f} s (foco real a los {t_foco:.0f} s + {enfoque.VENTANA_S / 2:.2f} s de retraso de la ventana)")
+    # Cerca del mínimo, sin histéresis: el número enseñado sigue a la ventana
+    assert h.mostrado is not None and h.mejor is not None and h.mostrado <= h.mejor * (1 + enfoque.CERCA_MINIMO) + 0.3
+    # Quieto en el foco un minuto, solo seeing: nunca «te has pasado»
+    h2, avisos2, __, __ = barrido([(60.0, 0.0)], semilla=5)
+    h2 = None
+    assert "pasado" not in [v for __, v in avisos2], avisos2
+    # Otro barrido más lento (0,3 px/s) y con más ruido (10 %): también avisa una vez
+    h3, avisos3, __, __ = barrido([(30.0, 0.3), (5.0, 0.0)], ruido=0.10, semilla=7)
+    assert [v for __, v in avisos3].count("pasado") == 1, avisos3
+    print(f"  quieto en el foco 60 s: sin «te has pasado»; barrido lento y ruidoso: {avisos3}")
+    img = enfoque.componer(np.zeros((600, 600), np.uint8), np.zeros((240, 240), np.uint8), {"limbo": 4.2, "mejor": 4.1},
+                           tendencia=h.tendencia(), etiqueta="limbo", zona_v=h.zona_v)
+    assert img.shape == (600, 600, 3)
+    assert "4,20" in enfoque.texto_info({"limbo": 4.2, "mejor": 4.1}) or "4.20" in enfoque.texto_info({"limbo": 4.2, "mejor": 4.1})
+
+
 if __name__ == "__main__":
     print("1. medir_disco con la Luna sintética y cortada por el borde")
     probar_medida()
@@ -175,4 +239,6 @@ if __name__ == "__main__":
     probar_veredicto()
     print("4. componer con etiqueta y gráfica")
     probar_composicion()
+    print("5. curva en V")
+    probar_curva_v()
     print("Todo bien.")
