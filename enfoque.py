@@ -50,7 +50,15 @@
 #     ventana; al lado va el mejor valor de la sesión; debajo, la gráfica del
 #     último minuto para ver si al girar el enfocador se baja o se sube; y por
 #     voz se dice «mejora», «empeora» o «igual» cada pocos segundos comparando
-#     la ventana con la del último veredicto. Las medidas con el disco cortado
+#     la ventana con la del último veredicto. Cerca del foco la curva es plana
+#     (medido con el Sol del 25-oct-2026: el limbo es √(suelo² + desenfoque²) con
+#     un suelo de seeing y óptica de ~4,1 px, así que entre 0,9 y 1,8 px de
+#     desenfoque el número solo se mueve 0,3 px): el foco bueno es el centro de
+#     esa zona plana, como en la curva en V de los autoenfocadores. Cuando se
+#     cruza la zona y el valor sube claramente se dice «te has pasado del foco,
+#     vuelve atrás» y la gráfica marca la zona y su centro; al volver a entrar,
+#     «estás en la zona buena». Cerca del mínimo el número va con dos decimales
+#     y sin histéresis. Las medidas con el disco cortado
 #     por el borde (pocos ángulos de limbo, otro radio) o moviéndose deprisa (pad,
 #     mano en el tubo) se descartan: daban un limbo falso y estropeaban el «mejor».
 #   - La exposición sigue siendo la automática de día (nivel del disco), no la
@@ -86,11 +94,24 @@ FOTOGRAMAS_MEJOR = 8      # el «mejor» de la sesión solo cuenta ventanas con 
 TOLERANCIA_RADIO = 0.03   # un círculo con un radio distinto al de la sesión en más de un 3 % no es el disco
 VELOCIDAD_MAX = 25.0      # px del plano por segundo: si el disco se mueve más deprisa (pad, mano en el tubo) la
                           # exposición lo emborrona y la medida no vale (el seeing lo mueve ~6 px/s; el pad, 80)
-TENDENCIA_S = 60.0        # la gráfica enseña el último minuto
+TENDENCIA_S = 60.0        # la serie guarda el último minuto (para la curva en V)...
+GRAFICA_S = 30.0          # ...y la gráfica dibuja los últimos 30 s: una pasada por el foco dura 10–20 s
+TECHO_GRAFICA = 1.6       # la escala vertical llega hasta 1,6 veces el mínimo: lo de más arriba se recorta
 TENDENCIA_CADA_S = 0.25   # un punto de la gráfica cada cuarto de segundo
 VOZ_CADA_S = 3.0          # un veredicto por voz como mucho cada 3 s
 UMBRAL_VOZ = 0.05         # «mejora»/«empeora» si la ventana cambia más de un 5 %, más de UMBRAL_VOZ_PX y más de
 UMBRAL_VOZ_PX = 0.15      # 3 veces el ruido del percentil (medido con la dispersión de los fotogramas de la ventana)
+CERCA_MINIMO = 0.10       # a menos de un 10 % del mejor no hay histéresis: es donde se afina el foco
+# Curva en V (HistorialLimbo.curva_v): la zona plana alrededor del mínimo del último minuto
+# Elegidos con barridos simulados (√(4,1² + desenfoque²) y el ruido de seeing de los fotogramas reales):
+# sin falsas alarmas en 20 minutos quieto en el foco, avisa ~5 s después de cruzar el foco (casi todo
+# es el retraso de la ventana y salir de la zona plana) y el centro sale a ±0,2 s del foco real.
+# Con una zona de 0,15 px y subida de 1,5 avisaba antes pero con un 15 % de falsas alarmas.
+ZONA_V = 0.04             # zona plana: hasta un 4 % por encima del mínimo...
+ZONA_V_PX = 0.15          # ...y al menos 0,15 px (el número de 2,5 s se mueve ~0,08 px con el seeing)
+SUBIDA_V = 2.0            # «te has pasado» cuando el valor sube 2 veces la zona por encima del mínimo...
+SUBIDA_V_S = 0.5          # ...durante medio segundo seguido (una racha de mal seeing no basta)
+SUAVIZADO_V_S = 1.0       # mediana de 1 s sobre la serie antes de buscar la zona
 
 
 def activo():
@@ -196,9 +217,9 @@ def texto_info(info, para_imagen=False):
     if "limbo" in info:
         if info.get("limbo") is None:
             return _("limbo: {motivo}", motivo=info.get("motivo") or _("no se ve el disco"))
-        partes = [_("Limbo {px} px", px=fmt_num(info['limbo'], 1))]
+        partes = [_("Limbo {px} px", px=fmt_num(info['limbo'], 2))]
         if info.get("mejor") is not None:
-            partes.append(_("mejor {px}", px=fmt_num(info['mejor'], 1)))
+            partes.append(_("mejor {px}", px=fmt_num(info['mejor'], 2)))
         if not para_imagen and info.get("n"):
             partes.append(_("{n} ángulos", n=info['n']))
         return sep.join(partes)
@@ -231,23 +252,31 @@ VERDE_TEXTO = (120, 255, 120)
 VERDE_MARCO = (80, 200, 80)
 
 
-def _grafica_tendencia(base, serie, mejor, x0, y0, ancho, alto):
+def _grafica_tendencia(base, serie, mejor, x0, y0, ancho, alto, zona_v=None):
     """
-    La gráfica del limbo del último minuto en (x0, y0)-(x0+ancho, y0+alto): fondo
-    oscuro, la línea del número enseñado, el mejor de la sesión como raya de puntos
-    y el valor actual como punto. Eje x = tiempo (TENDENCIA_S), eje y = anchura con
-    un margen; a la izquierda, el máximo y el mínimo del tramo.
+    La gráfica del limbo de los últimos GRAFICA_S segundos en (x0, y0)-(x0+ancho, y0+alto): fondo
+    oscuro, la línea del número enseñado (recortada por arriba a TECHO_GRAFICA veces
+    el mínimo), el mejor de la sesión como raya de puntos
+    y el valor actual como punto. Eje x = tiempo (GRAFICA_S), eje y = anchura con
+    un margen; a la izquierda, el máximo y el mínimo del tramo. Con `zona_v`
+    (t_ini, t_fin, t_centro, mínimo), la zona plana del foco sombreada y su centro
+    como raya vertical: es adonde hay que volver.
     """
     if len(serie) < 2 or ancho < 40 or alto < 20:
         return
+    t1 = float(serie[-1][0])
+    serie = [p for p in serie if t1 - p[0] <= GRAFICA_S]
     ts = np.array([p[0] for p in serie], float)
     vs = np.array([p[1] for p in serie], float)
-    t1 = ts[-1]
     vmin, vmax = float(vs.min()), float(vs.max())
     if mejor is not None:
         vmin = min(vmin, float(mejor))
+    # La escala se centra en el fondo de la curva: es donde se decide el foco. Lejos del foco los
+    # valores (10–16 px) aplastaban la V contra el borde de abajo
+    vmax = min(vmax, TECHO_GRAFICA * vmin)
     margen = max(0.1, 0.15 * (vmax - vmin), 0.05 * vmax)
     lo, hi = vmin - margen, vmax + margen
+    vs = np.minimum(vs, hi)
     fondo = base[y0:y0 + alto, x0:x0 + ancho]
     cv2.addWeighted(fondo, 0.35, np.zeros_like(fondo), 0.65, 0, dst=fondo)
     cv2.rectangle(base, (x0, y0), (x0 + ancho - 1, y0 + alto - 1), VERDE_MARCO, 1)
@@ -257,27 +286,35 @@ def _grafica_tendencia(base, serie, mejor, x0, y0, ancho, alto):
     gx0, gx1 = x0 + margen_izq, x0 + ancho - 4
     gy0, gy1 = y0 + 3, y0 + alto - 4
     def px(t, v):
-        return (int(round(gx1 - (t1 - t) / TENDENCIA_S * (gx1 - gx0))),
+        return (int(round(gx1 - (t1 - t) / GRAFICA_S * (gx1 - gx0))),
                 int(round(gy1 - (v - lo) / (hi - lo) * (gy1 - gy0))))
     cv2.putText(base, fmt_num(hi, 1), (x0 + 3, gy0 + th), cv2.FONT_HERSHEY_SIMPLEX, escala_txt, VERDE_TEXTO, 1, cv2.LINE_AA)
     cv2.putText(base, fmt_num(lo, 1), (x0 + 3, gy1), cv2.FONT_HERSHEY_SIMPLEX, escala_txt, VERDE_TEXTO, 1, cv2.LINE_AA)
+    if zona_v is not None and t1 - zona_v[1] <= GRAFICA_S:
+        xa, xb = max(gx0, px(zona_v[0], lo)[0]), px(zona_v[1], lo)[0]
+        if xb > xa:
+            banda = base[gy0:gy1, xa:xb + 1]
+            cv2.addWeighted(banda, 0.45, np.full_like(banda, (50, 140, 50)), 0.55, 0, dst=banda)
+        xc = px(zona_v[2], lo)[0]
+        if xc >= gx0:
+            cv2.line(base, (xc, gy0), (xc, gy1), VERDE_TEXTO, max(1, alto // 50), cv2.LINE_AA)
     if mejor is not None:
         ym = px(t1, float(mejor))[1]
         for x in range(gx0, gx1, 6):
             cv2.line(base, (x, ym), (min(x + 2, gx1), ym), VERDE_MARCO, 1)
-    puntos = np.array([px(t, v) for t, v in zip(ts, vs) if t1 - t <= TENDENCIA_S], np.int32)
+    puntos = np.array([px(t, v) for t, v in zip(ts, vs)], np.int32)
     if len(puntos) >= 2:
         cv2.polylines(base, [puntos.reshape(-1, 1, 2)], False, VERDE_TEXTO, max(1, alto // 60), cv2.LINE_AA)
     cv2.circle(base, tuple(int(v) for v in puntos[-1]), max(2, alto // 25), VERDE_TEXTO, -1, cv2.LINE_AA)
 
 
-def componer(gris8, recorte, info, pulsado=None, tendencia=None, etiqueta=None):
+def componer(gris8, recorte, info, pulsado=None, tendencia=None, etiqueta=None, zona_v=None):
     """
     Imagen BGR para la web: el verde en gris, el recorte de la estrella en la
     esquina superior derecha (con marco y, con `etiqueta`, su nombre: «limbo» o
     «terminador»), la línea de anchuras debajo y, con `tendencia` [(t, px)], la
-    gráfica del último minuto debajo del texto. Si `pulsado` (x, y) se da, se
-    marca la estrella en la imagen grande.
+    gráfica del último minuto debajo del texto (con `zona_v`, la zona plana del
+    foco y su centro). Si `pulsado` (x, y) se da, se marca la estrella en la imagen grande.
     """
     base = cv2.cvtColor(gris8, cv2.COLOR_GRAY2BGR)
     h, w = base.shape[:2]
@@ -310,7 +347,7 @@ def componer(gris8, recorte, info, pulsado=None, tendencia=None, etiqueta=None):
         if tendencia:
             alto_g = int(rl * 0.4)
             if oy + m + alto_g < h:
-                _grafica_tendencia(base, tendencia, (info or {}).get("mejor"), w - m - rl, oy + m, rl, alto_g)
+                _grafica_tendencia(base, tendencia, (info or {}).get("mejor"), w - m - rl, oy + m, rl, alto_g, zona_v=zona_v)
     if pulsado is not None:
         cv2.circle(base, (int(pulsado[0]), int(pulsado[1])), max(10, lado // 90), VERDE_MARCO, max(1, lado // 1000), cv2.LINE_AA)
     return base
@@ -537,6 +574,10 @@ class HistorialLimbo:
         self._t_voz = None
         self._dicho = None
         self._referencia = None                 # percentil de la ventana en el último veredicto
+        self.zona_v = None                      # (t_ini, t_fin, t_centro, mínimo) de la última zona plana cruzada
+        self._v_avisada = None                  # t_ini de la zona por la que ya se ha dicho «te has pasado»
+        self._v_esperando = False               # tras «te has pasado», se espera a que vuelva a la zona
+        self._v_ultimo_t = None                 # último punto de la serie ya mirado
 
     def anotar(self, info, recorte, t=None):
         """Guarda la medida del fotograma (`info` de medir_disco) si vale; True si se ha aceptado."""
@@ -575,7 +616,10 @@ class HistorialLimbo:
         if not ventana:
             return None, self.mejor, None, 0
         actual = float(np.percentile([a for __, a, __ in ventana], PERCENTIL_VENTANA))
-        if self.mostrado is None or abs(actual - self.mostrado) > HISTERESIS_PX:
+        cerca = self.mejor is not None and actual <= self.mejor * (1 + CERCA_MINIMO)
+        if self.mostrado is None or cerca or abs(actual - self.mostrado) > HISTERESIS_PX:
+            # Cerca del mínimo, sin histéresis: ahí cada centésima cuenta (con histéresis la
+            # línea se quedaba plana aunque el enfocador siguiera girando)
             self.mostrado = actual
         if len(ventana) >= FOTOGRAMAS_MEJOR and (self.mejor is None or self.mostrado < self.mejor):
             self.mejor = self.mostrado
@@ -588,6 +632,61 @@ class HistorialLimbo:
     def tendencia(self):
         """[(t, número enseñado)] del último minuto, de más antiguo a más nuevo."""
         return list(self.serie)
+
+    def curva_v(self, t=None):
+        """
+        Curva en V sobre la serie del último minuto: busca la zona plana alrededor del
+        mínimo (valores a menos de ZONA_V / ZONA_V_PX del mínimo, tras una mediana de
+        SUAVIZADO_V_S) y devuelve el aviso para la voz o None:
+          - «pasado»: se ha cruzado la última zona plana y el valor lleva SUBIDA_V_S
+            por encima de mínimo + SUBIDA_V·zona. Se guarda la zona en `zona_v`
+            (inicio, fin, centro en tiempo y mínimo) para marcarla en la gráfica: el
+            foco bueno es su centro, no el punto más bajo, porque cerca del foco el
+            número cambia menos que el seeing. Una vez por zona.
+          - «zona»: tras «pasado», el valor ha vuelto a la zona plana (una vez).
+        Si se cruza la zona hacia el otro lado, la nueva zona vuelve a avisar. Con
+        «pasado» se calla un rato el «empeora» (es lo mismo dicho peor).
+        """
+        t = self._reloj() if t is None else float(t)
+        if len(self.serie) < 8 or self.serie[-1][0] == self._v_ultimo_t:
+            return None                                          # solo cuando entra un punto nuevo (cada 0,25 s)
+        self._v_ultimo_t = self.serie[-1][0]
+        ts = np.array([p[0] for p in self.serie], float)
+        vs = np.array([p[1] for p in self.serie], float)
+        n_suave = max(1, int(round(SUAVIZADO_V_S / TENDENCIA_CADA_S)))
+        relleno = np.concatenate([np.full(n_suave - 1, vs[0]), vs])
+        suave = np.median(np.lib.stride_tricks.sliding_window_view(relleno, n_suave), axis=1)
+        vmin = float(suave.min())
+        zona = max(ZONA_V_PX, ZONA_V * vmin)
+        dentro = suave <= vmin + zona
+        if self._v_esperando and dentro[-1]:
+            self._v_esperando = False
+            self._t_voz = t
+            return "zona"
+        # La última zona plana: el último tramo seguido de puntos dentro
+        idx = np.nonzero(dentro)[0]
+        fin = int(idx[-1])
+        ini = fin
+        while ini > 0 and dentro[ini - 1]:
+            ini -= 1
+        if fin == len(suave) - 1:
+            return None                                          # aún dentro de la zona
+        fuera = (suave > vmin + SUBIDA_V * zona) & (ts > ts[fin])
+        alto = np.nonzero(fuera)[0]
+        if len(alto) == 0 or not fuera[-1]:
+            return None
+        # Subida sostenida: los últimos SUBIDA_V_S segundos, todos por encima
+        if np.any(~fuera[ts >= t - SUBIDA_V_S]) or t - ts[alto[0]] < SUBIDA_V_S:
+            return None
+        if self._v_avisada is not None and abs(ts[ini] - self._v_avisada) < 1e-6:
+            return None
+        self._v_avisada = float(ts[ini])
+        self.zona_v = (float(ts[ini]), float(ts[fin]), 0.5 * float(ts[ini] + ts[fin]), vmin)
+        self._v_esperando = True
+        self._t_voz = t
+        self._referencia = float(vs[-1])                         # lo siguiente que diga, contra el valor de ahora
+        self._dicho = "empeora"
+        return "pasado"
 
     def veredicto(self, t=None):
         """
@@ -622,6 +721,11 @@ class HistorialLimbo:
             v = "empeora"
         else:
             v = "igual"
+        if v == "empeora" and self._v_esperando:
+            # Tras «te has pasado» el valor sigue subiendo un par de segundos por el retraso de la
+            # ventana aunque ya se esté volviendo: «empeora» ahí confunde
+            self._referencia = a
+            return None
         if v == "igual":
             self._referencia = 0.7 * self._referencia + 0.3 * a      # sigue despacio la deriva del seeing
             if self._dicho in (None, "igual"):
@@ -633,7 +737,9 @@ class HistorialLimbo:
         return v
 
 
-TEXTO_VEREDICTO = {"mejora": lambda: _("mejora"), "empeora": lambda: _("empeora"), "igual": lambda: _("igual")}
+TEXTO_VEREDICTO = {"mejora": lambda: _("mejora"), "empeora": lambda: _("empeora"), "igual": lambda: _("igual"),
+                   "pasado": lambda: _("te has pasado del foco, vuelve atrás"),
+                   "zona": lambda: _("estás en la zona buena")}
 
 
 def texto_veredicto(clave):
@@ -679,12 +785,15 @@ def imagen_vivo_disco(cfa, patron, paso, orientar, girar, historial, objetivo=No
         info["limbo"] = round(actual, 2)
         info["ventana"] = n_ventana
         info.pop("motivo", None)
-    veredicto = historial.veredicto()
+    veredicto = historial.curva_v() or historial.veredicto()
     if veredicto:
         info["veredicto"] = veredicto
+    if historial.zona_v is not None:
+        info["zona_v"] = [round(v, 2) for v in historial.zona_v]
     vista = gris[::paso, ::paso] if paso > 1 else gris
     girada, encuadre = girar(orientar(np.ascontiguousarray(vista)))
-    return componer(girada, recorte, info, pulsado=pulsado, tendencia=historial.tendencia(), etiqueta=info.get("recorte")), encuadre, info
+    return componer(girada, recorte, info, pulsado=pulsado, tendencia=historial.tendencia(), etiqueta=info.get("recorte"),
+                    zona_v=historial.zona_v), encuadre, info
 
 
 def imagen_foto_dia_disco(cfa, patron, girar, objetivo=None):

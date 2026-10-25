@@ -1716,7 +1716,7 @@ msgid "Con fotos fiables de al menos cuatro meses se calculan la excentricidad d
 msgstr ""
 
 #: templates/imagen.html
-msgid "Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»)."
+msgid "Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»). Cerca del foco la curva es plana porque el seeing tapa el desenfoque pequeño: el foco bueno es el centro de esa zona plana, no el número más bajo. Sigue girando hasta que el PC diga «te has pasado del foco»: la gráfica sombrea la zona plana y marca su centro, y al volver hacia él dice «estás en la zona buena»."
 msgstr ""
 
 #: templates/seguimiento.html
@@ -9770,6 +9770,11 @@ msgid "estirando"
 msgstr ""
 
 #. js
+#: enfoque.py templates/imagen.html
+msgid "estás en la zona buena"
+msgstr ""
+
+#. js
 #: static/js/puesta_estacion.js templates/alineacion.html
 msgid "exponiendo"
 msgstr ""
@@ -10855,6 +10860,11 @@ msgstr ""
 #. js
 #: camara_zwo.py
 msgid "tamaño de imagen no válido"
+msgstr ""
+
+#. js
+#: enfoque.py templates/imagen.html
+msgid "te has pasado del foco, vuelve atrás"
 msgstr ""
 
 #: static/js/fotometria_solar.js
