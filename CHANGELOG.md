@@ -54,6 +54,12 @@ día de la release. El número de versión vive en `version.py`.
   partía en dos en el catálogo y al reducir salía al lado una estrella inventada, oliva y grande,
   rodeada de otras naranjas (M 17 en la vista previa del mini PC). Ahora todo lo que pasa de 0,9 y
   está conectado es la cima de una sola estrella.
+- Arreglado: con las estrellas aparte salía una sombra oscura alrededor del objeto, dentro de un
+  resplandor gris, más fuerte cuanto más reducción de ruido (M 27). El suavizado del fondo sin
+  estrellas rellena los huecos del cielo comparando con su media a gran escala, y esa media se
+  llevaba también la luz y el color de la nebulosa: el cielo de alrededor se levantaba (+6 % a
+  120 px con ruido 0,65) y se teñía, y entre ese resplandor y el borde de la nebulosa quedaba la
+  sombra. Ahora la media se mide solo con el cielo (lo que no pasa de 3 sigmas del fondo).
 - Cambiado: «Un solo color por estrella» en la capa de estrellas aparte reparte el color en
   1,5 px en vez de 4. Con 4 px, en campos densos como M 17 se mezclaba el color de estrellas
   vecinas y la variedad de colores bajaba un 17 %; ahora, un 6 %.

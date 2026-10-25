@@ -1059,11 +1059,27 @@ def suavizar_fondo_sin_estrellas(rgb, fuerza, escala_imagen=1.0, sigma_px=128.0)
     s = max(2.0, sigma_px * float(escala_imagen))
     pw, ph = max(16, w // 4), max(16, h // 4)
 
-    def gran_escala(img):
-        # A 1/4 de resolución: la gaussiana grande sale 16 veces más barata y a esta escala no hay detalle fino
-        peq = cv2.resize(img, (pw, ph), interpolation=cv2.INTER_AREA)
-        peq = cv2.GaussianBlur(peq, (0, 0), s / 4.0, borderType=cv2.BORDER_REFLECT)
-        return cv2.resize(peq, (w, h), interpolation=cv2.INTER_LINEAR)
+    # Lo que es cielo (1) y lo que es objeto (0), para medir el fondo de referencia sin el
+    # objeto: con una media normal, la luz y el color de la nebulosa entraban en la media
+    # de su alrededor, el cielo cercano quedaba «por debajo» y se rellenaba hacia arriba y
+    # hacia su color, y entre ese resplandor y el borde de la nebulosa, que no se toca, se
+    # veía una sombra (M 27, 25-oct-2026: +6 % a 120 px con ruido 0,65, más con más ruido)
+    s_cielo = np.clip((L - m) / (CIELO_SIGMAS * sigma), 0.0, None)
+    cielo = np.exp(-s_cielo * s_cielo).astype(np.float32)
+
+    def gran_escala(img, sigma_px=s):
+        # A 1/4 de resolución: la gaussiana grande sale 16 veces más barata y a esta escala no hay detalle fino.
+        # Media pesada por `cielo`; donde no hay cielo cerca (dentro de un objeto grande), la media normal.
+        def borrosa(x):
+            peq = cv2.resize(x, (pw, ph), interpolation=cv2.INTER_AREA)
+            return cv2.GaussianBlur(peq, (0, 0), sigma_px / 4.0, borderType=cv2.BORDER_REFLECT)
+        num = borrosa(img * (cielo if img.ndim == 2 else cielo[..., None]))
+        den, normal = borrosa(cielo), borrosa(img)
+        if img.ndim == 3:
+            den = den[..., None]
+        f = np.clip(den / 0.05, 0.0, 1.0)
+        peq = np.where(den > 1e-4, num / np.maximum(den, 1e-4), normal) * f + normal * (1.0 - f)
+        return cv2.resize(peq.astype(np.float32), (w, h), interpolation=cv2.INTER_LINEAR)
 
     # Peso: 1 en el cielo, 0 a partir de unas sigmas de señal (menos sigmas cuanta más fuerza)
     umbral = (2.0 + 6.0 * (1.0 - fuerza)) * sigma
@@ -1078,7 +1094,7 @@ def suavizar_fondo_sin_estrellas(rgb, fuerza, escala_imagen=1.0, sigma_px=128.0)
     # en celdas oscuras al guardar a resolución completa)
     L2 = L.astype(np.float32)
     for s_hueco in (s / 4.0, s):
-        B = gran_escala(L2) if s_hueco == s else cv2.GaussianBlur(L2, (0, 0), s_hueco, borderType=cv2.BORDER_REFLECT)
+        B = gran_escala(L2, s_hueco)
         hueco = np.minimum(L2 - B, 0.0)
         L2 = (L2 - hueco * peso).astype(np.float32)
     return (cociente * L2[..., None]).astype(np.float32)
@@ -2128,6 +2144,7 @@ def reducir_estrellas(capa, tamano, cat=None):
 # manchas de otro tono; y el suavizado del color y los huecos a esta escala.
 REJILLA_SIN_ESTRELLAS = 32
 SIGMA_SUAVIZADO_SIN_ESTRELLAS = 128.0
+CIELO_SIGMAS = 3.0            # sigmas del fondo a partir de las que un píxel no cuenta para medir el cielo
 
 
 def pantalla(objeto, estrellas):

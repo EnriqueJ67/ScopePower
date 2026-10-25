@@ -22,7 +22,8 @@
 #   9. el contraste local sin estrellas no levanta el ruido del cielo (borbotones).
 #  10. el catálogo no convierte en estrellas grandes las débiles sobre el halo de una brillante;
 #  11. al reducir, las brillantes conservan la cima blanca (sobreexposición y recorte), y
-#      una cima con huecos sigue siendo una sola estrella.
+#      una cima con huecos sigue siendo una sola estrella;
+#  12. el suavizado del fondo sin estrellas no deja un resplandor ni una sombra alrededor del objeto.
 
 import os
 import sys
@@ -361,6 +362,28 @@ def prueba_cima_blanca():
     comprobar(int((d < 15).sum()) == 1, f"cima con huecos: una sola estrella ({int((d < 15).sum())})")
 
 
+
+def prueba_sombra_objeto():
+    print("12. Sin resplandor ni sombra alrededor del objeto")
+    rng = np.random.default_rng(7)
+    n = 800
+    yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
+    r = np.hypot(xx - 400, yy - 400)
+    # Cielo con ruido y una nebulosa azulada brillante de 60 px de radio (en ADU, lineal)
+    cielo = 1000.0 + rng.normal(0, 20, (n, n)).astype(np.float32)
+    nebulosa = 4000.0 * np.exp(-(r / 45.0) ** 4)
+    rgb = np.stack([cielo + 0.6 * nebulosa, cielo + 0.9 * nebulosa, cielo + 1.3 * nebulosa], axis=2).astype(np.float32)
+    out = procesado.suavizar_fondo_sin_estrellas(rgb, 0.65, sigma_px=128.0)
+    L, L0 = out.mean(axis=2), rgb.mean(axis=2)
+    def anillo(img, r0, r1):
+        return float(np.median(img[(r >= r0) & (r < r1)]))
+    lejos = anillo(L0, 330, 380)
+    subida = [(anillo(L, a, a + 20) - anillo(L0, a, a + 20)) / lejos * 100 for a in (120, 160, 200, 240)]
+    comprobar(max(subida) < 0.5, f"el cielo alrededor no se levanta: {[round(v, 2) for v in subida]} %")
+    color = out[(r >= 120) & (r < 200)].mean(axis=0)
+    comprobar(abs(color[2] / color[0] - 1.0) < 0.01, f"ni se tiñe del color de la nebulosa (B/R {color[2] / color[0]:.3f})")
+
+
 if __name__ == "__main__":
     prueba_pantalla()
     base, capa, aj = prueba_procesado()
@@ -370,6 +393,7 @@ if __name__ == "__main__":
     prueba_contraste_sin_estrellas()
     prueba_halo_brillante()
     prueba_cima_blanca()
+    prueba_sombra_objeto()
     prueba_capas_guardadas()
     prueba_progreso()
     print()
