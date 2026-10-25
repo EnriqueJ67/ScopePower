@@ -99,3 +99,8 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_estrellas_aparte.py
+
+      - name: Prueba del reintento de ASTAP con más tolerancia (ASTAP de mentira)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_tolerancia_astap.py

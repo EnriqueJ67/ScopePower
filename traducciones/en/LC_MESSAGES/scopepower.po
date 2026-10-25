@@ -351,6 +351,10 @@ msgstr "At optical depth 0.3 the three colours give {r}, {g} and {b} K (the grey
 msgid "A profundidad óptica 0,3: {l} K (el modelo gris de Eddington, {e} K, en discontinua)."
 msgstr "At optical depth 0.3: {l} K (the grey Eddington model, {e} K, dashed)."
 
+#: estrellas_aparte.py
+msgid "A {producto} le falta una biblioteca de Windows para arrancar, casi siempre el Visual C++ de Microsoft (MSVCP140.dll). Instálalo en este PC desde {url} y vuelve a probar, sin reiniciar; si ya estaba instalado, reinstala {producto}."
+msgstr "{producto} is missing a Windows library to start, almost always Microsoft's Visual C++ (MSVCP140.dll). Install it on this PC from {url} and try again, no restart needed; if it was already installed, reinstall {producto}."
+
 #: firma.py
 msgid "AR {h}h {m}m · Dec {signo}{g}° {mg}′"
 msgstr "RA {h}h {m}m · Dec {signo}{g}° {mg}′"
@@ -2775,6 +2779,10 @@ msgstr "The planetarium did not start within 20 s. It needs Chrome 80 or newer (
 #: procesado.py
 msgid "El preset necesita un nombre"
 msgstr "The preset needs a name"
+
+#: estrellas_aparte.py
+msgid "El procesador de este PC no tiene las instrucciones que usa {producto}: no puede funcionar aquí."
+msgstr "This PC's processor lacks the instructions {producto} uses: it cannot run here."
 
 #: ScopePower.py
 msgid "El puerto {puerto} está ocupado por otro programa. ScopePower no puede arrancar."
@@ -11466,8 +11474,8 @@ msgid "{producto} no está instalado (o no está en ruta_starnet de config.ini)"
 msgstr "{producto} is not installed (or not in ruta_starnet of config.ini)"
 
 #: templates/editar_foto.html
-msgid "{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini."
-msgstr "{producto} is not installed. It is a separate program by Mikita Misiura with its own licence (free): download it from starnetastro.com (Command-line Tools) and, if it does not end up in its usual folder, say where in ruta_starnet of config.ini."
+msgid "{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini. Necesita además el Visual C++ de Microsoft (vc_redist.x64.exe), que muchos PC ya tienen."
+msgstr "{producto} is not installed. It is a separate program by Mikita Misiura with its own licence (free): download it from starnetastro.com (Command-line Tools) and, if it does not end up in its usual folder, say where in ruta_starnet of config.ini. It also needs Microsoft's Visual C++ (vc_redist.x64.exe), which many PCs already have."
 
 #: ScopePower.py
 msgid "{px} px ({arcsec}\") hacia el {rumbo}, a {lejos} px del punto de partida"

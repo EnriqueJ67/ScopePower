@@ -243,7 +243,7 @@
                 {% if info.starnet.disponible %}
                 <small class="ayuda">{{ _("La primera vez {producto} separa el apilado en objeto y estrellas (varios minutos; después queda guardado). El objeto se estira y se limpia sin que las estrellas estorben (el fondo pierde el moteado de color) y las estrellas conservan su color sin saturar. La nitidez no actúa con las estrellas aparte.", producto=info.starnet.producto) }}</small>
                 {% else %}
-                <small class="ayuda">{{ _("{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini.", producto=info.starnet.producto) }}</small>
+                <small class="ayuda">{{ _("{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini. Necesita además el Visual C++ de Microsoft (vc_redist.x64.exe), que muchos PC ya tienen.", producto=info.starnet.producto) }}</small>
                 {% endif %}
                 <div class="campo mt-2" id="controles-estrellas">
                     <div class="rango-titulo"><span>{{ _("Tamaño de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-tamano_estrellas"></span></div>

@@ -17,6 +17,8 @@
 #      el navegador (la misma fórmula, en 8 bits, a ±1 nivel);
 #   4. las capas guardadas: rutas, hay_capas (fecha del FITS), renombrar y borrar;
 #   5. el lector de --machine-progress con las líneas reales de StarNet2 2.6.2;
+#   6. los códigos de Windows de un programa que no arranca (falta el Visual C++)
+#      se traducen a un aviso, y el modo sin diálogos se pone y se quita;
 #   7. reducir las estrellas (catálogo + campanas de Gauss);
 #   8. el estirado propio de las estrellas (intensidad, compresión de los núcleos).
 #   9. el contraste local sin estrellas no levanta el ruido del cielo (borbotones).
@@ -407,6 +409,22 @@ def prueba_halo_moffat():
     comprobar(m[80, hasta].max() * 255 < 1.0 and hasta - 80 < procesado.HALO_RADIO_PINTADO, f"hasta medio nivel de 8 bits ({hasta - 80} px)")
     # Por defecto, Moffat beta 2 en los ajustes rápidos
     comprobar(procesado.HALO_ESTRELLAS == 0.75, "por defecto halo 0,75 (beta 2)")
+def prueba_arranque_fallido():
+    print("6. StarNet2 que no arranca: códigos de Windows y modo sin diálogos")
+    for codigo in (0xC0000135, -1073741515, 0xC0000139, 0xC0000142):
+        comprobar("Visual C++" in estrellas_aparte._explicar_codigo(codigo), f"código {codigo} → aviso del Visual C++")
+    comprobar("procesador" in estrellas_aparte._explicar_codigo(0xC000001D), "instrucción ilegal → aviso del procesador")
+    comprobar(estrellas_aparte._explicar_codigo(1) == "" and estrellas_aparte._explicar_codigo(None) == "",
+              "un fallo normal (código 1) no se confunde con un arranque fallido")
+    if os.name == "nt":
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        antes = k32.GetErrorMode()
+        with estrellas_aparte._sin_dialogos():
+            dentro = k32.GetErrorMode()
+        despues = k32.GetErrorMode()
+        comprobar(dentro & estrellas_aparte.SIN_DIALOGOS == estrellas_aparte.SIN_DIALOGOS and despues == antes,
+                  f"modo de errores: 0x{antes:X} → 0x{dentro:X} dentro → 0x{despues:X} al salir")
 
 
 if __name__ == "__main__":
@@ -422,6 +440,7 @@ if __name__ == "__main__":
     prueba_halo_moffat()
     prueba_capas_guardadas()
     prueba_progreso()
+    prueba_arranque_fallido()
     print()
     if FALLOS:
         print(f"❌ {len(FALLOS)} fallo(s):")

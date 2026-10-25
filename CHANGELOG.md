@@ -71,6 +71,12 @@ día de la release. El número de versión vive en `version.py`.
 - Cambiado: «Un solo color por estrella» en la capa de estrellas aparte reparte el color en
   1,5 px en vez de 4. Con 4 px, en campos densos como M 17 se mezclaba el color de estrellas
   vecinas y la variedad de colores bajaba un 17 %; ahora, un 6 %.
+- Arreglado: si a StarNet2 le falta el Visual C++ de Microsoft (MSVCP140.dll, que su instalador no
+  trae; pasó en el mini PC de campo), Windows abría un diálogo de error y la separación de estrellas
+  se quedaba parada hasta que alguien pulsara Aceptar, algo imposible con la tablet como única
+  pantalla. Ahora StarNet2 se lanza sin diálogos de Windows y el panel «Estrellas aparte» dice qué
+  falta y dónde descargarlo (`vc_redist.x64.exe`); también avisa si el procesador no tiene las
+  instrucciones que usa.
 - Nuevo: estrellas aparte en el editor de la galería (prototipo). Con StarNet2 instalado (el
   programa de Mikita Misiura, https://starnetastro.com/, aparte y con su propia licencia, como
   ASTAP; `[General] ruta_starnet`), el panel «Estrellas aparte» separa el apilado en objeto y
@@ -235,6 +241,12 @@ día de la release. El número de versión vive en `version.py`.
 - Arreglado: la corrección por ejes del guiado por el disco ya no vuelve al GoTo cuando, tras un
   primer paso bueno, otro paso no gana nada: es el límite de precisión (el cielo corre unos 15″/s
   mientras el eje se mueve sin seguimiento), no una montura que no responde.
+- Arreglado: las anotaciones de la galería, del editor y del apilado en vivo ya no fallan en
+  campos muy densos de la Vía Láctea (M 17 del 8-oct: «ASTAP no ha podido resolver la foto»). Con
+  la tolerancia de serie (0,007) casi ningún cuadrilátero de estrellas cuadraba con el catálogo;
+  si ASTAP no resuelve, ahora se repite con `-t 0.01` y la solución solo se acepta si la escala
+  cuadra con FOCALLEN y XPIXSZ (±10 %) y el centro queda a menos de 5° de donde apuntaba la
+  montura. El fallo queda además en el log. Prueba `herramientas/probar_tolerancia_astap.py`.
 
 ## 1.2.2 · 2026-10-16
 
