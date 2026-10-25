@@ -675,12 +675,21 @@ msgstr ""
 msgid "Anotando objetos"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Anterior"
+msgstr ""
+
 #: templates/apagar.html
 msgid "Antes de apagar para cambiar la batería: para el seguimiento y deja el tubo donde estaba al encender la montura (el cero de los motores), horizontal y hacia el norte"
 msgstr ""
 
 #: templates/_asistente.html
 msgid "Antes de seguir: enciende la montura y conéctala al PC (por cable o por red, según tu modelo) y enchufa la cámara al USB. Si el driver de tu montura trabaja con un programa intermedio (SynScan Pro, EQMOD, GSServer...), ábrelo y conéctalo primero."
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "Antes del último cambio"
 msgstr ""
 
 #: templates/configuracion.html
@@ -1619,6 +1628,10 @@ msgstr ""
 msgid "Compresión de lo brillante"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Compresión de los núcleos"
+msgstr ""
+
 #: templates/configuracion.html
 msgid "Comprobando StarNet2..."
 msgstr ""
@@ -1657,6 +1670,10 @@ msgstr ""
 
 #: static/js/asistente.js
 msgid "Comprueba que la montura está encendida y conectada al PC y que el driver es el de tu modelo."
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en el panel Procesado (⚡)."
 msgstr ""
 
 #: templates/imagen.html
@@ -1958,16 +1975,16 @@ msgstr ""
 msgid "Curvas cambiadas · pulsa \"Aplicar a la vista previa\""
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Curvas de las estrellas"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Curvas por puntos (RGB y por canal)"
 msgstr ""
 
 #: templates/galeria.html
 msgid "Cuánto más oscura que la fotosfera tiene que ser una zona para contar como mancha"
-msgstr ""
-
-#: templates/editar_foto.html
-msgid "Cuánto pesan las estrellas al volver a juntarlas (pantalla): 100 % = como salieron, 0 % = solo el objeto y el fondo. A medio camino quedan más pequeñas y discretas."
 msgstr ""
 
 #: templates/apilado.html
@@ -3569,6 +3586,10 @@ msgstr ""
 msgid "Estirado"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto."
+msgstr ""
+
 #. js
 #: ScopePower.py
 msgid "Estirando"
@@ -4483,6 +4504,10 @@ msgstr ""
 msgid "Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro."
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Halo de las estrellas"
+msgstr ""
+
 #: templates/imagen.html
 msgid "Hasta pulsar Parar"
 msgstr ""
@@ -4691,6 +4716,10 @@ msgstr ""
 msgid "Intensidad de color"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Intensidad de las estrellas"
+msgstr ""
+
 #: ScopePower.py
 msgid "Introduce usuario y contraseña"
 msgstr ""
@@ -4864,6 +4893,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "La focal tiene que ser un número entre 50 y 5000 mm"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "La forma de las estrellas reducidas (por debajo del 100 %). 0 = campana de Gauss: bolitas redondas de borde suave. A más valor, núcleo más picudo y un halo que se apaga despacio, como las estrellas de un telescopio (perfil de Moffat); 0,75 = Moffat beta 2. La anchura a media altura no cambia."
 msgstr ""
 
 #. js
@@ -5047,6 +5080,10 @@ msgstr ""
 
 #: static/js/ayuda_voz.js
 msgid "La ubicación del móvil no está disponible"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "La vista previa antes del último cambio, para compararlo con el anterior"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -7324,6 +7361,10 @@ msgstr ""
 msgid "Reducción de ruido"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer."
+msgstr ""
+
 #. js
 #: ScopePower.py
 msgid "Reduciendo el ruido"
@@ -8189,6 +8230,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Solo para fotos de noche; haz una foto primero."
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas del panel Curvas actúan después sobre la foto entera."
 msgstr ""
 
 #: templates/apilado.html
@@ -12161,6 +12206,11 @@ msgid "⚠️ Advertencia: El objeto está por debajo de altura mínima. Proceso
 msgstr ""
 
 #. js
+#: templates/editar_foto.html
+msgid "⚠️ El mini PC no contesta; mira en la galería si se ha guardado"
+msgstr ""
+
+#. js
 #: templates/configuracion.html
 msgid "⚠️ En este PC no está instalado Git. Instálalo desde git-scm.com (opciones por defecto) para poder actualizar."
 msgstr ""
@@ -12483,7 +12533,7 @@ msgstr ""
 
 #. js
 #: templates/editar_foto.html
-msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar"
+msgid "✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» o «Anterior» para comparar"
 msgstr ""
 
 #. js

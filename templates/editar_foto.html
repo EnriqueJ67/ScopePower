@@ -33,6 +33,8 @@
             <!-- La vista reprocesada: la base que manda el servidor con los ajustes rápidos
                  (color, curvas) aplicados aquí mismo (static/js/retoque.js) -->
             <canvas id="lienzo" style="display: none;"></canvas>
+            <!-- «Anterior»: la vista previa tal como estaba antes del último cambio -->
+            <canvas id="lienzo-anterior" style="display: none;"></canvas>
             <div class="visor-overlay">
                 <span class="chip" id="chip-vista">{{ _("Original") }}</span>
                 <span class="chip" id="chip-tiempo" style="display: none;"></span>
@@ -42,6 +44,7 @@
         <div class="fila entre" style="gap: 8px; flex-wrap: wrap;">
             <div class="segmentado" id="vista-seg">
                 <button type="button" class="activo" data-vista="original" onclick="mostrarVista('original')">{{ _("Original") }}</button>
+                <button type="button" data-vista="anterior" onclick="mostrarVista('anterior')" id="btn-vista-anterior" disabled title="{{ _('La vista previa antes del último cambio, para compararlo con el anterior') }}">{{ _("Anterior") }}</button>
                 <button type="button" data-vista="nueva" onclick="mostrarVista('nueva')" id="btn-vista-nueva" disabled>{{ _("Reprocesada") }}</button>
             </div>
             <button class="btn btn-primary" id="btn-preview" onclick="pedirVistaPrevia(true)"><svg><use href="#i-refrescar"/></svg>{{ _("Vista previa") }}</button>
@@ -50,9 +53,7 @@
 
         <button class="btn btn-success btn-lg btn-block" id="btn-guardar" onclick="guardarFoto()" title="{{ _('Procesa el FITS a resolución completa con estos ajustes y sustituye el JPG de la galería (el original se conserva)') }}"><svg><use href="#i-guardar"/></svg>{{ _("Guardar en la galería") }}</button>
         <div id="estado-guardar" class="estado centro" style="margin-top: -4px;"></div>
-        {% if info.hay_original %}
-        <button class="btn btn-outline-warning btn-block" id="btn-restaurar" onclick="restaurarFoto()">{{ _("Restaurar la foto original") }}</button>
-        {% endif %}
+        <button class="btn btn-outline-warning btn-block" id="btn-restaurar" onclick="restaurarFoto()"{% if not info.hay_original %} style="display: none;"{% endif %}>{{ _("Restaurar la foto original") }}</button>
         <small class="ayuda">{{ _("El encuadre, el estirado, el ruido y la nitidez se calculan a media resolución en el mini PC (unos segundos). Los controles con ⚡ (color, firma y curvas) se aplican al instante en este dispositivo, sin esperar al mini PC. Al guardar se procesa todo el FITS con todos los ajustes y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos.") }}</small>
     </div>
 
@@ -248,7 +249,41 @@
                 <div class="campo mt-2" id="controles-estrellas">
                     <div class="rango-titulo"><span>{{ _("Tamaño de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-tamano_estrellas"></span></div>
                     <input type="range" id="c-tamano_estrellas" data-clave="tamano_estrellas" min="0" max="100" step="5">
-                    <small class="ayuda">{{ _("Cuánto pesan las estrellas al volver a juntarlas (pantalla): 100 % = como salieron, 0 % = solo el objeto y el fondo. A medio camino quedan más pequeñas y discretas.") }}</small>
+                    <small class="ayuda">{{ _("Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer.") }}</small>
+                    <div class="campo mt-2">
+                        <div class="rango-titulo"><span>{{ _("Halo de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-halo_estrellas"></span></div>
+                        <input type="range" id="c-halo_estrellas" data-clave="halo_estrellas" min="0" max="1" step="0.05">
+                        <small class="ayuda">{{ _("La forma de las estrellas reducidas (por debajo del 100 %). 0 = campana de Gauss: bolitas redondas de borde suave. A más valor, núcleo más picudo y un halo que se apaga despacio, como las estrellas de un telescopio (perfil de Moffat); 0,75 = Moffat beta 2. La anchura a media altura no cambia.") }}</small>
+                    </div>
+                    <!-- Estirado propio de las estrellas (procesado.estirar_capa_estrellas): con los dos a 0, el de la foto -->
+                    <div class="campo mt-2">
+                        <div class="rango-titulo"><span>{{ _("Intensidad de las estrellas") }}</span><span id="v-intensidad_estrellas"></span></div>
+                        <input type="range" id="c-intensidad_estrellas" data-clave="intensidad_estrellas" min="-1" max="1" step="0.05">
+                        <small class="ayuda">{{ _("Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto.") }}</small>
+                    </div>
+                    <div class="campo">
+                        <div class="rango-titulo"><span>{{ _("Compresión de los núcleos") }}</span><span id="v-compresion_estrellas"></span></div>
+                        <input type="range" id="c-compresion_estrellas" data-clave="compresion_estrellas" min="0" max="1" step="0.05">
+                        <small class="ayuda">{{ _("Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en el panel Procesado (⚡).") }}</small>
+                    </div>
+                    <!-- Curvas propias de las estrellas: se aplican a la capa de estrellas antes de juntarla
+                         con el objeto (procesado.ajustes_rapidos_capas: curvas_estrellas) -->
+                    <div class="campo mt-2">
+                        <label>{{ _("Curvas de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></label>
+                        <div class="segmentado" id="curvas-estrellas-seg" style="width: 100%;">
+                            <button type="button" class="activo" data-canal="rgb" onclick="elegirCanalCurvaEstrellas('rgb')" style="flex: 1;"><span class="punto-canal" style="background: linear-gradient(135deg, #ff5a5a, #5ad26b 50%, #5a9bff);"></span>RGB</button>
+                            <button type="button" data-canal="r" onclick="elegirCanalCurvaEstrellas('r')" style="flex: 1;"><span class="punto-canal" style="background: #ff5a5a;"></span>R</button>
+                            <button type="button" data-canal="g" onclick="elegirCanalCurvaEstrellas('g')" style="flex: 1;"><span class="punto-canal" style="background: #5ad26b;"></span>G</button>
+                            <button type="button" data-canal="b" onclick="elegirCanalCurvaEstrellas('b')" style="flex: 1;"><span class="punto-canal" style="background: #5a9bff;"></span>B</button>
+                        </div>
+                        <canvas id="curvas-estrellas-lienzo" class="curvas-lienzo mt-2"></canvas>
+                        <div class="fila mt-2" style="gap: 6px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-curva-estrellas-borrar" onclick="editorCurvasEstrellas.borrarPunto()" disabled style="flex: 1;">{{ _("Borrar punto") }}</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasEstrellas.reiniciar()" style="flex: 1;">{{ _("Reiniciar") }}</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasEstrellas.reiniciarTodo()" style="flex: 1;">{{ _("Todas") }}</button>
+                        </div>
+                        <small class="ayuda">{{ _("Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas del panel Curvas actúan después sobre la foto entera.") }}</small>
+                    </div>
                 </div>
             </div>
         </section>
@@ -401,10 +436,11 @@
     }
     const ESTILOS = {{ info.estilos|tojson }};
     const AJUSTES_INICIALES = {{ info.ajustes|tojson }};
-    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes", "tamano_estrellas"];
+    const CLAVES_RANGO = ["fondo_objetivo", "compresion", "brillo", "temperatura", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "bordes", "tamano_estrellas",
+                          "intensidad_estrellas", "compresion_estrellas", "halo_estrellas"];
     // Los ajustes rápidos los hace el navegador sobre la base (static/js/retoque.js): no piden
     // vista previa nueva al servidor. Los demás cambian la base y sí la piden.
-    const CLAVES_RAPIDAS = ["brillo", "temperatura", "saturacion", "saturacion_estrellas", "scnr", "tamano_estrellas"];
+    const CLAVES_RAPIDAS = ["brillo", "temperatura", "saturacion", "saturacion_estrellas", "scnr", "tamano_estrellas", "halo_estrellas"];
     const STARNET = {{ info.starnet|tojson }};      // {disponible, producto, capas: la foto ya tiene las capas}
     let capasListas = !!STARNET.capas;
     const CLAVES_SERVIDOR = CLAVES_RANGO.filter(k => !CLAVES_RAPIDAS.includes(k));
@@ -429,11 +465,40 @@
     let ultimaDuracion = 0;        // segundos que tardó la última vista previa (para la cuenta atrás)
     let temporizadorAuto = null;
 
+    // ——— «Anterior»: la vista previa antes del último cambio ———
+    // Cada vez que se pinta el lienzo se arranca un temporizador; si pasan ASENTADO_MS
+    // sin pintar otra vez, ese cuadro queda asentado. El primer cuadro de un cambio nuevo
+    // pasa el último asentado a «Anterior»: arrastrar un deslizador cuenta como un solo
+    // cambio, y una vista previa del mini PC que llega después, como otro.
+    const ASENTADO_MS = 800;
+    const cuadroEstable = document.createElement("canvas");
+    let hayEstable = false, enCambio = false, temporizadorAsentado = null;
+    function cuadroPintado() {
+        const lienzo = document.getElementById("lienzo");
+        if (!enCambio) {
+            enCambio = true;
+            if (hayEstable) {
+                const anterior = document.getElementById("lienzo-anterior");
+                anterior.width = cuadroEstable.width; anterior.height = cuadroEstable.height;
+                anterior.getContext("2d").drawImage(cuadroEstable, 0, 0);
+                document.getElementById("btn-vista-anterior").disabled = false;
+            }
+        }
+        clearTimeout(temporizadorAsentado);
+        temporizadorAsentado = setTimeout(() => {
+            cuadroEstable.width = lienzo.width; cuadroEstable.height = lienzo.height;
+            cuadroEstable.getContext("2d").drawImage(lienzo, 0, 0);
+            hayEstable = true; enCambio = false;
+        }, ASENTADO_MS);
+    }
+
     function pintarAjustes(a, inicial = false) {
         for (const k of CLAVES_RANGO) {
             const c = document.getElementById("c-" + k);
             if (a[k] !== undefined && a[k] !== null) c.value = a[k];
             else if (inicial && (k === "brillo" || k === "temperatura" || k === "bordes")) c.value = 0;
+            else if (k === "intensidad_estrellas" || k === "compresion_estrellas") c.value = 0;   // foto o preset sin estirado propio de las estrellas
+            else if (k === "halo_estrellas") c.value = 0.75;     // foto o preset de antes del control: Moffat beta 2 (procesado.HALO_ESTRELLAS)
             else if (k === "nitidez") c.value = 0;                 // foto o preset de antes de que existiera el control: apagada
             else if (k === "saturacion_estrellas") c.value = 1;    // foto o preset de antes de que existiera el control
             document.getElementById("v-" + k).textContent = fmtNum(c.value);
@@ -457,6 +522,7 @@
         if (a.curva !== undefined) document.getElementById("c-curva").value = a.curva || "gamma";
         else if (inicial) document.getElementById("c-curva").value = "gamma";
         if (a.curvas !== undefined || inicial) { editorCurvas.poner(a.curvas || {}); pintarCanalesCurvas(); }
+        if (a.curvas_estrellas !== undefined || inicial) { editorCurvasEstrellas.poner(a.curvas_estrellas || {}); pintarCanalesCurvasEstrellas(); }
         if (COMETA) {
             const r = document.getElementById("c-radio_cometa");
             if (a.radio_cometa !== undefined && a.radio_cometa !== null) r.value = a.radio_cometa;
@@ -662,7 +728,8 @@
             centro: centroEncuadre,
             firma: document.getElementById("c-firma").checked,
             objeto: document.getElementById("c-objeto").value.trim(),
-            curvas: editorCurvas.curvas
+            curvas: editorCurvas.curvas,
+            curvas_estrellas: editorCurvasEstrellas.curvas
         };
         if (COMETA) {
             a.composicion = composicion;
@@ -676,10 +743,13 @@
     function mostrarVista(cual) {
         const img = document.getElementById("imagen"), lienzo = document.getElementById("lienzo");
         if (cual === "nueva" && !hayNueva) return;
+        if (cual === "anterior" && document.getElementById("btn-vista-anterior").disabled) return;
         document.querySelectorAll("#vista-seg button").forEach(b => b.classList.toggle("activo", b.dataset.vista === cual));
-        img.style.display = cual === "nueva" ? "none" : "";
+        img.style.display = cual === "original" ? "" : "none";
         lienzo.style.display = cual === "nueva" ? "" : "none";
-        document.getElementById("chip-vista").textContent = cual === "nueva" ? _("Reprocesada (vista previa)") : _("Original");
+        document.getElementById("lienzo-anterior").style.display = cual === "anterior" ? "" : "none";
+        document.getElementById("chip-vista").textContent = cual === "nueva" ? _("Reprocesada (vista previa)") :
+            cual === "anterior" ? _("Antes del último cambio") : _("Original");
     }
 
     // ——— Ajustes rápidos: se aplican en el navegador sobre la base, agrupados por fotograma ———
@@ -691,8 +761,9 @@
             retoquePedido = false;
             const a = leerAjustes();
             const inicio = performance.now();
-            const hist = retoque.aplicar(a, editorCurvas.tablas(), a.firma);
+            const hist = retoque.aplicar(a, editorCurvas.tablas(), a.firma, estrellasAparte() ? editorCurvasEstrellas.tablas() : null);
             if (hist) editorCurvas.histograma(hist);
+            cuadroPintado();
             const ms = performance.now() - inicio;
             if (ms > 250) console.debug("retoque en", Math.round(ms), "ms");
         });
@@ -711,6 +782,19 @@
         // El botón «Borrar punto» solo con un punto intermedio seleccionado (los extremos no se quitan)
         alSeleccionar: i => { const p = editorCurvas.puntos[editorCurvas.activo]; document.getElementById("btn-curva-borrar").disabled = !(i > 0 && i < p.length - 1); }
     });
+    // Curvas propias de las estrellas (panel «Estrellas aparte»): otro editor, con sus cuatro curvas
+    const editorCurvasEstrellas = new EditorCurvas(document.getElementById("curvas-estrellas-lienzo"), {
+        alArrastrar: retocar,
+        alCambiar: () => { retocar(); pintarCanalesCurvasEstrellas(); },
+        alSeleccionar: i => { const p = editorCurvasEstrellas.puntos[editorCurvasEstrellas.activo]; document.getElementById("btn-curva-estrellas-borrar").disabled = !(i > 0 && i < p.length - 1); }
+    });
+    function elegirCanalCurvaEstrellas(canal) {
+        editorCurvasEstrellas.canal(canal);
+        document.querySelectorAll("#curvas-estrellas-seg button").forEach(b => b.classList.toggle("activo", b.dataset.canal === canal));
+    }
+    function pintarCanalesCurvasEstrellas() {
+        document.querySelectorAll("#curvas-estrellas-seg button").forEach(b => b.classList.toggle("tocada", editorCurvasEstrellas.tocada(b.dataset.canal)));
+    }
     function elegirCanalCurva(canal) {
         editorCurvas.canal(canal);
         document.querySelectorAll("#curvas-seg button").forEach(b => b.classList.toggle("activo", b.dataset.canal === canal));
@@ -761,6 +845,7 @@
             const trozo = (n, tipo) => { const b = new Blob([todo.subarray(pos, pos + n)], { type: tipo }); pos += n; return b; };
             const paquete = { base: trozo(cab.base, "image/jpeg"), mascaras: trozo(cab.mascaras, "image/png"), firma: trozo(cab.firma, "image/png"), fondo: cab.fondo };
             if (cab.estrellas) paquete.estrellas = trozo(cab.estrellas, "image/jpeg");   // la capa de estrellas (estrellas aparte)
+            if (cab.catalogo) paquete.catalogo = trozo(cab.catalogo, "application/octet-stream");   // y su catálogo, para reducirlas
             await retoque.cargar(paquete);
             hayNueva = true;
             ajustesVista = ajustes;
@@ -769,7 +854,7 @@
             document.getElementById("btn-vista-nueva").disabled = false;
             ultimaDuracion = (Date.now() - inicio) / 1000;
             mostrarVista("nueva");
-            estado.textContent = _("✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» para comparar", { s: fmtNum(ultimaDuracion, 1) });
+            estado.textContent = _("✅ Vista previa lista en {s} s · color y curvas al instante · toca «Original» o «Anterior» para comparar", { s: fmtNum(ultimaDuracion, 1) });
         } catch (e) {
             estado.textContent = "❌ " + e.message;
         } finally {
@@ -792,9 +877,23 @@
             });
             const d = await r.json();
             if (!r.ok || d.ok === false) { estado.textContent = "⚠️ " + (d.mensaje || _("No se pudo guardar")); boton.disabled = false; return; }
+            // Sin recargar la página al terminar: se sigue editando con la misma vista previa y
+            // el mismo «Anterior», y el botón queda listo para volver a guardar. Si el mini PC
+            // deja de contestar (se reinicia), el botón se libera en vez de quedarse esperando.
+            let ocupado = false, fallos = 0;
             const sondeo = setInterval(async () => {
+                if (ocupado) return;
+                ocupado = true;
                 const e = await fetch("/galeria/editar-estado").then(r => r.json()).catch(() => null);
-                if (!e) return;
+                ocupado = false;
+                if (!e || (e.archivo && e.archivo !== NOMBRE)) {
+                    if (++fallos < 20) return;
+                    clearInterval(sondeo);
+                    boton.disabled = false;
+                    estado.textContent = _("⚠️ El mini PC no contesta; mira en la galería si se ha guardado");
+                    return;
+                }
+                fallos = 0;
                 estado.textContent = (e.en_curso ? "⏳ " : (e.ok ? "✅ " : "❌ ")) + e.mensaje;
                 if (e.en_curso) return;
                 clearInterval(sondeo);
@@ -804,11 +903,9 @@
                         // Renombrada: la página nueva ya sabe su nombre
                         setTimeout(() => location.href = "/galeria/editar/" + encodeURIComponent(e.nombre_nuevo), 800);
                     } else {
-                        // La "original" pasa a ser la apartada y el JPG de la galería es el nuevo
-                        hayNueva = false;
-                        document.getElementById("btn-vista-nueva").disabled = true;
-                        mostrarVista("original");
-                        setTimeout(() => location.reload(), 800);
+                        // «Original» es la foto del apilado, que el primer guardado aparta: se recarga y ya se puede restaurar
+                        document.getElementById("imagen").src = `/galeria/editar/${encodeURIComponent(NOMBRE)}/original?t=${Date.now()}`;
+                        document.getElementById("btn-restaurar").style.display = "";
                     }
                 }
             }, 1500);
@@ -862,8 +959,8 @@
         const p = PRESETS[n];
         // Un preset sin curva (anterior a que existiera el control) es la gamma de siempre
         // Un preset sin curvas (anterior al panel) deja las curvas rectas
-        if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({ curva: "gamma", curvas: {} }, ESTILOS[p.estilo], p));
-        else pintarAjustes(Object.assign({ curva: "gamma", curvas: {} }, p));
+        if (p.estilo && ESTILOS[p.estilo]) pintarAjustes(Object.assign({ curva: "gamma", curvas: {}, curvas_estrellas: {} }, ESTILOS[p.estilo], p));
+        else pintarAjustes(Object.assign({ curva: "gamma", curvas: {}, curvas_estrellas: {} }, p));
         retocar();
         programarVistaPrevia();
     }

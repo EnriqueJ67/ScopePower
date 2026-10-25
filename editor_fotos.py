@@ -81,7 +81,7 @@ CALIDAD_GUARDADO = 92
 
 # Claves de procesado que acepta el editor (las del panel del apilado + estirado + scnr)
 CLAVES_FLOAT = ("fondo_objetivo", "compresion", "ruido", "nitidez", "contraste", "saturacion", "saturacion_estrellas", "scnr", "brillo", "temperatura",
-                "tamano_estrellas")
+                "tamano_estrellas", "intensidad_estrellas", "compresion_estrellas", "halo_estrellas")
 CLAVES_BOOL = ("gradiente", "aplanar", "scnr_estrellas", "color_estrellas_uniforme", "estrellas_aparte")
 ESTIRADOS = ("multiescala", "stf")
 ZOOMS = (0, 25, 50, 75)
@@ -282,12 +282,17 @@ def ajustes_desde(datos):
     except (TypeError, ValueError):
         aj["radio_cometa"] = RADIO_COMETA[2]
     aj["curvas"] = procesado.normalizar_curvas(datos.get("curvas"))
+    aj["curvas_estrellas"] = procesado.normalizar_curvas(datos.get("curvas_estrellas"))     # solo con las estrellas aparte
     # Estrellas aparte: la casilla y el tamaño (0..100 %); una foto de antes no las trae
     aj["estrellas_aparte"] = bool(aj.get("estrellas_aparte", False))
     try:
         aj["tamano_estrellas"] = float(min(max(float(aj.get("tamano_estrellas", procesado.TAMANO_ESTRELLAS)), 0.0), 100.0))
     except (TypeError, ValueError):
         aj["tamano_estrellas"] = procesado.TAMANO_ESTRELLAS
+    try:
+        aj["halo_estrellas"] = float(min(max(float(aj.get("halo_estrellas", procesado.HALO_ESTRELLAS)), 0.0), 1.0))
+    except (TypeError, ValueError):
+        aj["halo_estrellas"] = procesado.HALO_ESTRELLAS
     return aj
 
 
@@ -322,6 +327,8 @@ def _ajustes_para_json(aj):
         guardar[k] = bool(aj.get(k))
     if aj.get("curvas"):
         guardar["curvas"] = aj["curvas"]
+    if aj.get("curvas_estrellas"):
+        guardar["curvas_estrellas"] = aj["curvas_estrellas"]
     return guardar
 
 
@@ -511,8 +518,12 @@ def procesar_foto(nombre, opciones, completa=False, progreso=None, solo_base=Fal
     else:
         aj["estrellas_aparte"] = False
     if capas is not None:
-        objeto_cubo, __ = procesado.girar_campo(capas[0], fraccion, aj.get("giro", 0.0), zona, **encuadre)
-        capa_U, __ = procesado.girar_campo(capas[1], fraccion, aj.get("giro", 0.0), zona, **encuadre)
+        # La misma zona útil para las dos capas: sin ella en la cabecera (apilados de
+        # antes de oct-2026) girar_campo la busca en cada imagen, y en la capa de
+        # estrellas, negra casi entera, salía otra (M 27: 682 frente a 752 px)
+        zona_capas = zona or procesado.zona_automatica(cubo)
+        objeto_cubo, __ = procesado.girar_campo(capas[0], fraccion, aj.get("giro", 0.0), zona_capas, **encuadre)
+        capa_U, __ = procesado.girar_campo(capas[1], fraccion, aj.get("giro", 0.0), zona_capas, **encuadre)
         if solo_base:
             base, capa, mascara = procesado.procesar_capas(objeto_cubo, capa_U, n, aj, escala=escala, progreso=progreso,
                                                            balance=balance, solo_base=True)
@@ -566,6 +577,33 @@ def capa_firma(ancho, alto, meta):
     return capa
 
 
+def empaquetar_catalogo(cat):
+    """
+    Catálogo de estrellas (procesado.catalogo_estrellas) en 10 bytes por estrella
+    para el navegador (static/js/retoque.js lo desempaqueta igual): x·16, y·16 y
+    sigma·100 en uint16 little-endian (sigma hasta 655 px), r, g, b ·255 en uint8
+    y la sobreexposición como log2(A)·32 en uint8 (A hasta 250). 20 000
+    estrellas de un campo denso a 1200 px son 200 KB.
+    """
+    cat = np.asarray(cat, dtype=np.float32).reshape(-1, 7)
+    paquete = np.zeros((len(cat), 10), np.uint8)
+    u16 = np.column_stack([np.clip(np.round(cat[:, :2] * 16.0), 0, 65535),
+                           np.clip(np.round(cat[:, 2] * 100.0), 0, 65535)]).astype("<u2")
+    paquete[:, 0:6] = u16.view(np.uint8).reshape(-1, 6)
+    paquete[:, 6:9] = np.clip(np.round(cat[:, 3:6] * 255.0), 0, 255).astype(np.uint8)
+    paquete[:, 9] = np.clip(np.round(np.log2(np.maximum(cat[:, 6], 1.0)) * 32.0), 0, 255).astype(np.uint8)
+    return paquete.tobytes()
+
+
+def desempaquetar_catalogo(datos):
+    """Lo contrario de empaquetar_catalogo: array float32 (N, 7) con x, y, sigma, r, g, b, A."""
+    paquete = np.frombuffer(datos, np.uint8).reshape(-1, 10)
+    u16 = paquete[:, 0:6].copy().view("<u2").reshape(-1, 3).astype(np.float32)
+    rgb = paquete[:, 6:9].astype(np.float32) / 255.0
+    A = np.power(2.0, paquete[:, 9:10].astype(np.float32) / 32.0)
+    return np.hstack([u16[:, :2] / 16.0, u16[:, 2:3] / 100.0, rgb, A]).astype(np.float32)
+
+
 def vista_previa(nombre, opciones):
     """
     Paquete de la vista previa para el navegador: dict con "base" (JPEG, bytes),
@@ -573,8 +611,10 @@ def vista_previa(nombre, opciones):
     a la mitad del tamaño de la base, bytes), "firma"
     (PNG BGRA con transparencia, bytes) y "fondo" ([r, g, b] del cielo, 0..1),
     todo con el lado mayor a ANCHO_PREVIEW. Con las estrellas aparte, además
-    "estrellas" (JPEG de la capa de estrellas sobre negro, del tamaño de la base;
-    b"" si no). Solo una a la vez.
+    "estrellas" (JPEG de la capa de estrellas sobre negro, del tamaño de la base)
+    y "catalogo" (procesado.catalogo_estrellas de esa capa, para que el navegador
+    pinte las estrellas reducidas, empaquetar_catalogo); b"" los dos si no. Solo
+    una a la vez.
     """
     if not _lock_preview.acquire(blocking=False):
         raise ErrorEditor(_("Hay otra vista previa en marcha; espera a que termine"))
@@ -583,11 +623,13 @@ def vista_previa(nombre, opciones):
         fondo = procesado.fondo_cielo(base)
         base = _reducir(base, ANCHO_PREVIEW)
         alto, ancho = base.shape[:2]
-        jpg_capa = b""
+        jpg_capa = catalogo = b""
         if capa is not None:
-            capa8 = np.clip(_reducir(capa, ANCHO_PREVIEW) * 255.0 + 0.5, 0, 255).astype(np.uint8)
+            capa = _reducir(capa, ANCHO_PREVIEW)
+            capa8 = np.clip(capa * 255.0 + 0.5, 0, 255).astype(np.uint8)
             ok, jpg_capa = cv2.imencode(".jpg", cv2.cvtColor(capa8, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, CALIDAD_PREVIEW])
             jpg_capa = jpg_capa.tobytes() if ok else b""
+            catalogo = empaquetar_catalogo(procesado.catalogo_estrellas(capa))
         # Máscaras: las dos lado a lado en un solo gris (estrellas | pequeñas), a la
         # mitad del lado de la base y en 16 niveles: son pesos de mezcla suaves y
         # así pesan ~100 KB en vez de 650 KB (el wifi del campo da 0,5-2 Mbit/s)
@@ -600,7 +642,7 @@ def vista_previa(nombre, opciones):
         if not (ok1 and ok2 and ok3):
             raise ErrorEditor(_("No se pudo codificar la vista previa"))
         return {"base": jpg.tobytes(), "mascaras": png_m.tobytes(), "firma": png_f.tobytes(), "estrellas": jpg_capa,
-                "fondo": [round(float(v), 5) for v in fondo], "ancho": int(ancho), "alto": int(alto)}
+                "catalogo": catalogo, "fondo": [round(float(v), 5) for v in fondo], "ancho": int(ancho), "alto": int(alto)}
     finally:
         _lock_preview.release()
 

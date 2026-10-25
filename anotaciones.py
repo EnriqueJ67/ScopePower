@@ -31,8 +31,11 @@ import configparser
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw
+from astropy import units as u
+from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.io.fits import Header
+from astropy.coordinates import SkyCoord
 
 import esta_noche
 import firma
@@ -43,6 +46,9 @@ from ScopePower_ObjetosAnotados import generar_fits_monocromo_para_platesolve, o
 log = logging.getLogger("scopepower.anotaciones")
 
 TIMEOUT_ASTAP_S = 60
+TOLERANCIA_REINTENTO = 0.01          # la de serie de ASTAP es 0,007
+MAX_ERROR_ESCALA = 0.10              # la focal nominal no es exacta: en M 17 la escala real queda un 2,5 % por debajo
+MAX_SEPARACION_MONTURA_DEG = 5.0     # OBJCTRA/OBJCTDEC son la montura en JNow; sin sincronizar se va unos 20′
 TIMEOUT_SIMBAD_S = 12
 HOST_SIMBAD = ("simbad.u-strasbg.fr", 443)
 _lock_simbad = threading.Lock()
@@ -64,22 +70,70 @@ def resolver_wcs(ruta_fits, timeout=TIMEOUT_ASTAP_S, ruta_mono=None):
     ruta_mono = ruta_mono or os.path.splitext(ruta_fits)[0] + "_mono.fits"
     ruta_ini = os.path.splitext(ruta_mono)[0] + ".ini"
     generar_fits_monocromo_para_platesolve(ruta_fits, ruta_mono)
+    if not _lanzar_astap(ruta_mono, ruta_ini, timeout):
+        return None
+    res = wcs_desde_ini(ruta_ini)
+    if res is None:
+        # En campos muy densos de la Vía Láctea (M 17) casi ningún cuadrilátero de estrellas
+        # cuadra con la tolerancia de serie (0,007) y ASTAP no resuelve; con 0,01 sí. Una
+        # tolerancia mayor admite más soluciones falsas: solo vale si cuadra con la cabecera.
+        log.info("ASTAP no resolvió %s; se repite con tolerancia %s", os.path.basename(ruta_fits), TOLERANCIA_REINTENTO)
+        if not _lanzar_astap(ruta_mono, ruta_ini, timeout, f" -t {TOLERANCIA_REINTENTO}"):
+            return None
+        res = wcs_desde_ini(ruta_ini)
+        if res is None:
+            log.warning("ASTAP no resolvió %s ni con tolerancia %s", os.path.basename(ruta_fits), TOLERANCIA_REINTENTO)
+            return None
+        motivo = _solucion_dudosa(res[0], res[1], ruta_mono)
+        if motivo:
+            log.warning("Solución de ASTAP con tolerancia %s descartada para %s: %s",
+                        TOLERANCIA_REINTENTO, os.path.basename(ruta_fits), motivo)
+            return None
+        log.info("ASTAP resolvió %s con tolerancia %s", os.path.basename(ruta_fits), TOLERANCIA_REINTENTO)
+    wcs, escala_arcsec, angulo_cam = res
+    return wcs, escala_arcsec, angulo_cam, ruta_ini
+
+
+def _lanzar_astap(ruta_mono, ruta_ini, timeout, opciones=""):
+    """Lanza ASTAP sobre ruta_mono, borrando antes el .ini y el .wcs viejos. False si no terminó a tiempo."""
     for viejo in (ruta_ini, os.path.splitext(ruta_mono)[0] + ".wcs"):
         try:
             os.remove(viejo)
         except OSError:
             pass
     try:
-        subprocess.run(f'"{_ruta_astap()}" -f "{ruta_mono}" -solve -r 50', shell=True,
+        subprocess.run(f'"{_ruta_astap()}" -f "{ruta_mono}" -solve -r 50{opciones}', shell=True,
                        capture_output=True, timeout=timeout)
+        return True
     except subprocess.TimeoutExpired:
         log.warning("ASTAP no terminó en %s s (anotaciones)", timeout)
-        return None
-    res = wcs_desde_ini(ruta_ini)
-    if res is None:
-        return None
-    wcs, escala_arcsec, angulo_cam = res
-    return wcs, escala_arcsec, angulo_cam, ruta_ini
+        return False
+
+
+def _solucion_dudosa(wcs, escala_arcsec, ruta_mono):
+    """
+    Por qué no fiarse de una solución de ASTAP, o None si cuadra con la cabecera: la escala
+    de placa con FOCALLEN y XPIXSZ (ya con el binning) y el centro con OBJCTRA/OBJCTDEC, que
+    es donde apuntaba la montura. Sin focal ni píxel no se puede comprobar y se descarta.
+    """
+    hdr = fits.getheader(ruta_mono)
+    try:
+        focal, pixel = float(hdr["FOCALLEN"]), float(hdr["XPIXSZ"])
+        esperada = 206.265 * pixel / focal
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return "la cabecera no trae FOCALLEN y XPIXSZ para comprobar la escala"
+    if abs(escala_arcsec / esperada - 1.0) > MAX_ERROR_ESCALA:
+        return f"escala {escala_arcsec:.2f}\"/px y la cabecera da {esperada:.2f}\"/px"
+    if hdr.get("OBJCTRA") and hdr.get("OBJCTDEC"):
+        try:
+            montura = SkyCoord(str(hdr["OBJCTRA"]), str(hdr["OBJCTDEC"]), unit=(u.hourangle, u.deg))
+        except ValueError:
+            return None
+        ra, dec = wcs.all_pix2world([[(hdr["NAXIS1"] - 1) / 2.0, (hdr["NAXIS2"] - 1) / 2.0]], 0)[0]
+        separacion = montura.separation(SkyCoord(ra * u.deg, dec * u.deg)).deg
+        if separacion > MAX_SEPARACION_MONTURA_DEG:
+            return f"centro a {separacion:.1f}° de donde apuntaba la montura"
+    return None
 
 
 def wcs_desde_ini(ruta_ini):

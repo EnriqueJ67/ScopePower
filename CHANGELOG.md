@@ -13,6 +13,80 @@ día de la release. El número de versión vive en `version.py`.
   descargas en el navegador del PC donde corre ScopePower, y deja escribir su carpeta
   (`[General] ruta_starnet`). ScopePower no descarga ni instala StarNet2: su licencia no permite
   redistribuirlo y el instalador pide administrador.
+- Nuevo: «Anterior» en el editor de la galería, junto a «Original» y «Reprocesada»: la vista
+  previa tal como estaba antes del último cambio, para comparar cada cambio con el anterior y no
+  solo con la foto del apilado. Arrastrar un deslizador cuenta como un solo cambio (se da por
+  terminado a los 0,8 s sin moverlo), y una vista previa del mini PC que llega después, como otro.
+- Cambiado: al guardar en la galería, el editor ya no recarga la página. Se sigue editando con la
+  misma vista previa y el mismo «Anterior», y el botón queda listo para volver a guardar. Si el
+  mini PC deja de contestar mientras guarda (por ejemplo, al reiniciarlo), el botón se libera
+  pasados 30 s en vez de quedarse esperando.
+- Cambiado: el deslizador «Tamaño de las estrellas» del editor (estrellas aparte) reduce las
+  estrellas en vez de apagarlas. Antes multiplicaba la capa por un factor, es decir, una
+  transparencia: las mismas estrellas, del mismo tamaño, más tenues. Ahora se hace un catálogo
+  de la capa (posición, anchura y color de cada estrella, `procesado.catalogo_estrellas`) y
+  cada estrella se vuelve a pintar como una campana de Gauss con su pico y su color y la
+  anchura multiplicada por el tamaño, la misma proporción para todas: las brillantes siguen
+  siendo mayores que las débiles, y ninguna baja de medio píxel ni desaparece por quedarse
+  entre píxeles (suelo suave). Por debajo del 25 % pierden luz todas por igual, hasta
+  desaparecer al 0 %; entre el 100 y el 85 % la capa original y la pintada se funden. El
+  servidor manda el catálogo con la vista previa (8 bytes por estrella) y el navegador pinta
+  igual que el servidor (a ±1 nivel). Antes se probó a encoger el perfil de la propia capa:
+  las estrellas brillantes, de cima plana, quedaban como discos con un anillo oscuro dentro
+  (M 27 en el mini PC). Arreglado de paso: el guardado con estrellas aparte fallaba en las
+  fotos sin la zona útil en la cabecera (apilados anteriores a octubre), porque cada capa se
+  recortaba por su cuenta.
+- Nuevo: estirado y curvas propios de las estrellas en el panel «Estrellas aparte». Hasta ahora
+  las estrellas se estiraban con la misma curva que el objeto. «Intensidad de las estrellas»
+  multiplica su luz antes de la curva (×1/4 a ×4: más o menos estrellas y más o menos brillantes
+  sin tocar la nebulosa ni el fondo) y «Compresión de los núcleos» sube el blanco de su curva
+  hacia el máximo, así los núcleos de las brillantes dejan de cortarse en su tope y conservan el
+  perfil y el color hasta el centro (en M 27, la cima plana pasa de 283 a 6 píxeles con 0,7).
+  «Curvas de las estrellas» es un segundo editor de curvas (RGB, R, G y B) que actúa solo sobre
+  la capa de estrellas antes de juntarla con el objeto, al instante en el navegador; las curvas
+  del panel Curvas siguen actuando sobre la foto entera. La saturación propia de las estrellas
+  ya existía (panel Procesado). Se guardan con la foto y en los presets.
+- Arreglado: borbotones oscuros en el fondo con las estrellas aparte. El contraste local (CLAHE)
+  realzaba en el cielo sin estrellas el ruido de escala media y lo dejaba en manchas oscuras de
+  10 a 30 píxeles (M 27 con contraste 0,7). Con las estrellas aparte ahora solo actúa donde hay
+  señal, a partir de 3 sigmas del cielo: el moteado del fondo baja de 0,0102 a 0,0067 y la
+  nebulosa recibe el mismo contraste que antes.
+- Arreglado: al reducir las estrellas aparecían estrellas inventadas alrededor de las brillantes
+  (M 17: un anillo de ocho bolas naranjas). Eran estrellas débiles reales sobre el halo de la
+  brillante, pero el catálogo medía su pico, su anchura y su color con la luz del halo debajo, y
+  las pintaba grandes y del color de la brillante. Ahora el catálogo va en dos pasadas: mide las
+  estrellas grandes, modela su halo con la mediana por anillos, lo resta y mide las demás en lo
+  que queda. Las débiles salen con su anchura (1,5 px frente a 4-6 px) y su color, y el catálogo
+  tarda 1,5 s en una foto de 1 470 px.
+- Cambiado: al reducir, las estrellas brillantes conservan la cima. El estirado corta su núcleo
+  en el tope y por eso tienen el centro claro y el color en el halo; repintadas como una campana
+  de un solo color salían como bolas pintadas, apagadas y más anchas. Ahora el catálogo mide de
+  cada una la cima cortada: su sobreexposición, la anchura de verdad de la campana y el color de
+  los píxeles sin cortar. Se pinta igual que sale del estirado: el color por la sobreexposición,
+  recortado a 1 canal a canal, y la cima encoge con la estrella. Las débiles no cambian. El
+  catálogo pasa a 10 bytes por estrella en la vista previa (60 KB en M 17), y el navegador pinta
+  igual que el servidor (1 nivel como mucho).
+- Arreglado: una estrella brillante con huecos en la cima cortada (0,93 entre zonas de 0,99) se
+  partía en dos en el catálogo y al reducir salía al lado una estrella inventada, oliva y grande,
+  rodeada de otras naranjas (M 17 en la vista previa del mini PC). Ahora todo lo que pasa de 0,9 y
+  está conectado es la cima de una sola estrella.
+- Arreglado: con las estrellas aparte salía una sombra oscura alrededor del objeto, dentro de un
+  resplandor gris, más fuerte cuanto más reducción de ruido (M 27). El suavizado del fondo sin
+  estrellas rellena los huecos del cielo comparando con su media a gran escala, y esa media se
+  llevaba también la luz y el color de la nebulosa: el cielo de alrededor se levantaba (+6 % a
+  120 px con ruido 0,65) y se teñía, y entre ese resplandor y el borde de la nebulosa quedaba la
+  sombra. Ahora la media se mide solo con el cielo (lo que no pasa de 3 sigmas del fondo).
+- Nuevo: «Halo de las estrellas» (⚡) en el panel «Estrellas aparte»: la forma de las estrellas
+  reducidas. Con 0 se pintan como una campana de Gauss, como hasta ahora, y en fotos como M 27, cuyas
+  estrellas ya son casi gaussianas y pocas llegan a cortarse en su tope, quedaban como bolitas. Con
+  más valor se pintan con un perfil de Moffat de la misma anchura a media altura: núcleo más picudo
+  y un halo que se apaga despacio, como las estrellas de un telescopio. Por defecto 0,75 (beta 2:
+  al 5 % del pico llegan a 2,9 medias alturas, frente a 2,1 la gaussiana). Al instante en el
+  navegador, que pinta igual que el servidor (1 nivel como mucho), y se guarda con la foto y en
+  los presets; las fotos y presets anteriores toman el 0,75.
+- Cambiado: «Un solo color por estrella» en la capa de estrellas aparte reparte el color en
+  1,5 px en vez de 4. Con 4 px, en campos densos como M 17 se mezclaba el color de estrellas
+  vecinas y la variedad de colores bajaba un 17 %; ahora, un 6 %.
 - Arreglado: si a StarNet2 le falta el Visual C++ de Microsoft (MSVCP140.dll, que su instalador no
   trae; pasó en el mini PC de campo), Windows abría un diálogo de error y la separación de estrellas
   se quedaba parada hasta que alguien pulsara Aceptar, algo imposible con la tablet como única
@@ -183,6 +257,12 @@ día de la release. El número de versión vive en `version.py`.
 - Arreglado: la corrección por ejes del guiado por el disco ya no vuelve al GoTo cuando, tras un
   primer paso bueno, otro paso no gana nada: es el límite de precisión (el cielo corre unos 15″/s
   mientras el eje se mueve sin seguimiento), no una montura que no responde.
+- Arreglado: las anotaciones de la galería, del editor y del apilado en vivo ya no fallan en
+  campos muy densos de la Vía Láctea (M 17 del 8-oct: «ASTAP no ha podido resolver la foto»). Con
+  la tolerancia de serie (0,007) casi ningún cuadrilátero de estrellas cuadraba con el catálogo;
+  si ASTAP no resuelve, ahora se repite con `-t 0.01` y la solución solo se acepta si la escala
+  cuadra con FOCALLEN y XPIXSZ (±10 %) y el centro queda a menos de 5° de donde apuntaba la
+  montura. El fallo queda además en el log. Prueba `herramientas/probar_tolerancia_astap.py`.
 
 ## 1.2.2 · 2026-10-16
 

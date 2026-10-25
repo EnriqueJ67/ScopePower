@@ -83,6 +83,7 @@ def _resolver(ruta_fits):
     with tempfile.TemporaryDirectory(prefix="scopepower_anot_") as carpeta:
         res = anotaciones.resolver_wcs(ruta_fits, ruta_mono=os.path.join(carpeta, "foto_mono.fits"))
         if res is None:
+            log.warning("No se pudo resolver el campo de %s para las anotaciones de la galería", os.path.basename(ruta_fits))
             raise ErrorEditor(_("ASTAP no ha podido resolver la foto (¿pocas estrellas?)"))
         wcs, escala_arcsec, angulo_cam, ruta_ini = res
         simbad = anotaciones.objetos_simbad(ruta_ini, ruta_fits) if _hay_internet() else None

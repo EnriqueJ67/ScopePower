@@ -19,6 +19,16 @@
 // estrellas, su propia saturación y el tamaño (0..100 %); pantalla de las dos
 // (1 - (1 - a)(1 - b)) y, al final, las curvas.
 //
+// El tamaño REDUCE las estrellas pintándolas de nuevo como campanas de Gauss
+// (procesado.pintar_estrellas, la misma aritmética) desde el catálogo que manda el
+// servidor (procesado.catalogo_estrellas: x, y, sigma, r, g, b y sobreexposición A de cada
+// estrella): sigma nueva = raíz((sigma·tamaño)² + 0,5²), la misma proporción para todas,
+// hasta 3,5 sigmas (o con perfil de Moffat de la misma media altura, según el halo:
+// procesado.beta_halo); el color por A y recortado a 1 (la cima blanca de las brillantes);
+// donde se solapan manda la más brillante; por debajo del 25 % el pico baja con
+// (tamaño/0,25)², y entre el 100 y el 85 % se funde con la capa original. Se pinta una
+// vez por valor del deslizador (_reducida, con caché).
+//
 // Los pasos 1, 2 y 5 son por tabla (256 entradas por canal); 3 y 4 píxel a píxel.
 // Si se cambia algo aquí hay que cambiarlo también en procesado.py, y al revés.
 //
@@ -49,6 +59,26 @@
         return ctx.getImageData(0, 0, w, h);
     }
 
+    // Catálogo de estrellas, 10 bytes por estrella (editor_fotos.empaquetar_catalogo: x·16, y·16 y
+    // sigma·100 en uint16 little-endian, r, g, b ·255 y log2(A)·32 en uint8) → Float32Array(7·N) con los valores reales
+    // procesado.beta_halo: el beta de Moffat del control «Halo de las estrellas», o 0 para la campana de Gauss
+    function betaHalo(halo) {
+        const h = Number(halo);
+        const q = Math.min(1, Math.max(0, isFinite(h) ? h : 0.75)) / 1.5;      // procesado.HALO_ESTRELLAS, HALO_BETA_MIN
+        return q < 0.02 ? 0 : 1 / q;
+    }
+
+    function leerCatalogo(buffer) {
+        const v = new DataView(buffer), n = Math.floor(buffer.byteLength / 10), cat = new Float32Array(n * 7);
+        for (let i = 0; i < n; i++) {
+            const o = i * 10, k = i * 7;
+            cat[k] = v.getUint16(o, true) / 16; cat[k + 1] = v.getUint16(o + 2, true) / 16; cat[k + 2] = v.getUint16(o + 4, true) / 100;
+            cat[k + 3] = v.getUint8(o + 6) / 255; cat[k + 4] = v.getUint8(o + 7) / 255; cat[k + 5] = v.getUint8(o + 8) / 255;
+            cat[k + 6] = Math.pow(2, v.getUint8(o + 9) / 32);
+        }
+        return cat;
+    }
+
     class Retoque {
         constructor(canvas) {
             this.canvas = canvas;
@@ -57,6 +87,8 @@
             this.estrellas = null;    // Uint8ClampedArray (w·h) 0..255
             this.pequenas = null;
             this.capa = null;         // ImageData de la capa de estrellas (estrellas aparte) o null
+            this.catalogo = null;     // Float32Array(7·N): x, y, sigma, r, g, b, A de cada estrella (leerCatalogo)
+            this.reducida = null;     // {tamano, datos: Uint8ClampedArray (w·h·4)} la última capa reducida
             this.firma = null;        // ImageBitmap / Image con transparencia
             this.fondo = [0, 0, 0];
             this.salida = null;       // ImageData de trabajo
@@ -64,9 +96,10 @@
         }
 
         async cargar(paquete) {
-            const [imgBase, imgMasc, imgFirma, imgCapa] = await Promise.all([
+            const [imgBase, imgMasc, imgFirma, imgCapa, bufCatalogo] = await Promise.all([
                 decodificar(paquete.base), decodificar(paquete.mascaras), paquete.firma ? decodificar(paquete.firma) : null,
-                paquete.estrellas ? decodificar(paquete.estrellas) : null]);
+                paquete.estrellas ? decodificar(paquete.estrellas) : null,
+                paquete.catalogo ? paquete.catalogo.arrayBuffer() : null]);
             const w = imgBase.width, h = imgBase.height;
             this.ancho = w; this.alto = h;
             this.base = pixeles(imgBase, w, h);
@@ -85,6 +118,8 @@
             this.pequenas = new Uint8ClampedArray(n);
             for (let i = 0, j = 0; i < n; i++, j += 4) { this.estrellas[i] = e[j]; this.pequenas[i] = p[j]; }
             this.capa = imgCapa ? pixeles(imgCapa, w, h) : null;
+            this.catalogo = bufCatalogo ? leerCatalogo(bufCatalogo) : null;
+            this.reducida = null;
             this.firma = imgFirma;
             this.fondo = (paquete.fondo || [0, 0, 0]).map(Number);
             this.canvas.width = w; this.canvas.height = h;
@@ -96,6 +131,54 @@
 
         get lista() { return !!this.base; }
         get conCapas() { return !!this.capa; }
+
+        // Capa de estrellas con el tamaño 0..1 (procesado.reducir_estrellas): las estrellas del
+        // catálogo pintadas como gaussianas, fundidas con la original entre el 100 y el 85 %
+        _reducida(tamano, halo) {
+            const beta = betaHalo(halo);
+            if (this.reducida && this.reducida.tamano === tamano && this.reducida.beta === beta) return this.reducida.datos;
+            const w = this.ancho, h = this.alto, n = w * h, cat = this.catalogo || new Float32Array(0);
+            const pintada = new Float32Array(n * 3), Lout = new Float32Array(n);
+            if (tamano > 0) {
+                const apagado = tamano < 0.25 ? Math.pow(tamano / 0.25, 2) : 1;          // procesado.TAMANO_PICO
+                const k50 = beta ? Math.sqrt(Math.pow(2, 1 / beta) - 1) : 1;
+                for (let e = 0; e < cat.length; e += 7) {
+                    const x = cat[e], y = cat[e + 1], s = cat[e + 2], r = cat[e + 3], g = cat[e + 4], b = cat[e + 5], A = cat[e + 6];
+                    const P = Math.max(r, g, b);
+                    if (P <= 0) continue;
+                    const s2 = Math.sqrt((s * tamano) * (s * tamano) + 0.25);          // procesado.SIGMA_MINIMA = 0,5
+                    const alfa = 1.1774 * s2 / k50, alfa2 = alfa * alfa;               // Moffat: la misma media altura
+                    const R = beta ? Math.min(Math.ceil(alfa * Math.sqrt(Math.pow(Math.max(P * A * apagado * 510, 1), 1 / beta) - 1)), 120)   // procesado.HALO_RADIO_PINTADO
+                                   : Math.ceil(3.5 * s2);
+                    const xc = Math.round(x), yc = Math.round(y);
+                    const x0 = Math.max(0, xc - R), x1 = Math.min(w, xc + R + 1), y0 = Math.max(0, yc - R), y1 = Math.min(h, yc + R + 1);
+                    const dos = 2 * s2 * s2;
+                    for (let yy = y0; yy < y1; yy++) {
+                        const gy = Math.exp(-((yy - y) * (yy - y)) / dos), dy2 = (yy - y) * (yy - y);
+                        for (let xx = x0; xx < x1; xx++) {
+                            const k = beta ? A * apagado * Math.pow(1 + (dy2 + (xx - x) * (xx - x)) / alfa2, -beta)
+                                           : A * apagado * gy * Math.exp(-((xx - x) * (xx - x)) / dos);   // sin recortar
+                            const v = Math.min(P * k, 1);
+                            const i = yy * w + xx;
+                            if (v > Lout[i]) {
+                                Lout[i] = v;
+                                pintada[i * 3] = Math.min(k * r, 1); pintada[i * 3 + 1] = Math.min(k * g, 1); pintada[i * 3 + 2] = Math.min(k * b, 1);
+                            }
+                        }
+                    }
+                }
+            }
+            const a = Math.min(1, Math.max(0, (1 - tamano) / (1 - 0.85)));              // procesado.TAMANO_FUNDIDO
+            const d = this.capa.data, datos = new Uint8ClampedArray(n * 4);
+            for (let i = 0, j = 0; i < n; i++, j += 4) {
+                datos[j] = Math.round(d[j] * (1 - a) + pintada[i * 3] * 255 * a);
+                datos[j + 1] = Math.round(d[j + 1] * (1 - a) + pintada[i * 3 + 1] * 255 * a);
+                datos[j + 2] = Math.round(d[j + 2] * (1 - a) + pintada[i * 3 + 2] * 255 * a);
+                datos[j + 3] = 255;
+            }
+            this.reducida = { tamano, beta, datos };
+            return datos;
+        }
 
         // Tablas por canal de temperatura + brillo (pasos 1 y 2), en float 0..1.
         // fondo: el nivel del cielo alrededor del que gira la temperatura ([0, 0, 0] para la capa de estrellas)
@@ -138,13 +221,33 @@
             return salida;
         }
 
+        // Las mismas tablas pero en float 0..1 (para las curvas propias de las estrellas, que van
+        // antes de la pantalla y no se redondean a 8 bits ahí); null si las tres son la recta
+        _tablasCurvasFloat(curvas) {
+            if (!(curvas && (curvas.rgb || curvas.r || curvas.g || curvas.b))) return null;
+            const salida = [];
+            const rgb = curvas.rgb;
+            for (const k of ["r", "g", "b"]) {
+                const propia = curvas[k];
+                const tb = new Float32Array(1024);
+                for (let i = 0; i < 1024; i++) {
+                    let v = rgb ? rgb[i] : i / 1023;
+                    if (propia) v = propia[Math.round(v * 1023)];
+                    tb[i] = v;
+                }
+                salida.push(tb);
+            }
+            return salida;
+        }
+
         /**
          * Aplica los ajustes y pinta. aj: {temperatura, brillo, scnr, scnr_estrellas, saturacion,
          * saturacion_estrellas, tamano_estrellas}; curvas: tablas de EditorCurvas.tablas() (o null);
-         * conFirma: pintar la firma. Devuelve el histograma {r, g, b, l} (Uint32Array(256)) de la
-         * imagen ANTES de las curvas, que es lo que el editor de curvas enseña de fondo.
+         * conFirma: pintar la firma; curvasEstrellas: las tablas de las curvas propias de las
+         * estrellas (estrellas aparte, o null). Devuelve el histograma {r, g, b, l} (Uint32Array(256))
+         * de la imagen ANTES de las curvas, que es lo que el editor de curvas enseña de fondo.
          */
-        aplicar(aj, curvas, conFirma) {
+        aplicar(aj, curvas, conFirma, curvasEstrellas) {
             if (!this.base) return null;
             const src = this.base.data, dst = this.salida.data, n = this.ancho * this.alto;
             const previas = this._tablasPrevias(aj, this.fondo);
@@ -155,24 +258,28 @@
             const satE = aj.saturacion_estrellas === undefined || aj.saturacion_estrellas === null || !isFinite(Number(aj.saturacion_estrellas)) ? satG : Number(aj.saturacion_estrellas);
             const haySat = Math.abs(satG - 1) >= 1e-3 || Math.abs(satE - 1) >= 1e-3;
             const cR = this._tablasCurvas(curvas), hayCurvas = !!(curvas && (curvas.rgb || curvas.r || curvas.g || curvas.b));
+            const cE = this.capa ? this._tablasCurvasFloat(curvasEstrellas) : null;
             const hR = new Uint32Array(256), hG = new Uint32Array(256), hB = new Uint32Array(256), hL = new Uint32Array(256);
             const est = this.estrellas, peq = this.pequenas;
             // Estrellas aparte: la capa con sus propias tablas (temperatura sobre negro) y el tamaño
-            const capa = this.capa ? this.capa.data : null;
-            let cRt = null, cGt = null, cBt = null, tamano = 1;
+            let capa = this.capa ? this.capa.data : null;
+            let cRt = null, cGt = null, cBt = null;
             if (capa) {
                 const tc = this._tablasPrevias(aj, [0, 0, 0]);
                 cRt = tc[0]; cGt = tc[1]; cBt = tc[2];
                 const t = Number(aj.tamano_estrellas);
-                tamano = isFinite(t) ? Math.min(100, Math.max(0, t)) / 100 : 1;
+                const tamano = isFinite(t) ? Math.min(100, Math.max(0, t)) / 100 : 1;
+                if (tamano < 1) capa = this._reducida(tamano, aj.halo_estrellas);      // el tamaño va antes que el color, como en el servidor
             }
+            // Saturación en HSV (V y H fijos), sin crear arrays por píxel: deja el resultado en `rgb3`
+            const rgb3 = new Float32Array(3);
             const saturar = (r, g, b, gan) => {
                 const V = r > g ? (r > b ? r : b) : (g > b ? g : b);
                 const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
-                if (V <= 0 || V <= mn) return [r, g, b];
+                if (V <= 0 || V <= mn) { rgb3[0] = r; rgb3[1] = g; rgb3[2] = b; return; }
                 const S = (V - mn) / V;
                 if (gan * S > 1) gan = 1 / S;       // la saturación no pasa de 1 (como el clip del servidor)
-                return [V - gan * (V - r), V - gan * (V - g), V - gan * (V - b)];
+                rgb3[0] = V - gan * (V - r); rgb3[1] = V - gan * (V - g); rgb3[2] = V - gan * (V - b);
             };
             for (let i = 0, j = 0; i < n; i++, j += 4) {
                 let r = tR[src[j]], g = tG[src[j + 1]], b = tB[src[j + 2]];
@@ -188,7 +295,7 @@
                     // Sin capas, la saturación de las estrellas va por la máscara de las pequeñas; con
                     // capas el objeto lleva la general y la capa la suya
                     const pe = capa ? 0 : peq[i] / 255;
-                    [r, g, b] = saturar(r, g, b, satG * (1 - pe) + satE * pe);
+                    saturar(r, g, b, satG * (1 - pe) + satE * pe); r = rgb3[0]; g = rgb3[1]; b = rgb3[2];
                 }
                 if (capa) {
                     let er = cRt[capa[j]], eg = cGt[capa[j + 1]], eb = cBt[capa[j + 2]];
@@ -196,9 +303,14 @@
                         const exceso = eg - (er + eb) / 2;
                         if (exceso > 0) { eg -= scnr * exceso; if (eg < 0) eg = 0; }
                     }
-                    if (Math.abs(satE - 1) >= 1e-3) [er, eg, eb] = saturar(er, eg, eb, satE);
-                    // Pantalla: 1 - (1 - objeto)(1 - estrellas · tamaño)
-                    r = 1 - (1 - r) * (1 - er * tamano); g = 1 - (1 - g) * (1 - eg * tamano); b = 1 - (1 - b) * (1 - eb * tamano);
+                    if (Math.abs(satE - 1) >= 1e-3) { saturar(er, eg, eb, satE); er = rgb3[0]; eg = rgb3[1]; eb = rgb3[2]; }
+                    if (cE) {      // curvas propias de las estrellas (procesado.ajustes_rapidos_capas: curvas_estrellas)
+                        er = cE[0][Math.round(Math.min(1, Math.max(0, er)) * 1023)];
+                        eg = cE[1][Math.round(Math.min(1, Math.max(0, eg)) * 1023)];
+                        eb = cE[2][Math.round(Math.min(1, Math.max(0, eb)) * 1023)];
+                    }
+                    // Pantalla: 1 - (1 - objeto)(1 - estrellas)
+                    r = 1 - (1 - r) * (1 - er); g = 1 - (1 - g) * (1 - eg); b = 1 - (1 - b) * (1 - eb);
                 }
                 r = r < 0 ? 0 : r > 1 ? 1 : r; g = g < 0 ? 0 : g > 1 ? 1 : g; b = b < 0 ? 0 : b > 1 ? 1 : b;
                 let r8 = Math.round(r * 255), g8 = Math.round(g * 255), b8 = Math.round(b * 255);
