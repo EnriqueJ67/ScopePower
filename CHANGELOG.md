@@ -5,6 +5,14 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Nuevo: tarjeta «Estrellas aparte» en Configuración. Comprueba si StarNet2 está en el PC y si
+  arranca de verdad (lo lanza con `--version`, sin diálogos de Windows), y lo dice con su versión
+  y su ruta. Con StarNet2 funcionando se puede activar «Separar las estrellas al guardar el apilado
+  en la galería» (`[Procesado] estrellas_aparte`, hasta ahora solo en `config.ini`). Si falta o no
+  arranca, explica cómo instalarlo y el Visual C++ que necesita, con botones para abrir las dos
+  descargas en el navegador del PC donde corre ScopePower, y deja escribir su carpeta
+  (`[General] ruta_starnet`). ScopePower no descarga ni instala StarNet2: su licencia no permite
+  redistribuirlo y el instalador pide administrador.
 - Nuevo: «Anterior» en el editor de la galería, junto a «Original» y «Reprocesada»: la vista
   previa tal como estaba antes del último cambio, para comparar cada cambio con el anterior y no
   solo con la foto del apilado. Arrastrar un deslizador cuenta como un solo cambio (se da por

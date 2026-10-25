@@ -115,6 +115,40 @@
             <p class="card-sub">{{ _("Lo que más crece son las fotos de la sesión (FITS) y la galería. Para liberar espacio copia la galería a otro equipo por la red y borra lo que ya no necesites desde la Galería.") }}</p>
         </div>
 
+        <!-- ─── Estrellas aparte (StarNet2, programa externo) ──────────── -->
+        <div class="card" id="estrellas">
+            <div class="card-header"><h3 class="card-title">✨ {{ _("Estrellas aparte") }}</h3></div>
+            <div id="estrellas-estado" class="estado mb-2" style="font-size: 15px; color: var(--text);">{{ _("Comprobando StarNet2...") }}</div>
+            <label class="fila-check"><input type="checkbox" id="estrellas-al-guardar" disabled onchange="guardarEstrellasAlGuardar()"> {{ _("Separar las estrellas al guardar el apilado en la galería") }}</label>
+            <small class="ayuda mb-2">{{ _("Al guardar un apilado, StarNet2 separa el objeto y las estrellas y cada uno se estira y se limpia por su lado, como «Estrellas aparte» del editor. Tarda unos minutos más por foto (unos 2,5 en el mini PC) y se hace después de guardar el JPG de siempre, que queda si algo falla. Las estrellas salen a su tamaño; el tamaño, el halo y su estirado se ajustan luego en el editor. Sin la casilla, se puede hacer en el editor, foto a foto.") }}</small>
+            <div id="estado-estrellas" class="estado mb-2"></div>
+            <!-- Ayuda para instalarlo: solo cuando falta o no arranca -->
+            <div id="estrellas-instalar" hidden>
+                <div class="seccion-titulo" style="margin: 4px 0 6px;">{{ _("Cómo instalar StarNet2") }}</div>
+                <ol class="pasos-instalar" style="padding-left: 20px; margin: 0 0 10px; line-height: 1.6; color: var(--text-2);">
+                    <li>{{ _("En el PC donde corre ScopePower (no en el móvil), descarga StarNet2 de su web, en «Command-line Tools», la versión de Windows:") }}
+                        <a id="estrellas-url-descarga" href="https://www.starnetastro.com/cli-tools/" target="_blank" rel="noopener">starnetastro.com/cli-tools</a>.
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="abrirEnPC('descarga')">{{ _("Abrir en el PC") }}</button></li>
+                    <li>{{ _("Instálalo: queda en C:\\Program Files\\StarNet2 y ScopePower lo encuentra solo. Si lo pones en otra carpeta, escríbela abajo.") }}</li>
+                    <li id="estrellas-paso-vc">{{ _("Instala también el Visual C++ de Microsoft (x64), que StarNet2 necesita y no trae:") }}
+                        <a id="estrellas-url-vc" href="https://aka.ms/vs/17/release/vc_redist.x64.exe" target="_blank" rel="noopener">vc_redist.x64.exe</a>.
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="abrirEnPC('visual_cpp')">{{ _("Abrir en el PC") }}</button></li>
+                    <li>{{ _("Pulsa «Comprobar de nuevo», sin reiniciar ScopePower.") }}</li>
+                </ol>
+                <div class="dos-campos">
+                    <div class="form-group">
+                        <label>{{ _("Carpeta o ruta de starnet2.exe (vacío = buscarlo solo)") }}</label>
+                        <input type="text" id="estrellas-ruta" class="form-control" spellcheck="false" placeholder="C:\Program Files\StarNet2\bin\starnet2.exe">
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn btn-primary" style="margin-top: 26px;" onclick="guardarRutaStarnet()"><svg><use href="#i-guardar"/></svg>{{ _("Guardar") }}</button>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="cargarEstrellas()"><svg><use href="#i-refrescar"/></svg>{{ _("Comprobar de nuevo") }}</button>
+            <small class="ayuda mt-2">{{ _("StarNet2 es un programa aparte de Mikita Misiura, gratuito y con su propia licencia: ScopePower no lo incluye ni lo instala, solo lo usa si está en el PC.") }}</small>
+        </div>
+
         <!-- ─── Actualizar desde GitHub ────────────────────────────────── -->
         <div class="card" id="actualizar">
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-refrescar"/></svg>{{ _("Actualizar desde GitHub") }}</h3></div>
@@ -461,6 +495,61 @@
             .catch(err => { est.className = "estado err mb-2"; est.textContent = "❌ " + err; });
     }
 
+    // ——— Estrellas aparte: StarNet2 (lo comprueba el servidor arrancándolo) y la casilla de guardar ———
+    function pintarEstrellas(d) {
+        const est = document.getElementById("estrellas-estado"), casilla = document.getElementById("estrellas-al-guardar");
+        if (d.funciona) {
+            est.textContent = _("✅ {producto} {version} listo en {ruta}", { producto: d.producto, version: d.version, ruta: d.ruta });
+        } else if (d.instalado) {
+            est.textContent = "⚠️ " + d.aviso;
+        } else {
+            est.textContent = "❌ " + d.aviso;
+        }
+        // Activarla pide que StarNet2 funcione; desactivarla se puede siempre (si dejó de funcionar)
+        casilla.checked = !!d.al_guardar;
+        casilla.disabled = !d.funciona && !d.al_guardar;
+        document.getElementById("estrellas-instalar").hidden = !!d.funciona;
+        document.getElementById("estrellas-paso-vc").style.fontWeight = d.visual_cpp === false ? "600" : "";
+        if (d.url_descarga) document.getElementById("estrellas-url-descarga").href = d.url_descarga;
+        if (d.url_visual_cpp) document.getElementById("estrellas-url-vc").href = d.url_visual_cpp;
+        const ruta = document.getElementById("estrellas-ruta");
+        if (document.activeElement !== ruta) ruta.value = d.ruta_config || "";
+    }
+    function cargarEstrellas() {
+        document.getElementById("estrellas-estado").textContent = _("⏳ Comprobando StarNet2...");
+        fetch("/estrellas-aparte/estado").then(r => r.json()).then(pintarEstrellas)
+            .catch(err => document.getElementById("estrellas-estado").textContent = "❌ " + err);
+    }
+    function enviarEstrellas(datos, ok) {
+        const est = document.getElementById("estado-estrellas");
+        est.className = "estado mb-2"; est.textContent = _("⏳ Guardando...");
+        return fetch("/estrellas-aparte/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) })
+            .then(r => r.json())
+            .then(d => {
+                if (d.ok === false) { est.className = "estado err mb-2"; est.textContent = "❌ " + (d.error || _("No se pudo guardar")); cargarEstrellas(); return; }
+                pintarEstrellas(d);
+                est.className = "estado ok mb-2"; est.textContent = ok(d);
+            })
+            .catch(err => { est.className = "estado err mb-2"; est.textContent = "❌ " + err; });
+    }
+    function guardarEstrellasAlGuardar() {
+        const activar = document.getElementById("estrellas-al-guardar").checked;
+        enviarEstrellas({ al_guardar: activar }, d => d.al_guardar ? _("✅ Al guardar el apilado se separarán las estrellas")
+                                                                 : _("✅ Al guardar el apilado no se separarán las estrellas"));
+    }
+    function guardarRutaStarnet() {
+        enviarEstrellas({ ruta: document.getElementById("estrellas-ruta").value }, d => d.funciona ? _("✅ Ruta guardada: StarNet2 funciona")
+                                                                                                  : _("✅ Ruta guardada"));
+    }
+    function abrirEnPC(que) {
+        const est = document.getElementById("estado-estrellas");
+        fetch("/estrellas-aparte/abrir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ que }) })
+            .then(r => r.json())
+            .then(d => { est.className = d.ok ? "estado ok mb-2" : "estado err mb-2";
+                         est.textContent = d.ok ? _("✅ Abierta en el navegador del PC") : "❌ " + (d.error || ""); })
+            .catch(err => { est.className = "estado err mb-2"; est.textContent = "❌ " + err; });
+    }
+
     // Lista de drivers ASCOM registrados (Telescope / Camera), como en la versión de junio
     async function cargarDrivers(tipo) {
         const sel = document.getElementById(tipo === "Camera" ? "driver_camara" : "driver_telescopio");
@@ -703,7 +792,7 @@
         });
     }
 
-    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); cargarDisco(); cargarActualizar(); cargarHumor(); });
+    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); cargarDisco(); cargarActualizar(); cargarHumor(); cargarEstrellas(); });
 </script>
 
 

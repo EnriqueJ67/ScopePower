@@ -5503,6 +5503,75 @@ def _estrellas_aparte_al_guardar():
     return True
 
 
+@app.route("/estrellas-aparte/estado")
+def estrellas_aparte_estado():
+    """
+    Tarjeta «Estrellas aparte» de Configuración: si StarNet2 está y arranca
+    (estrellas_aparte.comprobar_instalacion, unos segundos: lo lanza de verdad), la
+    casilla de separar al guardar ([Procesado] estrellas_aparte) y [General] ruta_starnet.
+    """
+    import estrellas_aparte
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    info = estrellas_aparte.comprobar_instalacion()
+    info["al_guardar"] = cfg.get("Procesado", "estrellas_aparte", fallback="false").strip().lower() == "true"
+    info["ruta_config"] = cfg.get("General", "ruta_starnet", fallback="").strip()
+    return jsonify(info)
+
+
+@app.route("/estrellas-aparte/config", methods=["POST"])
+def estrellas_aparte_config():
+    """
+    {"ruta": "..."} guarda [General] ruta_starnet (vacía = buscarlo solo; vale la
+    carpeta de StarNet2 o la de bin) y {"al_guardar": true|false}, [Procesado]
+    estrellas_aparte; activarlo exige que StarNet2 arranque. Devuelve el estado nuevo.
+    """
+    import estrellas_aparte
+    datos = request.get_json(silent=True) or {}
+    if "ruta" in datos:
+        ruta = str(datos.get("ruta") or "").strip().strip('"')
+        if ruta and os.path.isdir(ruta):
+            for candidata in (os.path.join(ruta, "starnet2.exe"), os.path.join(ruta, "bin", "starnet2.exe")):
+                if os.path.isfile(candidata):
+                    ruta = candidata
+                    break
+        if ruta and not os.path.isfile(ruta):
+            return jsonify({"ok": False, "error": _("En este PC no existe {ruta}", ruta=ruta)}), 400
+        _guardar_en_config("General", {"ruta_starnet": ruta})
+        log.info("Ruta de StarNet2 en config.ini: %s", ruta or "(buscarlo solo)")
+    if "al_guardar" in datos:
+        activar = bool(datos.get("al_guardar"))
+        if activar:
+            info = estrellas_aparte.comprobar_instalacion()
+            if not info["funciona"]:
+                return jsonify({"ok": False, "error": info["aviso"]}), 400
+        _guardar_en_config("Procesado", {"estrellas_aparte": "true" if activar else "false"})
+        log.info("Estrellas aparte al guardar el apilado: %s", "sí" if activar else "no")
+    return estrellas_aparte_estado()
+
+
+@app.route("/estrellas-aparte/abrir", methods=["POST"])
+def estrellas_aparte_abrir():
+    """
+    Abre en el navegador del PC donde corre ScopePower (no en el móvil) la página de
+    descarga de StarNet2 o la del Visual C++: hay que instalarlos en este PC.
+    """
+    import estrellas_aparte
+    import webbrowser
+    que = (request.get_json(silent=True) or {}).get("que")
+    url = {"descarga": estrellas_aparte.URL_DESCARGA, "visual_cpp": estrellas_aparte.URL_VC_REDIST}.get(que)
+    if not url:
+        return jsonify({"ok": False, "error": _("No se sabe qué abrir")}), 400
+    try:
+        abierto = webbrowser.open(url)
+    except Exception as e:
+        log.warning("No se pudo abrir %s en el navegador del PC: %s", url, e)
+        abierto = False
+    if not abierto:
+        return jsonify({"ok": False, "error": _("No se pudo abrir el navegador en el PC")}), 500
+    return jsonify({"ok": True})
+
+
 def _guardar_con_estrellas_aparte(destino, destino_fits, n, zona, encuadre, balance, meta):
     """
     Segunda pasada del guardado en la galería con las estrellas aparte: separa el
