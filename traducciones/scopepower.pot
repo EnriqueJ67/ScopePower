@@ -1189,6 +1189,10 @@ msgstr ""
 msgid "Cada foto tarda la exposición elegida arriba (o la de Configuración) más unos segundos de descarga y revelado."
 msgstr ""
 
+#: templates/galeria.html
+msgid "Calcula la nota de los apilados que aún no la tienen. Lee cada FITS: tarda unos segundos por foto"
+msgstr ""
+
 #: puesta_estacion.py
 msgid "Calculando el eje de la montura"
 msgstr ""
@@ -2159,6 +2163,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "De día no hay plate solving: el movimiento se calcula con la orientación y la escala de la cámara del último que salió bien…"
+msgstr ""
+
+#: templates/galeria.html
+msgid "De la mejor nota a la peor"
 msgstr ""
 
 #. js
@@ -3826,6 +3834,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "FWHM verde {v} px"
+msgstr ""
+
+#: templates/galeria.html
+msgid "FWHM {f} px."
 msgstr ""
 
 #. js
@@ -6650,6 +6662,14 @@ msgstr ""
 msgid "Norte y este en positivo; oeste en negativo (Valencia: 39,47 y −0,38)."
 msgstr ""
 
+#: templates/galeria.html
+msgid "Nota"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Nota del apilado: nitidez de las estrellas × raíz del número de estrellas, como la de cada foto en el apilado en vivo. Más alta es mejor; solo se comparan bien fotos del mismo equipo y encuadre."
+msgstr ""
+
 #. js
 #: templates/editar_dia.html
 msgid "Nueva"
@@ -7070,6 +7090,10 @@ msgstr ""
 msgid "Por nombre o por voz, con centrado automático por plate solving"
 msgstr ""
 
+#: templates/galeria.html
+msgid "Por objeto y, dentro de cada uno, de la mejor nota a la peor"
+msgstr ""
+
 #. js
 #: rastros.py
 msgid "Posible meteoro"
@@ -7313,6 +7337,17 @@ msgstr ""
 #: templates/apilado.html
 msgid "Puntuación"
 msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Puntuando {h} de {t}…"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Puntuar {n} foto"
+msgid_plural "Puntuar {n} fotos"
+msgstr[0] ""
+msgstr[1] ""
 
 #: templates/visor_video.html
 msgid "Pájaros, aviones o nubes: cada fotograma se compara con los de alrededor y salen los momentos en que aparece algo que ni estaba antes ni está después."
@@ -9342,6 +9377,10 @@ msgstr ""
 msgid "Ya se están midiendo fotos del Sol"
 msgstr ""
 
+#: nota_apilado.py
+msgid "Ya se están puntuando fotos"
+msgstr ""
+
 #: estrellas_aparte.py
 msgid "Ya se están separando las estrellas de {archivo}; espera a que termine"
 msgstr ""
@@ -10416,6 +10455,11 @@ msgid "medido en ({x}, {y}) · señal {snr} σ"
 msgstr ""
 
 #. js
+#: templates/galeria.html
+msgid "mejor de {n}"
+msgstr ""
+
+#. js
 #: templates/apilado.html
 msgid "mejor que al inicio ({p} % más fina)"
 msgstr ""
@@ -11340,6 +11384,11 @@ msgstr ""
 msgid "{ip}, dos puntos, puerto {puerto}."
 msgstr ""
 
+#. js
+#: templates/galeria.html
+msgid "{i}.ª de {n}"
+msgstr ""
+
 #: static/js/manchas_solares.js
 msgid "{km} km · {t} Tierras"
 msgstr ""
@@ -11480,6 +11529,12 @@ msgstr[1] ""
 msgid "{n} esta noche"
 msgstr ""
 
+#: templates/galeria.html
+msgid "{n} estrella"
+msgid_plural "{n} estrellas"
+msgstr[0] ""
+msgstr[1] ""
+
 #. js
 #: firma.py static/js/plan.js templates/apilado.html templates/editar_foto.html
 #: templates/imagen.html
@@ -11513,6 +11568,12 @@ msgstr[1] ""
 #: templates/apilado.html
 msgid "{n} foto por el núcleo"
 msgid_plural "{n} fotos por el núcleo"
+msgstr[0] ""
+msgstr[1] ""
+
+#: nota_apilado.py
+msgid "{n} foto puntuada"
+msgid_plural "{n} fotos puntuadas"
 msgstr[0] ""
 msgstr[1] ""
 

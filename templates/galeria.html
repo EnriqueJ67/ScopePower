@@ -15,8 +15,13 @@
         </a>
         <div class="segmentado" id="orden-seg">
             <button type="button" class="activo" data-orden="fecha" onclick="ordenarGaleria('fecha')">{{ _("Fecha") }}</button>
-            <button type="button" data-orden="objeto" onclick="ordenarGaleria('objeto')">{{ _("Objeto") }}</button>
+            <button type="button" data-orden="objeto" onclick="ordenarGaleria('objeto')" title="{{ _('Por objeto y, dentro de cada uno, de la mejor nota a la peor') }}">{{ _("Objeto") }}</button>
+            {% if notas %}<button type="button" data-orden="nota" onclick="ordenarGaleria('nota')" title="{{ _('De la mejor nota a la peor') }}">{{ _("Nota") }}</button>{% endif %}
         </div>
+        {% if n_sin_nota %}
+        <!-- Apilados guardados antes de que hubiera nota: se puntúan en segundo plano (nota_apilado.py) -->
+        <button type="button" class="btn btn-secondary btn-sm" id="puntuar" onclick="puntuarFotos()" title="{{ _('Calcula la nota de los apilados que aún no la tienen. Lee cada FITS: tarda unos segundos por foto') }}">{{ ngettext("Puntuar {n} foto", "Puntuar {n} fotos", n_sin_nota) }}</button>
+        {% endif %}
     </div>
 </div>
 
@@ -69,11 +74,15 @@
 <div id="galeria" class="galeria">
     {% for nombre in imagenes %}
     {% set partes = nombre.replace('.jpg', '').rsplit('_', 2) %}
-    <div class="foto tarjeta" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes|length == 3 else nombre }}" data-tipo="{{ tipos[nombre] }}">
+    {% set nota = notas.get(nombre) %}
+    <div class="foto tarjeta" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes|length == 3 else nombre }}" data-tipo="{{ tipos[nombre] }}"{% if nota %} data-nota="{{ nota.puntuacion }}"{% endif %}>
         <img src="{{ url_for('static', filename='fotos/' ~ nombre) }}" alt="{{ nombre }}" loading="lazy" onclick="abrirLightbox(this.src, this.closest('.foto').querySelector('.foto-nombre').textContent)">
         <div class="foto-pie">
             <div class="foto-nombre">{{ partes[0].replace('_', ' ') }}</div>
             <div class="foto-tipo">{{ _(tipos[nombre]) }}</div>
+            {% if nota %}
+            <div class="foto-nota" title="{{ _('Nota del apilado: nitidez de las estrellas × raíz del número de estrellas, como la de cada foto en el apilado en vivo. Más alta es mejor; solo se comparan bien fotos del mismo equipo y encuadre.') }}{% if nota.fwhm %} {{ _('FWHM {f} px.', f=idioma.fmt_num(nota.fwhm, 1)) }}{% endif %}">★ <b>{{ idioma.fmt_num(nota.puntuacion, 2) }}</b> · {{ ngettext("{n} estrella", "{n} estrellas", nota.estrellas) }}<span class="nota-puesto"></span></div>
+            {% endif %}
             <div class="foto-fecha">
                 {% if partes|length == 3 and partes[1]|length == 8 %}
                 {% if idioma.idioma_actual() == 'es' %}{{ partes[1][6:8] }}/{{ partes[1][4:6] }}/{{ partes[1][0:4] }}{% else %}{{ partes[1][0:4] }}-{{ partes[1][4:6] }}-{{ partes[1][6:8] }}{% endif %} · {{ partes[2][0:2] }}:{{ partes[2][2:4] }}
@@ -565,13 +574,62 @@
         document.querySelectorAll("#orden-seg button").forEach(b => b.classList.toggle("activo", b.dataset.orden === criterio));
         const galeria = document.getElementById("galeria");
         const tarjetas = Array.from(galeria.children);
+        // Sin nota (vídeos, fotos de día, sin puntuar) van detrás de las que la tienen
+        const nota = t => t.dataset.nota !== undefined ? parseFloat(t.dataset.nota) : -Infinity;
+        const fecha = (a, b) => (b.dataset.fecha || "").localeCompare(a.dataset.fecha || "");   // la más reciente primero
         tarjetas.sort((a, b) => {
-            const valA = (a.dataset[criterio] || "").toLowerCase(), valB = (b.dataset[criterio] || "").toLowerCase();
-            return criterio === "fecha" ? valB.localeCompare(valA) : valA.localeCompare(valB);   // fecha: la más reciente primero
+            if (criterio === "nota") return nota(b) - nota(a) || fecha(a, b);
+            if (criterio === "objeto") {
+                // Por objeto y, dentro de cada uno, de la mejor nota a la peor: la que sobra queda al final del grupo
+                return (a.dataset.objeto || "").toLowerCase().localeCompare((b.dataset.objeto || "").toLowerCase())
+                    || nota(b) - nota(a) || fecha(a, b);
+            }
+            return fecha(a, b);
         });
         tarjetas.forEach(t => galeria.appendChild(t));
+        try { localStorage.setItem("galeria_orden", criterio); } catch (e) {}
     }
-    ordenarGaleria("fecha");
+    let ordenInicial = "fecha";
+    try { ordenInicial = localStorage.getItem("galeria_orden") || "fecha"; } catch (e) {}
+    if (!document.querySelector(`#orden-seg button[data-orden="${ordenInicial}"]`)) ordenInicial = "fecha";
+    ordenarGaleria(ordenInicial);
+
+    // Puesto de cada foto entre las de su mismo objeto con nota: «mejor de 3», «3.ª de 3»
+    function marcarPuestos() {
+        const grupos = {};
+        document.querySelectorAll("#galeria .foto[data-nota]").forEach(t => (grupos[t.dataset.objeto.toLowerCase()] ||= []).push(t));
+        for (const lista of Object.values(grupos)) {
+            lista.sort((a, b) => parseFloat(b.dataset.nota) - parseFloat(a.dataset.nota));
+            lista.forEach((t, i) => {
+                const puesto = t.querySelector(".nota-puesto");
+                const nota = t.querySelector(".foto-nota b");
+                nota.classList.toggle("mejor", lista.length > 1 && i === 0);
+                nota.classList.toggle("peor", lista.length > 1 && i === lista.length - 1);
+                puesto.textContent = lista.length < 2 ? "" : " · " + (i === 0 ? _("mejor de {n}", { n: lista.length })
+                    : _("{i}.ª de {n}", { i: i + 1, n: lista.length }));
+            });
+        }
+    }
+    marcarPuestos();
+
+    async function puntuarFotos() {
+        const boton = document.getElementById("puntuar");
+        boton.disabled = true;
+        try {
+            const r = await (await fetch("/galeria/puntuar", { method: "POST" })).json();
+            if (!r.ok) throw new Error(r.mensaje || _("no se pudo"));
+            for (;;) {
+                await new Promise(res => setTimeout(res, 1000));
+                const e = await (await fetch("/galeria/puntuar/estado")).json();
+                boton.textContent = _("Puntuando {h} de {t}…", { h: e.hechas, t: e.total });
+                if (!e.en_curso) break;
+            }
+            location.reload();
+        } catch (e) {
+            boton.textContent = e.message;
+            boton.disabled = false;
+        }
+    }
 
     // Un chip menos en el filtro del tipo de la tarjeta, en "Todas" y, si es un vídeo, en "Vídeos"
     function descontarTarjeta(tarjeta) {
@@ -609,6 +667,7 @@
                     const tarjeta = document.querySelector(`.tarjeta button[onclick*="'${nombre}'"]`).closest(".foto");
                     tarjeta.remove();
                     descontarTarjeta(tarjeta);
+                    marcarPuestos();
                 } else {
                     alert(data.mensaje || data.error);
                 }

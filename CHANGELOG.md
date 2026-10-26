@@ -5,6 +5,12 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Nota de cada apilado en la galería, para quedarse con las mejores fotos de cada objeto. Es la
+  misma puntuación con que el apilado en vivo decide qué fotos entran (nitidez de las estrellas ×
+  raíz del número de estrellas), medida sobre el FITS apilado. Sale en la tarjeta con el puesto
+  entre las fotos del mismo objeto («mejor de 3», «3.ª de 3»); el orden «Objeto» pone la mejor
+  primero dentro de cada objeto y el nuevo orden «Nota» va de la mejor a la peor. Los apilados
+  guardados antes se puntúan con el botón «Puntuar N fotos».
 - Planetario: las chinchetas de «Esta noche» ya no se pintan encima del paisaje; se esconden
   cuando el objeto queda detrás de los árboles o las colinas, como hace el motor con lo suyo. Y
   el Sol, la Luna y los planetas salen con su nombre en español (antes Sun, Mercury, Venus…),

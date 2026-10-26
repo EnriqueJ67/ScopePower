@@ -1191,6 +1191,10 @@ msgstr "Each shot is saved developed at full resolution (about 2–4 MB) in stat
 msgid "Cada foto tarda la exposición elegida arriba (o la de Configuración) más unos segundos de descarga y revelado."
 msgstr "Each shot takes the exposure chosen above (or the one in Settings) plus a few seconds to download and develop."
 
+#: templates/galeria.html
+msgid "Calcula la nota de los apilados que aún no la tienen. Lee cada FITS: tarda unos segundos por foto"
+msgstr "Works out the score of the stacks that don't have one yet. It reads each FITS: a few seconds per photo"
+
 #: puesta_estacion.py
 msgid "Calculando el eje de la montura"
 msgstr "Computing the mount axis"
@@ -2162,6 +2166,10 @@ msgstr "There are no stars during the day: with {nombre} in the shot (whole or n
 #: templates/imagen.html
 msgid "De día no hay plate solving: el movimiento se calcula con la orientación y la escala de la cámara del último que salió bien…"
 msgstr "No plate solving during the day: the move is computed with the camera orientation and scale from the last successful one…"
+
+#: templates/galeria.html
+msgid "De la mejor nota a la peor"
+msgstr "From the best score to the worst"
 
 #. js
 #: templates/imagen.html
@@ -3829,6 +3837,10 @@ msgstr "FWHM green {px} px"
 #: templates/imagen.html
 msgid "FWHM verde {v} px"
 msgstr "FWHM green {v} px"
+
+#: templates/galeria.html
+msgid "FWHM {f} px."
+msgstr "FWHM {f} px."
 
 #. js
 #: templates/goto.html
@@ -6652,6 +6664,14 @@ msgstr "Automatic north up (east on the left)"
 msgid "Norte y este en positivo; oeste en negativo (Valencia: 39,47 y −0,38)."
 msgstr "North and east are positive; west is negative (Valencia: 39.47 and −0.38)."
 
+#: templates/galeria.html
+msgid "Nota"
+msgstr "Score"
+
+#: templates/galeria.html
+msgid "Nota del apilado: nitidez de las estrellas × raíz del número de estrellas, como la de cada foto en el apilado en vivo. Más alta es mejor; solo se comparan bien fotos del mismo equipo y encuadre."
+msgstr "Stack score: star sharpness × square root of the number of stars, like the score of each photo in live stacking. Higher is better; only photos taken with the same equipment and framing compare well."
+
 #. js
 #: templates/editar_dia.html
 msgid "Nueva"
@@ -7072,6 +7092,10 @@ msgstr "Below that percentage a warning appears at the top of every page and the
 msgid "Por nombre o por voz, con centrado automático por plate solving"
 msgstr "By name or by voice, with automatic centering by plate solving"
 
+#: templates/galeria.html
+msgid "Por objeto y, dentro de cada uno, de la mejor nota a la peor"
+msgstr "By object and, within each one, from the best score to the worst"
+
 #. js
 #: rastros.py
 msgid "Posible meteoro"
@@ -7315,6 +7339,17 @@ msgstr "Points to visit"
 #: templates/apilado.html
 msgid "Puntuación"
 msgstr "Score"
+
+#. js
+#: templates/galeria.html
+msgid "Puntuando {h} de {t}…"
+msgstr "Scoring {h} of {t}…"
+
+#: templates/galeria.html
+msgid "Puntuar {n} foto"
+msgid_plural "Puntuar {n} fotos"
+msgstr[0] "Score {n} photo"
+msgstr[1] "Score {n} photos"
 
 #: templates/visor_video.html
 msgid "Pájaros, aviones o nubes: cada fotograma se compara con los de alrededor y salen los momentos en que aparece algo que ni estaba antes ni está después."
@@ -9344,6 +9379,10 @@ msgstr "Flats are already being generated"
 msgid "Ya se están midiendo fotos del Sol"
 msgstr "Sun photos are already being measured"
 
+#: nota_apilado.py
+msgid "Ya se están puntuando fotos"
+msgstr "Photos are already being scored"
+
 #: estrellas_aparte.py
 msgid "Ya se están separando las estrellas de {archivo}; espera a que termine"
 msgstr "The stars of {archivo} are already being separated; wait for it to finish"
@@ -10418,6 +10457,11 @@ msgid "medido en ({x}, {y}) · señal {snr} σ"
 msgstr "measured at ({x}, {y}) · signal {snr} σ"
 
 #. js
+#: templates/galeria.html
+msgid "mejor de {n}"
+msgstr "best of {n}"
+
+#. js
 #: templates/apilado.html
 msgid "mejor que al inicio ({p} % más fina)"
 msgstr "better than at the start ({p}% narrower)"
@@ -11342,6 +11386,11 @@ msgstr "{icono} {texto} ({px} px at {angulo}°)"
 msgid "{ip}, dos puntos, puerto {puerto}."
 msgstr "{ip}, colon, port {puerto}."
 
+#. js
+#: templates/galeria.html
+msgid "{i}.ª de {n}"
+msgstr "#{i} of {n}"
+
 #: static/js/manchas_solares.js
 msgid "{km} km · {t} Tierras"
 msgstr "{km} km · {t} Earths"
@@ -11482,6 +11531,12 @@ msgstr[1] "{n} flashes"
 msgid "{n} esta noche"
 msgstr "{n} tonight"
 
+#: templates/galeria.html
+msgid "{n} estrella"
+msgid_plural "{n} estrellas"
+msgstr[0] "{n} star"
+msgstr[1] "{n} stars"
+
 #. js
 #: firma.py static/js/plan.js templates/apilado.html templates/editar_foto.html
 #: templates/imagen.html
@@ -11517,6 +11572,12 @@ msgid "{n} foto por el núcleo"
 msgid_plural "{n} fotos por el núcleo"
 msgstr[0] "{n} shot on the nucleus"
 msgstr[1] "{n} shots on the nucleus"
+
+#: nota_apilado.py
+msgid "{n} foto puntuada"
+msgid_plural "{n} fotos puntuadas"
+msgstr[0] "{n} photo scored"
+msgstr[1] "{n} photos scored"
 
 #. js
 #: templates/imagen.html
