@@ -90,6 +90,7 @@ import galeria_anotada
 import luna_anotada
 import manchas_solares
 import fotometria_solar
+import nota_apilado
 import anuncio_ip
 import punto_acceso
 import coordenadas
@@ -5861,6 +5862,11 @@ def guardar_apilado_en_galeria():
             # El encuadre con que se guarda, para que el editor de fotos parta del mismo
             meta["encuadre"] = {"zoom": int(round((1.0 - encuadre["fraccion"]) * 100)), "giro": encuadre["giro"],
                                 "espejo": encuadre["espejo"]}
+            # Nota del apilado (nota_apilado.py): en la galería, para quedarse con las mejores de cada objeto
+            try:
+                meta["nota"] = nota_apilado.calcular(destinoFits)
+            except Exception:
+                log.exception("No se pudo puntuar el apilado guardado")
             firma.guardar_meta(destino, meta)
             # Cometa: el apilado por el núcleo se guarda como una segunda foto
             # (<objeto>_<fecha>_nucleo), con el mismo encuadre y color
@@ -6066,6 +6072,11 @@ def galeria():
     # Tipo de objeto (galaxia, nebulosa, cúmulo...) para filtrar: del JSON hermano si la
     # foto se guardó con él; las antiguas se deducen del nombre y el catálogo local
     tipos = {f: _tipo_foto_galeria(carpeta, f) for f in imagenes}
+    # Nota de los apilados de noche (nota_apilado.py), para quedarse con las mejores de cada
+    # objeto; las guardadas antes de existir se puntúan con un botón, en segundo plano
+    puntuables = [f for f in imagenes if f in con_fits and f not in con_luna and f not in con_sol]
+    notas = {f: n for f in puntuables if (n := nota_apilado.leer(os.path.join(carpeta, f)))}
+    n_sin_nota = len(puntuables) - len(notas)
     # Los vídeos grabados van como una tarjeta más (abren el visor); los apilados y fotogramas que salen
     # de un vídeo que sigue en el mini PC llevan a él
     videos = _videos_galeria()
@@ -6080,7 +6091,35 @@ def galeria():
     return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_dia=con_dia, con_luna=con_luna, con_sol=con_sol,
                            serie_wolf=serie_wolf, factor_k=manchas_solares.factor_k(), sol_crudo=sol_crudo, serie_sol=serie_sol,
                            curva_sol=curva_sol, orbita_sol=orbita_sol, n_sol_pendientes=n_sol_pendientes, tipos=tipos, filtros=filtros,
-                           n_rastros=len(lista_rastros), n_meteoros=n_meteoros, videos=videos, de_video=de_video)
+                           n_rastros=len(lista_rastros), n_meteoros=n_meteoros, videos=videos, de_video=de_video,
+                           notas=notas, n_sin_nota=n_sin_nota)
+
+
+@app.route("/galeria/puntuar", methods=["POST"])
+def galeria_puntuar():
+    """Puntúa en segundo plano los apilados de la galería que aún no tienen nota (nota_apilado.py)."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "mensaje": _("Hace falta iniciar sesión")}), 401
+    carpeta = editor_fotos.CARPETA_FOTOS
+    rutas = []
+    for f in sorted(os.listdir(carpeta)):
+        ruta = os.path.join(carpeta, f)
+        if (not f.lower().endswith(".jpg") or not os.path.isfile(os.path.splitext(ruta)[0] + ".fits")
+                or nota_apilado.leer(ruta)):
+            continue
+        meta = luna_anotada.meta_de(ruta)
+        if not luna_anotada.es_luna(f, meta) and not manchas_solares.es_sol(f, meta):
+            rutas.append(ruta)
+    try:
+        estado = nota_apilado.puntuar_varias(rutas)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    return jsonify(dict(estado, ok=True))
+
+
+@app.route("/galeria/puntuar/estado")
+def galeria_puntuar_estado():
+    return jsonify(dict(nota_apilado.TRABAJO))
 
 
 SIN_TIPO = N_("Sin tipo")      # clave del filtro de la galería: se traduce al pintarla
