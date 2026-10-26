@@ -2640,7 +2640,8 @@ export function createCelestiaAtlasViewer(options) {
           (!object.parentBody || isSelected || view.fovDeg < 2)
         ) {
           context.font = "11px system-ui";
-          context.fillText(object.name, x + radius + 4, y - 4);
+          // Cambio local de ScopePower: nombres traducidos (displayOptions.solarSystemNames)
+          context.fillText(display.solarSystemNames?.[object.name] ?? object.name, x + radius + 4, y - 4);
         }
       }
     }

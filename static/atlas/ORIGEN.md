@@ -15,8 +15,10 @@ tienen sus propias licencias (ver THIRD_PARTY_NOTICES.md):
 
 Cambio local: en `src/core/coordinates.js`, `comets.js` y `solar-system.js` el import de
 `astronomy-engine` apunta a `../../vendor/astronomy-engine-2.1.19.esm.js` en vez de al nombre
-del paquete, para no depender de un *import map* (Chrome < 89 no los soporta). Al actualizar
-el motor hay que repetir ese cambio.
+del paquete, para no depender de un *import map* (Chrome < 89 no los soporta). Y en
+`src/public-api.js` la etiqueta del Sistema Solar usa `displayOptions.solarSystemNames` (nombre en
+inglés → nombre que se pinta) para que salgan Sol, Mercurio, Júpiter… Al actualizar el motor hay
+que repetir estos cambios (buscar «Cambio local de ScopePower»).
 
 - `assets/landscapes/guereins/`: el paisaje Guéreins de Stellarium (12 teselas HiPS, ~400 KB),
   GPL-2.0-or-later (licenses/Stellarium-GPL-2.0.txt). Se dibuja con `setLandscape()` y se quita

@@ -4853,7 +4853,7 @@ msgid "Jupiter"
 msgstr ""
 
 #. js
-#: esta_noche.py plan_sesion.py
+#: esta_noche.py plan_sesion.py templates/planetario.html
 msgid "Júpiter"
 msgstr ""
 
@@ -7010,6 +7010,11 @@ msgstr ""
 msgid "Planeta"
 msgstr ""
 
+#. js
+#: templates/planetario.html
+msgid "Planeta enano"
+msgstr ""
+
 #: templates/home.html templates/planetario.html
 msgid "Planetario"
 msgstr ""
@@ -7029,6 +7034,11 @@ msgstr ""
 #. js
 #: templates/planetario.html
 msgid "Pluton"
+msgstr ""
+
+#. js
+#: templates/planetario.html
+msgid "Plutón"
 msgstr ""
 
 #: templates/flats.html
@@ -7863,7 +7873,7 @@ msgid "Saturno"
 msgstr ""
 
 #. js
-#: rastros.py
+#: rastros.py templates/planetario.html
 msgid "Satélite"
 msgstr ""
 

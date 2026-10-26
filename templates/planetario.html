@@ -200,7 +200,7 @@
 
 <script type="module">
     import { createCelestiaAtlasViewer, equatorialToHorizontal, horizontalToEquatorial, calculateCameraFieldOfView,
-             alignViewToHorizon, projectEquatorial, unprojectEquatorial }
+             alignViewToHorizon, projectEquatorial, unprojectEquatorial, horizontalToHealpixPixel }
         from "{{ url_for('static', filename='atlas/src/index.js') }}";
 
     const $ = id => document.getElementById(id);
@@ -224,12 +224,18 @@
     // Los valores siguen en español (son los nombres que entiende /goto); se traducen al pintarlos
     const sistemaSolar = { sun: N_("Sol"), moon: N_("Luna"), mercury: N_("Mercurio"), venus: N_("Venus"), mars: N_("Marte"),
         jupiter: N_("Jupiter"), saturn: N_("Saturno"), uranus: N_("Urano"), neptune: N_("Neptuno"), pluto: N_("Pluton") };
+    // Los mismos con tilde, para enseñarlos: el motor los llama en inglés (Sun, Mercury…)
+    const nombresSistemaSolar = { Sun: _("Sol"), Moon: _("Luna"), Mercury: _("Mercurio"), Venus: _("Venus"), Mars: _("Marte"),
+        Jupiter: _("Júpiter"), Saturn: _("Saturno"), Uranus: _("Urano"), Neptune: _("Neptuno"), Pluto: _("Plutón") };
+    const nombreObjeto = t => nombresSistemaSolar[t.name] || t.displayName || t.name;
     // Tipos en español (se mandan así al PC, p. ej. al mosaico); _(tipos[c]) al pintarlos
     const tipos = { Star: N_("Estrella"), G: N_("Galaxia"), GPair: N_("Par de galaxias"), GTrpl: N_("Trío de galaxias"), GGroup: N_("Grupo de galaxias"),
         PN: N_("Nebulosa planetaria"), Neb: N_("Nebulosa"), HII: N_("Región HII"), EmN: N_("Nebulosa de emisión"), RfN: N_("Nebulosa de reflexión"),
         DrkN: N_("Nebulosa oscura"), SNR: N_("Resto de supernova"), OCl: N_("Cúmulo abierto"), GCl: N_("Cúmulo globular"), "Cl+N": N_("Cúmulo con nebulosa"),
         "*Ass": N_("Asociación estelar"), "**": N_("Estrella doble"), "*": N_("Estrella"), Planet: N_("Planeta"), Moon: N_("Luna"), Sun: N_("Sol"), Comet: N_("Cometa"),
-        Punto: N_("Punto del cielo elegido en el mapa (sin objeto)") };
+        Punto: N_("Punto del cielo elegido en el mapa (sin objeto)"),
+        // Tipos con que el motor marca el Sistema Solar
+        star: N_("Estrella"), planet: N_("Planeta"), "natural satellite": N_("Satélite"), "dwarf planet": N_("Planeta enano") };
     // Luna y planetas de "Esta noche" llegan con el nombre en español (clave del GoTo)
     const nombreVisible = o => (o.tipo === "Planeta" || o.tipo === "Luna") ? _(o.nombre) : o.nombre;
 
@@ -263,7 +269,7 @@
         window.viewer = viewer;
         viewer.setCoordinateMode(modo);
         viewer.setDisplayOptions({ cardinals: true, constellations: true, labels: true, horizon: true, hideBelowHorizon: true,
-            milkyWay: true, solarSystem: true, comets: true, atmosphere: false,
+            milkyWay: true, solarSystem: true, comets: true, atmosphere: false, solarSystemNames: nombresSistemaSolar,
             starMagnitudeLimit: 6.5, deepSkyMagnitudeLimit: 11.5, galaxyMagnitudeLimit: 11.5 });
         if (cfg.altura_minima > 0) {   // la altura mínima de config.ini, como horizonte del observatorio
             viewer.setHorizon([0, 90, 180, 270].map(az => ({ azimuthDeg: az, altitudeDeg: cfg.altura_minima })));
@@ -297,6 +303,34 @@
         const si = $("paisaje").checked;
         viewer.setLandscape(si ? { url: urlPaisaje, key: "guereins" } : null)
             .catch(e => console.warn("paisaje", e));
+        if (si && !mascaraPaisaje) cargarMascaraPaisaje();
+    }
+    // Las chinchetas van en una capa HTML encima del lienzo: el motor no las tapa con el paisaje.
+    // Se leen las mismas teselas (ya en la caché del navegador) y se esconde la chincheta cuando
+    // el píxel del paisaje en su acimut y altura es opaco (árboles, casas, colinas).
+    let mascaraPaisaje = null;    // { ancho, alfas: [12 × Uint8ClampedArray RGBA] }
+    async function cargarMascaraPaisaje() {
+        mascaraPaisaje = { ancho: 0, alfas: [] };   // evita cargarla dos veces
+        try {
+            const imgs = await Promise.all(Array.from({ length: 12 }, (_x, i) =>
+                fetch(`${urlPaisaje}/Norder0/Dir0/Npix${i}.webp`).then(r => r.blob()).then(b => createImageBitmap(b))));
+            const ancho = imgs[0].width, lienzoM = document.createElement("canvas");
+            lienzoM.width = lienzoM.height = ancho;
+            const ctx = lienzoM.getContext("2d", { willReadFrequently: true });
+            const alfas = imgs.map(img => {
+                ctx.clearRect(0, 0, ancho, ancho);
+                ctx.drawImage(img, 0, 0);
+                return ctx.getImageData(0, 0, ancho, ancho).data;
+            });
+            mascaraPaisaje = { ancho, alfas };
+        } catch (e) { console.warn("máscara del paisaje", e); }
+    }
+    function tapadoPorPaisaje(hz) {
+        if (!mascaraPaisaje?.ancho || !$("paisaje").checked) return false;
+        const { ancho, alfas } = mascaraPaisaje;
+        const p = horizontalToHealpixPixel(hz.azimuthDeg, hz.altitudeDeg, ancho);
+        const x = Math.min(ancho - 1, Math.round(p.x)), y = Math.min(ancho - 1, Math.round(p.y));
+        return alfas[p.face][(y * ancho + x) * 4 + 3] > 128;
     }
     $("paisaje").onchange = e => {
         try { localStorage.setItem("planetario.paisaje", e.target.checked ? "si" : "no"); } catch (err) {}
@@ -400,7 +434,7 @@
         puntoLibre = t?.libre && c ? c : null;
         if (!puntoLibre) $("marca-punto").hidden = true;
         if (!t) { p.hidden = true; return; }
-        const nombre = t.displayName || t.name;
+        const nombre = nombreObjeto(t);
         $("p-nombre").textContent = nombre;
         const tipoT = tipos[t.typeCode] || tipos[t.type];
         const partes = [tipoT ? _(tipoT) : (t.type || t.typeCode || "")];
@@ -588,7 +622,8 @@
             let p = null;
             try {
                 const hz = equatorialToHorizontal(coords, observador, ahora);
-                if (hz.altitudeDeg >= 0) p = projectEquatorial(coords, vista, w, h);   // bajo el horizonte no se pinta, como el motor
+                // bajo el horizonte o detrás del paisaje no se pinta, como el motor
+                if (hz.altitudeDeg >= 0 && !tapadoPorPaisaje(hz)) p = projectEquatorial(coords, vista, w, h);
             } catch (e) {}
             const visible = p && p.x >= -20 && p.x <= w + 20 && p.y >= -20 && p.y <= h + 20;
             if (!visible) { if (!el.hidden) el.hidden = true; continue; }
@@ -656,7 +691,7 @@
             const d = document.createElement("div");
             const tipoR = tipos[r.typeCode] || tipos[r.type];
             const tipo = tipoR ? _(tipoR) : "";
-            d.innerHTML = `${r.displayName || r.name}${tipo ? `<small>${tipo}</small>` : ""}`;
+            d.innerHTML = `${nombreObjeto(r)}${tipo ? `<small>${tipo}</small>` : ""}`;
             d.onclick = () => elegir(r);
             sug.appendChild(d);
         }
