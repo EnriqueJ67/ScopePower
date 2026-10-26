@@ -5,6 +5,10 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Planetario: las chinchetas de «Esta noche» ya no se pintan encima del paisaje; se esconden
+  cuando el objeto queda detrás de los árboles o las colinas, como hace el motor con lo suyo. Y
+  el Sol, la Luna y los planetas salen con su nombre en español (antes Sun, Mercury, Venus…),
+  también en el panel y en el buscador, con su tipo (Planeta, Satélite, Planeta enano).
 - Planetario con paisaje y brújula. El horizonte se dibuja con el paisaje Guéreins de Stellarium
   (el mismo que trae Touch-N-Stars), que tapa lo que queda por debajo y se tiñe de rojo en el modo
   noche; el interruptor «Paisaje» lo quita y el navegador lo recuerda. Abajo a la izquierda, una
