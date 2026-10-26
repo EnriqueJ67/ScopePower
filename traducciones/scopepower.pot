@@ -622,6 +622,11 @@ msgstr ""
 
 #. js
 #: templates/planetario.html
+msgid "Alt {alt}°"
+msgstr ""
+
+#. js
+#: templates/planetario.html
 msgid "Alt {alt}° · Az {az}°"
 msgstr ""
 
@@ -2407,6 +2412,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Durará unos {dur}; a 25 fotos por segundo, el vídeo tendrá {s} s."
+msgstr ""
+
+#. js
+#: templates/planetario.html
+msgid "E"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -5742,7 +5752,7 @@ msgid "Mosaico: rejilla de teselas sobre el cielo (se apilan una a una y se fund
 msgstr ""
 
 #: templates/planetario.html
-msgid "Motor <a href=\"https://github.com/acocalypso/celestia_atlas\" target=\"_blank\" rel=\"noopener\">Celestia Atlas</a> (MIT) · estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · <a href=\"/static/atlas/THIRD_PARTY_NOTICES.md\" target=\"_blank\">créditos</a>"
+msgid "Motor <a href=\"https://github.com/acocalypso/celestia_atlas\" target=\"_blank\" rel=\"noopener\">Celestia Atlas</a> (MIT) · estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · paisaje Guéreins de Stellarium (GPL) · <a href=\"/static/atlas/THIRD_PARTY_NOTICES.md\" target=\"_blank\">créditos</a>"
 msgstr ""
 
 #: templates/imagen.html
@@ -5820,12 +5830,18 @@ msgstr ""
 msgid "Máximo de fotos a apilar"
 msgstr ""
 
-#: static/js/puesta_estacion.js
+#. js
+#: static/js/puesta_estacion.js templates/planetario.html
 msgid "N"
 msgstr ""
 
 #. js
-#: ScopePower.py
+#: templates/planetario.html
+msgid "NE"
+msgstr ""
+
+#. js
+#: ScopePower.py templates/planetario.html
 msgid "NO"
 msgstr ""
 
@@ -6669,7 +6685,7 @@ msgid "Número de fotos"
 msgstr ""
 
 #. js
-#: ScopePower.py
+#: ScopePower.py templates/planetario.html
 msgid "O"
 msgstr ""
 
@@ -6814,8 +6830,12 @@ msgid "Pad táctil y flechas"
 msgstr ""
 
 #. js
-#: catalogo_offline.py
+#: catalogo_offline.py templates/planetario.html
 msgid "Paisaje"
+msgstr ""
+
+#: templates/planetario.html
+msgid "Paisaje dibujado en el horizonte (Guéreins, de Stellarium)"
 msgstr ""
 
 #. js
@@ -7768,12 +7788,18 @@ msgstr ""
 msgid "Rápida (1°/s)"
 msgstr ""
 
-#: static/js/puesta_estacion.js
+#. js
+#: static/js/puesta_estacion.js templates/planetario.html
 msgid "S"
 msgstr ""
 
 #: enfoque.py
 msgid "SATURADA"
+msgstr ""
+
+#. js
+#: templates/planetario.html
+msgid "SE"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -7789,7 +7815,7 @@ msgid "SIMBAD no devolvió estrellas brillantes"
 msgstr ""
 
 #. js
-#: ScopePower.py
+#: ScopePower.py templates/planetario.html
 msgid "SO"
 msgstr ""
 
