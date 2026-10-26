@@ -5,6 +5,11 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Planetario con paisaje y brújula. El horizonte se dibuja con el paisaje Guéreins de Stellarium
+  (el mismo que trae Touch-N-Stars), que tapa lo que queda por debajo y se tiñe de rojo en el modo
+  noche; el interruptor «Paisaje» lo quita y el navegador lo recuerda. Abajo a la izquierda, una
+  brújula con la aguja hacia donde mira el centro del mapa, su rumbo («NE 38,1°») y su altura.
+  Todo va con la página, sin Internet.
 - Vídeos en la galería con un visor fotograma a fotograma. Cada vídeo del Sol o de la Luna sale
   como una tarjeta más (miniatura, duración, tamaño y filtro «Vídeos») y abre un visor con barra,
   ±1/±10 fotogramas, teclado y reproducción a tiempo real, a cámara lenta o de uno en uno. Los

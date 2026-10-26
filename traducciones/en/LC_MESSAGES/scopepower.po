@@ -624,6 +624,11 @@ msgstr "Aligning"
 
 #. js
 #: templates/planetario.html
+msgid "Alt {alt}°"
+msgstr "Alt {alt}°"
+
+#. js
+#: templates/planetario.html
 msgid "Alt {alt}° · Az {az}°"
 msgstr "Alt {alt}° · Az {az}°"
 
@@ -2410,6 +2415,11 @@ msgstr "Recording length"
 #: templates/imagen.html
 msgid "Durará unos {dur}; a 25 fotos por segundo, el vídeo tendrá {s} s."
 msgstr "It will take about {dur}; at 25 frames per second, the video will be {s} s long."
+
+#. js
+#: templates/planetario.html
+msgid "E"
+msgstr "E"
 
 #: templates/seguimiento.html
 msgid "EXPERIMENTAL"
@@ -5744,8 +5754,8 @@ msgid "Mosaico: rejilla de teselas sobre el cielo (se apilan una a una y se fund
 msgstr "Mosaic: grid of tiles on the sky (stacked one by one and blended into a single image)"
 
 #: templates/planetario.html
-msgid "Motor <a href=\"https://github.com/acocalypso/celestia_atlas\" target=\"_blank\" rel=\"noopener\">Celestia Atlas</a> (MIT) · estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · <a href=\"/static/atlas/THIRD_PARTY_NOTICES.md\" target=\"_blank\">créditos</a>"
-msgstr "<a href=\"https://github.com/acocalypso/celestia_atlas\" target=\"_blank\" rel=\"noopener\">Celestia Atlas</a> engine (MIT) · HYG v4.1 stars and OpenNGC objects (CC-BY-SA 4.0) · <a href=\"/static/atlas/THIRD_PARTY_NOTICES.md\" target=\"_blank\">credits</a>"
+msgid "Motor <a href=\"https://github.com/acocalypso/celestia_atlas\" target=\"_blank\" rel=\"noopener\">Celestia Atlas</a> (MIT) · estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · paisaje Guéreins de Stellarium (GPL) · <a href=\"/static/atlas/THIRD_PARTY_NOTICES.md\" target=\"_blank\">créditos</a>"
+msgstr "<a href=\"https://github.com/acocalypso/celestia_atlas\" target=\"_blank\" rel=\"noopener\">Celestia Atlas</a> engine (MIT) · HYG v4.1 stars and OpenNGC objects (CC-BY-SA 4.0) · Guéreins landscape from Stellarium (GPL) · <a href=\"/static/atlas/THIRD_PARTY_NOTICES.md\" target=\"_blank\">credits</a>"
 
 #: templates/imagen.html
 msgid "Mover el telescopio"
@@ -5822,12 +5832,18 @@ msgstr "More… (brightness, color temperature, green)"
 msgid "Máximo de fotos a apilar"
 msgstr "Maximum frames to stack"
 
-#: static/js/puesta_estacion.js
+#. js
+#: static/js/puesta_estacion.js templates/planetario.html
 msgid "N"
 msgstr "N"
 
 #. js
-#: ScopePower.py
+#: templates/planetario.html
+msgid "NE"
+msgstr "NE"
+
+#. js
+#: ScopePower.py templates/planetario.html
 msgid "NO"
 msgstr "NW"
 
@@ -6671,7 +6687,7 @@ msgid "Número de fotos"
 msgstr "Number of shots"
 
 #. js
-#: ScopePower.py
+#: ScopePower.py templates/planetario.html
 msgid "O"
 msgstr "W"
 
@@ -6816,9 +6832,13 @@ msgid "Pad táctil y flechas"
 msgstr "Touch pad and arrows"
 
 #. js
-#: catalogo_offline.py
+#: catalogo_offline.py templates/planetario.html
 msgid "Paisaje"
 msgstr "Landscape"
+
+#: templates/planetario.html
+msgid "Paisaje dibujado en el horizonte (Guéreins, de Stellarium)"
+msgstr "Landscape drawn on the horizon (Guéreins, from Stellarium)"
 
 #. js
 #: templates/base.html
@@ -7770,13 +7790,19 @@ msgstr "Field rotation"
 msgid "Rápida (1°/s)"
 msgstr "Fast (1°/s)"
 
-#: static/js/puesta_estacion.js
+#. js
+#: static/js/puesta_estacion.js templates/planetario.html
 msgid "S"
 msgstr "S"
 
 #: enfoque.py
 msgid "SATURADA"
 msgstr "SATURATED"
+
+#. js
+#: templates/planetario.html
+msgid "SE"
+msgstr "SE"
 
 #: templates/seguimiento.html
 msgid "SER (crudo, para apilar)"
@@ -7791,7 +7817,7 @@ msgid "SIMBAD no devolvió estrellas brillantes"
 msgstr "SIMBAD returned no bright stars"
 
 #. js
-#: ScopePower.py
+#: ScopePower.py templates/planetario.html
 msgid "SO"
 msgstr "SW"
 

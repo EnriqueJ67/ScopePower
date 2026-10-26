@@ -18,7 +18,11 @@ Cambio local: en `src/core/coordinates.js`, `comets.js` y `solar-system.js` el i
 del paquete, para no depender de un *import map* (Chrome < 89 no los soporta). Al actualizar
 el motor hay que repetir ese cambio.
 
-No se incluye el suplemento de Stellarium (GPL) ni las teselas DSS: el planetario
+- `assets/landscapes/guereins/`: el paisaje Guéreins de Stellarium (12 teselas HiPS, ~400 KB),
+  GPL-2.0-or-later (licenses/Stellarium-GPL-2.0.txt). Se dibuja con `setLandscape()` y se quita
+  con el interruptor «Paisaje» del planetario.
+
+No se incluye el suplemento de catálogos de Stellarium ni las teselas DSS: el planetario
 funciona 100 % sin Internet con lo que hay aquí. Para actualizar, copiar de nuevo
-`src/`, `vendor/`, `data/comets.js`, `assets/milky-way.webp`, los tres catálogos y regenerar
-`estrellas-brillantes.js` a partir de `data/bright-sky.json`.
+`src/`, `vendor/`, `data/comets.js`, `assets/milky-way.webp`, `assets/landscapes/guereins/`, los
+tres catálogos y regenerar `estrellas-brillantes.js` a partir de `data/bright-sky.json`.

@@ -327,3 +327,12 @@ grant NAG W-2166 and the original photographic observations from the Oschin
 Schmidt Telescope at Palomar and the UK Schmidt Telescope. Recheck the current
 terms for the intended deployment; the MIT licence for Celestia Atlas code
 grants no rights to remote survey imagery.
+
+## Guéreins landscape (added by ScopePower)
+
+`assets/landscapes/guereins/` is the default Stellarium landscape "Guéreins"
+(author Fabien Chéreau), as HiPS order-0 tiles copied unchanged from
+Celestia Atlas `assets/landscapes/guereins` (commit 573330b), which takes them
+from https://data.stellarium.org/landscapes/guereins. It is distributed with
+Stellarium under GPL-2.0-or-later; full licence copy:
+`licenses/Stellarium-GPL-2.0.txt`.

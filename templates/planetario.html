@@ -41,6 +41,7 @@
     <button type="button" class="btn" id="btn-centro" title="{{ _('Elegir el centro del mapa (donde está el rectángulo de la cámara) para ir a ese punto aunque no haya ningún objeto') }}"><svg><use href="#i-goto"/></svg><span class="oculto-movil">{{ _("Centro") }}</span></button>
     <label class="switch" title="{{ _('El mapa sigue a la montura') }}"><input type="checkbox" id="seguir"> {{ _("Seguir") }}</label>
     <label class="switch" title="{{ _('Chinchetas con los objetos recomendados de Esta noche') }}"><input type="checkbox" id="chinchetas" checked> {{ _("Esta noche") }}</label>
+    <label class="switch" title="{{ _('Paisaje dibujado en el horizonte (Guéreins, de Stellarium)') }}"><input type="checkbox" id="paisaje" checked> {{ _("Paisaje") }}</label>
     <button type="button" class="btn" id="btn-mosaico" title="{{ _('Mosaico: rejilla de teselas sobre el cielo (se apilan una a una y se funden en una imagen)') }}">🧩<span class="oculto-movil"> {{ _("Mosaico") }}</span></button>
 </div>
 
@@ -75,6 +76,16 @@
     </div>
     <div id="marca-punto" class="marca-punto" hidden aria-hidden="true"></div>
     <div id="estado" class="estado-atlas"><span class="spinner"></span> {{ _("Cargando el cielo…") }}</div>
+    <!-- Brújula: la aguja marca el acimut del centro del mapa (hacia dónde se mira) -->
+    <div id="brujula" class="brujula" hidden aria-live="off">
+        <svg viewBox="-50 -50 100 100" aria-hidden="true">
+            <circle r="46" class="b-aro"/>
+            <text y="-30" class="b-norte">{{ _("N") }}</text><text x="31">{{ _("E") }}</text>
+            <text y="31">{{ _("S") }}</text><text x="-31">{{ _("O") }}</text>
+            <g id="brujula-aguja"><path d="M0 -24 L7 6 L0 1 L-7 6 Z" class="b-aguja"/></g>
+        </svg>
+        <div><div id="brujula-rumbo" class="b-rumbo"></div><div id="brujula-altura" class="b-altura texto-2"></div></div>
+    </div>
     <div id="panel" class="panel" hidden>
         <div class="panel-cab">
             <div>
@@ -108,7 +119,7 @@
     </div>
 </div>
 
-<p class="credito texto-3">{{ _('Motor <a href="https://github.com/acocalypso/celestia_atlas" target="_blank" rel="noopener">Celestia Atlas</a> (MIT) · estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · <a href="/static/atlas/THIRD_PARTY_NOTICES.md" target="_blank">créditos</a>')|safe }}</p>
+<p class="credito texto-3">{{ _('Motor <a href="https://github.com/acocalypso/celestia_atlas" target="_blank" rel="noopener">Celestia Atlas</a> (MIT) · estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · paisaje Guéreins de Stellarium (GPL) · <a href="/static/atlas/THIRD_PARTY_NOTICES.md" target="_blank">créditos</a>')|safe }}</p>
 
 <style>
     .barra-atlas { display: flex; gap: 8px; align-items: center; padding: 10px; flex-wrap: wrap; }
@@ -152,6 +163,24 @@
     .marca-punto::after { top: 50%; left: -9px; right: -9px; height: 2px; margin-top: -1px; }
     .marca-punto[hidden] { display: none; }
     .ficha-icono { font-size: 22px; line-height: 1; }
+    /* Brújula abajo a la izquierda. En el móvil el final del mapa queda bajo la barra de navegación,
+       así que va arriba a la derecha, debajo del estado (--brujula-top lo pone el JS) */
+    .brujula { position: absolute; left: 8px; bottom: 8px; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px;
+               border-radius: var(--radius); border: 1px solid var(--border-2); pointer-events: none;
+               background: color-mix(in srgb, var(--surface) 85%, transparent); backdrop-filter: blur(6px); }
+    .brujula[hidden] { display: none; }
+    .brujula svg { width: 58px; height: 58px; }
+    @media (max-width: 699px) {
+        .brujula { left: auto; right: 8px; bottom: auto; top: var(--brujula-top, 64px); gap: 6px; padding: 4px 10px 4px 4px; }
+        .brujula svg { width: 42px; height: 42px; }
+        .atlas-marco .brujula .b-rumbo { font-size: 15px; }
+    }
+    .brujula text { fill: var(--text-2); font-size: 15px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+    .brujula .b-norte { fill: var(--text); }
+    .brujula .b-aro { fill: none; stroke: var(--border-2); stroke-width: 2; }
+    .brujula .b-aguja { fill: var(--accent); }
+    .brujula .b-rumbo { font-size: 18px; font-weight: 700; white-space: nowrap; }
+    .brujula .b-altura { font-size: 12.5px; white-space: nowrap; }
     /* Mosaico: capa SVG con las huellas de las teselas y su panel */
     .capa-mosaico { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
     .capa-mosaico[hidden] { display: none; }
@@ -240,6 +269,7 @@
             viewer.setHorizon([0, 90, 180, 270].map(az => ({ azimuthDeg: az, altitudeDeg: cfg.altura_minima })));
         }
         aplicarTema();
+        ponerPaisaje();
         // Vista inicial: mirando al sur, a 45° de altura, campo ancho
         try {
             const centro = horizontalToEquatorial({ azimuthDeg: 180, altitudeDeg: 45 }, observador, cfg.hora_utc_ms, "ICRS");
@@ -255,6 +285,43 @@
         cargarEstaNoche();
         setInterval(cargarEstaNoche, 5 * 60 * 1000);   // la visibilidad "ahora" cambia
         requestAnimationFrame(recolocarChinchetas);
+        requestAnimationFrame(moverBrujula);
+    }
+
+    // ——— Paisaje del horizonte (teselas HiPS de Stellarium en static/atlas/assets/landscapes) ———
+    // Se recuerda en el navegador si se quiere ver; las teselas son unos 400 KB y van con la página.
+    const urlPaisaje = "{{ url_for('static', filename='atlas/assets/landscapes/guereins') }}";
+    try { if (localStorage.getItem("planetario.paisaje") === "no") $("paisaje").checked = false; } catch (e) {}
+    function ponerPaisaje() {
+        if (!viewer) return;
+        const si = $("paisaje").checked;
+        viewer.setLandscape(si ? { url: urlPaisaje, key: "guereins" } : null)
+            .catch(e => console.warn("paisaje", e));
+    }
+    $("paisaje").onchange = e => {
+        try { localStorage.setItem("planetario.paisaje", e.target.checked ? "si" : "no"); } catch (err) {}
+        ponerPaisaje();
+    };
+
+    // ——— Brújula: acimut y altura del centro del mapa ———
+    const rumbos = [N_("N"), N_("NE"), N_("E"), N_("SE"), N_("S"), N_("SO"), N_("O"), N_("NO")];
+    let ultimaBrujula = 0, rumboPintado = "";
+    function moverBrujula(t) {
+        requestAnimationFrame(moverBrujula);
+        if (!viewer || t - ultimaBrujula < 100) return;
+        ultimaBrujula = t;
+        let hz;
+        try { hz = equatorialToHorizontal({ ...viewer.getView().center, frame: "ICRS" }, observador, viewer.getTime()); } catch (e) { return; }
+        const az = ((hz.azimuthDeg % 360) + 360) % 360;
+        const rumbo = _(rumbos[Math.round(az / 45) % 8]) + " " + fmtNum(az, 1) + "°";
+        const altura = _("Alt {alt}°", { alt: fmtNum(hz.altitudeDeg, 1) });
+        $("brujula").style.setProperty("--brujula-top", (estadoEl.offsetTop + estadoEl.offsetHeight + 6) + "px");
+        if (rumbo + altura === rumboPintado) return;
+        rumboPintado = rumbo + altura;
+        $("brujula-aguja").setAttribute("transform", `rotate(${az.toFixed(1)})`);
+        $("brujula-rumbo").textContent = rumbo;
+        $("brujula-altura").textContent = altura;
+        $("brujula").hidden = false;
     }
 
     function sincronizarVisibilidad() {
