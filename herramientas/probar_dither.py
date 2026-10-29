@@ -25,7 +25,8 @@ import random
 import argparse
 import logging
 
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, AltAz
+from astropy.time import Time
 import astropy.units as u
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -50,6 +51,51 @@ class MonturaConGoTo(MonturaAltAzFalsa):
         self._avanzar()
         self._ra_h, self._dec = float(ra_h), float(dec)
         self.gotos.append((ra_h, dec))
+
+
+class MonturaSinSeguirAlMover(MonturaConGoTo):
+    """
+    Como la AZ GoTo con SynScan: mientras MoveAxis mueve los ejes el seguimiento se para (el
+    apuntado se queda fijo en acimut y altura y el cielo se va, unos 8″/s hacia arriba con el
+    Doble Cúmulo subiendo por el NE), y el primer paso tras un rato siguiendo el cielo apenas
+    arranca (holgura o latencia: no se mueve). Es el modelo que reproduce el log
+    del 29-oct-2026 (signos que se invierten y vuelven, 4 pasos, residuos de 0,5–0,9′), no una medida.
+    """
+
+    def __init__(self, **kw):
+        self._seguimiento, self._siguiendo_desde = True, time.time() - 10.0
+        super().__init__(**kw)
+        self._factor = 1.0
+
+    @property
+    def Tracking(self):
+        return self._seguimiento
+
+    @Tracking.setter
+    def Tracking(self, valor):
+        if valor and not self._seguimiento:
+            self._siguiendo_desde = time.time()
+        self._seguimiento = bool(valor)
+
+    def _avanzar(self):
+        with self._lock:
+            ahora = time.time()
+            dt, t0, self._t = ahora - self._t, self._t, ahora
+            if self._seguimiento:
+                return                      # sigue el cielo: AR/Dec fijos
+            # Sin seguimiento: acimut y altura fijos salvo lo que giren los ejes
+            h = SkyCoord(ra=self._ra_h * u.hourangle, dec=self._dec * u.deg).transform_to(
+                AltAz(obstime=Time(t0, format="unix"), location=LUGAR))
+            az = (float(h.az.deg) + self.signo_az * self._factor * self._v[0] * dt) % 360.0
+            alt = float(h.alt.deg) + self.signo_alt * self._factor * self._v[1] * dt
+            c = SkyCoord(az=az * u.deg, alt=alt * u.deg, frame=AltAz(obstime=Time(ahora, format="unix"), location=LUGAR)).icrs
+            self._ra_h, self._dec = float(c.ra.hour), float(c.dec.deg)
+
+    def MoveAxis(self, eje, v):
+        arranca = v != 0 and not any(self._v)
+        super().MoveAxis(eje, v)
+        if arranca:
+            self._factor = 0.0 if time.time() - self._siguiendo_desde > 2.0 else 1.0
 
 
 def apunta(m):
@@ -130,12 +176,51 @@ def caso_goto():
     comprobar(r["metodo"] == "goto" and len(m.gotos) == 1 and not m.movimientos, "un GoTo y ningún MoveAxis")
 
 
+class Avisos(logging.Handler):
+    """Cuenta los avisos de «signo invertido» de correccion_ejes."""
+
+    def __init__(self):
+        super().__init__(logging.WARNING)
+        self.invertidos = 0
+
+    def emit(self, registro):
+        if "signo invertido" in registro.getMessage():
+            self.invertidos += 1
+
+
+def caso_deriva():
+    print("Dithers de 25–70″ con el seguimiento parado al mover y un primer paso que no arranca (29-oct-2026)")
+    avisos = Avisos()
+    logging.getLogger("scopepower.correccion_ejes").addHandler(avisos)
+    rng = random.Random(4)
+    gotos, pasos, residuos, aprendidos = 0, [], [], []
+    try:
+        for i in range(10):
+            m = MonturaSinSeguirAlMover(alt0=38.0, az0=42.0)     # el Doble Cúmulo subiendo por el NE
+            r_arcsec, ang = rng.uniform(25, 70), (i * 36 + rng.uniform(-10, 10))
+            du, dv = r_arcsec * math.cos(math.radians(ang)) / 3600, r_arcsec * math.sin(math.radians(ang)) / 3600
+            try:
+                r = ce.corregir(m, du, dv, LUGAR, signos=(1, 1), tolerancia_arcmin=0.25,
+                                guardar=lambda a, h, modo: aprendidos.append((a, h)))
+                pasos.append(r["pasos"])
+                residuos.append(r["residuo_arcmin"])
+            except ce.ErrorCorreccion:
+                gotos += 1
+    finally:
+        logging.getLogger("scopepower.correccion_ejes").removeHandler(avisos)
+    print(f"  pasos {pasos}, residuos {residuos}′, {gotos} vuelta(s) al GoTo, {avisos.invertidos} signo(s) invertido(s)")
+    comprobar(avisos.invertidos == 0, "ningún signo invertido: un paso malo no basta")
+    comprobar(not aprendidos, "no se guarda ningún signo (los de verdad no han cambiado)")
+    comprobar(gotos == 0, "ninguna vuelta al GoTo")
+    comprobar(residuos and max(residuos) <= 0.3, f"todos llegan cerca del punto (el peor a {max(residuos or [99]):.2f}′)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verboso", action="store_true")
     args = ap.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verboso else logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
-    for caso in (caso_puntos, caso_moveaxis, caso_goto):
+    for caso in (caso_puntos, caso_moveaxis, caso_goto, caso_deriva):
         t0 = time.time()
         caso()
         print(f"  ({time.time() - t0:.1f} s)")

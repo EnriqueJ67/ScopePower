@@ -18,10 +18,16 @@
 # pesa poco), se paran, se vuelve a leer dónde apunta y se repite hasta quedar a
 # menos de TOLERANCIA_ARCMIN o agotar los pasos. El error se mide en los ejes de la
 # montura: acimut y altura en una altacimutal, AR y Dec en una ecuatorial
-# (AlignmentMode de ASCOM). El sentido de cada eje se aprende solo: si tras un paso
-# el error ha crecido, ese eje va al revés y se invierte su signo (y se guarda en
-# datos/ para la próxima vez). Si la montura no se mueve nada, se lanza
+# (AlignmentMode de ASCOM). El sentido de cada eje se aprende solo: si en dos pasos
+# seguidos el error ha crecido, ese eje va al revés y se invierte su signo (y se guarda
+# en datos/ para la próxima vez). Si la montura no se mueve en dos pasos, se lanza
 # ErrorCorreccion y quien llama puede volver al GoTo.
+#
+# Lo que hace cada eje se mide descontando el cielo: SynScan apaga el seguimiento
+# mientras MoveAxis mueve, y en un dither de medio minuto de arco el cielo se va casi
+# tanto como lo que se pide (unos 8″/s con el Doble Cúmulo subiendo, el 29-oct-2026).
+# Sin descontarlo, y con un primer paso que no arranca, cada dither invertía un signo
+# y lo volvía a invertir, o acababa en un GoTo.
 #
 # La parada es sagrada: un MoveAxis sin su parada deja la montura girando (una
 # parada perdida en sept 2026 giró la montura 39°). Se envía siempre, también
@@ -134,6 +140,22 @@ def _error(tel, destino, lugar, modo):
     return daz * cosa, float(d.alt.deg) - alt, 1.0 / cosa
 
 
+def _deriva(destino, lugar, modo, t_inicio, t_fin):
+    """
+    (d0, d1) en grados, como _error: cuánto ha cambiado el error hacia `destino` entre t_inicio y
+    t_fin solo porque el cielo se ha movido con la montura sin seguimiento (apuntado fijo en acimut
+    y altura, o en ángulo horario en una ecuatorial). Restándolo queda lo que han hecho los ejes.
+    """
+    dt = max(0.0, t_fin - t_inicio)
+    if modo == "eq":
+        # Sin seguimiento la AR del apuntado crece al ritmo sidéreo: el error en AR baja
+        return -dt * 15.041 / 3600.0 * max(math.cos(math.radians(float(destino.dec.deg))), 0.2), 0.0
+    a = destino.transform_to(AltAz(obstime=Time(t_inicio, format="unix"), location=lugar))
+    b = destino.transform_to(AltAz(obstime=Time(t_fin, format="unix"), location=lugar))
+    daz = ((float(b.az.deg) - float(a.az.deg) + 180.0) % 360.0) - 180.0
+    return daz * max(math.cos(math.radians(float(a.alt.deg))), 0.2), float(b.alt.deg) - float(a.alt.deg)
+
+
 def _parar(tel, seguia, velocidad_seguimiento=None):
     """Para los ejes con reintentos y deja el seguimiento como estaba. Lanza ErrorCorreccion si no lo consigue."""
     ultimo = None
@@ -209,6 +231,8 @@ def ir_a(tel, destino, lugar, velocidad_max=VELOCIDAD_DEFECTO, signos=None, dorm
     tol = tolerancia_arcmin / 60.0
 
     pasos = []
+    al_reves = [0, 0]          # pasos seguidos en que cada eje ha ido al revés
+    quietos_seguidos, se_ha_movido = 0, False
     e0, e1, factor0 = _error(tel, destino, lugar, modo)
     pedido0, pedido1 = e0, e1
     try:
@@ -222,24 +246,45 @@ def ir_a(tel, destino, lugar, velocidad_max=VELOCIDAD_DEFECTO, signos=None, dorm
             t = min(DURACION_MAXIMA_S, max(DURACION_MINIMA_S, mayor / velocidad_max))
             v0, v1 = signo0 * mov0 / t, signo1 * mov1 / t
             montura_ejes.mover_ejes_ascom(tel, v0, v1)
+            t_inicio = time.time()
+            try:
+                # SynScan apaga el seguimiento mientras MoveAxis mueve los ejes: el cielo se va
+                sin_seguimiento = not bool(tel.Tracking)
+            except Exception:
+                sin_seguimiento = False
             try:
                 dormir(t)
             finally:
                 _parar(tel, seguia, velocidad_seguimiento)
+            t_fin = time.time()
             _esperar_quieta(tel, dormir)
             n0, n1, factor0 = _error(tel, destino, lugar, modo)
+            d0, d1 = _deriva(destino, lugar, modo, t_inicio, t_fin) if sin_seguimiento else (0.0, 0.0)
             pasos.append({"t": round(t, 2), "v0": round(v0, 4), "v1": round(v1, 4),
-                          "antes": (round(e0 * 60, 2), round(e1 * 60, 2)), "despues": (round(n0 * 60, 2), round(n1 * 60, 2))})
+                          "antes": (round(e0 * 60, 2), round(e1 * 60, 2)), "despues": (round(n0 * 60, 2), round(n1 * 60, 2)),
+                          "deriva": (round(d0 * 60, 2), round(d1 * 60, 2))})
+            log.info("Corrección por ejes, paso %d: error (%+.2f′, %+.2f′) → (%+.2f′, %+.2f′); deriva del cielo sin "
+                     "seguimiento (%+.2f′, %+.2f′) en %.1f s", n + 1, e0 * 60, e1 * 60, n0 * 60, n1 * 60,
+                     d0 * 60, d1 * 60, t_fin - t_inicio if sin_seguimiento else 0.0)
 
-            # Qué fracción del movimiento pedido se ha conseguido en cada eje: ≈1 bien, ≈0 no se
-            # movió, ≈−1 al revés (el error se dobló)
-            quietos, evaluados = 0, 0
-            for eje, pedido, antes, despues in ((0, mov0, e0, n0), (1, mov1, e1, n1)):
+            # Qué fracción del movimiento pedido ha hecho cada eje, descontando lo que se ha ido el
+            # cielo mientras no seguía: ≈1 bien, ≈0 no se movió, ≈−1 al revés (el error se dobló)
+            quietos, evaluados, bien = 0, 0, 0
+            for eje, pedido, antes, despues in ((0, mov0, e0, n0 - d0), (1, mov1, e1, n1 - d1)):
                 if pedido == 0.0:
                     continue
                 evaluados += 1
                 fraccion = (antes - despues) / antes
                 if fraccion < -0.3:
+                    # Un paso al revés no basta: el primer paso tras un rato siguiendo el cielo
+                    # puede no arrancar (29-oct-2026: signos que se invertían y volvían en cada
+                    # dither). Se invierte si el siguiente también va al revés.
+                    al_reves[eje] += 1
+                    if al_reves[eje] < 2:
+                        log.info("Corrección por ejes: el eje de %s ha ido al revés en este paso; se espera a otro "
+                                 "antes de invertir su signo", nombre0 if eje == 0 else nombre1)
+                        continue
+                    al_reves[eje] = 0
                     if eje == 0:
                         signo0 = -signo0
                     else:
@@ -247,18 +292,30 @@ def ir_a(tel, destino, lugar, velocidad_max=VELOCIDAD_DEFECTO, signos=None, dorm
                     aprendidos = True
                     log.warning("Corrección por ejes: el eje de %s va al revés de lo esperado; signo invertido (%+d)",
                                 nombre0 if eje == 0 else nombre1, signo0 if eje == 0 else signo1)
-                elif abs(fraccion) < 0.25:
-                    quietos += 1
+                else:
+                    al_reves[eje] = 0
+                    if abs(fraccion) < 0.25:
+                        quietos += 1
+                    elif fraccion > 0:
+                        bien += 1
+            if bien:
+                se_ha_movido = True
             if evaluados and quietos == evaluados:
-                if n == 0:
-                    raise ErrorCorreccion(_("La montura no se ha movido con MoveAxis (error {antes}′ → {despues}′)",
-                                            antes=f"{math.hypot(e0, e1) * 60:.1f}", despues=f"{math.hypot(n0, n1) * 60:.1f}"))
-                # Tras un primer paso bueno, un paso que no gana nada no es una montura que no
-                # responde: es el límite de precisión (el cielo corre unos 15″/s mientras el eje
-                # se mueve sin seguimiento, visto con el simulador ASCOM). Se para aquí; volver
-                # al GoTo daría el bandazo que se quería evitar.
+                quietos_seguidos += 1
+                if not se_ha_movido:
+                    # El primer paso puede no arrancar; dos seguidos sin moverse ya es una
+                    # montura que no responde a MoveAxis: quien llama vuelve al GoTo
+                    if quietos_seguidos >= 2:
+                        raise ErrorCorreccion(_("La montura no se ha movido con MoveAxis (error {antes}′ → {despues}′)",
+                                                antes=f"{math.hypot(e0, e1) * 60:.1f}", despues=f"{math.hypot(n0, n1) * 60:.1f}"))
+                    e0, e1 = n0, n1
+                    continue
+                # Tras un paso bueno, un paso que no gana nada no es una montura que no responde:
+                # es el límite de precisión. Se para aquí; volver al GoTo daría el bandazo que se
+                # quería evitar.
                 e0, e1 = n0, n1
                 break
+            quietos_seguidos = 0
             e0, e1 = n0, n1
     finally:
         _parar(tel, seguia, velocidad_seguimiento)
