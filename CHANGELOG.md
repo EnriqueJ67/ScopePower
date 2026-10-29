@@ -5,6 +5,12 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Arreglado: en los dithers pequeños la montura invertía el sentido de un eje y lo volvía a
+  invertir en el paso siguiente, y a veces acababa haciendo un GoTo. El cielo se mueve mientras
+  la montura mueve los ejes sin seguimiento, y el primer paso a veces no arranca. Ahora se descuenta
+  lo que se ha ido el cielo, un paso al revés no basta para cambiar el sentido de un eje y hacen
+  falta dos pasos sin moverse para volver al GoTo. Vale también para el guiado por el disco del Sol
+  y la Luna. El log apunta cada paso, para ver con la montura real qué hace cada eje.
 - Arreglado: el centrado tras el GoTo se rendía («la montura no mejora») cuando la app de la
   montura no aplicaba del todo el Sync de la primera vuelta, como pasó con SynScan Pro justo
   después de una alineación de varios puntos. Ahora comprueba que el Sync se ha tomado y, si la
