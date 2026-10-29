@@ -14,6 +14,11 @@
 # tener + error medido). Las monturas baratas responden bien a movimientos
 # pequeños aunque su idea absoluta de dónde apuntan sea mala, y encadenar Syncs
 # en una SynScan toca su modelo de alineación.
+#
+# El Sync no siempre surte efecto: SynScan Pro puede dejarlo pendiente de confirmar
+# o mezclarlo con su modelo de alineación. Por eso se lee la posición tras el Sync
+# (si no cambió, se corrige en relativo en esa misma vuelta) y, si la vuelta con
+# Sync no mejora, se prueba un desplazamiento relativo antes de darse por vencido.
 
 import os
 import time
@@ -231,6 +236,7 @@ class TrabajoCentrado:
     def _ejecutar(self, camara, montura, conf, calcular_altitud, altura_minima, resolver):
         objetivo = SkyCoord(ra=self.objetivo[0] * u.hourangle, dec=self.objetivo[1] * u.deg)
         resultado, detalle = "error", ""
+        con_sync = False     # la última corrección fue Sync + GoTo (y la montura aplicó el Sync)
         try:
             for vuelta in range(1, conf["max_vueltas"] + 1):
                 with self._lock:
@@ -278,9 +284,16 @@ class TrabajoCentrado:
                     resultado, detalle = "centrado", ngettext("Centrado a {error}' del objetivo en {n} vuelta", "Centrado a {error}' del objetivo en {n} vueltas", vuelta, error=fmt_num(error, 1))
                     return
                 if vuelta > 1 and error > 0.8 * self.errores[-2]:
-                    resultado, detalle = "sin_mejora", _("Se queda a {error}' (antes {antes}'): la montura no mejora, probablemente por holgura",
-                                                          error=fmt_num(error, 1), antes=fmt_num(self.errores[-2], 1))
-                    return
+                    # Si la vuelta anterior corrigió con Sync, puede que la app de la montura
+                    # mezclara la muestra con su modelo de alineación en vez de aplicarla
+                    # (visto con SynScan Pro el 29-oct-2026: 23,2' -> 19,2' tras una alineación
+                    # de 6 puntos). Antes de rendirse se prueba un desplazamiento relativo.
+                    if not con_sync or vuelta == conf["max_vueltas"]:
+                        resultado, detalle = "sin_mejora", _("Se queda a {error}' (antes {antes}'): la montura no mejora, probablemente por holgura",
+                                                              error=fmt_num(error, 1), antes=fmt_num(self.errores[-2], 1))
+                        return
+                    log.warning("La corrección con Sync no ha mejorado (%.1f' -> %.1f'): se prueba un desplazamiento relativo",
+                                self.errores[-2], error)
                 if vuelta == conf["max_vueltas"]:
                     resultado, detalle = "fuera_tolerancia", _("Se queda a {error}' tras {vuelta} vueltas (tolerancia {tol}')", error=fmt_num(error, 1),
                                                                 vuelta=vuelta, tol=fmt_num(conf['tolerancia_arcmin'], 1))
@@ -289,9 +302,9 @@ class TrabajoCentrado:
                 # 4) Corregir
                 self._comprobar_cancelacion()
                 self._msg(_("Vuelta {vuelta}/{max}: moviendo la montura para corregir {error}'", vuelta=vuelta, max=conf['max_vueltas'], error=fmt_num(error, 1)), paso="corregir")
-                self._corregir(montura, objetivo, real, sincronizar=(vuelta == 1 and conf["sync_primera_vuelta"]),
-                               asentamiento=conf["asentamiento_s"],
-                               rotulo=_("Vuelta {vuelta}/{max}", vuelta=vuelta, max=conf['max_vueltas']))
+                con_sync = self._corregir(montura, objetivo, real, sincronizar=(vuelta == 1 and conf["sync_primera_vuelta"]),
+                                          asentamiento=conf["asentamiento_s"],
+                                          rotulo=_("Vuelta {vuelta}/{max}", vuelta=vuelta, max=conf['max_vueltas']))
 
         except CentradoCancelado:
             resultado, detalle = "cancelado", _("Centrado cancelado por el usuario")
@@ -361,20 +374,40 @@ class TrabajoCentrado:
             log.warning("No se pudo generar la vista previa del centrado: %s", e)
 
     def _corregir(self, montura, objetivo, real, sincronizar, asentamiento, rotulo=None):
+        """Mueve la montura hacia el objetivo. Devuelve True si la corrección fue con Sync
+        (y la montura lo aplicó), False si fue un desplazamiento relativo."""
         # Error en el cielo: hacia dónde hay que mover (objetivo - real)
         rotulo = rotulo or _("Corrección")
         d_ra = (objetivo.ra.deg - real.ra.deg + 180.0) % 360.0 - 180.0   # grados, con envoltura
         d_dec = objetivo.dec.deg - real.dec.deg
+        error = float(objetivo.separation(real).arcmin)
+
+        def _relativo(tel):
+            # Desplazamiento relativo sobre lo que la montura cree que apunta
+            return ((tel.RightAscension + d_ra / 15.0) % 24.0,
+                    max(-90.0, min(90.0, tel.Declination + d_dec)))
 
         def _mover(tel):
+            con_sync = False
             if sincronizar:
                 # real y objetivo son J2000 (plate solving / catálogo): a sistema de la montura
-                tel.SyncToCoordinates(*coordenadas.a_montura(real.ra.hour, real.dec.deg))
-                ra_dest, dec_dest = coordenadas.a_montura(objetivo.ra.hour, objetivo.dec.deg)
+                ra_s, dec_s = coordenadas.a_montura(real.ra.hour, real.dec.deg)
+                tel.SyncToCoordinates(ra_s, dec_s)
+                time.sleep(0.5)
+                # Comprobar que la montura se ha quedado con la posición nueva: SynScan Pro
+                # puede dejar la muestra pendiente de confirmar en su ventana del mini PC
+                residuo = float(SkyCoord(ra=tel.RightAscension * u.hourangle, dec=tel.Declination * u.deg).separation(
+                    SkyCoord(ra=ra_s * u.hourangle, dec=dec_s * u.deg)).arcmin)
+                if residuo > max(1.0, 0.2 * error):
+                    log.warning("Sync no aplicado: tras el Sync la montura sigue a %.1f' de la posición enviada "
+                                "(error %.1f'); se corrige con un desplazamiento relativo", residuo, error)
+                    ra_dest, dec_dest = _relativo(tel)
+                else:
+                    log.info("Sync aplicado: la montura queda a %.2f' de la posición enviada", residuo)
+                    ra_dest, dec_dest = coordenadas.a_montura(objetivo.ra.hour, objetivo.dec.deg)
+                    con_sync = True
             else:
-                # Desplazamiento relativo sobre lo que la montura cree que apunta
-                ra_dest = (tel.RightAscension + d_ra / 15.0) % 24.0
-                dec_dest = max(-90.0, min(90.0, tel.Declination + d_dec))
+                ra_dest, dec_dest = _relativo(tel)
             tel.Tracking = True
             if getattr(tel, "CanSlewAsync", False):
                 tel.SlewToCoordinatesAsync(ra_dest, dec_dest)
@@ -393,15 +426,16 @@ class TrabajoCentrado:
                         pass
                     raise CentradoCancelado()
                 time.sleep(0.5)
-            return ra_dest, dec_dest
+            return con_sync
 
-        montura.ejecutar(_mover, timeout=150)
+        con_sync = montura.ejecutar(_mover, timeout=150)
         if asentamiento > 0:
             self._msg(_("{rotulo}: esperando {s} s a que se asiente la montura", rotulo=rotulo, s=round(asentamiento)), paso="asentar")
             fin = time.time() + asentamiento
             while time.time() < fin:
                 self._comprobar_cancelacion()
                 time.sleep(min(0.5, max(0.0, fin - time.time())))
+        return con_sync
 
 
 trabajo_centrado = TrabajoCentrado()
