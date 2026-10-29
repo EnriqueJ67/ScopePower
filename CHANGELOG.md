@@ -5,6 +5,10 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Arreglado: el centrado tras el GoTo se rendía («la montura no mejora») cuando la app de la
+  montura no aplicaba del todo el Sync de la primera vuelta, como pasó con SynScan Pro justo
+  después de una alineación de varios puntos. Ahora comprueba que el Sync se ha tomado y, si la
+  vuelta con Sync no mejora, prueba un movimiento corto antes de darse por vencido.
 - Nota de cada apilado en la galería, para quedarse con las mejores fotos de cada objeto. Es la
   misma puntuación con que el apilado en vivo decide qué fotos entran (nitidez de las estrellas ×
   raíz del número de estrellas), medida sobre el FITS apilado. Sale en la tarjeta con el puesto
