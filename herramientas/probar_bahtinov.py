@@ -19,8 +19,10 @@
 #   5. AyudaBahtinov con un reloj falso: la mediana de la ventana, «centrada» una sola vez y con
 #      histéresis, el signo estable aunque la raya cruce los 90°, aprende la firma al quitar la
 #      máscara (en una carpeta temporal), avisa «enfocado» al llegar a ella y no con el desenfoque;
-#      una firma pegada a 1 no sirve.
-#   6. imagen_foto_noche e imagen_vivo componen la imagen con el recorte de la Bahtinov.
+#      una firma pegada a 1 no sirve. Los fotogramas movidos sin cruz al tocar el enfocador no quitan
+#      la máscara ni aprenden (en vivo hay 3 s de gracia; una foto suelta movida no cuenta).
+#   6. La estrella alargada por un golpe al tubo sale «movida»; la redonda, con o sin máscara, no.
+#   7. imagen_foto_noche e imagen_vivo componen la imagen con el recorte de la Bahtinov.
 #
 # Uso: python herramientas/probar_bahtinov.py [--guardar CARPETA]   (desde la carpeta de ScopePower)
 #      --guardar deja los recortes (verde solo y tres colores, en el foco y desenfocado) para mirarlos.
@@ -239,11 +241,27 @@ def probar_ayuda():
         assert i["bahtinov"]["centrada"] and [a for __, a in avisos] == ["centrada"], (i, avisos)
         assert i["bahtinov"]["desvio"] > 0.0, i      # la mediana de (0,45, 0,1, −0,2, 0,35...) con el signo de antes
         print(f"  centrada a los {avisos[0][0]:.1f} s, una sola vez; desvío enseñado {i['bahtinov']['desvio']:+.2f} px")
-        # Fuera de la máscara: aprende la relación de colores con 10 fotogramas (refractor: en el foco R y B más anchos)
+        # Al tocar el enfocador el tubo vibra: unos fotogramas sin cruz (movidos o no) no quitan la máscara ni aprenden
+        for movida in (True, False, True, False):
+            i = toma(dict(info_estrella(3.6, 3.1, 3.2), movida=movida), None)
+            assert "firma" not in i and "bahtinov" not in i, i
+        i = toma(info_estrella(3.0, 3.0, 3.0), medida_falsa(0.1))
+        assert i["bahtinov"]["centrada"] and [a for __, a in avisos] == ["centrada"], (i, avisos)
+        assert not os.path.exists(ruta)
+        print(f"  {enfoque.GRACIA_SIN_CRUZ_S:.0f} s de fotogramas movidos sin cruz: sigue centrada, sin repetir el aviso ni aprender")
+        # Fuera de la máscara: los primeros segundos (y los fotogramas movidos al quitarla) no cuentan; luego aprende la
+        # relación de colores con 10 fotogramas (refractor: en el foco R y B más anchos)
         rng = np.random.default_rng(5)
+        t_quitada = reloj.t
+        while reloj.t - t_quitada < enfoque.GRACIA_SIN_CRUZ_S:
+            i = toma(info_estrella(2.8, 2.8 * 1.30, 2.8 * 1.55), None)
+            assert "firma" not in i, i
+        i = toma(dict(info_estrella(4.0, 4.1, 4.2), movida=True), None)
+        assert "firma" not in i, i
         for k in range(enfoque.FOTOGRAMAS_APRENDER["vivo"]):
             g = 2.8 * (1 + 0.03 * rng.normal())
             i = toma(info_estrella(g, g * 1.30 * (1 + 0.01 * rng.normal()), g * 1.55 * (1 + 0.01 * rng.normal())), None)
+            assert i.get("firma", {}).get("aprendiendo") == k + 1 or k + 1 == enfoque.FOTOGRAMAS_APRENDER["vivo"], (k, i)
         assert [a for __, a in avisos] == ["centrada", "aprendida"], avisos
         with open(ruta, encoding="utf-8") as f:
             firma = json.load(f)["vivo"]
@@ -279,6 +297,62 @@ def probar_ayuda():
         i = toma2(3.0, 1.02, 1.04)
         assert i["firma"]["util"] is False and not i["firma"]["enfocado"], i
         print("  firma con R/G y B/G casi 1: no sirve y no avisa")
+        # Con fotos sueltas: una foto movida sin cruz justo después de centrar no se toma por la máscara quitada
+        ruta_foto = os.path.join(carpeta, "foto", "firma_enfoque.json")
+        reloj3 = Reloj()
+        ayuda = enfoque.AyudaBahtinov(ruta=ruta_foto, reloj=reloj3)
+        reloj3.t += 5
+        i = ayuda.anotar(info_estrella(3.0, 3.0, 3.0), medida_falsa(0.1), "foto")
+        assert i.get("aviso") == "centrada", i
+        reloj3.t += 5
+        i = ayuda.anotar(dict(info_estrella(5.0, 5.2, 5.3), movida=True), None, "foto")
+        assert "aviso" not in i and "firma" not in i and not os.path.exists(ruta_foto), i
+        reloj3.t += 5
+        i = ayuda.anotar(info_estrella(2.8, 2.8 * 1.3, 2.8 * 1.55), None, "foto")
+        assert i.get("aviso") == "aprendida", i
+        with open(ruta_foto, encoding="utf-8") as f:
+            firma = json.load(f)["foto"]
+        assert abs(firma["rg"] - 1.3) < 0.01 and abs(firma["bg"] - 1.55) < 0.01, firma
+        print("  foto suelta: la movida no aprende, la siguiente sí")
+
+
+def probar_movida():
+    """medir() marca «movida» la estrella alargada por un golpe al tubo durante la exposición, y no la redonda."""
+    rng = np.random.default_rng(7)
+    yy, xx = np.mgrid[0:LADO, 0:LADO]
+    c = LADO / 2
+    # (nombre, sigma de la estrella, pasos del trazo en diagonal (√2 px cada uno), ¿movida?)
+    for nombre, sigma, trazo, esperada in (("redonda en el foco", 1.4, 0, False), ("redonda desenfocada", 3.5, 0, False),
+                                          ("en el foco, movida 3 px", 1.4, 2, False), ("en el foco, movida 8 px", 1.4, 6, True),
+                                          ("desenfocada, movida 6 px", 3.5, 4, False), ("desenfocada, movida 17 px", 3.5, 12, True)):
+        estrella = np.exp(-((xx - c) ** 2 + (yy - c) ** 2) / (2 * sigma * sigma)).astype(np.float32)
+        if trazo:
+            nucleo = np.zeros((trazo + 1, trazo + 1), np.float32)
+            np.fill_diagonal(nucleo, 1.0)       # en diagonal, el peor caso para los momentos por ejes
+            estrella = cv2.filter2D(estrella, -1, nucleo / nucleo.sum())
+            estrella /= estrella.max()
+        plano = con_ruido(estrella, pico=PICO, rng=rng) - 1000.0
+        info = enfoque.medir(plano, plano, plano)
+        alarg = enfoque.alargamiento(plano, info["x"], info["y"])
+        assert info["movida"] is esperada, (nombre, alarg)
+        print(f"  {nombre}: ejes {alarg:.2f} → {'movida' if info['movida'] else 'bien'}")
+    # La estrella con la máscara puesta (el núcleo, sin los picos lejanos) no sale movida
+    ch = canales(0.0, giro=20.0)
+    plano = con_ruido(ch["g"], pico=PICO, rng=rng) - 1000.0
+    info = enfoque.medir(plano)
+    assert not info["movida"], enfoque.alargamiento(plano, info["x"], info["y"])
+    print(f"  con la máscara en el foco: ejes {enfoque.alargamiento(plano, info['x'], info['y']):.2f} → bien")
+    # Con la máscara puesta y el tubo movido: o sigue saliendo la cruz o la estrella sale «movida» (nunca «sin máscara»)
+    for pasos in (2, 4, 10):
+        nucleo = np.zeros((pasos + 1, pasos + 1), np.float32)
+        np.fill_diagonal(nucleo, 1.0)
+        movido = {k: cv2.filter2D(v, -1, nucleo / nucleo.sum()) for k, v in ch.items()}
+        m = max(float(v.max()) for v in movido.values())
+        rgb = {k: con_ruido(v / m, pico=PICO, rng=rng) - 1000.0 for k, v in movido.items()}
+        info = enfoque.medir(rgb["g"], rgb["r"], rgb["b"])
+        cruz = enfoque.medir_bahtinov(rgb["r"] + rgb["g"] + rgb["b"], info["x"], info["y"], 1.0)
+        assert cruz is not None or info["movida"], pasos
+        print(f"  con la máscara, movida {pasos * 1.41:.0f} px: " + ("cruz" if cruz is not None else "sin cruz, pero movida"))
 
 
 def probar_imagenes(guardar=None):
@@ -326,7 +400,9 @@ def main():
     probar_repetibilidad()
     print("5. Centrada, firma del foco y enfocado")
     probar_ayuda()
-    print("6. Imágenes")
+    print("6. Estrella movida")
+    probar_movida()
+    print("7. Imágenes")
     probar_imagenes(args.guardar)
     print(f"✅ Bahtinov: todo bien ({time.perf_counter() - t0:.0f} s)")
 

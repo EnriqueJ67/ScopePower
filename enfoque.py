@@ -34,6 +34,9 @@
 #     una barra. AyudaBahtinov avisa «centrada» y, al quitar la máscara, aprende
 #     la relación entre las anchuras de los tres colores en el foco bueno para
 #     avisar «enfocado» las veces siguientes sin máscara.
+#     Al tocar el enfocador el tubo vibra y un fotograma puede salir movido, sin
+#     cruz: la máscara no se da por quitada hasta pasar unos segundos sin verla (en
+#     vivo), y una estrella alargada no cuenta ni para eso ni para aprender.
 # El estado (activado o no) vive en memoria: es cosa de la sesión, no del config.
 #
 # De día, con el Sol o la Luna (11-oct-2026): la Bahtinov no sirve en una fuente
@@ -111,6 +114,10 @@ UMBRAL_BAHTINOV_PX = 0.3  # desvío del pico central por debajo del cual la Baht
 SALIDA_BAHTINOV_PX = 0.6  # ...y por encima del cual deja de estarlo (para que el aviso no vaya y venga)
 VENTANA_BAHTINOV_S = 2.0  # en vivo, el desvío enseñado es la mediana de los últimos 2 s (el seeing lo mueve)
 FOTOGRAMAS_CENTRADA = 3   # en vivo, «centrada» necesita al menos estos fotogramas en la ventana
+GRACIA_SIN_CRUZ_S = 3.0   # en vivo, la máscara no se da por quitada hasta 3 s sin ver la cruz (al tocar el
+                          # enfocador el tubo vibra y algún fotograma sale movido y sin cruz)
+ALARGAMIENTO_MOVIDA = 1.4 # una estrella con un eje 1,4 veces el otro está movida: no es «sin máscara» ni sirve
+                          # para la firma (el movimiento ensancha igual los tres colores y la relación tira a 1)
 ESCALA_BARRA_PX = 3.0     # la barra de debajo del recorte va de −3 a +3 px
 LADO_RECORTE_BAHTINOV = 480  # px del recorte de la Bahtinov antes de encajarlo en la imagen...
 RADIO_VISTA_BAHTINOV = 64    # ...que enseña 64 px del sensor alrededor de la estrella (×3,7)
@@ -219,21 +226,40 @@ def estrella_mas_brillante(plano, margen=MARGEN):
     return ix + m, iy + m, float(x[iy + m, ix + m])
 
 
-def fwhm(plano, x, y, radio=7):
-    """Anchura a media altura (px) por el segundo momento de la luz alrededor de (x, y), con el fondo del borde restado."""
+def _momentos(plano, x, y, radio=7):
+    """(sxx, syy, sxy): segundos momentos de la luz alrededor de (x, y), con el fondo del borde restado; None sin luz."""
     p = np.asarray(plano, dtype=np.float32)
     y0, y1, x0, x1 = max(0, y - radio), min(p.shape[0], y + radio + 1), max(0, x - radio), min(p.shape[1], x + radio + 1)
     c = p[y0:y1, x0:x1]
     if c.size < 9:
-        return float("nan")
+        return None
     borde = np.concatenate([c[0], c[-1], c[:, 0], c[:, -1]])
     w = np.clip(c - float(np.median(borde)), 0, None)
     if w.sum() <= 0:
-        return float("nan")
+        return None
     yy, xx = np.mgrid[y0:y1, x0:x1]
     cx, cy = (xx * w).sum() / w.sum(), (yy * w).sum() / w.sum()
-    s2 = (((xx - cx) ** 2 + (yy - cy) ** 2) * w).sum() / w.sum() / 2.0
+    dx, dy = xx - cx, yy - cy
+    return (float((dx * dx * w).sum() / w.sum()), float((dy * dy * w).sum() / w.sum()), float((dx * dy * w).sum() / w.sum()))
+
+
+def fwhm(plano, x, y, radio=7):
+    """Anchura a media altura (px) por el segundo momento de la luz alrededor de (x, y), con el fondo del borde restado."""
+    m = _momentos(plano, x, y, radio)
+    if m is None:
+        return float("nan")
+    s2 = (m[0] + m[1]) / 2.0
     return float(2.355 * np.sqrt(max(s2, 1e-3)))
+
+
+def alargamiento(plano, x, y, radio=7):
+    """Eje mayor entre eje menor de la estrella (1 = redonda); la estrella sale alargada si el tubo se movió al exponer."""
+    m = _momentos(plano, x, y, radio)
+    if m is None:
+        return float("nan")
+    sxx, syy, sxy = m
+    medio, dif = (sxx + syy) / 2.0, np.hypot((sxx - syy) / 2.0, sxy)
+    return float(np.sqrt((medio + dif) / max(medio - dif, 1e-3)))
 
 
 def medir(verde, rojo=None, azul=None, escala_px=1.0):
@@ -243,8 +269,10 @@ def medir(verde, rojo=None, azul=None, escala_px=1.0):
     2 con el verde superpíxel). Devuelve un dict para la web.
     """
     x, y, pico = estrella_mas_brillante(verde)
+    alarg = alargamiento(verde, x, y)
     info = {"x": int(x), "y": int(y), "pico": round(pico), "fwhm_g": round(fwhm(verde, x, y) * escala_px, 2),
-            "saturada": bool(pico >= 0.97 * 65535)}     # con el núcleo recortado la anchura sale falsa
+            "saturada": bool(pico >= 0.97 * 65535),     # con el núcleo recortado la anchura sale falsa
+            "movida": bool(np.isfinite(alarg) and alarg >= ALARGAMIENTO_MOVIDA)}
     for nombre, plano in (("fwhm_r", rojo), ("fwhm_b", azul)):
         if plano is not None:
             info[nombre] = round(fwhm(plano, x, y) * escala_px, 2)
@@ -284,6 +312,8 @@ def texto_info(info, para_imagen=False):
         partes.append(_("azul {px}", px=fmt_num(info["fwhm_b"], 1)))
     if info.get("saturada"):
         partes.append(_("SATURADA") if para_imagen else _("saturada: baja la exposición o la ganancia"))
+    if info.get("movida"):
+        partes.append(_("MOVIDA") if para_imagen else _("estrella movida: espera a que el tubo se calme"))
     firma = info.get("firma")
     if firma and firma.get("aprendiendo") is not None:
         partes.append(_("APRENDIENDO {n}/{total}", n=firma["aprendiendo"], total=firma["total"]) if para_imagen
@@ -683,6 +713,9 @@ class AyudaBahtinov:
       - Sin máscara y con firma: «enfocado» cuando R/G y B/G llegan a los aprendidos y el verde está
         cerca del más fino de la sesión. Si la firma casi no se aparta de 1 (un reflector, o un
         refractor muy corregido con mal seeing), no sirve y se dice.
+      - Un fotograma sin cruz no basta para dar la máscara por quitada: al tocar el enfocador el
+        tubo vibra y la cruz se emborrona. En vivo hacen falta GRACIA_SIN_CRUZ_S seguidos sin ella;
+        y una estrella movida (alargada) no cuenta nunca, ni para eso ni para la firma.
     """
 
     def __init__(self, ruta=RUTA_FIRMA, reloj=time.monotonic):
@@ -697,7 +730,8 @@ class AyudaBahtinov:
         self.desvios = collections.deque()      # (t, desvío)
         self.normal = None
         self.centrada = False
-        self.muestras = []                      # (R/G, B/G) para aprender la firma
+        self.t_cruz = None                      # la última toma con la cruz de la Bahtinov
+        self.muestras = []                    # (R/G, B/G) para aprender la firma
         self.relaciones = collections.deque()   # (t, R/G, B/G, verde) para comparar con la firma
         self.enfocado = False
         self.mejor_g = None
@@ -734,7 +768,12 @@ class AyudaBahtinov:
             self.t_ultimo = t
             ventana = VENTANA_BAHTINOV_S if modo == "vivo" else 0.0
             aviso = None
-            if medida is not None:
+            hueco = medida is None and (info.get("movida") or (modo == "vivo" and self.t_cruz is not None
+                                                                and t - self.t_cruz <= GRACIA_SIN_CRUZ_S))
+            if hueco:
+                pass            # sin cruz, pero quizá solo emborronada por la vibración: no cambia nada
+            elif medida is not None:
+                self.t_cruz = t
                 self.muestras, self.enfocado = [], False
                 self.relaciones.clear()
                 n = np.array(medida["rectas"][0][:2])
@@ -758,7 +797,7 @@ class AyudaBahtinov:
                                     "angulos": medida["angulos"], "n": len(self.desvios)}
             else:
                 self.desvios.clear()
-                self.normal, self.centrada = None, False
+                self.normal, self.centrada, self.t_cruz = None, False, None
                 g, r, b = (info.get(k, float("nan")) for k in ("fwhm_g", "fwhm_r", "fwhm_b"))
                 if all(v is not None and np.isfinite(v) and v > 0 for v in (g, r, b)) and not info.get("saturada"):
                     rg, bg = r / g, b / g
