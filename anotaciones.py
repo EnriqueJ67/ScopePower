@@ -70,31 +70,45 @@ def resolver_wcs(ruta_fits, timeout=TIMEOUT_ASTAP_S, ruta_mono=None):
     ruta_mono = ruta_mono or os.path.splitext(ruta_fits)[0] + "_mono.fits"
     ruta_ini = os.path.splitext(ruta_mono)[0] + ".ini"
     generar_fits_monocromo_para_platesolve(ruta_fits, ruta_mono)
-    if not _lanzar_astap(ruta_mono, ruta_ini, timeout):
-        return None
-    res = wcs_desde_ini(ruta_ini)
+    res = resolver_ini(ruta_mono, ruta_ini, timeout, nombre=os.path.basename(ruta_fits))
     if res is None:
-        # En campos muy densos de la Vía Láctea (M 17) casi ningún cuadrilátero de estrellas
-        # cuadra con la tolerancia de serie (0,007) y ASTAP no resuelve; con 0,01 sí. Una
-        # tolerancia mayor admite más soluciones falsas: solo vale si cuadra con la cabecera.
-        log.info("ASTAP no resolvió %s; se repite con tolerancia %s", os.path.basename(ruta_fits), TOLERANCIA_REINTENTO)
-        if not _lanzar_astap(ruta_mono, ruta_ini, timeout, f" -t {TOLERANCIA_REINTENTO}"):
-            return None
-        res = wcs_desde_ini(ruta_ini)
-        if res is None:
-            log.warning("ASTAP no resolvió %s ni con tolerancia %s", os.path.basename(ruta_fits), TOLERANCIA_REINTENTO)
-            return None
-        motivo = _solucion_dudosa(res[0], res[1], ruta_mono)
-        if motivo:
-            log.warning("Solución de ASTAP con tolerancia %s descartada para %s: %s",
-                        TOLERANCIA_REINTENTO, os.path.basename(ruta_fits), motivo)
-            return None
-        log.info("ASTAP resolvió %s con tolerancia %s", os.path.basename(ruta_fits), TOLERANCIA_REINTENTO)
+        return None
     wcs, escala_arcsec, angulo_cam = res
     return wcs, escala_arcsec, angulo_cam, ruta_ini
 
 
-def _lanzar_astap(ruta_mono, ruta_ini, timeout, opciones=""):
+def resolver_ini(ruta_mono, ruta_ini, timeout=TIMEOUT_ASTAP_S, nombre=None, ruta_astap=None):
+    """
+    ASTAP sobre un FITS monocromo (con FOCALLEN, XPIXSZ y OBJCTRA en la cabecera), con el
+    reintento para campos densos. Deja la solución en ruta_ini y devuelve (wcs,
+    escala_arcsec_px, angulo_camara_deg) o None. Lo usan la galería y el alineado del apilado.
+    """
+    nombre = nombre or os.path.basename(ruta_mono)
+    if not _lanzar_astap(ruta_mono, ruta_ini, timeout, ruta_astap=ruta_astap):
+        return None
+    res = wcs_desde_ini(ruta_ini)
+    if res is None:
+        # En campos muy densos de la Vía Láctea (M 17, M 11) casi ningún cuadrilátero de
+        # estrellas cuadra con la tolerancia de serie (0,007) y ASTAP no resuelve; con 0,01 sí.
+        # Una tolerancia mayor admite más soluciones falsas: solo vale si cuadra con la cabecera.
+        log.info("ASTAP no resolvió %s; se repite con tolerancia %s", nombre, TOLERANCIA_REINTENTO)
+        if not _lanzar_astap(ruta_mono, ruta_ini, timeout, f" -t {TOLERANCIA_REINTENTO}", ruta_astap=ruta_astap):
+            return None
+        res = wcs_desde_ini(ruta_ini)
+        if res is None:
+            log.warning("ASTAP no resolvió %s ni con tolerancia %s", nombre, TOLERANCIA_REINTENTO)
+            return None
+        motivo = _solucion_dudosa(res[0], res[1], ruta_mono)
+        if motivo:
+            log.warning("Solución de ASTAP con tolerancia %s descartada para %s: %s", TOLERANCIA_REINTENTO, nombre, motivo)
+            if os.path.exists(ruta_ini):
+                os.remove(ruta_ini)     # que nadie lea la solución falsa del .ini
+            return None
+        log.info("ASTAP resolvió %s con tolerancia %s", nombre, TOLERANCIA_REINTENTO)
+    return res
+
+
+def _lanzar_astap(ruta_mono, ruta_ini, timeout, opciones="", ruta_astap=None):
     """Lanza ASTAP sobre ruta_mono, borrando antes el .ini y el .wcs viejos. False si no terminó a tiempo."""
     for viejo in (ruta_ini, os.path.splitext(ruta_mono)[0] + ".wcs"):
         try:
@@ -102,7 +116,7 @@ def _lanzar_astap(ruta_mono, ruta_ini, timeout, opciones=""):
         except OSError:
             pass
     try:
-        subprocess.run(f'"{_ruta_astap()}" -f "{ruta_mono}" -solve -r 50{opciones}', shell=True,
+        subprocess.run(f'"{ruta_astap or _ruta_astap()}" -f "{ruta_mono}" -solve -r 50{opciones}', shell=True,
                        capture_output=True, timeout=timeout)
         return True
     except subprocess.TimeoutExpired:

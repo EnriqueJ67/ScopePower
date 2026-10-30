@@ -5,6 +5,12 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Arreglado: el apilado descartaba fotos de campos densos de la Vía Láctea que ASTAP no resolvía
+  a la primera (una de M 11 el 29-oct), con un aviso rojo ilegible («Command … returned non-zero
+  exit status 1») que se quedaba en la página toda la sesión. Ahora el alineado repite con más
+  tolerancia, como ya hacía la galería, y acepta la solución solo si cuadra con la escala y la
+  posición de la montura. Si aun así no resuelve, dice «ASTAP no resolvió el fotograma», y el
+  aviso se borra en cuanto entra la foto siguiente.
 - Arreglado: en los dithers pequeños la montura invertía el sentido de un eje y lo volvía a
   invertir en el paso siguiente, y a veces acababa haciendo un GoTo. El cielo se mueve mientras
   la montura mueve los ejes sin seguimiento, y el primer paso a veces no arranca. Ahora se descuenta

@@ -27,7 +27,6 @@ import apilado_incremental
 import cometa
 import cv2
 
-import subprocess
 from astropy.io.fits import Header, PrimaryHDU
 from astropy.wcs import WCS
 from math import atan2, degrees
@@ -135,26 +134,18 @@ def compute_astap_transform(ruta_fits, ref_info, ruta_astap):
     wcs_file  = mono.replace(".fits", ".wcs")
 
     try:
-        # Genera FITS monocromo y llama a ASTAP
+        # Genera FITS monocromo y llama a ASTAP. Si no resuelve se repite con más tolerancia
+        # (campos densos: una foto de M 11 se descartó así el 29-oct-2026 con un «Error de
+        # ASTAP … exit status 1», que en ASTAP es solo «sin solución»)
         generar_fits_monocromo_para_astap(ruta_fits, mono)
-        subprocess.run(
-            f'"{ruta_astap}" -f "{mono}" -solve -r 50',
-            shell=True, capture_output=True, check=True, timeout=ASTAP_TIMEOUT
-        )
-
-        # Si ASTAP no ha resuelto, devolvemos sin más
-        if not ini_resuelto(ini):
+        if anotaciones.resolver_ini(mono, ini, ASTAP_TIMEOUT, nombre=os.path.basename(ruta_fits),
+                                    ruta_astap=ruta_astap) is None:
             return None, _("ASTAP no resolvió el fotograma")
         rotacion_camara.anotar_ini(ini, "apilado")   # el giro de la cámara, para el planetario
 
         # Leemos resultados y calculamos la matriz de transformación
         return matriz_alineado(ref_info, parse_ini_wcs(ini)), "ASTAP"
 
-    except subprocess.TimeoutExpired:
-        return None, _("ASTAP no terminó en {s} s", s=ASTAP_TIMEOUT)
-    except subprocess.CalledProcessError as e:
-        # Si ASTAP falla internamente, podemos capturar el error
-        return None, _("Error de ASTAP: {e}", e=e)
     except Exception as e:
         # Cualquier otro fallo
         return None, _("Error inesperado: {e}", e=e)
@@ -778,6 +769,10 @@ class ApiladorEnTiempoReal:
 
     def _anotar_resultado(self, resultado, motivo=""):
         """Qué ha pasado con la última foto medida (llamar con self.lock cogido)."""
+        if resultado in ("apilada", "sustituye"):
+            # Una foto que entra deja viejo el aviso rojo de la última descartada (antes se
+            # quedaba en la página toda la sesión, como si el error fuera de ahora mismo)
+            self.ultimo_error = ""
         if self.ultima_detalle is not None:
             self.ultima_detalle["resultado"] = resultado
             self.ultima_detalle["motivo"] = motivo
@@ -1437,15 +1432,12 @@ class ApiladorEnTiempoReal:
                 ref_ini = ref_mono.replace(".fits", ".ini")
                 try:
                     generar_fits_monocromo_para_astap(ruta_fits, ref_mono)
-                    subprocess.run(f'"{self.ruta_astap}" -f "{ref_mono}" -solve -r 50',
-                                   shell=True, capture_output=True, timeout=ASTAP_TIMEOUT)
-                    if ini_resuelto(ref_ini):
+                    if anotaciones.resolver_ini(ref_mono, ref_ini, ASTAP_TIMEOUT, nombre=nombre_fits,
+                                                ruta_astap=self.ruta_astap) is not None:
                         rotacion_camara.anotar_ini(ref_ini, "apilado")
                         self.ref_info = parse_ini_wcs(ref_ini)
                         self.imagen_referencia = nombre_fits
                         print(f"📌 Referencia de alineado: {nombre_fits}")
-                except subprocess.TimeoutExpired:
-                    print(f"⏱️ ASTAP no terminó en {ASTAP_TIMEOUT} s con la referencia")
                 except Exception as e:
                     print(f"⚠️ Error resolviendo la referencia: {e}")
                 finally:

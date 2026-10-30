@@ -397,10 +397,6 @@ msgstr ""
 msgid "ASTAP no respondió a tiempo."
 msgstr ""
 
-#: apilado.py
-msgid "ASTAP no terminó en {s} s"
-msgstr ""
-
 #: static/js/asistente.js
 msgid "ASTAP sin instalar"
 msgstr ""
@@ -3310,10 +3306,6 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Error al sincronizar: {e}"
-msgstr ""
-
-#: apilado.py
-msgid "Error de ASTAP: {e}"
 msgstr ""
 
 #: ScopePower.py
