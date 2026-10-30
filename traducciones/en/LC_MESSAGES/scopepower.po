@@ -399,10 +399,6 @@ msgstr "ASTAP did not solve the frame"
 msgid "ASTAP no respondió a tiempo."
 msgstr "ASTAP didn't respond in time."
 
-#: apilado.py
-msgid "ASTAP no terminó en {s} s"
-msgstr "ASTAP did not finish within {s} s"
-
 #: static/js/asistente.js
 msgid "ASTAP sin instalar"
 msgstr "ASTAP not installed"
@@ -3313,10 +3309,6 @@ msgstr "Error developing: {e}"
 #: ScopePower.py
 msgid "Error al sincronizar: {e}"
 msgstr "Error syncing: {e}"
-
-#: apilado.py
-msgid "Error de ASTAP: {e}"
-msgstr "ASTAP error: {e}"
 
 #: ScopePower.py
 msgid "Error de cámara"
