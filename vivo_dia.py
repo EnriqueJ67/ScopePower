@@ -527,6 +527,11 @@ class TrabajoVivo:
                 # Solo el verde, con la estrella más brillante ampliada (enfoque.py); foto_actual sigue con la de color
                 girada, encuadre, info_enfoque = enfoque.imagen_vivo(cfa, patron, paso, lambda im: a_orientacion_ascom(im, orientacion),
                                                                      giro_camara.girar)
+                if info_enfoque.get("aviso"):
+                    # «Bahtinov centrada», «Foco aprendido...» o «Enfocado», sin mirar la tablet
+                    log.info("Enfoque: %s (%s)", enfoque.texto_aviso(info_enfoque["aviso"]), enfoque.texto_info(info_enfoque))
+                    if self._voz:
+                        self._voz.decir(enfoque.texto_aviso(info_enfoque["aviso"]))
             else:
                 girada, encuadre = giro_camara.girar(imagen)      # el giro de Cámara; se anota sin girar (disco.py la mide así)
             jpg = jpg_web(girada)

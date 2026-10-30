@@ -5,6 +5,15 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Enfoque con máscara de Bahtinov en Cámara (interruptor «Enfoque: solo verde»). Con la máscara
+  puesta, el recorte ampliado ya no enseña el verde solo, donde los picos de la máscara salían a
+  trozos (la rejilla separa los colores y cada canal tiene su trozo). Ahora junta los tres colores
+  y dibuja una cruceta virtual: las dos rayas de la X y, a trazos, por dónde tiene que pasar el pico
+  central. Debajo, cuánto se aparta en píxeles, con una barra para ver hacia qué lado. Al centrarlo
+  los trazos se ponen verdes y el PC dice «Bahtinov centrada». Al quitar la máscara sin tocar el
+  enfoque, ScopePower aprende cuánto más anchos que el verde salen el rojo y el azul en el foco
+  bueno, y las veces siguientes, sin máscara, dice «Enfocado» cuando vuelven a esa relación.
+  Probado con una estrella simulada; falta probarlo con la cámara y la máscara reales.
 - Arreglado: el apilado descartaba fotos de campos densos de la Vía Láctea que ASTAP no resolvía
   a la primera (una de M 11 el 29-oct), con un aviso rojo ilegible («Command … returned non-zero
   exit status 1») que se quedaba en la página toda la sesión. Ahora el alineado repite con más
