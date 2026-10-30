@@ -369,6 +369,10 @@ msgstr ""
 msgid "A {producto} le falta una biblioteca de Windows para arrancar, casi siempre el Visual C++ de Microsoft (MSVCP140.dll). Instálalo en este PC desde {url} y vuelve a probar, sin reiniciar; si ya estaba instalado, reinstala {producto}."
 msgstr ""
 
+#: enfoque.py
+msgid "APRENDIENDO {n}/{total}"
+msgstr ""
+
 #: firma.py
 msgid "AR {h}h {m}m · Dec {signo}{g}° {mg}′"
 msgstr ""
@@ -1028,6 +1032,19 @@ msgstr ""
 msgid "B/N"
 msgstr ""
 
+#: enfoque.py
+msgid "Bahtinov centrada"
+msgstr ""
+
+#: enfoque.py
+msgid "Bahtinov {px} px"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Bahtinov {v} px"
+msgstr ""
+
 #. js
 #: templates/imagen.html
 msgid "Baja la exposición para encuadrar y enfocar sin esperar; aquí no se guarda. Si hay un dark de esa exposición, se resta."
@@ -1160,6 +1177,10 @@ msgstr ""
 
 #: templates/planetario.html
 msgid "Buscar: M31, NGC 7000, Vega, Jupiter…"
+msgstr ""
+
+#: enfoque.py
+msgid "CENTRADA"
 msgstr ""
 
 #: templates/imagen.html
@@ -1750,7 +1771,7 @@ msgid "Con fotos fiables de al menos cuatro meses se calculan la excentricidad d
 msgstr ""
 
 #: templates/imagen.html
-msgid "Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada ×5 con su anchura en cada color. Sin máscara, el foco está bien cuando el verde es el canal más fino. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»). Cerca del foco la curva es plana porque el seeing tapa el desenfoque pequeño: el foco bueno es el centro de esa zona plana, no el número más bajo. Sigue girando hasta que el PC diga «te has pasado del foco»: la gráfica sombrea la zona plana y marca su centro, y al volver hacia él dice «estás en la zona buena»."
+msgid "Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada. Con la máscara de Bahtinov puesta, el recorte junta los tres colores (con uno solo los picos salen a trozos) y dibuja la cruceta virtual: las dos rayas de la X en verde fino y, a trazos, por dónde tiene que pasar el pico central. El número es lo que se aparta el pico central de los trazos, en píxeles, y la barra de abajo lo enseña a un lado o a otro: gira el enfocador hasta que el punto entre en la zona verde. Entonces los trazos se ponen verdes y el PC dice «Bahtinov centrada». Quita la máscara sin tocar el enfoque: con las fotos siguientes ScopePower aprende cuánto más anchos que el verde salen el rojo y el azul en el foco bueno, y lo guarda. Las próximas veces, sin máscara, dice «Enfocado» cuando los tres colores vuelven a esa relación. Sin máscara, el recorte es la estrella ×5 en verde con su anchura en cada color. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»). Cerca del foco la curva es plana porque el seeing tapa el desenfoque pequeño: el foco bueno es el centro de esa zona plana, no el número más bajo. Sigue girando hasta que el PC diga «te has pasado del foco»: la gráfica sombrea la zona plana y marca su centro, y al volver hacia él dice «estás en la zona buena»."
 msgstr ""
 
 #: templates/seguimiento.html
@@ -2421,6 +2442,10 @@ msgstr ""
 #. js
 #: templates/planetario.html
 msgid "E"
+msgstr ""
+
+#: enfoque.py
+msgid "ENFOCADO"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -3199,6 +3224,10 @@ msgstr ""
 msgid "Encuadre centrado donde has tocado"
 msgstr ""
 
+#: enfoque.py
+msgid "Enfocado"
+msgstr ""
+
 #: templates/imagen.html
 msgid "Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)"
 msgstr ""
@@ -3949,6 +3978,10 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "Foco (FWHM)"
+msgstr ""
+
+#: enfoque.py
+msgid "Foco aprendido: relación de los colores guardada"
 msgstr ""
 
 #. js
@@ -7414,6 +7447,11 @@ msgstr ""
 msgid "R = k · (10·g + f): g grupos y f manchas contadas en cada foto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia."
 msgstr ""
 
+#. js
+#: templates/imagen.html
+msgid "R/G {rg} (foco {rg0}) · B/G {bg} (foco {bg0})"
+msgstr ""
+
 #: templates/galeria.html
 msgid "Radio del Sol medido en cada foto y el de la efeméride a lo largo del año"
 msgstr ""
@@ -9474,6 +9512,11 @@ msgid "apilando"
 msgstr ""
 
 #. js
+#: enfoque.py templates/imagen.html
+msgid "aprendiendo el foco: {n} de {total}"
+msgstr ""
+
+#. js
 #: camara_toupcam.py
 msgid "argumento no válido"
 msgstr ""
@@ -9539,6 +9582,11 @@ msgstr ""
 #. js
 #: ScopePower.py templates/alineacion.html
 msgid "cancelado"
+msgstr ""
+
+#. js
+#: enfoque.py templates/imagen.html
+msgid "centrada"
 msgstr ""
 
 #. js
@@ -9932,6 +9980,11 @@ msgstr ""
 #. js
 #: static/js/mosaico.js static/js/plan.js templates/planetario.html
 msgid "en pausa"
+msgstr ""
+
+#. js
+#: enfoque.py templates/imagen.html
+msgid "enfocado"
 msgstr ""
 
 #: estrellas_aparte.py static/js/plan.js
@@ -10420,6 +10473,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "llegó hace {t}"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "los tres colores enfocan casi igual: usa la Bahtinov"
 msgstr ""
 
 #: apilado.py

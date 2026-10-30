@@ -114,3 +114,8 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_tolerancia_astap.py
+
+      - name: Prueba del enfoque con Bahtinov (estrella simulada por óptica de Fourier, cruceta y firma del foco)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_bahtinov.py

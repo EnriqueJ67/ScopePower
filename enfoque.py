@@ -23,6 +23,17 @@
 #   - Debajo del recorte, la anchura (FWHM) de esa estrella en verde y, en
 #     pequeño, en rojo y azul: sin máscara sirve para comprobar que el verde es
 #     el canal más fino.
+#   - Con la máscara puesta (30-oct-2026, tras la prueba del 29-oct con la Saturn-C):
+#     en el verde solo, los picos de la Bahtinov salían como «borroncitos» sueltos.
+#     La máscara es una rejilla que abre la luz por colores a lo largo de cada pico,
+#     y con la banda del verde (480–600 nm) cada orden es un trazo corto con huecos
+#     entre uno y otro; con los tres colores los trazos se solapan. Así que, si
+#     medir_bahtinov encuentra la cruz, el recorte es de los tres colores juntos,
+#     con el núcleo quemado y la cruceta virtual encima (las rayas de la X y, a
+#     trazos, por dónde tiene que pasar el pico central), el desvío en píxeles y
+#     una barra. AyudaBahtinov avisa «centrada» y, al quitar la máscara, aprende
+#     la relación entre las anchuras de los tres colores en el foco bueno para
+#     avisar «enfocado» las veces siguientes sin máscara.
 # El estado (activado o no) vive en memoria: es cosa de la sesión, no del config.
 #
 # De día, con el Sol o la Luna (11-oct-2026): la Bahtinov no sirve en una fuente
@@ -63,6 +74,8 @@
 #     mano en el tubo) se descartan: daban un limbo falso y estropeaban el «mejor».
 #   - La exposición sigue siendo la automática de día (nivel del disco), no la
 #     de la estrella.
+import os
+import json
 import math
 import time
 import threading
@@ -78,6 +91,38 @@ TAM_RECORTE = 48          # lado del recorte de la estrella, en píxeles del sen
 AMPLIACION = 5            # el recorte se enseña a ×5
 MARGEN = 24               # la estrella más brillante se busca lejos de los bordes
 NIVEL_PICO_OBJETIVO = 0.6 # en vivo: el pico de la estrella al 60 % del rango (sin saturar)
+
+# Bahtinov (medir_bahtinov). El primer orden de los picos cae a unos 25 px del sensor de la estrella
+# con cualquier telescopio: la rejilla de la máscara se hace proporcional a la focal
+RADIO_BAHTINOV = 112      # px del sensor alrededor de la estrella donde se buscan los picos
+RADIO_BAHTINOV_MIN = 48   # más cerca del borde de la foto no se mide
+NUCLEO_BAHTINOV = 6       # px del sensor: el núcleo de la estrella no cuenta para situar las rayas
+SENAL_BAHTINOV = 6.0      # una raya tiene que destacar 6 veces la dispersión de la fuerza por ángulo...
+FRACCION_RAYA = 0.03      # ...y al menos un 3 % del trazo más fuerte (cada raya de la X lleva ~10 % del central)
+ANGULO_BAHTINOV_MIN = 10.0  # las rayas de la X, entre 10° y 45° del pico central...
+ANGULO_BAHTINOV_MAX = 45.0
+ASIMETRIA_BAHTINOV = 4.0  # ...y casi simétricas (una araña de reflector da rayas a 90°); al buscarlas por los
+                          # trazos se deja el doble: desenfocado, el pico central no pasa por la estrella
+OPUESTO_GRADOS = 8        # el trazo de enfrente de una raya, hasta 8° fuera de la línea por la estrella
+FRANJA_BAHTINOV = 3.0     # px del sensor a cada lado de una raya con que se ajusta su recta
+# Centrada: con la Bahtinov simulada de una focal de 260 mm a f/4,3, el desvío crece unos 0,023 px del
+# sensor por µm de desenfoque y la zona crítica de foco es de ±25 µm (±0,55 px): 0,3 px queda dentro
+UMBRAL_BAHTINOV_PX = 0.3  # desvío del pico central por debajo del cual la Bahtinov está centrada...
+SALIDA_BAHTINOV_PX = 0.6  # ...y por encima del cual deja de estarlo (para que el aviso no vaya y venga)
+VENTANA_BAHTINOV_S = 2.0  # en vivo, el desvío enseñado es la mediana de los últimos 2 s (el seeing lo mueve)
+FOTOGRAMAS_CENTRADA = 3   # en vivo, «centrada» necesita al menos estos fotogramas en la ventana
+ESCALA_BARRA_PX = 3.0     # la barra de debajo del recorte va de −3 a +3 px
+LADO_RECORTE_BAHTINOV = 480  # px del recorte de la Bahtinov antes de encajarlo en la imagen...
+RADIO_VISTA_BAHTINOV = 64    # ...que enseña 64 px del sensor alrededor de la estrella (×3,7)
+# Firma del foco (AyudaBahtinov): la relación entre las anchuras de los tres colores con la Bahtinov
+# centrada, aprendida al quitar la máscara y guardada en datos/ para avisar «enfocado» sin máscara
+RUTA_FIRMA = "datos/firma_enfoque.json"
+APRENDER_S = 180.0        # se aprende con lo que llegue hasta 3 minutos después de centrar la Bahtinov
+FOTOGRAMAS_APRENDER = {"vivo": 10, "foto": 1}
+TOLERANCIA_FIRMA = 0.05   # enfocado si R/G y B/G están a menos de un 5 % de los aprendidos (o 2 veces su dispersión)...
+SALIDA_FIRMA = 2.0        # ...y deja de estarlo al pasar del doble
+DISTINCION_FIRMA = 2.0    # la firma solo sirve si se aparta de 1 (lo que da un desenfoque grande) 2 veces la tolerancia
+CERCA_MEJOR_G = 1.15      # y el verde tiene que estar a menos de un 15 % del más fino de la sesión
 
 OBJETIVOS_DISCO = ("sol", "luna")
 ANGULOS_LIMBO = 180       # perfiles radiales por fotograma
@@ -223,6 +268,13 @@ def texto_info(info, para_imagen=False):
         if not para_imagen and info.get("n"):
             partes.append(_("{n} ángulos", n=info['n']))
         return sep.join(partes)
+    bahtinov = info.get("bahtinov")
+    if bahtinov:
+        # Con la máscara puesta la anchura de la estrella no dice nada: va el desvío del pico central
+        partes = [_("Bahtinov {px} px", px=fmt_num(abs(bahtinov["desvio"]), 2))]
+        if bahtinov.get("centrada"):
+            partes.append(_("CENTRADA") if para_imagen else _("centrada"))
+        return sep.join(partes)
     if not np.isfinite(info.get("fwhm_g", float("nan"))):
         return ""
     partes = [_("FWHM verde {px} px", px=fmt_num(info['fwhm_g'], 1))]
@@ -232,6 +284,12 @@ def texto_info(info, para_imagen=False):
         partes.append(_("azul {px}", px=fmt_num(info["fwhm_b"], 1)))
     if info.get("saturada"):
         partes.append(_("SATURADA") if para_imagen else _("saturada: baja la exposición o la ganancia"))
+    firma = info.get("firma")
+    if firma and firma.get("aprendiendo") is not None:
+        partes.append(_("APRENDIENDO {n}/{total}", n=firma["aprendiendo"], total=firma["total"]) if para_imagen
+                      else _("aprendiendo el foco: {n} de {total}", n=firma["aprendiendo"], total=firma["total"]))
+    elif firma and firma.get("enfocado"):
+        partes.append(_("ENFOCADO") if para_imagen else _("enfocado"))
     return sep.join(partes)
 
 
@@ -323,7 +381,9 @@ def componer(gris8, recorte, info, pulsado=None, tendencia=None, etiqueta=None, 
         # El recorte ocupa una fracción fija del lado: la foto de noche (3008 px) se
         # reduce a 1600 px para la web y a ~600 en el móvil, y el recorte debe seguir viéndose
         rl = int(lado * (0.4 if lado < 800 else 0.3))
-        rec = cv2.cvtColor(cv2.resize(recorte, (rl, rl), interpolation=cv2.INTER_CUBIC), cv2.COLOR_GRAY2BGR)
+        rec = cv2.resize(recorte, (rl, rl), interpolation=cv2.INTER_CUBIC if recorte.shape[0] < rl else cv2.INTER_AREA)
+        if rec.ndim == 2:
+            rec = cv2.cvtColor(rec, cv2.COLOR_GRAY2BGR)      # el de la Bahtinov ya viene en color, con la cruceta
         m = max(6, lado // 100)
         base[m:m + rl, w - m - rl:w - m] = rec
         grosor = max(2, lado // 500)
@@ -351,6 +411,392 @@ def componer(gris8, recorte, info, pulsado=None, tendencia=None, etiqueta=None, 
     if pulsado is not None:
         cv2.circle(base, (int(pulsado[0]), int(pulsado[1])), max(10, lado // 90), VERDE_MARCO, max(1, lado // 1000), cv2.LINE_AA)
     return base
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Máscara de Bahtinov: la cruz, la cruceta virtual y el desvío
+# ─────────────────────────────────────────────────────────────────────────────
+def planos_superpixel(cfa, patron):
+    """(rojo, verde, azul) del mosaico Bayer a mitad de resolución, sin interpolar; (None, mosaico, None) si no es de color."""
+    f = np.asarray(cfa)
+    p = str(patron).upper()
+    if p not in _POS_VERDES:
+        return None, verde_superpixel(f, patron), None
+    h, w = f.shape[0] & ~1, f.shape[1] & ~1
+    pos_r = {"RGGB": (0, 0), "BGGR": (1, 1), "GRBG": (0, 1), "GBRG": (1, 0)}[p]
+    pos_b = (1 - pos_r[0], 1 - pos_r[1])
+    rojo = f[pos_r[0]:h:2, pos_r[1]:w:2].astype(np.float32)
+    azul = f[pos_b[0]:h:2, pos_b[1]:w:2].astype(np.float32)
+    return rojo, verde_superpixel(f, patron), azul
+
+
+def _dif_angulo(a, b):
+    """a − b en grados, llevado a (−90, 90]: las rayas no tienen sentido."""
+    d = (float(a) - float(b)) % 180.0
+    return d - 180.0 if d > 90.0 else d
+
+
+def _recta_pesada(xs, ys, w):
+    """Recta de mínimos cuadrados totales de los puntos (xs, ys) con pesos w: (normal unitaria n, d) con n·q = d."""
+    sw = float(w.sum())
+    mx, my = float((xs * w).sum()) / sw, float((ys * w).sum()) / sw
+    dx, dy = xs - mx, ys - my
+    cxx, cyy, cxy = float((dx * dx * w).sum()), float((dy * dy * w).sum()), float((dx * dy * w).sum())
+    ang = 0.5 * math.atan2(2.0 * cxy, cxx - cyy)                  # la dirección de más dispersión: la de la raya
+    n = np.array([-math.sin(ang), math.cos(ang)])
+    return n, float(n @ (mx, my))
+
+
+def medir_bahtinov(lum, x, y, escala_px=1.0):
+    """
+    Busca la cruz de una máscara de Bahtinov alrededor de la estrella (x, y) del plano `lum` (la
+    suma de los tres colores: con un solo color los picos salen a trozos) y mide cuánto se aparta
+    el pico central del cruce de las dos rayas de la X, que es por donde pasa cuando el foco es bueno.
+
+    Con un telescopio corto los picos son poco más que un trazo a cada lado de la estrella (el
+    primer orden de la rejilla, a ~25 px del sensor), así que no se buscan rectas largas: se miran
+    los trazos alrededor de la estrella (brillo por ángulo, en polares), cada raya es una pareja de
+    trazos opuestos, y su recta se ajusta con los píxeles de una franja estrecha a lo largo de la
+    pareja (mínimos cuadrados totales, tres vueltas), sin el núcleo, donde las rayas se cruzan.
+
+    Devuelve None si no hay tres rayas con la forma de una Bahtinov (sin máscara, la araña de un
+    reflector...) o un dict con el desvío en px del sensor (con signo), los ángulos de las rayas y
+    sus rectas en px del recorte (central, X, X): {"desvio", "angulos", "rectas", "cruce", "radio", "escala"}.
+    """
+    p = np.asarray(lum, dtype=np.float32)
+    r = int(round(RADIO_BAHTINOV / escala_px))
+    r = min(r, x, y, p.shape[1] - 1 - x, p.shape[0] - 1 - y)
+    if r < RADIO_BAHTINOV_MIN / escala_px:
+        return None
+    c = p[y - r:y + r + 1, x - r:x + r + 1].astype(np.float32)
+    c = c - float(np.median(c))
+    # Suavizado de un píxel (los trazos tienen varios: el ruido baja y ellos no) y solo lo que sale del ruido
+    suave = cv2.GaussianBlur(c, (0, 0), max(0.5, 1.0 / escala_px))
+    sigma = 1.4826 * float(np.median(np.abs(suave - float(np.median(suave))))) + 1e-6
+    senal = np.clip(suave - float(np.median(suave)) - 3.0 * sigma, 0, None)
+    interior = NUCLEO_BAHTINOV / escala_px
+    # Brillo por ángulo (1°) entre el núcleo y el borde del recorte
+    n_ang = 360
+    polar = cv2.warpPolar(senal, (r, n_ang), (float(r), float(r)), float(r), cv2.WARP_POLAR_LINEAR + cv2.INTER_LINEAR)
+    radios = np.arange(r)
+    brillo = polar[:, radios >= interior].sum(axis=1)
+    brillo = np.convolve(np.r_[brillo[-2:], brillo, brillo[:2]], np.ones(3) / 3.0, mode="same")[2:-2]
+    # Una raya: un trazo a cada lado (el de enfrente puede caer unos grados más allá si la raya no pasa por la estrella)
+    desfase = np.array([max(range(-OPUESTO_GRADOS, OPUESTO_GRADOS + 1), key=lambda d: brillo[(a + 180 + d) % n_ang])
+                        for a in range(180)])
+    enfrente = brillo[(np.arange(180) + 180 + desfase) % n_ang]
+    eje = np.arange(180) + desfase / 2.0          # la dirección de la raya: entre un trazo y el de enfrente
+    fuerza = np.sqrt(np.clip(brillo[:180], 0, None) * np.clip(enfrente, 0, None))
+    fondo = float(np.median(fuerza))
+    dispersion = 1.4826 * float(np.median(np.abs(fuerza - fondo))) + 1e-6
+    # Sin ruido de fondo (todo lo que no son trazos queda a cero) la dispersión es nula: entonces cuenta lo que
+    # destaque un FRACCION_RAYA del trazo más fuerte
+    umbral = fondo + max(SENAL_BAHTINOV * dispersion, FRACCION_RAYA * float(fuerza.max()))
+    picos = [i for i in range(180) if fuerza[i] >= fuerza[i - 1] and fuerza[i] >= fuerza[(i + 1) % 180] and fuerza[i] > umbral]
+    picos = sorted(picos, key=lambda i: -fuerza[i])[:6]
+    mejor = None
+    for ic in picos:
+        for i1 in picos:
+            for i2 in picos:
+                if len({ic, i1, i2}) < 3 or i1 > i2 or fuerza[ic] < max(fuerza[i1], fuerza[i2]):
+                    continue        # el pico central es el más fuerte: sale de media máscara, y cada raya de la X de un cuarto
+                d1, d2 = _dif_angulo(eje[i1], eje[ic]), _dif_angulo(eje[i2], eje[ic])
+                if d1 * d2 >= 0 or min(abs(d1), abs(d2)) < ANGULO_BAHTINOV_MIN \
+                        or max(abs(d1), abs(d2)) > ANGULO_BAHTINOV_MAX or abs(abs(d1) - abs(d2)) > 2 * ASIMETRIA_BAHTINOV:
+                    continue
+                total = fuerza[ic] + fuerza[i1] + fuerza[i2]
+                if mejor is None or total > mejor[0]:
+                    mejor = (total, ic, i1, i2)
+    if mejor is None:
+        return None
+    yy, xx = np.mgrid[0:2 * r + 1, 0:2 * r + 1].astype(np.float32)
+    dist = np.hypot(xx - r, yy - r)
+    fuera_nucleo = (dist >= interior) & (dist <= r)
+    franja = FRANJA_BAHTINOV / escala_px
+    rectas = []
+    for i in mejor[1:]:
+        # La recta de partida, por el centro de los dos trazos
+        puntos = []
+        for a0 in (i, i + 180 + desfase[i]):
+            a = math.radians(a0)
+            cuna = np.abs(((np.arctan2(yy - r, xx - r) - a + np.pi) % (2 * np.pi)) - np.pi) <= math.radians(3.0)
+            w = senal * (cuna & fuera_nucleo)
+            if w.sum() <= 0:
+                break
+            puntos.append(((xx * w).sum() / w.sum(), (yy * w).sum() / w.sum()))
+        if len(puntos) < 2:
+            return None
+        (x1, y1), (x2, y2) = puntos
+        ang = math.atan2(y2 - y1, x2 - x1)
+        n = np.array([-math.sin(ang), math.cos(ang)])
+        d = float(n @ (x1, y1))
+        # Tres vueltas con los píxeles de la franja a lo largo de la recta
+        for __ in range(3):
+            en_franja = (np.abs(xx * n[0] + yy * n[1] - d) <= franja) & fuera_nucleo
+            w = senal[en_franja]
+            if w.sum() <= 0:
+                return None
+            n, d = _recta_pesada(xx[en_franja], yy[en_franja], w)
+        rectas.append((n, d))
+    (nc, dc), (n1, d1), (n2, d2) = rectas
+    angulos = [math.degrees(math.atan2(-n[0], n[1])) % 180.0 for n, __ in rectas]
+    if abs(abs(_dif_angulo(angulos[1], angulos[0])) - abs(_dif_angulo(angulos[2], angulos[0]))) > ASIMETRIA_BAHTINOV:
+        return None
+    try:
+        cruce = np.linalg.solve(np.array([n1, n2]), np.array([d1, d2]))
+    except np.linalg.LinAlgError:
+        return None
+    if np.hypot(cruce[0] - r, cruce[1] - r) > r / 3:
+        return None
+    # El signo depende de hacia dónde apunte la normal del pico central, que _recta_pesada da con el
+    # ángulo de la raya en (−90°, 90°]: es estable mientras la máscara y la cámara no giren
+    desvio = float(nc @ cruce - dc) * escala_px
+    return {"desvio": desvio, "angulos": [round(a, 2) for a in angulos],
+            "rectas": [(float(n[0]), float(n[1]), float(d)) for n, d in rectas],
+            "cruce": (float(cruce[0]), float(cruce[1])), "radio": r, "escala": float(escala_px)}
+
+
+AMBAR = (0, 190, 255)
+
+
+def _linea_discontinua(img, p0, p1, color, grosor, trazo=14, hueco=9):
+    """Línea a trazos de p0 a p1 (cv2 no tiene)."""
+    p0, p1 = np.asarray(p0, float), np.asarray(p1, float)
+    largo = float(np.hypot(*(p1 - p0)))
+    if largo < 1:
+        return
+    u = (p1 - p0) / largo
+    s = 0.0
+    while s < largo:
+        a, b = p0 + u * s, p0 + u * min(largo, s + trazo)
+        cv2.line(img, (int(round(a[0])), int(round(a[1]))), (int(round(b[0])), int(round(b[1]))), color, grosor, cv2.LINE_AA)
+        s += trazo + hueco
+
+
+def _extremos_recta(n, d, centro, radio):
+    """Los dos puntos donde la recta n·q = d corta el círculo (centro, radio), o None si no lo corta."""
+    t = np.array([n[1], -n[0]])
+    pie = np.asarray(centro, float) + n * (d - float(n @ np.asarray(centro, float)))
+    h2 = radio * radio - float(np.sum((pie - centro) ** 2))
+    if h2 <= 0:
+        return None
+    h = math.sqrt(h2)
+    return pie - t * h, pie + t * h
+
+
+def recorte_bahtinov(lum, x, y, medida, estado=None):
+    """
+    El recorte de la estrella con la máscara de Bahtinov: los tres colores juntos (los picos se ven
+    seguidos), el núcleo quemado para que los picos se vean, y encima la cruceta virtual: las dos
+    rayas de la X tal como se han medido (finas) y, a trazos, por dónde tendría que pasar el pico
+    central (por su cruce). Si el pico central de verdad cae sobre los trazos, el foco es bueno.
+    Abajo, una barra con el desvío (−3 a +3 px) y la zona de «centrada». `estado`: el
+    info["bahtinov"] de AyudaBahtinov (desvío de la ventana y si está centrada). Devuelve BGR.
+    """
+    # La vista, más cerrada que la zona medida: los trazos del primer orden caen a ~25 px de la estrella
+    r = int(medida["radio"])
+    rv = min(r, int(round(RADIO_VISTA_BAHTINOV / float(medida.get("escala", 1.0)))))
+    desplaz = float(r - rv)                       # de px del recorte medido a px de la vista
+    c = np.asarray(lum, dtype=np.float32)[y - rv:y + rv + 1, x - rv:x + rv + 1]
+    # Negro justo encima del ruido del cielo y blanco en lo brillante de los trazos (fuera del núcleo): el
+    # núcleo se quema y los trazos se ven. En el foco el núcleo es tan puntual que los trazos no llegan al 2 % del pico
+    fondo = float(np.median(c))
+    sigma = 1.4826 * float(np.median(np.abs(c - fondo))) + 1e-6
+    negro = fondo + 2.5 * sigma
+    yy, xx = np.mgrid[-rv:rv + 1, -rv:rv + 1]
+    trazos = c[(xx * xx + yy * yy > (NUCLEO_BAHTINOV / float(medida.get("escala", 1.0))) ** 2) & (c > negro + 3.0 * sigma)]
+    if trazos.size >= 20:
+        blanco = negro + float(np.percentile(trazos - negro, 90))
+    else:
+        blanco = negro + max(0.2 * (float(c.max()) - negro), 8.0 * sigma)
+    gris = (np.sqrt(np.clip((c - negro) / (blanco - negro), 0.0, 1.0)) * 255.0 + 0.5).astype(np.uint8)
+    lado = LADO_RECORTE_BAHTINOV
+    k = lado / float(2 * rv + 1)
+    img = cv2.cvtColor(cv2.resize(gris, (lado, lado), interpolation=cv2.INTER_CUBIC), cv2.COLOR_GRAY2BGR)
+    estado = estado or {}
+    centrada = bool(estado.get("centrada"))
+    grosor = max(1, lado // 240)
+    centro = np.array([lado / 2.0 - 0.5, lado / 2.0 - 0.5])
+
+    def en_vista(n, d):
+        """La recta n·q = d (px del recorte medido) en px de la vista: q = (q_vista + 1/2)/k − 1/2 + desplaz."""
+        return d * k - (desplaz - 0.5) * k * (n[0] + n[1]) - 0.5 * (n[0] + n[1])
+
+    capa = img.copy()
+    rectas = [(np.array(v[:2]), v[2]) for v in medida["rectas"]]
+    for n, d in rectas[1:]:
+        ext = _extremos_recta(n, en_vista(n, d), centro, lado / 2.0 - 2)
+        if ext:
+            cv2.line(capa, tuple(int(round(v)) for v in ext[0]), tuple(int(round(v)) for v in ext[1]), VERDE_MARCO, grosor, cv2.LINE_AA)
+    cv2.addWeighted(capa, 0.6, img, 0.4, 0, dst=img)
+    # El pico central ideal: la dirección del medido, por el cruce de la X; fino y algo transparente para
+    # que se vea el pico de verdad debajo
+    nc = rectas[0][0]
+    ext = _extremos_recta(nc, en_vista(nc, float(nc @ np.asarray(medida["cruce"]))), centro, lado / 2.0 - 2)
+    if ext:
+        capa = img.copy()
+        _linea_discontinua(capa, ext[0], ext[1], VERDE_TEXTO if centrada else AMBAR, grosor)
+        cv2.addWeighted(capa, 0.75, img, 0.25, 0, dst=img)
+    # La barra del desvío
+    desvio = estado.get("desvio", medida["desvio"])
+    alto_b = max(10, lado // 28)
+    y0 = lado - alto_b - lado // 30
+    x0, x1 = lado // 6, lado - lado // 6
+    escala = (x1 - x0) / (2.0 * ESCALA_BARRA_PX)
+    xm = (x0 + x1) // 2
+    banda = img[y0:y0 + alto_b, x0:x1]
+    cv2.addWeighted(banda, 0.3, np.zeros_like(banda), 0.7, 0, dst=banda)
+    zona = int(round(UMBRAL_BAHTINOV_PX * escala))
+    cv2.rectangle(img, (xm - zona, y0), (xm + zona, y0 + alto_b), (50, 120, 50), -1)
+    cv2.rectangle(img, (x0, y0), (x1, y0 + alto_b), VERDE_MARCO, 1)
+    cv2.line(img, (xm, y0 - alto_b // 3), (xm, y0 + alto_b + alto_b // 3), VERDE_TEXTO, grosor)
+    xd = int(round(xm + max(-ESCALA_BARRA_PX, min(ESCALA_BARRA_PX, desvio)) * escala))
+    cv2.circle(img, (xd, y0 + alto_b // 2), alto_b // 2 + 2, VERDE_TEXTO if centrada else AMBAR, -1, cv2.LINE_AA)
+    return img
+
+
+TEXTO_AVISO = {"centrada": lambda: _("Bahtinov centrada"),
+               "aprendida": lambda: _("Foco aprendido: relación de los colores guardada"),
+               "enfocado": lambda: _("Enfocado")}
+
+
+def texto_aviso(clave):
+    """La frase para decir por voz (en el idioma de la app) o ""."""
+    f = TEXTO_AVISO.get(clave)
+    return f() if f else ""
+
+
+class AyudaBahtinov:
+    """
+    Lo que se recuerda entre fotogramas del vivo (o entre fotos de prueba) al enfocar estrellas:
+
+      - El desvío de la Bahtinov enseñado: en vivo, la mediana de los últimos VENTANA_BAHTINOV_S
+        (el seeing lo mueve de un fotograma a otro); en fotos sueltas, el de la última. El signo
+        se mantiene mientras la máscara no gire. «Centrada» con histéresis, y aviso al entrar.
+      - La firma del foco: después de centrar la Bahtinov, al quitar la máscara (la estrella deja de
+        tener picos), la relación entre las anchuras de los tres colores (R/G y B/G) de las
+        siguientes FOTOGRAMAS_APRENDER tomas es la del foco bueno de este telescopio y esta cámara:
+        se guarda en RUTA_FIRMA, una por modo (en vivo el verde es el superpíxel, en la foto el
+        revelado completo, y las anchuras no salen iguales). Con un telescopio con color residual,
+        en el foco el verde es más fino y los otros dos se abren; muy desenfocado, los tres son
+        el mismo círculo y la relación vuelve a 1.
+      - Sin máscara y con firma: «enfocado» cuando R/G y B/G llegan a los aprendidos y el verde está
+        cerca del más fino de la sesión. Si la firma casi no se aparta de 1 (un reflector, o un
+        refractor muy corregido con mal seeing), no sirve y se dice.
+    """
+
+    def __init__(self, ruta=RUTA_FIRMA, reloj=time.monotonic):
+        self.ruta, self.reloj = ruta, reloj
+        self._lock = threading.Lock()
+        self.firmas = self._cargar()
+        self.t_centrada = None          # la última vez que la Bahtinov estuvo centrada
+        self._reiniciar(None)
+
+    def _reiniciar(self, modo):
+        self.modo = modo
+        self.desvios = collections.deque()      # (t, desvío)
+        self.normal = None
+        self.centrada = False
+        self.muestras = []                      # (R/G, B/G) para aprender la firma
+        self.relaciones = collections.deque()   # (t, R/G, B/G, verde) para comparar con la firma
+        self.enfocado = False
+        self.mejor_g = None
+        self.t_ultimo = None
+
+    def _cargar(self):
+        try:
+            with open(self.ruta, encoding="utf-8") as f:
+                datos = json.load(f)
+            return {m: v for m, v in datos.items() if isinstance(v, dict) and "rg" in v and "bg" in v}
+        except (OSError, ValueError):
+            return {}
+
+    def _guardar(self):
+        try:
+            os.makedirs(os.path.dirname(self.ruta) or ".", exist_ok=True)
+            tmp = self.ruta + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self.firmas, f, indent=1)
+            os.replace(tmp, self.ruta)
+        except OSError:
+            pass
+
+    def anotar(self, info, medida, modo):
+        """
+        Una toma más. `info`: el de medir() (con fwhm_r y fwhm_b); `medida`: la de medir_bahtinov o
+        None; `modo`: "vivo" o "foto". Añade a `info` las claves "bahtinov" y "firma" que
+        correspondan y, si hay algo que decir por voz, "aviso" (centrada, aprendida, enfocado).
+        """
+        with self._lock:
+            t = self.reloj()
+            if modo != self.modo or (self.t_ultimo is not None and t - self.t_ultimo > 600):
+                self._reiniciar(modo)
+            self.t_ultimo = t
+            ventana = VENTANA_BAHTINOV_S if modo == "vivo" else 0.0
+            aviso = None
+            if medida is not None:
+                self.muestras, self.enfocado = [], False
+                self.relaciones.clear()
+                n = np.array(medida["rectas"][0][:2])
+                desvio = float(medida["desvio"])
+                if self.normal is None:
+                    self.normal = n
+                elif float(n @ self.normal) < 0:
+                    desvio = -desvio            # la misma raya con la normal al revés (ángulo cerca de ±90°)
+                self.desvios.append((t, desvio))
+                while len(self.desvios) > 1 and t - self.desvios[0][0] > ventana:
+                    self.desvios.popleft()
+                valor = float(np.median([d for __, d in self.desvios]))
+                suficientes = len(self.desvios) >= (FOTOGRAMAS_CENTRADA if modo == "vivo" else 1)
+                if not self.centrada and suficientes and abs(valor) <= UMBRAL_BAHTINOV_PX:
+                    self.centrada, aviso = True, "centrada"
+                elif self.centrada and abs(valor) > SALIDA_BAHTINOV_PX:
+                    self.centrada = False
+                if self.centrada:
+                    self.t_centrada = t
+                info["bahtinov"] = {"desvio": round(valor, 2), "centrada": self.centrada, "umbral": UMBRAL_BAHTINOV_PX,
+                                    "angulos": medida["angulos"], "n": len(self.desvios)}
+            else:
+                self.desvios.clear()
+                self.normal, self.centrada = None, False
+                g, r, b = (info.get(k, float("nan")) for k in ("fwhm_g", "fwhm_r", "fwhm_b"))
+                if all(v is not None and np.isfinite(v) and v > 0 for v in (g, r, b)) and not info.get("saturada"):
+                    rg, bg = r / g, b / g
+                    if self.t_centrada is not None and t - self.t_centrada <= APRENDER_S:
+                        self.muestras.append((rg, bg))
+                        total = FOTOGRAMAS_APRENDER.get(modo, 1)
+                        info["firma"] = {"aprendiendo": len(self.muestras), "total": total}
+                        if len(self.muestras) >= total:
+                            m = np.array(self.muestras)
+                            disp = 1.4826 * np.median(np.abs(m - np.median(m, axis=0)), axis=0) if len(m) > 2 else np.zeros(2)
+                            self.firmas[modo] = {"rg": round(float(np.median(m[:, 0])), 3), "bg": round(float(np.median(m[:, 1])), 3),
+                                                 "dispersion": round(float(disp.max()), 3), "n": len(m),
+                                                 "fecha": time.strftime("%Y-%m-%d %H:%M")}
+                            self._guardar()
+                            self.t_centrada, self.muestras, aviso = None, [], "aprendida"
+                    firma = self.firmas.get(modo)
+                    if firma and "aprendiendo" not in info.get("firma", {}):
+                        self.relaciones.append((t, rg, bg, g))
+                        while len(self.relaciones) > 1 and t - self.relaciones[0][0] > ventana:
+                            self.relaciones.popleft()
+                        rg_v, bg_v, g_v = (float(np.median([v[i] for v in self.relaciones])) for i in (1, 2, 3))
+                        self.mejor_g = g_v if self.mejor_g is None else min(self.mejor_g, g_v)
+                        tol = max(TOLERANCIA_FIRMA, 2.0 * float(firma.get("dispersion", 0.0)))
+                        util = max(abs(firma["rg"] - 1.0), abs(firma["bg"] - 1.0)) >= DISTINCION_FIRMA * tol
+                        dist = max(abs(rg_v - firma["rg"]) / firma["rg"], abs(bg_v - firma["bg"]) / firma["bg"])
+                        cerca = dist <= tol and g_v <= CERCA_MEJOR_G * self.mejor_g
+                        if util and not self.enfocado and cerca:
+                            self.enfocado, aviso = True, "enfocado"
+                        elif self.enfocado and (not util or dist > SALIDA_FIRMA * tol):
+                            self.enfocado = False
+                        info["firma"] = {"rg": round(rg_v, 3), "bg": round(bg_v, 3), "rg_foco": firma["rg"], "bg_foco": firma["bg"],
+                                         "util": util, "enfocado": self.enfocado}
+            if aviso:
+                info["aviso"] = aviso
+            return info
+
+
+ayuda_bahtinov = AyudaBahtinov()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -813,6 +1259,23 @@ def imagen_foto_dia_disco(cfa, patron, girar, objetivo=None):
     return componer(girada, recorte, info, pulsado=pulsado, etiqueta=info.get("recorte")), encuadre, info
 
 
+def _recorte_estrella_o_bahtinov(gris, lum, info, escala_px, modo, ayuda=None):
+    """
+    El recorte de arriba a la derecha: si la estrella tiene la cruz de una Bahtinov, el de la
+    Bahtinov con la cruceta virtual (de `lum`, los tres colores); si no, la estrella en verde ×5.
+    Anota la toma en AyudaBahtinov (desvío, firma del foco, aviso), que deja lo suyo en `info`.
+    """
+    medida = None
+    try:
+        medida = medir_bahtinov(lum, info["x"], info["y"], escala_px)
+    except Exception:
+        medida = None
+    (ayuda or ayuda_bahtinov).anotar(info, medida, modo)
+    if medida is not None:
+        return recorte_bahtinov(lum, info["x"], info["y"], medida, info.get("bahtinov"))
+    return recorte_estrella(gris, info["x"], info["y"])
+
+
 def imagen_foto_noche(rgb_lineal, girar):
     """
     Foto de prueba de noche con el modo activado. rgb_lineal: (H, W, 3) float del
@@ -823,7 +1286,7 @@ def imagen_foto_noche(rgb_lineal, girar):
     r, g, b = (np.asarray(rgb_lineal[..., i], dtype=np.float32) for i in range(3))
     info = medir(g, r, b, escala_px=1.0)
     gris = revelar_gris(g)
-    recorte = recorte_estrella(gris, info["x"], info["y"])
+    recorte = _recorte_estrella_o_bahtinov(gris, r + g + b, info, 1.0, "foto")
     girada, encuadre = girar(gris)
     # La estrella en la imagen girada: se vuelve a localizar en el gris girado (barato)
     xg, yg, __ = estrella_mas_brillante(girada)
@@ -836,10 +1299,11 @@ def imagen_vivo(cfa, patron, paso, orientar, girar):
     paso: el de la vista reducida; orientar: función (imagen 2D) → imagen en la
     orientación de ASCOM; girar: la de giro_camara. Devuelve (imagen BGR, encuadre, info).
     """
-    verde = verde_superpixel(cfa, patron, 1)                  # resolución completa del superpíxel (2 px del sensor)
-    info = medir(verde, escala_px=2.0)
+    rojo, verde, azul = planos_superpixel(cfa, patron)       # resolución completa del superpíxel (2 px del sensor)
+    info = medir(verde, rojo, azul, escala_px=2.0)
     gris_completo = revelar_gris(verde)
-    recorte = recorte_estrella(gris_completo, info["x"], info["y"])
+    lum = verde if rojo is None else rojo + verde + azul
+    recorte = _recorte_estrella_o_bahtinov(gris_completo, lum, info, 2.0, "vivo")
     vista = gris_completo[::paso, ::paso] if paso > 1 else gris_completo
     vista = orientar(np.ascontiguousarray(vista))
     girada, encuadre = girar(vista)

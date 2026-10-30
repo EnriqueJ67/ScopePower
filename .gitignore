@@ -72,6 +72,9 @@ datos/signos_manuales_seguimiento.json
 # Plan de la noche (lista de objetos del usuario y su progreso)
 datos/plan.json
 datos/plan.json.tmp
+# Firma del foco aprendida con la Bahtinov (relación de anchuras de los colores de cada equipo)
+datos/firma_enfoque.json
+datos/firma_enfoque.json.tmp
 
 # Destino del PC de campo de copiar_a_campo.bat (propio de cada usuario)
 copiar_a_campo.destino.txt

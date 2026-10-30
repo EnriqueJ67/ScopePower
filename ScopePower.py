@@ -2216,6 +2216,8 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
                 rgb_lineal = debayer_rgb(imagen_fits, patron_bayer).astype(np.float32)
                 imagen_web, encuadre, info_enfoque = enfoque.imagen_foto_noche(rgb_lineal, giro_camara.girar)
                 print(f"🔍 Enfoque: {enfoque.texto_info(info_enfoque)}")
+                if info_enfoque.get("aviso"):
+                    voz.decir(enfoque.texto_aviso(info_enfoque["aviso"]))
             except Exception as e:
                 log.warning("Modo enfoque: %s", e)
         guardar_jpg_web(RUTA_IMAGEN_WEB, imagen_web)
