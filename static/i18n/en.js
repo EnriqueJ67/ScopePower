@@ -815,6 +815,7 @@ window.I18N_CATALOGO = {
 "esperando":"waiting",
 "esperando al bloqueo":"waiting for lock",
 "estirando":"stretching",
+"estrella movida: espera a que el tubo se calme":"star smeared: wait for the tube to settle",
 "estás en la zona buena":"you are in the good zone",
 "exponiendo":"exposing",
 "exponiendo…":"exposing…",

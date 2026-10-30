@@ -14,6 +14,10 @@ día de la release. El número de versión vive en `version.py`.
   enfoque, ScopePower aprende cuánto más anchos que el verde salen el rojo y el azul en el foco
   bueno, y las veces siguientes, sin máscara, dice «Enfocado» cuando vuelven a esa relación.
   Probado con una estrella simulada; falta probarlo con la cámara y la máscara reales.
+  Al tocar el enfocador el tubo vibra y algún fotograma sale movido y sin cruz: eso ya no se toma
+  por la máscara quitada (en vivo hacen falta 3 s seguidos sin la cruz) ni sirve para aprender
+  (una estrella alargada no cuenta, y el texto dice «estrella movida»). Antes, en foto suelta, una
+  sola foto movida tras centrar podía guardar un foco equivocado.
 - Arreglado: el apilado descartaba fotos de campos densos de la Vía Láctea que ASTAP no resolvía
   a la primera (una de M 11 el 29-oct), con un aviso rojo ilegible («Command … returned non-zero
   exit status 1») que se quedaba en la página toda la sesión. Ahora el alineado repite con más
