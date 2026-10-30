@@ -19,6 +19,7 @@ import time
 import json
 import shutil
 import tempfile
+import threading
 
 import numpy as np
 
@@ -152,11 +153,31 @@ def probar_trabajo(ruta):
         time.sleep(0.05)
     assert trabajo.estado(ruta)["estado"] == "hecho"
     assert len(visor_video.leer_analisis(ruta)["sucesos"]) == 2
-    # Cancelar a medias (como al borrar el vídeo): suelta el SER y no deja análisis
+    # Cancelar a medias (como al borrar el vídeo): suelta el SER y no deja análisis.
+    # El análisis real se frena en su primera consulta de cancelar hasta que llegue la orden:
+    # con una espera fija, el SER sintético se analizaba a veces antes de quitarlo y quedaba «hecho»
     os.remove(visor_video.ruta_analisis(ruta))
-    trabajo.pedir(ruta)
-    time.sleep(0.05)
-    trabajo.quitar(ruta)
+    original = visor_video.analizar
+    empezado = threading.Event()
+
+    def analizar_frenado(ruta_ser, progreso=None, cancelar=None):
+        def cancelar_frenado():
+            if not empezado.is_set():
+                empezado.set()
+                limite = time.time() + 10
+                while not cancelar() and time.time() < limite:
+                    time.sleep(0.01)
+            return cancelar()
+        return original(ruta_ser, progreso=progreso, cancelar=cancelar_frenado)
+
+    visor_video.analizar = analizar_frenado
+    try:
+        trabajo.pedir(ruta)
+        assert empezado.wait(10), "el análisis no empezó"
+        assert trabajo.ocupado_con(ruta) and trabajo.estado(ruta)["estado"] == "en_curso", trabajo.estado(ruta)
+        trabajo.quitar(ruta)
+    finally:
+        visor_video.analizar = original
     assert not trabajo.ocupado_con(ruta) and trabajo.estado(ruta)["estado"] == "sin_hacer", trabajo.estado(ruta)
     os.rename(ruta, ruta + ".mov")          # en Windows falla si alguien lo tiene abierto
     os.rename(ruta + ".mov", ruta)
