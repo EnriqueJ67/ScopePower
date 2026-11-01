@@ -73,9 +73,9 @@
 
 <div id="galeria" class="galeria">
     {% for nombre in imagenes %}
-    {% set partes = nombre.replace('.jpg', '').rsplit('_', 2) %}
+    {% set partes = partes_nombre(nombre) %}
     {% set nota = notas.get(nombre) %}
-    <div class="foto tarjeta" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes|length == 3 else nombre }}" data-tipo="{{ tipos[nombre] }}"{% if nota %} data-nota="{{ nota.puntuacion }}"{% endif %}>
+    <div class="foto tarjeta" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes[1] else nombre }}" data-tipo="{{ tipos[nombre] }}"{% if nota %} data-nota="{{ nota.puntuacion }}"{% endif %}>
         <img src="{{ url_for('static', filename='fotos/' ~ nombre) }}" alt="{{ nombre }}" loading="lazy" onclick="abrirLightbox(this.src, this.closest('.foto').querySelector('.foto-nombre').textContent)">
         <div class="foto-pie">
             <div class="foto-nombre">{{ partes[0].replace('_', ' ') }}</div>
@@ -84,7 +84,7 @@
             <div class="foto-nota" title="{{ _('Nota del apilado: nitidez de las estrellas × raíz del número de estrellas, como la de cada foto en el apilado en vivo. Más alta es mejor; solo se comparan bien fotos del mismo equipo y encuadre.') }}{% if nota.fwhm %} {{ _('FWHM {f} px.', f=idioma.fmt_num(nota.fwhm, 1)) }}{% endif %}">★ <b>{{ idioma.fmt_num(nota.puntuacion, 2) }}</b> · {{ ngettext("{n} estrella", "{n} estrellas", nota.estrellas) }}<span class="nota-puesto"></span></div>
             {% endif %}
             <div class="foto-fecha">
-                {% if partes|length == 3 and partes[1]|length == 8 %}
+                {% if partes[1] %}
                 {% if idioma.idioma_actual() == 'es' %}{{ partes[1][6:8] }}/{{ partes[1][4:6] }}/{{ partes[1][0:4] }}{% else %}{{ partes[1][0:4] }}-{{ partes[1][4:6] }}-{{ partes[1][6:8] }}{% endif %} · {{ partes[2][0:2] }}:{{ partes[2][2:4] }}
                 {% else %}{{ nombre }}{% endif %}
             </div>
@@ -100,8 +100,8 @@
     {% endfor %}
     {# Los vídeos del mini PC (carpeta [Video]): la tarjeta abre el visor; se ordenan con las fotos por la fecha del nombre #}
     {% for v in videos %}
-    {% set partes = v.nombre.rsplit('_', 2) %}
-    <div class="foto tarjeta tarjeta-video" data-video="{{ v.nombre }}" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes|length == 3 else v.nombre }}" data-tipo="{{ v.tipo }}">
+    {% set partes = partes_nombre(v.nombre) %}
+    <div class="foto tarjeta tarjeta-video" data-video="{{ v.nombre }}" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes[1] else v.nombre }}" data-tipo="{{ v.tipo }}">
         <a class="foto-video" href="/galeria/video/{{ v.nombre }}" title="{{ _('Ver el vídeo fotograma a fotograma') }}">
             {% if v.grabando %}<span class="foto-video-grabando">{{ _("Grabando…") }}</span>
             {% else %}<img src="/videos/miniatura/{{ v.nombre }}" alt="{{ v.nombre }}" loading="lazy">{% endif %}
@@ -111,7 +111,7 @@
             <div class="foto-nombre">{{ v.objeto }}</div>
             <div class="foto-tipo">{{ _("Vídeo") }}{% if v.error %} · ⚠️ {{ v.error }}{% elif v.frames %} · {{ ngettext("{n} fotograma", "{n} fotogramas", v.frames) }}{% endif %}</div>
             <div class="foto-fecha">
-                {% if partes|length == 3 and partes[1]|length == 8 %}
+                {% if partes[1] %}
                 {% if idioma.idioma_actual() == 'es' %}{{ partes[1][6:8] }}/{{ partes[1][4:6] }}/{{ partes[1][0:4] }}{% else %}{{ partes[1][0:4] }}-{{ partes[1][4:6] }}-{{ partes[1][6:8] }}{% endif %} · {{ partes[2][0:2] }}:{{ partes[2][2:4] }}
                 {% else %}{{ v.nombre }}{% endif %}
             </div>

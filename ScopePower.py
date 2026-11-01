@@ -6094,7 +6094,7 @@ def galeria():
                            serie_wolf=serie_wolf, factor_k=manchas_solares.factor_k(), sol_crudo=sol_crudo, serie_sol=serie_sol,
                            curva_sol=curva_sol, orbita_sol=orbita_sol, n_sol_pendientes=n_sol_pendientes, tipos=tipos, filtros=filtros,
                            n_rastros=len(lista_rastros), n_meteoros=n_meteoros, videos=videos, de_video=de_video,
-                           notas=notas, n_sin_nota=n_sin_nota)
+                           notas=notas, n_sin_nota=n_sin_nota, partes_nombre=_partes_galeria)
 
 
 @app.route("/galeria/puntuar", methods=["POST"])
@@ -6125,6 +6125,17 @@ def galeria_puntuar_estado():
 
 
 SIN_TIPO = N_("Sin tipo")      # clave del filtro de la galería: se traduce al pintarla
+
+
+def _partes_galeria(nombre):
+    """
+    (objeto, fecha AAAAMMDD, hora HHMMSS) del nombre de una foto o vídeo de la galería; un sufijo
+    detrás de la hora ('Sol_20261101_111033_video.jpg', '..._nucleo') no forma parte de nada: sin
+    quitarlo, la tarjeta se ordenaba por «111033video» y caía al final. Sin fecha: (base, '', '').
+    """
+    base = os.path.splitext(os.path.basename(nombre))[0]
+    m = re.fullmatch(r"(.+)_(\d{8})_(\d{6})(?:_[A-Za-z]+)?", base)
+    return (m.group(1), m.group(2), m.group(3)) if m else (base, "", "")
 
 
 def _tipo_foto_galeria(carpeta, nombre):

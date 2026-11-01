@@ -152,6 +152,18 @@ def main():
     if not (bien and bien2):
         fallos.append("Número de Wolf")
 
+    print("Apilado de un vídeo en la galería (nombre con _video): se ordena por su fecha:")
+    nombre_av = "Sol_20261023_130000_video.jpg"
+    shutil.copy(os.path.join("static", "fotos", nombre_sol), os.path.join("static", "fotos", nombre_av))
+    try:
+        html = pedir("/galeria").get_data(as_text=True)
+        bien = 'data-objeto="Sol" data-fecha="20261023130000"' in html and "23/10/2026 · 13:00" in html
+    finally:
+        os.remove(os.path.join("static", "fotos", nombre_av))
+    print(f"  {'✅' if bien else '❌'} tarjeta de {nombre_av} con objeto Sol y fecha 23/10/2026 13:00")
+    if not bien:
+        fallos.append("orden de los apilados de vídeo")
+
     print("Fotometría del Sol (la foto solo tiene JPG: el brillo no se mide sobre el JPG):")
     r = cliente.get("/galeria/sol/medidas/" + nombre_sol)
     d = r.get_json() or {}
