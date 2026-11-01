@@ -151,6 +151,33 @@ def _texto(draw, xy, texto, fuente, color, anchor, sombra):
     draw.text((x, y), texto, font=fuente, fill=color, anchor=anchor)
 
 
+FRANJA_TEXTOS = 0.13     # fracción del lado menor, abajo, que pueden tapar el logo y los textos (180·s de 1600·s, con margen)
+
+
+def alfa_degradado(w, h):
+    """
+    Opacidad (0–215) del degradado oscuro de la firma por fila, de arriba abajo, para las últimas
+    0,24·lado menor filas de una imagen w×h: transparente arriba, casi opaco abajo.
+    """
+    alto_deg = int(0.24 * min(w, h))
+    t = np.linspace(0.0, 1.0, alto_deg, dtype=np.float32) ** 1.6
+    return (t * 215).astype(np.uint8)
+
+
+def quitar_degradado(gris):
+    """
+    Una imagen firmada (gris u BGR, 8 bits) con el degradado de la firma deshecho, en float32 de 0 a
+    255: el negro se compuso con esa opacidad, así que basta dividir. Los textos y el logo siguen ahí.
+    """
+    h, w = gris.shape[:2]
+    alfa = alfa_degradado(w, h)
+    salida = gris.astype(np.float32)
+    if len(alfa):
+        factor = 1.0 - alfa.astype(np.float32) / 255.0
+        salida[h - len(alfa):] /= factor.reshape((-1,) + (1,) * (salida.ndim - 1))
+    return salida
+
+
 def firmar(imagen_bgr, meta):
     """
     Devuelve la imagen BGR con la firma en la banda inferior.
@@ -165,9 +192,8 @@ def firmar(imagen_bgr, meta):
     sombra = max(1, int(2 * s))
 
     # Degradado oscuro en la parte baja (transparente arriba, casi opaco abajo)
-    alto_deg = int(0.24 * min(w, h))
-    t = np.linspace(0.0, 1.0, alto_deg, dtype=np.float32) ** 1.6
-    alfa = (t * 215).astype(np.uint8)
+    alfa = alfa_degradado(w, h)
+    alto_deg = len(alfa)
     capa = np.zeros((alto_deg, w, 4), dtype=np.uint8)
     capa[:, :, 3] = alfa[:, None]
     img.alpha_composite(Image.fromarray(capa), (0, h - alto_deg))   # uint8 de 4 canales: RGBA
