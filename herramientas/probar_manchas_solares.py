@@ -14,6 +14,9 @@
 #   5. es_sol por el objeto del JSON y por el nombre.
 #   6. El tamaño en km de cada grupo (zonas oscuras sobre la esfera, con el escorzo): las manchas
 #      sintéticas de radio conocido dan su diámetro y su largo; se guarda con el conteo.
+#   7. Manchas diminutas de un apilado de vídeo (poco ruido, un 5 % de contraste, más pequeñas que el
+#      área mínima de una penumbra): salen las cuatro de la fila y un Sol limpio no da ninguna.
+#   8. Una foto firmada sin crudo: el degradado y el logo de la firma no salen como manchas.
 #
 # Uso: python herramientas/probar_manchas_solares.py   (desde la carpeta de ScopePower)
 
@@ -37,6 +40,7 @@ from astropy.io import fits            # noqa: E402
 from astropy.time import Time          # noqa: E402
 import editor_fotos                    # noqa: E402
 import editor_dia                      # noqa: E402
+import firma                           # noqa: E402
 import procesado                       # noqa: E402
 import orientacion_camara              # noqa: E402
 import manchas_solares as M            # noqa: E402
@@ -217,6 +221,42 @@ def probar_sintetico():
     return lum
 
 
+# ─── 7. Manchas diminutas ────────────────────────────────────────────────────
+def sol_liso(lado=1000, r=330.0, cx=None, cy=None, manchas=(), ruido=0.012, semilla=1):
+    """
+    Sol lineal con oscurecimiento del limbo, desenfoque de 1 px y el ruido de un apilado de vídeo;
+    manchas = [(x, y, radio px, factor de brillo)].
+    """
+    cx = lado / 2.0 if cx is None else cx
+    cy = lado / 2.0 if cy is None else cy
+    yy, xx = np.mgrid[0:lado, 0:lado].astype(np.float64)
+    d = np.hypot(xx - cx, yy - cy) / r
+    foto = (0.4 + 0.6 * np.sqrt(np.clip(1.0 - d * d, 0.0, 1.0))) * np.clip(r - d * r + 0.5, 0.0, 1.0)
+    for x, y, rr, factor in manchas:
+        foto[np.hypot(xx - x, yy - y) < rr] *= factor
+    rng = np.random.default_rng(semilla)
+    foto = cv2.GaussianBlur(foto.astype(np.float32), (0, 0), 1.0) + rng.normal(0.0, ruido, foto.shape).astype(np.float32)
+    return np.clip(foto, 0.0, None) + 0.002
+
+
+def probar_pequenas():
+    print("Manchas diminutas de un apilado de vídeo (como las del 1-nov-2026)")
+    # Una mancha grande y, a 17°, una fila de cuatro de 1,4 px con un 5 % de contraste: no llegan al área
+    # mínima de una penumbra y se cuentan como mínimos hondos
+    fila = [(470 + 12 * i, 490 + 4 * i, 1.4, 0.85) for i in range(4)]
+    lum = sol_liso(manchas=[(380, 480, 4.0, 0.55)] + fila)
+    disco = M.localizar_disco(lum)
+    for sensibilidad in ("normal", "alta"):
+        manchas, __, medida, __ = M.detectar(lum, disco, sensibilidad)
+        M.agrupar(manchas, disco)
+        g = len(M.grupos_de(manchas))
+        cerca = all(any(math.hypot(m["x"] - x, m["y"] - y) < 2.0 for m in manchas) for x, y, __, __ in fila)
+        comprobar(g == 2 and len(manchas) == 5 and cerca, f"sensibilidad {sensibilidad}: g={g} f={len(manchas)}, las cuatro pequeñas en su sitio (ruido {medida['ruido']})")
+    limpio = sol_liso(semilla=2)
+    falsas = {s: len(M.detectar(limpio, M.localizar_disco(limpio), s)[0]) for s in ("baja", "normal", "alta")}
+    comprobar(not any(falsas.values()), f"un Sol limpio con el mismo ruido: ninguna mancha ({falsas})")
+
+
 # ─── 4. La galería de mentira ────────────────────────────────────────────────
 def probar_galeria(lum):
     print("Galería de mentira: crudo en color, JPG girado, guardar, serie, olvidar")
@@ -318,6 +358,21 @@ def probar_galeria(lum):
     M._olvidar_cache(nombre)
     d = M.objetos_foto(nombre, (40.0, -3.7), forzar=True)
     comprobar(d["origen"] == "jpg" and d["wolf"]["g"] == 4 and d["wolf"]["f"] == 7, f"sin crudo, sobre el JPG: {d['wolf']}")
+    # Una foto suelta firmada, sin crudo, con el disco metido en la firma: el degradado oscurece la parte
+    # baja y el logo la tapa; solo cuenta la mancha de verdad
+    firmada = "Sol_20261023_130000.jpg"
+    lum = sol_liso(lado=640, r=200.0, cy=275.0, manchas=[(300, 250, 4.0, 0.55)])[:480]
+    bgr = cv2.cvtColor((np.clip(lum / lum.max(), 0, 1) ** (1 / 2.2) * 255).astype(np.uint8), cv2.COLOR_GRAY2BGR)
+    meta_f = {"objeto": "Sol", "autor": "Prueba", "fecha": "23/10/2026 13:00", "latitud": 40.0, "longitud": -3.7,
+              "n_fotos": 1, "exposicion": 0.0005, "firmada": True}
+    cv2.imwrite(os.path.join(fotos, firmada), firma.firmar(bgr, meta_f), [cv2.IMWRITE_JPEG_QUALITY, 92])
+    with open(os.path.join(fotos, firmada.replace(".jpg", ".json")), "w", encoding="utf-8") as f:
+        json.dump(meta_f, f)
+    d = M.objetos_foto(firmada, (40.0, -3.7), forzar=True)
+    comprobar(d["origen"] == "jpg" and d["wolf"]["g"] == 1 and d["wolf"]["f"] == 1
+              and math.hypot(d["manchas"][0]["x"] - 300, d["manchas"][0]["y"] - 250) < 2,
+              f"foto firmada sin crudo: {d['wolf']}, la mancha en ({d['manchas'][0]['x'] if d['manchas'] else '-'}, "
+              f"{d['manchas'][0]['y'] if d['manchas'] else '-'}) (300, 250)")
     shutil.rmtree(raiz, ignore_errors=True)
 
 
@@ -332,6 +387,7 @@ if __name__ == "__main__":
     probar_geometria()
     probar_coordenadas()
     lum = probar_sintetico()
+    probar_pequenas()
     probar_galeria(lum)
     probar_es_sol()
     if fallos:

@@ -69,6 +69,12 @@ FONDO_LOCAL = 0.12             # fracción del radio: tamaño del cierre que est
 # medido en las fotos reales del 10 y el 17-oct-2026: σ ≈ 0,005–0,006 en las limpias, las manchas
 # pequeñas contrastan un 7–10 % y las grandes un 20–45 % (solo el núcleo de la mayor baja del 50 %).
 SENSIBILIDADES = {"baja": (0.10, 6.0, 0.45), "normal": (0.07, 4.0, 0.50), "alta": (0.05, 3.0, 0.55)}
+# Las manchas pequeñas de un apilado de vídeo (nítido, poco ruido) no llegan al área mínima: se buscan
+# además como mínimos locales hondos, (profundidad mínima, veces el ruido). Medido en los apilados del
+# 1-nov-2026 (σ ≈ 0,004): cuatro manchas pequeñas a 10–24 σ y un poro a 8–9 σ; el mínimo más hondo
+# del granulado y del ruido, a 7,6 σ (el ruido sintético de la prueba llega alguna vez a 8 σ).
+PUNTOS = {"baja": (0.06, 12.0), "normal": (0.04, 9.0), "alta": (0.03, 8.5)}
+VENTANA_PUNTO = 7              # px del análisis: un mínimo local lo es en esta ventana
 
 _lock = threading.Lock()
 _cache = {}
@@ -370,17 +376,22 @@ def fotosfera_local(plano, disco):
     return local, max(sigma, 1e-4)
 
 
-def detectar(lum, disco, sensibilidad="normal"):
+def detectar(lum, disco, sensibilidad="normal", fila_max=None):
     """
     Manchas sobre la fotosfera local: lista de dicts (x, y, r_px, umbra, area_px, area_mhs,
     contraste, zona) en píxeles de `lum`, el total de la zona de penumbra, {ruido, umbral,
     resolucion_km} y las zonas oscuras (umbra y penumbra juntas: lo que se ve como una mancha) con su
     tamaño en km: [{id, x, y, area_km2, largo_km}]. f = una mancha por núcleo de umbra; una penumbra
-    sin umbra cuenta una. Lanza ErrorSol si el disco no es limpio.
+    sin umbra cuenta una, y un punto oscuro hondo demasiado pequeño para penumbra, también.
+    fila_max: de esa fila hacia abajo no se mira (la firma de un JPG firmado). Lanza ErrorSol si el
+    disco no es limpio.
     """
     import cv2
-    c_min, n_sigma, u_umb = SENSIBILIDADES[sensibilidad_valida(sensibilidad)]
+    sensibilidad = sensibilidad_valida(sensibilidad)
+    c_min, n_sigma, u_umb = SENSIBILIDADES[sensibilidad]
     plano, util = aplanar_limbo(lum, disco)
+    if fila_max is not None:
+        util[max(0, int(fila_max)):, :] = False
     suave, sigma = fotosfera_local(plano, disco)
     u_pen = 1.0 - max(c_min, n_sigma * sigma)
     pen = (suave < u_pen) & util
@@ -421,7 +432,7 @@ def detectar(lum, disco, sensibilidad="normal"):
     # Medido en las fotos reales: los puntos de 3 px con el 7 % de contraste son ruido (polvo,
     # píxeles calientes); las manchas reales más pequeñas miden 8 px a r = 330 px
     area_min = max(AREA_MIN_PENUMBRA, int(round(math.pi * (RADIO_MIN_MANCHA * r) ** 2)))
-    manchas, con_umbra = [], set()
+    manchas, con_umbra, umbras = [], set(), set()
     for lab in range(1, n_u):
         area = int(st_u[lab, cv2.CC_STAT_AREA])
         if area < AREA_MIN_UMBRA:
@@ -431,6 +442,7 @@ def detectar(lum, disco, sensibilidad="normal"):
             continue
         m["zona"] = int(et_p[int(round(cen_u[lab][1])), int(round(cen_u[lab][0]))]) or None
         con_umbra.add(m["zona"])
+        umbras.add(lab)
         manchas.append(m)
     area_pen, zonas = 0, []
     for lab in range(1, n_p):
@@ -447,11 +459,54 @@ def detectar(lum, disco, sensibilidad="normal"):
         m["zona"] = int(lab)
         manchas.append(m)
     ids = {z["id"] for z in zonas}
+    manchas += _puntos(suave, sigma, util, sensibilidad, disco, et_p, ids, et_u, umbras, manchas, _en_el_disco)
     for m in manchas:
         if m["zona"] not in ids:
             m["zona"] = None
     medida = {"ruido": round(sigma, 4), "umbral": round(u_pen, 3), "resolucion_km": resolucion_km(lum, disco)}
     return manchas, area_pen, medida, zonas
+
+
+def _puntos(suave, sigma, util, sensibilidad, disco, et_p, zonas, et_u, umbras, contadas, en_el_disco):
+    """
+    Manchas pequeñas que la umbralización deja fuera por área: mínimos locales de la fotosfera local
+    más hondos que max(profundidad mínima, n·σ) (PUNTOS) que no caen en una mancha ya contada ni a su
+    lado (el borde de una mancha también es un mínimo). Su tamaño, los píxeles de alrededor por
+    debajo de la mitad de su profundidad.
+    """
+    import cv2
+    p_min, n_p = PUNTOS[sensibilidad]
+    hondo = max(p_min, n_p * sigma)
+    caja = np.ones((VENTANA_PUNTO, VENTANA_PUNTO), np.uint8)
+    minimo = cv2.erode(suave, caja)
+    lejos_del_borde = cv2.erode(util.astype(np.uint8), caja).astype(bool)   # en el borde del disco útil todo es «mínimo»
+    ys, xs = np.nonzero((suave <= minimo) & (suave < 1.0 - hondo) & lejos_del_borde)
+    h, w = suave.shape
+    r, mitad = disco["r"], VENTANA_PUNTO // 2
+    puntos = []
+    for i in np.argsort(suave[ys, xs]):                  # del más hondo al menos
+        x, y = int(xs[i]), int(ys[i])
+        if et_p[y, x] in zonas or et_u[y, x] in umbras or any(math.hypot(x - p["x"], y - p["y"]) < p["r_px"] + mitad for p in contadas + puntos):
+            continue
+        # Lo que rodea al mínimo por debajo de la mitad de su profundidad, en una ventana el doble de
+        # grande que la del mínimo: si llega a una mancha contada, es un trozo de ella, no otra
+        v = VENTANA_PUNTO
+        y0, y1, x0, x1 = max(0, y - v), min(h, y + v + 1), max(0, x - v), min(w, x + v + 1)
+        prof = 1.0 - float(suave[y, x])
+        __, et = cv2.connectedComponents((suave[y0:y1, x0:x1] < 1.0 - prof / 2.0).astype(np.uint8), connectivity=8)
+        sel = et == et[y - y0, x - x0]
+        if np.isin(et_p[y0:y1, x0:x1][sel], list(zonas)).any() or np.isin(et_u[y0:y1, x0:x1][sel], list(umbras)).any():
+            continue                                     # el halo de una mancha ya contada
+        vy, vx = np.nonzero(sel)
+        area = int(sel.sum())
+        cx, cy = float(vx.mean() + x0), float(vy.mean() + y0)
+        __, __, Z = _xyz(cx, cy, disco)
+        m = {"x": round(cx, 1), "y": round(cy, 1), "r_px": round(math.sqrt(area / math.pi), 2), "umbra": False,
+             "area_px": area, "area_mhs": round(area * 1e6 / (2.0 * math.pi * r * r * max(Z, 0.15)), 1),
+             "contraste": round(prof, 3), "zona": None}
+        if en_el_disco(m):
+            puntos.append(m)
+    return puntos
 
 
 def resolucion_km(lum, disco):
@@ -507,6 +562,9 @@ def _imagen(nombre, meta, ruta_jpg):
     gris = cv2.imread(ruta_jpg, cv2.IMREAD_GRAYSCALE)
     if gris is None:
         raise ErrorSol(_("No se pudo leer la imagen"))
+    if meta.get("firmada"):          # el degradado oscuro de la firma oscurece la parte baja del disco
+        import firma
+        gris = np.clip(firma.quitar_degradado(gris), 0.0, 255.0)
     return (gris.astype(np.float32) / 255.0) ** 2.2, None, "jpg"
 
 
@@ -679,7 +737,12 @@ def objetos_foto(nombre, observatorio=None, sensibilidad="normal", forzar=False)
         lum, T, origen = _imagen(nombre, meta, ruta_jpg)
         lum, escala = _reducir(lum)
         disco_a = localizar_disco(lum)
-        manchas, area_pen, medida, zonas = detectar(lum, disco_a, sensibilidad)
+        fila_max = None
+        if origen == "jpg" and meta.get("firmada"):   # el logo y los textos de la firma tapan el disco
+            import firma
+            wj, hj = _tamano_jpg(ruta_jpg)
+            fila_max = (hj - firma.FRANJA_TEXTOS * min(wj, hj)) * escala
+        manchas, area_pen, medida, zonas = detectar(lum, disco_a, sensibilidad, fila_max)
     except ErrorSol as e:
         log.info("Sol sin contar en %s: %s (%.1f s)", nombre, e, time.time() - t0)
         raise ErrorEditor(str(e))
