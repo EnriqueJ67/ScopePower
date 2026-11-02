@@ -85,3 +85,7 @@ datos/actualizar_pendiente.txt
 
 # Traducciones a medias antes de importarlas al .po (herramientas/traducciones.py importar)
 traducciones/parciales/
+
+# Fotos de la galería sobre el cielo del planetario (fondo_planetario.py): caché y miniaturas
+datos/fondo_planetario.json
+datos/planetario_fotos/
