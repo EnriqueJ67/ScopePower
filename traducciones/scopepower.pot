@@ -9729,7 +9729,8 @@ msgstr ""
 msgid "cámara"
 msgstr ""
 
-#: static/js/mosaico.js
+#. js
+#: static/js/mosaico.js templates/planetario.html
 msgid "cámara a {angulo}° ({origen})"
 msgstr ""
 
@@ -10215,6 +10216,11 @@ msgstr ""
 msgid "gira al oeste {v} minutos"
 msgstr ""
 
+#. js
+#: templates/planetario.html
+msgid "giro de campo no previsible: aún no hay ningún plate solving que calibre la cámara"
+msgstr ""
+
 #: actualizar.py
 msgid "git ha fallado: {salida}"
 msgstr ""
@@ -10342,6 +10348,11 @@ msgstr ""
 #. js
 #: camara_toupcam.py
 msgid "la cámara está ocupada"
+msgstr ""
+
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "la cámara gira de {a}° a {b}° ({giro}° entre la primera y la última tesela)"
 msgstr ""
 
 #: vivo_dia.py
@@ -11146,6 +11157,11 @@ msgstr ""
 msgid "sincronizando"
 msgstr ""
 
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "solape mínimo entre vecinas {pct} %"
+msgstr ""
+
 #: static/js/plan.js
 msgid "sube a las {hora}"
 msgstr ""
@@ -11156,6 +11172,11 @@ msgstr ""
 
 #: plan_sesion.py
 msgid "sube a las {sube} y se pone a las {hora}: solo caben {fp} de {n}"
+msgstr ""
+
+#. js
+#: templates/planetario.html
+msgid "sube el solape"
 msgstr ""
 
 #: puesta_estacion.py
@@ -11260,6 +11281,11 @@ msgstr ""
 
 #: templates/imagen.html
 msgid "una foto tras otra hasta que pares"
+msgstr ""
+
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "unas {min} min a {spf} s por foto, termina hacia las {hora}"
 msgstr ""
 
 #. js
@@ -11382,7 +11408,7 @@ msgstr ""
 
 #. js
 #: templates/planetario.html
-msgid "{filas}×{columnas} teselas de {campo}°: {ancho}° × {alto}° · cámara a {angulo}° ({origen})"
+msgid "{filas}×{columnas} teselas de {campo}°: {ancho}° × {alto}°"
 msgstr ""
 
 #: apilado.py

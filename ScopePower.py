@@ -7295,25 +7295,38 @@ def _centro_mosaico(datos):
     return {"nombre": "Mosaico", "ra_h": pos[0], "dec_deg": pos[1], "tipo": "", "fuente": N_("posición de la montura")}
 
 
-def _previsualizar_mosaico(centro, filas, columnas, solape_pct):
-    """Teselas previstas (centros y esquinas en grados) para dibujarlas en el planetario y en el panel."""
+def _previsualizar_mosaico(centro, filas, columnas, solape_pct, fotos=None):
+    """
+    Teselas previstas para dibujarlas en el planetario y en el panel: centros y esquinas en grados
+    con el giro de la cámara que tendrá cada una a su hora (altacimutal), el solape real entre
+    vecinas y la duración (ver mosaico.prever_rejilla).
+    """
     campo = mosaico.campo_camara()
+    conf = mosaico.leer_config()
     t = mosaico.trabajo_mosaico
+    wcs_base, origen = None, ""
     wcs_ultimo = getattr(t, "_ultimo_wcs", None) if t.en_curso else None
     if wcs_ultimo is not None:
-        wcs = mosaico.wcs_tangente(centro["ra_h"] * 15.0, centro["dec_deg"], mosaico.cd_de(wcs_ultimo), campo["ancho_px"], campo["alto_px"])
+        wcs_base = mosaico.wcs_tangente(centro["ra_h"] * 15.0, centro["dec_deg"], mosaico.cd_de(wcs_ultimo), campo["ancho_px"], campo["alto_px"])
         origen = _("WCS de la tesela anterior")
-    else:
-        wcs, origen = mosaico.wcs_previsto(centro["ra_h"], centro["dec_deg"], campo,
-                                           (LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO))
-    teselas = mosaico.calcular_teselas(wcs, campo["ancho_px"], campo["alto_px"], filas, columnas, solape_pct)
-    w, h = campo["ancho_px"], campo["alto_px"]
-    for te in teselas:
-        cx, cy = wcs.wcs.crpix[0] - 1.0 + te["dx_px"], wcs.wcs.crpix[1] - 1.0 + te["dy_px"]
-        esquinas = [[cx - w / 2.0, cy - h / 2.0], [cx + w / 2.0, cy - h / 2.0], [cx + w / 2.0, cy + h / 2.0], [cx - w / 2.0, cy + h / 2.0]]
-        te["esquinas"] = [[round(float(a), 5), round(float(b), 5)] for a, b in wcs.all_pix2world(esquinas, 0)]
-    return {"teselas": teselas, "angulo_deg": round(mosaico.angulo_de(mosaico.cd_de(wcs)), 1), "origen_angulo": origen,
-            "campo": campo, "tamano_deg": mosaico.tamano_mosaico(campo, filas, columnas, solape_pct)}
+    try:
+        exposicion = float(_dispositivos_captura().get("exposicion_captura", 20))
+    except Exception:
+        exposicion = 20.0
+    spf = plan_sesion.tiempo_por_foto(exposicion, (plan_sesion.leer() or {}).get("medido"))
+    r = mosaico.prever_rejilla(centro["ra_h"], centro["dec_deg"], campo, filas, columnas, solape_pct,
+                               fotos or conf["fotos_por_tesela"], (LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO),
+                               wcs_base=wcs_base, origen_base=origen, segundos_por_foto=spf, exposicion_s=exposicion,
+                               centrar=conf["centrar"])
+    if not r["origen_angulo"]:
+        r["origen_angulo"] = origen     # mosaico.py ya devuelve los suyos traducidos
+    return r
+
+
+def _dispositivos_captura():
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini", encoding="utf-8")
+    return cfg["Dispositivos"] if "Dispositivos" in cfg else {}
 
 
 def _datos_rejilla(datos):
@@ -7354,7 +7367,11 @@ def mosaico_previsualizar():
     try:
         centro = _centro_mosaico(datos)
         filas, columnas, solape = _datos_rejilla(datos)
-        r = _previsualizar_mosaico(centro, filas, columnas, solape)
+        try:
+            fotos = max(1, int(datos.get("fotos_por_tesela"))) if datos.get("fotos_por_tesela") else None
+        except (TypeError, ValueError):
+            fotos = None
+        r = _previsualizar_mosaico(centro, filas, columnas, solape, fotos)
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     except Exception as e:

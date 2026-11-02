@@ -32,8 +32,8 @@
     function error(t) { $("mosaico-error").textContent = t ? "⚠️ " + t : ""; }
     function num(id, defecto) { var v = parseFloat(String($(id).value).replace(",", ".")); return isFinite(v) ? v : defecto; }
     function grados(v) { return fmtNum(Math.round(v * 10) / 10, 1) + "°"; }
-    function horasCortas(raH) { var h = Math.floor(raH), m = Math.round((raH - h) * 60); return h + "h" + (m < 10 ? "0" : "") + m + "m"; }
-    function gradosCortos(d) { var a = Math.abs(d), g = Math.floor(a), m = Math.round((a - g) * 60); return (d < 0 ? "-" : "+") + g + "°" + (m < 10 ? "0" : "") + m + "'"; }
+    function horasCortas(raH) { var min = Math.round(raH * 60) % 1440, h = Math.floor(min / 60), m = min % 60; return h + "h" + (m < 10 ? "0" : "") + m + "m"; }
+    function gradosCortos(d) { var min = Math.round(Math.abs(d) * 60), g = Math.floor(min / 60), m = min % 60; return (d < 0 ? "-" : "+") + g + "°" + (m < 10 ? "0" : "") + m + "'"; }
 
     // ——— Carga y formulario ———
     Mosaico.cargar = function () {
@@ -85,8 +85,14 @@
                 if (!d.ok) { $("mosaico-previa").textContent = d.error || ""; return; }
                 var tam = d.tamano_deg || [0, 0];
                 var n = d.filas * d.columnas;
-                var t = _("Mosaico {filas}×{columnas} ({n} teselas): {ancho} × {alto}", { filas: d.filas, columnas: d.columnas, n: n, ancho: grados(tam[0]), alto: grados(tam[1]) }) +
-                        " · " + _("cámara a {angulo}° ({origen})", { angulo: Math.round(d.angulo_deg), origen: d.origen_angulo });
+                var t = _("Mosaico {filas}×{columnas} ({n} teselas): {ancho} × {alto}", { filas: d.filas, columnas: d.columnas, n: n, ancho: grados(tam[0]), alto: grados(tam[1]) });
+                if (d.solape_min_pct !== null && d.solape_min_pct !== undefined) {
+                    t += " · " + (d.solape_min_pct < 8 ? "⚠️ " : "") + _("solape mínimo entre vecinas {pct} %", { pct: Math.round(d.solape_min_pct) });
+                }
+                if (d.prevision_giro && n > 1) t += " · " + _("la cámara gira de {a}° a {b}° ({giro}° entre la primera y la última tesela)",
+                    { a: Math.round(d.giro_inicial_deg), b: Math.round(d.giro_final_deg), giro: Math.round(d.giro_total_deg) });
+                else t += " · " + _("cámara a {angulo}° ({origen})", { angulo: Math.round(d.angulo_deg), origen: d.origen_angulo });
+                t += " · " + _("unas {min} min a {spf} s por foto, termina hacia las {hora}", { min: d.duracion_min, spf: Math.round(d.segundos_por_foto), hora: d.fin_hora });
                 if (d.centro && cuerpo.nombre) t += " · " + _("centro {nombre}", { nombre: d.centro.nombre });
                 $("mosaico-previa").textContent = t;
                 if (!estado || !estado.en_curso) pintarRejilla(d.teselas, d.filas, d.columnas);
@@ -143,6 +149,7 @@
                 if (!t) { html += '<div class="tesela"></div>'; continue; }
                 var est = t.estado || "prevista";
                 var titulo = _("Tesela {i}", { i: t.i + 1 }) + " · RA " + horasCortas(t.ra_h) + " Dec " + gradosCortos(t.dec_deg) +
+                             (t.hora ? " · " + t.hora : "") + (t.giro_deg !== undefined && t.giro_deg !== null ? " · " + Math.round(t.giro_deg) + "°" : "") +
                              (t.estado ? " · " + (estadosTesela[t.estado] || t.estado) : "") + (t.motivo ? " · " + t.motivo : "");
                 var texto = String(t.i + 1);
                 if (t.estado === "hecha" || t.estado === "en_curso") texto += '<small>' + (t.fotos || 0) + (t.estado === "en_curso" && estado ? "/" + estado.fotos_por_tesela : "") + "</small>";

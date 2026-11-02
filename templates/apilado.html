@@ -1138,9 +1138,14 @@
 
     // Vista del visor: "estrellas" (apilado normal) o "cometa" (por el núcleo, cometa.py)
     let vistaApilado = "estrellas";
+    let ultimoEstadoMosaico = null;
     let versionCometaMostrada = null;
-    let versionMosaicoMostrada = null, autoCambiadoMosaico = false;
-    function elegirVista(vista) {
+    let versionMosaicoMostrada = null;
+    let vistaManualTesela = null;      // tesela del mosaico en la que el usuario eligió vista a mano (hasta la siguiente)
+    function elegirVista(vista, automatica) {
+        // Con un mosaico en marcha el visor sigue solo a lo que pasa (la tesela mientras se apila,
+        // el mosaico entre teselas); un toque en los chips manda hasta la tesela siguiente
+        if (!automatica && ultimoEstadoMosaico && ultimoEstadoMosaico.en_curso) vistaManualTesela = ultimoEstadoMosaico.actual;
         if (vista === vistaApilado) return;
         vistaApilado = vista;
         document.querySelectorAll("#vistas-apilado .chip-vista").forEach(b => b.classList.toggle("activo", b.dataset.vista === vista));
@@ -1640,8 +1645,18 @@
             if (hayMosaico && mo.version_mosaico !== versionMosaicoMostrada) {
                 versionMosaicoMostrada = mo.version_mosaico;
                 if (vistaApilado === "mosaico") actualizarImagen();
-                else if (mo.en_curso && !autoCambiadoMosaico) { autoCambiadoMosaico = true; elegirVista("mosaico"); }   // la primera combinación se enseña
             }
+            ultimoEstadoMosaico = mo || null;
+            if (mo && mo.en_curso) {
+                // Vista automática: la tesela que se está apilando (en cuanto tiene fotos) o, entre
+                // teselas (GoTo, centrado, combinando), el mosaico que ya hay. Un toque del usuario
+                // en los chips manda durante esa tesela.
+                if (vistaManualTesela !== mo.actual) {
+                    vistaManualTesela = null;
+                    const quiere = (mo.fase === "apilando" && estado.total > 0) || !hayMosaico ? "estrellas" : "mosaico";
+                    if (quiere !== vistaApilado) elegirVista(quiere, true);
+                }
+            } else vistaManualTesela = null;
             const toma = estado.ultima_toma || {};
             if (toma.version !== versionTomaMostrada) {
                 versionTomaMostrada = toma.version;
