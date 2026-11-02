@@ -7,12 +7,16 @@
 #     import voz
 #     voz.decir("Telescopio conectado")
 #     voz.decir("Empieza la exposición", categoria="capturas")
+#     voz.decir("Foto añadida", categoria="bucle_apilado")
 #
 # Un hilo propio (con su propio contexto COM) va leyendo una cola; si la cola
 # se llena, se descartan los avisos más antiguos para no acumular retraso.
 # La configuración vive en la sección [Voz] de config.ini:
 #     activada = true            interruptor general (también desde la web)
 #     anunciar_capturas = true   avisar al empezar/terminar cada foto
+#     silenciar_bucle_apilado = false   en el apilado en vivo, callar lo que se repite en cada
+#                                foto (empieza/termina la exposición, foto añadida) y decir solo
+#                                lo que no es rutina (mejor/peor foto, descartada, errores...)
 #     describir_objeto = true    el móvil lee la descripción del objeto al llegar al GoTo
 #     volumen = 100              0-100
 #     velocidad = 0              -10 (lenta) .. 10 (rápida)
@@ -34,8 +38,9 @@ import idioma
 log = logging.getLogger("scopepower.voz")
 
 SECCION = "Voz"
-_DEFECTOS = {"activada": "true", "anunciar_capturas": "true", "describir_objeto": "true", "volumen": "100",
-             "velocidad": "0", "voz": ""}
+_DEFECTOS = {"activada": "true", "anunciar_capturas": "true", "silenciar_bucle_apilado": "false",
+             "describir_objeto": "true", "volumen": "100", "velocidad": "0", "voz": ""}
+_INTERRUPTORES = ("anunciar_capturas", "silenciar_bucle_apilado", "describir_objeto")
 _MAX_COLA = 6
 
 
@@ -46,6 +51,8 @@ def _leer_config():
     return {
         "activada": str(v.get("activada", _DEFECTOS["activada"])).lower() == "true",
         "anunciar_capturas": str(v.get("anunciar_capturas", _DEFECTOS["anunciar_capturas"])).lower() == "true",
+        "silenciar_bucle_apilado": str(v.get("silenciar_bucle_apilado",
+                                             _DEFECTOS["silenciar_bucle_apilado"])).lower() == "true",
         # Lo lee el móvil (pantalla GoTo), no el altavoz del PC; vive aquí por ser un ajuste de voz más
         "describir_objeto": str(v.get("describir_objeto", _DEFECTOS["describir_objeto"])).lower() == "true",
         "volumen": int(v.get("volumen", _DEFECTOS["volumen"])),
@@ -81,12 +88,17 @@ class Locutor:
 
     # ── API ───────────────────────────────────────────────────────────
     def decir(self, texto, categoria="general"):
-        """Encola un aviso. Se ignora si la voz está desactivada (o la categoría)."""
+        """Encola un aviso. Se ignora si la voz está desactivada (o la categoría).
+        `categoria` puede ser un nombre o varios: ("capturas", "bucle_apilado") calla si
+        cualquiera de los dos está silenciado."""
         with self._lock:
             cfg = self.config
         if not cfg["activada"]:
             return False
-        if categoria == "capturas" and not cfg["anunciar_capturas"]:
+        categorias = {categoria} if isinstance(categoria, str) else set(categoria)
+        if "capturas" in categorias and not cfg["anunciar_capturas"]:
+            return False
+        if "bucle_apilado" in categorias and cfg["silenciar_bucle_apilado"]:
             return False
         texto = str(texto).strip()
         if not texto:
@@ -112,11 +124,11 @@ class Locutor:
         return self.config["activada"]
 
     def configurar(self, **cambios):
-        permitidas = {"anunciar_capturas", "describir_objeto", "volumen", "velocidad", "voz"}
+        permitidas = {*_INTERRUPTORES, "volumen", "velocidad", "voz"}
         cambios = {k: v for k, v in cambios.items() if k in permitidas}
         with self._lock:
             for k, v in cambios.items():
-                if k in ("anunciar_capturas", "describir_objeto"):
+                if k in _INTERRUPTORES:
                     self.config[k] = bool(v)
                 elif k in ("volumen", "velocidad"):
                     self.config[k] = int(v)

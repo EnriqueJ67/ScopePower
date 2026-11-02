@@ -8398,6 +8398,10 @@ msgstr ""
 msgid "Sin ventana nocturna."
 msgstr ""
 
+#: templates/apilado.html
+msgid "Sin «empieza exposición», «exposición terminada» ni «foto añadida» en cada vuelta. Se sigue oyendo la mejor y la peor foto, las descartadas, la referencia y los errores."
+msgstr ""
+
 #: ScopePower.py
 msgid "Sincronizaciones anteriores borradas"
 msgstr ""
@@ -9255,6 +9259,10 @@ msgstr ""
 #. js
 #: templates/base.html
 msgid "Voz on"
+msgstr ""
+
+#: templates/apilado.html
+msgid "Voz: callar los avisos de cada foto"
 msgstr ""
 
 #: static/centrado.js

@@ -647,7 +647,7 @@ def hacer_dither():
 from bucle_captura import BucleCaptura
 bucle = BucleCaptura(
     capturar=lambda usar_dark: capturar_y_guardar(apilar=True, usar_dark=usar_dark,
-                                                  generar_preview=False, descripcion=_("Apilado")),
+                                                  generar_preview=False, descripcion=_("Apilado"), en_bucle=True),
     camara=camara,
     otros_trabajos=(darks.trabajo_darks, centrado.trabajo_centrado, foto_continua.trabajo_continuo),
     dither=hacer_dither,
@@ -2047,7 +2047,7 @@ def _escala_revelado_vista():
 
 
 def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion=None, ganancia=None, copia=None,
-                       exposicion=None):
+                       exposicion=None, en_bucle=False):
     """
     Expone, calibra (dark/flat), escribe static/captura.fits y, si `apilar`,
     una copia en capturas/ que recoge el apilador. Devuelve un dict:
@@ -2059,6 +2059,8 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     `copia`: None o {"carpeta", "formato" ("fits" | "jpg"), "nombre"} para guardar además
     esta foto en una carpeta (modo continuo). El FITS es el mismo que static/captura.fits;
     el JPG es la foto revelada a resolución completa. Su ruta vuelve en "archivo".
+    `en_bucle`: la llama el bucle del apilado; sus avisos de cada foto se pueden callar
+    con [Voz] silenciar_bucle_apilado.
     """
     descripcion = descripcion or _("Captura")     # se enseña en la cabecera de Apilado y Cámara
     # Si la cámara ya está exponiendo, no encolar otra captura detrás
@@ -2077,13 +2079,16 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     BINNING, FOCAL_LEN = disp["binning"], disp["focal"]     # valores en vivo, no los de arranque
     GANANCIA = disp["ganancia"] if ganancia is None else int(ganancia)
 
+    # En el bucle del apilado estos avisos se repiten en cada foto: se pueden callar aparte
+    categoria_voz = ("capturas", "bucle_apilado") if en_bucle else "capturas"
+
     def _exponer(cam):
         print(f"📸 Iniciando exposición de {EXPOSICION} segundos...")
         voz.decir(ngettext("Empieza exposición de {n} segundo", "Empieza exposición de {n} segundos", round(EXPOSICION)),
-                  categoria="capturas")
+                  categoria=categoria_voz)
         frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion=descripcion, ganancia=GANANCIA)
         print("✅ Exposición finalizada.")
-        voz.decir(_("Exposición terminada"), categoria="capturas")
+        voz.decir(_("Exposición terminada"), categoria=categoria_voz)
         return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY, leer_ganancia(cam)["actual"]
 
     try:
