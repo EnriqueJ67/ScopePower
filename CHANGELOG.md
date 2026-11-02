@@ -5,11 +5,14 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
-- Revelado: el modelo de fondo de «quitar gradiente» es ahora un polinomio de 2º grado más el residuo
-  suavizado, evaluado píxel a píxel. La media gaussiana con borde replicado se quedaba corta en las dos
-  celdas exteriores y en el mosaico del 1-nov dejaba una franja 5 ADU más clara en el 20 % superior,
-  que sin estrellas se veía blanquecina; ahora el fondo queda plano a menos de 1 ADU. En fotos sin
-  gradiente el resultado no cambia.
+- Revelado: «quitar gradiente» ya no se queda corto en los bordes ni se lleva las nebulosas grandes. La
+  malla de fondo se extrapola linealmente un anillo de celdas antes de suavizarla y reescalarla (con el
+  borde replicado la rampa se aplanaba en las dos celdas exteriores) y la máscara de estrellas y objeto
+  va sobre el fondo local, no sobre la mediana de toda la foto (en la capa sin estrellas de StarNet,
+  con poco ruido y un gradiente marcado, descartaba enteras las celdas del borde alto). En el mosaico del
+  1-nov quedaba una franja 5 ADU más clara en el 20 % superior, blanquecina al quitar las estrellas; ahora
+  el fondo queda plano a menos de 1 ADU. Con nebulosas sintéticas, una de 300 ADU que llena media foto
+  perdía 198 ADU y ahora 23. En fotos sin gradiente el resultado no cambia.
 - Mosaico: el igualado de fondos entre teselas ajusta la pendiente común a los tres canales y solo el
   nivel por canal. Con una pendiente por canal, cada una se extrapolaba de los solapes a las esquinas con
   su propio error y el fondo cambiaba de color hacia los bordes (en el mosaico del 1-nov, un 2,2 % más
