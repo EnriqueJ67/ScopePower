@@ -11095,6 +11095,16 @@ msgstr ""
 msgid "resolviendo el campo…"
 msgstr ""
 
+#. js
+#: templates/planetario.html
+msgid "resolviendo {r} con ASTAP…"
+msgstr ""
+
+#. js
+#: templates/planetario.html
+msgid "revelando {p} a campo completo…"
+msgstr ""
+
 #: enfoque.py
 msgid "rojo {px}"
 msgstr ""

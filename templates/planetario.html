@@ -328,8 +328,8 @@
     // cuatro esquinas del JPG se proyectan como las chinchetas y la imagen se dibuja con la afín
     // que lleva tres de ellas a su sitio (en campos de pocos grados la perspectiva no se nota).
     const lienzoFotos = $("capa-fotos");
-    let fotosFondo = [];          // [{nombre, esquinas, ancho, alto, img}] de /planetario/fotos
-    let fotosCargando = false;
+    let fotosFondo = [];          // [{nombre, esquinas, ancho, alto, img, modo}] de /planetario/fotos
+    let fotosCargando = false, timerFotosFondo = null;
     try { if (localStorage.getItem("planetario.fotos") === "si") $("fotos-fondo").checked = true; } catch (e) {}
     try { const o = parseInt(localStorage.getItem("planetario.fotos_opacidad")); if (o >= 10 && o <= 100) $("fotos-opacidad").value = o; } catch (e) {}
     async function cargarFotosFondo() {
@@ -338,13 +338,24 @@
         try {
             const d = await (await fetch("/planetario/fotos")).json();
             if (!d.ok) throw new Error(d.error || "");
+            const previas = new Map(fotosFondo.map(f => [f.nombre + "|" + f.modo, f.img]));
             fotosFondo = d.fotos.map(f => {
-                const img = new Image();
-                img.decoding = "async";
-                img.src = "/planetario/foto/" + encodeURIComponent(f.nombre);
-                return { ...f, img };
+                const clave = f.nombre + "|" + f.modo;
+                let img = previas.get(clave);
+                if (!img) {
+                    img = new Image();
+                    img.decoding = "async";
+                    img.src = "/planetario/foto/" + encodeURIComponent(f.nombre) + (f.modo === "jpg" ? "?modo=jpg" : "?v=" + encodeURIComponent(f.modo));
+                }
+                // Con la versión a campo completo la huella es la zona útil del FITS; con el JPG, la del JPG
+                return { ...f, img, esquinasUsadas: f.modo === "completa" && f.esquinas_completa ? f.esquinas_completa : f.esquinas };
             });
-            $("fotos-cuenta").textContent = fotosFondo.length ? ngettext("{n} foto", "{n} fotos", fotosFondo.length) : _("ninguna foto con posición");
+            const n = fotosFondo.length;
+            $("fotos-cuenta").textContent = (!n ? _("ninguna foto con posición") : ngettext("{n} foto", "{n} fotos", n))
+                + (d.resolviendo ? " · " + _("resolviendo {r} con ASTAP…", { r: d.resolviendo }) : "")
+                + (d.pendientes ? " · " + _("revelando {p} a campo completo…", { p: d.pendientes }) : "");
+            clearTimeout(timerFotosFondo);
+            if ((d.pendientes || d.resolviendo) && !lienzoFotos.hidden) timerFotosFondo = setTimeout(cargarFotosFondo, 15000);
         } catch (e) {
             console.warn("fotos del planetario", e);
             $("fotos-cuenta").textContent = "⚠️";
@@ -361,14 +372,14 @@
             if (!f.img.complete || !f.img.naturalWidth) continue;
             const pts = [];
             let ok = true;
-            for (const [raDeg, decDeg] of f.esquinas) {
+            for (const [raDeg, decDeg] of (f.esquinasUsadas || f.esquinas)) {
                 let p = null;
                 try { p = projectEquatorial({ raDeg, decDeg, frame: "ICRS" }, vista, w, h); } catch (e) {}
                 if (!p || !isFinite(p.x) || !isFinite(p.y) || Math.abs(p.x) > 3 * w || Math.abs(p.y) > 3 * h) { ok = false; break; }
                 pts.push(p);
             }
             if (!ok) continue;
-            // Esquinas del JPG: (0,0) → pts[0], (ancho,0) → pts[1], (0,alto) → pts[3]
+            // Esquinas de la imagen: (0,0) → pts[0], (ancho,0) → pts[1], (0,alto) → pts[3]
             const iw = f.img.naturalWidth, ih = f.img.naturalHeight;
             const a = (pts[1].x - pts[0].x) / iw, b = (pts[1].y - pts[0].y) / iw;
             const c = (pts[3].x - pts[0].x) / ih, d = (pts[3].y - pts[0].y) / ih;
@@ -387,6 +398,7 @@
         $("fotos-cuenta").hidden = !si;
         try { localStorage.setItem("planetario.fotos", si ? "si" : "no"); } catch (e) {}
         if (si && !fotosFondo.length) cargarFotosFondo();
+        if (!si) { clearTimeout(timerFotosFondo); timerFotosFondo = null; }
     }
     $("fotos-fondo").onchange = ponerFotosFondo;
     $("fotos-opacidad").oninput = () => { try { localStorage.setItem("planetario.fotos_opacidad", $("fotos-opacidad").value); } catch (e) {} };

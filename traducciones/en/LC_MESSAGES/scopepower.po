@@ -11097,6 +11097,16 @@ msgstr "solving"
 msgid "resolviendo el campo…"
 msgstr "solving the field…"
 
+#. js
+#: templates/planetario.html
+msgid "resolviendo {r} con ASTAP…"
+msgstr "plate solving {r} with ASTAP…"
+
+#. js
+#: templates/planetario.html
+msgid "revelando {p} a campo completo…"
+msgstr "developing {p} at full field…"
+
 #: enfoque.py
 msgid "rojo {px}"
 msgstr "red {px}"
