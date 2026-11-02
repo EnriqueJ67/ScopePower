@@ -126,6 +126,11 @@ msgid "(unos {v}′)"
 msgstr ""
 
 #. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "({mejora} % más de área)"
+msgstr ""
+
+#. js
 #: templates/apilado.html
 msgid "({n} apartada)"
 msgid_plural "({n} apartadas)"
@@ -8448,6 +8453,11 @@ msgstr ""
 msgid "Solape entre teselas (%)"
 msgstr ""
 
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "Solape recomendado {s} %: foto final ≈ {ancho}° × {alto}°"
+msgstr ""
+
 #: templates/seguimiento.html
 msgid "Solo con el seguimiento iniciado: mueve por el mismo camino que el seguimiento y la vista se refresca mientras tanto. Sin límite de altura por debajo de {alt}°: vale para luces lejanas."
 msgstr ""
@@ -9016,6 +9026,11 @@ msgstr ""
 
 #: templates/_asistente.html templates/configuracion.html
 msgid "Usar la ubicación de este móvil"
+msgstr ""
+
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "Usar {s} %"
 msgstr ""
 
 #: templates/bienvenida.html templates/login.html
@@ -9985,7 +10000,7 @@ msgstr ""
 msgid "empieza y acaba dentro"
 msgstr ""
 
-#: static/js/mosaico.js templates/apilado.html
+#: static/js/mosaico.js templates/apilado.html templates/planetario.html
 msgid "en curso"
 msgstr ""
 
@@ -10096,7 +10111,7 @@ msgstr ""
 msgid "exponiendo…"
 msgstr ""
 
-#: static/js/mosaico.js
+#: static/js/mosaico.js templates/planetario.html
 msgid "fallida"
 msgstr ""
 
@@ -10198,6 +10213,10 @@ msgstr ""
 msgid "foto de prueba y modo en vivo"
 msgstr ""
 
+#: templates/planetario.html
+msgid "foto final"
+msgstr ""
+
 #. js
 #: static/js/mosaico.js templates/planetario.html
 msgid "foto final ≈ {ancho}° × {alto}°"
@@ -10292,7 +10311,7 @@ msgstr[1] ""
 msgid "hay una exposición en curso"
 msgstr ""
 
-#: static/js/mosaico.js
+#: static/js/mosaico.js templates/planetario.html
 msgid "hecha"
 msgstr ""
 
@@ -10898,6 +10917,10 @@ msgstr ""
 msgid "plate solving en el centro"
 msgstr ""
 
+#: templates/planetario.html
+msgid "poco solape"
+msgstr ""
+
 #: camara_toupcam.py
 msgid "poner el disparo por software"
 msgstr ""
@@ -10934,6 +10957,10 @@ msgstr ""
 #. js
 #: ScopePower.py
 msgid "posición de la montura"
+msgstr ""
+
+#: templates/planetario.html
+msgid "prevista"
 msgstr ""
 
 #: templates/apilado.html

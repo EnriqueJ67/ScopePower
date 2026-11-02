@@ -9,6 +9,11 @@ día de la release. El número de versión vive en `version.py`.
   los guardados desde el 14-oct-2026 o ya resueltos por la galería anotada) sobre el cielo, cada una
   deformada a su huella real, con transparencia ajustable; sirve para ver qué está ya fotografiado y
   encajar el siguiente mosaico. Las imágenes se sirven reducidas (fondo_planetario.py).
+- Mosaico: solape recomendado en el planetario y en el panel de Apilado, con un botón para aplicarlo: el
+  que da la foto final más grande sin bajar del 12 % de solape real entre teselas vecinas (lo que necesita
+  el igualado de fondos y unos minutos de arco de error de apuntado) ni dejar huecos dentro del rectángulo
+  final; con el campo rotando deprisa (cerca del meridiano) pide más solape, y si sobra, menos. Leyenda
+  de colores de las teselas en el configurador.
 - Mosaico: el configurador dibuja también el perímetro de la foto final (el mayor rectángulo cubierto por
   todas las teselas, lo que recorta la combinación) con su tamaño, para ver si algo se queda fuera y hacen
   falta más teselas; el giro de la cámara se da entre el mínimo y el máximo de todas las teselas; y los

@@ -128,6 +128,11 @@ msgid "(unos {v}′)"
 msgstr "(about {v}′)"
 
 #. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "({mejora} % más de área)"
+msgstr "({mejora} % more area)"
+
+#. js
 #: templates/apilado.html
 msgid "({n} apartada)"
 msgid_plural "({n} apartadas)"
@@ -8450,6 +8455,11 @@ msgstr "Overlap (%)"
 msgid "Solape entre teselas (%)"
 msgstr "Tile overlap (%)"
 
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "Solape recomendado {s} %: foto final ≈ {ancho}° × {alto}°"
+msgstr "Recommended overlap {s} %: final image ≈ {ancho}° × {alto}°"
+
 #: templates/seguimiento.html
 msgid "Solo con el seguimiento iniciado: mueve por el mismo camino que el seguimiento y la vista se refresca mientras tanto. Sin límite de altura por debajo de {alt}°: vale para luces lejanas."
 msgstr "Only while tracking is running: it moves through the same path as tracking and the view keeps refreshing meanwhile. No altitude limit below {alt}°: fine for distant lights."
@@ -9019,6 +9029,11 @@ msgstr "Use the latest dark"
 #: templates/_asistente.html templates/configuracion.html
 msgid "Usar la ubicación de este móvil"
 msgstr "Use this phone's location"
+
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "Usar {s} %"
+msgstr "Use {s} %"
 
 #: templates/bienvenida.html templates/login.html
 msgid "Usuario"
@@ -9987,7 +10002,7 @@ msgstr "starts inside"
 msgid "empieza y acaba dentro"
 msgstr "starts and ends inside"
 
-#: static/js/mosaico.js templates/apilado.html
+#: static/js/mosaico.js templates/apilado.html templates/planetario.html
 msgid "en curso"
 msgstr "in progress"
 
@@ -10098,7 +10113,7 @@ msgstr "exposing"
 msgid "exponiendo…"
 msgstr "exposing…"
 
-#: static/js/mosaico.js
+#: static/js/mosaico.js templates/planetario.html
 msgid "fallida"
 msgstr "failed"
 
@@ -10200,6 +10215,10 @@ msgstr "daytime shot"
 msgid "foto de prueba y modo en vivo"
 msgstr "test shot and live mode"
 
+#: templates/planetario.html
+msgid "foto final"
+msgstr "final image"
+
 #. js
 #: static/js/mosaico.js templates/planetario.html
 msgid "foto final ≈ {ancho}° × {alto}°"
@@ -10294,7 +10313,7 @@ msgstr[1] "there is a partial save of {n} shots"
 msgid "hay una exposición en curso"
 msgstr "an exposure is in progress"
 
-#: static/js/mosaico.js
+#: static/js/mosaico.js templates/planetario.html
 msgid "hecha"
 msgstr "done"
 
@@ -10900,6 +10919,10 @@ msgstr "peak {p}%"
 msgid "plate solving en el centro"
 msgstr "plate solving at the center"
 
+#: templates/planetario.html
+msgid "poco solape"
+msgstr "little overlap"
+
 #: camara_toupcam.py
 msgid "poner el disparo por software"
 msgstr "enable software trigger"
@@ -10937,6 +10960,10 @@ msgstr "current mount position"
 #: ScopePower.py
 msgid "posición de la montura"
 msgstr "mount position"
+
+#: templates/planetario.html
+msgid "prevista"
+msgstr "planned"
 
 #: templates/apilado.html
 msgid "previsto"
