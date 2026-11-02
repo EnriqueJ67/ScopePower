@@ -3173,6 +3173,10 @@ msgstr ""
 msgid "En el PC donde corre ScopePower (no en el móvil), descarga StarNet2 de su web, en «Command-line Tools», la versión de Windows:"
 msgstr ""
 
+#: templates/planetario.html
+msgid "En el modo noche todo se pinta en rojo."
+msgstr ""
+
 #: actualizar.py
 msgid "En este PC no está instalado Git. Instálalo desde https://git-scm.com/download/win (todas las opciones por defecto) y vuelve a comprobar."
 msgstr ""
@@ -5351,6 +5355,10 @@ msgstr ""
 msgid "Letras sin acentos, números, punto o guion. Se guarda en minúsculas."
 msgstr ""
 
+#: templates/apilado.html templates/planetario.html
+msgid "Leyenda"
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "Leyendo la foto"
@@ -6811,6 +6819,10 @@ msgstr ""
 
 #: static/js/mosaico.js
 msgid "Objeto o coordenadas del centro"
+msgstr ""
+
+#: templates/planetario.html
+msgid "Objetos"
 msgstr ""
 
 #: templates/apilado.html
@@ -8734,6 +8746,10 @@ msgstr ""
 msgid "Tesela {i}: {motivo}; se salta"
 msgstr ""
 
+#: templates/apilado.html templates/planetario.html
+msgid "Teselas"
+msgstr ""
+
 #: templates/planetario.html
 msgid "Teselas del mosaico"
 msgstr ""
@@ -9736,6 +9752,10 @@ msgstr ""
 msgid "continuo"
 msgstr ""
 
+#: templates/planetario.html
+msgid "contorno a tamaño real"
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "contraste local"
@@ -9776,6 +9796,10 @@ msgstr ""
 
 #: camara_qhy.py
 msgid "código {codigo}"
+msgstr ""
+
+#: templates/planetario.html
+msgid "cúmulo"
 msgstr ""
 
 #. js
@@ -10234,6 +10258,10 @@ msgstr ""
 msgid "fundiendo"
 msgstr ""
 
+#: templates/planetario.html
+msgid "galaxia"
+msgstr ""
+
 #. js
 #: templates/apilado.html templates/dark.html
 msgid "ganancia del driver"
@@ -10680,6 +10708,18 @@ msgstr ""
 msgid "móvil: {hora}"
 msgstr ""
 
+#: templates/planetario.html
+msgid "nebulosa de emisión"
+msgstr ""
+
+#: templates/planetario.html
+msgid "nebulosa de reflexión"
+msgstr ""
+
+#: templates/planetario.html
+msgid "nebulosa oscura"
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "ninguna"
@@ -10873,6 +10913,10 @@ msgstr ""
 
 #: mosaico.py
 msgid "orientación respecto a los ejes"
+msgstr ""
+
+#: templates/planetario.html
+msgid "otra nebulosa"
 msgstr ""
 
 #: static/js/plan.js
