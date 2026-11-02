@@ -5,6 +5,10 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Número de Wolf: la gráfica de la galería da un punto por día (si hay varias fotos guardadas, la de
+  conteo más alto, como el observador que se queda con la imagen más nítida) y aplica el k actual de
+  `[Sol] factor_k` a toda la serie y a los conteos guardados, para que sea comparable con SILSO aunque
+  k cambie después de guardar.
 - Planetario: interruptor «Fotos» que pone las fotos de la galería (apilados y mosaicos con su posición,
   los guardados desde el 14-oct-2026 o ya resueltos por la galería anotada) sobre el cielo, cada una
   deformada a su huella real, con transparencia ajustable; sirve para ver qué está ya fotografiado y

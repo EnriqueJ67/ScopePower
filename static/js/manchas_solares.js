@@ -15,7 +15,7 @@
 //   textoTamano(g, d)                              -> «66.000 km · 5,2 Tierras» (el largo del grupo de punta a punta)
 //   rellenarListaGrupos(caja, d, alPasar)          -> la lista de grupos con su tamaño, manchas y coordenadas
 //                                                     (en la foto solo va el número: los rótulos largos se pisaban)
-//   pintarSerieWolf(svg, serie)                    -> la gráfica de la serie guardada
+//   pintarSerieWolf(svg, serie)                    -> la gráfica de la serie guardada (un punto por día)
 //
 // Los grupos se enlazan por la separación angular sobre la esfera (igual que en el servidor):
 // sale de la posición en el disco, sin saber dónde está el norte.
@@ -262,7 +262,8 @@ function pintarSerieWolf(svg, serie) {
     serie.forEach((s, i) => {
         const c = nuevo("circle", { cx: px(ts[i]), cy: py(s.R), r: 4 }, "wolf-punto");
         const t = nuevo("title", {});
-        t.textContent = `${fmtFecha(new Date(s.fecha))} · R = ${fmtNum(s.R, 0)} (g ${s.g}, f ${s.f})`;
+        t.textContent = `${fmtFecha(new Date(s.fecha))} · R = ${fmtNum(s.R, 0)} (g ${s.g}, f ${s.f})`
+            + (s.n > 1 ? " · " + _("el más alto de {n} conteos del día", { n: s.n }) : "");
         c.appendChild(t);
     });
     nuevo("text", { x: mx, y: H - 2 }, "wolf-eje", fmtFecha(new Date(t0), false));

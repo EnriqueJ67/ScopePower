@@ -7467,8 +7467,8 @@ msgid "R = 10·{g} + {f} = {R}"
 msgstr "R = 10·{g} + {f} = {R}"
 
 #: templates/galeria.html
-msgid "R = k · (10·g + f): g grupos y f manchas contadas en cada foto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia."
-msgstr "R = k · (10·g + f): g groups and f spots counted in each photo. A small telescope shows fewer spots than the SILSO index; the k factor (config.ini, [Sol]) corrects that difference."
+msgid "R = k · (10·g + f): g grupos y f manchas. Un punto por día: si hay varias fotos guardadas, la de conteo más alto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia y se aplica a toda la serie."
+msgstr "R = k · (10·g + f): g groups and f spots. One point per day: if several photos were saved, the one with the highest count. A small telescope shows fewer spots than the SILSO index; the k factor (config.ini, [Sol]) corrects that difference and applies to the whole series."
 
 #. js
 #: templates/imagen.html
@@ -9951,6 +9951,10 @@ msgstr "live mode"
 msgid "el movimiento"
 msgstr "the move"
 
+#: static/js/manchas_solares.js
+msgid "el más alto de {n} conteos del día"
+msgstr "highest of {n} counts that day"
+
 #. js
 #: instalar_astap.py
 msgid "el más pequeño; campos de 1° o más"
@@ -10368,6 +10372,11 @@ msgstr "interrupted"
 #: templates/rastros.html
 msgid "irreg. {v}"
 msgstr "irreg. {v}"
+
+#. js
+#: templates/galeria.html
+msgid "k = {k}"
+msgstr "k = {k}"
 
 #. js
 #: templates/imagen.html
@@ -11604,13 +11613,6 @@ msgstr[0] "{n} set aside, will be added later"
 msgstr[1] "{n} set aside, will be added later"
 
 #. js
-#: templates/galeria.html
-msgid "{n} conteo guardado"
-msgid_plural "{n} conteos guardados"
-msgstr[0] "{n} saved count"
-msgstr[1] "{n} saved counts"
-
-#. js
 #: templates/imagen.html
 msgid "{n} corrección"
 msgid_plural "{n} correcciones"
@@ -11669,6 +11671,13 @@ msgid "{n} destello"
 msgid_plural "{n} destellos"
 msgstr[0] "{n} flash"
 msgstr[1] "{n} flashes"
+
+#. js
+#: templates/galeria.html
+msgid "{n} día con conteo"
+msgid_plural "{n} días con conteo"
+msgstr[0] "{n} day with a count"
+msgstr[1] "{n} days with a count"
 
 #: static/js/plan.js
 msgid "{n} esta noche"

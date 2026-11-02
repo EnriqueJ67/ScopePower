@@ -6067,7 +6067,7 @@ def galeria():
     con_luna = {f for f in imagenes if luna_anotada.es_luna(f, luna_anotada.meta_de(os.path.join(carpeta, f)))}
     # Las del Sol llevan sus manchas y el Número de Wolf (manchas_solares.py); la serie de los guardados va en una tarjeta
     con_sol = {f for f in imagenes if manchas_solares.es_sol(f, luna_anotada.meta_de(os.path.join(carpeta, f)))}
-    serie_wolf = manchas_solares.serie() if con_sol else []
+    serie_wolf = manchas_solares.serie_diaria() if con_sol else []
     # Las del Sol con crudo se miden (limbo por colores, diámetro): fotometria_solar.py
     sol_crudo = sorted(f for f in con_sol if f in con_dia)
     serie_sol, curva_sol, orbita_sol, n_sol_pendientes = [], [], None, 0

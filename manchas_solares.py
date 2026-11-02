@@ -697,7 +697,7 @@ def _paquete(nombre, meta, disco, manchas, area_mhs, geo, cielo, k, sensibilidad
 
 
 def _desde_guardado(nombre, meta, ruta_jpg, observatorio):
-    """El conteo guardado en el JSON de la foto (meta["wolf"]), con las coordenadas al día."""
+    """El conteo guardado en el JSON de la foto (meta["wolf"]), con las coordenadas y el k de ahora."""
     w = meta["wolf"]
     disco = dict(w["disco"])
     manchas = [dict(m) for m in w["manchas"]]
@@ -710,7 +710,7 @@ def _desde_guardado(nombre, meta, ruta_jpg, observatorio):
     geo, cielo = contexto_cielo(nombre, meta, instante, T, _observatorio_de(meta, observatorio))
     _completar_coordenadas(manchas, disco, cielo)
     renumerar_grupos(manchas)
-    return _paquete(nombre, meta, disco, manchas, w.get("area_mhs", 0.0), geo, cielo, float(w.get("k") or factor_k()),
+    return _paquete(nombre, meta, disco, manchas, w.get("area_mhs", 0.0), geo, cielo, factor_k(),
                     sensibilidad_valida(w.get("sensibilidad")), wj, hj, True, "guardado",
                     w.get("zonas"), w.get("resolucion_km"))
 
@@ -901,6 +901,27 @@ def serie():
         except (TypeError, ValueError):
             continue
     return sorted(salida, key=lambda d: d["fecha"])
+
+
+def serie_diaria(k=None):
+    """Un valor por día para la gráfica: [{fecha, foto, g, f, R, k, n}].
+
+    De las fotos guardadas de un mismo día se toma la de conteo más alto (10·g + f), como el
+    observador que se queda con la imagen de mejor nitidez; n dice cuántas había. R se rehace con
+    el k de ahora ([Sol] factor_k): así la serie entera es comparable con SILSO aunque k cambie
+    después de guardar."""
+    k = factor_k() if k is None else k
+    dias = {}
+    for d in serie():
+        dia = d["fecha"][:10]
+        n = dias[dia]["n"] + 1 if dia in dias else 1
+        if dia not in dias or 10 * d["g"] + d["f"] >= 10 * dias[dia]["g"] + dias[dia]["f"]:
+            dias[dia] = dict(d)
+        dias[dia]["n"] = n
+    for d in dias.values():
+        d["k"] = k
+        d["R"] = numero_wolf(d["g"], d["f"], k)
+    return [dias[dia] for dia in sorted(dias)]
 
 
 if __name__ == "__main__":

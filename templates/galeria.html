@@ -44,7 +44,7 @@
     <h2 class="card-title">{{ _("Número de Wolf") }}</h2>
     <p class="card-sub" id="wolf-serie-texto"></p>
     <svg id="wolf-serie-svg" class="wolf-serie" role="img" aria-label="{{ _('Serie del Número de Wolf') }}"></svg>
-    <p class="card-sub mt-2 texto-3">{{ _("R = k · (10·g + f): g grupos y f manchas contadas en cada foto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia.") }}</p>
+    <p class="card-sub mt-2 texto-3">{{ _("R = k · (10·g + f): g grupos y f manchas. Un punto por día: si hay varias fotos guardadas, la de conteo más alto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia y se aplica a toda la serie.") }}</p>
 </div>
 {% endif %}
 
@@ -167,7 +167,7 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/luna_anotada.js') }}?v=1"></script>
-<script src="{{ url_for('static', filename='js/manchas_solares.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/manchas_solares.js') }}?v=4"></script>
 <script src="{{ url_for('static', filename='js/fotometria_solar.js') }}?v=1"></script>
 <script>
     const CON_FITS = {{ con_fits|list|tojson }};
@@ -534,8 +534,9 @@
         if (!svg || !SERIE_WOLF.length) return;
         pintarSerieWolf(svg, SERIE_WOLF);
         const u = SERIE_WOLF[SERIE_WOLF.length - 1];
-        document.getElementById("wolf-serie-texto").textContent = ngettext("{n} conteo guardado", "{n} conteos guardados", SERIE_WOLF.length) + " · "
-            + _("último: R = {R} el {fecha} ({g} grupos, {f} manchas)", { R: fmtNum(u.R, 0), fecha: fmtFecha(new Date(u.fecha), false), g: u.g, f: u.f });
+        document.getElementById("wolf-serie-texto").textContent = ngettext("{n} día con conteo", "{n} días con conteo", SERIE_WOLF.length) + " · "
+            + _("último: R = {R} el {fecha} ({g} grupos, {f} manchas)", { R: fmtNum(u.R, 0), fecha: fmtFecha(new Date(u.fecha), false), g: u.g, f: u.f })
+            + (u.k !== 1 ? " · " + _("k = {k}", { k: fmtNum(u.k, 2) }) : "");
     }
 
     // Compartir la foto firmada. El menú nativo del móvil (WhatsApp, Fotos...) solo existe

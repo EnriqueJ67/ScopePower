@@ -17,6 +17,8 @@
 #   7. Manchas diminutas de un apilado de vídeo (poco ruido, un 5 % de contraste, más pequeñas que el
 #      área mínima de una penumbra): salen las cuatro de la fila y un Sol limpio no da ninguna.
 #   8. Una foto firmada sin crudo: el degradado y el logo de la firma no salen como manchas.
+#   9. La serie de la galería: un punto por día (el conteo más alto), con el k de ahora aunque
+#      los conteos se guardaran con otro.
 #
 # Uso: python herramientas/probar_manchas_solares.py   (desde la carpeta de ScopePower)
 
@@ -339,6 +341,13 @@ def probar_galeria(lum):
     comprobar(len(s) == 1 and s[0]["f"] == 5, f"segunda vez: una sola fila con f = {s[0]['f'] if s else '-'}")
     d2 = M.objetos_foto(nombre, (40.0, -3.7))
     comprobar(d2["guardado"] and d2["wolf"]["f"] == 5 and d2["origen"] == "guardado", "al volver a pedir la foto sale lo guardado")
+    factor_k = M.factor_k
+    M.factor_k = lambda ruta_config="config.ini": 1.7
+    M._olvidar_cache(nombre)
+    d2 = M.objetos_foto(nombre, (40.0, -3.7))
+    M.factor_k = factor_k
+    comprobar(d2["wolf"]["k"] == 1.7 and d2["wolf"]["R"] == round(1.7 * (10 * d2["wolf"]["g"] + 5), 1),
+              f"lo guardado se muestra con el k de ahora: {d2['wolf']}")
     # Olvidar: vuelve a detectar y la serie queda vacía
     r = M.olvidar(nombre, (40.0, -3.7), "alta")
     comprobar(not r["guardado"] and r["wolf"]["f"] == 7 and r["sensibilidad"] == "alta" and M.serie() == [], "olvidar: vuelve a detectar y quita la fila")
@@ -376,6 +385,29 @@ def probar_galeria(lum):
     shutil.rmtree(raiz, ignore_errors=True)
 
 
+# ─── 9. Serie de la galería: un punto por día ────────────────────────────────
+def probar_serie_diaria():
+    print("Serie de la galería: un punto por día, con el k de ahora")
+    raiz = tempfile.mkdtemp(prefix="wolf_serie_")
+    ruta = M.RUTA_SERIE
+    M.RUTA_SERIE = os.path.join(raiz, "numero_wolf.csv")
+    fila = lambda fecha, foto, g, f, k: {"fecha": fecha, "foto": foto, "g": g, "f": f, "R": M.numero_wolf(g, f, k),
+                                        "k": k, "area_mhs": 0, "a_mano": 1}
+    M._escribir_serie([fila("2026-11-01T11:10:33", "Sol_20261101_111033_video.jpg", 2, 5, 1.7),
+                       fila("2026-11-01T11:16:05", "Sol_20261101_111605.jpg", 2, 2, 1.0),
+                       fila("2026-11-01T11:22:16", "Sol_20261101_112216_video.jpg", 2, 5, 1.0),
+                       fila("2026-10-25T15:47:51", "Sol_20261025_154751.jpg", 0, 0, 1.0),
+                       fila("2026-10-17T13:07:47", "Sol_20261017_130747.jpg", 2, 9, 1.0)])
+    s = M.serie_diaria(1.7)
+    comprobar([d["fecha"][:10] for d in s] == ["2026-10-17", "2026-10-25", "2026-11-01"], f"un punto por día: {[d['fecha'] for d in s]}")
+    comprobar([d["R"] for d in s] == [49.3, 0.0, 42.5] and all(d["k"] == 1.7 for d in s), f"todos con k = 1,7: {[d['R'] for d in s]}")
+    comprobar(s[2]["n"] == 3 and (s[2]["g"], s[2]["f"]) == (2, 5) and s[0]["n"] == 1,
+              f"el 1-nov, el más alto de 3 conteos: g {s[2]['g']} f {s[2]['f']} n {s[2]['n']}")
+    comprobar(M.serie_diaria(1.0)[2]["R"] == 25.0, "con k = 1 vuelve al conteo tal cual")
+    M.RUTA_SERIE = ruta
+    shutil.rmtree(raiz, ignore_errors=True)
+
+
 # ─── 5. es_sol ───────────────────────────────────────────────────────────────
 def probar_es_sol():
     print("Qué fotos son del Sol")
@@ -390,6 +422,7 @@ if __name__ == "__main__":
     probar_pequenas()
     probar_galeria(lum)
     probar_es_sol()
+    probar_serie_diaria()
     if fallos:
         print(f"\n{len(fallos)} comprobaciones fallidas")
         sys.exit(1)
