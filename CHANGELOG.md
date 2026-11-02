@@ -5,6 +5,10 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Voz: nuevo interruptor en Apilado (Opciones) «Voz: callar los avisos de cada foto». Con él, el bucle
+  del apilado en vivo deja de decir «empieza exposición», «exposición terminada» y «foto añadida» en
+  cada vuelta, y solo se oye lo que no es rutina: mejor y peor foto, descartadas, referencia y errores.
+  Se guarda en `[Voz] silenciar_bucle_apilado`.
 - Mosaico: el sello y los datos del editor cuentan las fotos de todas las teselas. En el FITS del
   mosaico NSTACK es por tesela y EXPTOT de todas, y el 2×2 del 1-nov salía como «50 × 80 s» en vez
   de «200 × 20 s».

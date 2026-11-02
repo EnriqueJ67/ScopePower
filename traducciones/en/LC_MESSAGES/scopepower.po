@@ -8400,6 +8400,10 @@ msgstr "No type"
 msgid "Sin ventana nocturna."
 msgstr "No night window."
 
+#: templates/apilado.html
+msgid "Sin «empieza exposición», «exposición terminada» ni «foto añadida» en cada vuelta. Se sigue oyendo la mejor y la peor foto, las descartadas, la referencia y los errores."
+msgstr "No «starting exposure», «exposure finished» or «shot added» on every round. You still hear the best and worst shot, rejected shots, the reference and errors."
+
 #: ScopePower.py
 msgid "Sincronizaciones anteriores borradas"
 msgstr "Previous syncs cleared"
@@ -9258,6 +9262,10 @@ msgstr "Voice off"
 #: templates/base.html
 msgid "Voz on"
 msgstr "Voice on"
+
+#: templates/apilado.html
+msgid "Voz: callar los avisos de cada foto"
+msgstr "Voice: mute the announcements of every shot"
 
 #: static/centrado.js
 msgid "Vuelta {n} de {total}"

@@ -199,6 +199,8 @@
                     <input type="number" id="dither-cada" class="corto" min="1" max="20" value="3" style="width: 64px;" onchange="cambiarDithering()"> <span class="texto-2" style="font-size: 14px;">{{ _("fotos") }}</span>
                 </div>
                 <div id="dither-estado" class="texto-3 mt-1" style="font-size: 13px;"></div>
+                <label class="switch mt-2"><input type="checkbox" id="voz-bucle-silencio" onchange="cambiarVozBucle()"> {{ _("Voz: callar los avisos de cada foto") }}</label>
+                <div class="texto-3 mt-1" style="font-size: 13px;">{{ _("Sin «empieza exposición», «exposición terminada» ni «foto añadida» en cada vuelta. Se sigue oyendo la mejor y la peor foto, las descartadas, la referencia y los errores.") }}</div>
             </div>
         </section>
 
@@ -665,6 +667,7 @@
     window.addEventListener('DOMContentLoaded', () => {
         cargarParametros();
         cargarConfigObjetos();
+        cargarVozBucle();
         actualizarImagen();
         cargarInfoGoto();
         prepararInicio();
@@ -1572,6 +1575,20 @@
         fetch("/apilado/dithering", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activado, cada }) })
             .then(r => r.json()).then(d => { if (d.bucle) pintarDithering({ bucle: d.bucle }); })
             .catch(err => console.warn("dithering:", err));
+    }
+
+    // ——— Voz: callar lo que se repite en cada foto del bucle ([Voz] silenciar_bucle_apilado) ———
+    function cargarVozBucle() {
+        fetch("/voz/estado").then(r => r.json())
+            .then(e => document.getElementById("voz-bucle-silencio").checked = !!e.silenciar_bucle_apilado)
+            .catch(err => console.warn("voz:", err));
+    }
+    function cambiarVozBucle() {
+        const chk = document.getElementById("voz-bucle-silencio");
+        fetch("/voz/config", { method: "POST", headers: { "Content-Type": "application/json" },
+                               body: JSON.stringify({ silenciar_bucle_apilado: chk.checked }) })
+            .then(r => r.json()).then(e => chk.checked = !!e.silenciar_bucle_apilado)
+            .catch(err => console.warn("voz:", err));
     }
 
     function cancelarCaptura() {
