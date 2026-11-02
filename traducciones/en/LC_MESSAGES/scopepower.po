@@ -3175,6 +3175,10 @@ msgstr "Queued behind another video…"
 msgid "En el PC donde corre ScopePower (no en el móvil), descarga StarNet2 de su web, en «Command-line Tools», la versión de Windows:"
 msgstr "On the PC where ScopePower runs (not on the phone), download StarNet2 from its website, under “Command-line Tools”, the Windows version:"
 
+#: templates/planetario.html
+msgid "En el modo noche todo se pinta en rojo."
+msgstr "In night mode everything is drawn in red."
+
 #: actualizar.py
 msgid "En este PC no está instalado Git. Instálalo desde https://git-scm.com/download/win (todas las opciones por defecto) y vuelve a comprobar."
 msgstr "Git isn't installed on this PC. Install it from https://git-scm.com/download/win (all default options) and check again."
@@ -5353,6 +5357,10 @@ msgstr "Slow (0.1°/s)"
 msgid "Letras sin acentos, números, punto o guion. Se guarda en minúsculas."
 msgstr "Letters without accents, numbers, period or hyphen. It is saved in lowercase."
 
+#: templates/apilado.html templates/planetario.html
+msgid "Leyenda"
+msgstr "Legend"
+
 #. js
 #: templates/apilado.html
 msgid "Leyendo la foto"
@@ -6814,6 +6822,10 @@ msgstr "Object of the last GoTo"
 #: static/js/mosaico.js
 msgid "Objeto o coordenadas del centro"
 msgstr "Object or coordinates of the center"
+
+#: templates/planetario.html
+msgid "Objetos"
+msgstr "Objects"
 
 #: templates/apilado.html
 msgid "Objetos anotados en la imagen"
@@ -8736,6 +8748,10 @@ msgstr "Tile {i}: {motivo}; mosaic paused"
 msgid "Tesela {i}: {motivo}; se salta"
 msgstr "Tile {i}: {motivo}; skipped"
 
+#: templates/apilado.html templates/planetario.html
+msgid "Teselas"
+msgstr "Tiles"
+
 #: templates/planetario.html
 msgid "Teselas del mosaico"
 msgstr "Mosaic tiles"
@@ -9738,6 +9754,10 @@ msgstr "count settings"
 msgid "continuo"
 msgstr "continuous"
 
+#: templates/planetario.html
+msgid "contorno a tamaño real"
+msgstr "outline at real size"
+
 #. js
 #: templates/apilado.html
 msgid "contraste local"
@@ -9779,6 +9799,10 @@ msgstr "camera busy"
 #: camara_qhy.py
 msgid "código {codigo}"
 msgstr "code {codigo}"
+
+#: templates/planetario.html
+msgid "cúmulo"
+msgstr "cluster"
 
 #. js
 #: ScopePower.py
@@ -10236,6 +10260,10 @@ msgstr "camera fps"
 msgid "fundiendo"
 msgstr "blending"
 
+#: templates/planetario.html
+msgid "galaxia"
+msgstr "galaxy"
+
 #. js
 #: templates/apilado.html templates/dark.html
 msgid "ganancia del driver"
@@ -10682,6 +10710,18 @@ msgstr "metric {m}"
 msgid "móvil: {hora}"
 msgstr "phone: {hora}"
 
+#: templates/planetario.html
+msgid "nebulosa de emisión"
+msgstr "emission nebula"
+
+#: templates/planetario.html
+msgid "nebulosa de reflexión"
+msgstr "reflection nebula"
+
+#: templates/planetario.html
+msgid "nebulosa oscura"
+msgstr "dark nebula"
+
 #. js
 #: templates/apilado.html
 msgid "ninguna"
@@ -10876,6 +10916,10 @@ msgstr "uncertain orientation: it may be mirrored"
 #: mosaico.py
 msgid "orientación respecto a los ejes"
 msgstr "orientation relative to the axes"
+
+#: templates/planetario.html
+msgid "otra nebulosa"
+msgstr "other nebula"
 
 #: static/js/plan.js
 msgid "otra noche"
