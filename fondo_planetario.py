@@ -109,7 +109,7 @@ def lista():
     """Fotos de la galería que se pueden poner sobre el cielo, las grandes primero (los mosaicos debajo de las fotos sueltas)."""
     with _lock:
         cache = _leer_cache()
-        salida, usadas, cambiado = [], set(), False
+        salida, usadas, cambiado, sin_solucion = [], set(), False, []
         for f in sorted(os.listdir(CARPETA_FOTOS)):
             if not f.lower().endswith(".jpg") or os.path.splitext(f)[0].endswith(SUFIJOS_FUERA):
                 continue
@@ -121,18 +121,26 @@ def lista():
                 sj, sf = os.stat(ruta_jpg), os.stat(ruta_fits)
                 clave = f"{f}|{sj.st_size}_{sj.st_mtime_ns}|{sf.st_size}_{sf.st_mtime_ns}"
                 usadas.add(clave)
-                if clave in cache and (cache[clave] is None or "esquinas_completa" in cache[clave]):
+                if clave in cache and cache[clave] and "esquinas_completa" in cache[clave]:
                     huella = cache[clave]
                 else:
                     huella = _huella(f)
-                    cache[clave] = huella
-                    cambiado = True
+                    if huella:
+                        cache[clave] = huella
+                        cambiado = True
                 if huella:
                     salida.append(huella)
+                elif clave not in _sin_solucion:
+                    sin_solucion.append(f)
             except Exception as e:
                 log.warning("Fondo del planetario: %s no se puede situar (%s)", f, e)
-        if cambiado or len(cache) != len(usadas):
+        if cambiado or any(k not in usadas for k in cache):
             _guardar_cache({k: v for k, v in cache.items() if k in usadas})
+    # Las que tienen FITS pero nadie ha resuelto nunca: se resuelven con ASTAP en segundo plano
+    # (galeria_anotada guarda la solución y la siguiente lista ya las coloca)
+    if sin_solucion:
+        preparar_soluciones(sin_solucion)
+    resolviendo = len(sin_solucion)
     # Qué versión se va a servir de cada una: la de campo completo si ya está revelada; si no, el
     # JPG de la galería (desfirmado) mientras se revela en segundo plano
     pendientes = []
@@ -148,7 +156,45 @@ def lista():
     if pendientes:
         preparar_completas(pendientes)
     salida.sort(key=lambda h: -(h["area_completa_deg2"] if h["modo"] == "completa" else h["area_deg2"]))
-    return salida
+    return salida, resolviendo
+
+
+_hilo_soluciones = None
+_sin_solucion = set()      # fotos que ASTAP no pudo resolver (clave jpg|fits): no se insiste hasta reiniciar
+
+
+def preparar_soluciones(nombres):
+    """Resuelve con ASTAP, en segundo plano y de una en una, las fotos que no tienen posición."""
+    global _hilo_soluciones
+    if _hilo_soluciones is not None and _hilo_soluciones.is_alive():
+        return
+    pendientes = list(nombres)
+
+    def trabajo():
+        import time
+        for nombre in pendientes:
+            try:
+                __, ruta_jpg, ruta_fits, __ = rutas(nombre)
+                sj, sf = os.stat(ruta_jpg), os.stat(ruta_fits)
+                clave = f"{nombre}|{sj.st_size}_{sj.st_mtime_ns}|{sf.st_size}_{sf.st_mtime_ns}"
+            except Exception:
+                continue
+            for intento in range(12):
+                if galeria_anotada._lock.locked():        # otra resolución en curso (la galería anotada): esperar
+                    time.sleep(5)
+                    continue
+                try:
+                    galeria_anotada.solucion_de(ruta_fits)
+                    log.info("Fondo del planetario: %s resuelta con ASTAP", nombre)
+                except galeria_anotada.ErrorEditor as e:
+                    log.info("Fondo del planetario: %s sin posición (%s)", nombre, e)
+                    _sin_solucion.add(clave)
+                except Exception as e:
+                    log.warning("Fondo del planetario: error resolviendo %s: %s", nombre, e)
+                    _sin_solucion.add(clave)
+                break
+    _hilo_soluciones = threading.Thread(target=trabajo, name="planetario-soluciones", daemon=True)
+    _hilo_soluciones.start()
 
 
 def _ruta_completa(base, st_fits, lado):

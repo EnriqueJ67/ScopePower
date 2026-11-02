@@ -6335,8 +6335,9 @@ def planetario_fotos():
     if 'usuario' not in session:
         return jsonify({"error": "sin sesión"}), 401
     try:
-        fotos = fondo_planetario.lista()
-        return jsonify({"ok": True, "fotos": fotos, "pendientes": sum(1 for f in fotos if f.get("modo") != "completa")})
+        fotos, resolviendo = fondo_planetario.lista()
+        return jsonify({"ok": True, "fotos": fotos, "pendientes": sum(1 for f in fotos if f.get("modo") != "completa"),
+                        "resolviendo": resolviendo})
     except Exception as e:
         log.exception("Error listando las fotos para el planetario")
         return jsonify({"ok": False, "error": str(e)}), 500

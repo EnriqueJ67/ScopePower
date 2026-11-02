@@ -351,10 +351,11 @@
                 return { ...f, img, esquinasUsadas: f.modo === "completa" && f.esquinas_completa ? f.esquinas_completa : f.esquinas };
             });
             const n = fotosFondo.length;
-            $("fotos-cuenta").textContent = !n ? _("ninguna foto con posición")
-                : ngettext("{n} foto", "{n} fotos", n) + (d.pendientes ? " · " + _("revelando {p} a campo completo…", { p: d.pendientes }) : "");
+            $("fotos-cuenta").textContent = (!n ? _("ninguna foto con posición") : ngettext("{n} foto", "{n} fotos", n))
+                + (d.resolviendo ? " · " + _("resolviendo {r} con ASTAP…", { r: d.resolviendo }) : "")
+                + (d.pendientes ? " · " + _("revelando {p} a campo completo…", { p: d.pendientes }) : "");
             clearTimeout(timerFotosFondo);
-            if (d.pendientes && !lienzoFotos.hidden) timerFotosFondo = setTimeout(cargarFotosFondo, 15000);
+            if ((d.pendientes || d.resolviendo) && !lienzoFotos.hidden) timerFotosFondo = setTimeout(cargarFotosFondo, 15000);
         } catch (e) {
             console.warn("fotos del planetario", e);
             $("fotos-cuenta").textContent = "⚠️";

@@ -935,6 +935,7 @@ window.I18N_CATALOGO = {
 "referencia blanca":"white reference",
 "resolviendo":"solving",
 "resolviendo el campo…":"solving the field…",
+"resolviendo {r} con ASTAP…":"plate solving {r} with ASTAP…",
 "revelando {p} a campo completo…":"developing {p} at full field…",
 "rojo {v}":"red {v}",
 "ruta no válida":"invalid path",
