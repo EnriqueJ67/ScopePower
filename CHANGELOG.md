@@ -5,6 +5,11 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Mosaico: el igualado de fondos entre teselas ajusta la pendiente común a los tres canales y solo el
+  nivel por canal. Con una pendiente por canal, cada una se extrapolaba de los solapes a las esquinas con
+  su propio error y el fondo cambiaba de color hacia los bordes (en el mosaico del 1-nov, un 2,2 % más
+  rojo en las esquinas, que estirado salía como un cerco magenta); ahora queda en el 0,7 %, lo mismo que
+  varía una tesela sola. Con las teselas aún en disco basta «Recombinar» para rehacer el mosaico.
 - Planetario: las fotos de la galería sobre el cielo se enseñan a campo completo y sin firma: el
   planetario revela su propia versión del FITS (toda la zona útil del sensor, aunque el JPG se guardara
   con zoom) en segundo plano la primera vez, y mientras tanto pinta el JPG de la galería. Las fotos que

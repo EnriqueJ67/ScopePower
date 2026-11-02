@@ -611,27 +611,45 @@ def ajustar_planos_fondo(proyecciones, ancho, alto, celda=12, minimo_celdas=6):
     A = np.array(filas)
     W = np.sqrt(np.array(pesos))[:, None]
     B = np.array(difs)                                             # (m, 3)
-    # Regularización: corrección media nula (una fila por coeficiente, peso pequeño)
     # Regularización: corrección media nula (peso pequeño para los niveles) y gradientes
     # moderados (más peso: un solape estrecho apenas informa del gradiente a través de él
     # y sin esto se extrapola cualquier cosa al resto de la tesela)
     lam_grad = float(os.environ.get("MOSAICO_LAM_GRAD", "0.001"))
     reg = np.diag(np.tile([lam_grad, lam_grad, 1e-3], n)) * math.sqrt(len(filas))
-    for c in range(3):
-        usar = np.ones(len(filas), dtype=bool)
+
+    def resolver(b, A_, reg_, nc):
+        """Mínimos cuadrados con descarte de celdas que se salen (un objeto brillante en el borde)."""
+        usar = np.ones(len(b), dtype=bool)
         sol = None
         for __ in range(3):
-            Aw = np.vstack([A[usar] * W[usar], reg])
-            bw = np.concatenate([B[usar, c] * W[usar, 0], np.zeros(3 * n)])
+            Aw = np.vstack([A_[usar] * W[usar], reg_])
+            bw = np.concatenate([b[usar] * W[usar, 0], np.zeros(nc)])
             sol = np.linalg.lstsq(Aw, bw, rcond=None)[0]
-            resid = A @ sol - B[:, c]
+            resid = A_ @ sol - b
             mad = np.median(np.abs(resid[usar] - np.median(resid[usar]))) * 1.4826 + 1e-3
             nuevo = np.abs(resid) < 4.0 * mad
             if nuevo.sum() < minimo_celdas or np.array_equal(nuevo, usar):
                 break
             usar = nuevo
+        return sol
+
+    # 1) Pendientes (a, b) COMUNES a los tres canales, ajustadas sobre la media de los canales. Con
+    #    una pendiente por canal, cada una se extrapola de los solapes a las esquinas de la tesela
+    #    con su propio error y el fondo cambia de color hacia los bordes del mosaico (medido con
+    #    las teselas reales del 1-nov-2026: R/G +2,2 % y B/G +1,2 % del centro a las esquinas, que
+    #    estirado salía como un cerco magenta; cada tesela sola varía 0,5 %). La diferencia de
+    #    gradiente entre teselas (cielo, hora) es sobre todo de brillo, no de color.
+    sol_media = resolver(B.mean(axis=1), A, reg, 3 * n)
+    pendientes = np.array([[sol_media[3 * i], sol_media[3 * i + 1]] for i in range(n)])
+    # 2) Nivel (c) por canal con esas pendientes fijas: P_i - P_j = -d  →  c_i - c_j = -d - (grad_i - grad_j)
+    A_c = A[:, 2::3]                                               # columnas de los niveles
+    A_g = np.delete(A, np.arange(2, 3 * n, 3), axis=1)             # columnas de las pendientes (x, y por tesela)
+    grad = A_g @ pendientes.reshape(-1)
+    reg_c = np.eye(n) * 1e-3 * math.sqrt(len(filas))
+    for c in range(3):
+        sol_c = resolver(B[:, c] - grad, A_c, reg_c, n)
         for i in range(n):
-            planos[i][c] = sol[3 * i:3 * i + 3]
+            planos[i][c] = [pendientes[i, 0], pendientes[i, 1], sol_c[i]]
     return planos
 
 
