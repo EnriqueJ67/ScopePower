@@ -104,7 +104,7 @@
                 <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-enfoque" onchange="cambiarModoEnfoque()"> {{ _("Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)") }}</label>
                 <span class="texto-3" style="font-size: 12.5px;">{{ _("foto de prueba y modo en vivo") }}</span>
             </div>
-            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>{{ _("Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada. Con la máscara de Bahtinov puesta, el recorte junta los tres colores (con uno solo los picos salen a trozos) y dibuja la cruceta virtual: las dos rayas de la X en verde fino y, a trazos, por dónde tiene que pasar el pico central. El número es lo que se aparta el pico central de los trazos, en píxeles, y la barra de abajo lo enseña a un lado o a otro: gira el enfocador hasta que el punto entre en la zona verde. Entonces los trazos se ponen verdes y el PC dice «Bahtinov centrada». Quita la máscara sin tocar el enfoque y sin apagar este interruptor: con las fotos siguientes (en vivo, a partir de unos segundos sin la cruz, para que la vibración al tocar el enfocador no cuente) ScopePower aprende cuánto más anchos que el verde salen el rojo y el azul en el foco bueno, y lo guarda. Las próximas veces, sin máscara, dice «Enfocado» cuando los tres colores vuelven a esa relación. Sin máscara, el recorte es la estrella ×5 en verde con su anchura en cada color. En vivo la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»). Cerca del foco la curva es plana porque el seeing tapa el desenfoque pequeño: el foco bueno es el centro de esa zona plana, no el número más bajo. Sigue girando hasta que el PC diga «te has pasado del foco»: la gráfica sombrea la zona plana y marca su centro, y al volver hacia él dice «estás en la zona buena».") }}</div>
+            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>{{ _("Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada. Con la máscara de Bahtinov puesta, el recorte junta los tres colores (con uno solo los picos salen a trozos) y dibuja la cruceta virtual: las dos rayas de la X en verde fino y, a trazos, por dónde tiene que pasar el pico central. El número es lo que se aparta el pico central de los trazos, en píxeles, y la barra de abajo lo enseña a un lado o a otro: gira el enfocador hasta que el punto entre en la zona verde. Entonces los trazos se ponen verdes y el PC dice «Bahtinov centrada». Quita la máscara sin tocar el enfoque y sin apagar este interruptor: con las fotos siguientes (en vivo, a partir de unos segundos sin la cruz, para que la vibración al tocar el enfocador no cuente) ScopePower aprende cuánto más anchos que el verde salen el rojo y el azul en el foco bueno, y lo guarda. Las próximas veces, sin máscara, dice «Enfocado» cuando los tres colores vuelven a esa relación. Sin máscara, el recorte es la estrella ×5 en verde con su anchura en cada color. De noche, con este interruptor encendido, sale el botón «En vivo» (con la cámara por SDK): la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche, el desvío es la mediana de 2 s y el foco se aprende con 10 fotogramas; con fotos sueltas, con 3. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»). Cerca del foco la curva es plana porque el seeing tapa el desenfoque pequeño: el foco bueno es el centro de esa zona plana, no el número más bajo. Sigue girando hasta que el PC diga «te has pasado del foco»: la gráfica sombrea la zona plana y marca su centro, y al volver hacia él dice «estás en la zona buena».") }}</div>
             <!-- Modo continuo: una foto tras otra en el servidor hasta que se pare (ver foto_continua.py).
                  Cada foto puede guardarse en JPG (revelada, pocos MB) o FITS (en bruto, 18 MB) para no llenar el disco sin querer. -->
             <div id="fila-continuo" class="fila mt-2" style="justify-content: space-between;">
@@ -428,11 +428,13 @@
     let hayFotoNueva = false;                 // foto hecha en esta visita (de noche, ASTAP la resuelve)
     let hayFoto = {{ 'true' if hay_foto else 'false' }};   // hay alguna foto en pantalla (guardar, apuntar de día)
     const CAMARA_SDK = {{ 'true' if camara_sdk else 'false' }};   // driver SDK:PlayerOne (Configuración)
+    let enfoqueActivo = false;                // interruptor «Enfoque: solo verde» (de noche abre el vivo)
 
     // Sincronizar y "Apunta aquí" de noche resuelven static/captura.fits: piden una foto de esta visita y
     // esperan a que pare el continuo. De día "Apunta aquí" no resuelve nada y vale con el continuo en marcha.
     function pintarBotonesFoto() {
-        document.getElementById("btn-vivo").hidden = !(modoDia && CAMARA_SDK);   // el vivo necesita la cámara por SDK
+        // El vivo necesita la cámara por SDK; de noche solo sirve para enfocar estrellas (con la Bahtinov)
+        document.getElementById("btn-vivo").hidden = !((modoDia || enfoqueActivo) && CAMARA_SDK);
         document.getElementById("btn-sync").disabled = continuoActivo || !hayFotoNueva;
         document.getElementById("btn-puntero").disabled = modoDia ? !hayFoto : (continuoActivo || !hayFotoNueva);
         document.getElementById("btn-galeria").disabled = !hayFoto;
@@ -1018,7 +1020,10 @@
         }
         est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>' + _("Pasando la cámara al modo en vivo...");
         document.getElementById("btn-vivo").disabled = true;
-        fetch("/vivo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, campo: campoDia() }) })
+        // De noche: la estrella más brillante con la ganancia de noche (vivo_dia con el modo enfoque); sin
+        // seguimiento solar ni lunar, como un paisaje
+        const cuerpo = modoDia ? { objetivo: objetivoDia, campo: campoDia() } : { objetivo: "paisaje", campo: campoDia(), noche: true };
+        fetch("/vivo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
             .then(r => r.json())
             .then(d => {
                 document.getElementById("btn-vivo").disabled = false;
@@ -1169,7 +1174,7 @@
         const btn = document.getElementById("btn-grabar");
         const g = e.grabacion || null;
         grabando = !!g;
-        btn.hidden = !(vivoActivo && e.fase === "en vivo") && !grabando;
+        btn.hidden = !(vivoActivo && e.fase === "en vivo" && modoDia) && !grabando;   // el vídeo es de día (Sol, Luna)
         btn.className = "btn " + (grabando ? "btn-danger" : "btn-secondary");
         btn.innerHTML = grabando ? '<svg><use href="#i-stop"/></svg>' + _("Parar la grabación") : '<svg><use href="#i-disco"/></svg>' + _("Grabar vídeo");
         const est = document.getElementById("video-grabacion");
@@ -1313,16 +1318,21 @@
         return s;
     }
     function pintarModoEnfoque(activo) {
-        document.getElementById("modo-enfoque").checked = !!activo;
+        enfoqueActivo = !!activo;
+        document.getElementById("modo-enfoque").checked = enfoqueActivo;
         document.getElementById("enfoque-ayuda").hidden = !activo;
+        pintarBotonesFoto();
     }
     function cambiarModoEnfoque() {
         const activo = document.getElementById("modo-enfoque").checked;
         fetch("/enfoque", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activo }) })
             .then(r => r.json()).then(d => {
                 pintarModoEnfoque(d.activo);
-                // En vivo se reinicia para que tome la exposición y la ganancia del modo
-                if (vivoActivo) {
+                // En vivo se reinicia para que tome la exposición y la ganancia del modo; de noche, sin
+                // enfoque, el vivo no tiene sentido: se para y ya
+                if (vivoActivo && !modoDia && !d.activo) {
+                    pararVivo();
+                } else if (vivoActivo) {
                     pararVivo();
                     let intentos = 0;
                     const t = setInterval(() => { if (!vivoActivo || ++intentos > 20) { clearInterval(t); if (!vivoActivo) alternarVivo(); } }, 500);
