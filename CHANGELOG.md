@@ -5,6 +5,12 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Mosaico: el configurador del planetario y el panel de Apilado enseñan las teselas como quedarán de
+  verdad: cada una con su hora prevista y el giro de la cámara a esa hora (en la altacimutal cambia a
+  lo largo del mosaico; previsto con 1° de error la noche del 1-nov-2026), el solape real entre vecinas
+  con aviso si baja del 8 %, la duración y la hora de fin, y los contornos a escala de los objetos del
+  catálogo que caen en el mosaico. Mientras se hace un mosaico el visor sigue a la tesela que se apila
+  y enseña el mosaico entre teselas (antes se quedaba en el mosaico al combinarse la primera).
 - Enfoque con máscara de Bahtinov en Cámara (interruptor «Enfoque: solo verde»). Con la máscara
   puesta, el recorte ampliado ya no enseña el verde solo, donde los picos de la máscara salían a
   trozos (la rejilla separa los colores y cada canal tiene su trozo). Ahora junta los tres colores
