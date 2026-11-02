@@ -18,6 +18,11 @@ día de la release. El número de versión vive en `version.py`.
   por la máscara quitada (en vivo hacen falta 3 s seguidos sin la cruz) ni sirve para aprender
   (una estrella alargada no cuenta, y el texto dice «estrella movida»). Antes, en foto suelta, una
   sola foto movida tras centrar podía guardar un foco equivocado.
+  Tras la prueba del 1-nov con Altair: el botón «En vivo» sale también de noche con el interruptor
+  de enfoque encendido (antes solo en modo día, así que de noche no había vivo), con la ganancia de
+  noche y hasta 2 s por fotograma. Con fotos sueltas el foco se aprende con 3 fotos, no con una.
+  El recorte de la Bahtinov amplía menos (×2,5) y se revela con una curva más suave: las manchas
+  brillantes del pico central ya no se hinchan en bolas blancas y las rayas se ven más finas.
 - Arreglado: el apilado descartaba fotos de campos densos de la Vía Láctea que ASTAP no resolvía
   a la primera (una de M 11 el 29-oct), con un aviso rojo ilegible («Command … returned non-zero
   exit status 1») que se quedaba en la página toda la sesión. Ahora el alineado repite con más

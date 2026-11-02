@@ -4543,11 +4543,18 @@ def color_olvidar():
 # ───────────────────────── Modo en vivo de día (SDK nativo de la cámara) ─────────────────────────
 @app.route('/vivo/iniciar', methods=["POST"])
 def vivo_iniciar():
-    """Imagen casi continua para centrar y enfocar de día (vivo_dia.py). JSON: {objetivo, campo (%)}."""
+    """
+    Imagen casi continua para centrar y enfocar de día (vivo_dia.py). JSON: {objetivo, campo (%), noche}.
+    De noche (noche = true) solo para enfocar una estrella con el modo enfoque: va como un paisaje (sin
+    seguimiento solar ni lunar) y vivo_dia pone la ganancia de noche y hasta 2 s por fotograma.
+    """
     datos = request.get_json(silent=True) or {}
     objetivo = str(datos.get("objetivo", "paisaje"))
-    if objetivo not in foto_dia.OBJETIVOS:
+    noche = bool(datos.get("noche"))
+    if objetivo not in foto_dia.OBJETIVOS or (noche and objetivo != "paisaje"):
         return jsonify({"ok": False, "error": _("Objetivo desconocido")}), 400
+    if noche and not enfoque.activo():
+        return jsonify({"ok": False, "error": _("De noche el modo en vivo es para enfocar: enciende «Enfoque: solo verde»")}), 409
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("flats"), flats.trabajo_flats), (N_("centrado"), centrado.trabajo_centrado),
@@ -4569,7 +4576,7 @@ def vivo_iniciar():
         vivo_dia.trabajo_vivo.iniciar(camara, objetivo, _campo_foto_dia(datos), compensacion=_compensacion_foto_dia, voz=voz)
     except (RuntimeError, ValueError) as e:
         return jsonify({"ok": False, "error": str(e)}), 409
-    nombre_objetivo = conf["nombre"]
+    nombre_objetivo = N_("enfoque con estrella") if noche else conf["nombre"]
     voz.decir(_("En vivo: {nombre}", nombre=_(nombre_objetivo)), categoria="capturas")
     return jsonify({"ok": True, "seguimiento": seguimiento_montura})
 

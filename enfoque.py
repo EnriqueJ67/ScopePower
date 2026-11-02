@@ -120,12 +120,15 @@ ALARGAMIENTO_MOVIDA = 1.4 # una estrella con un eje 1,4 veces el otro está movi
                           # para la firma (el movimiento ensancha igual los tres colores y la relación tira a 1)
 ESCALA_BARRA_PX = 3.0     # la barra de debajo del recorte va de −3 a +3 px
 LADO_RECORTE_BAHTINOV = 480  # px del recorte de la Bahtinov antes de encajarlo en la imagen...
-RADIO_VISTA_BAHTINOV = 64    # ...que enseña 64 px del sensor alrededor de la estrella (×3,7)
+RADIO_VISTA_BAHTINOV = 96    # ...que enseña 96 px del sensor alrededor de la estrella (×2,5): con 64 (×3,7) las
+                             # rayas, tan anchas como la estrella (4–5 px), salían como bandas gruesas (1-nov)
+ESTIRADO_BAHTINOV = 20.0     # asinh del recorte: los órdenes brillantes del pico central no se queman en bolas
+                             # blancas y las rayas débiles de la X se siguen viendo
 # Firma del foco (AyudaBahtinov): la relación entre las anchuras de los tres colores con la Bahtinov
 # centrada, aprendida al quitar la máscara y guardada en datos/ para avisar «enfocado» sin máscara
 RUTA_FIRMA = "datos/firma_enfoque.json"
 APRENDER_S = 180.0        # se aprende con lo que llegue hasta 3 minutos después de centrar la Bahtinov
-FOTOGRAMAS_APRENDER = {"vivo": 10, "foto": 1}
+FOTOGRAMAS_APRENDER = {"vivo": 10, "foto": 3}   # una foto corta sola es un instante del seeing (1-nov: 0,16 s)
 TOLERANCIA_FIRMA = 0.05   # enfocado si R/G y B/G están a menos de un 5 % de los aprendidos (o 2 veces su dispersión)...
 SALIDA_FIRMA = 2.0        # ...y deja de estarlo al pasar del doble
 DISTINCION_FIRMA = 2.0    # la firma solo sirve si se aparta de 1 (lo que da un desenfoque grande) 2 veces la tolerancia
@@ -628,18 +631,20 @@ def recorte_bahtinov(lum, x, y, medida, estado=None):
     rv = min(r, int(round(RADIO_VISTA_BAHTINOV / float(medida.get("escala", 1.0)))))
     desplaz = float(r - rv)                       # de px del recorte medido a px de la vista
     c = np.asarray(lum, dtype=np.float32)[y - rv:y + rv + 1, x - rv:x + rv + 1]
-    # Negro justo encima del ruido del cielo y blanco en lo brillante de los trazos (fuera del núcleo): el
-    # núcleo se quema y los trazos se ven. En el foco el núcleo es tan puntual que los trazos no llegan al 2 % del pico
+    # Negro justo encima del ruido del cielo y blanco en lo más brillante de los trazos (fuera del núcleo, que
+    # se quema), con un asinh: los trazos fuertes del pico central conservan su forma en vez de hincharse en
+    # bolas y las rayas de la X, un 5–10 % de ellos, quedan a un tercio del blanco
     fondo = float(np.median(c))
     sigma = 1.4826 * float(np.median(np.abs(c - fondo))) + 1e-6
-    negro = fondo + 2.5 * sigma
+    negro = fondo + 3.0 * sigma
     yy, xx = np.mgrid[-rv:rv + 1, -rv:rv + 1]
     trazos = c[(xx * xx + yy * yy > (NUCLEO_BAHTINOV / float(medida.get("escala", 1.0))) ** 2) & (c > negro + 3.0 * sigma)]
     if trazos.size >= 20:
-        blanco = negro + float(np.percentile(trazos - negro, 90))
+        blanco = negro + float(np.percentile(trazos - negro, 99.5))
     else:
         blanco = negro + max(0.2 * (float(c.max()) - negro), 8.0 * sigma)
-    gris = (np.sqrt(np.clip((c - negro) / (blanco - negro), 0.0, 1.0)) * 255.0 + 0.5).astype(np.uint8)
+    v = np.clip((c - negro) / (blanco - negro), 0.0, 1.0)
+    gris = (np.arcsinh(ESTIRADO_BAHTINOV * v) / np.arcsinh(ESTIRADO_BAHTINOV) * 255.0 + 0.5).astype(np.uint8)
     lado = LADO_RECORTE_BAHTINOV
     k = lado / float(2 * rv + 1)
     img = cv2.cvtColor(cv2.resize(gris, (lado, lado), interpolation=cv2.INTER_CUBIC), cv2.COLOR_GRAY2BGR)

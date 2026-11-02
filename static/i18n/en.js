@@ -806,6 +806,7 @@ window.I18N_CATALOGO = {
 "en hora":"on time",
 "en pausa":"paused",
 "enfocado":"in focus",
+"enfoque con estrella":"focusing on a star",
 "error":"error",
 "error desconocido":"unknown error",
 "error general":"general error",

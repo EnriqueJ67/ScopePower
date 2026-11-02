@@ -126,6 +126,27 @@ def main():
     finally:
         sp.vivo_dia.trabajo_vivo.imagen = original
 
+    print("Modo en vivo de noche (solo para enfocar una estrella, con el modo enfoque):")
+    llamadas = []
+    iniciar_original, es_sdk_original = sp.vivo_dia.trabajo_vivo.iniciar, sp.camara_sdk.es_sdk
+    sp.vivo_dia.trabajo_vivo.iniciar = lambda camara, objetivo, campo, **kw: llamadas.append(objetivo)
+    sp.camara_sdk.es_sdk = lambda driver: True
+    try:
+        sp.enfoque.poner(False)
+        sin_enfoque = cliente.post("/vivo/iniciar", json={"objetivo": "paisaje", "noche": True})
+        sp.enfoque.poner(True)
+        con_sol = cliente.post("/vivo/iniciar", json={"objetivo": "sol", "noche": True})
+        bueno = cliente.post("/vivo/iniciar", json={"objetivo": "paisaje", "noche": True})
+        bien = (sin_enfoque.status_code == 409 and con_sol.status_code == 400 and bueno.status_code == 200
+                and llamadas == ["paisaje"] and not (bueno.get_json() or {}).get("seguimiento"))
+        print(f"  {'✅' if bien else '❌'} sin enfoque {sin_enfoque.status_code}, con el Sol {con_sol.status_code}, "
+              f"con enfoque {bueno.status_code} {llamadas}")
+        if not bien:
+            fallos.append("vivo de noche")
+    finally:
+        sp.vivo_dia.trabajo_vivo.iniciar, sp.camara_sdk.es_sdk = iniciar_original, es_sdk_original
+        sp.enfoque.poner(False)
+
     print("Número de Wolf en la galería (Sol sintético solo con JPG, sin crudo):")
     from probar_manchas_solares import sol_sintetico
     import numpy as np

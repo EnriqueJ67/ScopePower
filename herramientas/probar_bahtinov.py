@@ -20,7 +20,8 @@
 #      histéresis, el signo estable aunque la raya cruce los 90°, aprende la firma al quitar la
 #      máscara (en una carpeta temporal), avisa «enfocado» al llegar a ella y no con el desenfoque;
 #      una firma pegada a 1 no sirve. Los fotogramas movidos sin cruz al tocar el enfocador no quitan
-#      la máscara ni aprenden (en vivo hay 3 s de gracia; una foto suelta movida no cuenta).
+#      la máscara ni aprenden (en vivo hay 3 s de gracia; una foto suelta movida no cuenta). Con
+#      fotos sueltas aprende con la mediana de 3.
 #   6. La estrella alargada por un golpe al tubo sale «movida»; la redonda, con o sin máscara, no.
 #   7. imagen_foto_noche e imagen_vivo componen la imagen con el recorte de la Bahtinov.
 #
@@ -307,13 +308,18 @@ def probar_ayuda():
         reloj3.t += 5
         i = ayuda.anotar(dict(info_estrella(5.0, 5.2, 5.3), movida=True), None, "foto")
         assert "aviso" not in i and "firma" not in i and not os.path.exists(ruta_foto), i
-        reloj3.t += 5
-        i = ayuda.anotar(info_estrella(2.8, 2.8 * 1.3, 2.8 * 1.55), None, "foto")
-        assert i.get("aviso") == "aprendida", i
+        # Aprende con las FOTOGRAMAS_APRENDER["foto"] siguientes (una foto corta sola es un instante del seeing)
+        total = enfoque.FOTOGRAMAS_APRENDER["foto"]
+        for k, rg in enumerate((1.25, 1.31, 1.30)[:total]):
+            reloj3.t += 5
+            i = ayuda.anotar(info_estrella(2.8, 2.8 * rg, 2.8 * 1.55), None, "foto")
+            if k + 1 < total:
+                assert "aviso" not in i and i["firma"]["aprendiendo"] == k + 1, i
+        assert total >= 3 and i.get("aviso") == "aprendida", i
         with open(ruta_foto, encoding="utf-8") as f:
             firma = json.load(f)["foto"]
-        assert abs(firma["rg"] - 1.3) < 0.01 and abs(firma["bg"] - 1.55) < 0.01, firma
-        print("  foto suelta: la movida no aprende, la siguiente sí")
+        assert abs(firma["rg"] - 1.30) < 0.01 and abs(firma["bg"] - 1.55) < 0.01, firma      # la mediana de las tres
+        print(f"  foto suelta: la movida no aprende; aprende con las {total} siguientes (R/G {firma['rg']}, la mediana)")
 
 
 def probar_movida():
