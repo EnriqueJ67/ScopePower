@@ -358,7 +358,7 @@ def prever_rejilla(ra_h, dec_deg, campo, filas, columnas, solape_pct, fotos, lug
     cx, cy = (ancho - 1) / 2.0, (alto - 1) / 2.0
     esquinas_px = [[cx - ancho / 2.0, cy - alto / 2.0], [cx + ancho / 2.0, cy - alto / 2.0],
                    [cx + ancho / 2.0, cy + alto / 2.0], [cx - ancho / 2.0, cy + alto / 2.0]]
-    giros = []
+    giros, cds = [], []
     for i, te in enumerate(teselas):
         t_i = t0 + timedelta(seconds=i * duracion + SEGUNDOS_GOTO_TESELA)   # cuando empieza a apilar (la referencia)
         if prevision_giro:
@@ -371,6 +371,7 @@ def prever_rejilla(ra_h, dec_deg, campo, filas, columnas, solape_pct, fotos, lug
         te["hora"] = t_i.strftime("%H:%M")
         te["inicio_s"] = int(i * duracion)
         giros.append(te["giro_deg"])
+        cds.append(cd_de(wcs_i))
     # Solape real entre vecinas de la rejilla, en el plano tangente del centro
     polis = [np.asarray(wcs_base.all_world2pix(te["esquinas"], 0), dtype=np.float32) for te in teselas]
     area = float(ancho * alto)
@@ -385,8 +386,10 @@ def prever_rejilla(ra_h, dec_deg, campo, filas, columnas, solape_pct, fotos, lug
             solape_min = pct if solape_min is None else min(solape_min, pct)
     # Perímetro de la foto final: el mayor rectángulo cubierto por las teselas en el marco de la
     # combinación (los ejes de la primera tesela), que es lo que recorta combinar() (ZONA*)
-    perimetro, perimetro_deg = perimetro_final(teselas, ra_h, dec_deg, campo, len(teselas) and
-                                               wcs_tangente(ra_h * 15.0, dec_deg, cd_desde_angulo(campo["escala_arcsec"] / 3600.0, giros[0]), ancho, alto))
+    wcs_marco = (wcs_tangente(ra_h * 15.0, dec_deg, cd_desde_angulo(campo["escala_arcsec"] / 3600.0, giros[0]), ancho, alto)
+                 if giros else wcs_base)
+    perimetro, perimetro_deg = perimetro_final(teselas, ra_h, dec_deg, campo, wcs_marco)
+    recomendado = recomendar_solape(ra_h, dec_deg, campo, filas, columnas, cds, wcs_base, wcs_marco, solape_pct, perimetro_deg)
     # Giro total: diferencias respecto a la primera, módulo 180 (el eje x no tiene sentido)
     rel = [((g - giros[0] + 90.0) % 180.0) - 90.0 for g in giros] if giros else [0.0]
     fin = t0 + timedelta(seconds=len(teselas) * duracion)
@@ -400,10 +403,63 @@ def prever_rejilla(ra_h, dec_deg, campo, filas, columnas, solape_pct, fotos, lug
             "solape_min_pct": solape_min, "duracion_min": int(round((fin - ahora).total_seconds() / 60.0)),
             "fin_hora": fin.strftime("%H:%M"), "segundos_por_foto": round(spf, 1),
             "campo": campo, "tamano_deg": tamano_mosaico(campo, filas, columnas, solape_pct),
-            "perimetro": perimetro, "perimetro_deg": perimetro_deg}
+            "perimetro": perimetro, "perimetro_deg": perimetro_deg, "recomendado": recomendado}
 
 
-def perimetro_final(teselas, ra_h, dec_deg, campo, wcs_marco, lado_raster=800):
+SOLAPE_REAL_MINIMO_PCT = 12.0     # lo que necesitan el igualado de fondos y un error de apuntado de unos minutos de arco
+
+
+def recomendar_solape(ra_h, dec_deg, campo, filas, columnas, cds, wcs_base, wcs_marco, solape_actual, perimetro_actual,
+                      candidatos=range(8, 62, 2)):
+    """
+    Solape (%) recomendado para esta rejilla, centro y hora: el que da la foto final de mayor
+    área entre los que mantienen al menos SOLAPE_REAL_MINIMO_PCT de solape REAL entre todas las
+    vecinas (con las teselas giradas) y no dejan ningún hueco dentro del rectángulo final. Con
+    poco solape la foto es mayor pero el fondo no se puede igualar y un error de apuntado deja
+    huecos; con mucho, el mosaico abarca menos cielo. Se prueba cada candidato con los giros ya
+    previstos de cada tesela (apenas cambian con el solape). Devuelve {"solape_pct",
+    "perimetro_deg", "solape_real_min_pct", "mejora_pct", "es_el_actual"} o None.
+    """
+    if len(cds) < 2:
+        return None
+    area_tesela = float(campo["ancho_px"] * campo["alto_px"])
+    ancho, alto = campo["ancho_px"], campo["alto_px"]
+    cx, cy = (ancho - 1) / 2.0, (alto - 1) / 2.0
+    esquinas_px = [[cx - ancho / 2.0, cy - alto / 2.0], [cx + ancho / 2.0, cy - alto / 2.0],
+                   [cx + ancho / 2.0, cy + alto / 2.0], [cx - ancho / 2.0, cy + alto / 2.0]]
+    mejor = None
+    for s in candidatos:
+        tes = calcular_teselas(wcs_base, ancho, alto, filas, columnas, float(s))
+        for te, cd in zip(tes, cds):
+            w = wcs_tangente(te["ra_h"] * 15.0, te["dec_deg"], cd, ancho, alto)
+            te["esquinas"] = [[float(a), float(b)] for a, b in w.all_pix2world(esquinas_px, 0)]
+        # Solape real mínimo entre vecinas de la rejilla
+        polis = [np.asarray(wcs_base.all_world2pix(te["esquinas"], 0), dtype=np.float32) for te in tes]
+        real_min = None
+        for te, pa in zip(tes, polis):
+            for otra, pb in zip(tes, polis):
+                if otra is te or abs(otra["fila"] - te["fila"]) + abs(otra["col"] - te["col"]) != 1:
+                    continue
+                pct = _solape_pct(pa, pb, area_tesela)
+                real_min = pct if real_min is None else min(real_min, pct)
+        if real_min is not None and real_min < SOLAPE_REAL_MINIMO_PCT:
+            continue
+        __, per_deg, huecos = perimetro_final(tes, ra_h, dec_deg, campo, wcs_marco, lado_raster=400, con_huecos=True)
+        if not per_deg or huecos:
+            continue
+        area = per_deg[0] * per_deg[1]
+        if mejor is None or area > mejor[1] * 1.002:        # a igualdad, el solape menor
+            mejor = (s, area, per_deg, real_min)
+    if mejor is None:
+        return None
+    area_actual = perimetro_actual[0] * perimetro_actual[1] if perimetro_actual else 0.0
+    mejora = (100.0 * (mejor[1] - area_actual) / area_actual) if area_actual else None
+    return {"solape_pct": int(mejor[0]), "perimetro_deg": mejor[2], "solape_real_min_pct": mejor[3],
+            "mejora_pct": round(mejora, 1) if mejora is not None else None,
+            "es_el_actual": abs(mejor[0] - float(solape_actual)) < 1.0}
+
+
+def perimetro_final(teselas, ra_h, dec_deg, campo, wcs_marco, lado_raster=800, con_huecos=False):
     """
     Esquinas (RA/Dec) y tamaño (grados) del mayor rectángulo cubierto por todas las teselas
     (sus esquinas ya giradas) en el marco `wcs_marco`, el mismo criterio con que combinar()
@@ -428,18 +484,21 @@ def perimetro_final(teselas, ra_h, dec_deg, campo, wcs_marco, lado_raster=800):
             cuenta += capa
         zona = apilado.zona_cobertura(cuenta, 1, escala=2, margen=1)
         if not zona:
-            return None, None
+            return (None, None, True) if con_huecos else (None, None)
         zx, zy, zw, zh = zona
+        # Huecos: zona_cobertura no cuenta los agujeros interiores, pero en la foto saldrían negros
+        huecos = bool(np.any(cuenta[int(zy) + 2:int(zy + zh) - 2, int(zx) + 2:int(zx + zw) - 2] == 0))
         # Un 2 % por lado de margen: con las teselas reales del 1-nov-2026 el recorte de la
         # combinación salió 0,1-0,3° más estrecho que este cálculo (pluma y errores de apuntado)
         zx, zy, zw, zh = zx + 0.02 * zw, zy + 0.02 * zh, 0.96 * zw, 0.96 * zh
         esquinas_px = np.array([[zx, zy], [zx + zw, zy], [zx + zw, zy + zh], [zx, zy + zh]], dtype=np.float64) * f + [x0, y0]
         esquinas = [[round(float(a), 5), round(float(b), 5)] for a, b in wcs_marco.all_pix2world(esquinas_px, 0)]
         escala_deg = campo["escala_arcsec"] / 3600.0
-        return esquinas, [round(zw * f * escala_deg, 3), round(zh * f * escala_deg, 3)]
+        tam = [round(zw * f * escala_deg, 3), round(zh * f * escala_deg, 3)]
+        return (esquinas, tam, huecos) if con_huecos else (esquinas, tam)
     except Exception as e:
         log.warning("Mosaico: no se pudo calcular el perímetro de la foto final: %s", e)
-        return None, None
+        return (None, None, True) if con_huecos else (None, None)
 
 
 def tamano_mosaico(campo, filas, columnas, solape_pct):

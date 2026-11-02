@@ -77,6 +77,12 @@
     }
 
     // Previsualización (tamaño y giro previsto de la cámara) al cambiar el formulario
+    var solapeRecomendado = null;
+    Mosaico.aplicarSolape = function () {
+        if (solapeRecomendado === null) return;
+        $("mosaico-solape").value = solapeRecomendado;
+        Mosaico.previsualizar();
+    };
     Mosaico.previsualizar = function () {
         clearTimeout(timerPrevia);
         timerPrevia = setTimeout(function () {
@@ -96,6 +102,15 @@
                 t += " · " + _("unas {min} min a {spf} s por foto, termina hacia las {hora}", { min: d.duracion_min, spf: Math.round(d.segundos_por_foto), hora: d.fin_hora });
                 if (d.centro && cuerpo.nombre) t += " · " + _("centro {nombre}", { nombre: d.centro.nombre });
                 $("mosaico-previa").textContent = t;
+                var r = d.recomendado;
+                if (r && !r.es_el_actual) {
+                    solapeRecomendado = r.solape_pct;
+                    $("mosaico-recomendado-texto").textContent = _("Solape recomendado {s} %: foto final ≈ {ancho}° × {alto}°",
+                        { s: r.solape_pct, ancho: grados(r.perimetro_deg[0]).replace("°", ""), alto: grados(r.perimetro_deg[1]).replace("°", "") }) +
+                        (r.mejora_pct > 0 ? " " + _("({mejora} % más de área)", { mejora: Math.round(r.mejora_pct) }) : "");
+                    $("mosaico-aplicar-solape").textContent = _("Usar {s} %", { s: r.solape_pct });
+                    $("mosaico-recomendado").hidden = false;
+                } else $("mosaico-recomendado").hidden = true;
                 if (!estado || !estado.en_curso) pintarRejilla(d.teselas, d.filas, d.columnas);
             }).catch(function () {});
         }, 300);
