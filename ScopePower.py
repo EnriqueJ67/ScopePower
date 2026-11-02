@@ -87,6 +87,7 @@ import catalogo_offline
 import editor_fotos
 import editor_dia
 import galeria_anotada
+import fondo_planetario
 import luna_anotada
 import manchas_solares
 import fotometria_solar
@@ -6327,6 +6328,35 @@ def galeria_compartir(nombre):
     if not ok:
         return _("No se pudo codificar la imagen"), 500
     return send_file(io.BytesIO(jpg.tobytes()), mimetype="image/jpeg", as_attachment=descargar, download_name=nombre_salida)
+
+@app.route("/planetario/fotos")
+def planetario_fotos():
+    """Fotos de la galería que se pueden pintar sobre el cielo del planetario, con sus esquinas en RA/Dec (fondo_planetario.py)."""
+    if 'usuario' not in session:
+        return jsonify({"error": "sin sesión"}), 401
+    try:
+        return jsonify({"ok": True, "fotos": fondo_planetario.lista()})
+    except Exception as e:
+        log.exception("Error listando las fotos para el planetario")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/planetario/foto/<nombre>")
+def planetario_foto(nombre):
+    """La foto de la galería reducida para pintarla en el planetario (se hace la primera vez)."""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    try:
+        ruta = fondo_planetario.miniatura(nombre)
+    except editor_fotos.ErrorEditor as e:
+        return str(e), 404
+    except Exception as e:
+        log.exception("Error reduciendo la foto para el planetario")
+        return str(e), 500
+    respuesta = send_file(ruta, mimetype="image/jpeg")
+    respuesta.headers["Cache-Control"] = "private, max-age=86400"
+    return respuesta
+
 
 @app.route("/galeria/anotaciones/<nombre>")
 def galeria_anotaciones(nombre):

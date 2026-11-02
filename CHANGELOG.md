@@ -5,6 +5,10 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Planetario: interruptor «Fotos» que pone las fotos de la galería (apilados y mosaicos con su posición,
+  los guardados desde el 14-oct-2026 o ya resueltos por la galería anotada) sobre el cielo, cada una
+  deformada a su huella real, con transparencia ajustable; sirve para ver qué está ya fotografiado y
+  encajar el siguiente mosaico. Las imágenes se sirven reducidas (fondo_planetario.py).
 - Mosaico: solape recomendado en el planetario y en el panel de Apilado, con un botón para aplicarlo: el
   que da la foto final más grande sin bajar del 12 % de solape real entre teselas vecinas (lo que necesita
   el igualado de fondos y unos minutos de arco de error de apuntado) ni dejar huecos dentro del rectángulo
