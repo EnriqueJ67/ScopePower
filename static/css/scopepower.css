@@ -869,3 +869,12 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .controles-video select { width: auto; flex: 1 1 140px; }
 .lista-sucesos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .lista-sucesos .chip { cursor: pointer; font-family: inherit; }
+
+/* ── Leyenda de colores de las teselas del mosaico (planetario y panel de Apilado) ── */
+.ma-leyenda { font-size: 11.5px; margin-top: 6px; line-height: 1.6; }
+.ma-leyenda .ley { display: inline-block; width: 14px; height: 9px; margin: 0 3px 0 1px; vertical-align: middle; border: 1.5px dashed var(--warn); background: rgba(255, 200, 60, 0.10); border-radius: 2px; }
+.ma-leyenda .ley.en_curso { border: 2px solid var(--accent); background: rgba(80, 160, 255, 0.18); }
+.ma-leyenda .ley.hecha { border: 1.5px solid var(--ok); background: rgba(60, 200, 120, 0.18); }
+.ma-leyenda .ley.fallida { border: 1.5px solid #e55; background: rgba(220, 60, 60, 0.15); }
+.ma-leyenda .ley.poco { border: 1.5px dashed #ff5a5a; background: none; }
+.ma-leyenda .ley.final { border: 1.5px dashed #fff; background: none; }

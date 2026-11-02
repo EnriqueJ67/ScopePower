@@ -10113,7 +10113,7 @@ msgstr "exposing"
 msgid "exponiendo…"
 msgstr "exposing…"
 
-#: static/js/mosaico.js templates/planetario.html
+#: static/js/mosaico.js templates/apilado.html templates/planetario.html
 msgid "fallida"
 msgstr "failed"
 
@@ -10313,7 +10313,7 @@ msgstr[1] "there is a partial save of {n} shots"
 msgid "hay una exposición en curso"
 msgstr "an exposure is in progress"
 
-#: static/js/mosaico.js templates/planetario.html
+#: static/js/mosaico.js templates/apilado.html templates/planetario.html
 msgid "hecha"
 msgstr "done"
 
@@ -10961,7 +10961,7 @@ msgstr "current mount position"
 msgid "posición de la montura"
 msgstr "mount position"
 
-#: templates/planetario.html
+#: templates/apilado.html templates/planetario.html
 msgid "prevista"
 msgstr "planned"
 

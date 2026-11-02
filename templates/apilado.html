@@ -301,6 +301,10 @@
                 </div>
                 <div id="mosaico-estado" class="aviso aviso-info plan-estado" hidden></div>
                 <div id="mosaico-rejilla" class="mosaico-rejilla" hidden></div>
+                <div class="texto-3 ma-leyenda">
+                    <span class="ley prevista"></span>{{ _("prevista") }} · <span class="ley en_curso"></span>{{ _("en curso") }} ·
+                    <span class="ley hecha"></span>{{ _("hecha") }} · <span class="ley fallida"></span>{{ _("fallida") }}
+                </div>
                 <div id="mosaico-error" class="estado mt-1" style="font-size: 13px;"></div>
                 <div class="fila plan-herramientas mt-1">
                     <button type="button" id="mosaico-btn-recombinar" class="btn btn-sm btn-secondary" onclick="Mosaico.recombinar()" title="{{ _('Vuelve a fundir las teselas que hay (p. ej. un mosaico a medias)') }}" disabled>{{ _("Recombinar") }}</button>
