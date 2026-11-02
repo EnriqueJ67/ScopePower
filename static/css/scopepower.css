@@ -508,6 +508,10 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .panel-btn svg { width: 18px; height: 18px; }
 .panel-btn:hover { background: var(--surface-2); color: var(--text); }
 .panel-btn:disabled { opacity: 0.25; cursor: default; }
+/* Subir y bajar son flechas con palo (base.html); plegar es la «V», con fondo y separada por una
+   raya para no confundirla con ellas */
+.panel-btn.panel-plegar { background: var(--surface-2); color: var(--text-2); margin-left: 9px; position: relative; overflow: visible; }
+.panel-btn.panel-plegar::before { content: ""; position: absolute; left: -7px; top: 7px; bottom: 7px; width: 1px; background: var(--border); }
 .panel-btn.panel-plegar svg { transition: transform .2s; transform: rotate(90deg); }
 .panel.plegado .panel-btn.panel-plegar svg { transform: rotate(0deg); }
 .panel-cuerpo { padding: 0 16px 16px; }

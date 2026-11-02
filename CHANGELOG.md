@@ -5,6 +5,9 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Paneles plegables (Apilado, Cámara y editor): subir y bajar el panel son ahora flechas con palo, y
+  plegar o desplegar es la «V» con fondo propio, separada por una raya. Antes los tres botones usaban
+  la misma «V» y era fácil mover un panel queriendo plegarlo.
 - Voz: nuevo interruptor en Apilado (Opciones) «Voz: callar los avisos de cada foto». Con él, el bucle
   del apilado en vivo deja de decir «empieza exposición», «exposición terminada» y «foto añadida» en
   cada vuelta, y solo se oye lo que no es rutina: mejor y peor foto, descartadas, referencia y errores.
