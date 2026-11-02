@@ -12,7 +12,10 @@
 #     anotaciones de la galería (galeria_anotada._matriz_al_jpg: zona, zoom, giro,
 #     espejo); aquí se invierte para llevar las esquinas del JPG al FITS y de ahí al cielo.
 # El resultado se guarda en datos/fondo_planetario.json (clave: tamaño y fecha del FITS y
-# del JPG) y las imágenes se sirven reducidas (datos/planetario_fotos/) para la tablet.
+# del JPG). La imagen que se pinta es, en cuanto está, una versión a campo completo revelada
+# aquí del FITS (zona útil entera, sin zoom, sin giro y sin la firma; completa()), reducida a
+# 1024 px y guardada en datos/planetario_fotos/; mientras se revela en segundo plano se enseña
+# el JPG de la galería reducido.
 
 import os
 import json
@@ -22,7 +25,6 @@ import threading
 
 import numpy as np
 from astropy.io import fits
-from PIL import Image
 
 import firma
 import procesado
@@ -91,8 +93,14 @@ def _huella(nombre):
     escala = float(solucion["escala_arcsec"]) / 3600.0
     factor = math.sqrt(abs(np.linalg.det(M[:, :2])))      # px del JPG por px del FITS
     area = (ancho / factor) * (alto / factor) * escala * escala
+    # Campo completo: la zona útil del FITS (lo que enseña la versión revelada aquí)
+    zx, zy, zw, zh = solucion.get("zona") or (0, 0, solucion["ancho"], solucion["alto"])
+    esq_zona = np.array([[zx, zy], [zx + zw, zy], [zx + zw, zy + zh], [zx, zy + zh]], dtype=np.float64) - 0.5
+    cielo_zona = wcs.all_pix2world(esq_zona, 0)
     return {"nombre": nombre, "ancho": int(ancho), "alto": int(alto),
             "esquinas": [[round(float(a), 5), round(float(b), 5)] for a, b in cielo],
+            "esquinas_completa": [[round(float(a), 5), round(float(b), 5)] for a, b in cielo_zona],
+            "area_completa_deg2": round(zw * zh * escala * escala, 3),
             "area_deg2": round(area, 3), "objeto": meta.get("objeto") or partes_nombre(nombre)[0].replace("_", " "),
             "fecha": meta.get("fecha") or ""}
 
@@ -113,7 +121,7 @@ def lista():
                 sj, sf = os.stat(ruta_jpg), os.stat(ruta_fits)
                 clave = f"{f}|{sj.st_size}_{sj.st_mtime_ns}|{sf.st_size}_{sf.st_mtime_ns}"
                 usadas.add(clave)
-                if clave in cache:
+                if clave in cache and (cache[clave] is None or "esquinas_completa" in cache[clave]):
                     huella = cache[clave]
                 else:
                     huella = _huella(f)
@@ -125,21 +133,104 @@ def lista():
                 log.warning("Fondo del planetario: %s no se puede situar (%s)", f, e)
         if cambiado or len(cache) != len(usadas):
             _guardar_cache({k: v for k, v in cache.items() if k in usadas})
-    salida.sort(key=lambda h: -h["area_deg2"])
+    # Qué versión se va a servir de cada una: la de campo completo si ya está revelada; si no, el
+    # JPG de la galería (desfirmado) mientras se revela en segundo plano
+    pendientes = []
+    for h in salida:
+        try:
+            base, __, ruta_fits, __ = rutas(h["nombre"])
+            completa_lista = os.path.isfile(_ruta_completa(base, os.stat(ruta_fits), LADO_MINIATURA))
+        except Exception:
+            completa_lista = False
+        h["modo"] = "completa" if completa_lista else "jpg"
+        if not completa_lista:
+            pendientes.append(h["nombre"])
+    if pendientes:
+        preparar_completas(pendientes)
+    salida.sort(key=lambda h: -(h["area_completa_deg2"] if h["modo"] == "completa" else h["area_deg2"]))
     return salida
 
 
+def _ruta_completa(base, st_fits, lado):
+    return os.path.join(CARPETA_MINIATURAS, f"{os.path.basename(base)}_{st_fits.st_mtime_ns}_{lado}_completa.jpg")
+
+
+def completa(nombre, lado=LADO_MINIATURA):
+    """
+    Versión a campo completo de la foto, revelada aquí del FITS (zona útil entera, sin zoom,
+    sin giro y sin firma) y reducida a `lado` px, para el planetario: así una foto guardada con
+    zoom al 50 % se ve con todo lo que cubre el sensor. Revelado estándar (procesado.leer_config)
+    a escala reducida: unos segundos por foto; queda en datos/planetario_fotos.
+    """
+    import cv2
+    base, ruta_jpg, ruta_fits, __ = rutas(nombre)
+    st = os.stat(ruta_fits)
+    destino = _ruta_completa(base, st, lado)
+    if os.path.isfile(destino):
+        return destino
+    with fits.open(ruta_fits) as hdul:
+        hdr = hdul[0].header
+        datos = hdul[0].data
+        if datos is None or datos.ndim != 3:
+            raise ValueError("el FITS no es un apilado RGB")
+        cubo = np.nan_to_num(datos.astype(np.float32))
+        if cubo.shape[0] != 3:
+            cubo = np.ascontiguousarray(cubo.transpose(2, 0, 1))
+        n = int(hdr.get("NSTACK", 1) or 1)
+    solucion = _solucion_de(ruta_fits) or {}
+    zona = solucion.get("zona") or procesado.leer_zona(hdr) or procesado.zona_automatica(cubo)
+    balance = procesado.balance_estrellas(cubo, zona)
+    recorte, __ = procesado.girar_campo(cubo, 1.0, 0.0, zona)
+    del cubo
+    escala = min(1.0, lado / float(max(recorte.shape[1], recorte.shape[2])))
+    rgb8 = procesado.procesar(recorte, n, procesado.leer_config(), escala=escala, balance=balance)
+    os.makedirs(CARPETA_MINIATURAS, exist_ok=True)
+    cv2.imwrite(destino, cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 84])
+    return destino
+
+
+_hilo_completas = None
+
+
+def preparar_completas(nombres, lado=LADO_MINIATURA):
+    """Revela en segundo plano, de una en una, las versiones a campo completo que falten."""
+    global _hilo_completas
+    if _hilo_completas is not None and _hilo_completas.is_alive():
+        return
+    pendientes = list(nombres)
+    if not pendientes:
+        return
+
+    def trabajo():
+        for nombre in pendientes:
+            try:
+                completa(nombre, lado)
+                log.info("Fondo del planetario: %s revelada a campo completo", nombre)
+            except Exception as e:
+                log.warning("Fondo del planetario: no se pudo revelar %s a campo completo: %s", nombre, e)
+    _hilo_completas = threading.Thread(target=trabajo, name="planetario-completas", daemon=True)
+    _hilo_completas.start()
+
+
 def miniatura(nombre, lado=LADO_MINIATURA):
-    """Ruta de la versión reducida del JPG (se hace la primera vez y se guarda en datos/planetario_fotos)."""
+    """
+    Ruta de la versión reducida del JPG de la galería (con su firma): es lo que se enseña mientras
+    no está revelada la versión a campo completo (completa). Se guarda en datos/planetario_fotos.
+    """
+    import cv2
     base, ruta_jpg, __, __ = rutas(nombre)
     st = os.stat(ruta_jpg)
     os.makedirs(CARPETA_MINIATURAS, exist_ok=True)
     destino = os.path.join(CARPETA_MINIATURAS, f"{os.path.basename(base)}_{st.st_mtime_ns}_{lado}.jpg")
     if not os.path.isfile(destino):
-        with Image.open(ruta_jpg) as im:
-            im = im.convert("RGB")
-            im.thumbnail((lado, lado), Image.LANCZOS)
-            im.save(destino, "JPEG", quality=82, optimize=True)
+        bgr = cv2.imread(ruta_jpg, cv2.IMREAD_COLOR)
+        if bgr is None:
+            raise OSError(f"No se puede leer {ruta_jpg}")
+        h, w = bgr.shape[:2]
+        if max(h, w) > lado:
+            f = lado / float(max(h, w))
+            bgr = cv2.resize(bgr, (max(8, int(round(w * f))), max(8, int(round(h * f)))), interpolation=cv2.INTER_AREA)
+        cv2.imwrite(destino, bgr, [cv2.IMWRITE_JPEG_QUALITY, 84])
         # Versiones viejas de la misma foto
         for viejo in os.listdir(CARPETA_MINIATURAS):
             if viejo.startswith(os.path.basename(base) + "_") and viejo != os.path.basename(destino):

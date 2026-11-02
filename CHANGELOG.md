@@ -5,6 +5,9 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Planetario: las fotos de la galería sobre el cielo se enseñan a campo completo y sin firma: el
+  planetario revela su propia versión del FITS (toda la zona útil del sensor, aunque el JPG se guardara
+  con zoom) en segundo plano la primera vez, y mientras tanto pinta el JPG de la galería.
 - Planetario: interruptor «Fotos» que pone las fotos de la galería (apilados y mosaicos con su posición,
   los guardados desde el 14-oct-2026 o ya resueltos por la galería anotada) sobre el cielo, cada una
   deformada a su huella real, con transparencia ajustable; sirve para ver qué está ya fotografiado y

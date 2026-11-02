@@ -11053,6 +11053,11 @@ msgstr "solving"
 msgid "resolviendo el campo…"
 msgstr "solving the field…"
 
+#. js
+#: templates/planetario.html
+msgid "revelando {p} a campo completo…"
+msgstr "developing {p} at full field…"
+
 #: enfoque.py
 msgid "rojo {px}"
 msgstr "red {px}"

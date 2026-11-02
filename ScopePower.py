@@ -6335,7 +6335,8 @@ def planetario_fotos():
     if 'usuario' not in session:
         return jsonify({"error": "sin sesión"}), 401
     try:
-        return jsonify({"ok": True, "fotos": fondo_planetario.lista()})
+        fotos = fondo_planetario.lista()
+        return jsonify({"ok": True, "fotos": fotos, "pendientes": sum(1 for f in fotos if f.get("modo") != "completa")})
     except Exception as e:
         log.exception("Error listando las fotos para el planetario")
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -6347,7 +6348,15 @@ def planetario_foto(nombre):
     if 'usuario' not in session:
         return redirect(url_for('login'))
     try:
-        ruta = fondo_planetario.miniatura(nombre)
+        # La versión a campo completo si ya está revelada (?modo=jpg fuerza el JPG de la galería desfirmado)
+        ruta = None
+        if request.args.get("modo") != "jpg":
+            base, __, ruta_fits, __ = editor_fotos.rutas(nombre)
+            candidata = fondo_planetario._ruta_completa(base, os.stat(ruta_fits), fondo_planetario.LADO_MINIATURA)
+            if os.path.isfile(candidata):
+                ruta = candidata
+        if ruta is None:
+            ruta = fondo_planetario.miniatura(nombre)
     except editor_fotos.ErrorEditor as e:
         return str(e), 404
     except Exception as e:
