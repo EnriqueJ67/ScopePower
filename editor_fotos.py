@@ -198,7 +198,7 @@ def info_foto(nombre):
     if os.path.isfile(ruta_fits):
         try:
             h = fits.getheader(ruta_fits)
-            hdr = {"n_fotos": int(h.get("NSTACK", 0) or 0), "exp_total": float(h.get("EXPTOT", 0) or 0),
+            hdr = {"n_fotos": firma.fotos_de_cabecera(h)[0], "exp_total": float(h.get("EXPTOT", 0) or 0),
                    "ancho": int(h.get("NAXIS1", 0) or 0), "alto": int(h.get("NAXIS2", 0) or 0)}
         except Exception as e:
             log.warning("No se pudo leer la cabecera de %s: %s", ruta_fits, e)
@@ -355,12 +355,11 @@ def cargar_cubo(ruta_fits):
                 if cubo.shape[0] != 3:
                     cubo = np.transpose(cubo, (2, 0, 1))
                 h = hdul[0].header
-                n = int(h.get("NSTACK", 1) or 1)
-                total = float(h.get("EXPTOT", 0) or 0)
+                n, exposicion = firma.fotos_de_cabecera(h)        # en un mosaico, de todas las teselas
                 zona = procesado.leer_zona(h)
                 cubo = np.ascontiguousarray(cubo)
-                c.update({"ruta": ruta_fits, "mtime": mtime, "cubo": cubo, "n": n,
-                          "exposicion": round(total / n, 3) if n and total else 0.0, "zona": zona,
+                c.update({"ruta": ruta_fits, "mtime": mtime, "cubo": cubo, "n": n or 1,
+                          "exposicion": float(exposicion), "zona": zona,
                           "balance": procesado.balance_estrellas(cubo, zona)})
         return c["cubo"], c["n"], c["exposicion"], c["zona"], c["balance"]
 

@@ -5,6 +5,9 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Mosaico: el sello y los datos del editor cuentan las fotos de todas las teselas. En el FITS del
+  mosaico NSTACK es por tesela y EXPTOT de todas, y el 2×2 del 1-nov salía como «50 × 80 s» en vez
+  de «200 × 20 s».
 - Coordenadas: el formateador de RA/Dec del servidor (cabeceras FITS, JSON de la galería, GoTo) acarrea el
   redondeo de los segundos a los minutos y a las horas o grados: 59,97″ ya no sale como «60.0». El
   nombre «Campo 2h42m +60°60′» del mosaico del 1-nov venía del redondeo del planetario, corregido esa
