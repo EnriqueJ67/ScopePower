@@ -270,13 +270,21 @@ def meta_de_archivo(ruta_jpg):
             from astropy.io import fits
             hdr = fits.getheader(ruta_fits)
             meta["ra"], meta["dec"] = hdr.get("OBJCTRA"), hdr.get("OBJCTDEC")
-            n = int(hdr.get("NSTACK", 0) or 0)
-            total = float(hdr.get("EXPTOT", 0) or 0)
-            meta["n_fotos"] = n
-            meta["exposicion"] = round(total / n, 3) if n and total else 0
+            meta["n_fotos"], meta["exposicion"] = fotos_de_cabecera(hdr)
         except Exception:
             pass
     return meta
+
+
+def fotos_de_cabecera(hdr):
+    """
+    (número de fotos, exposición por foto en s) de la cabecera de un apilado. En un
+    mosaico NSTACK es por tesela y EXPTOT de todas las teselas: sin multiplicar por
+    NTESELAS el sello del 2×2 del 1-nov-2026 decía «50 × 80 s» en vez de «200 × 20 s».
+    """
+    n = int(hdr.get("NSTACK", 0) or 0) * int(hdr.get("NTESELAS", 1) or 1)
+    total = float(hdr.get("EXPTOT", 0) or 0)
+    return n, (round(total / n, 3) if n and total else 0)
 
 
 def guardar_meta(ruta_jpg, meta):

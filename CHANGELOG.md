@@ -5,6 +5,9 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Mosaico: el sello y los datos del editor cuentan las fotos de todas las teselas. En el FITS del
+  mosaico NSTACK es por tesela y EXPTOT de todas, y el 2×2 del 1-nov salía como «50 × 80 s» en vez
+  de «200 × 20 s».
 - Revelado: «quitar gradiente» ya no se queda corto en los bordes ni se lleva las nebulosas grandes. La
   malla de fondo se extrapola linealmente un anillo de celdas antes de suavizarla y reescalarla (con el
   borde replicado la rampa se aplanaba en las dos celdas exteriores) y la máscara de estrellas y objeto
