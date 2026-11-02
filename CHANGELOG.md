@@ -8,6 +8,15 @@ día de la release. El número de versión vive en `version.py`.
 - Mosaico: el sello y los datos del editor cuentan las fotos de todas las teselas. En el FITS del
   mosaico NSTACK es por tesela y EXPTOT de todas, y el 2×2 del 1-nov salía como «50 × 80 s» en vez
   de «200 × 20 s».
+- Coordenadas: el formateador de RA/Dec del servidor (cabeceras FITS, JSON de la galería, GoTo) acarrea el
+  redondeo de los segundos a los minutos y a las horas o grados: 59,97″ ya no sale como «60.0». El
+  nombre «Campo 2h42m +60°60′» del mosaico del 1-nov venía del redondeo del planetario, corregido esa
+  misma mañana; la foto guardada se puede renombrar desde el editor.
+- Revelado: el modelo de fondo de «quitar gradiente» es ahora un polinomio de 2º grado más el residuo
+  suavizado, evaluado píxel a píxel. La media gaussiana con borde replicado se quedaba corta en las dos
+  celdas exteriores y en el mosaico del 1-nov dejaba una franja 5 ADU más clara en el 20 % superior,
+  que sin estrellas se veía blanquecina; ahora el fondo queda plano a menos de 1 ADU. En fotos sin
+  gradiente el resultado no cambia.
 - Revelado: «quitar gradiente» ya no se queda corto en los bordes ni se lleva las nebulosas grandes. La
   malla de fondo se extrapola linealmente un anillo de celdas antes de suavizarla y reescalarla (con el
   borde replicado la rampa se aplanaba en las dos celdas exteriores) y la máscara de estrellas y objeto

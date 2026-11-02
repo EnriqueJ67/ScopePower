@@ -1371,18 +1371,23 @@ def generar_fits_monocromo_para_platesolve(ruta_rgb, ruta_monocromo):
         fits.PrimaryHDU(gris, header=header).writeto(ruta_monocromo, overwrite=True)
 
 
+def _sexagesimal(valor, decimales=1):
+    """(entero, minutos, segundos) de un valor positivo, con los segundos redondeados a
+    `decimales` y el acarreo hecho: nunca sale «59 60.0» ni «60 00.0»."""
+    total = int(round(valor * 3600 * 10 ** decimales))          # décimas de segundo
+    seg = total % (60 * 10 ** decimales) / 10 ** decimales
+    minutos_totales = total // (60 * 10 ** decimales)
+    return minutos_totales // 60, minutos_totales % 60, seg
+
+
 def formatear_ra_dec(ra_horas, dec_grados):
-    # RA en horas → HH MM SS.S
-    horas = int(ra_horas)
-    minutos_ra = int((ra_horas - horas) * 60)
-    segundos_ra = ((ra_horas - horas) * 60 - minutos_ra) * 60
-
-    # DEC en grados → ±DD MM SS.S
+    """RA en horas → 'HH MM SS.S'; Dec en grados → '±DD MM SS.S'. El redondeo de los
+    segundos se acarrea a los minutos y a las horas o grados (antes, 59,97″ salía como
+    «60.0» y 23h 59m 59,97s como «23 59 60.0»)."""
+    horas, minutos_ra, segundos_ra = _sexagesimal(float(ra_horas) % 24)
+    horas %= 24
     signo = '+' if dec_grados >= 0 else '-'
-    grados = int(abs(dec_grados))
-    minutos_dec = int((abs(dec_grados) - grados) * 60)
-    segundos_dec = ((abs(dec_grados) - grados) * 60 - minutos_dec) * 60
-
+    grados, minutos_dec, segundos_dec = _sexagesimal(abs(float(dec_grados)))
     ra_str = f"{horas:02d} {minutos_ra:02d} {segundos_ra:04.1f}"
     dec_str = f"{signo}{grados:02d} {minutos_dec:02d} {segundos_dec:04.1f}"
     return ra_str, dec_str
