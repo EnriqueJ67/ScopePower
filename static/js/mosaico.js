@@ -86,11 +86,12 @@
                 var tam = d.tamano_deg || [0, 0];
                 var n = d.filas * d.columnas;
                 var t = _("Mosaico {filas}×{columnas} ({n} teselas): {ancho} × {alto}", { filas: d.filas, columnas: d.columnas, n: n, ancho: grados(tam[0]), alto: grados(tam[1]) });
+                if (d.perimetro_deg) t += " · " + _("foto final ≈ {ancho}° × {alto}°", { ancho: grados(d.perimetro_deg[0]).replace("°", ""), alto: grados(d.perimetro_deg[1]).replace("°", "") });
                 if (d.solape_min_pct !== null && d.solape_min_pct !== undefined) {
                     t += " · " + (d.solape_min_pct < 8 ? "⚠️ " : "") + _("solape mínimo entre vecinas {pct} %", { pct: Math.round(d.solape_min_pct) });
                 }
-                if (d.prevision_giro && n > 1) t += " · " + _("la cámara gira de {a}° a {b}° ({giro}° entre la primera y la última tesela)",
-                    { a: Math.round(d.giro_inicial_deg), b: Math.round(d.giro_final_deg), giro: Math.round(d.giro_total_deg) });
+                if (d.prevision_giro && n > 1) t += " · " + _("la cámara gira entre {a}° y {b}° ({giro}° de una tesela a otra)",
+                    { a: Math.round(d.giro_min_deg), b: Math.round(d.giro_max_deg), giro: Math.round(d.giro_total_deg) });
                 else t += " · " + _("cámara a {angulo}° ({origen})", { angulo: Math.round(d.angulo_deg), origen: d.origen_angulo });
                 t += " · " + _("unas {min} min a {spf} s por foto, termina hacia las {hora}", { min: d.duracion_min, spf: Math.round(d.segundos_por_foto), hora: d.fin_hora });
                 if (d.centro && cuerpo.nombre) t += " · " + _("centro {nombre}", { nombre: d.centro.nombre });

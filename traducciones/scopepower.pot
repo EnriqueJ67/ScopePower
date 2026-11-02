@@ -10186,6 +10186,11 @@ msgstr ""
 msgid "foto de prueba y modo en vivo"
 msgstr ""
 
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "foto final ≈ {ancho}° × {alto}°"
+msgstr ""
+
 #: templates/apilado.html
 msgid "fotos"
 msgstr ""
@@ -10352,7 +10357,7 @@ msgstr ""
 
 #. js
 #: static/js/mosaico.js templates/planetario.html
-msgid "la cámara gira de {a}° a {b}° ({giro}° entre la primera y la última tesela)"
+msgid "la cámara gira entre {a}° y {b}° ({giro}° de una tesela a otra)"
 msgstr ""
 
 #: vivo_dia.py
