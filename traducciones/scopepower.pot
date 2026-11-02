@@ -4231,12 +4231,16 @@ msgid "Fotogramas que se apilan"
 msgstr ""
 
 #. js
-#: templates/apilado.html
+#: templates/apilado.html templates/planetario.html
 msgid "Fotos"
 msgstr ""
 
 #: templates/apilado.html
 msgid "Fotos apiladas"
+msgstr ""
+
+#: templates/planetario.html
+msgid "Fotos de la galería sobre el cielo"
 msgstr ""
 
 #. js
@@ -5300,6 +5304,10 @@ msgstr ""
 
 #: templates/_puesta_estacion.html
 msgid "Las flechas valen mirando hacia el polo desde detrás de la montura. Si el ajuste se alarga más de un cuarto de hora o has movido mucho la montura, «Repetir la medición» vuelve a medir el eje."
+msgstr ""
+
+#: templates/planetario.html
+msgid "Las fotos de la galería (apilados y mosaicos con su posición) sobre el cielo, a su tamaño real"
 msgstr ""
 
 #: seguimiento.py
@@ -8905,6 +8913,10 @@ msgstr ""
 msgid "Toque no válido"
 msgstr ""
 
+#: templates/planetario.html
+msgid "Transparencia de las fotos"
+msgstr ""
+
 #. js
 #: catalogo_offline.py
 msgid "Triplete de galaxias"
@@ -10654,6 +10666,11 @@ msgstr ""
 msgid "ninguna"
 msgstr ""
 
+#. js
+#: templates/planetario.html
+msgid "ninguna foto con posición"
+msgstr ""
+
 #: camara_nativa.py camara_qhy.py camara_zwo.py
 msgid "ninguna ruta válida"
 msgstr ""
@@ -11636,7 +11653,7 @@ msgstr[1] ""
 
 #. js
 #: firma.py static/js/plan.js templates/apilado.html templates/editar_foto.html
-#: templates/imagen.html
+#: templates/imagen.html templates/planetario.html
 msgid "{n} foto"
 msgid_plural "{n} fotos"
 msgstr[0] ""

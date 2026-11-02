@@ -42,11 +42,15 @@
     <label class="switch" title="{{ _('El mapa sigue a la montura') }}"><input type="checkbox" id="seguir"> {{ _("Seguir") }}</label>
     <label class="switch" title="{{ _('Chinchetas con los objetos recomendados de Esta noche') }}"><input type="checkbox" id="chinchetas" checked> {{ _("Esta noche") }}</label>
     <label class="switch" title="{{ _('Paisaje dibujado en el horizonte (Guéreins, de Stellarium)') }}"><input type="checkbox" id="paisaje" checked> {{ _("Paisaje") }}</label>
+    <label class="switch" title="{{ _('Las fotos de la galería (apilados y mosaicos con su posición) sobre el cielo, a su tamaño real') }}"><input type="checkbox" id="fotos-fondo"> {{ _("Fotos") }}</label>
+    <input type="range" id="fotos-opacidad" min="10" max="100" step="5" value="70" title="{{ _('Transparencia de las fotos') }}" style="width: 90px;" hidden>
+    <span id="fotos-cuenta" class="texto-3" style="font-size: 12.5px;" hidden></span>
     <button type="button" class="btn" id="btn-mosaico" title="{{ _('Mosaico: rejilla de teselas sobre el cielo (se apilan una a una y se funden en una imagen)') }}">🧩<span class="oculto-movil"> {{ _("Mosaico") }}</span></button>
 </div>
 
 <div class="atlas-marco">
     <div id="atlas" class="atlas"></div>
+    <canvas id="capa-fotos" class="capa-fotos" hidden aria-label="{{ _('Fotos de la galería sobre el cielo') }}"></canvas>
     <div id="capa-noche" class="capa-noche" aria-label="{{ _('Objetos recomendados esta noche') }}"></div>
     <!-- Mosaico: huellas de las teselas (mosaico.py) proyectadas como las chinchetas, a cada fotograma -->
     <svg id="capa-mosaico" class="capa-mosaico" hidden aria-label="{{ _('Teselas del mosaico') }}"></svg>
@@ -145,6 +149,8 @@
     .btn-icono { padding: 6px 8px; }
 
     /* Chinchetas de "Esta noche": capa HTML sobre el lienzo, recolocada a cada fotograma */
+    .capa-fotos { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
+    .capa-fotos[hidden] { display: none; }
     .capa-noche { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
     .capa-noche[hidden] { display: none; }
     .chincheta { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 5px; pointer-events: auto; cursor: pointer;
@@ -299,6 +305,75 @@
         requestAnimationFrame(recolocarChinchetas);
         requestAnimationFrame(moverBrujula);
     }
+
+    // ——— Fotos de la galería sobre el cielo (fondo_planetario.py) ———
+    // Cada apilado o mosaico guardado con su posición se pinta deformado a su huella real: las
+    // cuatro esquinas del JPG se proyectan como las chinchetas y la imagen se dibuja con la afín
+    // que lleva tres de ellas a su sitio (en campos de pocos grados la perspectiva no se nota).
+    const lienzoFotos = $("capa-fotos");
+    let fotosFondo = [];          // [{nombre, esquinas, ancho, alto, img}] de /planetario/fotos
+    let fotosCargando = false;
+    try { if (localStorage.getItem("planetario.fotos") === "si") $("fotos-fondo").checked = true; } catch (e) {}
+    try { const o = parseInt(localStorage.getItem("planetario.fotos_opacidad")); if (o >= 10 && o <= 100) $("fotos-opacidad").value = o; } catch (e) {}
+    async function cargarFotosFondo() {
+        if (fotosCargando) return;
+        fotosCargando = true;
+        try {
+            const d = await (await fetch("/planetario/fotos")).json();
+            if (!d.ok) throw new Error(d.error || "");
+            fotosFondo = d.fotos.map(f => {
+                const img = new Image();
+                img.decoding = "async";
+                img.src = "/planetario/foto/" + encodeURIComponent(f.nombre);
+                return { ...f, img };
+            });
+            $("fotos-cuenta").textContent = fotosFondo.length ? ngettext("{n} foto", "{n} fotos", fotosFondo.length) : _("ninguna foto con posición");
+        } catch (e) {
+            console.warn("fotos del planetario", e);
+            $("fotos-cuenta").textContent = "⚠️";
+        }
+        fotosCargando = false;
+    }
+    function pintarFotosFondo(vista, w, h) {
+        const ctx = lienzoFotos.getContext("2d");
+        if (lienzoFotos.width !== w || lienzoFotos.height !== h) { lienzoFotos.width = w; lienzoFotos.height = h; }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        ctx.globalAlpha = (+$("fotos-opacidad").value || 70) / 100;
+        for (const f of fotosFondo) {
+            if (!f.img.complete || !f.img.naturalWidth) continue;
+            const pts = [];
+            let ok = true;
+            for (const [raDeg, decDeg] of f.esquinas) {
+                let p = null;
+                try { p = projectEquatorial({ raDeg, decDeg, frame: "ICRS" }, vista, w, h); } catch (e) {}
+                if (!p || !isFinite(p.x) || !isFinite(p.y) || Math.abs(p.x) > 3 * w || Math.abs(p.y) > 3 * h) { ok = false; break; }
+                pts.push(p);
+            }
+            if (!ok) continue;
+            // Esquinas del JPG: (0,0) → pts[0], (ancho,0) → pts[1], (0,alto) → pts[3]
+            const iw = f.img.naturalWidth, ih = f.img.naturalHeight;
+            const a = (pts[1].x - pts[0].x) / iw, b = (pts[1].y - pts[0].y) / iw;
+            const c = (pts[3].x - pts[0].x) / ih, d = (pts[3].y - pts[0].y) / ih;
+            const lado = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+            if (lado < 3 || lado > 6 * w) continue;      // ni un punto ni un campo que no cabe en el mapa
+            ctx.setTransform(a, b, c, d, pts[0].x, pts[0].y);
+            try { ctx.drawImage(f.img, 0, 0, iw, ih); } catch (e) {}
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = 1;
+    }
+    function ponerFotosFondo() {
+        const si = $("fotos-fondo").checked;
+        lienzoFotos.hidden = !si;
+        $("fotos-opacidad").hidden = !si;
+        $("fotos-cuenta").hidden = !si;
+        try { localStorage.setItem("planetario.fotos", si ? "si" : "no"); } catch (e) {}
+        if (si && !fotosFondo.length) cargarFotosFondo();
+    }
+    $("fotos-fondo").onchange = ponerFotosFondo;
+    $("fotos-opacidad").oninput = () => { try { localStorage.setItem("planetario.fotos_opacidad", $("fotos-opacidad").value); } catch (e) {} };
+    ponerFotosFondo();
 
     // ——— Paisaje del horizonte (teselas HiPS de Stellarium en static/atlas/assets/landscapes) ———
     // Se recuerda en el navegador si se quiere ver; las teselas son unos 400 KB y van con la página.
@@ -603,7 +678,8 @@
         requestAnimationFrame(recolocarChinchetas);
         const hayChinchetas = !capa.hidden && chinchetas.length > 0;
         const hayMosaico = !$("capa-mosaico").hasAttribute("hidden");
-        if (!viewer || (!hayChinchetas && !puntoLibre && !hayMosaico) || t - ultimaRecolocacion < 80) return;   // ~12 veces por segundo basta
+        const hayFotos = !$("capa-fotos").hidden && fotosFondo.length > 0;
+        if (!viewer || (!hayChinchetas && !puntoLibre && !hayMosaico && !hayFotos) || t - ultimaRecolocacion < 80) return;   // ~12 veces por segundo basta
         ultimaRecolocacion = t;
         const w = $("atlas").clientWidth, h = $("atlas").clientHeight;
         if (!w || !h) return;
@@ -620,6 +696,7 @@
             marca.hidden = !visible;
             if (visible) marca.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
         }
+        if (hayFotos) pintarFotosFondo(vista, w, h);
         if (hayMosaico) recolocarMosaico(vista, ahora, w, h);
         if (!hayChinchetas) return;
         const conEtiqueta = vista.fovDeg <= 100;

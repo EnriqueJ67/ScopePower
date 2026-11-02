@@ -5,6 +5,10 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Planetario: interruptor «Fotos» que pone las fotos de la galería (apilados y mosaicos con su posición,
+  los guardados desde el 14-oct-2026 o ya resueltos por la galería anotada) sobre el cielo, cada una
+  deformada a su huella real, con transparencia ajustable; sirve para ver qué está ya fotografiado y
+  encajar el siguiente mosaico. Las imágenes se sirven reducidas (fondo_planetario.py).
 - Mosaico: el configurador dibuja también el perímetro de la foto final (el mayor rectángulo cubierto por
   todas las teselas, lo que recorta la combinación) con su tamaño, para ver si algo se queda fuera y hacen
   falta más teselas; el giro de la cámara se da entre el mínimo y el máximo de todas las teselas; y los

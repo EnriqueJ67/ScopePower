@@ -4233,13 +4233,17 @@ msgid "Fotogramas que se apilan"
 msgstr "Frames to stack"
 
 #. js
-#: templates/apilado.html
+#: templates/apilado.html templates/planetario.html
 msgid "Fotos"
 msgstr "Shots"
 
 #: templates/apilado.html
 msgid "Fotos apiladas"
 msgstr "Stacked shots"
+
+#: templates/planetario.html
+msgid "Fotos de la galería sobre el cielo"
+msgstr "Gallery photos over the sky"
 
 #. js
 #: espacio_disco.py
@@ -5303,6 +5307,10 @@ msgstr "The stars of this photo are not separated yet"
 #: templates/_puesta_estacion.html
 msgid "Las flechas valen mirando hacia el polo desde detrás de la montura. Si el ajuste se alarga más de un cuarto de hora o has movido mucho la montura, «Repetir la medición» vuelve a medir el eje."
 msgstr "The arrows are for someone behind the mount looking towards the pole. If adjusting takes more than a quarter of an hour or you moved the mount a lot, “Measure again” re-measures the axis."
+
+#: templates/planetario.html
+msgid "Las fotos de la galería (apilados y mosaicos con su posición) sobre el cielo, a su tamaño real"
+msgstr "Gallery photos (stacks and mosaics with a known position) over the sky, at their real size"
 
 #: seguimiento.py
 msgid "Las medidas no permiten calibrar (ejes sin desplazamiento apreciable)"
@@ -8907,6 +8915,10 @@ msgstr "Tolerance (′)"
 msgid "Toque no válido"
 msgstr "Invalid tap"
 
+#: templates/planetario.html
+msgid "Transparencia de las fotos"
+msgstr "Photo transparency"
+
 #. js
 #: catalogo_offline.py
 msgid "Triplete de galaxias"
@@ -10656,6 +10668,11 @@ msgstr "phone: {hora}"
 msgid "ninguna"
 msgstr "none"
 
+#. js
+#: templates/planetario.html
+msgid "ninguna foto con posición"
+msgstr "no photo with a known position"
+
 #: camara_nativa.py camara_qhy.py camara_zwo.py
 msgid "ninguna ruta válida"
 msgstr "no valid path"
@@ -11638,11 +11655,11 @@ msgstr[1] "{n} stars"
 
 #. js
 #: firma.py static/js/plan.js templates/apilado.html templates/editar_foto.html
-#: templates/imagen.html
+#: templates/imagen.html templates/planetario.html
 msgid "{n} foto"
 msgid_plural "{n} fotos"
-msgstr[0] "{n} shot"
-msgstr[1] "{n} shots"
+msgstr[0] "{n} photo"
+msgstr[1] "{n} photos"
 
 #. js
 #: templates/rastros.html
