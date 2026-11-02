@@ -383,15 +383,63 @@ def prever_rejilla(ra_h, dec_deg, campo, filas, columnas, solape_pct, fotos, lug
             pct = _solape_pct(pa, pb, area)
             te["solapes"].append({"con": otra["i"], "pct": pct})
             solape_min = pct if solape_min is None else min(solape_min, pct)
+    # Perímetro de la foto final: el mayor rectángulo cubierto por las teselas en el marco de la
+    # combinación (los ejes de la primera tesela), que es lo que recorta combinar() (ZONA*)
+    perimetro, perimetro_deg = perimetro_final(teselas, ra_h, dec_deg, campo, len(teselas) and
+                                               wcs_tangente(ra_h * 15.0, dec_deg, cd_desde_angulo(campo["escala_arcsec"] / 3600.0, giros[0]), ancho, alto))
     # Giro total: diferencias respecto a la primera, módulo 180 (el eje x no tiene sentido)
     rel = [((g - giros[0] + 90.0) % 180.0) - 90.0 for g in giros] if giros else [0.0]
     fin = t0 + timedelta(seconds=len(teselas) * duracion)
     return {"teselas": teselas, "angulo_deg": round(angulo_de(cd_de(wcs_base)), 1), "origen_angulo": origen_base,
             "giro_total_deg": round(max(rel) - min(rel), 1), "giro_inicial_deg": giros[0] if giros else None,
-            "giro_final_deg": giros[-1] if giros else None, "prevision_giro": prevision_giro,
+            "giro_final_deg": giros[-1] if giros else None,
+            # Extremos del giro entre TODAS las teselas (el mayor no tiene por qué ser el de la última)
+            "giro_min_deg": round((giros[0] + min(rel)) % 180.0, 1) if giros else None,
+            "giro_max_deg": round((giros[0] + max(rel)) % 180.0, 1) if giros else None,
+            "prevision_giro": prevision_giro,
             "solape_min_pct": solape_min, "duracion_min": int(round((fin - ahora).total_seconds() / 60.0)),
             "fin_hora": fin.strftime("%H:%M"), "segundos_por_foto": round(spf, 1),
-            "campo": campo, "tamano_deg": tamano_mosaico(campo, filas, columnas, solape_pct)}
+            "campo": campo, "tamano_deg": tamano_mosaico(campo, filas, columnas, solape_pct),
+            "perimetro": perimetro, "perimetro_deg": perimetro_deg}
+
+
+def perimetro_final(teselas, ra_h, dec_deg, campo, wcs_marco, lado_raster=800):
+    """
+    Esquinas (RA/Dec) y tamaño (grados) del mayor rectángulo cubierto por todas las teselas
+    (sus esquinas ya giradas) en el marco `wcs_marco`, el mismo criterio con que combinar()
+    recorta el mosaico (apilado.zona_cobertura): lo que saldrá en la foto final. Se pintan
+    las teselas en una rejilla pequeña del plano tangente y se busca el rectángulo. (None, None)
+    si no se puede.
+    """
+    try:
+        import apilado
+        polis = [np.asarray(wcs_marco.all_world2pix(te["esquinas"], 0), dtype=np.float64) for te in teselas if te.get("esquinas")]
+        if not polis:
+            return None, None
+        todas = np.vstack(polis)
+        x0, y0 = todas[:, 0].min() - 2, todas[:, 1].min() - 2
+        x1, y1 = todas[:, 0].max() + 2, todas[:, 1].max() + 2
+        f = max(x1 - x0, y1 - y0) / float(lado_raster)          # px del marco por px del ráster
+        w, h = int(math.ceil((x1 - x0) / f)) + 1, int(math.ceil((y1 - y0) / f)) + 1
+        cuenta = np.zeros((h, w), dtype=np.uint8)      # teselas por píxel (fillPoly no acumula: una capa por tesela)
+        for p in polis:
+            capa = np.zeros((h, w), dtype=np.uint8)
+            cv2.fillPoly(capa, [np.round((p - [x0, y0]) / f).astype(np.int32)], 1)
+            cuenta += capa
+        zona = apilado.zona_cobertura(cuenta, 1, escala=2, margen=1)
+        if not zona:
+            return None, None
+        zx, zy, zw, zh = zona
+        # Un 2 % por lado de margen: con las teselas reales del 1-nov-2026 el recorte de la
+        # combinación salió 0,1-0,3° más estrecho que este cálculo (pluma y errores de apuntado)
+        zx, zy, zw, zh = zx + 0.02 * zw, zy + 0.02 * zh, 0.96 * zw, 0.96 * zh
+        esquinas_px = np.array([[zx, zy], [zx + zw, zy], [zx + zw, zy + zh], [zx, zy + zh]], dtype=np.float64) * f + [x0, y0]
+        esquinas = [[round(float(a), 5), round(float(b), 5)] for a, b in wcs_marco.all_pix2world(esquinas_px, 0)]
+        escala_deg = campo["escala_arcsec"] / 3600.0
+        return esquinas, [round(zw * f * escala_deg, 3), round(zh * f * escala_deg, 3)]
+    except Exception as e:
+        log.warning("Mosaico: no se pudo calcular el perímetro de la foto final: %s", e)
+        return None, None
 
 
 def tamano_mosaico(campo, filas, columnas, solape_pct):

@@ -191,6 +191,8 @@
     .capa-mosaico text { fill: var(--text); font-size: 12px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: #000; stroke-width: 3px; }
     .capa-mosaico text.sub { font-size: 10px; font-weight: 500; fill: var(--text-2); }
     .capa-mosaico polygon.poco-solape { stroke: #ff5a5a; stroke-dasharray: 3 3; }
+    .capa-mosaico .perimetro polygon { fill: none; stroke: #fff; stroke-width: 2; stroke-dasharray: 10 5; opacity: 0.9; }
+    .capa-mosaico .perimetro text { font-size: 11.5px; font-weight: 700; fill: #fff; }
     .capa-mosaico .contorno polygon { fill: rgba(120, 200, 255, 0.06); stroke: rgba(140, 210, 255, 0.75); stroke-width: 1; stroke-dasharray: none; }
     .capa-mosaico .contorno text { font-size: 10.5px; font-weight: 600; fill: rgba(170, 220, 255, 0.95); }
     .panel-mosaico { bottom: auto; top: 44px; }
@@ -765,6 +767,7 @@
                 teselasMosaico = d.teselas;
                 prevision = d;
                 pintarTeselasSvg();
+                pintarPerimetro(d);
                 pintarContornos(c, tam(d));
                 $("ma-centro").textContent = _("Centro: {nombre} ({fuente}) · RA {ra} · Dec {dec}", { nombre: c.nombre, fuente: c.fuente, ra: horas(c.raDeg), dec: grados(c.decDeg) });
                 $("ma-info").innerHTML = textoPrevision(d, filas, columnas);
@@ -777,14 +780,15 @@
         const t = tam(d);
         const partes = [_("{filas}×{columnas} teselas de {campo}°: {ancho}° × {alto}°",
             { filas, columnas, campo: fmtNum(d.campo.ancho_deg, 2), ancho: fmtNum(t[0], 2), alto: fmtNum(t[1], 2) })];
+        if (d.perimetro_deg) partes.push(_("foto final ≈ {ancho}° × {alto}°", { ancho: fmtNum(d.perimetro_deg[0], 2), alto: fmtNum(d.perimetro_deg[1], 2) }));
         if (d.solape_min_pct !== null && d.solape_min_pct !== undefined) {
             const poco = d.solape_min_pct < 8;
             partes.push((poco ? '<span style="color: var(--warn)">⚠️ ' : "") + _("solape mínimo entre vecinas {pct} %", { pct: fmtNum(d.solape_min_pct, 0) }) +
                         (poco ? " · " + _("sube el solape") + "</span>" : ""));
         }
         if (d.prevision_giro && d.teselas.length > 1) {
-            partes.push(_("la cámara gira de {a}° a {b}° ({giro}° entre la primera y la última tesela)",
-                { a: Math.round(d.giro_inicial_deg), b: Math.round(d.giro_final_deg), giro: fmtNum(d.giro_total_deg, 0) }));
+            partes.push(_("la cámara gira entre {a}° y {b}° ({giro}° de una tesela a otra)",
+                { a: Math.round(d.giro_min_deg), b: Math.round(d.giro_max_deg), giro: fmtNum(d.giro_total_deg, 0) }));
         } else {
             partes.push(_("cámara a {angulo}° ({origen})", { angulo: Math.round(d.angulo_deg), origen: d.origen_angulo }));
             if (!d.prevision_giro) partes.push(_("giro de campo no previsible: aún no hay ningún plate solving que calibre la cámara"));
@@ -845,9 +849,41 @@
             o.txt.setAttribute("visibility", Math.max(...xs) - Math.min(...xs) > 24 ? "visible" : "hidden");
         }
     }
+    let perimetroEl = null;        // {g, poly, txt, esquinas} del perímetro de la foto final
+    function pintarPerimetro(d) {
+        perimetroEl = null;
+        if (!d.perimetro || d.perimetro.length !== 4) return;
+        const g = document.createElementNS(svgNS, "g");
+        g.setAttribute("class", "perimetro");
+        const poly = document.createElementNS(svgNS, "polygon");
+        const txt = document.createElementNS(svgNS, "text");
+        txt.textContent = _("foto final ≈ {ancho}° × {alto}°", { ancho: fmtNum(d.perimetro_deg[0], 2), alto: fmtNum(d.perimetro_deg[1], 2) });
+        g.appendChild(poly); g.appendChild(txt);
+        g.setAttribute("visibility", "hidden");
+        capaMosaico.appendChild(g);
+        perimetroEl = { g, poly, txt, esquinas: d.perimetro };
+    }
+    function recolocarPerimetro(vista, w, h) {
+        if (!perimetroEl) return;
+        const pts = [];
+        for (const [raDeg, decDeg] of perimetroEl.esquinas) {
+            let p = null;
+            try { p = projectEquatorial({ raDeg, decDeg, frame: "ICRS" }, vista, w, h); } catch (e) {}
+            if (!p || !isFinite(p.x) || !isFinite(p.y) || Math.abs(p.x) > 4 * w || Math.abs(p.y) > 4 * h) { perimetroEl.g.setAttribute("visibility", "hidden"); return; }
+            pts.push(p);
+        }
+        perimetroEl.g.setAttribute("visibility", "visible");
+        perimetroEl.poly.setAttribute("points", pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "));
+        // Etiqueta en el borde superior del rectángulo
+        const arriba = pts.slice().sort((a, b) => a.y - b.y).slice(0, 2);
+        perimetroEl.txt.setAttribute("x", ((arriba[0].x + arriba[1].x) / 2).toFixed(1));
+        perimetroEl.txt.setAttribute("y", ((arriba[0].y + arriba[1].y) / 2 - 10).toFixed(1));
+        perimetroEl.txt.setAttribute("visibility", Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) > 80 ? "visible" : "hidden");
+    }
     function pintarTeselasSvg() {
         capaMosaico.innerHTML = "";
         contornos = [];
+        perimetroEl = null;
         for (const t of teselasMosaico) {
             const g = document.createElementNS(svgNS, "g");
             const poly = document.createElementNS(svgNS, "polygon");
@@ -865,9 +901,14 @@
         aplicarEstadoTeselas();
     }
     function aplicarEstadoTeselas() {
+        // Los estados (hecha, en curso, fallida) solo valen si el mosaico en marcha o el último
+        // terminado es ESTE: mismo centro y misma rejilla. Si no, el de anoche teñiría la rejilla nueva.
         const porIndice = {};
-        if (estadoMosaico?.en_curso || (estadoMosaico?.teselas || []).some(t => t.estado && t.estado !== "pendiente"))
-            for (const t of estadoMosaico.teselas || []) porIndice[t.i] = t;
+        const e = estadoMosaico, c = centroMosaico;
+        const mismo = e && c && Number.isFinite(e.ra_h) && e.filas === (+$("ma-filas").value || 2) && e.columnas === (+$("ma-columnas").value || 2) &&
+            Math.hypot((e.ra_h * 15 - c.raDeg) * Math.cos(c.decDeg * Math.PI / 180), e.dec_deg - c.decDeg) < 0.05;
+        if (mismo && (e.en_curso || (e.teselas || []).some(t => t.estado && t.estado !== "pendiente")))
+            for (const t of e.teselas || []) porIndice[t.i] = t;
         for (const t of teselasMosaico) {
             const e = porIndice[t.i];
             if (t.poly) { t.poly.classList.remove("en_curso", "hecha", "fallida"); if (e && e.estado !== "pendiente") t.poly.classList.add(e.estado); }
@@ -909,6 +950,7 @@
             if (t.sub) { t.sub.setAttribute("x", cx.toFixed(1)); t.sub.setAttribute("y", (cy + 9).toFixed(1)); t.sub.setAttribute("visibility", lado > 60 ? "visible" : "hidden"); }
         }
         recolocarContornos(vista, w, h);
+        recolocarPerimetro(vista, w, h);
     }
     async function refrescarEstadoMosaico() {
         if (panelMosaico.hidden) return;

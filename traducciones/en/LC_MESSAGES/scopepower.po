@@ -10188,6 +10188,11 @@ msgstr "daytime shot"
 msgid "foto de prueba y modo en vivo"
 msgstr "test shot and live mode"
 
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "foto final ≈ {ancho}° × {alto}°"
+msgstr "final image ≈ {ancho}° × {alto}°"
+
 #: templates/apilado.html
 msgid "fotos"
 msgstr "shots"
@@ -10354,8 +10359,8 @@ msgstr "the camera is busy"
 
 #. js
 #: static/js/mosaico.js templates/planetario.html
-msgid "la cámara gira de {a}° a {b}° ({giro}° entre la primera y la última tesela)"
-msgstr "the camera rotates from {a}° to {b}° ({giro}° between the first and the last tile)"
+msgid "la cámara gira entre {a}° y {b}° ({giro}° de una tesela a otra)"
+msgstr "the camera rotates between {a}° and {b}° ({giro}° from one tile to another)"
 
 #: vivo_dia.py
 msgid "la cámara no entrega fotogramas ({e})"

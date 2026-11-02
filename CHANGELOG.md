@@ -5,6 +5,10 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Mosaico: el configurador dibuja también el perímetro de la foto final (el mayor rectángulo cubierto por
+  todas las teselas, lo que recorta la combinación) con su tamaño, para ver si algo se queda fuera y hacen
+  falta más teselas; el giro de la cámara se da entre el mínimo y el máximo de todas las teselas; y los
+  estados (hecha, en curso) del último mosaico ya no tiñen una rejilla nueva distinta.
 - Mosaico: el configurador del planetario y el panel de Apilado enseñan las teselas como quedarán de
   verdad: cada una con su hora prevista y el giro de la cámara a esa hora (en la altacimutal cambia a
   lo largo del mosaico; previsto con 1° de error la noche del 1-nov-2026), el solape real entre vecinas
