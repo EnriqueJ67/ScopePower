@@ -10111,7 +10111,7 @@ msgstr ""
 msgid "exponiendo…"
 msgstr ""
 
-#: static/js/mosaico.js templates/planetario.html
+#: static/js/mosaico.js templates/apilado.html templates/planetario.html
 msgid "fallida"
 msgstr ""
 
@@ -10311,7 +10311,7 @@ msgstr[1] ""
 msgid "hay una exposición en curso"
 msgstr ""
 
-#: static/js/mosaico.js templates/planetario.html
+#: static/js/mosaico.js templates/apilado.html templates/planetario.html
 msgid "hecha"
 msgstr ""
 
@@ -10959,7 +10959,7 @@ msgstr ""
 msgid "posición de la montura"
 msgstr ""
 
-#: templates/planetario.html
+#: templates/apilado.html templates/planetario.html
 msgid "prevista"
 msgstr ""
 

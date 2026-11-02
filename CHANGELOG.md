@@ -13,7 +13,7 @@ día de la release. El número de versión vive en `version.py`.
   que da la foto final más grande sin bajar del 12 % de solape real entre teselas vecinas (lo que necesita
   el igualado de fondos y unos minutos de arco de error de apuntado) ni dejar huecos dentro del rectángulo
   final; con el campo rotando deprisa (cerca del meridiano) pide más solape, y si sobra, menos. Leyenda
-  de colores de las teselas en el configurador.
+  de colores de las teselas en el configurador y en el panel Mosaico de Apilado.
 - Mosaico: el configurador dibuja también el perímetro de la foto final (el mayor rectángulo cubierto por
   todas las teselas, lo que recorta la combinación) con su tamaño, para ver si algo se queda fuera y hacen
   falta más teselas; el giro de la cámara se da entre el mínimo y el máximo de todas las teselas; y los
