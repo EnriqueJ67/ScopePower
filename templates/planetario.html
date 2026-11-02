@@ -75,10 +75,19 @@
             <span class="texto-2" id="ma-recomendado-texto"></span>
             <button type="button" class="btn btn-sm btn-secondary" id="ma-aplicar-solape" style="margin-left: 6px;"></button>
         </div>
-        <div class="panel-datos texto-3 ma-leyenda">
-            <span class="ley prevista"></span>{{ _("prevista") }} · <span class="ley en_curso"></span>{{ _("en curso") }} · <span class="ley hecha"></span>{{ _("hecha") }} ·
-            <span class="ley fallida"></span>{{ _("fallida") }} · <span class="ley poco"></span>{{ _("poco solape") }} · <span class="ley final"></span>{{ _("foto final") }}
-        </div>
+        <details class="ma-leyenda" id="ma-leyenda">
+            <summary>{{ _("Leyenda") }}</summary>
+            <div class="ley-grupo"><b>{{ _("Teselas") }}</b>
+                <span class="ley prevista"></span>{{ _("prevista") }} · <span class="ley en_curso"></span>{{ _("en curso") }} · <span class="ley hecha"></span>{{ _("hecha") }} ·
+                <span class="ley fallida"></span>{{ _("fallida") }} · <span class="ley poco"></span>{{ _("poco solape") }} · <span class="ley final"></span>{{ _("foto final") }}
+            </div>
+            <div class="ley-grupo ley-objetos"><b>{{ _("Objetos") }}</b>
+                <span class="ley obj galaxia"></span>{{ _("galaxia") }} · <span class="ley obj cumulo"></span>{{ _("cúmulo") }} · <span class="ley obj emision"></span>{{ _("nebulosa de emisión") }} ·
+                <span class="ley obj reflexion"></span>{{ _("nebulosa de reflexión") }} · <span class="ley obj oscura"></span>{{ _("nebulosa oscura") }} · <span class="ley obj nebulosa"></span>{{ _("otra nebulosa") }} ·
+                <span class="ley obj contorno"></span>{{ _("contorno a tamaño real") }}
+            </div>
+            <div class="ley-grupo ley-noche texto-3">{{ _("En el modo noche todo se pinta en rojo.") }}</div>
+        </details>
         <div class="panel-acciones">
             <button type="button" class="btn btn-primary" id="ma-empezar"><svg><use href="#i-play"/></svg>{{ _("Empezar mosaico") }}</button>
             <button type="button" class="btn btn-danger" id="ma-detener" hidden>⏹ {{ _("Detener") }}</button>
@@ -1103,6 +1112,8 @@
         timerEstadoMosaico = setInterval(refrescarEstadoMosaico, 3000);
     };
     $("btn-mosaico").onclick = () => mosaicoAtlas.abrir(panelMosaico.hidden);
+    try { if (localStorage.getItem("planetario.leyenda") === "si") $("ma-leyenda").open = true; } catch (e) {}
+    $("ma-leyenda").addEventListener("toggle", () => { try { localStorage.setItem("planetario.leyenda", $("ma-leyenda").open ? "si" : "no"); } catch (e) {} });
     $("ma-cerrar").onclick = () => mosaicoAtlas.abrir(false);
     for (const id of ["ma-filas", "ma-columnas", "ma-solape", "ma-fotos"]) $(id).addEventListener("input", () => pedirTeselas(false));
     $("ma-empezar").onclick = async () => {
