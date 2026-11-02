@@ -108,6 +108,25 @@ def render(wcs, ancho, alto, cielo, fwhm_px=3.0):
     return img
 
 
+def probar_prevision(mosaico):
+    """Previsión de la rejilla sin calibración de la cámara: solape nominal y duración."""
+    import orientacion_camara
+    orientacion_camara.ultima = lambda buscar=True: None
+    campo = {"ancho_px": 3008, "alto_px": 3008, "escala_arcsec": 2.91, "ancho_deg": 2.43, "alto_deg": 2.43}
+    fallos = []
+    for filas, columnas, solape in ((2, 2, 20), (3, 3, 15), (1, 3, 25)):
+        r = mosaico.prever_rejilla(2.7, 61.0, campo, filas, columnas, solape, 20, (40.0, -1.0, 1000.0), segundos_por_foto=25.0)
+        esperado = solape * (1 + (filas - 1 + columnas - 1 > 0)) / (1 + (filas - 1 + columnas - 1 > 0))   # = solape
+        print(f"Previsión {filas}×{columnas} solape {solape} %: mínimo real {r['solape_min_pct']} %, {r['duracion_min']} min, "
+              f"giro previsible {r['prevision_giro']}, teselas {[t['hora'] for t in r['teselas']]}")
+        if r["solape_min_pct"] is None or abs(r["solape_min_pct"] - solape) > 2.5:
+            fallos.append(f"solape previsto {r['solape_min_pct']} % frente al nominal {solape} %")
+        minutos = (filas * columnas * (mosaico.SEGUNDOS_GOTO_TESELA + 20 * 25.0) + mosaico.SEGUNDOS_CENTRO) / 60.0
+        if abs(r["duracion_min"] - minutos) > 1.5:
+            fallos.append(f"duración prevista {r['duracion_min']} min frente a {minutos:.0f}")
+    return fallos
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--filas", type=int, default=2)
@@ -249,6 +268,7 @@ def main():
     if corr < 0.95:
         fallos.append("la nebulosa no sale continua")
     cv2.imwrite(os.path.join(COPIA, "static", "verdad.png"), np.clip(s_v / s_v.max() * 255, 0, 255).astype(np.uint8))
+    fallos += probar_prevision(mosaico)
     if fallos:
         print("❌ FALLOS: " + "; ".join(fallos))
         sys.exit(1)

@@ -9731,7 +9731,8 @@ msgstr "four"
 msgid "cámara"
 msgstr "camera"
 
-#: static/js/mosaico.js
+#. js
+#: static/js/mosaico.js templates/planetario.html
 msgid "cámara a {angulo}° ({origen})"
 msgstr "camera at {angulo}° ({origen})"
 
@@ -10217,6 +10218,11 @@ msgstr "turn east {v} minutes"
 msgid "gira al oeste {v} minutos"
 msgstr "turn west {v} minutes"
 
+#. js
+#: templates/planetario.html
+msgid "giro de campo no previsible: aún no hay ningún plate solving que calibre la cámara"
+msgstr "field rotation not predictable yet: no plate solve has calibrated the camera"
+
 #: actualizar.py
 msgid "git ha fallado: {salida}"
 msgstr "git failed: {salida}"
@@ -10345,6 +10351,11 @@ msgstr "the camera is in use by {motivo}"
 #: camara_toupcam.py
 msgid "la cámara está ocupada"
 msgstr "the camera is busy"
+
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "la cámara gira de {a}° a {b}° ({giro}° entre la primera y la última tesela)"
+msgstr "the camera rotates from {a}° to {b}° ({giro}° between the first and the last tile)"
 
 #: vivo_dia.py
 msgid "la cámara no entrega fotogramas ({e})"
@@ -11148,6 +11159,11 @@ msgstr "no luck"
 msgid "sincronizando"
 msgstr "syncing"
 
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "solape mínimo entre vecinas {pct} %"
+msgstr "minimum overlap between neighbours {pct} %"
+
 #: static/js/plan.js
 msgid "sube a las {hora}"
 msgstr "rises at {hora}"
@@ -11159,6 +11175,11 @@ msgstr "rises at {sube} and dawn comes at {hora}: only {fp} of {n} fit"
 #: plan_sesion.py
 msgid "sube a las {sube} y se pone a las {hora}: solo caben {fp} de {n}"
 msgstr "rises at {sube} and sets at {hora}: only {fp} of {n} fit"
+
+#. js
+#: templates/planetario.html
+msgid "sube el solape"
+msgstr "increase the overlap"
 
 #: puesta_estacion.py
 msgid "sube {v} minutos"
@@ -11263,6 +11284,11 @@ msgstr "typical"
 #: templates/imagen.html
 msgid "una foto tras otra hasta que pares"
 msgstr "one shot after another until you stop"
+
+#. js
+#: static/js/mosaico.js templates/planetario.html
+msgid "unas {min} min a {spf} s por foto, termina hacia las {hora}"
+msgstr "about {min} min at {spf} s per photo, ends around {hora}"
 
 #. js
 #: anuncio_ip.py
@@ -11384,8 +11410,8 @@ msgstr "{fichero}: not an RGB stack"
 
 #. js
 #: templates/planetario.html
-msgid "{filas}×{columnas} teselas de {campo}°: {ancho}° × {alto}° · cámara a {angulo}° ({origen})"
-msgstr "{filas}×{columnas} tiles of {campo}°: {ancho}° × {alto}° · camera at {angulo}° ({origen})"
+msgid "{filas}×{columnas} teselas de {campo}°: {ancho}° × {alto}°"
+msgstr "{filas}×{columnas} tiles of {campo}°: {ancho}° × {alto}°"
 
 #: apilado.py
 msgid "{foto} ({p}) no mejora al peor almacenado ({pp}); descartado"

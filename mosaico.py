@@ -309,6 +309,91 @@ def calcular_teselas(wcs_centro, ancho_px, alto_px, filas, columnas, solape_pct)
     return teselas
 
 
+# Previsión del tiempo de un mosaico: lo que cuesta el GoTo con centrado de cada tesela y el del
+# centro (medido con la AZ GoTo el 1-nov-2026: 27-50 s), y lo que se tarda por foto si el plan de
+# la noche no lo ha medido todavía
+SEGUNDOS_GOTO_TESELA = 45.0
+SEGUNDOS_CENTRO = 30.0
+SEGUNDOS_EXTRA_POR_FOTO = 5.5
+
+
+def _solape_pct(poli_a, poli_b, area):
+    """% del área de una tesela que comparten dos polígonos convexos (píxeles del plano tangente)."""
+    try:
+        a, __ = cv2.intersectConvexConvex(np.asarray(poli_a, dtype=np.float32), np.asarray(poli_b, dtype=np.float32))
+        return round(100.0 * max(0.0, float(a)) / float(area), 1)
+    except Exception:
+        return 0.0
+
+
+def prever_rejilla(ra_h, dec_deg, campo, filas, columnas, solape_pct, fotos, lugar=None, wcs_base=None,
+                   origen_base="", inicio=None, segundos_por_foto=None, exposicion_s=20.0, centrar=True):
+    """
+    Teselas como se espera que queden de verdad: cada una con su hora prevista y el giro de la
+    cámara en el cielo a esa hora (en una altacimutal cambia a lo largo del mosaico: 19° en 1 h 25
+    min la noche del 1-nov-2026), sus esquinas en RA/Dec ya giradas y el solape real con sus
+    vecinas de la rejilla. Las posiciones salen de la rejilla con los ejes de la cámara al
+    empezar (wcs_base, o la previsión para el centro); el giro de cada tesela, de la orientación
+    de la cámara respecto a los ejes (orientacion_camara.py) si está calibrada.
+    Devuelve dict con teselas, angulo_deg, origen_angulo, giro_total_deg, solape_min_pct,
+    duracion_min, fin_hora, prevision_giro, segundos_por_foto y tamano_deg.
+    """
+    from datetime import timedelta, timezone
+    from astropy.time import Time
+    ahora = inicio or datetime.now()
+    ancho, alto = campo["ancho_px"], campo["alto_px"]
+    if wcs_base is None:
+        wcs_base, origen_base = wcs_previsto(ra_h, dec_deg, campo, lugar,
+                                             Time(ahora.astimezone(timezone.utc).replace(tzinfo=None), scale="utc"))
+    teselas = calcular_teselas(wcs_base, ancho, alto, filas, columnas, solape_pct)
+    spf = float(segundos_por_foto) if segundos_por_foto else float(exposicion_s) + SEGUNDOS_EXTRA_POR_FOTO
+    duracion = SEGUNDOS_GOTO_TESELA + max(1, int(fotos)) * spf
+    t0 = ahora + timedelta(seconds=SEGUNDOS_CENTRO if centrar else 0.0)
+    # La previsión del giro solo vale con la orientación respecto a los ejes calibrada
+    try:
+        import orientacion_camara
+        prevision_giro = lugar is not None and bool((orientacion_camara.ultima(buscar=False) or {}).get("H"))
+    except Exception:
+        prevision_giro = False
+    cx, cy = (ancho - 1) / 2.0, (alto - 1) / 2.0
+    esquinas_px = [[cx - ancho / 2.0, cy - alto / 2.0], [cx + ancho / 2.0, cy - alto / 2.0],
+                   [cx + ancho / 2.0, cy + alto / 2.0], [cx - ancho / 2.0, cy + alto / 2.0]]
+    giros = []
+    for i, te in enumerate(teselas):
+        t_i = t0 + timedelta(seconds=i * duracion + SEGUNDOS_GOTO_TESELA)   # cuando empieza a apilar (la referencia)
+        if prevision_giro:
+            wcs_i, __ = wcs_previsto(te["ra_h"], te["dec_deg"], campo, lugar,
+                                    Time(t_i.astimezone(timezone.utc).replace(tzinfo=None), scale="utc"))
+        else:
+            wcs_i = wcs_tangente(te["ra_h"] * 15.0, te["dec_deg"], cd_de(wcs_base), ancho, alto)
+        te["esquinas"] = [[round(float(a), 5), round(float(b), 5)] for a, b in wcs_i.all_pix2world(esquinas_px, 0)]
+        te["giro_deg"] = round(angulo_de(cd_de(wcs_i)), 1)
+        te["hora"] = t_i.strftime("%H:%M")
+        te["inicio_s"] = int(i * duracion)
+        giros.append(te["giro_deg"])
+    # Solape real entre vecinas de la rejilla, en el plano tangente del centro
+    polis = [np.asarray(wcs_base.all_world2pix(te["esquinas"], 0), dtype=np.float32) for te in teselas]
+    area = float(ancho * alto)
+    solape_min = None
+    for te, pa in zip(teselas, polis):
+        te["solapes"] = []
+        for otra, pb in zip(teselas, polis):
+            if otra is te or abs(otra["fila"] - te["fila"]) + abs(otra["col"] - te["col"]) != 1:
+                continue
+            pct = _solape_pct(pa, pb, area)
+            te["solapes"].append({"con": otra["i"], "pct": pct})
+            solape_min = pct if solape_min is None else min(solape_min, pct)
+    # Giro total: diferencias respecto a la primera, módulo 180 (el eje x no tiene sentido)
+    rel = [((g - giros[0] + 90.0) % 180.0) - 90.0 for g in giros] if giros else [0.0]
+    fin = t0 + timedelta(seconds=len(teselas) * duracion)
+    return {"teselas": teselas, "angulo_deg": round(angulo_de(cd_de(wcs_base)), 1), "origen_angulo": origen_base,
+            "giro_total_deg": round(max(rel) - min(rel), 1), "giro_inicial_deg": giros[0] if giros else None,
+            "giro_final_deg": giros[-1] if giros else None, "prevision_giro": prevision_giro,
+            "solape_min_pct": solape_min, "duracion_min": int(round((fin - ahora).total_seconds() / 60.0)),
+            "fin_hora": fin.strftime("%H:%M"), "segundos_por_foto": round(spf, 1),
+            "campo": campo, "tamano_deg": tamano_mosaico(campo, filas, columnas, solape_pct)}
+
+
 def tamano_mosaico(campo, filas, columnas, solape_pct):
     """(ancho_deg, alto_deg) que cubre la rejilla, sin contar el giro de las teselas."""
     f = 1.0 - solape_pct / 100.0
