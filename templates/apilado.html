@@ -287,6 +287,10 @@
                     <label class="switch"><input type="checkbox" id="mosaico-guardar"> {{ _("Guardar el mosaico en la galería al terminar") }}</label>
                 </div>
                 <div id="mosaico-previa" class="texto-3" style="font-size: 12.5px; margin-top: 6px;"></div>
+                <div id="mosaico-recomendado" class="fila" style="gap: 8px; align-items: center; margin-top: 4px; font-size: 13px;" hidden>
+                    <span class="texto-2" id="mosaico-recomendado-texto"></span>
+                    <button type="button" class="btn btn-sm btn-secondary" id="mosaico-aplicar-solape" onclick="Mosaico.aplicarSolape()"></button>
+                </div>
                 <div class="acciones-grid dos mt-2">
                     <button type="button" id="mosaico-btn-empezar" class="btn btn-primary" onclick="Mosaico.iniciar()" title="{{ _('GoTo, centrado y apilado de cada tesela, una tras otra; al final se funden en una imagen') }}"><svg><use href="#i-play"/></svg>{{ _("Empezar mosaico") }}</button>
                     <a class="btn btn-secondary" href="/planetario?mosaico=1" title="{{ _('Ver y ajustar la rejilla de teselas sobre el cielo') }}"><svg><use href="#i-planetario"/></svg>{{ _("Ver en el planetario") }}</a>

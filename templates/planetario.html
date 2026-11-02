@@ -67,6 +67,14 @@
             <label for="ma-fotos">{{ _("Fotos por tesela") }}</label><input type="number" id="ma-fotos" min="1" max="999" step="1" value="20">
         </div>
         <div class="panel-datos texto-3" id="ma-info"></div>
+        <div class="panel-datos" id="ma-recomendado" hidden>
+            <span class="texto-2" id="ma-recomendado-texto"></span>
+            <button type="button" class="btn btn-sm btn-secondary" id="ma-aplicar-solape" style="margin-left: 6px;"></button>
+        </div>
+        <div class="panel-datos texto-3 ma-leyenda">
+            <span class="ley prevista"></span>{{ _("prevista") }} · <span class="ley en_curso"></span>{{ _("en curso") }} · <span class="ley hecha"></span>{{ _("hecha") }} ·
+            <span class="ley fallida"></span>{{ _("fallida") }} · <span class="ley poco"></span>{{ _("poco solape") }} · <span class="ley final"></span>{{ _("foto final") }}
+        </div>
         <div class="panel-acciones">
             <button type="button" class="btn btn-primary" id="ma-empezar"><svg><use href="#i-play"/></svg>{{ _("Empezar mosaico") }}</button>
             <button type="button" class="btn btn-danger" id="ma-detener" hidden>⏹ {{ _("Detener") }}</button>
@@ -197,6 +205,13 @@
     .capa-mosaico .contorno text { font-size: 10.5px; font-weight: 600; fill: rgba(170, 220, 255, 0.95); }
     .panel-mosaico { bottom: auto; top: 44px; }
     @media (min-width: 700px) { .panel-mosaico { left: 8px; right: auto; width: 320px; } }
+    .ma-leyenda { font-size: 11.5px; margin-top: 6px; line-height: 1.6; }
+    .ma-leyenda .ley { display: inline-block; width: 14px; height: 9px; margin: 0 3px 0 1px; vertical-align: middle; border: 1.5px dashed var(--warn); background: rgba(255, 200, 60, 0.10); border-radius: 2px; }
+    .ma-leyenda .ley.en_curso { border: 2px solid var(--accent); background: rgba(80, 160, 255, 0.18); }
+    .ma-leyenda .ley.hecha { border: 1.5px solid var(--ok); background: rgba(60, 200, 120, 0.18); }
+    .ma-leyenda .ley.fallida { border: 1.5px solid #e55; background: rgba(220, 60, 60, 0.15); }
+    .ma-leyenda .ley.poco { border: 1.5px dashed #ff5a5a; background: none; }
+    .ma-leyenda .ley.final { border: 1.5px dashed #fff; background: none; }
     .ma-form { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; font-size: 13.5px; margin-top: 8px; }
     .ma-form input[type=number] { width: 58px; padding: 4px 6px; }
     .modal-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
@@ -771,11 +786,23 @@
                 pintarContornos(c, tam(d));
                 $("ma-centro").textContent = _("Centro: {nombre} ({fuente}) · RA {ra} · Dec {dec}", { nombre: c.nombre, fuente: c.fuente, ra: horas(c.raDeg), dec: grados(c.decDeg) });
                 $("ma-info").innerHTML = textoPrevision(d, filas, columnas);
+                pintarRecomendado(d);
                 if (pendienteMosaico) { pendienteMosaico = false; pedirTeselas(true); }
             }).catch(e => { pidiendoMosaico = false; $("ma-info").textContent = "⚠️ " + e; });
     }
     let prevision = null;          // última respuesta de /mosaico/previsualizar
     const tam = d => d.tamano_deg || [0, 0];
+    function pintarRecomendado(d) {
+        const r = d.recomendado;
+        const caja = $("ma-recomendado");
+        if (!r || r.es_el_actual) { caja.hidden = true; return; }
+        $("ma-recomendado-texto").textContent = _("Solape recomendado {s} %: foto final ≈ {ancho}° × {alto}°",
+            { s: r.solape_pct, ancho: fmtNum(r.perimetro_deg[0], 2), alto: fmtNum(r.perimetro_deg[1], 2) }) +
+            (Number.isFinite(r.mejora_pct) && r.mejora_pct > 0 ? " " + _("({mejora} % más de área)", { mejora: fmtNum(r.mejora_pct, 0) }) : "");
+        $("ma-aplicar-solape").textContent = _("Usar {s} %", { s: r.solape_pct });
+        $("ma-aplicar-solape").onclick = () => { $("ma-solape").value = r.solape_pct; pedirTeselas(false); };
+        caja.hidden = false;
+    }
     function textoPrevision(d, filas, columnas) {
         const t = tam(d);
         const partes = [_("{filas}×{columnas} teselas de {campo}°: {ancho}° × {alto}°",
