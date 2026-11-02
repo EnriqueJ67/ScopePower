@@ -679,13 +679,29 @@ def quitar_gradiente(rgb, rejilla=12):
     if np.count_nonzero(~np.isnan(malla[..., 0])) < 10:
         return rgb
 
+    # Coordenadas de los centros de celda (-0,5..0,5) para el polinomio de 2º grado
+    jj, ii = np.mgrid[0:rejilla, 0:rejilla]
+    xn, yn = (ii + 0.5) / rejilla - 0.5, (jj + 0.5) / rejilla - 0.5
+    base_celdas = np.stack([np.ones_like(xn), xn, yn, xn * xn, xn * yn, yn * yn], axis=-1).reshape(-1, 6)
+
     def modelo_de(m):
-        return cv2.GaussianBlur(_rellenar_huecos(m), (0, 0), 1.0, borderType=cv2.BORDER_REPLICATE)
+        """
+        (modelo en las celdas, coeficientes del polinomio, residuo suavizado). El fondo se modela
+        como un polinomio de 2º grado (que se extrapola bien hasta el borde) más el residuo de las
+        celdas suavizado. Solo con la media gaussiana de borde replicado la rampa se aplanaba en
+        las dos celdas exteriores y en el mosaico del 1-nov-2026 quedaba una franja clara de
+        5 ADU en el 20 % superior (medido en el FITS lineal), que sin estrellas se veía.
+        """
+        m = _rellenar_huecos(m)
+        coef = np.linalg.lstsq(base_celdas, m.reshape(-1, 3), rcond=None)[0]        # (6, 3)
+        poli = (base_celdas @ coef).reshape(rejilla, rejilla, 3)
+        suav = cv2.GaussianBlur(m - poli, (0, 0), 1.0, borderType=cv2.BORDER_REFLECT_101)
+        return poli + suav, coef, suav
 
     usar = ~np.isnan(malla[..., 0])
-    modelo = None
+    modelo = coef = suav = None
     for __ in range(6):
-        modelo = modelo_de(np.where(usar[..., None], malla, np.nan))
+        modelo, coef, suav = modelo_de(np.where(usar[..., None], malla, np.nan))
         resid = (malla - modelo).mean(axis=2)                          # + = más brillante que el modelo
         negativos = np.abs(resid[usar & (resid < 0)])
         sigma = (np.median(negativos) * 1.4826 if negativos.size >= 5
@@ -695,8 +711,13 @@ def quitar_gradiente(rgb, rejilla=12):
             break
         usar = nuevo
 
-    # Superficie a resolución completa (los centros de celda quedan en su sitio)
-    superficie = cv2.resize(modelo, (w, h), interpolation=cv2.INTER_CUBIC)
+    # Superficie a resolución completa: el polinomio evaluado en cada píxel (sin el aplanado que
+    # el reescalado mete fuera de los centros de las celdas exteriores) más el residuo reescalado
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    xf, yf = (xx + 0.5) / w - 0.5, (yy + 0.5) / h - 0.5
+    superficie = (coef[0] + xf[..., None] * coef[1] + yf[..., None] * coef[2] + (xf * xf)[..., None] * coef[3]
+                  + (xf * yf)[..., None] * coef[4] + (yf * yf)[..., None] * coef[5]).astype(np.float32)
+    superficie += cv2.resize(suav, (w, h), interpolation=cv2.INTER_CUBIC)
     nivel = superficie.reshape(-1, 3).mean(axis=0)   # nivel medio que se conserva
     return rgb - superficie + nivel
 
