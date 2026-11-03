@@ -2801,6 +2801,10 @@ msgid "El guiado por el disco ya está activo"
 msgstr ""
 
 #: publicar.py
+msgid "El hosting bloquea la petición (código 403): revisa el cortafuegos o la carpeta del endpoint."
+msgstr ""
+
+#: publicar.py
 msgid "El hosting no admite ficheros tan grandes (código 413)."
 msgstr ""
 
@@ -6256,6 +6260,10 @@ msgstr ""
 
 #: grabador_video.py
 msgid "No es un fichero SER"
+msgstr ""
+
+#: publicar.py
+msgid "No existe el endpoint en el hosting (código 404): falta subir publicar.php (ver hosting/LEEME.md)."
 msgstr ""
 
 #. js

@@ -44,6 +44,10 @@ nombres que publiquen en el mismo hosting.
 - **401 / «Clave rechazada»**: la clave de `secretos.ini` no es la de ese nombre en
   `publicar_config.php`, o ese nombre no está dado de alta. Un nombre solo lo puede usar quien
   tiene su clave.
+- **403 / «El hosting bloquea la petición»**: el cortafuegos del hosting corta la petición (algunos
+  rechazan agentes desconocidos; ScopePower se presenta como `ScopePower/<versión>`). Mira el log
+  del cortafuegos en cPanel (ModSecurity) y añade una excepción para `/scopepower/publicar.php`.
+- **404 / «No existe el endpoint»**: falta `publicar.php` en `public_html/scopepower/`.
 - **413**: algún fichero pasa de `max_bytes` de `publicar_config.php` (8 MB de serie). Los
   ficheros grandes viajan en trozos de 1 MB, así que el límite por envío del hosting
   (`upload_max_filesize`, 2 MB de serie) no estorba; si aun así sale 413 con ficheros pequeños,

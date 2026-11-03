@@ -59,6 +59,8 @@ CARPETA_ESTATICOS = os.path.join("static", "publico")
 CARPETA_ATLAS = os.path.join("static", "atlas")
 RUTA_HTACCESS = os.path.join("hosting", "galeria.htaccess")
 CABECERA_CLAVE = "X-ScopePower-Clave"
+# Los cortafuegos de algunos hostings devuelven 403 al agente "python-requests": la app se presenta con su nombre
+AGENTE = f"ScopePower/{version.VERSION} (galeria publica)"
 CLAVE_SECRETO = "publicar_clave"
 TIMEOUT = (15, 180)                           # conexión, lectura
 TROZO = 1_000_000                             # bytes por envío: por debajo del límite de 2 MB que traen PHP y muchos hostings
@@ -572,11 +574,17 @@ class ClienteHosting:
         campos.update(datos or {})
         ficheros = {"fichero": ("fichero", fichero, "application/octet-stream")} if fichero is not None else None
         try:
-            r = requests.post(self.endpoint, data=campos, files=ficheros, headers={CABECERA_CLAVE: self.clave}, timeout=self.timeout)
+            r = requests.post(self.endpoint, data=campos, files=ficheros,
+                              headers={CABECERA_CLAVE: self.clave, "User-Agent": AGENTE}, timeout=self.timeout)
         except requests.RequestException as e:
             raise ErrorRed(_("No se pudo conectar con el hosting: {e}", e=e)) from e
-        if r.status_code in (401, 403):
+        if r.status_code == 401:
             raise ErrorClave(_("El hosting rechaza la clave: ese nombre ya está en uso o la clave no es la suya."))
+        if r.status_code == 403:
+            # publicar.php nunca devuelve 403: es el cortafuegos del hosting (o la carpeta) quien corta la petición
+            raise ErrorHosting(_("El hosting bloquea la petición (código 403): revisa el cortafuegos o la carpeta del endpoint."))
+        if r.status_code == 404:
+            raise ErrorHosting(_("No existe el endpoint en el hosting (código 404): falta subir publicar.php (ver hosting/LEEME.md)."))
         if r.status_code == 413:
             raise ErrorTamano(_("El hosting no admite ficheros tan grandes (código 413)."))
         try:
