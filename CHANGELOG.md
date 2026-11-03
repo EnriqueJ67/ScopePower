@@ -21,6 +21,7 @@ día de la release. El número de versión vive en `version.py`.
   ScopePower la sube sola junto a lo común (`_comun/<versión>/`: traducciones, CSS, JS, logo).
   Interruptor «Anotaciones» sobre la foto, como en la app: objetos del campo, accidentes de la Luna o
   manchas del Sol, con los datos ya calculados (`<id>_anotaciones.json`; publicar no lanza ASTAP).
+- Visor de la galería: los botones de la foto ya no se pisan entre sí ni con la barra del Número de Wolf, en el PC ni en el móvil.
 - Configuración > Galería pública: activar, dirección del hosting, nombre en la dirección, autor que se
   enseña, posición del observatorio en el planetario público, clave del endpoint (con «Generar»),
   «Probar conexión» y «Sincronizar ahora»; sin editar `config.ini` ni `secretos.ini`.
