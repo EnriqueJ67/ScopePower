@@ -7477,7 +7477,7 @@ msgid "R = 10·{g} + {f} = {R}"
 msgstr ""
 
 #: templates/galeria.html
-msgid "R = k · (10·g + f): g grupos y f manchas contadas en cada foto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia."
+msgid "R = k · (10·g + f): g grupos y f manchas. Un punto por día: si hay varias fotos guardadas, la de conteo más alto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia y se aplica a toda la serie."
 msgstr ""
 
 #. js
@@ -9981,6 +9981,10 @@ msgstr ""
 msgid "el movimiento"
 msgstr ""
 
+#: static/js/manchas_solares.js
+msgid "el más alto de {n} conteos del día"
+msgstr ""
+
 #. js
 #: instalar_astap.py
 msgid "el más pequeño; campos de 1° o más"
@@ -10401,6 +10405,11 @@ msgstr ""
 
 #: templates/rastros.html
 msgid "irreg. {v}"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "k = {k}"
 msgstr ""
 
 #. js
@@ -11664,13 +11673,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. js
-#: templates/galeria.html
-msgid "{n} conteo guardado"
-msgid_plural "{n} conteos guardados"
-msgstr[0] ""
-msgstr[1] ""
-
-#. js
 #: templates/imagen.html
 msgid "{n} corrección"
 msgid_plural "{n} correcciones"
@@ -11727,6 +11729,13 @@ msgstr ""
 #: templates/rastros.html
 msgid "{n} destello"
 msgid_plural "{n} destellos"
+msgstr[0] ""
+msgstr[1] ""
+
+#. js
+#: templates/galeria.html
+msgid "{n} día con conteo"
+msgid_plural "{n} días con conteo"
 msgstr[0] ""
 msgstr[1] ""
 
