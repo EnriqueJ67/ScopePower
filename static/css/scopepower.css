@@ -352,13 +352,13 @@ input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px
 .foto-borrar:hover { background: var(--accent); opacity: 1; }
 .foto-compartir { position: absolute; top: 8px; right: 44px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; opacity: 0.85; backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; }
 .foto-compartir .ico { width: 16px; height: 16px; }
-.foto-compartir:hover { background: var(--primary); opacity: 1; }
+.foto-compartir:hover { background: var(--accent-2); opacity: 1; }
 .foto-compartir:disabled { opacity: 0.4; cursor: wait; }
 /* Galería pública: el globo se rellena cuando la foto está publicada */
 .foto-publicar { position: absolute; top: 8px; right: 116px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; opacity: 0.85; backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; }
 .foto-publicar .ico { width: 16px; height: 16px; }
-.foto-publicar:hover { background: var(--primary); opacity: 1; }
-.foto-publicar.publicada { background: var(--primary); opacity: 1; box-shadow: 0 0 8px var(--primary); }
+.foto-publicar:hover { background: var(--accent-2); opacity: 1; }
+.foto-publicar.publicada { background: var(--accent); color: var(--on-accent); opacity: 1; box-shadow: 0 0 0 2px var(--on-accent), 0 0 10px var(--accent-glow); }
 .foto-publicar:disabled { opacity: 0.4; cursor: wait; }
 #publicar-estado { cursor: pointer; max-width: 100%; }
 #publicar-estado-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
