@@ -13,8 +13,9 @@
 //   wolfRecontar(d)                                -> rehace d.grupos y d.wolf a partir de d.manchas
 //   textoWolf(d)                                   -> «R = 10·3 + 11 = 41 · 3 grupos, 11 manchas · guardado»
 //   textoTamano(g, d)                              -> «66.000 km · 5,2 Tierras» (el largo del grupo de punta a punta)
-//   rellenarListaGrupos(caja, d, alPasar)          -> la lista de grupos con su tamaño, manchas y coordenadas
-//                                                     (en la foto solo va el número: los rótulos largos se pisaban)
+//   rellenarListaGrupos(caja, d, alPasar, soloVer) -> la lista de grupos con su tamaño, manchas y coordenadas
+//                                                     (en la foto solo va el número: los rótulos largos se pisaban);
+//                                                     soloVer: sin los avisos de lo que se puede corregir (galería pública)
 //   pintarSerieWolf(svg, serie)                    -> la gráfica de la serie guardada (un punto por día)
 //
 // Los grupos se enlazan por la separación angular sobre la esfera (igual que en el servidor):
@@ -177,7 +178,7 @@ function pintarManchasSolares(svg, d, k, w, h, estado) {
 
 // La lista de grupos: número, tamaño en km y en Tierras (de punta a punta) y, debajo, manchas, coordenadas
 // heliográficas si se conocen y área. alPasar(id o null) al pasar el ratón por una fila (resaltar el grupo).
-function rellenarListaGrupos(caja, d, alPasar) {
+function rellenarListaGrupos(caja, d, alPasar, soloVer) {
     caja.replaceChildren();
     const titulo = document.createElement("h4");
     titulo.textContent = _("Grupos");
@@ -215,7 +216,7 @@ function rellenarListaGrupos(caja, d, alPasar) {
         }
         caja.appendChild(fila);
     });
-    if (d.grupos.some(g => g.largo_km == null)) {
+    if (!soloVer && d.grupos.some(g => g.largo_km == null)) {
         const p = document.createElement("p");
         p.className = "wolf-det";
         p.textContent = _("Conteo guardado antes de medir tamaños: pulsa «Volver a contar» para verlos.");

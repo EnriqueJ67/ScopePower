@@ -5,7 +5,7 @@
 # hosting del usuario: por cada foto marcada con «Publicar» en la galería, un JPG reducido,
 # una miniatura, la versión de 1024 px que usa el planetario (si la foto tiene posición), las
 # anotaciones (si ya están calculadas: al publicar no se lanza ASTAP) y un JSON público; más
-# un índice galeria.json, el visor (HTML/JS/CSS de templates/publico y static/publico, en
+# un índice galeria.json (con las gráficas del Sol), el visor (HTML/JS/CSS de templates/publico y static/publico, en
 # español y en inglés) y los ficheros comunes (motor del planetario, traducciones) en
 # _comun/<versión>/, compartidos entre propietarios del mismo hosting.
 #
@@ -48,6 +48,7 @@ import secretos
 import version
 import catalogo_offline
 import fondo_planetario
+import fotometria_solar
 import galeria_anotada
 import luna_anotada
 import manchas_solares
@@ -78,6 +79,9 @@ EXTENSIONES_PUBLICAS = (".jpg", ".jpeg", ".webp", ".png", ".json", ".html", ".js
 NOMBRES_PUBLICOS = ("LICENSE", "properties")
 # Lo que sale de cada objeto anotado, además de su posición y su tamaño (fuente: cielo; familia y luz: Luna)
 CAMPOS_OBJETO = ("nombre", "angulo", "mag", "fuente", "familia", "luz")
+# Lo que sale de cada grupo de manchas, además de su posición: tamaños y coordenadas sobre el Sol, no dependen del JPG
+CAMPOS_GRUPO = ("id", "n", "lat", "dlon", "km2", "diametro_km", "largo_km")
+FORMATO_ANOTACIONES = 2                       # sube si cambia lo que se publica: se regeneran todas
 
 # El hosting de serie: scopepower.es admite altas desde la app (registro abierto): basta un nombre libre
 HOSTING_PUBLICO = "https://scopepower.es"
@@ -298,7 +302,7 @@ def meta_publica(nombre, meta, cfg):
         "autor": cfg["autor_publico"],
         "mosaico": bool(meta.get("mosaico")),
         "cometa_nucleo": bool(meta.get("cometa_nucleo")),
-        "wolf": {k: _numero(wolf.get(k)) for k in ("r", "g", "f") if k in wolf} if wolf else None,
+        "wolf": {k: _numero(wolf.get(k)) for k in ("R", "g", "f", "k") if k in wolf} if wolf else None,
         "video": {k: _numero(video.get(k)) for k in ("frames", "duracion_s") if k in video} if video else None,
     }
 
@@ -346,7 +350,8 @@ def anotaciones_publicas(d, ancho, alto):
         salida.update({"sol": True, "wolf": {k: d["wolf"][k] for k in ("g", "f", "R", "k")},
                        "manchas": [{"x": px(m["x"]), "y": px(m["y"]), "r_px": px(m["r_px"]), "umbra": bool(m.get("umbra")),
                                     "grupo": int(m["grupo"])} for m in d["manchas"]],
-                       "grupos": [{"id": int(g["id"]), "x": px(g["x"]), "y": px(g["y"])} for g in d["grupos"]]})
+                       "grupos": [{**{k: g[k] for k in CAMPOS_GRUPO if k in g}, "x": px(g["x"]), "y": px(g["y"])} for g in d["grupos"]],
+                       "resolucion_km": d.get("resolucion_km")})
         return salida
     if not d.get("objetos"):
         return None
@@ -393,6 +398,7 @@ def _preparar_anotaciones(nombre, meta, ruta_fits, cfg, sellos, destino):
     except Exception as e:
         log.debug("Galería pública: %s sin anotaciones (%s)", nombre, e)
         sello, calcular = "sin solucion", None
+    sello = f"{FORMATO_ANOTACIONES}|{sello}"
     if sellos.get("anotaciones") == sello:
         return os.path.isfile(destino)
     publicas = None
@@ -472,6 +478,27 @@ def _escribir_json(ruta, datos):
     os.replace(tmp, ruta)
 
 
+def sol_publico(fotos):
+    """
+    Las gráficas del Sol del visor (Número de Wolf y diámetro frente a la efeméride, con la órbita si
+    hay datos) por lista blanca: como en la app, con todas las medidas de las fotos que siguen en la
+    galería, publicadas o no (decisión del usuario: sale el número y la fecha, nunca la foto). Solo si
+    hay alguna foto del Sol publicada, que es cuando el visor tiene filtro Sol; si no, None.
+    """
+    if not any(manchas_solares.es_sol(f, meta) for f, meta in fotos.items()):
+        return None
+    try:
+        wolf = [{k: d[k] for k in ("fecha", "g", "f", "R", "k", "n")} for d in manchas_solares.serie_diaria()]
+        serie = fotometria_solar.serie(set(os.listdir(CARPETA_FOTOS)))
+        if not wolf and not serie:
+            return None
+        return {"wolf": wolf, "curva": fotometria_solar.curva_anual(serie), "orbita": fotometria_solar.ajustar_orbita(serie),
+                "diametro": [{k: s[k] for k in ("instante", "r_arcsec", "r_efem", "desvio_pct", "distancia", "fiable")} for s in serie]}
+    except Exception as e:
+        log.warning("Galería pública: sin las gráficas del Sol (%s)", e)
+        return None
+
+
 def observador_publico(cfg):
     """Posición redondeada del observatorio para el planetario público, o None si no se publica."""
     if cfg["coordenadas"] != "redondeadas" or (cfg["latitud"] == 0 and cfg["longitud"] == 0):
@@ -539,6 +566,7 @@ def archivos_comun():
     for rel, local in (("js/i18n.js", "static/js/i18n.js"), ("i18n/en.js", "static/i18n/en.js"),
                        ("js/atlas_catalogos.js", "static/js/atlas_catalogos.js"), ("js/capa_fotos.js", "static/js/capa_fotos.js"),
                        ("js/luna_anotada.js", "static/js/luna_anotada.js"), ("js/manchas_solares.js", "static/js/manchas_solares.js"),
+                       ("js/fotometria_solar.js", "static/js/fotometria_solar.js"),
                        ("publico/icono.png", "static/icono-192.png"), ("publico/scopepower.ico", "static/scopepower.ico")):
         if os.path.isfile(local):
             salida[rel] = local
@@ -623,7 +651,8 @@ def planificar(estado, cfg=None):
 
     fotos, vigentes = [], set()
     derivadas = estado.setdefault("derivadas", {})
-    for jpg, meta in publicadas().items():
+    marcadas = publicadas()
+    for jpg, meta in marcadas.items():
         try:
             ficha, locales = _preparar_foto(jpg, meta, cfg, salida, derivadas)
         except Exception as e:
@@ -653,7 +682,8 @@ def planificar(estado, cfg=None):
     indice = {"version": 1, "generado": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "app": version.VERSION, "comun": f"../_comun/{version.VERSION}", "autor": cfg["autor_publico"],
               "nombre": nombre, "idiomas": cfg["idiomas"], "observador": observador_publico(cfg),
-              "planetario": os.path.isfile(os.path.join(CARPETA_PLANTILLAS, "planetario.html")), "fotos": fotos}
+              "planetario": os.path.isfile(os.path.join(CARPETA_PLANTILLAS, "planetario.html")),
+              "sol": sol_publico(marcadas), "fotos": fotos}
     ruta_indice = os.path.join(salida, "galeria.json")
     _escribir_json(ruta_indice, indice)
     deseado.append((f"{nombre}/galeria.json", ruta_indice, "indice"))
@@ -770,8 +800,9 @@ def _reconciliar(cli, estado, nombre):
             return False
         for ruta, datos in (lista or {}).items():
             remoto[ruta] = (datos or {}).get("sha256", "")
+    # Por contenido, no solo porque esté: un JS o CSS retocado dentro de la misma versión también tiene que subir
     comun = archivos_comun()
-    completo = all(f"_comun/{version.VERSION}/{rel}" in remoto for rel in comun)
+    completo = all(remoto.get(f"_comun/{version.VERSION}/{rel}") == _sha256(local) for rel, local in comun.items())
     estado["remoto"] = remoto
     estado["comun_version"] = version.VERSION if comun and completo else ""
     return True

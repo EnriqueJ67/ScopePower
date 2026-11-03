@@ -66,6 +66,22 @@ a:hover { text-decoration: underline; }
 .chip.activo .n { color: rgba(255, 255, 255, 0.75); }
 .acciones { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
 
+/* Las gráficas del Sol, con el filtro Sol (como en la galería de la app) */
+.tarjeta { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin: 0 0 14px; }
+.tarjeta h2 { font-size: 17px; margin: 0; }
+.tarjeta .nota { color: var(--text-3); font-size: 13px; margin: 8px 0 0; }
+.wolf-serie { display: block; width: 100%; height: auto; max-height: 220px; margin-top: 8px; }
+.wolf-serie .wolf-rejilla { stroke: var(--border); stroke-width: 1px; }
+.wolf-serie .wolf-eje { fill: var(--text-3); font-size: 11px; }
+.wolf-serie .wolf-linea { fill: none; stroke: var(--accent); stroke-width: 2px; stroke-linejoin: round; }
+.wolf-serie .wolf-punto { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5px; }
+.fs-serie .fs-rejilla { stroke: var(--border); stroke-width: 1px; }
+.fs-serie .fs-eje { fill: var(--text-3); font-size: 11px; }
+.fs-serie .fs-rotulo { fill: var(--text-2); font-size: 11px; }
+.fs-serie .fs-efemeride { fill: none; stroke: var(--text-3); stroke-width: 1.5px; stroke-dasharray: 5 4; }
+.fs-serie .fs-medida { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5px; }
+.fs-serie .fs-medida.fs-dudosa { fill: none; stroke: var(--accent); }
+
 /* Rejilla de fotos */
 .galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
 @media (min-width: 700px) { .galeria { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; } }
@@ -129,6 +145,21 @@ a:hover { text-decoration: underline; }
 .lightbox-anotaciones .sol-umbra { fill: rgba(255, 120, 60, 0.25); stroke: #ff9a4d; }
 .lightbox-anotaciones .sol-penumbra { fill: rgba(255, 220, 120, 0.12); stroke: #ffd36b; stroke-dasharray: 3 3; }
 .lightbox-anotaciones text.sol-grupo { fill: #ffd36b; font-size: 12px; stroke: rgba(0,0,0,0.85); }
+.lightbox-anotaciones .sol-resaltada { stroke: #7ef0ff; stroke-width: 2.5px; }
+.lightbox-anotaciones text.sol-resaltada { fill: #7ef0ff; }
+/* Con la lista de grupos la foto encoge y le deja sitio: nunca tapa un grupo que esté cerca del borde */
+.lightbox.con-grupos { padding-bottom: 280px; }
+@media (min-width: 700px) and (orientation: landscape) { .lightbox.con-grupos { padding-bottom: 110px; padding-right: 320px; } }
+/* Lista de grupos del Sol en el visor (rellenarListaGrupos): número, tamaño y detalles */
+.lightbox .wolf-lista { position: absolute; z-index: 1; overflow-y: auto; padding: 8px 12px; border-radius: 12px; background: rgba(0,0,0,0.6);
+    color: #fff; backdrop-filter: blur(4px); font-size: 13px; line-height: 1.35; }
+.wolf-lista h4 { margin: 0 0 4px; font-size: 13px; font-weight: 700; }
+.wolf-lista .wolf-fila { display: grid; grid-template-columns: 22px 1fr; column-gap: 8px; padding: 5px 4px; border-top: 1px solid rgba(255,255,255,0.1); border-radius: 6px; }
+.wolf-lista .wolf-fila.activa { background: rgba(126, 240, 255, 0.12); }
+.wolf-lista .wolf-num { grid-row: span 2; align-self: center; width: 20px; height: 20px; border-radius: 50%; background: #ffd36b; color: #1a1300;
+    font-weight: 700; font-size: 12px; line-height: 20px; text-align: center; }
+.wolf-lista .wolf-km { font-weight: 600; color: #ffe7a8; }
+.wolf-lista .wolf-det { font-size: 11px; color: rgba(255,255,255,0.68); }
 
 /* Planetario público: barra, mapa y la foto tocada (como .atlas-marco de la app) */
 .barra { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 10px; }

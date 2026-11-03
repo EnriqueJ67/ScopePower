@@ -1,7 +1,7 @@
 // static/publico/galeria_publica.js — la galería pública en el navegador del visitante.
 //
 // Lee galeria.json (lo escribe publicar.py en el hosting), pinta los chips por tipo de objeto,
-// el orden (fecha, objeto, nota) y la rejilla con las miniaturas; al tocar una foto se abre a
+// el orden (fecha, objeto, nota), las gráficas del Sol y la rejilla con las miniaturas; al tocar una foto se abre a
 // 1600 px con sus datos y, si las tiene, sus anotaciones. Sin servidor: todo es estático.
 // #<id> en la dirección abre esa foto. Los textos van por _() (static/js/i18n.js); los tipos vienen en español y se traducen al pintar.
 (function () {
@@ -14,7 +14,7 @@
         N_("Satélite artificial"), N_("Avión"), N_("Paisaje")];
     const SIN_TIPO = N_("Sin tipo");
 
-    let fotos = [], orden = "fecha", filtro = "", abierta = -1, visibles = [];
+    let fotos = [], sol = null, orden = "fecha", filtro = "", abierta = -1, visibles = [];
 
     // ── Tema ──
     $("tema").onclick = () => {
@@ -58,7 +58,33 @@
         return lista.sort(porFecha);
     }
 
+    // Con el filtro Sol: el Número de Wolf y el diámetro frente a la efeméride, como en la galería de la app
+    function pintarSol() {
+        const wolf = filtro === "Sol" && sol && sol.wolf.length > 0, diametro = filtro === "Sol" && sol && sol.diametro.length > 0;
+        $("wolf-serie").hidden = !wolf;
+        $("sol-diametro").hidden = !diametro;
+        if (wolf) {
+            pintarSerieWolf($("wolf-serie-svg"), sol.wolf);
+            const u = sol.wolf[sol.wolf.length - 1];
+            $("wolf-serie-texto").textContent = ngettext("{n} día con conteo", "{n} días con conteo", sol.wolf.length) + " · "
+                + _("último: R = {R} el {fecha} ({g} grupos, {f} manchas)", { R: fmtNum(u.R, 0), fecha: fmtFecha(new Date(u.fecha), false), g: u.g, f: u.f })
+                + (u.k !== 1 ? " · " + _("k = {k}", { k: fmtNum(u.k, 2) }) : "");
+        }
+        if (diametro) {
+            pintarSerieDiametro($("sol-diametro-svg"), sol.diametro, sol.curva);
+            const fiables = sol.diametro.filter(s => s.fiable), usar = fiables.length ? fiables : sol.diametro;
+            const media = usar.reduce((a, s) => a + s.desvio_pct, 0) / usar.length, o = sol.orbita;
+            $("sol-diametro-texto").textContent = ngettext("{n} foto medida", "{n} fotos medidas", sol.diametro.length) + " · "
+                + _("el radio difiere de la efeméride un {m} % de media", { m: (media > 0 ? "+" : "") + fmtNum(media, 2) });
+            $("sol-orbita-texto").textContent = o
+                ? _("Excentricidad de la órbita medida: {e} (la real, 0,0167) · perihelio hacia el {fecha} (el real, hacia el 3 de enero), con {n} fotos de {dias} días.",
+                    { e: fmtNum(o.e, 4), fecha: new Date(o.perihelio + "T12:00").toLocaleDateString(IDIOMA.lang, { day: "numeric", month: "long" }), n: o.n, dias: o.dias })
+                : _("Con fotos fiables de al menos cuatro meses se calculan la excentricidad de la órbita de la Tierra y la fecha del perihelio.");
+        }
+    }
+
     function pintar() {
+        pintarSol();
         document.querySelectorAll("#filtros .chip").forEach(c => c.classList.toggle("activo", c.dataset.tipo === filtro));
         document.querySelectorAll("#orden button").forEach(b => b.classList.toggle("activo", b.dataset.orden === orden));
         visibles = ordenar(fotos.filter(f => !filtro || tipoDe(f) === filtro));
@@ -94,7 +120,7 @@
         if (f.video && f.video.frames) partes.push(_("apilado de un vídeo de {n} fotogramas", { n: f.video.frames }) + (f.video.duracion_s ? " · " + fmtNum(f.video.duracion_s, 0) + " s" : ""));
         if (f.ra && f.dec) partes.push("RA " + f.ra + " · Dec " + f.dec);
         if (nota(f) != null) partes.push(_("nota {n}", { n: fmtNum(nota(f), 2) }));
-        if (f.wolf && f.wolf.r != null) partes.push(_("Número de Wolf {r}", { r: fmtNum(f.wolf.r, 0) }));
+        if (f.wolf && f.wolf.R != null) partes.push(_("Número de Wolf {r}", { r: fmtNum(f.wolf.R, f.wolf.k === 1 ? 0 : 1) }));
         if (f.autor) partes.push(f.autor);
         return partes;
     }
@@ -181,6 +207,7 @@
     function actualizarAnotaciones() {
         const f = visibles[abierta];
         svgAnot.replaceChildren();
+        verGrupos(false);
         textoAnotaciones("");
         if (!f || !f.ficheros.anotaciones || !chkAnot.checked) return;
         if (anotadas[f.id]) { pintarAnotaciones(); return; }
@@ -198,7 +225,9 @@
     function pintarAnotaciones() {
         svgAnot.replaceChildren();
         const f = visibles[abierta], d = f && anotadas[f.id], img = $("lb-imagen");
+        verGrupos(false);
         if (!d || !chkAnot.checked || !img.complete || !img.naturalWidth) return;      // al cargar la foto se vuelve a pintar
+        if (d.sol) verGrupos(true);                                  // antes de medir: la foto encoge para dejarle sitio
         // La capa ocupa justo lo que ocupa la foto en pantalla (la imagen se encaja dentro de su caja)
         const caja = img.getBoundingClientRect();
         const s = Math.min(caja.width / img.naturalWidth, caja.height / img.naturalHeight);
@@ -212,12 +241,44 @@
         if (d.sol) {
             pintarManchasSolares(svgAnot, d, k, w, h, null);
             textoAnotaciones(textoWolf(d));
+            colocarGrupos(d);
         } else if (d.luna) {
             textoAnotaciones(textoLunaAnotada(d, pintarLunaAnotada(svgAnot, d, k, w, h)));
         } else {
             pintarObjetos(d, k, w, h);
             textoAnotaciones(ngettext("{n} objeto en el campo", "{n} objetos en el campo", d.objetos.length));
         }
+    }
+    function verGrupos(ver) {
+        $("lb-grupos").hidden = !ver;
+        $("lightbox").classList.toggle("con-grupos", ver);
+    }
+    // La lista de grupos: a la derecha de la foto si hay hueco; si no, debajo; si tampoco, sobre la parte de abajo de la foto
+    function colocarGrupos(d) {
+        const lista = $("lb-grupos");
+        rellenarListaGrupos(lista, d, resaltarGrupo, true);
+        Object.assign(lista.style, { left: "", top: "", bottom: "", width: "", maxHeight: "" });
+        const img = svgAnot.getBoundingClientRect(), caja = $("lightbox").getBoundingClientRect();
+        const pie = document.querySelector(".lb-pie").getBoundingClientRect();
+        const MARGEN = 12, ANCHO = 240, FLECHA = $("lb-next").offsetWidth ? 56 : 0, CERRAR = 64;
+        const derecha = caja.right - img.right - 2 * MARGEN - FLECHA;
+        if (derecha >= ANCHO) {
+            const arriba = Math.max(img.top, CERRAR);
+            Object.assign(lista.style, { left: (img.right + MARGEN) + "px", top: arriba + "px", width: Math.min(320, derecha) + "px",
+                                         maxHeight: Math.max(120, pie.top - arriba - MARGEN) + "px" });
+            return;
+        }
+        const ancho = Math.min(img.width, caja.width - 16);
+        Object.assign(lista.style, { left: Math.max(8, img.left + (img.width - ancho) / 2) + "px", width: ancho + "px" });
+        const debajo = pie.top - img.bottom - MARGEN;
+        if (debajo >= Math.min(lista.scrollHeight, 110))
+            Object.assign(lista.style, { top: (img.bottom + 8) + "px", maxHeight: debajo + "px" });
+        else
+            Object.assign(lista.style, { bottom: (caja.bottom - pie.top + 6) + "px", maxHeight: "38%" });
+    }
+    function resaltarGrupo(id) {
+        svgAnot.querySelectorAll("[data-grupo]").forEach(el => el.classList.toggle("sol-resaltada", id != null && Number(el.dataset.grupo) === id));
+        document.querySelectorAll("#lb-grupos .wolf-fila").forEach(f => f.classList.toggle("activa", id != null && Number(f.dataset.grupo) === id));
     }
     function pintarObjetos(d, k, w, h) {
         // Sitio ocupado: los nombres ya puestos y los círculos pequeños (un nombre encima los taparía)
@@ -263,6 +324,7 @@
     // ── Carga ──
     fetch(P.raiz + "/galeria.json").then(r => r.json()).then(d => {
         fotos = (d.fotos || []).filter(f => f && f.ficheros && f.ficheros.jpg);
+        sol = d.sol || null;
         if (d.planetario && fotos.some(f => f.cielo)) $("planetario").hidden = false;
         $("orden-nota").hidden = !fotos.some(f => nota(f) != null);
         pintarChips();
