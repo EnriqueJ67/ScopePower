@@ -15,6 +15,10 @@ día de la release. El número de versión vive en `version.py`.
   pública; chip «Públicas» en el filtro; en la cabecera, enlace a la galería pública, compartir su
   dirección y una píldora con el estado de la subida (pendientes, sin red, clave rechazada) que al
   pulsarla sincroniza. Borrar una foto publicada la retira también del hosting.
+- Visor de la galería pública (`templates/publico`, `static/publico`): página estática en español e inglés
+  con los chips por tipo, el orden por fecha, objeto o nota, la foto a 1600 px con sus datos (integración,
+  coordenadas, nota, autor), enlace a cada foto (`#id`), compartir y descargar, tema noche u oscuro.
+  ScopePower la sube sola junto a lo común (`_comun/<versión>/`: traducciones, CSS, JS, logo).
 - Número de Wolf: la gráfica de la galería da un punto por día (si hay varias fotos guardadas, la de
   conteo más alto, como el observador que se queda con la imagen más nítida) y aplica el k actual de
   `[Sol] factor_k` a toda la serie y a los conteos guardados, para que sea comparable con SILSO aunque

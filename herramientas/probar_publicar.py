@@ -498,8 +498,25 @@ def casos_visor():
     assert 'lang="es-ES"' in es and "Galería" in es and "../_comun/" in es and "./galeria.json" in es, es
     assert 'lang="en-US"' in en and "Gallery" in en and "../../_comun/" in en and "../galeria.json" in en, en
     assert idioma.idioma_actual() == "es", "el visor no debe cambiar el idioma de la app"
+    # El visor de verdad (templates/publico): marcadores rellenos, rutas relativas, sin Jinja ni rutas de la app
+    publicar.CARPETA_PLANTILLAS = os.path.join("templates", "publico")
+    publicar.CARPETA_ESTATICOS = os.path.join("static", "publico")
+    salida = os.path.join(RAIZ, "visor_real")
+    generados = publicar.visor(publicar.leer_config(), salida)
+    assert "index.html" in generados and "en/index.html" in generados, generados
+    es = open(generados["index.html"], encoding="utf-8").read()
+    en = open(generados["en/index.html"], encoding="utf-8").read()
+    assert "Galería de Enrique Jiménez" in es and "Gallery of Enrique Jiménez" in en, (es[:300], en[:300])
+    for html in (es, en):
+        for prohibido in ("{{", "{%", "url_for", "/static/", "{autor}"):
+            assert prohibido not in html, prohibido
+    assert '"raiz": "."' in es and '"raiz": ".."' in en and "../_comun/" in es and "../../_comun/" in en
+    comun = publicar.archivos_comun()
+    assert {"js/i18n.js", "i18n/en.js", "publico/logo.png", "publico/publico.css", "publico/galeria_publica.js"} <= set(comun), sorted(comun)
+    assert not any(r.startswith("atlas/") for r in comun), "sin planetario público no se sube el atlas"
     publicar.CARPETA_PLANTILLAS = os.path.join(RAIZ, "sin_plantillas")
-    print("✅ visor en español y en inglés con el entorno Jinja propio; idioma de la app intacto")
+    publicar.CARPETA_ESTATICOS = os.path.join(RAIZ, "sin_estaticos")
+    print("✅ visor en español y en inglés con el entorno Jinja propio; idioma de la app intacto; el visor real renderiza limpio")
 
 
 def servidor_php(carpeta):

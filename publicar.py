@@ -394,7 +394,12 @@ def visor(cfg, salida):
                              autoescape=True, trim_blocks=True, lstrip_blocks=True)
     generados = {}
     for codigo in cfg["idiomas"]:
-        env.install_gettext_translations(_traduccion(codigo), newstyle=False)
+        trad = _traduccion(codigo)
+        # Como en la app: _("Galería de {autor}", autor=...) rellena los marcadores (idioma._formatear)
+        env.install_gettext_callables(
+            lambda mensaje, _t=trad, **valores: idioma._formatear(_t.gettext(mensaje), valores),
+            lambda singular, plural, n, _t=trad, **valores: idioma._formatear(_t.ngettext(singular, plural, n), dict(valores, n=n)),
+            newstyle=False)
         sub = "" if codigo == idioma.POR_DEFECTO else codigo + "/"
         raiz = "." if not sub else ".."
         contexto = {"idioma": codigo, "lang": idioma._LANG.get(codigo, codigo), "raiz": raiz,
@@ -419,8 +424,8 @@ def archivos_comun():
     del atlas entero (6,6 MB, solo rutas relativas: se copia tal cual).
     """
     salida = {}
-    for rel in ("js/i18n.js", "i18n/en.js"):
-        local = os.path.join("static", *rel.split("/"))
+    for rel, local in (("js/i18n.js", "static/js/i18n.js"), ("i18n/en.js", "static/i18n/en.js"),
+                       ("publico/logo.png", "static/logo.png"), ("publico/scopepower.ico", "static/scopepower.ico")):
         if os.path.isfile(local):
             salida[rel] = local
     if os.path.isdir(CARPETA_ESTATICOS):
@@ -531,7 +536,8 @@ def planificar(estado, cfg=None):
 
     indice = {"version": 1, "generado": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "app": version.VERSION, "comun": f"../_comun/{version.VERSION}", "autor": cfg["autor_publico"],
-              "nombre": nombre, "idiomas": cfg["idiomas"], "observador": observador_publico(cfg), "fotos": fotos}
+              "nombre": nombre, "idiomas": cfg["idiomas"], "observador": observador_publico(cfg),
+              "planetario": os.path.isfile(os.path.join(CARPETA_PLANTILLAS, "planetario.html")), "fotos": fotos}
     ruta_indice = os.path.join(salida, "galeria.json")
     _escribir_json(ruta_indice, indice)
     deseado.append((f"{nombre}/galeria.json", ruta_indice, "indice"))

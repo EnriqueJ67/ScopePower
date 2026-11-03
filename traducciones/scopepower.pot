@@ -705,7 +705,7 @@ msgstr ""
 msgid "Anotando objetos"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/editar_foto.html templates/publico/index.html
 msgid "Anterior"
 msgstr ""
 
@@ -929,7 +929,7 @@ msgid "Asociación estelar"
 msgstr ""
 
 #. js
-#: ScopePower.py catalogo_offline.py
+#: ScopePower.py catalogo_offline.py static/publico/galeria_publica.js
 msgid "Asteroide"
 msgstr ""
 
@@ -997,7 +997,7 @@ msgid "Avisos por voz del PC"
 msgstr ""
 
 #. js
-#: catalogo_offline.py rastros.py
+#: catalogo_offline.py rastros.py static/publico/galeria_publica.js
 msgid "Avión"
 msgstr ""
 
@@ -1279,6 +1279,10 @@ msgstr ""
 msgid "Cambiar"
 msgstr ""
 
+#: templates/publico/index.html
+msgid "Cambiar entre el tema noche (rojo) y el oscuro"
+msgstr ""
+
 #: templates/planetario.html
 msgid "Cambiar entre horizonte (Alt/Az) y ecuatorial (RA/Dec)"
 msgstr ""
@@ -1370,6 +1374,10 @@ msgstr ""
 #. js
 #: static/js/plan.js templates/configuracion.html
 msgid "Cargando..."
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Cargando…"
 msgstr ""
 
 #: ScopePower.py
@@ -1529,6 +1537,7 @@ msgstr ""
 #: templates/_asistente.html templates/_modal_humor.html
 #: templates/_puesta_estacion.html templates/apilado.html
 #: templates/galeria.html templates/planetario.html
+#: templates/publico/index.html
 msgid "Cerrar"
 msgstr ""
 
@@ -1639,8 +1648,8 @@ msgid "Comentarios de a bordo"
 msgstr ""
 
 #. js
-#: ScopePower.py catalogo_offline.py templates/editar_foto.html
-#: templates/planetario.html
+#: ScopePower.py catalogo_offline.py static/publico/galeria_publica.js
+#: templates/editar_foto.html templates/planetario.html
 msgid "Cometa"
 msgstr ""
 
@@ -1672,7 +1681,7 @@ msgid "Comparaciones"
 msgstr ""
 
 #. js
-#: templates/apilado.html templates/galeria.html
+#: templates/apilado.html templates/galeria.html templates/publico/index.html
 msgid "Compartir"
 msgstr ""
 
@@ -2114,7 +2123,8 @@ msgid "Cómo se reparten los objetos a lo largo de la noche"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Cúmulo abierto"
 msgstr ""
 
@@ -2124,7 +2134,8 @@ msgid "Cúmulo con nebulosa"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Cúmulo globular"
 msgstr ""
 
@@ -2204,7 +2215,7 @@ msgstr ""
 msgid "De día no hay plate solving: el movimiento se calcula con la orientación y la escala de la cámara del último que salió bien…"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "De la mejor nota a la peor"
 msgstr ""
 
@@ -2303,6 +2314,10 @@ msgstr ""
 
 #: hardware.py
 msgid "Descargando la foto de la cámara"
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Descargar"
 msgstr ""
 
 #: templates/apilado.html
@@ -3279,8 +3294,12 @@ msgid "Enlace"
 msgstr ""
 
 #. js
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "Enlace copiado: {url}"
+msgstr ""
+
+#: static/publico/galeria_publica.js
+msgid "Enlace de esta foto"
 msgstr ""
 
 #. js
@@ -3750,7 +3769,8 @@ msgid "Estrecho (0,85°)"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Estrella"
 msgstr ""
 
@@ -3975,7 +3995,7 @@ msgstr ""
 msgid "Fase:"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Fecha"
 msgstr ""
 
@@ -4316,8 +4336,16 @@ msgstr ""
 msgid "Fotos de la sesión (FITS)"
 msgstr ""
 
+#: templates/publico/index.html
+msgid "Fotos de {autor}"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Fotos del apilado (máximo)"
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Fotos del cielo hechas con un telescopio y ScopePower."
 msgstr ""
 
 #: templates/galeria.html
@@ -4342,7 +4370,8 @@ msgid "Fuentes de coordenadas: catálogo local (OpenNGC y estrellas) y, si está
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Galaxia"
 msgstr ""
 
@@ -4359,6 +4388,10 @@ msgstr ""
 #: templates/editar_foto.html templates/galeria.html templates/home.html
 #: templates/rastros.html templates/visor_video.html
 msgid "Galería"
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Galería de {autor}"
 msgstr ""
 
 #: templates/galeria.html
@@ -4762,6 +4795,10 @@ msgstr ""
 #. js
 #: humor.py
 msgid "Humor desactivado. Volvemos al modo estrictamente profesional."
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Idioma"
 msgstr ""
 
 #: ScopePower.py
@@ -5514,7 +5551,8 @@ msgstr ""
 
 #. js
 #: catalogo_offline.py disco.py esta_noche.py foto_dia.py plan_sesion.py
-#: templates/imagen.html templates/planetario.html
+#: static/publico/galeria_publica.js templates/imagen.html
+#: templates/planetario.html
 msgid "Luna"
 msgstr ""
 
@@ -5651,7 +5689,7 @@ msgid "Messier completo"
 msgstr ""
 
 #. js
-#: catalogo_offline.py
+#: catalogo_offline.py static/publico/galeria_publica.js
 msgid "Meteoro"
 msgstr ""
 
@@ -6008,7 +6046,8 @@ msgid "Navegador: {navegador}"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Nebulosa"
 msgstr ""
 
@@ -6028,7 +6067,8 @@ msgid "Nebulosa oscura"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Nebulosa planetaria"
 msgstr ""
 
@@ -6172,7 +6212,7 @@ msgstr ""
 msgid "No hay flat maestro."
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "No hay fotos de este tipo."
 msgstr ""
 
@@ -6438,6 +6478,10 @@ msgstr ""
 #. js
 #: templates/constelacion.html
 msgid "No se pudo cargar el recorrido"
+msgstr ""
+
+#: templates/publico/index.html
+msgid "No se pudo cargar la galería."
 msgstr ""
 
 #. js
@@ -6804,7 +6848,7 @@ msgstr ""
 msgid "Norte y este en positivo; oeste en negativo (Valencia: 39,47 y −0,38)."
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Nota"
 msgstr ""
 
@@ -6828,6 +6872,10 @@ msgstr ""
 
 #: templates/galeria.html
 msgid "Número de Wolf"
+msgstr ""
+
+#: static/publico/galeria_publica.js
+msgid "Número de Wolf {r}"
 msgstr ""
 
 #: camara_sdk.py
@@ -6881,6 +6929,7 @@ msgstr ""
 
 #. js
 #: templates/constelacion.html templates/galeria.html templates/goto.html
+#: templates/publico/index.html
 msgid "Objeto"
 msgstr ""
 
@@ -6996,7 +7045,8 @@ msgid "Pad táctil y flechas"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/planetario.html
 msgid "Paisaje"
 msgstr ""
 
@@ -7172,7 +7222,8 @@ msgid "Plan reanudado"
 msgstr ""
 
 #. js
-#: catalogo_offline.py esta_noche.py templates/planetario.html
+#: catalogo_offline.py esta_noche.py static/publico/galeria_publica.js
+#: templates/planetario.html
 msgid "Planeta"
 msgstr ""
 
@@ -7236,7 +7287,7 @@ msgstr ""
 msgid "Por nombre o por voz, con centrado automático por plate solving"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Por objeto y, dentro de cada uno, de la mejor nota a la peor"
 msgstr ""
 
@@ -7905,7 +7956,8 @@ msgid "Restaurar la foto original"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/planetario.html
 msgid "Resto de supernova"
 msgstr ""
 
@@ -8093,7 +8145,7 @@ msgid "Satélite"
 msgstr ""
 
 #. js
-#: catalogo_offline.py
+#: catalogo_offline.py static/publico/galeria_publica.js
 msgid "Satélite artificial"
 msgstr ""
 
@@ -8367,6 +8419,7 @@ msgid "Sigue sumando fotos al apilado que ya hay"
 msgstr ""
 
 #: static/js/asistente.js templates/_asistente.html
+#: templates/publico/index.html
 msgid "Siguiente"
 msgstr ""
 
@@ -8512,7 +8565,7 @@ msgid "Sin respuesta de la montura en {direccion} a {orden} ({error})"
 msgstr ""
 
 #. js
-#: ScopePower.py
+#: ScopePower.py static/publico/galeria_publica.js
 msgid "Sin tipo"
 msgstr ""
 
@@ -8564,8 +8617,8 @@ msgid "Sky-Watcher a través de la app <b>SynScan Pro</b>: ábrela en el PC y co
 msgstr ""
 
 #. js
-#: catalogo_offline.py disco.py foto_dia.py templates/imagen.html
-#: templates/planetario.html
+#: catalogo_offline.py disco.py foto_dia.py static/publico/galeria_publica.js
+#: templates/imagen.html templates/planetario.html
 msgid "Sol"
 msgstr ""
 
@@ -8812,6 +8865,10 @@ msgid_plural "Telescopio sincronizado. Se equivocaba {n} minutos de arco"
 msgstr[0] ""
 msgstr[1] ""
 
+#: templates/publico/index.html
+msgid "Tema"
+msgstr ""
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Temperatura de color"
 msgstr ""
@@ -8985,7 +9042,8 @@ msgstr ""
 msgid "Tocar la foto"
 msgstr ""
 
-#: templates/apilado.html templates/editar_foto.html templates/galeria.html
+#: static/publico/galeria_publica.js templates/apilado.html
+#: templates/editar_foto.html templates/galeria.html
 msgid "Todas"
 msgstr ""
 
@@ -9266,6 +9324,10 @@ msgstr ""
 #. js
 #: templates/galeria.html templates/imagen.html
 msgid "Ver el vídeo fotograma a fotograma"
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Ver en el cielo"
 msgstr ""
 
 #: templates/planetario.html
@@ -9681,6 +9743,10 @@ msgstr ""
 
 #: static/js/plan.js
 msgid "anochece a las {hora}"
+msgstr ""
+
+#: static/publico/galeria_publica.js
+msgid "apilado de un vídeo de {n} fotogramas"
 msgstr ""
 
 #: mosaico.py
@@ -10477,6 +10543,10 @@ msgstr ""
 msgid "hecha"
 msgstr ""
 
+#: templates/publico/index.html
+msgid "hechas con"
+msgstr ""
+
 #: static/js/plan.js templates/apilado.html
 msgid "hecho"
 msgstr ""
@@ -11009,6 +11079,10 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "norte arriba: falta el plate solving de la referencia"
+msgstr ""
+
+#: static/publico/galeria_publica.js
+msgid "nota {n}"
 msgstr ""
 
 #. js
@@ -11738,6 +11812,10 @@ msgstr ""
 msgid "{mensaje}. Ya puedes destapar el telescopio."
 msgstr ""
 
+#: static/publico/galeria_publica.js
+msgid "{min} min · {n} × {s} s"
+msgstr ""
+
 #: camara_sdk.py
 msgid "{modelo} (webcam, sin ASCOM)"
 msgstr ""
@@ -11833,6 +11911,10 @@ msgstr ""
 msgid "{n} de {total} fotos de esta tesela"
 msgstr ""
 
+#: static/publico/galeria_publica.js
+msgid "{n} de {total} fotos · {tipo}"
+msgstr ""
+
 #. js
 #: templates/galeria.html
 msgid "{n} de {total} imágenes · {tipo}"
@@ -11865,7 +11947,7 @@ msgstr[1] ""
 msgid "{n} esta noche"
 msgstr ""
 
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "{n} estrella"
 msgid_plural "{n} estrellas"
 msgstr[0] ""
@@ -11883,6 +11965,12 @@ msgstr[1] ""
 #: templates/imagen.html templates/planetario.html
 msgid "{n} foto"
 msgid_plural "{n} fotos"
+msgstr[0] ""
+msgstr[1] ""
+
+#: static/publico/galeria_publica.js
+msgid "{n} foto del cielo"
+msgid_plural "{n} fotos del cielo"
 msgstr[0] ""
 msgstr[1] ""
 
