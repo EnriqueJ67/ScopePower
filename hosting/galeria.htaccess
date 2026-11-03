@@ -1,5 +1,6 @@
 # galeria/.htaccess — la galería pública de ScopePower son solo ficheros estáticos.
 # Lo sube la propia app (publicar.py) a la raíz de galeria/ con cada sincronización.
+# Solo directivas que entienden Apache y LiteSpeed (sin <If>: LiteSpeed no lo admite).
 
 DirectoryIndex index.html
 # Sin listados de carpetas
@@ -23,12 +24,16 @@ AddType image/webp .webp
 AddType text/javascript .js
 AddCharset UTF-8 .html .js .css .json .md .txt
 
-# Caché: lo común va por versión (no cambia nunca); el índice y las fotos, unos minutos
-<IfModule mod_headers.c>
-    <If "%{REQUEST_URI} =~ m#/_comun/#">
-        Header set Cache-Control "public, max-age=31536000, immutable"
-    </If>
-    <Else>
-        Header set Cache-Control "public, max-age=300"
-    </Else>
+# Caché: el índice y las páginas, unos minutos (cambian al publicar); las fotos llevan ?v= y lo
+# común va en una carpeta por versión, así que pueden guardarse mucho tiempo
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType application/json "access plus 5 minutes"
+    ExpiresByType text/html "access plus 5 minutes"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/css "access plus 1 month"
 </IfModule>
