@@ -855,6 +855,7 @@ window.I18N_CATALOGO = {
 "foto continua":"continuous shooting",
 "foto de día":"daytime shot",
 "foto final ≈ {ancho}° × {alto}°":"final image ≈ {ancho}° × {alto}°",
+"fotograma de un vídeo":"frame from a video",
 "ganancia del driver":"driver gain",
 "ganancia {g}":"gain {g}",
 "giro de campo no previsible: aún no hay ningún plate solving que calibre la cámara":"field rotation not predictable yet: no plate solve has calibrated the camera",
