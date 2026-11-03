@@ -194,9 +194,23 @@ class ManejadorFalso(BaseHTTPRequestHandler):
         if accion == "subir":
             if fichero is None:
                 return self.responder(400, {"ok": False, "error": "fichero"})
+            os.makedirs(os.path.dirname(abs_), exist_ok=True)
+            trozos, trozo = int(campos.get("trozos", 1)), int(campos.get("trozo", 0))
+            if trozos > 1:      # por trozos, como publicar.php: se pegan a .subiendo-<sha> y el último comprueba
+                parcial = os.path.join(os.path.dirname(abs_), ".subiendo-" + campos.get("sha256", ""))
+                if trozo == 0 and os.path.isfile(parcial):
+                    os.remove(parcial)
+                if trozo > 0 and not os.path.isfile(parcial):
+                    return self.responder(409, {"ok": False, "error": "falta el principio"})
+                with open(parcial, "ab") as f:
+                    f.write(fichero)
+                if trozo < trozos - 1:
+                    return self.responder(200, {"ok": True, "ruta": ruta, "trozo": trozo})
+                with open(parcial, "rb") as f:
+                    fichero = f.read()
+                os.remove(parcial)
             if hashlib.sha256(fichero).hexdigest() != campos.get("sha256"):
                 return self.responder(422, {"ok": False, "error": "sha256"})
-            os.makedirs(os.path.dirname(abs_), exist_ok=True)
             with open(abs_, "wb") as f:
                 f.write(fichero)
             with s.lock:
@@ -480,6 +494,23 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     assert cli.borrar(f"_comun/{publicar.version.VERSION}/js/x.js")["existia"] is True
     print(f"✅ {etiqueta}: rutas con .., .php, .htaccess fuera de la raíz, otro nombre y sha256 falso, rechazadas")
 
+    # 11. Un fichero de 3 MB (como el catálogo del planetario) va en trozos de 1 MB y llega entero;
+    #     con el servidor de PHP, que limita cada envío a 2 MB, es la única forma de que entre
+    grande = np.random.default_rng(5).integers(0, 256, 3_000_000, dtype=np.uint8).tobytes()
+    cli.subir(f"{NOMBRE}/grande.json", grande, hashlib.sha256(grande).hexdigest())
+    remoto = ficheros_de(raiz_servidor)
+    assert f"{NOMBRE}/grande.json" in remoto and open(remoto[f"{NOMBRE}/grande.json"], "rb").read() == grande
+    assert not any(".subiendo-" in r for r in remoto), "el parcial debe desaparecer"
+    try:
+        cli.subir(f"{NOMBRE}/grande2.json", grande, "1" * 64)
+        raise AssertionError("un sha256 falso del total debía rechazarse")
+    except publicar.ErrorHosting:
+        pass
+    remoto = ficheros_de(raiz_servidor)
+    assert f"{NOMBRE}/grande2.json" not in remoto and not any(".subiendo-" in r for r in remoto), sorted(remoto)
+    cli.borrar(f"{NOMBRE}/grande.json")
+    print(f"✅ {etiqueta}: fichero de 3 MB subido en trozos de 1 MB y comprobado entero; sha256 falso rechazado sin dejar parciales")
+
 
 def casos_visor():
     """El visor se genera en cada idioma con un entorno Jinja propio (sin tocar el idioma de la app)."""
@@ -503,7 +534,9 @@ def casos_visor():
     publicar.CARPETA_ESTATICOS = os.path.join("static", "publico")
     salida = os.path.join(RAIZ, "visor_real")
     generados = publicar.visor(publicar.leer_config(), salida)
-    assert "index.html" in generados and "en/index.html" in generados, generados
+    assert {"index.html", "en/index.html", "planetario.html", "en/planetario.html"} <= set(generados), generados
+    pl = open(generados["planetario.html"], encoding="utf-8").read()
+    assert "Cielo de Enrique Jiménez" in pl and "atlas/src/index.js" not in pl and "/atlas/dso-catalog.js" in pl and "url_for" not in pl, pl[:400]
     es = open(generados["index.html"], encoding="utf-8").read()
     en = open(generados["en/index.html"], encoding="utf-8").read()
     assert "Galería de Enrique Jiménez" in es and "Gallery of Enrique Jiménez" in en, (es[:300], en[:300])
@@ -513,7 +546,10 @@ def casos_visor():
     assert '"raiz": "."' in es and '"raiz": ".."' in en and "../_comun/" in es and "../../_comun/" in en
     comun = publicar.archivos_comun()
     assert {"js/i18n.js", "i18n/en.js", "publico/logo.png", "publico/publico.css", "publico/galeria_publica.js"} <= set(comun), sorted(comun)
-    assert not any(r.startswith("atlas/") for r in comun), "sin planetario público no se sube el atlas"
+    assert {"js/atlas_catalogos.js", "js/capa_fotos.js", "atlas/src/index.js", "atlas/dso-catalog.js", "atlas/assets/landscapes/guereins/properties",
+            "publico/planetario_publico.js"} <= set(comun), sorted(r for r in comun if not r.startswith("atlas/assets"))
+    assert not any(r.endswith(".ts") or "/licenses/" in r for r in comun), "solo lo que el endpoint admite"
+    assert all(os.path.isfile(local) for local in comun.values())
     publicar.CARPETA_PLANTILLAS = os.path.join(RAIZ, "sin_plantillas")
     publicar.CARPETA_ESTATICOS = os.path.join(RAIZ, "sin_estaticos")
     print("✅ visor en español y en inglés con el entorno Jinja propio; idioma de la app intacto; el visor real renderiza limpio")

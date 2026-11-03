@@ -60,7 +60,8 @@ CARPETA_ATLAS = os.path.join("static", "atlas")
 RUTA_HTACCESS = os.path.join("hosting", "galeria.htaccess")
 CABECERA_CLAVE = "X-ScopePower-Clave"
 CLAVE_SECRETO = "publicar_clave"
-TIMEOUT = (15, 180)                           # conexión, lectura (el atlas trae ficheros de 3,5 MB)
+TIMEOUT = (15, 180)                           # conexión, lectura
+TROZO = 1_000_000                             # bytes por envío: por debajo del límite de 2 MB que traen PHP y muchos hostings
 ESPERAS_REINTENTO = (30, 60, 120, 300, 900)   # tras cada fallo del hosting, en segundos
 ESPERA_SIN_RED = 60
 INTERVALO_REVISION = 15 * 60
@@ -425,6 +426,7 @@ def archivos_comun():
     """
     salida = {}
     for rel, local in (("js/i18n.js", "static/js/i18n.js"), ("i18n/en.js", "static/i18n/en.js"),
+                       ("js/atlas_catalogos.js", "static/js/atlas_catalogos.js"), ("js/capa_fotos.js", "static/js/capa_fotos.js"),
                        ("publico/logo.png", "static/logo.png"), ("publico/scopepower.ico", "static/scopepower.ico")):
         if os.path.isfile(local):
             salida[rel] = local
@@ -592,7 +594,14 @@ class ClienteHosting:
         return self._post("listar", {"prefijo": prefijo}).get("ficheros") or {}
 
     def subir(self, ruta, datos, sha256):
-        return self._post("subir", {"ruta": ruta, "sha256": sha256}, fichero=datos)
+        """Sube el fichero entero o, si pasa de TROZO, en trozos que el endpoint junta y comprueba con el sha256 del total."""
+        if len(datos) <= TROZO:
+            return self._post("subir", {"ruta": ruta, "sha256": sha256}, fichero=datos)
+        trozos = -(-len(datos) // TROZO)
+        r = None
+        for i in range(trozos):
+            r = self._post("subir", {"ruta": ruta, "sha256": sha256, "trozo": i, "trozos": trozos}, fichero=datos[i * TROZO:(i + 1) * TROZO])
+        return r
 
     def borrar(self, ruta):
         return self._post("borrar", {"ruta": ruta})

@@ -22,6 +22,11 @@ día de la release. El número de versión vive en `version.py`.
 - Configuración > Galería pública: activar, dirección del hosting, nombre en la dirección, autor que se
   enseña, posición del observatorio en el planetario público, clave del endpoint (con «Generar»),
   «Probar conexión» y «Sincronizar ahora»; sin editar `config.ini` ni `secretos.ini`.
+- Planetario público: el cielo con las fotos publicadas pintadas a su huella real, con el mismo motor y
+  la misma capa que el planetario de la app (`capa_fotos.js`), observador redondeado (o genérico), hora
+  del navegador, paisaje, transparencia, tocar una foto para ver cuál es y «Ver en el cielo» desde la
+  galería. El motor (6,6 MB) se sube una vez por hosting; los ficheros grandes van en trozos de 1 MB
+  (el límite de subida de 2 MB de PHP dejaba fuera el catálogo de objetos).
 - Número de Wolf: la gráfica de la galería da un punto por día (si hay varias fotos guardadas, la de
   conteo más alto, como el observador que se queda con la imagen más nítida) y aplica el k actual de
   `[Sol] factor_k` a toda la serie y a los conteos guardados, para que sea comparable con SILSO aunque
