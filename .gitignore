@@ -89,3 +89,9 @@ traducciones/parciales/
 # Fotos de la galería sobre el cielo del planetario (fondo_planetario.py): caché y miniaturas
 datos/fondo_planetario.json
 datos/planetario_fotos/
+
+# Galería pública (publicar.py): cola de subida y copia reducida; la clave del hosting
+datos/publicar.json
+datos/publicar.json.tmp
+datos/publicar/
+hosting/publicar_config.php

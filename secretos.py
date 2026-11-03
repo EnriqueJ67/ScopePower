@@ -1,7 +1,7 @@
 # secretos.py
 #
 # Secretos de la aplicación fuera de config.ini: clave de la API de
-# Astrometry.net y clave de sesión de Flask.
+# Astrometry.net, clave de sesión de Flask y clave de la galería pública.
 #
 # Se guardan en secretos.ini (ignorado por git). La ruta se puede cambiar con
 # la variable de entorno SCOPEPOWER_SECRETOS para sacar el fichero de la
@@ -22,6 +22,7 @@ SECCION = "Secretos"
 _DEFECTOS = {
     "flask_secret_key": None,        # None = generar uno aleatorio
     "astrometry_api_key": "",
+    "publicar_clave": "",            # galería pública: la misma clave que en publicar_config.php del hosting
 }
 
 # Claves que antes vivían en config.ini: (sección, clave) para migrarlas

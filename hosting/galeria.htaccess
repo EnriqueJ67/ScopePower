@@ -1,0 +1,34 @@
+# galeria/.htaccess — la galería pública de ScopePower son solo ficheros estáticos.
+# Lo sube la propia app (publicar.py) a la raíz de galeria/ con cada sincronización.
+
+DirectoryIndex index.html
+# Sin listados de carpetas
+IndexIgnore *
+
+# Nada de lo que hay aquí se ejecuta: lo sube la app, no es código
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+RemoveHandler .php .phtml .phar .php5 .php7 .phps .pl .cgi .py .sh
+RemoveType .php .phtml .phar
+<FilesMatch "\.(php|phtml|phar|php5|php7|phps|pl|cgi|py|sh)$">
+    Require all denied
+</FilesMatch>
+
+AddType application/json .json
+AddType image/webp .webp
+AddType text/javascript .js
+AddCharset UTF-8 .html .js .css .json .md .txt
+
+# Caché: lo común va por versión (no cambia nunca); el índice y las fotos, unos minutos
+<IfModule mod_headers.c>
+    <If "%{REQUEST_URI} =~ m#/_comun/#">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </If>
+    <Else>
+        Header set Cache-Control "public, max-age=300"
+    </Else>
+</IfModule>

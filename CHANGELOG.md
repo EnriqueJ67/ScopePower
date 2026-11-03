@@ -5,6 +5,12 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.2.3 · sin fecha (en preparación)
 
+- Galería pública (núcleo, sin interfaz todavía): `publicar.py` prepara una copia estática de las fotos
+  marcadas como publicadas (JPG reducido, miniatura, versión para el planetario y JSON por lista blanca,
+  sin latitud ni longitud) y la sube por una cola persistente a un hosting propio mediante
+  `hosting/publicar.php` con clave (`publicar_clave` en `secretos.ini`, sección `[Publicar]` en
+  `config.ini`). Pensado para la red lenta del campo: un fichero cada vez, reintentos y sin bloquear nada.
+  Instalación en `hosting/LEEME.md`; prueba `herramientas/probar_publicar.py`.
 - Número de Wolf: la gráfica de la galería da un punto por día (si hay varias fotos guardadas, la de
   conteo más alto, como el observador que se queda con la imagen más nítida) y aplica el k actual de
   `[Sol] factor_k` a toda la serie y a los conteos guardados, para que sea comparable con SILSO aunque
