@@ -445,7 +445,7 @@ def archivos_comun():
     salida = {}
     for rel, local in (("js/i18n.js", "static/js/i18n.js"), ("i18n/en.js", "static/i18n/en.js"),
                        ("js/atlas_catalogos.js", "static/js/atlas_catalogos.js"), ("js/capa_fotos.js", "static/js/capa_fotos.js"),
-                       ("publico/logo.png", "static/logo.png"), ("publico/scopepower.ico", "static/scopepower.ico")):
+                       ("publico/icono.png", "static/icono-192.png"), ("publico/scopepower.ico", "static/scopepower.ico")):
         if os.path.isfile(local):
             salida[rel] = local
     if os.path.isdir(CARPETA_ESTATICOS):
