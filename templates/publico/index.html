@@ -1,0 +1,91 @@
+{#
+  Galería pública (publicar.py): visor estático que se sube al hosting junto a galeria.json.
+  No hereda de base.html ni usa url_for: se renderiza al publicar, una vez por idioma, con un
+  entorno Jinja propio. `comun` apunta a _comun/<versión>/ (motor, traducciones, CSS y JS
+  compartidos) y `raiz` a la carpeta del propietario (donde están galeria.json y las fotos).
+#}
+<!doctype html>
+<html lang="{{ idioma }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex">
+    <title>{{ _("Galería de {autor}", autor=autor) }} · ScopePower</title>
+    <meta property="og:title" content="{{ _("Galería de {autor}", autor=autor) }} · ScopePower">
+    <meta property="og:description" content="{{ _("Fotos del cielo hechas con un telescopio y ScopePower.") }}">
+    <link rel="icon" href="{{ comun }}/publico/scopepower.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="{{ comun }}/publico/logo.png">
+    {% for cod in idiomas %}
+    <link rel="alternate" hreflang="{{ cod }}" href="{{ raiz }}/{{ '' if cod == por_defecto else cod ~ '/' }}">
+    {% endfor %}
+    <script>
+        // Tema: noche (rojo) de serie, oscuro neutro si se eligió; se recuerda en este navegador
+        try { if (localStorage.getItem("publico.tema") === "oscuro") document.documentElement.setAttribute("data-tema", "oscuro"); } catch (e) {}
+        window.IDIOMA = {"codigo": "{{ idioma }}", "lang": "{{ lang }}", "locale": "{{ lang }}", "depurar": false};
+        window.PUBLICO = {"raiz": "{{ raiz }}", "comun": "{{ comun }}", "idioma": "{{ idioma }}", "url": "{{ url }}", "version": "{{ version }}"};
+    </script>
+    {% if idioma != por_defecto %}<script src="{{ comun }}/i18n/{{ idioma }}.js"></script>{% endif %}
+    <script src="{{ comun }}/js/i18n.js"></script>
+    <link rel="stylesheet" href="{{ comun }}/publico/publico.css">
+</head>
+<body>
+<header class="cab">
+    <img class="logo" src="{{ comun }}/publico/logo.png" alt="ScopePower">
+    <div class="cab-texto">
+        <h1>{{ _("Galería de {autor}", autor=autor) }}</h1>
+        <p id="resumen" class="sub">{{ _("Cargando…") }}</p>
+    </div>
+    <nav class="cab-acciones">
+        {% if idiomas|length > 1 %}
+        <div class="segmentado" aria-label="{{ _('Idioma') }}">
+            {% for cod in idiomas %}
+            <a class="{{ 'activo' if cod == idioma else '' }}" href="{{ raiz }}/{{ '' if cod == por_defecto else cod ~ '/' }}" data-idioma="{{ cod }}">{{ cod|upper }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <button type="button" class="btn btn-icono" id="tema" title="{{ _('Cambiar entre el tema noche (rojo) y el oscuro') }}" aria-label="{{ _('Tema') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+        </button>
+    </nav>
+</header>
+
+<div class="filtros" id="filtros"></div>
+<div class="acciones">
+    <div class="segmentado" id="orden">
+        <button type="button" class="activo" data-orden="fecha">{{ _("Fecha") }}</button>
+        <button type="button" data-orden="objeto" title="{{ _('Por objeto y, dentro de cada uno, de la mejor nota a la peor') }}">{{ _("Objeto") }}</button>
+        <button type="button" data-orden="nota" id="orden-nota" hidden title="{{ _('De la mejor nota a la peor') }}">{{ _("Nota") }}</button>
+    </div>
+    <a class="btn btn-sm" id="planetario" href="{{ raiz }}/{{ '' if idioma == por_defecto else idioma ~ '/' }}planetario.html" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>
+        {{ _("Ver en el cielo") }}
+    </a>
+</div>
+
+<main class="galeria" id="galeria"></main>
+<p class="vacia" id="vacia" hidden>{{ _("No hay fotos de este tipo.") }}</p>
+<p class="vacia" id="error" hidden>{{ _("No se pudo cargar la galería.") }}</p>
+
+<!-- Visor a pantalla completa: la foto a 1600 px con sus datos -->
+<div id="lightbox" class="lightbox" aria-hidden="true">
+    <button type="button" class="lb-cerrar" id="lb-cerrar" aria-label="{{ _('Cerrar') }}">×</button>
+    <button type="button" class="lb-flecha lb-prev" id="lb-prev" aria-label="{{ _('Anterior') }}">‹</button>
+    <img id="lb-imagen" src="" alt="">
+    <button type="button" class="lb-flecha lb-next" id="lb-next" aria-label="{{ _('Siguiente') }}">›</button>
+    <div class="lb-pie">
+        <div class="lb-datos" id="lb-datos"></div>
+        <div class="lb-acciones">
+            <a class="btn btn-sm" id="lb-cielo" href="#" hidden>{{ _("Ver en el cielo") }}</a>
+            <button type="button" class="btn btn-sm" id="lb-compartir">{{ _("Compartir") }}</button>
+            <a class="btn btn-sm" id="lb-descargar" href="#" download>{{ _("Descargar") }}</a>
+        </div>
+    </div>
+</div>
+
+<footer class="pie">
+    {{ _("Fotos de {autor}", autor=autor) }} · {{ _("hechas con") }} <a href="https://github.com/EnriqueJ67/ScopePower" rel="noopener">ScopePower</a>
+</footer>
+
+<script src="{{ comun }}/publico/galeria_publica.js"></script>
+</body>
+</html>
