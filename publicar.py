@@ -3,10 +3,11 @@
 # La galería de ScopePower solo se ve con el mini PC encendido y desde su red. Para enseñar
 # las fotos desde el móvil (con el mini PC apagado) se publica una copia estática en el
 # hosting del usuario: por cada foto marcada con «Publicar» en la galería, un JPG reducido,
-# una miniatura, la versión de 1024 px que usa el planetario (si la foto tiene posición) y
-# un JSON público; más un índice galeria.json, el visor (HTML/JS/CSS de templates/publico y
-# static/publico, en español y en inglés) y los ficheros comunes (motor del planetario,
-# traducciones) en _comun/<versión>/, compartidos entre propietarios del mismo hosting.
+# una miniatura, la versión de 1024 px que usa el planetario (si la foto tiene posición), las
+# anotaciones (si ya están calculadas: al publicar no se lanza ASTAP) y un JSON público; más
+# un índice galeria.json, el visor (HTML/JS/CSS de templates/publico y static/publico, en
+# español y en inglés) y los ficheros comunes (motor del planetario, traducciones) en
+# _comun/<versión>/, compartidos entre propietarios del mismo hosting.
 #
 #   <url_base>/galeria/<nombre>/            la galería pública del propietario
 #   <url_base>/scopepower/publicar.php      el endpoint que recibe los ficheros (hosting/)
@@ -47,6 +48,9 @@ import secretos
 import version
 import catalogo_offline
 import fondo_planetario
+import galeria_anotada
+import luna_anotada
+import manchas_solares
 from editor_fotos import rutas, partes_nombre, CARPETA_FOTOS, ErrorEditor
 from idioma import _
 
@@ -72,6 +76,8 @@ IDIOMAS_VALIDOS = ("es", "en")
 # Lo que el endpoint admite (hosting/publicar.php): nada de código ejecutable
 EXTENSIONES_PUBLICAS = (".jpg", ".jpeg", ".webp", ".png", ".json", ".html", ".js", ".css", ".md", ".txt", ".ico")
 NOMBRES_PUBLICOS = ("LICENSE", "properties")
+# Lo que sale de cada objeto anotado, además de su posición y su tamaño (fuente: cielo; familia y luz: Luna)
+CAMPOS_OBJETO = ("nombre", "angulo", "mag", "fuente", "familia", "luz")
 
 # El hosting de serie: scopepower.es admite altas desde la app (registro abierto): basta un nombre libre
 HOSTING_PUBLICO = "https://scopepower.es"
@@ -321,6 +327,90 @@ def _origen_cielo(nombre, base_local, ruta_fits):
     return fondo_planetario.miniatura(nombre), "jpg"
 
 
+def anotaciones_publicas(d, ancho, alto):
+    """
+    Lo que se publica de las anotaciones de una foto (lo que da /galeria/anotaciones/<nombre>), por
+    lista blanca y en píxeles del JPG publicado (ancho × alto): lo justo para que el visor las pinte
+    como la app. Del Sol y la Luna, además, el disco y lo que los pintores necesitan, nunca
+    desde dónde se hizo la foto. None si no hay nada que pintar.
+    """
+    f = ancho / float(d["ancho"])
+    px = lambda v: round(float(v) * f, 1)
+    salida = {"ancho": int(ancho), "alto": int(alto)}
+    if d.get("sol") or d.get("luna"):
+        salida["disco"] = {"cx": px(d["disco"]["cx"]), "cy": px(d["disco"]["cy"]), "r": px(d["disco"]["r"])}
+    if d.get("sol"):
+        if not d.get("manchas"):
+            return None
+        salida["disco"]["cortado"] = bool(d["disco"].get("cortado"))
+        salida.update({"sol": True, "wolf": {k: d["wolf"][k] for k in ("g", "f", "R", "k")},
+                       "manchas": [{"x": px(m["x"]), "y": px(m["y"]), "r_px": px(m["r_px"]), "umbra": bool(m.get("umbra")),
+                                    "grupo": int(m["grupo"])} for m in d["manchas"]],
+                       "grupos": [{"id": int(g["id"]), "x": px(g["x"]), "y": px(g["y"])} for g in d["grupos"]]})
+        return salida
+    if not d.get("objetos"):
+        return None
+    salida["objetos"] = [{**{k: o[k] for k in CAMPOS_OBJETO if k in o}, "x": px(o["x"]), "y": px(o["y"]), "a": px(o["a"]), "b": px(o["b"])}
+                         for o in d["objetos"]]
+    if d.get("luna"):
+        # El trazado de los mares son números sueltos («M x y l dx dy...»): se escalan todos
+        mares = re.sub(r"-?\d+(?:\.\d+)?", lambda m: f"{px(m.group()):g}", d.get("mares") or "")
+        salida.update({"luna": True, "mares": mares, "terminador": [[px(x), px(y)] for x, y in d.get("terminador") or []],
+                       "iluminada": float(d["iluminada"]), "dudosa": bool(d.get("dudosa"))})
+    return salida
+
+
+def _solucion_guardada(ruta_fits):
+    """La solución del campo ya calculada (la de la galería anotada, con SIMBAD, o el WCS del FITS); None si no la hay."""
+    if not os.path.isfile(ruta_fits):
+        return None
+    st = os.stat(ruta_fits)
+    return galeria_anotada._leer_cache().get(f"{st.st_size}_{st.st_mtime_ns}") or fondo_planetario._solucion_de(ruta_fits)
+
+
+def _origen_anotaciones(nombre, meta, ruta_fits, cfg):
+    """
+    (sello, calcular) de las anotaciones de una foto: el sello cambia si cambia aquello de lo que
+    salen, y calcular() las da como la ruta /galeria/anotaciones de la app (None si no se puede
+    saber sin resolver nada). La Luna y el Sol necesitan el observatorio; no llega a publicarse.
+    """
+    obs = (cfg["latitud"], cfg["longitud"]) if cfg["latitud"] or cfg["longitud"] else None
+    if manchas_solares.es_sol(nombre, meta):
+        conteo = hashlib.sha256(json.dumps(meta.get("wolf"), sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        return f"sol|{obs}|{conteo}", lambda: manchas_solares.objetos_foto(nombre, obs)    # el conteo corregido no toca el JPG
+    if luna_anotada.es_luna(nombre, meta):
+        return f"luna|{obs}", lambda: luna_anotada.objetos_foto(nombre, obs)
+    solucion = _solucion_guardada(ruta_fits)
+    if not solucion:
+        return "sin solucion", None
+    return "cielo|" + hashlib.sha256(json.dumps(solucion, sort_keys=True).encode("utf-8")).hexdigest()[:16], lambda: galeria_anotada.objetos_foto(nombre, solucion)
+
+
+def _preparar_anotaciones(nombre, meta, ruta_fits, cfg, sellos, destino):
+    """Deja en `destino` las anotaciones públicas de la foto (o nada) si ha cambiado su origen; True si las lleva."""
+    try:
+        sello, calcular = _origen_anotaciones(nombre, meta, ruta_fits, cfg)
+    except Exception as e:
+        log.debug("Galería pública: %s sin anotaciones (%s)", nombre, e)
+        sello, calcular = "sin solucion", None
+    if sellos.get("anotaciones") == sello:
+        return os.path.isfile(destino)
+    publicas = None
+    if calcular:
+        try:
+            publicas = anotaciones_publicas(calcular(), sellos["ancho"], sellos["alto"])
+        except ErrorEditor as e:             # la Luna no se ve, el Sol no se encuentra...
+            log.info("Galería pública: %s sin anotaciones (%s)", nombre, e)
+        except Exception as e:
+            log.warning("Galería pública: %s sin anotaciones (%s)", nombre, e)
+    if publicas:
+        _escribir_json(destino, publicas)
+    elif os.path.isfile(destino):
+        os.remove(destino)
+    sellos["anotaciones"] = sello
+    return bool(publicas)
+
+
 def _preparar_foto(nombre, meta, cfg, salida, derivadas):
     """
     Genera (si hace falta) las derivadas de una foto en `salida` y devuelve su ficha para el índice
@@ -336,6 +426,7 @@ def _preparar_foto(nombre, meta, cfg, salida, derivadas):
         ancho, alto = _reducir(ruta_jpg, d_jpg, cfg["lado_foto"], cfg["calidad"])
         _reducir(ruta_jpg, d_mini, cfg["lado_mini"], cfg["calidad"])
         sellos.update({"jpg": sello_jpg, "ancho": ancho, "alto": alto})
+        sellos.pop("anotaciones", None)      # van en píxeles de este JPG
 
     cielo, d_cielo = None, os.path.join(salida, base + "_cielo.jpg")
     huella = _huella(nombre, ruta_jpg, ruta_fits)
@@ -360,10 +451,12 @@ def _preparar_foto(nombre, meta, cfg, salida, derivadas):
         sellos.pop("cielo", None)
         if os.path.isfile(d_cielo):
             os.remove(d_cielo)
+    anotada = _preparar_anotaciones(nombre, meta, ruta_fits, cfg, sellos, os.path.join(salida, base + "_anotaciones.json"))
 
     ficha = meta_publica(nombre, meta, cfg)
     ficha.update({"ancho": sellos.get("ancho"), "alto": sellos.get("alto"), "cielo": cielo,
-                  "ficheros": {"jpg": base + ".jpg", "mini": base + "_mini.jpg", **({"cielo": base + "_cielo.jpg"} if cielo else {})}})
+                  "ficheros": {"jpg": base + ".jpg", "mini": base + "_mini.jpg", **({"cielo": base + "_cielo.jpg"} if cielo else {}),
+                               **({"anotaciones": base + "_anotaciones.json"} if anotada else {})}})
     locales = {ficha["ficheros"][k]: os.path.join(salida, ficha["ficheros"][k]) for k in ficha["ficheros"]}
     ficha["v"] = {k: _sha256(locales[ficha["ficheros"][k]])[:10] for k in ficha["ficheros"]}
     d_json = os.path.join(salida, base + ".json")
@@ -445,6 +538,7 @@ def archivos_comun():
     salida = {}
     for rel, local in (("js/i18n.js", "static/js/i18n.js"), ("i18n/en.js", "static/i18n/en.js"),
                        ("js/atlas_catalogos.js", "static/js/atlas_catalogos.js"), ("js/capa_fotos.js", "static/js/capa_fotos.js"),
+                       ("js/luna_anotada.js", "static/js/luna_anotada.js"), ("js/manchas_solares.js", "static/js/manchas_solares.js"),
                        ("publico/icono.png", "static/icono-192.png"), ("publico/scopepower.ico", "static/scopepower.ico")):
         if os.path.isfile(local):
             salida[rel] = local
@@ -542,7 +636,7 @@ def planificar(estado, cfg=None):
     for base in list(derivadas):          # derivadas de fotos ya retiradas
         if base not in vigentes:
             derivadas.pop(base, None)
-            for sufijo in (".jpg", "_mini.jpg", "_cielo.jpg", ".json"):
+            for sufijo in (".jpg", "_mini.jpg", "_cielo.jpg", "_anotaciones.json", ".json"):
                 try:
                     os.remove(os.path.join(salida, base + sufijo))
                 except OSError:

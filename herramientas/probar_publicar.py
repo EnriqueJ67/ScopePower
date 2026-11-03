@@ -10,7 +10,8 @@
 #      (sin latitud, longitud, ajustes ni rutas), el índice con el observador redondeado y la
 #      huella en el cielo solo donde la hay, el orden de la cola (galeria.json el último al
 #      subir y el primero al retirar), reintentos, clave rechazada, sin red, foto reescrita
-#      (v nuevo), renombrada (borrar + subir), persistencia de la cola y rutas rechazadas.
+#      (v nuevo), renombrada (borrar + subir), persistencia de la cola, rutas rechazadas y las
+#      anotaciones (de la caché, a la escala del JPG publicado y por lista blanca).
 #   3. Si hay `php` en el PATH, lo mismo contra hosting/publicar.php de verdad con el servidor
 #      de PHP (`php -S`); si no, se avisa y se salta (en GitHub no hay PHP).
 #
@@ -296,6 +297,46 @@ def huella_en_cache(nombre, completa):
         cv2.imwrite(destino, np.full((683, 1024, 3), 60, np.uint8), [cv2.IMWRITE_JPEG_QUALITY, 84])
 
 
+def solucion_de_prueba(simbad=None):
+    """Una solución como la de galeria_anotada: M 31 en el centro de un campo de 2400×1600 px a 2″/px."""
+    return {"ancho": 2400, "alto": 1600, "zona": None, "crpix": [1200.5, 800.5], "crval": [10.6847, 41.2689],
+            "cd": [[-2.0 / 3600, 0.0], [0.0, 2.0 / 3600]], "escala_arcsec": 2.0, "angulo_cam": 0.0,
+            "simbad": simbad if simbad is not None else [{"nombre": "Prueba SIMBAD", "ra": 10.9, "dec": 41.4, "tamano_arcsec": 90.0,
+                                                          "mag": 9.5, "fuente": "simbad"}],
+            "resuelta": "2026-09-30 01:00:00"}
+
+
+def solucion_en_cache(simbad=None, quitar=False):
+    """datos/anotaciones_galeria.json con la solución de M 31 (la clave es el tamaño y la fecha del FITS) o sin ella."""
+    st = os.stat(os.path.join(FOTOS, "M_31_20260929_231500.fits"))
+    galeria_anotada._guardar_en_cache(f"{st.st_size}_{st.st_mtime_ns}", None if quitar else solucion_de_prueba(simbad))
+
+
+def casos_anotaciones_publicas():
+    """La lista blanca y la escala de las anotaciones de la Luna y el Sol, con los datos de sus módulos."""
+    luna = {"ok": True, "luna": True, "ancho": 3200, "alto": 2400, "iluminada": 0.89, "dudosa": False,
+            "disco": {"cx": 1600.0, "cy": 1200.0, "r": 1000.0}, "terminador": [[100.0, 200.0], [300.0, 400.0]],
+            "mares": "M100 200l10 -20 4 6M-40 8l2 2", "orientacion": {"giro": 10.0, "espejo": False, "latitud": LAT},
+            "objetos": [{"nombre": "Mare Imbrium", "familia": "mar", "x": 800.0, "y": 600.0, "a": 200.0, "b": 100.0, "angulo": 12.5, "luz": True}]}
+    p = publicar.anotaciones_publicas(luna, 1600, 1200)
+    assert p["mares"] == "M50 100l5 -10 2 3M-20 4l1 1" and p["terminador"] == [[50.0, 100.0], [150.0, 200.0]], p
+    assert p["disco"] == {"cx": 800.0, "cy": 600.0, "r": 500.0} and p["objetos"] == [
+        {"nombre": "Mare Imbrium", "familia": "mar", "luz": True, "angulo": 12.5, "x": 400.0, "y": 300.0, "a": 100.0, "b": 50.0}], p
+    assert set(p) == {"ancho", "alto", "luna", "disco", "mares", "terminador", "iluminada", "dudosa", "objetos"}, set(p)
+    sol = {"ok": True, "sol": True, "ancho": 3200, "alto": 2400, "guardado": True, "origen": "guardado",
+           "disco": {"cx": 1600.0, "cy": 1200.0, "r": 1000.0, "cortado": False},
+           "manchas": [{"x": 800.0, "y": 600.0, "r_px": 8.0, "umbra": True, "grupo": 1, "lat": 12.0, "dlon": -3.0, "area_mhs": 40.0, "zona": 3}],
+           "grupos": [{"id": 1, "n": 1, "x": 800.0, "y": 600.0, "lat": 12.0, "dlon": -3.0, "area_mhs": 40.0}],
+           "wolf": {"g": 1, "f": 1, "R": 18.7, "k": 1.7}, "geometria": {"P": 1.0, "B0": 2.0, "L0": 3.0}, "zonas": [], "medida": {"ruido": 0.1}}
+    p = publicar.anotaciones_publicas(sol, 1600, 1200)
+    assert p["manchas"] == [{"x": 400.0, "y": 300.0, "r_px": 4.0, "umbra": True, "grupo": 1}] and p["grupos"] == [{"id": 1, "x": 400.0, "y": 300.0}], p
+    assert p["disco"] == {"cx": 800.0, "cy": 600.0, "r": 500.0, "cortado": False} and p["wolf"]["R"] == 18.7, p
+    assert set(p) == {"ancho", "alto", "sol", "disco", "wolf", "manchas", "grupos"}, set(p)
+    assert publicar.anotaciones_publicas(dict(sol, manchas=[], grupos=[]), 1600, 1200) is None
+    assert publicar.anotaciones_publicas({"ok": True, "ancho": 3200, "alto": 2400, "objetos": []}, 1600, 1200) is None
+    print("✅ anotaciones de la Luna y el Sol: a la escala publicada, por lista blanca y sin nada si no hay qué pintar")
+
+
 def reiniciar(raiz_servidor):
     """Cola, derivadas y hosting a cero (el hilo de publicar sigue vivo entre casos)."""
     publicar.esperar(30)
@@ -387,7 +428,7 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     m31, sol = fotos["M_31_20260929_231500"], fotos["Sol_20261022_120000"]
     assert m31["tipo"] == "Galaxia" and m31["fecha_iso"] == "2026-09-29T23:15" and m31["n_fotos"] == 40 and m31["exposicion"] == 20.0
     assert m31["nota"] == {"puntuacion": 3.42, "estrellas": 812, "fwhm": 2.3} and m31["ra"] == "00 42 44", m31
-    assert m31["ancho"] == 1600 and m31["alto"] == 1067 and set(m31["v"]) == {"jpg", "mini", "cielo"}, m31
+    assert m31["ancho"] == 1600 and m31["alto"] == 1067 and set(m31["v"]) == {"jpg", "mini", "cielo", "anotaciones"}, m31
     assert m31["cielo"]["modo"] == "completa" and m31["cielo"]["esquinas"][0] == [11.4, 42.0] and m31["cielo"]["ancho"] == 1024, m31["cielo"]
     assert m31["cielo"]["area_deg2"] == 1.5 and "latitud" not in m31
     assert m31["video"] == {"frames": 2398, "duracion_s": 120}, m31["video"]
@@ -397,6 +438,26 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     ficha = leer_json(remoto[f"{NOMBRE}/M_31_20260929_231500.json"])
     assert ficha["id"] == "M_31_20260929_231500" and ficha["v"] == m31["v"]
     print(f"✅ {etiqueta}: 2 fotos publicadas, derivadas 1600/480 px, JSON por lista blanca, observador redondeado, huella solo con FITS")
+
+    # Anotaciones: las de la caché, a la escala del JPG publicado; la foto sin solución, sin el fichero y sin resolver nada
+    assert m31["ficheros"]["anotaciones"] == "M_31_20260929_231500_anotaciones.json", m31["ficheros"]
+    assert m31["v"]["anotaciones"] == sha(remoto[f"{NOMBRE}/M_31_20260929_231500_anotaciones.json"])[:10]
+    assert "anotaciones" not in sol["ficheros"] and f"{NOMBRE}/Sol_20261022_120000_anotaciones.json" not in remoto, sol["ficheros"]
+    anot = leer_json(remoto[f"{NOMBRE}/M_31_20260929_231500_anotaciones.json"])
+    assert anot["ancho"] == 1600 and anot["alto"] == 1067 and set(anot) == {"ancho", "alto", "objetos"}, set(anot)
+    originales = {o["nombre"]: o for o in galeria_anotada.objetos_foto("M_31_20260929_231500.jpg", solucion_de_prueba())["objetos"]}
+    publicos = {o["nombre"]: o for o in anot["objetos"]}
+    assert "M32" in publicos and "Prueba SIMBAD" in publicos and set(publicos) == set(originales), sorted(publicos)
+    assert publicos["Prueba SIMBAD"]["fuente"] == "simbad" and publicos["Prueba SIMBAD"]["mag"] == 9.5, publicos["Prueba SIMBAD"]
+    for n, o in publicos.items():
+        assert set(o) <= {"nombre", "x", "y", "a", "b", "angulo", "mag", "fuente"}, o
+        assert "angulo" in o and "mag" in o, o              # el visor distingue None de que no venga
+        for campo in "xyab":
+            assert abs(o[campo] - originales[n][campo] * 1600 / 2400) <= 0.11, (n, campo, o, originales[n])
+    texto = open(remoto[f"{NOMBRE}/M_31_20260929_231500_anotaciones.json"], encoding="utf-8").read()
+    for prohibido in (str(LAT), str(LON), "latitud", "longitud", "crval", "resuelta", "zona", "C:\\"):
+        assert prohibido not in texto, f"las anotaciones contienen {prohibido!r}"
+    print(f"✅ {etiqueta}: anotaciones de la caché escaladas al JPG publicado, por lista blanca; la foto sin solución no las lleva")
 
     # 3. Orden: galeria.json es la última subida de la primera tanda
     if servidor:
@@ -494,6 +555,28 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     sincronizado()
     assert f"{NOMBRE}/M_31_20260929_231500_mini.jpg" in ficheros_de(raiz_servidor)
     print(f"✅ {etiqueta}: lo borrado a mano en el hosting se repone al verificar")
+
+    # Las anotaciones siguen a la caché: otra solución las regenera, sin ella se retiran del hosting
+    ruta_anot = f"{NOMBRE}/M_31_20260929_231500_anotaciones.json"
+    v_antes = sha(ficheros_de(raiz_servidor)[ruta_anot])
+    publicar.sincronizar()
+    sincronizado()
+    assert sha(ficheros_de(raiz_servidor)[ruta_anot]) == v_antes, "sin cambios no se regeneran"
+    solucion_en_cache(simbad=[])
+    publicar.sincronizar()
+    sincronizado()
+    anot = leer_json(ficheros_de(raiz_servidor)[ruta_anot])
+    assert "Prueba SIMBAD" not in {o["nombre"] for o in anot["objetos"]} and "M32" in {o["nombre"] for o in anot["objetos"]}, anot
+    solucion_en_cache(quitar=True)
+    publicar.sincronizar()
+    sincronizado()
+    remoto = ficheros_de(raiz_servidor)
+    assert ruta_anot not in remoto, sorted(remoto)
+    indice = leer_json(remoto[f"{NOMBRE}/galeria.json"])
+    m31 = {f["id"]: f for f in indice["fotos"]}["M_31_20260929_231500"]
+    assert "anotaciones" not in m31["ficheros"] and "anotaciones" not in m31["v"], m31
+    solucion_en_cache()
+    print(f"✅ {etiqueta}: anotaciones regeneradas al cambiar la caché y retiradas del hosting si ya no hay solución")
 
     # 10. El endpoint rechaza rutas peligrosas
     cli = publicar.cliente()
@@ -601,7 +684,8 @@ def casos_visor():
             assert prohibido not in html, prohibido
     assert '"raiz": "."' in es and '"raiz": ".."' in en and "../_comun/" in es and "../../_comun/" in en
     comun = publicar.archivos_comun()
-    assert {"js/i18n.js", "i18n/en.js", "publico/icono.png", "publico/publico.css", "publico/galeria_publica.js"} <= set(comun), sorted(comun)
+    assert {"js/i18n.js", "i18n/en.js", "publico/icono.png", "publico/publico.css", "publico/galeria_publica.js",
+            "js/luna_anotada.js", "js/manchas_solares.js"} <= set(comun), sorted(comun)
     assert {"js/atlas_catalogos.js", "js/capa_fotos.js", "atlas/src/index.js", "atlas/dso-catalog.js", "atlas/assets/landscapes/guereins/properties",
             "publico/planetario_publico.js"} <= set(comun), sorted(r for r in comun if not r.startswith("atlas/assets"))
     assert not any(r.endswith(".ts") or "/licenses/" in r for r in comun), "solo lo que el endpoint admite"
@@ -642,6 +726,7 @@ try:
     json_foto("M_31_20260929_231500.jpg", video={"nombre": "M_31_20260929_231500", "frames": 2398, "duracion_s": 120, "usados": 1200})
     fits_sintetico("M_31_20260929_231500.jpg")
     huella_en_cache("M_31_20260929_231500.jpg", completa=True)
+    solucion_en_cache()
     foto_sintetica("Sol_20261022_120000.jpg", lado=1200, semilla=2)        # antigua: sin JSON, con FITS sin WCS (sin huella)
     fits_sintetico("Sol_20261022_120000.jpg")
     foto_sintetica("Otra_20261022_140000.jpg", lado=900, semilla=3)
@@ -653,6 +738,7 @@ try:
     assert publicar.observador_publico(publicar.leer_config()) is None
     CONFIG["coordenadas"] = "redondeadas"
     print("✅ slug, url_valida y observador 'ninguna'")
+    casos_anotaciones_publicas()
 
     falso = ServidorFalso(os.path.join(RAIZ, "hosting_falso"))
     threading.Thread(target=falso.serve_forever, daemon=True).start()

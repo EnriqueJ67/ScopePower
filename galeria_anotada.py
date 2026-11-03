@@ -150,17 +150,20 @@ def _matriz_al_jpg(meta, solucion, ruta_jpg):
     return M, ancho_jpg, alto_jpg
 
 
-def objetos_foto(nombre):
+def objetos_foto(nombre, solucion=None):
     """
     Objetos del campo de una foto de la galería en píxeles de su JPG: dict con
     ancho y alto del JPG y la lista de objetos (nombre, mag, x, y, semiejes a y b,
     ángulo de la elipse en grados o None si es un círculo, fuente). Primero los
-    del catálogo local y los grandes, que es el orden en que se rotulan.
+    del catálogo local y los grandes, que es el orden en que se rotulan. Con
+    `solucion` se usa esa y no se resuelve nada (la galería pública, publicar.py).
     """
     __, ruta_jpg, ruta_fits, __ = rutas(nombre)
     if not os.path.isfile(ruta_jpg):
         raise ErrorEditor(_("Imagen no encontrada"))
-    solucion, nueva = solucion_de(ruta_fits)
+    nueva = False
+    if solucion is None:
+        solucion, nueva = solucion_de(ruta_fits)
     wcs = _wcs(solucion)
     M, ancho, alto = _matriz_al_jpg(firma.meta_de_archivo(ruta_jpg), solucion, ruta_jpg)
     factor = math.sqrt(abs(M[0, 0] * M[1, 1] - M[0, 1] * M[1, 0]))

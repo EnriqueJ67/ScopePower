@@ -2,8 +2,8 @@
 //
 // Lee galeria.json (lo escribe publicar.py en el hosting), pinta los chips por tipo de objeto,
 // el orden (fecha, objeto, nota) y la rejilla con las miniaturas; al tocar una foto se abre a
-// 1600 px con sus datos. Sin servidor: todo es estático. #<id> en la dirección abre esa foto.
-// Los textos van por _() (static/js/i18n.js); los tipos vienen en español y se traducen al pintar.
+// 1600 px con sus datos y, si las tiene, sus anotaciones. Sin servidor: todo es estático.
+// #<id> en la dirección abre esa foto. Los textos van por _() (static/js/i18n.js); los tipos vienen en español y se traducen al pintar.
 (function () {
     "use strict";
     const P = window.PUBLICO || { raiz: ".", comun: "..", idioma: "es", url: "" };
@@ -116,10 +116,12 @@
         cielo.hidden = !(f.cielo && $("planetario") && !$("planetario").hidden);
         cielo.href = $("planetario").getAttribute("href") + "#" + encodeURIComponent(f.id);
         $("lb-prev").hidden = i === 0; $("lb-next").hidden = i === visibles.length - 1;
+        $("lb-anotar").hidden = !f.ficheros.anotaciones;
         $("lightbox").classList.add("abierto");
         $("lightbox").setAttribute("aria-hidden", "false");
         document.body.style.overflow = "hidden";
         history.replaceState(null, "", "#" + encodeURIComponent(f.id));
+        actualizarAnotaciones();
     }
     function cerrar() {
         abierta = -1;
@@ -156,6 +158,107 @@
         catch (e) { prompt(_("Enlace de esta foto"), enlace); }
     };
     document.querySelectorAll("#orden button").forEach(b => { b.onclick = () => { orden = b.dataset.orden; pintar(); }; });
+
+    // ── Anotaciones: los objetos del campo pintados encima de la foto, como en el visor de la app ──
+    // <id>_anotaciones.json los da en píxeles del JPG publicado; aquí se dibujan a tamaño de
+    // pantalla, así los nombres se leen igual en el móvil. La Luna y el Sol, con sus pintores de la app.
+    const anotadas = {};
+    const svgAnot = $("lb-anotaciones"), chkAnot = $("lb-anotar-activo");
+    try { chkAnot.checked = localStorage.getItem("publico.anotaciones") === "1"; } catch (e) {}
+    chkAnot.onchange = () => {
+        try { localStorage.setItem("publico.anotaciones", chkAnot.checked ? "1" : "0"); } catch (e) {}
+        actualizarAnotaciones();
+    };
+    function textoAnotaciones(texto) {
+        let s = $("lb-datos").querySelector(".lb-anot");
+        if (!s && texto) {
+            s = document.createElement("span");
+            s.className = "lb-anot";
+            $("lb-datos").appendChild(s);
+        }
+        if (s) { s.textContent = texto; s.hidden = !texto; }
+    }
+    function actualizarAnotaciones() {
+        const f = visibles[abierta];
+        svgAnot.replaceChildren();
+        textoAnotaciones("");
+        if (!f || !f.ficheros.anotaciones || !chkAnot.checked) return;
+        if (anotadas[f.id]) { pintarAnotaciones(); return; }
+        fetch(P.raiz + "/" + encodeURIComponent(f.ficheros.anotaciones) + "?v=" + (f.v && f.v.anotaciones || "")).then(r => {
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.json();
+        }).then(d => {
+            anotadas[f.id] = d;
+            if (visibles[abierta] === f) pintarAnotaciones();       // puede haberse cerrado o cambiado de foto mientras tanto
+        }).catch(e => {
+            console.error(f.ficheros.anotaciones, e);
+            if (visibles[abierta] === f) textoAnotaciones(_("No se pudieron cargar las anotaciones."));
+        });
+    }
+    function pintarAnotaciones() {
+        svgAnot.replaceChildren();
+        const f = visibles[abierta], d = f && anotadas[f.id], img = $("lb-imagen");
+        if (!d || !chkAnot.checked || !img.complete || !img.naturalWidth) return;      // al cargar la foto se vuelve a pintar
+        // La capa ocupa justo lo que ocupa la foto en pantalla (la imagen se encaja dentro de su caja)
+        const caja = img.getBoundingClientRect();
+        const s = Math.min(caja.width / img.naturalWidth, caja.height / img.naturalHeight);
+        const w = img.naturalWidth * s, h = img.naturalHeight * s;
+        svgAnot.style.left = (caja.left + (caja.width - w) / 2) + "px";
+        svgAnot.style.top = (caja.top + (caja.height - h) / 2) + "px";
+        svgAnot.style.width = w + "px";
+        svgAnot.style.height = h + "px";
+        svgAnot.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        const k = w / d.ancho;                                       // de píxeles del JPG a píxeles de pantalla
+        if (d.sol) {
+            pintarManchasSolares(svgAnot, d, k, w, h, null);
+            textoAnotaciones(textoWolf(d));
+        } else if (d.luna) {
+            textoAnotaciones(textoLunaAnotada(d, pintarLunaAnotada(svgAnot, d, k, w, h)));
+        } else {
+            pintarObjetos(d, k, w, h);
+            textoAnotaciones(ngettext("{n} objeto en el campo", "{n} objetos en el campo", d.objetos.length));
+        }
+    }
+    function pintarObjetos(d, k, w, h) {
+        // Sitio ocupado: los nombres ya puestos y los círculos pequeños (un nombre encima los taparía)
+        const ocupados = [];
+        const libre = rc => ocupados.every(o => rc[2] < o[0] || rc[0] > o[2] || rc[3] < o[1] || rc[1] > o[3]);
+        for (const o of d.objetos) {
+            const x = o.x * k, y = o.y * k, a = Math.max(o.a * k, 7);
+            if (a <= 24) ocupados.push([x - a - 1, y - a - 1, x + a + 1, y + a + 1]);
+        }
+        const NS = "http://www.w3.org/2000/svg";
+        for (const o of d.objetos) {
+            const x = o.x * k, y = o.y * k, a = Math.max(o.a * k, 7), b = Math.max(o.b * k, 7);
+            const clase = o.fuente === "catalogo" ? "anot-catalogo" : o.fuente === "ngc" ? "anot-ngc" : "anot-simbad";
+            const elipse = document.createElementNS(NS, "ellipse");
+            elipse.setAttribute("cx", x); elipse.setAttribute("cy", y);
+            elipse.setAttribute("rx", a); elipse.setAttribute("ry", o.angulo === null ? a : b);
+            if (o.angulo !== null) elipse.setAttribute("transform", `rotate(${o.angulo} ${x} ${y})`);
+            elipse.setAttribute("class", clase);
+            svgAnot.appendChild(elipse);
+            const texto = document.createElementNS(NS, "text");
+            texto.textContent = o.mag !== null ? `${o.nombre} (${fmtNum(o.mag, 1)})` : o.nombre;
+            texto.setAttribute("class", clase);
+            svgAnot.appendChild(texto);
+            const tw = texto.getComputedTextLength(), th = 13, r = a + 5;
+            // Debajo, encima, a la derecha o a la izquierda: el primer sitio libre; sin sitio, se queda el círculo solo
+            let puesto = false;
+            for (let [tx, ty] of [[x - tw / 2, y + r + th], [x - tw / 2, y - r - 2], [x + r + 2, y + th / 3], [x - r - tw - 2, y + th / 3]]) {
+                tx = Math.min(Math.max(3, tx), w - tw - 3);
+                ty = Math.min(Math.max(th + 2, ty), h - 4);
+                const rc = [tx - 3, ty - th - 1, tx + tw + 3, ty + 4];
+                if (libre(rc)) {
+                    texto.setAttribute("x", tx); texto.setAttribute("y", ty);
+                    ocupados.push(rc); puesto = true;
+                    break;
+                }
+            }
+            if (!puesto) texto.remove();
+        }
+    }
+    $("lb-imagen").addEventListener("load", pintarAnotaciones);
+    window.addEventListener("resize", pintarAnotaciones);
 
     // ── Carga ──
     fetch(P.raiz + "/galeria.json").then(r => r.json()).then(d => {
