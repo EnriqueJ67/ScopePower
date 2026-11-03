@@ -432,6 +432,10 @@ msgstr "Open full size"
 msgid "Abrir en el PC"
 msgstr "Open on the PC"
 
+#: templates/galeria.html
+msgid "Abrir la galería pública en el hosting"
+msgstr "Open the public gallery on the hosting"
+
 #: ScopePower.py
 msgid "Acción no válida"
 msgstr "Invalid action"
@@ -1593,6 +1597,11 @@ msgid "Cielo junto al Sol: {c} % del brillo del centro."
 msgstr "Sky next to the Sun: {c} % of the centre brightness."
 
 #. js
+#: templates/galeria.html
+msgid "Clave rechazada por el hosting"
+msgstr "Key rejected by the hosting"
+
+#. js
 #: ScopePower.py templates/editar_dia.html
 msgid "Color"
 msgstr "Color"
@@ -1983,6 +1992,14 @@ msgstr "Copied"
 #: static/js/ayuda_voz.js templates/_modal_voz.html
 msgid "Copiar"
 msgstr "Copy"
+
+#: templates/galeria.html
+msgid "Copiar o compartir el enlace de esta foto en la galería pública"
+msgstr "Copy or share the link to this photo in the public gallery"
+
+#: templates/galeria.html
+msgid "Copiar o compartir el enlace de la galería pública"
+msgstr "Copy or share the public gallery link"
 
 #: centrado.py
 msgid "Corrección"
@@ -3259,6 +3276,24 @@ msgstr "In focus"
 msgid "Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)"
 msgstr "Focus: green only (Bahtinov · Sun and Moon limb)"
 
+#: templates/galeria.html
+msgid "Enlace"
+msgstr "Link"
+
+#. js
+#: templates/galeria.html
+msgid "Enlace copiado: {url}"
+msgstr "Link copied: {url}"
+
+#. js
+#: templates/galeria.html
+msgid "Enlace de la galería pública"
+msgstr "Public gallery link"
+
+#: templates/galeria.html
+msgid "Enlace público"
+msgstr "Public link"
+
 #: templates/_modal_voz.html
 msgid "Entendido"
 msgstr "Got it"
@@ -4327,6 +4362,10 @@ msgstr "NGC/IC galaxies and nebulae down to magnitude"
 #: templates/rastros.html templates/visor_video.html
 msgid "Galería"
 msgstr "Gallery"
+
+#: templates/galeria.html
+msgid "Galería pública"
+msgstr "Public gallery"
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Gamma: la de siempre"
@@ -6335,6 +6374,11 @@ msgstr "The stars could not be separated"
 msgid "No se pudieron separar las estrellas de {archivo}: {e}"
 msgstr "Could not separate the stars of {archivo}: {e}"
 
+#. js
+#: templates/galeria.html
+msgid "No se pudo"
+msgstr "Could not"
+
 #: ScopePower.py
 msgid "No se pudo abrir el navegador en el PC"
 msgstr "Could not open the browser on the PC"
@@ -6556,6 +6600,10 @@ msgstr "Couldn't read the mosaic: {e}"
 #: ScopePower.py luna_anotada.py manchas_solares.py
 msgid "No se pudo leer la imagen"
 msgstr "Couldn't read the image"
+
+#: ScopePower.py
+msgid "No se pudo marcar la foto: {e}"
+msgstr "Could not mark the photo: {e}"
 
 #: ScopePower.py
 msgid "No se pudo medir: {e}"
@@ -7342,6 +7390,16 @@ msgstr "Test {n}: {s} s → level {nivel} %"
 msgid "Pruebas: {lista}"
 msgstr "Tries: {lista}"
 
+#. js
+#: templates/galeria.html
+msgid "Publicar"
+msgstr "Publish"
+
+#. js
+#: templates/galeria.html
+msgid "Publicar en la galería pública"
+msgstr "Publish in the public gallery"
+
 #: templates/_puesta_estacion.html
 msgid "Puesta en estación"
 msgstr "Polar alignment"
@@ -7369,6 +7427,11 @@ msgstr "Press <b>Start</b> and use the live view with the pad below as a finder:
 #: ScopePower.py
 msgid "Pulsa Iniciar para mover con la vista en directo"
 msgstr "Press Start to move with the live view"
+
+#. js
+#: templates/galeria.html
+msgid "Pulsa para sincronizar ahora"
+msgstr "Tap to sync now"
 
 #: templates/configuracion.html
 msgid "Pulsa «Comprobar de nuevo», sin reiniciar ScopePower."
@@ -7461,6 +7524,10 @@ msgstr "Pixels around the nucleus (and along its path) where the comet stack rul
 #: templates/apilado.html
 msgid "Píxeles rechazados"
 msgstr "Rejected pixels"
+
+#: templates/galeria.html
+msgid "Públicas"
+msgstr "Public"
 
 #. js
 #: templates/base.html
@@ -7882,6 +7949,16 @@ msgstr "Summary"
 #: templates/goto.html
 msgid "Resumen reproducido."
 msgstr "Summary played."
+
+#. js
+#: templates/galeria.html
+msgid "Retirar"
+msgstr "Unpublish"
+
+#. js
+#: templates/galeria.html
+msgid "Retirar de la galería pública"
+msgstr "Remove from the public gallery"
 
 #: templates/editar_dia.html
 msgid "Revela la foto a resolución completa con estos ajustes y sustituye el JPG de la galería (el original se conserva)"
@@ -8426,6 +8503,11 @@ msgstr "Without a mount, GoTo, the pad and centering won't work. You can choose 
 #: templates/imagen.html
 msgid "Sin plate solving: se usa la orientación de la cámara del último que salió bien ({orientacion})."
 msgstr "No plate solving: using the camera orientation from the last successful one ({orientacion})."
+
+#. js
+#: templates/galeria.html
+msgid "Sin red · {n} por subir"
+msgstr "No network · {n} to upload"
 
 #: montura_ejes.py
 msgid "Sin respuesta de la montura en {direccion} a {orden} ({error})"
@@ -11792,6 +11874,13 @@ msgstr[0] "{n} star"
 msgstr[1] "{n} stars"
 
 #. js
+#: templates/galeria.html
+msgid "{n} fichero por subir"
+msgid_plural "{n} ficheros por subir"
+msgstr[0] "{n} file to upload"
+msgstr[1] "{n} files to upload"
+
+#. js
 #: firma.py static/js/plan.js templates/apilado.html templates/editar_foto.html
 #: templates/imagen.html templates/planetario.html
 msgid "{n} foto"
@@ -11832,6 +11921,13 @@ msgid "{n} foto puntuada"
 msgid_plural "{n} fotos puntuadas"
 msgstr[0] "{n} photo scored"
 msgstr[1] "{n} photos scored"
+
+#. js
+#: templates/galeria.html
+msgid "{n} foto pública"
+msgid_plural "{n} fotos públicas"
+msgstr[0] "{n} public photo"
+msgstr[1] "{n} public photos"
 
 #. js
 #: templates/imagen.html
@@ -12458,6 +12554,11 @@ msgstr "Latest measured shot"
 #: templates/configuracion.html
 msgid "Última release en GitHub"
 msgstr "Latest release on GitHub"
+
+#. js
+#: templates/galeria.html
+msgid "Última subida: {t}"
+msgstr "Last upload: {t}"
 
 #: templates/apilado.html
 msgid "Última toma"

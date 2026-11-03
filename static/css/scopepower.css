@@ -354,6 +354,14 @@ input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px
 .foto-compartir .ico { width: 16px; height: 16px; }
 .foto-compartir:hover { background: var(--primary); opacity: 1; }
 .foto-compartir:disabled { opacity: 0.4; cursor: wait; }
+/* Galería pública: el globo se rellena cuando la foto está publicada */
+.foto-publicar { position: absolute; top: 8px; right: 116px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; opacity: 0.85; backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; }
+.foto-publicar .ico { width: 16px; height: 16px; }
+.foto-publicar:hover { background: var(--primary); opacity: 1; }
+.foto-publicar.publicada { background: var(--primary); opacity: 1; box-shadow: 0 0 8px var(--primary); }
+.foto-publicar:disabled { opacity: 0.4; cursor: wait; }
+#publicar-estado { cursor: pointer; max-width: 100%; }
+#publicar-estado-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proc-mas-titulo { cursor: pointer; color: var(--accent-2); font-size: 14px; font-weight: 600; padding: 6px 0; list-style: none; user-select: none; }
 .proc-mas-titulo::-webkit-details-marker { display: none; }
 .proc-mas-titulo::before { content: "▸ "; }
@@ -373,6 +381,10 @@ details[open] > .proc-mas-titulo::before { content: "▾ "; }
 .foto-video-grabando { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; }
 .tarjeta-video .foto-editar { right: 44px; }
 .lightbox #lightbox-compartir { position: absolute; top: 18px; right: 18px; cursor: pointer; }
+/* Galería pública: Publicar/Retirar y el enlace, debajo de Compartir (en el móvil, abajo a la derecha) */
+.lightbox .lightbox-publico { position: absolute; bottom: 44px; right: 18px; display: flex; gap: 8px; cursor: default; z-index: 1; }
+.lightbox .lightbox-publico .btn { cursor: pointer; }
+@media (min-width: 700px) { .lightbox .lightbox-publico { bottom: auto; top: 72px; } }
 .lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.94); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 14px; cursor: zoom-out; }
 .lightbox.abierto { display: flex; }
 .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
