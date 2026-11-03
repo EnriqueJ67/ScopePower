@@ -31,6 +31,13 @@
     const tipoDe = f => f.tipo || SIN_TIPO;
     const nota = f => f.nota && isFinite(f.nota.puntuacion) ? Number(f.nota.puntuacion) : null;
     const minutos = f => f.n_fotos && f.exposicion ? f.n_fotos * f.exposicion / 60 : 0;
+    // Como en la firma de la foto (firma.texto_integracion): de día las exposiciones son de milisegundos o microsegundos
+    function integracion(f) {
+        if (f.exposicion >= 1) return _("{min} min · {n} × {s} s", { min: fmtNum(minutos(f), minutos(f) < 10 ? 1 : 0), n: f.n_fotos, s: fmtNum(f.exposicion, 0) });
+        const ms = f.exposicion * 1000;
+        const corta = ms < 1 ? fmtNum(ms * 1000, 0) + " µs" : fmtNum(ms, ms < 10 ? 2 : ms < 100 ? 1 : 0) + " ms";
+        return f.n_fotos === 1 ? corta : f.n_fotos + " × " + corta;
+    }
 
     function pintarChips() {
         const conteo = {};
@@ -116,8 +123,8 @@
     function datos(f) {
         const partes = [];
         if (f.fecha_iso || f.fecha) partes.push(fecha(f));
-        if (minutos(f)) partes.push(_("{min} min · {n} × {s} s", { min: fmtNum(minutos(f), minutos(f) < 10 ? 1 : 0), n: f.n_fotos, s: fmtNum(f.exposicion, 0) }));
-        if (f.video && f.video.frames) partes.push(_("apilado de un vídeo de {n} fotogramas", { n: f.video.frames }) + (f.video.duracion_s ? " · " + fmtNum(f.video.duracion_s, 0) + " s" : ""));
+        if (minutos(f)) partes.push(integracion(f));
+        if (f.video && f.video.frames) partes.push((f.video.frames === 1 ? _("fotograma de un vídeo") : _("apilado de un vídeo de {n} fotogramas", { n: f.video.frames })) + (f.video.duracion_s ? " · " + fmtNum(f.video.duracion_s, 0) + " s" : ""));
         if (f.ra && f.dec) partes.push("RA " + f.ra + " · Dec " + f.dec);
         if (nota(f) != null) partes.push(_("nota {n}", { n: fmtNum(nota(f), 2) }));
         if (f.wolf && f.wolf.R != null) partes.push(_("Número de Wolf {r}", { r: fmtNum(f.wolf.R, f.wolf.k === 1 ? 0 : 1) }));

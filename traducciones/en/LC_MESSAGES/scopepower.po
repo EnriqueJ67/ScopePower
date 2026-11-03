@@ -10613,6 +10613,10 @@ msgstr "final image"
 msgid "foto final ≈ {ancho}° × {alto}°"
 msgstr "final image ≈ {ancho}° × {alto}°"
 
+#: static/publico/galeria_publica.js
+msgid "fotograma de un vídeo"
+msgstr "frame from a video"
+
 #: templates/apilado.html
 msgid "fotos"
 msgstr "shots"
