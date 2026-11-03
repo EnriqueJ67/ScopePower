@@ -117,6 +117,7 @@ python herramientas\probar_seguimiento_simulado.py --segundos 10
 python herramientas\probar_puesta_estacion.py
 python herramientas\probar_guiado_disco.py
 python herramientas\probar_estrellas_aparte.py
+node herramientas\probar_capa_fotos.mjs
 ```
 
 `probar_servidor.py` importa ScopePower como en un PC recién instalado y pide las pantallas
