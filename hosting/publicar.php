@@ -12,7 +12,9 @@
 //   accion=listar   slug, prefijo               -> {ok, ficheros: {"ruta": {"bytes", "sha256"}}}
 //                   prefijo: "" (= "<slug>/"), "<slug>/...", "_comun/<versión>/..." o ".htaccess"
 //   accion=subir    slug, ruta, sha256, fichero -> {ok, ruta, bytes, sha256}; 413 si pasa de
-//                   max_bytes, 422 si el sha256 no coincide con lo recibido
+//                   max_bytes, 422 si el sha256 no coincide con lo recibido. Un fichero grande
+//                   llega en trozos (trozo=i, trozos=n, en orden, con el sha256 del total): se
+//                   van juntando en .subiendo-<sha256> y con el último se comprueba y se coloca.
 //   accion=borrar   slug, ruta                  -> {ok, existia}
 //
 // Seguridad: la clave se compara con hash_equals contra la del nombre pedido (un nombre con otra
@@ -202,10 +204,6 @@ switch ($accion) {
             @unlink($subido['tmp_name']);
             fallo(413, 'El fichero pasa de max_bytes');
         }
-        if (hash_file('sha256', $subido['tmp_name']) !== $sha) {
-            @unlink($subido['tmp_name']);
-            fallo(422, 'El sha256 no coincide con lo recibido');
-        }
         $carpeta = dirname($abs);
         if (!is_dir($carpeta) && !@mkdir($carpeta, 0755, true)) {
             fallo(500, 'No se puede crear la carpeta');
@@ -213,9 +211,48 @@ switch ($accion) {
         if (!dentro($abs, $raizReal)) {
             fallo(400, 'Ruta fuera de la galería');
         }
-        $temporal = $carpeta . DIRECTORY_SEPARATOR . '.subiendo-' . bin2hex(random_bytes(6));
-        if (!move_uploaded_file($subido['tmp_name'], $temporal)) {
-            fallo(500, 'No se pudo guardar el fichero');
+        $trozos = max(1, (int)($_POST['trozos'] ?? 1));
+        $trozo = (int)($_POST['trozo'] ?? 0);
+        if ($trozos > 1) {
+            // Fichero por trozos: se van pegando a .subiendo-<sha256>; el último lo comprueba y lo coloca
+            if ($trozo < 0 || $trozo >= $trozos) {
+                fallo(400, 'Trozo fuera de rango');
+            }
+            $parcial = $carpeta . DIRECTORY_SEPARATOR . '.subiendo-' . $sha;
+            if ($trozo === 0 && is_file($parcial)) {
+                @unlink($parcial);
+            }
+            if ($trozo > 0 && !is_file($parcial)) {
+                fallo(409, 'Falta el principio del fichero: vuelve a empezar por el trozo 0');
+            }
+            $datos = file_get_contents($subido['tmp_name']);
+            @unlink($subido['tmp_name']);
+            if ($datos === false || file_put_contents($parcial, $datos, FILE_APPEND | LOCK_EX) === false) {
+                fallo(500, 'No se pudo guardar el trozo');
+            }
+            clearstatcache(true, $parcial);
+            if (filesize($parcial) > $maxBytes) {
+                @unlink($parcial);
+                fallo(413, 'El fichero pasa de max_bytes');
+            }
+            if ($trozo < $trozos - 1) {
+                responder(200, ['ok' => true, 'ruta' => $ruta, 'trozo' => $trozo, 'bytes' => filesize($parcial)]);
+            }
+            if (hash_file('sha256', $parcial) !== $sha) {
+                @unlink($parcial);
+                fallo(422, 'El sha256 no coincide con lo recibido');
+            }
+            $bytes = filesize($parcial);
+            $temporal = $parcial;
+        } else {
+            if (hash_file('sha256', $subido['tmp_name']) !== $sha) {
+                @unlink($subido['tmp_name']);
+                fallo(422, 'El sha256 no coincide con lo recibido');
+            }
+            $temporal = $carpeta . DIRECTORY_SEPARATOR . '.subiendo-' . bin2hex(random_bytes(6));
+            if (!move_uploaded_file($subido['tmp_name'], $temporal)) {
+                fallo(500, 'No se pudo guardar el fichero');
+            }
         }
         @chmod($temporal, 0644);
         if (!rename($temporal, $abs)) {

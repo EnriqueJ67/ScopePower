@@ -44,8 +44,10 @@ nombres que publiquen en el mismo hosting.
 - **401 / «Clave rechazada»**: la clave de `secretos.ini` no es la de ese nombre en
   `publicar_config.php`, o ese nombre no está dado de alta. Un nombre solo lo puede usar quien
   tiene su clave.
-- **413**: el hosting limita las subidas por debajo de 4 MB (el catálogo del planetario pesa
-  3,5 MB). En cPanel: Select PHP Version > Options > `upload_max_filesize` y `post_max_size`.
+- **413**: algún fichero pasa de `max_bytes` de `publicar_config.php` (8 MB de serie). Los
+  ficheros grandes viajan en trozos de 1 MB, así que el límite por envío del hosting
+  (`upload_max_filesize`, 2 MB de serie) no estorba; si aun así sale 413 con ficheros pequeños,
+  en cPanel: Select PHP Version > Options > `upload_max_filesize` y `post_max_size`.
 - **500 nada más instalar**: falta `publicar_config.php` o PHP no puede crear
   `public_html/galeria/` (permisos de la carpeta).
 - **La galería da 500 o 403 al abrirla**: el hosting no admite alguna directiva del `.htaccess`.

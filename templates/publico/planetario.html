@@ -1,0 +1,83 @@
+{#
+  Planetario público (publicar.py): el cielo con las fotos publicadas pintadas a su huella real,
+  como el planetario de la app (static/js/capa_fotos.js y atlas_catalogos.js, compartidos).
+  Sin servidor: el motor Celestia Atlas y los catálogos vienen de _comun/<versión>/atlas y la
+  lista de fotos con sus esquinas de galeria.json. Se renderiza al publicar, una vez por idioma.
+#}
+<!doctype html>
+<html lang="{{ idioma }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex">
+    <title>{{ _("Cielo de {autor}", autor=autor) }} · ScopePower</title>
+    <link rel="icon" href="{{ comun }}/publico/scopepower.ico" type="image/x-icon">
+    {% for cod in idiomas %}
+    <link rel="alternate" hreflang="{{ cod }}" href="{{ raiz }}/{{ '' if cod == por_defecto else cod ~ '/' }}planetario.html">
+    {% endfor %}
+    <script>
+        try { if (localStorage.getItem("publico.tema") === "oscuro") document.documentElement.setAttribute("data-tema", "oscuro"); } catch (e) {}
+        window.IDIOMA = {"codigo": "{{ idioma }}", "lang": "{{ lang }}", "locale": "{{ lang }}", "depurar": false};
+        window.PUBLICO = {"raiz": "{{ raiz }}", "comun": "{{ comun }}", "idioma": "{{ idioma }}", "url": "{{ url }}", "version": "{{ version }}"};
+        // Navegadores algo antiguos (Chrome < 98): el motor usa structuredClone para copiar objetos simples
+        if (typeof window.structuredClone !== "function") window.structuredClone = function (v) { return JSON.parse(JSON.stringify(v)); };
+    </script>
+    {% if idioma != por_defecto %}<script src="{{ comun }}/i18n/{{ idioma }}.js"></script>{% endif %}
+    <script src="{{ comun }}/js/i18n.js"></script>
+    <link rel="stylesheet" href="{{ comun }}/publico/publico.css">
+    <!-- Los catálogos son scripts clásicos con "defer": están cargados cuando arranca el módulo -->
+    <script src="{{ comun }}/atlas/estrellas-brillantes.js" defer></script>
+    <script src="{{ comun }}/atlas/hyg-star-catalog.js" defer></script>
+    <script src="{{ comun }}/atlas/western-constellations.js" defer></script>
+    <script src="{{ comun }}/atlas/dso-catalog.js" defer></script>
+</head>
+<body class="cuerpo-planetario">
+<header class="cab">
+    <img class="logo" src="{{ comun }}/publico/logo.png" alt="ScopePower">
+    <div class="cab-texto">
+        <h1>{{ _("Cielo de {autor}", autor=autor) }}</h1>
+        <p id="resumen" class="sub">{{ _("Cargando el cielo…") }}</p>
+    </div>
+    <nav class="cab-acciones">
+        <a class="btn btn-sm" href="index.html">{{ _("Galería") }}</a>
+        {% if idiomas|length > 1 %}
+        <div class="segmentado" aria-label="{{ _('Idioma') }}">
+            {% for cod in idiomas %}
+            <a class="{{ 'activo' if cod == idioma else '' }}" href="{{ raiz }}/{{ '' if cod == por_defecto else cod ~ '/' }}planetario.html" data-idioma="{{ cod }}">{{ cod|upper }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <button type="button" class="btn btn-icono" id="tema" title="{{ _('Cambiar entre el tema noche (rojo) y el oscuro') }}" aria-label="{{ _('Tema') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+        </button>
+    </nav>
+</header>
+
+<div class="barra">
+    <label class="switch" title="{{ _('Paisaje dibujado en el horizonte (Guéreins, de Stellarium)') }}"><input type="checkbox" id="paisaje" checked> {{ _("Paisaje") }}</label>
+    <label class="switch" title="{{ _('Transparencia de las fotos') }}">{{ _("Fotos") }} <input type="range" id="fotos-opacidad" min="10" max="100" step="5" value="70"></label>
+    <span class="sub" id="fotos-cuenta"></span>
+    <span class="sub" id="aviso-posicion" hidden>{{ _("Posición aproximada del observador") }}</span>
+</div>
+
+<div class="atlas-marco">
+    <div id="atlas" class="atlas"></div>
+    <canvas id="capa-fotos" class="capa-fotos" aria-label="{{ _('Fotos sobre el cielo') }}"></canvas>
+    <div id="estado" class="estado-atlas">{{ _("Cargando el cielo…") }}</div>
+    <!-- La foto tocada: nombre, fecha y el enlace a la galería -->
+    <div id="panel-foto" class="panel-foto" hidden>
+        <b id="pf-nombre"></b>
+        <span id="pf-datos"></span>
+        <a class="btn btn-sm btn-primary" id="pf-ver" href="#">{{ _("Ver la foto") }}</a>
+        <button type="button" class="lb-cerrar" id="pf-cerrar" aria-label="{{ _('Cerrar') }}">×</button>
+    </div>
+</div>
+<p class="sub" style="margin-top: 8px;">{{ _("Arrastra para mover el cielo y pellizca o usa la rueda para acercarlo. Toca una foto para ver cuál es. El mapa muestra el cielo de ahora mismo.") }}</p>
+
+<footer class="pie">
+    {{ _("Fotos de {autor}", autor=autor) }} · {{ _("hechas con") }} <a href="https://github.com/EnriqueJ67/ScopePower" rel="noopener">ScopePower</a> · {{ _("mapa") }}: <a href="https://github.com/EnriqueJ67/ScopePower/blob/master/static/atlas/ORIGEN.md" rel="noopener">Celestia Atlas</a>
+</footer>
+
+<script type="module" src="{{ comun }}/publico/planetario_publico.js"></script>
+</body>
+</html>

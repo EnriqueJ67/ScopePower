@@ -914,6 +914,10 @@ msgstr "Starting the mosaic of {nombre}…"
 msgid "Arrastra el dedo por el pad"
 msgstr "Drag your finger across the pad"
 
+#: templates/publico/planetario.html
+msgid "Arrastra para mover el cielo y pellizca o usa la rueda para acercarlo. Toca una foto para ver cuál es. El mapa muestra el cielo de ahora mismo."
+msgstr "Drag to move the sky and pinch or use the wheel to zoom in. Tap a photo to see which one it is. The map shows the sky right now."
+
 #: ScopePower.py
 msgid "Asentamiento guardado: {s} s"
 msgstr "Settling saved: {s} s"
@@ -1294,7 +1298,7 @@ msgstr "Change the option from <b>Disabled</b> to <b>Enabled</b> and press <b>Re
 msgid "Cambiar"
 msgstr "Change"
 
-#: templates/publico/index.html
+#: templates/publico/index.html templates/publico/planetario.html
 msgid "Cambiar entre el tema noche (rojo) y el oscuro"
 msgstr "Switch between the night (red) theme and the dark one"
 
@@ -1382,7 +1386,7 @@ msgid "Capturando {n} flats de {s} segundos"
 msgstr "Capturing {n} flats of {s} seconds"
 
 #. js
-#: templates/planetario.html
+#: templates/planetario.html templates/publico/planetario.html
 msgid "Cargando el cielo…"
 msgstr "Loading the sky…"
 
@@ -1552,7 +1556,7 @@ msgstr "Near the edge (95 % of the radius) it is {r} % as bright as at the centr
 #: templates/_asistente.html templates/_modal_humor.html
 #: templates/_puesta_estacion.html templates/apilado.html
 #: templates/galeria.html templates/planetario.html
-#: templates/publico/index.html
+#: templates/publico/index.html templates/publico/planetario.html
 msgid "Cerrar"
 msgstr "Close"
 
@@ -1612,6 +1616,10 @@ msgstr "Chrome has blocked location for this address."
 #: static/js/ayuda_voz.js
 msgid "Chrome tiene denegado el permiso del micrófono para esta dirección. Toca el candado o el icono de ajustes junto a la dirección, entra en Permisos y permite el Micrófono; después recarga la página."
 msgstr "Chrome has denied microphone permission for this address. Tap the padlock or the settings icon next to the address, go to Permissions and allow the Microphone; then reload the page."
+
+#: templates/publico/planetario.html
+msgid "Cielo de {autor}"
+msgstr "Sky of {autor}"
 
 #: static/js/fotometria_solar.js
 #, python-format
@@ -2883,7 +2891,7 @@ msgid "El navegador no deja usar el micrófono."
 msgstr "The browser won't allow the microphone."
 
 #. js
-#: templates/planetario.html
+#: static/publico/planetario_publico.js templates/planetario.html
 msgid "El navegador no puede dibujar el planetario: {error}"
 msgstr "The browser cannot draw the planetarium: {error}"
 
@@ -4357,6 +4365,7 @@ msgstr "Frames to stack"
 
 #. js
 #: templates/apilado.html templates/planetario.html
+#: templates/publico/planetario.html
 msgid "Fotos"
 msgstr "Shots"
 
@@ -4373,7 +4382,7 @@ msgstr "Gallery photos over the sky"
 msgid "Fotos de la sesión (FITS)"
 msgstr "Session shots (FITS)"
 
-#: templates/publico/index.html
+#: templates/publico/index.html templates/publico/planetario.html
 msgid "Fotos de {autor}"
 msgstr "Photos by {autor}"
 
@@ -4396,6 +4405,10 @@ msgstr "Shots per object (default)"
 #: templates/apilado.html templates/planetario.html
 msgid "Fotos por tesela"
 msgstr "Shots per tile"
+
+#: templates/publico/planetario.html
+msgid "Fotos sobre el cielo"
+msgstr "Photos on the sky"
 
 #. js
 #: templates/constelacion.html
@@ -4423,7 +4436,8 @@ msgstr "NGC/IC galaxies and nebulae down to magnitude"
 #. js
 #: espacio_disco.py templates/base.html templates/editar_dia.html
 #: templates/editar_foto.html templates/galeria.html templates/home.html
-#: templates/rastros.html templates/visor_video.html
+#: templates/publico/planetario.html templates/rastros.html
+#: templates/visor_video.html
 msgid "Galería"
 msgstr "Gallery"
 
@@ -4843,7 +4857,7 @@ msgstr "Humor set to {nivel} percent."
 msgid "Humor desactivado. Volvemos al modo estrictamente profesional."
 msgstr "Humor off. Back to strictly professional mode."
 
-#: templates/publico/index.html
+#: templates/publico/index.html templates/publico/planetario.html
 msgid "Idioma"
 msgstr "Language"
 
@@ -5057,7 +5071,8 @@ msgid "Jupiter"
 msgstr "Jupiter"
 
 #. js
-#: esta_noche.py plan_sesion.py templates/planetario.html
+#: esta_noche.py plan_sesion.py static/publico/planetario_publico.js
+#: templates/planetario.html
 msgid "Júpiter"
 msgstr "Jupiter"
 
@@ -5613,8 +5628,8 @@ msgstr "Presets are created here or in the gallery editor. Choosing one loads al
 
 #. js
 #: catalogo_offline.py disco.py esta_noche.py foto_dia.py plan_sesion.py
-#: static/publico/galeria_publica.js templates/imagen.html
-#: templates/planetario.html
+#: static/publico/galeria_publica.js static/publico/planetario_publico.js
+#: templates/imagen.html templates/planetario.html
 msgid "Luna"
 msgstr "Moon"
 
@@ -5695,7 +5710,8 @@ msgid "Mares, cráteres y montes con su nombre, como en un atlas. Se calcula con
 msgstr "Seas, craters and mountains with their names, like in an atlas. It is worked out from the date, the observatory and the photo itself: no plate solving needed. In live mode it is repositioned every few seconds."
 
 #. js
-#: esta_noche.py plan_sesion.py templates/planetario.html
+#: esta_noche.py plan_sesion.py static/publico/planetario_publico.js
+#: templates/planetario.html
 msgid "Marte"
 msgstr "Mars"
 
@@ -5742,7 +5758,8 @@ msgid "Menos fotogramas: más nitidez y más ruido; más fotogramas: menos ruido
 msgstr "Fewer frames: more sharpness and more noise; more frames: less noise and a bit less sharpness. With an alt-az mount the disc rotates during the recording and it is corrected when stacking; “Automatic” uses what the mount reported when recording."
 
 #. js
-#: plan_sesion.py templates/planetario.html
+#: plan_sesion.py static/publico/planetario_publico.js
+#: templates/planetario.html
 msgid "Mercurio"
 msgstr "Mercury"
 
@@ -6151,7 +6168,8 @@ msgid "Necesita Internet (en casa, no en el campo) y Git instalado en el mini PC
 msgstr "Needs Internet (at home, not in the field) and Git installed on the mini PC. It only contacts GitHub when you press “Check”. When updating, ScopePower closes, downloads the chosen version, reinstalls the dependencies if they changed and starts again by itself: a few seconds, or several minutes if the dependencies change. It doesn't touch config.ini, secretos.ini, calibrations, captures or the gallery. The same by hand: <code>actualizar_desde_github.bat</code> in the ScopePower folder."
 
 #. js
-#: plan_sesion.py templates/planetario.html
+#: plan_sesion.py static/publico/planetario_publico.js
+#: templates/planetario.html
 msgid "Neptuno"
 msgstr "Neptune"
 
@@ -7120,11 +7138,11 @@ msgstr "Touch pad and arrows"
 
 #. js
 #: catalogo_offline.py static/publico/galeria_publica.js
-#: templates/planetario.html
+#: templates/planetario.html templates/publico/planetario.html
 msgid "Paisaje"
 msgstr "Landscape"
 
-#: templates/planetario.html
+#: templates/planetario.html templates/publico/planetario.html
 msgid "Paisaje dibujado en el horizonte (Guéreins, de Stellarium)"
 msgstr "Landscape drawn on the horizon (Guéreins, from Stellarium)"
 
@@ -7328,7 +7346,7 @@ msgid "Pluton"
 msgstr "Pluto"
 
 #. js
-#: templates/planetario.html
+#: static/publico/planetario_publico.js templates/planetario.html
 msgid "Plutón"
 msgstr "Pluto"
 
@@ -7373,6 +7391,10 @@ msgstr "Possible meteor"
 #: templates/alineacion.html
 msgid "Posición"
 msgstr "Position"
+
+#: templates/publico/planetario.html
+msgid "Posición aproximada del observador"
+msgstr "Approximate observer position"
 
 #: templates/configuracion.html
 msgid "Posición del observatorio en el planetario público"
@@ -8226,7 +8248,8 @@ msgid "Saturación: 1 es el color natural y 0, blanco y negro. Con 3–5 en la L
 msgstr "Saturation: 1 is the natural colour and 0, black and white. With 3–5 on the Moon the hues of the maria (blue) and the highlands (ochre) appear: the “mineral Moon”."
 
 #. js
-#: esta_noche.py plan_sesion.py templates/planetario.html
+#: esta_noche.py plan_sesion.py static/publico/planetario_publico.js
+#: templates/planetario.html
 msgid "Saturno"
 msgstr "Saturn"
 
@@ -8713,7 +8736,8 @@ msgstr "Sky-Watcher through the <b>SynScan Pro</b> app: open it on the PC and co
 
 #. js
 #: catalogo_offline.py disco.py foto_dia.py static/publico/galeria_publica.js
-#: templates/imagen.html templates/planetario.html
+#: static/publico/planetario_publico.js templates/imagen.html
+#: templates/planetario.html
 msgid "Sol"
 msgstr "Sun"
 
@@ -8960,7 +8984,7 @@ msgid_plural "Telescopio sincronizado. Se equivocaba {n} minutos de arco"
 msgstr[0] "Telescope synced. It was off by {n} arcminute"
 msgstr[1] "Telescope synced. It was off by {n} arcminutes"
 
-#: templates/publico/index.html
+#: templates/publico/index.html templates/publico/planetario.html
 msgid "Tema"
 msgstr "Theme"
 
@@ -9223,7 +9247,7 @@ msgstr "Tolerance (′)"
 msgid "Toque no válido"
 msgstr "Invalid tap"
 
-#: templates/planetario.html
+#: templates/planetario.html templates/publico/planetario.html
 msgid "Transparencia de las fotos"
 msgstr "Photo transparency"
 
@@ -9316,7 +9340,8 @@ msgid "Una foto de día cada tantos segundos, con la exposición reajustada en c
 msgstr "A daytime shot every so many seconds, with the exposure readjusted for each one (an eclipse darkens the disk little by little), and then the video. Uses the target, field and compensation from day mode."
 
 #. js
-#: plan_sesion.py templates/planetario.html
+#: plan_sesion.py static/publico/planetario_publico.js
+#: templates/planetario.html
 msgid "Urano"
 msgstr "Uranus"
 
@@ -9403,7 +9428,8 @@ msgid "Velocidades no válidas"
 msgstr "Invalid speeds"
 
 #. js
-#: esta_noche.py plan_sesion.py templates/planetario.html
+#: esta_noche.py plan_sesion.py static/publico/planetario_publico.js
+#: templates/planetario.html
 msgid "Venus"
 msgstr "Venus"
 
@@ -9449,6 +9475,10 @@ msgstr "Show in the viewer"
 #: static/js/mosaico.js
 msgid "Ver en la galería"
 msgstr "Open in the gallery"
+
+#: templates/publico/planetario.html
+msgid "Ver la foto"
+msgstr "See the photo"
 
 #. js
 #: templates/imagen.html
@@ -10647,7 +10677,7 @@ msgstr "an exposure is in progress"
 msgid "hecha"
 msgstr "done"
 
-#: templates/publico/index.html
+#: templates/publico/index.html templates/publico/planetario.html
 msgid "hechas con"
 msgstr "taken with"
 
@@ -10901,6 +10931,10 @@ msgstr "mag {mag}"
 msgid "magnitud {mag}"
 msgstr "magnitude {mag}"
 
+#: templates/publico/planetario.html
+msgid "mapa"
+msgstr "map"
+
 #: plan_sesion.py
 msgid "marcado a mano"
 msgstr "marked by hand"
@@ -11039,7 +11073,7 @@ msgid "ninguna"
 msgstr "none"
 
 #. js
-#: templates/planetario.html
+#: static/publico/planetario_publico.js templates/planetario.html
 msgid "ninguna foto con posición"
 msgstr "no photo with a known position"
 
@@ -11766,6 +11800,10 @@ msgstr "video"
 msgid "{archivo} ha cambiado mientras se separaban las estrellas: se deja como estaba (las estrellas separadas quedan para el editor)"
 msgstr "{archivo} changed while the stars were being separated: it is left as it was (the separated stars stay for the editor)"
 
+#: static/publico/planetario_publico.js
+msgid "{a} grados cuadrados"
+msgstr "{a} square degrees"
+
 #. js
 #: templates/imagen.html
 msgid "{a} y {b}"
@@ -11916,6 +11954,10 @@ msgstr "{marca} via native SDK (no ASCOM) — none connected now"
 msgid "{mensaje}. Ya puedes destapar el telescopio."
 msgstr "{mensaje}. You can uncover the telescope now."
 
+#: static/publico/planetario_publico.js
+msgid "{min} min"
+msgstr "{min} min"
+
 #: static/publico/galeria_publica.js
 msgid "{min} min · {n} × {s} s"
 msgstr "{min} min · {n} × {s} s"
@@ -12014,6 +12056,10 @@ msgstr "{n} of {total} shots stacked"
 #: static/js/mosaico.js
 msgid "{n} de {total} fotos de esta tesela"
 msgstr "{n} of {total} shots for this tile"
+
+#: static/publico/planetario_publico.js
+msgid "{n} de {total} fotos tienen posición en el cielo"
+msgstr "{n} of {total} photos have a position on the sky"
 
 #: static/publico/galeria_publica.js
 msgid "{n} de {total} fotos · {tipo}"
@@ -12125,6 +12171,12 @@ msgid "{n} foto sin guardar"
 msgid_plural "{n} fotos sin guardar"
 msgstr[0] "{n} shot not saved"
 msgstr[1] "{n} shots not saved"
+
+#: static/publico/planetario_publico.js
+msgid "{n} foto sobre el cielo"
+msgid_plural "{n} fotos sobre el cielo"
+msgstr[0] "{n} photo on the sky"
+msgstr[1] "{n} photos on the sky"
 
 #. js
 #: templates/galeria.html templates/visor_video.html

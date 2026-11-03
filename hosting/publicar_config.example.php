@@ -11,8 +11,8 @@
 //               python -c "import secrets; print(secrets.token_urlsafe(32))"
 // 'raiz':   carpeta donde se escribe la galería (se sirve en <url_base>/galeria/).
 // 'max_bytes': tamaño máximo por fichero. El mayor que sube ScopePower es el catálogo de
-//           objetos del planetario (3,5 MB); comprueba que upload_max_filesize y
-//           post_max_size del hosting lo admiten (cPanel > Select PHP Version > Options).
+//           objetos del planetario (3,5 MB). Los ficheros grandes llegan en trozos de 1 MB,
+//           por debajo del upload_max_filesize de 2 MB que trae PHP de serie.
 
 return [
     'claves' => [

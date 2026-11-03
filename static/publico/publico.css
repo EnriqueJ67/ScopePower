@@ -96,3 +96,18 @@ a:hover { text-decoration: underline; }
 .lb-acciones { display: flex; gap: 8px; flex-wrap: wrap; }
 .lb-acciones .btn { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); color: #fff; }
 @media (max-width: 699px) { .lb-flecha { display: none; } .lightbox { padding-bottom: 140px; } }
+
+/* Planetario público: barra, mapa y la foto tocada (como .atlas-marco de la app) */
+.barra { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 10px; }
+.switch { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-2); cursor: pointer; }
+.switch input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+.switch input[type=range] { width: 110px; accent-color: var(--accent); }
+.atlas-marco { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: #030812; }
+.atlas { width: 100%; height: calc(100vh - 200px); height: calc(100dvh - 200px); min-height: 340px; touch-action: none; }
+.capa-fotos { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
+.estado-atlas { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 3; padding: 8px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 14px; }
+.panel-foto { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 3; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 44px 10px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.72); color: #fff; backdrop-filter: blur(4px); }
+.panel-foto b { font-size: 16px; }
+.panel-foto span { color: rgba(255, 255, 255, 0.75); font-size: 13px; flex: 1 1 160px; }
+.panel-foto .lb-cerrar { top: 8px; right: 8px; width: 32px; height: 32px; font-size: 20px; }
+.cuerpo-planetario { max-width: none; }
