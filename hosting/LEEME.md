@@ -7,7 +7,7 @@ hosting, para enseñarlas desde el móvil con el mini PC apagado:
 
 Todo lo sube la app (fotos reducidas, visor, planetario). En el hosting solo hay que colocar
 una vez el endpoint que las recibe. Vale cualquier hosting con PHP (7.4 o posterior) y Apache
-con `.htaccess`, como los cPanel compartidos.
+o LiteSpeed con `.htaccess`, como los cPanel compartidos.
 
 ## Instalación (una vez)
 
@@ -52,6 +52,11 @@ nombres que publiquen en el mismo hosting.
   ficheros grandes viajan en trozos de 1 MB, así que el límite por envío del hosting
   (`upload_max_filesize`, 2 MB de serie) no estorba; si aun así sale 413 con ficheros pequeños,
   en cPanel: Select PHP Version > Options > `upload_max_filesize` y `post_max_size`.
+- **500 nada más instalar y `error_log` con «syntax error, unexpected '['»**: el dominio corre un PHP
+  viejo (5.x). Elige PHP 8 en cPanel (Select PHP Version o MultiPHP Manager) o, solo para esta
+  carpeta, un `.htaccess` en `scopepower/` con la línea del manejador de tu hosting; en cPanel con
+  LiteSpeed es `AddHandler application/x-httpd-ea-php82___lsphp .php`. Un `version.php` con
+  `<?php echo PHP_VERSION;` dice qué versión corre (bórralo después).
 - **500 nada más instalar**: falta `publicar_config.php` o PHP no puede crear
   `public_html/galeria/` (permisos de la carpeta).
 - **La galería da 500 o 403 al abrirla**: el hosting no admite alguna directiva del `.htaccess`.
