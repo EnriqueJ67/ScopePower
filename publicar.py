@@ -5,7 +5,7 @@
 # hosting del usuario: por cada foto marcada con «Publicar» en la galería, un JPG reducido,
 # una miniatura, la versión de 1024 px que usa el planetario (si la foto tiene posición), las
 # anotaciones (si ya están calculadas: al publicar no se lanza ASTAP) y un JSON público; más
-# un índice galeria.json (con las gráficas del Sol, solo de las fotos publicadas), el visor (HTML/JS/CSS de templates/publico y static/publico, en
+# un índice galeria.json (con las gráficas del Sol), el visor (HTML/JS/CSS de templates/publico y static/publico, en
 # español y en inglés) y los ficheros comunes (motor del planetario, traducciones) en
 # _comun/<versión>/, compartidos entre propietarios del mismo hosting.
 #
@@ -481,14 +481,15 @@ def _escribir_json(ruta, datos):
 def sol_publico(fotos):
     """
     Las gráficas del Sol del visor (Número de Wolf y diámetro frente a la efeméride, con la órbita si
-    hay datos), solo de las fotos publicadas y por lista blanca. None si no hay nada que enseñar.
+    hay datos) por lista blanca: como en la app, con todas las medidas de las fotos que siguen en la
+    galería, publicadas o no (decisión del usuario: sale el número y la fecha, nunca la foto). Solo si
+    hay alguna foto del Sol publicada, que es cuando el visor tiene filtro Sol; si no, None.
     """
-    soles = {f for f, meta in fotos.items() if manchas_solares.es_sol(f, meta)}
-    if not soles:
+    if not any(manchas_solares.es_sol(f, meta) for f, meta in fotos.items()):
         return None
     try:
-        wolf = [{k: d[k] for k in ("fecha", "g", "f", "R", "k", "n")} for d in manchas_solares.serie_diaria(fotos=soles)]
-        serie = fotometria_solar.serie(soles)
+        wolf = [{k: d[k] for k in ("fecha", "g", "f", "R", "k", "n")} for d in manchas_solares.serie_diaria()]
+        serie = fotometria_solar.serie(set(os.listdir(CARPETA_FOTOS)))
         if not wolf and not serie:
             return None
         return {"wolf": wolf, "curva": fotometria_solar.curva_anual(serie), "orbita": fotometria_solar.ajustar_orbita(serie),

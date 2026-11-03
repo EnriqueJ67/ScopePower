@@ -12,7 +12,7 @@
 #      subir y el primero al retirar), reintentos, clave rechazada, sin red, foto reescrita
 #      (v nuevo), renombrada (borrar + subir), persistencia de la cola, rutas rechazadas y las
 #      anotaciones (de la caché, a la escala del JPG publicado y por lista blanca) y las
-#      gráficas del Sol (solo de las fotos publicadas).
+#      gráficas del Sol (todas las medidas, solo si hay alguna foto del Sol publicada).
 #   3. Si hay `php` en el PATH, lo mismo contra hosting/publicar.php de verdad con el servidor
 #      de PHP (`php -S`); si no, se avisa y se salta (en GitHub no hay PHP).
 #
@@ -349,7 +349,8 @@ def casos_anotaciones_publicas():
 
 
 def datos_del_sol():
-    """La serie del Wolf y las medidas: de la foto publicada y de otra que no lo está."""
+    """La serie del Wolf y las medidas: de la foto publicada, de otra sin publicar y de una ya borrada."""
+    foto_sintetica("Sol_20261020_110000.jpg", lado=300, semilla=4)
     with open(manchas_solares.RUTA_SERIE, "w", encoding="utf-8", newline="") as f:
         f.write("fecha,foto,g,f,R,k,area_mhs,a_mano\n2026-10-20T11:00:00,Sol_20261020_110000.jpg,3,8,38,1,50,1\n"
                 "2026-10-22T12:00:00,Sol_20261022_120000.jpg,2,9,29,1,50,1\n")
@@ -360,7 +361,8 @@ def datos_del_sol():
                              "altura": 33.0, "escala": 2.9}}
     with open(fotometria_solar.RUTA_MEDIDAS, "w", encoding="utf-8") as f:
         json.dump({"medidas": {"Sol_20261020_110000.jpg": medida(1792494000.0, "2026-10-20T11:00:00"),
-                               "Sol_20261022_120000.jpg": medida(1792670400.0, "2026-10-22T12:00:00")}}, f)
+                               "Sol_20261022_120000.jpg": medida(1792670400.0, "2026-10-22T12:00:00"),
+                               "Sol_20260101_120000.jpg": medida(1767265200.0, "2026-01-01T12:00:00")}}, f)
 
 
 def reiniciar(raiz_servidor):
@@ -460,12 +462,12 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     assert m31["video"] == {"frames": 2398, "duracion_s": 120}, m31["video"]
     assert sol["tipo"] == "Sol" and sol["cielo"] is None and "cielo" not in sol["ficheros"] and sol["video"] is None, sol
     assert sol["fecha_iso"] == "2026-10-22T12:00" and sol["n_fotos"] == 40 and sol["autor"] == "Enrique Jiménez", sol
-    # Las gráficas del Sol: solo de la foto publicada, por lista blanca y con su curva del año
+    # Las gráficas del Sol: también la foto sin publicar, no la borrada, por lista blanca y con su curva del año
     g = indice["sol"]
-    assert [(d["fecha"], d["g"], d["f"], d["n"]) for d in g["wolf"]] == [("2026-10-22T12:00:00", 2, 9, 1)], g["wolf"]
+    assert [(d["fecha"], d["g"], d["f"], d["n"]) for d in g["wolf"]] == [("2026-10-20T11:00:00", 3, 8, 1), ("2026-10-22T12:00:00", 2, 9, 1)], g["wolf"]
     assert set(g["wolf"][0]) == {"fecha", "g", "f", "R", "k", "n"} and g["orbita"] is None, g["wolf"]
-    assert len(g["diametro"]) == 1 and set(g["diametro"][0]) == {"instante", "r_arcsec", "r_efem", "desvio_pct", "distancia", "fiable"}, g["diametro"]
-    assert g["diametro"][0]["instante"] == 1792670400.0 and len(g["curva"]) > 60 and 940 < g["curva"][0]["r"] < 990, g["curva"][:1]
+    assert len(g["diametro"]) == 2 and set(g["diametro"][0]) == {"instante", "r_arcsec", "r_efem", "desvio_pct", "distancia", "fiable"}, g["diametro"]
+    assert [d["instante"] for d in g["diametro"]] == [1792494000.0, 1792670400.0] and len(g["curva"]) > 60 and 940 < g["curva"][0]["r"] < 990, g["curva"][:1]
     assert indice["fotos"][0]["id"] == "Sol_20261022_120000", "las más recientes primero"
     ficha = leer_json(remoto[f"{NOMBRE}/M_31_20260929_231500.json"])
     assert ficha["id"] == "M_31_20260929_231500" and ficha["v"] == m31["v"]
