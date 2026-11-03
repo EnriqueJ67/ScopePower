@@ -173,7 +173,7 @@
     </div>
     <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>{{ _("Editar") }}</a>
     <!-- Apilados y fotogramas que salen de un vídeo que sigue en el mini PC: abrir el vídeo en el visor -->
-    <a id="lightbox-video" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-play"/></svg>{{ _("Ver el vídeo") }}</a>
+    <a id="lightbox-video" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;" title="{{ _('Ver el vídeo') }}" aria-label="{{ _('Ver el vídeo') }}"><svg><use href="#i-play"/></svg>{{ _("Ver el vídeo") }}</a>
     <div class="lightbox-pie" id="lightbox-pie"></div>
 </div>
 
@@ -481,6 +481,9 @@
         const caja = document.getElementById("lightbox").getBoundingClientRect();
         const barra = document.getElementById("wolf-barra").getBoundingClientRect();
         const pie = document.getElementById("lightbox-pie").getBoundingClientRect();
+        // En el móvil, Publicar y el enlace van abajo: la lista termina encima de ellos
+        const publico = document.querySelector("#lightbox .lightbox-publico").getBoundingClientRect();
+        const suelo = publico.height && publico.top > img.bottom ? publico.top : pie.top;
         const MARGEN = 12, ANCHO = 240;
         const derecha = caja.right - img.right - 2 * MARGEN;
         if (derecha >= ANCHO) {
@@ -491,11 +494,11 @@
         }
         const ancho = Math.min(img.width, caja.width - 16);
         Object.assign(lista.style, { left: Math.max(8, img.left + (img.width - ancho) / 2) + "px", width: ancho + "px" });
-        const debajo = pie.top - img.bottom - MARGEN;
+        const debajo = suelo - img.bottom - MARGEN;
         if (debajo >= Math.min(lista.scrollHeight, 110))
             Object.assign(lista.style, { top: (img.bottom + 8) + "px", maxHeight: debajo + "px" });
         else
-            Object.assign(lista.style, { bottom: (caja.bottom - pie.top + 6) + "px", maxHeight: "38%" });
+            Object.assign(lista.style, { bottom: (caja.bottom - suelo + 6) + "px", maxHeight: "38%" });
     }
     function resaltarGrupo(id) {
         svgAnot.querySelectorAll("[data-grupo]").forEach(el => el.classList.toggle("sol-resaltada", id != null && Number(el.dataset.grupo) === id));
