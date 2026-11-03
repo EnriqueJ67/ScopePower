@@ -72,6 +72,12 @@ robocopy "%ORIGEN%\static\i18n" "%DESTINO%\static\i18n" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
 robocopy "%ORIGEN%\traducciones" "%DESTINO%\traducciones" /MIR %OPC%
 if errorlevel 8 set "ERRORES=1"
+REM Galeria publica (publicar.py): visor que se sube al hosting (static\publico) y el endpoint
+REM PHP con su .htaccess (hosting\); publicar_config.php lleva claves y no se copia
+robocopy "%ORIGEN%\static\publico" "%DESTINO%\static\publico" /MIR %OPC%
+if errorlevel 8 set "ERRORES=1"
+robocopy "%ORIGEN%\hosting" "%DESTINO%\hosting" /MIR %OPC% /XF publicar_config.php
+if errorlevel 8 set "ERRORES=1"
 
 echo  [4/7] Herramientas, constelaciones, informacion de objetos y nombres de la Luna
 robocopy "%ORIGEN%\herramientas" "%DESTINO%\herramientas" /MIR %OPC%
