@@ -6391,6 +6391,38 @@ def publicar_sincronizar():
     return jsonify({"ok": True, "estado": publicar.estado()})
 
 
+
+@app.route("/publicar/config", methods=["GET", "POST"])
+def publicar_config():
+    """[Publicar] de config.ini y la clave del hosting (secretos.ini) desde Configuración. La clave nunca se devuelve."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "error": _("No autorizado")}), 403
+    if request.method == "POST":
+        datos = request.get_json(silent=True) or {}
+        url_base = str(datos.get("url_base", "")).strip().rstrip("/")
+        if url_base and not publicar.url_valida(url_base):
+            return jsonify({"ok": False, "error": _("La dirección del hosting debe empezar por https://")}), 400
+        nombre = str(datos.get("nombre", "")).strip()
+        if nombre and not publicar.slug(nombre):
+            return jsonify({"ok": False, "error": _("El nombre solo admite letras, números y guiones (de 2 a 41)")}), 400
+        coordenadas = str(datos.get("coordenadas", "redondeadas")).strip().lower()
+        if coordenadas not in ("redondeadas", "ninguna"):
+            coordenadas = "redondeadas"
+        _guardar_en_config("Publicar", {"activado": "true" if datos.get("activado") else "false", "url_base": url_base,
+                                        "nombre": publicar.slug(nombre) if nombre else "",
+                                        "autor_publico": str(datos.get("autor_publico", "")).strip()[:60], "coordenadas": coordenadas})
+        clave = str(datos.get("clave", "")).strip()
+        if clave:
+            secretos.guardar(publicar.CLAVE_SECRETO, clave)
+        log.info("Galería pública configurada: %s, nombre %r", "activada" if datos.get("activado") else "desactivada", publicar.slug(nombre))
+        if publicar.leer_config()["configurado"]:
+            publicar.sincronizar(verificar=True)
+    cfg = publicar.leer_config()
+    return jsonify({"ok": True, "activado": cfg["activado"], "url_base": cfg["url_base"], "nombre": cfg["nombre"],
+                    "nombre_autor": publicar.slug(cfg["autor"]), "autor_publico": cfg["autor_publico"], "coordenadas": cfg["coordenadas"],
+                    "clave_puesta": bool(cfg["clave"]), "configurado": cfg["configurado"], "falta": publicar.por_que_no(cfg),
+                    "url": publicar.url_publica(cfg), "estado": publicar.estado()})
+
 @app.route("/publicar/probar", methods=["POST"])
 def publicar_probar():
     """Comprueba el endpoint del hosting y la clave (Configuración)."""

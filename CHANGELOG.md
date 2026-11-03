@@ -19,6 +19,9 @@ día de la release. El número de versión vive en `version.py`.
   con los chips por tipo, el orden por fecha, objeto o nota, la foto a 1600 px con sus datos (integración,
   coordenadas, nota, autor), enlace a cada foto (`#id`), compartir y descargar, tema noche u oscuro.
   ScopePower la sube sola junto a lo común (`_comun/<versión>/`: traducciones, CSS, JS, logo).
+- Configuración > Galería pública: activar, dirección del hosting, nombre en la dirección, autor que se
+  enseña, posición del observatorio en el planetario público, clave del endpoint (con «Generar»),
+  «Probar conexión» y «Sincronizar ahora»; sin editar `config.ini` ni `secretos.ini`.
 - Número de Wolf: la gráfica de la galería da un punto por día (si hay varias fotos guardadas, la de
   conteo más alto, como el observador que se queda con la imagen más nítida) y aplica el k actual de
   `[Sol] factor_k` a toda la serie y a los conteos guardados, para que sea comparable con SILSO aunque

@@ -56,6 +56,11 @@ msgid "(generar de nuevo lo sustituye)"
 msgstr "(making it again replaces it)"
 
 #. js
+#: templates/configuracion.html
+msgid "(guardada; escribe otra para cambiarla)"
+msgstr "(saved; type another one to change it)"
+
+#. js
 #: templates/apilado.html
 msgid "(hace {h} h {m} min)"
 msgstr "({h} h {m} min ago)"
@@ -431,6 +436,10 @@ msgstr "Open full size"
 #: templates/configuracion.html
 msgid "Abrir en el PC"
 msgstr "Open on the PC"
+
+#: templates/configuracion.html
+msgid "Abrir la galería pública"
+msgstr "Open the public gallery"
 
 #: templates/galeria.html
 msgid "Abrir la galería pública en el hosting"
@@ -976,6 +985,10 @@ msgstr "Photo author"
 #: templates/configuracion.html
 msgid "Autor de las fotos (firma)"
 msgstr "Photo author (signature)"
+
+#: templates/configuracion.html
+msgid "Autor que se enseña"
+msgstr "Author shown"
 
 #: static/js/asistente.js
 msgid "Autor: {autor}"
@@ -1605,6 +1618,10 @@ msgstr "Chrome has denied microphone permission for this address. Tap the padloc
 msgid "Cielo junto al Sol: {c} % del brillo del centro."
 msgstr "Sky next to the Sun: {c} % of the centre brightness."
 
+#: templates/configuracion.html
+msgid "Clave del endpoint"
+msgstr "Endpoint key"
+
 #. js
 #: templates/galeria.html
 msgid "Clave rechazada por el hosting"
@@ -1989,6 +2006,11 @@ msgstr "FITS coordinates: RA {ra} · Dec {dec}"
 #: ScopePower.py
 msgid "Coordenadas no válidas."
 msgstr "Invalid coordinates."
+
+#. js
+#: templates/configuracion.html
+msgid "Copia esta clave en publicar_config.php del hosting y pulsa Guardar."
+msgstr "Copy this key into publicar_config.php on the hosting and press Save."
 
 #: static/js/ayuda_voz.js
 msgid "Copia esta dirección:"
@@ -2395,6 +2417,10 @@ msgstr "Stop the plan before emptying it"
 msgid "Diga \"constelación X\"."
 msgstr "Say “constellation X”."
 
+#: templates/configuracion.html
+msgid "Dirección del hosting (https://)"
+msgstr "Hosting address (https://)"
+
 #: disco.py
 msgid "Disco a {desvio}′; la corrección espera: {motivo}"
 msgstr "Disk at {desvio}′; the correction is waiting: {motivo}"
@@ -2780,6 +2806,11 @@ msgstr "The hosting does not answer like the ScopePower endpoint (code {codigo})
 msgid "El hosting rechaza la clave: ese nombre ya está en uso o la clave no es la suya."
 msgstr "The hosting rejects the key: that name is already in use or the key is not its own."
 
+#. js
+#: templates/configuracion.html
+msgid "El hosting responde (PHP {php}, hasta {mb} MB por fichero). Galería: {url}"
+msgstr "The hosting answers (PHP {php}, up to {mb} MB per file). Gallery: {url}"
+
 #: foto_dia.py
 msgid "El intervalo debe estar entre 1 y 3600 segundos"
 msgstr "The interval must be between 1 and 3600 seconds"
@@ -2868,6 +2899,10 @@ msgstr "The humor level goes from 0 to 100%"
 #: ScopePower.py
 msgid "El nombre no puede estar vacío."
 msgstr "The name can't be empty."
+
+#: ScopePower.py
+msgid "El nombre solo admite letras, números y guiones (de 2 a 41)"
+msgstr "The name only allows letters, digits and hyphens (2 to 41)"
 
 #: foto_dia.py
 msgid "El número de fotos debe estar entre 1 y 5000"
@@ -4396,7 +4431,7 @@ msgstr "Gallery"
 msgid "Galería de {autor}"
 msgstr "Gallery of {autor}"
 
-#: templates/galeria.html
+#: templates/configuracion.html templates/galeria.html
 msgid "Galería pública"
 msgstr "Public gallery"
 
@@ -4423,6 +4458,10 @@ msgstr "Dark generation canceled"
 #: flats.py
 msgid "Generación de flats cancelada"
 msgstr "Flat generation canceled"
+
+#: templates/configuracion.html
+msgid "Generar"
+msgstr "Generate"
 
 #: templates/dark.html
 msgid "Generar dark maestro"
@@ -4619,6 +4658,11 @@ msgstr "Saved to the gallery as {archivo}"
 #: ScopePower.py
 msgid "Guardada en la galería como {archivo} (falló el procesado del apilado; guardada con el revelado rápido)"
 msgstr "Saved to the gallery as {archivo} (the stacking processing failed; saved with the quick development)"
+
+#. js
+#: templates/configuracion.html
+msgid "Guardado"
+msgstr "Saved"
 
 #: ScopePower.py
 msgid "Guardado en la galería como {archivo}"
@@ -4969,6 +5013,10 @@ msgstr "Star intensity"
 msgid "Introduce usuario y contraseña"
 msgstr "Enter user and password"
 
+#: templates/configuracion.html
+msgid "Inventa una clave larga y aleatoria. Cópiala en publicar_config.php del hosting"
+msgstr "Makes up a long random key. Copy it into publicar_config.php on the hosting"
+
 #: templates/_pad.html
 msgid "Invertir arriba/abajo"
 msgstr "Invert up/down"
@@ -5092,6 +5140,10 @@ msgstr "The camera responds."
 msgid "La descarga sigue en el PC aunque cierres el asistente; la ruta se guardará sola al terminar."
 msgstr "The download continues on the PC even if you close the wizard; the path will be saved by itself when it finishes."
 
+#: ScopePower.py
+msgid "La dirección del hosting debe empezar por https://"
+msgstr "The hosting address must start with https://"
+
 #: static/js/fotometria_solar.js
 msgid "La escala de placa no casa con el tamaño del Sol: ¿otro telescopio o reductor desde el último plate solving?"
 msgstr "The plate scale does not match the size of the Sun: a different telescope or reducer since the last plate solve?"
@@ -5192,6 +5244,10 @@ msgstr "The image improves shot by shot; save the result to the gallery"
 #: static/js/asistente.js
 msgid "La latitud va de −90 a 90 y la longitud de −180 a 180."
 msgstr "Latitude goes from −90 to 90 and longitude from −180 to 180."
+
+#: templates/configuracion.html
+msgid "La misma clave va en publicar_config.php del hosting, junto al nombre. Se guarda en secretos.ini y no se vuelve a mostrar."
+msgstr "The same key goes into publicar_config.php on the hosting, next to the name. It is stored in secretos.ini and never shown again."
 
 #: templates/imagen.html
 msgid "La mitad"
@@ -5428,6 +5484,10 @@ msgstr "The arrows are for someone behind the mount looking towards the pole. If
 #: templates/planetario.html
 msgid "Las fotos de la galería (apilados y mosaicos con su posición) sobre el cielo, a su tamaño real"
 msgstr "Gallery photos (stacks and mosaics with a known position) over the sky, at their real size"
+
+#: templates/configuracion.html
+msgid "Las fotos que marques con el globo en la Galería se publican, reducidas, en tu propio hosting para enseñarlas desde el móvil con el mini PC apagado. En el hosting solo hay que colocar una vez el endpoint <code>hosting/publicar.php</code> con su clave: está explicado en <code>hosting/LEEME.md</code>. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio."
+msgstr "The photos you mark with the globe in the Gallery are published, downsized, on your own hosting so you can show them from your phone with the mini PC switched off. On the hosting you only place once the <code>hosting/publicar.php</code> endpoint with its key: it is explained in <code>hosting/LEEME.md</code>. Only JPGs and the photo data go out: no FITS, no videos, no exact observatory position."
 
 #: seguimiento.py
 msgid "Las medidas no permiten calibrar (ejes sin desplazamiento apreciable)"
@@ -5721,6 +5781,10 @@ msgstr "Measuring {h} of {t}…"
 #: templates/apilado.html
 msgid "Minutos sin fotos aceptadas para saltar"
 msgstr "Minutes without accepted shots before skipping"
+
+#: templates/configuracion.html
+msgid "Minúsculas, números y guiones. Vacío: el autor de las fotos."
+msgstr "Lowercase letters, digits and hyphens. Empty: the author of the photos."
 
 #: templates/home.html
 msgid "Modelo de apuntado por plate solving"
@@ -6095,6 +6159,10 @@ msgstr "Neptune"
 #: templates/apilado.html
 msgid "Ninguna"
 msgstr "None"
+
+#: templates/configuracion.html
+msgid "Ninguna (posición genérica)"
+msgstr "None (generic position)"
 
 #: static/js/manchas_solares.js
 msgid "Ninguna mancha en el disco."
@@ -6808,6 +6876,10 @@ msgstr "Object name"
 msgid "Nombre del preset:"
 msgstr "Preset name:"
 
+#: templates/configuracion.html
+msgid "Nombre en la dirección"
+msgstr "Name in the address"
+
 #: templates/apilado.html
 msgid "Nombre para el rótulo"
 msgstr "Caption name"
@@ -7302,6 +7374,10 @@ msgstr "Possible meteor"
 msgid "Posición"
 msgstr "Position"
 
+#: templates/configuracion.html
+msgid "Posición del observatorio en el planetario público"
+msgstr "Observatory position in the public planetarium"
+
 #: templates/base.html
 msgid "Potencia en tiempo real para tu telescopio"
 msgstr "Real-time power for your telescope"
@@ -7374,7 +7450,7 @@ msgstr "Priority: image it when it is highest"
 msgid "Probar"
 msgstr "Test"
 
-#: templates/_asistente.html
+#: templates/_asistente.html templates/configuracion.html
 msgid "Probar conexión"
 msgstr "Test connection"
 
@@ -7446,6 +7522,10 @@ msgstr "Tries: {lista}"
 msgid "Publicar"
 msgstr "Publish"
 
+#: templates/configuracion.html
+msgid "Publicar en el hosting"
+msgstr "Publish on the hosting"
+
 #. js
 #: templates/galeria.html
 msgid "Publicar en la galería pública"
@@ -7474,6 +7554,11 @@ msgstr "Polar alignment: three photos measure how far off the polar axis is and 
 #: templates/seguimiento.html
 msgid "Pulsa <b>Iniciar</b> y usa la vista en directo con el pad de abajo como buscador: mueve el telescopio hasta ver el objeto (o apunta por delante de él) y suelta; cuando entre algo que se mueve, el seguimiento lo adquiere solo. Para una luz fija (una prueba de día), tócala en la vista. La cámara se pasa al SDK nativo mientras dura."
 msgstr "Press <b>Start</b> and use the live view with the pad below as a finder: move the telescope until you see the object (or aim ahead of it) and let go; when something moving comes in, tracking acquires it on its own. For a fixed light (a daytime test), tap it in the view. The camera switches to the native SDK while it runs."
+
+#. js
+#: templates/configuracion.html
+msgid "Pulsa Generar o pega la del hosting"
+msgstr "Press Generate or paste the hosting one"
 
 #: ScopePower.py
 msgid "Pulsa Iniciar para mover con la vista en directo"
@@ -7761,6 +7846,10 @@ msgstr "Edge crop"
 #: templates/editar_foto.html
 msgid "Recupera detalle y afila las estrellas deshaciendo el desenfoque medido en las estrellas de la propia foto (Richardson-Lucy). 0 = apagada; 0,65 son las 8 pasadas probadas con M13 y la Pacman (la anchura de las estrellas baja de 4,4 a 2,9 px). Las estrellas brillantes y el cielo no se tocan. Al guardar añade unos 10 s en el mini PC."
 msgstr "Recovers detail and sharpens stars by undoing the blur measured on the photo's own stars (Richardson-Lucy). 0 = off; 0.65 is the 8 passes tested on M13 and the Pacman (star width drops from 4.4 to 2.9 px). Bright stars and the sky are left untouched. Saving takes about 10 s more on the mini PC."
+
+#: templates/configuracion.html
+msgid "Redondeada a grados enteros (unos 100 km)"
+msgstr "Rounded to whole degrees (about 100 km)"
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Reducción de ruido"
@@ -8591,6 +8680,10 @@ msgstr "Sync"
 msgid "Sincronizado con la foto: RA {ra}, DEC {dec}. La montura se equivocaba {error}′."
 msgstr "Synced with the shot: RA {ra}, Dec {dec}. The mount was off by {error}′."
 
+#: templates/configuracion.html
+msgid "Sincronizar ahora"
+msgstr "Sync now"
+
 #. js
 #: templates/imagen.html
 msgid "Sincronizar con {nombre}"
@@ -9101,6 +9194,11 @@ msgstr "No GoTo has been done yet."
 msgid "Todavía no se ha medido ninguna foto."
 msgstr "No shot has been measured yet."
 
+#. js
+#: templates/configuracion.html
+msgid "Todavía no se ha subido nada: marca una foto con el globo en la Galería."
+msgstr "Nothing uploaded yet: mark a photo with the globe in the Gallery."
+
 #: templates/visor_video.html
 msgid "Todo el vídeo"
 msgstr "The whole video"
@@ -9250,6 +9348,10 @@ msgstr "Clear"
 #: static/js/asistente.js templates/_asistente.html
 msgid "Vacío = no tocarla (queda la que tenga el driver)."
 msgstr "Empty = leave it alone (keeps whatever the driver has)."
+
+#: templates/configuracion.html
+msgid "Vacío: el autor de la firma."
+msgstr "Empty: the author of the signature."
 
 #: templates/apilado.html
 msgid "Vacío: el objeto del último GoTo (o donde apunta la montura). O escribe un objeto: M31, NGC 7000…"
@@ -11956,7 +12058,7 @@ msgstr[0] "{n} star"
 msgstr[1] "{n} stars"
 
 #. js
-#: templates/galeria.html
+#: templates/configuracion.html templates/galeria.html
 msgid "{n} fichero por subir"
 msgid_plural "{n} ficheros por subir"
 msgstr[0] "{n} file to upload"
@@ -12644,7 +12746,7 @@ msgid "Última release en GitHub"
 msgstr "Latest release on GitHub"
 
 #. js
-#: templates/galeria.html
+#: templates/configuracion.html templates/galeria.html
 msgid "Última subida: {t}"
 msgstr "Last upload: {t}"
 
@@ -12797,6 +12899,11 @@ msgstr "⏳ Centering..."
 
 #. js
 #: templates/configuracion.html
+msgid "⏳ Comparando con el hosting..."
+msgstr "⏳ Comparing with the hosting..."
+
+#. js
+#: templates/configuracion.html
 msgid "⏳ Comprobando StarNet2..."
 msgstr "⏳ Checking StarNet2..."
 
@@ -12842,6 +12949,11 @@ msgstr "⏳ A timelapse is running; stop it first from Camera"
 #: static/js/plan.js
 msgid "⏳ Otra noche: {motivo}"
 msgstr "⏳ Another night: {motivo}"
+
+#. js
+#: templates/configuracion.html
+msgid "⏳ Probando el hosting..."
+msgstr "⏳ Testing the hosting..."
 
 #: ScopePower.py
 msgid "⏳ Procesando a resolución completa..."

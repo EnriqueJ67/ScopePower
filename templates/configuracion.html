@@ -225,6 +225,57 @@
             <div id="estado-hora" class="estado mt-1"></div>
         </div>
 
+        <!-- ─── Galería pública en el hosting del usuario (publicar.py) ── -->
+        <div class="card" id="publicar">
+            <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-publicar"/></svg>{{ _("Galería pública") }}</h3></div>
+            <p class="card-sub">
+                {{ _("Las fotos que marques con el globo en la Galería se publican, reducidas, en tu propio hosting para enseñarlas desde el móvil con el mini PC apagado. En el hosting solo hay que colocar una vez el endpoint <code>hosting/publicar.php</code> con su clave: está explicado en <code>hosting/LEEME.md</code>. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio.")|safe }}
+            </p>
+            <label class="fila" style="gap: 8px; cursor: pointer; margin-bottom: 10px;">
+                <input type="checkbox" id="pub-activado"> {{ _("Publicar en el hosting") }}
+            </label>
+            <div class="dos-campos">
+                <div class="form-group">
+                    <label>{{ _("Dirección del hosting (https://)") }}</label>
+                    <input type="url" id="pub-url" class="form-control" placeholder="https://midominio.es" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="form-group">
+                    <label>{{ _("Nombre en la dirección") }}</label>
+                    <input type="text" id="pub-nombre" class="form-control" maxlength="41" autocomplete="off" spellcheck="false">
+                    <small class="ayuda">{{ _("Minúsculas, números y guiones. Vacío: el autor de las fotos.") }}</small>
+                </div>
+            </div>
+            <div class="dos-campos">
+                <div class="form-group">
+                    <label>{{ _("Autor que se enseña") }}</label>
+                    <input type="text" id="pub-autor" class="form-control" maxlength="60" autocomplete="off">
+                    <small class="ayuda">{{ _("Vacío: el autor de la firma.") }}</small>
+                </div>
+                <div class="form-group">
+                    <label>{{ _("Posición del observatorio en el planetario público") }}</label>
+                    <select id="pub-coordenadas" class="form-control">
+                        <option value="redondeadas">{{ _("Redondeada a grados enteros (unos 100 km)") }}</option>
+                        <option value="ninguna">{{ _("Ninguna (posición genérica)") }}</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>{{ _("Clave del endpoint") }}</label>
+                <div class="fila" style="gap: 8px;">
+                    <input type="text" id="pub-clave" class="form-control" autocomplete="off" spellcheck="false" placeholder="">
+                    <button type="button" class="btn btn-secondary" onclick="generarClavePublicar()" title="{{ _('Inventa una clave larga y aleatoria. Cópiala en publicar_config.php del hosting') }}">{{ _("Generar") }}</button>
+                </div>
+                <small class="ayuda">{{ _("La misma clave va en publicar_config.php del hosting, junto al nombre. Se guarda en secretos.ini y no se vuelve a mostrar.") }}</small>
+            </div>
+            <div class="acciones">
+                <button type="button" class="btn btn-primary" onclick="guardarPublicar()"><svg><use href="#i-guardar"/></svg>{{ _("Guardar") }}</button>
+                <button type="button" class="btn btn-secondary" onclick="probarPublicar()">{{ _("Probar conexión") }}</button>
+                <button type="button" class="btn btn-secondary" onclick="sincronizarPublicar()">{{ _("Sincronizar ahora") }}</button>
+                <a class="btn btn-secondary" id="pub-abrir" href="#" target="_blank" rel="noopener" hidden><svg><use href="#i-publicar"/></svg>{{ _("Abrir la galería pública") }}</a>
+            </div>
+            <div id="estado-publicar" class="estado mt-1"></div>
+        </div>
+
         <!-- ─── Direcciones para conectar ───────────────────────────── -->
         <div class="card">
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-red"/></svg>{{ _("Conectar desde el móvil") }}</h3></div>
@@ -792,7 +843,77 @@
         });
     }
 
-    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); cargarDisco(); cargarActualizar(); cargarHumor(); cargarEstrellas(); });
+
+    // ——— Galería pública (publicar.py) ———
+    function pintarPublicar(d) {
+        document.getElementById("pub-activado").checked = !!d.activado;
+        document.getElementById("pub-url").value = d.url_base || "";
+        const nombre = document.getElementById("pub-nombre");
+        nombre.value = d.nombre && d.nombre !== d.nombre_autor ? d.nombre : "";
+        nombre.placeholder = d.nombre_autor || "";
+        document.getElementById("pub-autor").value = d.autor_publico || "";
+        document.getElementById("pub-coordenadas").value = d.coordenadas || "redondeadas";
+        const clave = document.getElementById("pub-clave");
+        clave.value = "";
+        clave.placeholder = d.clave_puesta ? _("(guardada; escribe otra para cambiarla)") : _("Pulsa Generar o pega la del hosting");
+        const abrir = document.getElementById("pub-abrir");
+        abrir.hidden = !d.url;
+        abrir.href = d.url || "#";
+        const est = document.getElementById("estado-publicar");
+        if (!d.activado) { est.className = "estado mt-1"; est.textContent = ""; return; }
+        if (d.falta) { est.className = "estado warn mt-1"; est.textContent = "⚠️ " + d.falta; return; }
+        const e = d.estado || {};
+        est.className = "estado mt-1" + (e.error_clave ? " err" : "");
+        est.textContent = e.error_clave ? "❌ " + e.ultimo_error
+            : e.pendientes ? "⏳ " + ngettext("{n} fichero por subir", "{n} ficheros por subir", e.pendientes)
+            : e.ultimo_ok ? "✅ " + _("Última subida: {t}", { t: e.ultimo_ok }) + (e.ultimo_error ? " · ⚠️ " + e.ultimo_error : "")
+            : _("Todavía no se ha subido nada: marca una foto con el globo en la Galería.");
+    }
+    function cargarPublicar() {
+        fetch("/publicar/config").then(r => r.json()).then(pintarPublicar)
+            .catch(err => document.getElementById("estado-publicar").textContent = "❌ " + err);
+    }
+    function generarClavePublicar() {
+        const bytes = new Uint8Array(32);
+        crypto.getRandomValues(bytes);
+        document.getElementById("pub-clave").value = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+        document.getElementById("estado-publicar").textContent = _("Copia esta clave en publicar_config.php del hosting y pulsa Guardar.");
+    }
+    function guardarPublicar() {
+        const est = document.getElementById("estado-publicar");
+        est.className = "estado mt-1"; est.textContent = _("⏳ Guardando...");
+        const datos = { activado: document.getElementById("pub-activado").checked, url_base: document.getElementById("pub-url").value,
+            nombre: document.getElementById("pub-nombre").value, autor_publico: document.getElementById("pub-autor").value,
+            coordenadas: document.getElementById("pub-coordenadas").value, clave: document.getElementById("pub-clave").value };
+        fetch("/publicar/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || _("No se pudo guardar")); return; }
+                pintarPublicar(d);
+                if (d.configurado && !est.textContent) est.textContent = "✅ " + _("Guardado");
+            })
+            .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
+    }
+    function probarPublicar() {
+        const est = document.getElementById("estado-publicar");
+        est.className = "estado mt-1"; est.textContent = _("⏳ Probando el hosting...");
+        fetch("/publicar/probar", { method: "POST" }).then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + d.error; return; }
+                est.className = "estado ok mt-1";
+                est.textContent = "✅ " + _("El hosting responde (PHP {php}, hasta {mb} MB por fichero). Galería: {url}", {
+                    php: d.hosting.php || "?", mb: Math.round((d.hosting.max_bytes || 0) / 1048576), url: d.url });
+            })
+            .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
+    }
+    function sincronizarPublicar() {
+        const est = document.getElementById("estado-publicar");
+        est.className = "estado mt-1"; est.textContent = _("⏳ Comparando con el hosting...");
+        fetch("/publicar/sincronizar", { method: "POST" }).then(r => r.json())
+            .then(d => { if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + d.error; } else setTimeout(cargarPublicar, 3000); })
+            .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
+    }
+    document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); cargarDisco(); cargarActualizar(); cargarHumor(); cargarEstrellas(); cargarPublicar(); });
 </script>
 
 
