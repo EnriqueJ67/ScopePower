@@ -124,3 +124,10 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_publicar.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Prueba de la capa de fotos del planetario (módulo ES compartido con el visor público, sin navegador)
+        run: node herramientas/probar_capa_fotos.mjs

@@ -228,9 +228,13 @@
 </style>
 
 <script type="module">
-    import { createCelestiaAtlasViewer, equatorialToHorizontal, horizontalToEquatorial, calculateCameraFieldOfView,
+    import * as atlas from "{{ url_for('static', filename='atlas/src/index.js') }}";
+    import { createCelestiaAtlasViewer, equatorialToHorizontal, calculateCameraFieldOfView,
              alignViewToHorizon, projectEquatorial, unprojectEquatorial, horizontalToHealpixPixel }
         from "{{ url_for('static', filename='atlas/src/index.js') }}";
+    // Lo que comparte con el visor público de la galería: catálogos, opciones, vista inicial y la capa de fotos
+    import { catalogosDesdeGlobales, OPCIONES_VISTA, vistaInicial } from "{{ url_for('static', filename='js/atlas_catalogos.js') }}";
+    import { crearCapaFotos } from "{{ url_for('static', filename='js/capa_fotos.js') }}";
 
     const $ = id => document.getElementById(id);
     const estadoEl = $("estado");
@@ -238,15 +242,8 @@
     let viewer = null, observador = null, seleccionado = null;
     let modo = "horizontal", encuadrePuesto = "", gotoEnCurso = false;
 
-    // Los catálogos vienen como globales (window.STAR_DATA, HYG_STAR_DATA, DSO_CATALOG_DATA, WESTERN_CONSTELLATIONS).
-    // STAR_DATA son las 130 estrellas con nombre propio; HYG las excluye, así que se juntan.
-    const stars = [...(window.STAR_DATA ?? []), ...(window.HYG_STAR_DATA ?? [])].map(s => ({ ...s, id: s.id || s.name, name: s.name || s.id,
-        aliases: [...(s.aliases ?? []), ...(s.alias ? [s.alias] : [])],
-        raDeg: Number.isFinite(s.raDeg) ? s.raDeg : s.ra * 15, decDeg: Number.isFinite(s.decDeg) ? s.decDeg : s.dec,
-        frame: s.frame || "ICRS", type: "Star" }));
-    const catalog = (window.DSO_CATALOG_DATA ?? []).map(o => ({ ...o, name: o.name || o.id,
-        typeCode: o.typeCode || o.objectType || o.type,
-        angularSizeArcMin: o.angularSizeArcMin ?? { major: o.major, minor: o.minor } }));
+    // Los catálogos vienen como globales (window.STAR_DATA, HYG_STAR_DATA, DSO_CATALOG_DATA, WESTERN_CONSTELLATIONS)
+    const { stars, catalog, constellations } = catalogosDesdeGlobales();
 
     // Nombres del Sistema Solar tal como los entiende /goto (sin acentos): el PC calcula
     // sus coordenadas con astropy, así que a esos no se les mandan RA/Dec del mapa.
@@ -285,7 +282,7 @@
         observador = { latitudeDeg: cfg.observador.latitud, longitudeDeg: cfg.observador.longitud, elevationM: cfg.observador.altitud };
         try {
             viewer = createCelestiaAtlasViewer({
-                container: $("atlas"), catalog, stars, constellations: window.WESTERN_CONSTELLATIONS ?? {},
+                container: $("atlas"), catalog, stars, constellations,
                 observer: observador, utcMs: cfg.hora_utc_ms,
                 skySurveySource: null,          // sin teselas DSS: todo local
                 onSelect: t => { tocoObjeto = true; mostrarPanel(t); },
@@ -297,19 +294,14 @@
         }
         window.viewer = viewer;
         viewer.setCoordinateMode(modo);
-        viewer.setDisplayOptions({ cardinals: true, constellations: true, labels: true, horizon: true, hideBelowHorizon: true,
-            milkyWay: true, solarSystem: true, comets: true, atmosphere: false, solarSystemNames: nombresSistemaSolar,
-            starMagnitudeLimit: 6.5, deepSkyMagnitudeLimit: 11.5, galaxyMagnitudeLimit: 11.5 });
+        viewer.setDisplayOptions({ ...OPCIONES_VISTA, solarSystemNames: nombresSistemaSolar });
         if (cfg.altura_minima > 0) {   // la altura mínima de config.ini, como horizonte del observatorio
             viewer.setHorizon([0, 90, 180, 270].map(az => ({ azimuthDeg: az, altitudeDeg: cfg.altura_minima })));
         }
         aplicarTema();
         ponerPaisaje();
         // Vista inicial: mirando al sur, a 45° de altura, campo ancho
-        try {
-            const centro = horizontalToEquatorial({ azimuthDeg: 180, altitudeDeg: 45 }, observador, cfg.hora_utc_ms, "ICRS");
-            viewer.setView({ center: { raDeg: centro.raDeg, decDeg: centro.decDeg, frame: "ICRS" }, fovDeg: 90 });
-        } catch (e) { console.warn("vista inicial", e); }
+        try { vistaInicial(atlas, viewer, observador, cfg.hora_utc_ms); } catch (e) { console.warn("vista inicial", e); }
         // El motor no puede dibujar con un canvas de 0×0 (pestaña en segundo plano,
         // página aún oculta): solo se anima cuando el contenedor tiene tamaño y está visible.
         new ResizeObserver(sincronizarVisibilidad).observe($("atlas"));
@@ -324,11 +316,12 @@
     }
 
     // ——— Fotos de la galería sobre el cielo (fondo_planetario.py) ———
-    // Cada apilado o mosaico guardado con su posición se pinta deformado a su huella real: las
-    // cuatro esquinas del JPG se proyectan como las chinchetas y la imagen se dibuja con la afín
-    // que lleva tres de ellas a su sitio (en campos de pocos grados la perspectiva no se nota).
+    // La capa (static/js/capa_fotos.js, compartida con el visor público) pinta cada apilado o
+    // mosaico deformado a su huella real; aquí solo se pide la lista a /planetario/fotos.
     const lienzoFotos = $("capa-fotos");
-    let fotosFondo = [];          // [{nombre, esquinas, ancho, alto, img, modo}] de /planetario/fotos
+    const capaFotos = crearCapaFotos({ lienzo: lienzoFotos, api: atlas,
+        urlFoto: f => "/planetario/foto/" + encodeURIComponent(f.nombre) + (f.modo === "jpg" ? "?modo=jpg" : "?v=" + encodeURIComponent(f.modo)),
+        opacidad: () => (+$("fotos-opacidad").value || 70) / 100 });
     let fotosCargando = false, timerFotosFondo = null;
     try { if (localStorage.getItem("planetario.fotos") === "si") $("fotos-fondo").checked = true; } catch (e) {}
     try { const o = parseInt(localStorage.getItem("planetario.fotos_opacidad")); if (o >= 10 && o <= 100) $("fotos-opacidad").value = o; } catch (e) {}
@@ -338,19 +331,7 @@
         try {
             const d = await (await fetch("/planetario/fotos")).json();
             if (!d.ok) throw new Error(d.error || "");
-            const previas = new Map(fotosFondo.map(f => [f.nombre + "|" + f.modo, f.img]));
-            fotosFondo = d.fotos.map(f => {
-                const clave = f.nombre + "|" + f.modo;
-                let img = previas.get(clave);
-                if (!img) {
-                    img = new Image();
-                    img.decoding = "async";
-                    img.src = "/planetario/foto/" + encodeURIComponent(f.nombre) + (f.modo === "jpg" ? "?modo=jpg" : "?v=" + encodeURIComponent(f.modo));
-                }
-                // Con la versión a campo completo la huella es la zona útil del FITS; con el JPG, la del JPG
-                return { ...f, img, esquinasUsadas: f.modo === "completa" && f.esquinas_completa ? f.esquinas_completa : f.esquinas };
-            });
-            const n = fotosFondo.length;
+            const n = capaFotos.cargar(d.fotos).length;
             $("fotos-cuenta").textContent = (!n ? _("ninguna foto con posición") : ngettext("{n} foto", "{n} fotos", n))
                 + (d.resolviendo ? " · " + _("resolviendo {r} con ASTAP…", { r: d.resolviendo }) : "")
                 + (d.pendientes ? " · " + _("revelando {p} a campo completo…", { p: d.pendientes }) : "");
@@ -362,42 +343,13 @@
         }
         fotosCargando = false;
     }
-    function pintarFotosFondo(vista, w, h) {
-        const ctx = lienzoFotos.getContext("2d");
-        if (lienzoFotos.width !== w || lienzoFotos.height !== h) { lienzoFotos.width = w; lienzoFotos.height = h; }
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(0, 0, w, h);
-        ctx.globalAlpha = (+$("fotos-opacidad").value || 70) / 100;
-        for (const f of fotosFondo) {
-            if (!f.img.complete || !f.img.naturalWidth) continue;
-            const pts = [];
-            let ok = true;
-            for (const [raDeg, decDeg] of (f.esquinasUsadas || f.esquinas)) {
-                let p = null;
-                try { p = projectEquatorial({ raDeg, decDeg, frame: "ICRS" }, vista, w, h); } catch (e) {}
-                if (!p || !isFinite(p.x) || !isFinite(p.y) || Math.abs(p.x) > 3 * w || Math.abs(p.y) > 3 * h) { ok = false; break; }
-                pts.push(p);
-            }
-            if (!ok) continue;
-            // Esquinas de la imagen: (0,0) → pts[0], (ancho,0) → pts[1], (0,alto) → pts[3]
-            const iw = f.img.naturalWidth, ih = f.img.naturalHeight;
-            const a = (pts[1].x - pts[0].x) / iw, b = (pts[1].y - pts[0].y) / iw;
-            const c = (pts[3].x - pts[0].x) / ih, d = (pts[3].y - pts[0].y) / ih;
-            const lado = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-            if (lado < 3 || lado > 6 * w) continue;      // ni un punto ni un campo que no cabe en el mapa
-            ctx.setTransform(a, b, c, d, pts[0].x, pts[0].y);
-            try { ctx.drawImage(f.img, 0, 0, iw, ih); } catch (e) {}
-        }
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.globalAlpha = 1;
-    }
     function ponerFotosFondo() {
         const si = $("fotos-fondo").checked;
         lienzoFotos.hidden = !si;
         $("fotos-opacidad").hidden = !si;
         $("fotos-cuenta").hidden = !si;
         try { localStorage.setItem("planetario.fotos", si ? "si" : "no"); } catch (e) {}
-        if (si && !fotosFondo.length) cargarFotosFondo();
+        if (si && !capaFotos.fotos().length) cargarFotosFondo();
         if (!si) { clearTimeout(timerFotosFondo); timerFotosFondo = null; }
     }
     $("fotos-fondo").onchange = ponerFotosFondo;
@@ -707,7 +659,7 @@
         requestAnimationFrame(recolocarChinchetas);
         const hayChinchetas = !capa.hidden && chinchetas.length > 0;
         const hayMosaico = !$("capa-mosaico").hasAttribute("hidden");
-        const hayFotos = !$("capa-fotos").hidden && fotosFondo.length > 0;
+        const hayFotos = !lienzoFotos.hidden && capaFotos.fotos().length > 0;
         if (!viewer || (!hayChinchetas && !puntoLibre && !hayMosaico && !hayFotos) || t - ultimaRecolocacion < 80) return;   // ~12 veces por segundo basta
         ultimaRecolocacion = t;
         const w = $("atlas").clientWidth, h = $("atlas").clientHeight;
@@ -725,7 +677,7 @@
             marca.hidden = !visible;
             if (visible) marca.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
         }
-        if (hayFotos) pintarFotosFondo(vista, w, h);
+        if (hayFotos) capaFotos.pintar(vista, w, h);
         if (hayMosaico) recolocarMosaico(vista, ahora, w, h);
         if (!hayChinchetas) return;
         const conEtiqueta = vista.fovDeg <= 100;
