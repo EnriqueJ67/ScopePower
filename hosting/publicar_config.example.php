@@ -1,23 +1,34 @@
 <?php
 // hosting/publicar_config.example.php — plantilla de publicar_config.php
 //
-// Copia este fichero como publicar_config.php junto a publicar.php y rellena las claves.
-// publicar_config.php lleva secretos: no va a git (.gitignore) ni se comparte.
+// Copia este fichero como publicar_config.php junto a publicar.php. No va a git.
 //
-// 'claves': un nombre (el de [Publicar] nombre en ScopePower, o el de [Observatorio] autor
-//           pasado a minúsculas sin tildes ni espacios) por cada propietario que publique en
-//           este hosting, con su clave. La misma clave va en secretos.ini de ese ScopePower
-//           (publicar_clave). Una clave larga y aleatoria, por ejemplo:
-//               python -c "import secrets; print(secrets.token_urlsafe(32))"
+// 'registro_abierto': true = cualquier ScopePower que active la galería pública con un nombre
+//           libre se lo queda en el primer uso (la app genera y guarda su clave sola). Los nombres
+//           registrados quedan en claves.php (claves cifradas), junto a publicar.php.
+//           false = solo los nombres de 'claves' (alta manual).
+// 'claves': nombres dados de alta a mano por el dueño del hosting, con su clave en claro. La misma
+//           clave va en secretos.ini del ScopePower de esa persona (publicar_clave). Con registro
+//           abierto puede quedar vacío.
 // 'raiz':   carpeta donde se escribe la galería (se sirve en <url_base>/galeria/).
-// 'max_bytes': tamaño máximo por fichero. El mayor que sube ScopePower es el catálogo de
-//           objetos del planetario (3,5 MB). Los ficheros grandes llegan en trozos de 1 MB,
-//           por debajo del upload_max_filesize de 2 MB que trae PHP de serie.
+// 'max_bytes': tamaño máximo por fichero. Los grandes llegan en trozos de 1 MB (por debajo del
+//           upload_max_filesize de 2 MB que trae PHP de serie), así que el límite es solo el total.
+// 'cuota_nombre_mb': lo que puede ocupar la galería de cada nombre (unas 300 KB por foto más la
+//           miniatura y la versión del planetario: 300 MB son unas 600 fotos).
+// 'cuota_total_mb': tope de todo galeria/ para admitir nombres nuevos (ajústalo a tu plan).
+// 'max_nombres', 'registros_por_dia': frenos a las altas automáticas.
+// 'nombres_reservados': además de los fijos (_comun, scopepower, admin, api, galeria, www...).
 
 return [
+    'registro_abierto' => true,
     'claves' => [
-        'nombre-de-ejemplo' => 'CAMBIA-ESTA-CLAVE-por-una-larga-y-aleatoria',
+        // 'nombre-de-ejemplo' => 'clave-larga-y-aleatoria',
     ],
     'raiz' => __DIR__ . '/../galeria',
     'max_bytes' => 8 * 1024 * 1024,
+    'cuota_nombre_mb' => 300,
+    'cuota_total_mb' => 4000,
+    'max_nombres' => 200,
+    'registros_por_dia' => 20,
+    'nombres_reservados' => [],
 ];

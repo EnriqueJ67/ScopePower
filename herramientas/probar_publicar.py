@@ -100,6 +100,9 @@ class ServidorFalso(ThreadingHTTPServer):
         self.raiz = raiz
         self.fallos_pendientes = 0
         self.registro = []                   # [(accion, ruta)] en orden de llegada (solo las aceptadas)
+        self.claves = {NOMBRE: CLAVE}        # nombres dados de alta a mano (publicar_config.php)
+        self.registrados = {}                # nombres reservados desde la app: {nombre: clave}
+        self.cuota_nombre = 2 * 1024 * 1024  # como cuota_nombre_mb = 2 en la prueba del PHP real
         self.lock = threading.Lock()
 
     @property
@@ -166,11 +169,24 @@ class ManejadorFalso(BaseHTTPRequestHandler):
         slug = campos.get("slug", "")
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,40}", slug):
             return self.responder(400, {"ok": False, "error": "nombre"})
-        if self.headers.get("X-ScopePower-Clave", "") != CLAVE or slug != NOMBRE:
-            return self.responder(401, {"ok": False, "error": "clave"})
+        clave = self.headers.get("X-ScopePower-Clave", "")
         accion = campos.get("accion")
+        valida = clave != "" and (s.claves.get(slug) == clave or s.registrados.get(slug) == clave)
+        if accion == "registrar":
+            if valida:
+                return self.responder(200, {"ok": True, "registrado": False, "nombre": slug})
+            if slug in s.claves or slug in s.registrados or slug in ("admin", "api", "scopepower", "_comun"):
+                return self.responder(409, {"ok": False, "error": "nombre en uso o reservado"})
+            if len(clave) < 16:
+                return self.responder(400, {"ok": False, "error": "clave corta"})
+            with s.lock:
+                s.registrados[slug] = clave
+            os.makedirs(os.path.join(s.raiz, slug), exist_ok=True)
+            return self.responder(200, {"ok": True, "registrado": True, "nombre": slug, "cuota_mb": 2})
+        if not valida:
+            return self.responder(401, {"ok": False, "error": "clave"})
         if accion == "probar":
-            return self.responder(200, {"ok": True, "version": 1, "raiz_escribible": True, "max_bytes": 8 << 20})
+            return self.responder(200, {"ok": True, "version": 2, "raiz_escribible": True, "max_bytes": 8 << 20, "cuota_mb": 2, "usado_mb": 0, "registro_abierto": True})
         if accion == "listar":
             prefijo = campos.get("prefijo", "")
             if prefijo == ".htaccess":
@@ -194,6 +210,12 @@ class ManejadorFalso(BaseHTTPRequestHandler):
         if accion == "subir":
             if fichero is None:
                 return self.responder(400, {"ok": False, "error": "fichero"})
+            if not ruta.startswith("_comun/") and ruta != ".htaccess":     # cuota de la galería del nombre
+                carpeta = os.path.join(s.raiz, slug)
+                usado = sum(os.path.getsize(os.path.join(c, f)) for c, __, fs in os.walk(carpeta) for f in fs) if os.path.isdir(carpeta) else 0
+                viejo = os.path.getsize(abs_) if os.path.isfile(abs_) else 0
+                if usado - viejo + len(fichero) > s.cuota_nombre:
+                    return self.responder(507, {"ok": False, "error": "cuota agotada"})
             os.makedirs(os.path.dirname(abs_), exist_ok=True)
             trozos, trozo = int(campos.get("trozos", 1)), int(campos.get("trozo", 0))
             if trozos > 1:      # por trozos, como publicar.php: se pegan a .subiendo-<sha> y el último comprueba
@@ -325,7 +347,7 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     assert cfg["configurado"] and cfg["nombre"] == NOMBRE and cfg["autor_publico"] == "Enrique Jiménez", cfg
     assert publicar.url_publica(cfg) == f"http://127.0.0.1:1/galeria/{NOMBRE}/"
     r = publicar.probar()
-    assert r.get("ok") and r.get("version") == 1, r
+    assert r.get("ok") and r.get("version") == 2 and r.get("registrado") is False, r
     print(f"✅ {etiqueta}: endpoint responde a probar ({r})")
 
     # 1. Marcar: la foto antigua sin JSON lo gana; la marcada se desmarca sin perder nada
@@ -410,13 +432,13 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     # 5. Clave rechazada: cola parada y aviso; con la clave buena, sigue
     CONFIG["clave"] = "otra-clave-que-no-es"
     publicar.marcar("Otra_20261022_140000.jpg", True)
-    assert esperar(lambda: publicar.estado()["error_clave"], 20), publicar.estado()
+    assert esperar(lambda: publicar.estado()["error_clave"] and publicar.estado()["parada"], 20), publicar.estado()
     assert publicar._leer_estado()["cola"], "la cola debe seguir en disco"
     assert "clave" in publicar.estado()["ultimo_error"].lower(), publicar.estado()
     try:
         publicar.probar()
         raise AssertionError("probar debía fallar con la clave mala")
-    except publicar.ErrorClave:
+    except (publicar.ErrorClave, publicar.ErrorNombre):     # probar() registra antes: el nombre es de otro con esa clave
         pass
     CONFIG["clave"] = CLAVE
     publicar.sincronizar()
@@ -496,7 +518,7 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
 
     # 11. Un fichero de 3 MB (como el catálogo del planetario) va en trozos de 1 MB y llega entero;
     #     con el servidor de PHP, que limita cada envío a 2 MB, es la única forma de que entre
-    grande = np.random.default_rng(5).integers(0, 256, 3_000_000, dtype=np.uint8).tobytes()
+    grande = np.random.default_rng(5).integers(0, 256, 1_500_000, dtype=np.uint8).tobytes()
     cli.subir(f"{NOMBRE}/grande.json", grande, hashlib.sha256(grande).hexdigest())
     remoto = ficheros_de(raiz_servidor)
     assert f"{NOMBRE}/grande.json" in remoto and open(remoto[f"{NOMBRE}/grande.json"], "rb").read() == grande
@@ -508,8 +530,42 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
         pass
     remoto = ficheros_de(raiz_servidor)
     assert f"{NOMBRE}/grande2.json" not in remoto and not any(".subiendo-" in r for r in remoto), sorted(remoto)
+    try:
+        cli.subir(f"{NOMBRE}/grande3.json", grande, hashlib.sha256(grande).hexdigest())
+        raise AssertionError("la cuota de 2 MB debía agotarse")
+    except publicar.ErrorCuota:
+        pass
     cli.borrar(f"{NOMBRE}/grande.json")
-    print(f"✅ {etiqueta}: fichero de 3 MB subido en trozos de 1 MB y comprobado entero; sha256 falso rechazado sin dejar parciales")
+    print(f"✅ {etiqueta}: fichero de 1,5 MB subido en trozos de 1 MB y comprobado entero; sha256 falso rechazado sin dejar parciales; cuota de 2 MB respetada")
+
+    # 12. Registro abierto: otro ScopePower reserva un nombre libre con su clave; el mismo nombre con otra clave, no
+    otro = publicar.ClienteHosting(endpoint, "clave-de-otro-usuario-0123456789", "otro-usuario")
+    r = otro.registrar()
+    assert r.get("registrado") is True, r
+    assert otro.registrar().get("registrado") is False, "la segunda vez el nombre ya es suyo"
+    assert otro.probar().get("ok")
+    otro.subir("otro-usuario/x.json", b"{}", hashlib.sha256(b"{}").hexdigest())
+    assert "otro-usuario/x.json" in ficheros_de(raiz_servidor)
+    intruso = publicar.ClienteHosting(endpoint, "clave-del-intruso-abcdefghijklmnop", "otro-usuario")
+    for intento in (intruso.registrar, intruso.probar):
+        try:
+            intento()
+            raise AssertionError("el nombre de otro no se puede usar")
+        except (publicar.ErrorNombre, publicar.ErrorClave):
+            pass
+    for reservado in ("admin", "scopepower"):
+        try:
+            publicar.ClienteHosting(endpoint, "clave-de-otro-usuario-0123456789", reservado).registrar()
+            raise AssertionError(f"{reservado} está reservado")
+        except publicar.ErrorNombre:
+            pass
+    try:
+        publicar.ClienteHosting(endpoint, "corta", "nombre-libre").registrar()
+        raise AssertionError("una clave corta no vale para registrar")
+    except publicar.ErrorHosting:
+        pass
+    otro.borrar("otro-usuario/x.json")
+    print(f"✅ {etiqueta}: registro abierto: nombre libre reservado desde la app, el mismo nombre con otra clave y los reservados rechazados")
 
 
 def casos_visor():
@@ -564,7 +620,7 @@ def servidor_php(carpeta):
     os.makedirs(sp)
     shutil.copy(os.path.join("hosting", "publicar.php"), sp)
     with open(os.path.join(sp, "publicar_config.php"), "w", encoding="utf-8") as f:
-        f.write("<?php\nreturn ['claves' => ['%s' => '%s'], 'raiz' => __DIR__ . '/../galeria', 'max_bytes' => 8 * 1024 * 1024];\n" % (NOMBRE, CLAVE))
+        f.write("<?php\nreturn ['registro_abierto' => true, 'claves' => ['%s' => '%s'], 'raiz' => __DIR__ . '/../galeria', 'max_bytes' => 8 * 1024 * 1024, 'cuota_nombre_mb' => 2, 'cuota_total_mb' => 50, 'max_nombres' => 5, 'registros_por_dia' => 5];\n" % (NOMBRE, CLAVE))
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         puerto = s.getsockname()[1]

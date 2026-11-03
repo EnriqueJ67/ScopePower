@@ -1625,7 +1625,7 @@ msgid "Cielo junto al Sol: {c} % del brillo del centro."
 msgstr ""
 
 #: templates/configuracion.html
-msgid "Clave del endpoint"
+msgid "Clave del endpoint (solo para un hosting propio con alta manual)"
 msgstr ""
 
 #. js
@@ -1833,6 +1833,10 @@ msgstr ""
 #. js
 #: templates/base.html
 msgid "Con menos de {minimo} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio."
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Con scopepower.es la clave se genera y se guarda sola: no hace falta tocarla. Con un hosting propio de alta manual, la misma clave va en su publicar_config.php junto al nombre. Se guarda en secretos.ini y no se vuelve a mostrar."
 msgstr ""
 
 #: static/js/asistente.js
@@ -3608,6 +3612,10 @@ msgstr ""
 msgid "Ese catálogo no se puede instalar automáticamente"
 msgstr ""
 
+#: publicar.py
+msgid "Ese nombre ya está en uso en el hosting (o está reservado): elige otro en Configuración."
+msgstr ""
+
 #: ScopePower.py
 msgid "Ese objeto ya no está en el plan"
 msgstr ""
@@ -4003,10 +4011,6 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Falta el nombre del objeto"
-msgstr ""
-
-#: publicar.py
-msgid "Falta la clave del endpoint (publicar_clave en secretos.ini)."
 msgstr ""
 
 #: publicar.py
@@ -5243,6 +5247,10 @@ msgid "La foto no existe"
 msgstr ""
 
 #: publicar.py
+msgid "La galería ha agotado su cuota en el hosting: retira alguna foto."
+msgstr ""
+
+#: publicar.py
 msgid "La galería pública está desactivada en la configuración ([Publicar] activado)."
 msgstr ""
 
@@ -5260,10 +5268,6 @@ msgstr ""
 
 #: static/js/asistente.js
 msgid "La latitud va de −90 a 90 y la longitud de −180 a 180."
-msgstr ""
-
-#: templates/configuracion.html
-msgid "La misma clave va en publicar_config.php del hosting, junto al nombre. Se guarda en secretos.ini y no se vuelve a mostrar."
 msgstr ""
 
 #: templates/imagen.html
@@ -5503,7 +5507,7 @@ msgid "Las fotos de la galería (apilados y mosaicos con su posición) sobre el 
 msgstr ""
 
 #: templates/configuracion.html
-msgid "Las fotos que marques con el globo en la Galería se publican, reducidas, en tu propio hosting para enseñarlas desde el móvil con el mini PC apagado. En el hosting solo hay que colocar una vez el endpoint <code>hosting/publicar.php</code> con su clave: está explicado en <code>hosting/LEEME.md</code>. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio."
+msgid "Las fotos que marques con el globo en la Galería se publican, reducidas, en scopepower.es para enseñarlas desde el móvil con el mini PC apagado: activa, elige un nombre que esté libre y publica; el nombre queda reservado para ti en el primer uso. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio. Si prefieres tu propio hosting, instala allí <code>hosting/publicar.php</code> (<code>hosting/LEEME.md</code>)."
 msgstr ""
 
 #: seguimiento.py
@@ -6906,6 +6910,11 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "Nombre para el rótulo"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "Nombre reservado para ti. "
 msgstr ""
 
 #. js
@@ -12563,6 +12572,11 @@ msgstr ""
 
 #: templates/editar_dia.html
 msgid "{usados} de {frames} fotogramas apilados"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "{usado} de {cuota} MB usados"
 msgstr ""
 
 #: montura_ejes.py

@@ -34,6 +34,7 @@ import time
 import shutil
 import hashlib
 import logging
+import secrets as _secrets
 import threading
 import configparser
 from datetime import datetime, timezone
@@ -72,7 +73,9 @@ IDIOMAS_VALIDOS = ("es", "en")
 EXTENSIONES_PUBLICAS = (".jpg", ".jpeg", ".webp", ".png", ".json", ".html", ".js", ".css", ".md", ".txt", ".ico")
 NOMBRES_PUBLICOS = ("LICENSE", "properties")
 
-DEFECTOS = {"activado": "false", "url_base": "", "endpoint": "", "nombre": "", "autor_publico": "",
+# El hosting de serie: scopepower.es admite altas desde la app (registro abierto): basta un nombre libre
+HOSTING_PUBLICO = "https://scopepower.es"
+DEFECTOS = {"activado": "false", "url_base": HOSTING_PUBLICO, "endpoint": "", "nombre": "", "autor_publico": "",
             "lado_foto": "1600", "lado_mini": "480", "calidad": "85", "coordenadas": "redondeadas",
             "redondeo_grados": "1", "idiomas": "es,en"}
 
@@ -93,6 +96,14 @@ class ErrorTamano(ErrorHosting):
     """El fichero pasa del límite del hosting: se salta."""
 
 
+class ErrorNombre(ErrorHosting):
+    """El nombre ya es de otro (o está reservado): cola parada hasta que el usuario elija otro."""
+
+
+class ErrorCuota(ErrorHosting):
+    """La galería ha agotado su cuota en el hosting: cola parada hasta que retire fotos."""
+
+
 # ───────────────────────── Configuración ─────────────────────────
 def slug(texto):
     """'Enrique Jiménez' -> 'enrique-jimenez'; '' si no queda un nombre válido para la URL."""
@@ -108,7 +119,13 @@ def url_valida(url):
 
 
 def clave():
-    return str(secretos.obtener(CLAVE_SECRETO, "") or "").strip()
+    """La clave de esta instalación; si no la hay, se genera y se guarda en secretos.ini (nadie tiene que verla)."""
+    actual = str(secretos.obtener(CLAVE_SECRETO, "") or "").strip()
+    if not actual:
+        actual = _secrets.token_urlsafe(32)
+        secretos.guardar(CLAVE_SECRETO, actual)
+        log.info("Galería pública: clave nueva generada y guardada en secretos.ini")
+    return actual
 
 
 def leer_config(ruta="config.ini"):
@@ -136,6 +153,7 @@ def leer_config(ruta="config.ini"):
     except ValueError:
         d["latitud"], d["longitud"] = 0.0, 0.0
     d["clave"] = clave()
+    d["hosting_publico"] = d["url_base"].rstrip("/") == HOSTING_PUBLICO
     d["configurado"] = bool(d["activado"] and url_valida(d["url_base"]) and d["nombre"] and d["clave"])
     return d
 
@@ -158,8 +176,6 @@ def por_que_no(cfg=None):
         return _("Falta la dirección del hosting ([Publicar] url_base, con https://).")
     if not cfg["nombre"]:
         return _("Falta un nombre válido para la galería pública ([Publicar] nombre o [Observatorio] autor).")
-    if not cfg["clave"]:
-        return _("Falta la clave del endpoint (publicar_clave en secretos.ini).")
     return ""
 
 
@@ -456,7 +472,9 @@ _hilo = None
 _replanificar = False
 _verificar_remoto = True
 ESTADO = {"activo": False, "ocupado": False, "subiendo": "", "pendientes": 0, "bytes_pendientes": 0,
-          "fotos": 0, "ultimo_ok": "", "ultimo_error": "", "error_clave": False, "sin_red": False}
+          "fotos": 0, "ultimo_ok": "", "ultimo_error": "", "error_clave": False, "parada": False, "sin_red": False}
+# Errores que paran la cola hasta que el usuario arregle algo (clave, nombre, cuota)
+ERRORES_QUE_PARAN = (ErrorClave, ErrorNombre, ErrorCuota)
 THREAD_PRIORITY_BELOW_NORMAL = -1
 
 
@@ -580,6 +598,10 @@ class ClienteHosting:
             raise ErrorRed(_("No se pudo conectar con el hosting: {e}", e=e)) from e
         if r.status_code == 401:
             raise ErrorClave(_("El hosting rechaza la clave: ese nombre ya está en uso o la clave no es la suya."))
+        if r.status_code == 409 and accion == "registrar":
+            raise ErrorNombre(_("Ese nombre ya está en uso en el hosting (o está reservado): elige otro en Configuración."))
+        if r.status_code == 507:
+            raise ErrorCuota(_("La galería ha agotado su cuota en el hosting: retira alguna foto."))
         if r.status_code == 403:
             # publicar.php nunca devuelve 403: es el cortafuegos del hosting (o la carpeta) quien corta la petición
             raise ErrorHosting(_("El hosting bloquea la petición (código 403): revisa el cortafuegos o la carpeta del endpoint."))
@@ -597,6 +619,10 @@ class ClienteHosting:
 
     def probar(self):
         return self._post("probar")
+
+    def registrar(self):
+        """Reserva el nombre con esta clave si está libre (registro abierto); con el nombre ya suyo, no hace nada."""
+        return self._post("registrar")
 
     def listar(self, prefijo=""):
         return self._post("listar", {"prefijo": prefijo}).get("ficheros") or {}
@@ -621,12 +647,19 @@ def cliente(cfg=None):
 
 
 def probar(cfg=None):
-    """Comprueba el endpoint y la clave. Devuelve lo que diga el hosting; lanza ErrorHosting/ErrorClave."""
+    """
+    Reserva el nombre si hace falta y comprueba el endpoint. Devuelve lo que diga el hosting (con
+    `registrado`: True si el nombre acaba de quedar reservado); lanza ErrorHosting, ErrorClave, ErrorNombre.
+    """
     cfg = cfg or leer_config()
     falta = por_que_no(cfg)
     if falta:
         raise ErrorHosting(falta)
-    return cliente(cfg).probar()
+    cli = cliente(cfg)
+    registro = cli.registrar()
+    r = cli.probar()
+    r["registrado"] = bool(registro.get("registrado"))
+    return r
 
 
 # ───────────────────────── Hilo de la cola ─────────────────────────
@@ -674,24 +707,24 @@ def _bucle():
             ESTADO["ocupado"] = True
             replan, verificar = _replanificar or not despertado, _verificar_remoto
             _replanificar = False
-            if ESTADO["error_clave"] and not replan:
+            if ESTADO["parada"] and not replan:
                 ESTADO["ocupado"] = False
                 continue
-            ESTADO["error_clave"] = False
+            ESTADO["error_clave"] = ESTADO["parada"] = False
         try:
             estado = _leer_estado()
             cli = cliente(cfg)
             if verificar:
                 try:
+                    cli.registrar()          # reserva el nombre si está libre; con el nombre ya suyo no hace nada
                     if _reconciliar(cli, estado, cfg["nombre"]):
                         _verificar_remoto = False
                         replan = True
-                except ErrorClave as e:
-                    estado["ultimo_error"] = str(e)
-                    _guardar_estado(estado)
-                    with _lock:
-                        ESTADO["error_clave"] = True
+                except ERRORES_QUE_PARAN as e:
+                    _parar(estado, e)
                     continue
+                except ErrorHosting as e:
+                    log.warning("Galería pública: el hosting no responde al registrar (%s)", e)
             if replan or not estado["cola"]:
                 try:
                     planificar(estado, cfg)
@@ -707,6 +740,16 @@ def _bucle():
                 ESTADO.update({"ocupado": False, "subiendo": ""})
 
 
+def _parar(estado, e):
+    """Clave, nombre o cuota: la cola se queda en disco y parada hasta que el usuario lo arregle y sincronice."""
+    estado["ultimo_error"] = str(e)
+    _guardar_estado(estado)           # la cola queda en disco antes de avisar
+    with _lock:
+        ESTADO["parada"] = True
+        ESTADO["error_clave"] = isinstance(e, ErrorClave)
+    log.error("Galería pública: %s", e)
+
+
 def _vaciar(cli, estado):
     """Ejecuta la cola de una en una. Devuelve cuánto esperar antes de volver (segundos)."""
     while estado["cola"]:
@@ -715,12 +758,8 @@ def _vaciar(cli, estado):
             ESTADO["subiendo"] = op["ruta"]
         try:
             _ejecutar(cli, op)
-        except ErrorClave as e:
-            estado["ultimo_error"] = str(e)
-            _guardar_estado(estado)           # la cola queda en disco antes de avisar
-            with _lock:
-                ESTADO["error_clave"] = True
-            log.error("Galería pública: %s", e)
+        except ERRORES_QUE_PARAN as e:
+            _parar(estado, e)
             return INTERVALO_REVISION
         except ErrorTamano as e:
             log.warning("Galería pública: %s se salta (%s)", op["ruta"], e)
@@ -777,7 +816,7 @@ def sincronizar(verificar=False):
         _replanificar = True
         if verificar:
             _verificar_remoto = True
-        ESTADO["error_clave"] = False
+        ESTADO["error_clave"] = ESTADO["parada"] = False
     _arrancar_hilo()
     _despertar.set()
     return True
@@ -813,7 +852,7 @@ def esperar(timeout=None):
     while True:
         with _lock:
             quieto = not ESTADO["ocupado"] and not _replanificar
-        if quieto and (not _leer_estado()["cola"] or ESTADO["error_clave"]):
+        if quieto and (not _leer_estado()["cola"] or ESTADO["parada"]):
             return True
         if fin is not None and time.time() > fin:
             return False

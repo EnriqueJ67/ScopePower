@@ -1,0 +1,17 @@
+# scopepower/.htaccess — la carpeta del endpoint de la galería pública (publicar.php).
+# Súbelo como .htaccess junto a publicar.php.
+#
+# La configuración y el registro de nombres son PHP que no devuelven nada si se piden por la web,
+# pero por si el hosting dejara de ejecutar PHP en esta carpeta, se niegan del todo:
+<FilesMatch "^(publicar_config|claves)\.php$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "\.(tmp-[a-f0-9]+|log)$">
+    Require all denied
+</FilesMatch>
+IndexIgnore *
+
+# Si el dominio corre un PHP viejo (5.x: publicar.php da 500 con «unexpected '['»), pide aquí uno
+# moderno. En cPanel con LiteSpeed es esta línea (quita la almohadilla); con Apache suele ser
+# AddHandler application/x-httpd-ea-php82 .php. Un version.php con <?php echo PHP_VERSION; lo confirma.
+# AddHandler application/x-httpd-ea-php82___lsphp .php

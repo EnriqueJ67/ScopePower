@@ -27,6 +27,10 @@ día de la release. El número de versión vive en `version.py`.
   del navegador, paisaje, transparencia, tocar una foto para ver cuál es y «Ver en el cielo» desde la
   galería. El motor (6,6 MB) se sube una vez por hosting; los ficheros grandes van en trozos de 1 MB
   (el límite de subida de 2 MB de PHP dejaba fuera el catálogo de objetos).
+- Galería pública en scopepower.es sin instalar nada: de serie se publica ahí; basta activar, elegir un
+  nombre libre y publicar. El nombre queda reservado en el primer uso con una clave que la app genera
+  y guarda sola; el endpoint lleva cuotas por galería y totales, tope de altas por día y nombres
+  reservados. Un hosting propio sigue siendo posible (`hosting/LEEME.md`).
 - Número de Wolf: la gráfica de la galería da un punto por día (si hay varias fotos guardadas, la de
   conteo más alto, como el observador que se queda con la imagen más nítida) y aplica el k actual de
   `[Sol] factor_k` a toda la serie y a los conteos guardados, para que sea comparable con SILSO aunque

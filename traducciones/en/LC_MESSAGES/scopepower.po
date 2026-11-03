@@ -1627,8 +1627,8 @@ msgid "Cielo junto al Sol: {c} % del brillo del centro."
 msgstr "Sky next to the Sun: {c} % of the centre brightness."
 
 #: templates/configuracion.html
-msgid "Clave del endpoint"
-msgstr "Endpoint key"
+msgid "Clave del endpoint (solo para un hosting propio con alta manual)"
+msgstr "Endpoint key (only for your own hosting with manual sign-up)"
 
 #. js
 #: templates/galeria.html
@@ -1836,6 +1836,10 @@ msgstr "With the focal length and the camera sensor, ScopePower works out the fi
 #: templates/base.html
 msgid "Con menos de {minimo} GB el apilado se pausa solo y no se puede reanudar hasta liberar espacio."
 msgstr "Below {minimo} GB stacking pauses by itself and cannot resume until you free up space."
+
+#: templates/configuracion.html
+msgid "Con scopepower.es la clave se genera y se guarda sola: no hace falta tocarla. Con un hosting propio de alta manual, la misma clave va en su publicar_config.php junto al nombre. Se guarda en secretos.ini y no se vuelve a mostrar."
+msgstr "With scopepower.es the key is generated and stored on its own: nothing to touch. With your own hosting and manual sign-up, the same key goes into its publicar_config.php next to the name. It is stored in secretos.ini and never shown again."
 
 #: static/js/asistente.js
 msgid "Con tu campo de {campo}° (menos de 0,6°) hace falta el catálogo <b>D80</b> (1,2 GB), que solo existe como instalador para Windows: descárgalo en el PC desde <a href=\"{web}\" target=\"_blank\" rel=\"noopener\">hnsky.org</a> e instálalo en la carpeta de ASTAP. El D50 puede valer si el campo no es mucho menor."
@@ -3610,6 +3614,10 @@ msgstr "Listening... say the object name"
 msgid "Ese catálogo no se puede instalar automáticamente"
 msgstr "That catalog can't be installed automatically"
 
+#: publicar.py
+msgid "Ese nombre ya está en uso en el hosting (o está reservado): elige otro en Configuración."
+msgstr "That name is already in use on the hosting (or is reserved): choose another one in Settings."
+
 #: ScopePower.py
 msgid "Ese objeto ya no está en el plan"
 msgstr "That object is no longer in the plan"
@@ -4006,10 +4014,6 @@ msgstr "The Moon map is missing ({ruta})."
 #: ScopePower.py
 msgid "Falta el nombre del objeto"
 msgstr "The object name is missing"
-
-#: publicar.py
-msgid "Falta la clave del endpoint (publicar_clave en secretos.ini)."
-msgstr "The endpoint key is missing (publicar_clave in secretos.ini)."
 
 #: publicar.py
 msgid "Falta la dirección del hosting ([Publicar] url_base, con https://)."
@@ -5245,6 +5249,10 @@ msgid "La foto no existe"
 msgstr "The photo does not exist"
 
 #: publicar.py
+msgid "La galería ha agotado su cuota en el hosting: retira alguna foto."
+msgstr "The gallery has used up its quota on the hosting: unpublish some photos."
+
+#: publicar.py
 msgid "La galería pública está desactivada en la configuración ([Publicar] activado)."
 msgstr "The public gallery is switched off in the configuration ([Publicar] activado)."
 
@@ -5263,10 +5271,6 @@ msgstr "The image improves shot by shot; save the result to the gallery"
 #: static/js/asistente.js
 msgid "La latitud va de −90 a 90 y la longitud de −180 a 180."
 msgstr "Latitude goes from −90 to 90 and longitude from −180 to 180."
-
-#: templates/configuracion.html
-msgid "La misma clave va en publicar_config.php del hosting, junto al nombre. Se guarda en secretos.ini y no se vuelve a mostrar."
-msgstr "The same key goes into publicar_config.php on the hosting, next to the name. It is stored in secretos.ini and never shown again."
 
 #: templates/imagen.html
 msgid "La mitad"
@@ -5505,8 +5509,8 @@ msgid "Las fotos de la galería (apilados y mosaicos con su posición) sobre el 
 msgstr "Gallery photos (stacks and mosaics with a known position) over the sky, at their real size"
 
 #: templates/configuracion.html
-msgid "Las fotos que marques con el globo en la Galería se publican, reducidas, en tu propio hosting para enseñarlas desde el móvil con el mini PC apagado. En el hosting solo hay que colocar una vez el endpoint <code>hosting/publicar.php</code> con su clave: está explicado en <code>hosting/LEEME.md</code>. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio."
-msgstr "The photos you mark with the globe in the Gallery are published, downsized, on your own hosting so you can show them from your phone with the mini PC switched off. On the hosting you only place once the <code>hosting/publicar.php</code> endpoint with its key: it is explained in <code>hosting/LEEME.md</code>. Only JPGs and the photo data go out: no FITS, no videos, no exact observatory position."
+msgid "Las fotos que marques con el globo en la Galería se publican, reducidas, en scopepower.es para enseñarlas desde el móvil con el mini PC apagado: activa, elige un nombre que esté libre y publica; el nombre queda reservado para ti en el primer uso. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio. Si prefieres tu propio hosting, instala allí <code>hosting/publicar.php</code> (<code>hosting/LEEME.md</code>)."
+msgstr "The photos you mark with the globe in the Gallery are published, downsized, on scopepower.es so you can show them from your phone with the mini PC switched off: switch it on, choose a free name and publish; the name is reserved for you on first use. Only JPGs and the photo data go out: no FITS, no videos, no exact observatory position. If you prefer your own hosting, install <code>hosting/publicar.php</code> there (<code>hosting/LEEME.md</code>)."
 
 #: seguimiento.py
 msgid "Las medidas no permiten calibrar (ejes sin desplazamiento apreciable)"
@@ -6909,6 +6913,11 @@ msgstr "Name in the address"
 #: templates/apilado.html
 msgid "Nombre para el rótulo"
 msgstr "Caption name"
+
+#. js
+#: templates/configuracion.html
+msgid "Nombre reservado para ti. "
+msgstr "Name reserved for you. "
 
 #. js
 #: templates/goto.html
@@ -12566,6 +12575,11 @@ msgstr "{usados} of {frames} frames"
 #: templates/editar_dia.html
 msgid "{usados} de {frames} fotogramas apilados"
 msgstr "{usados} of {frames} frames stacked"
+
+#. js
+#: templates/configuracion.html
+msgid "{usado} de {cuota} MB usados"
+msgstr "{usado} of {cuota} MB used"
 
 #: montura_ejes.py
 msgid "{version} (montura 0x{codigo})"
