@@ -707,7 +707,7 @@ msgstr "Star width"
 msgid "Anchura de las estrellas (FWHM) en las últimas {n} fotos: de {min} a {max} px; la línea de puntos es el inicio de la sesión."
 msgstr "Star width (FWHM) over the last {n} shots: from {min} to {max} px; the dotted line is the start of the session."
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Anotaciones"
 msgstr "Annotations"
 
@@ -6499,6 +6499,10 @@ msgstr "Couldn't clear the syncs"
 msgid "No se localiza el disco ({n}/{max}): {e}"
 msgstr "Disk not found ({n}/{max}): {e}"
 
+#: static/publico/galeria_publica.js
+msgid "No se pudieron cargar las anotaciones."
+msgstr "The annotations could not be loaded."
+
 #: static/js/asistente.js
 msgid "No se pudieron leer los datos guardados: {e}"
 msgstr "Couldn't read the saved data: {e}"
@@ -6931,6 +6935,10 @@ msgstr "Moon names over the photo"
 #: templates/galeria.html
 msgid "Nombres de los mares, cráteres y montes de la Luna encima de la foto"
 msgstr "Names of the Moon's seas, craters and mountains over the photo"
+
+#: templates/publico/index.html
+msgid "Nombres de los objetos del campo encima de la foto"
+msgstr "Names of the objects in the field on top of the photo"
 
 #: templates/galeria.html
 msgid "Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos"
@@ -12293,7 +12301,7 @@ msgstr[0] "{n} object"
 msgstr[1] "{n} objects"
 
 #. js
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "{n} objeto en el campo"
 msgid_plural "{n} objetos en el campo"
 msgstr[0] "{n} object in the field"

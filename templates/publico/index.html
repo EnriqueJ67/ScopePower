@@ -26,7 +26,7 @@
     </script>
     {% if idioma != por_defecto %}<script src="{{ comun }}/i18n/{{ idioma }}.js"></script>{% endif %}
     <script src="{{ comun }}/js/i18n.js"></script>
-    <link rel="stylesheet" href="{{ comun }}/publico/publico.css">
+    <link rel="stylesheet" href="{{ comun }}/publico/publico.css?v=2">
 </head>
 <body>
 <header class="cab">
@@ -71,10 +71,13 @@
     <button type="button" class="lb-cerrar" id="lb-cerrar" aria-label="{{ _('Cerrar') }}">×</button>
     <button type="button" class="lb-flecha lb-prev" id="lb-prev" aria-label="{{ _('Anterior') }}">‹</button>
     <img id="lb-imagen" src="" alt="">
+    <!-- Objetos del campo pintados encima de la foto (<id>_anotaciones.json) -->
+    <svg id="lb-anotaciones" class="lightbox-anotaciones" aria-hidden="true"></svg>
     <button type="button" class="lb-flecha lb-next" id="lb-next" aria-label="{{ _('Siguiente') }}">›</button>
     <div class="lb-pie">
         <div class="lb-datos" id="lb-datos"></div>
         <div class="lb-acciones">
+            <label class="switch" id="lb-anotar" hidden title="{{ _('Nombres de los objetos del campo encima de la foto') }}"><input type="checkbox" id="lb-anotar-activo"> {{ _("Anotaciones") }}</label>
             <a class="btn btn-sm" id="lb-cielo" href="#" hidden>{{ _("Ver en el cielo") }}</a>
             <button type="button" class="btn btn-sm" id="lb-compartir">{{ _("Compartir") }}</button>
             <a class="btn btn-sm" id="lb-descargar" href="#" download>{{ _("Descargar") }}</a>
@@ -86,6 +89,8 @@
     {{ _("Fotos de {autor}", autor=autor) }} · {{ _("hechas con") }} <a href="https://github.com/EnriqueJ67/ScopePower" rel="noopener">ScopePower</a>
 </footer>
 
-<script src="{{ comun }}/publico/galeria_publica.js"></script>
+<script src="{{ comun }}/js/luna_anotada.js"></script>
+<script src="{{ comun }}/js/manchas_solares.js"></script>
+<script src="{{ comun }}/publico/galeria_publica.js?v=2"></script>
 </body>
 </html>

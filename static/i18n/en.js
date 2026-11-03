@@ -487,6 +487,7 @@ window.I18N_CATALOGO = {
 "No se encuentra ningún micrófono.":"No microphone found.",
 "No se ha entendido nada; prueba otra vez.":"Nothing was understood; try again.",
 "No se ha oído nada. Vuelve a pulsar y habla enseguida.":"Nothing was heard. Tap again and speak right away.",
+"No se pudieron cargar las anotaciones.":"The annotations could not be loaded.",
 "No se pudieron leer los datos guardados: {e}":"Couldn't read the saved data: {e}",
 "No se pudieron separar las estrellas":"The stars could not be separated",
 "No se pudo":"Could not",

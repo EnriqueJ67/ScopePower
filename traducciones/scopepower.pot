@@ -705,7 +705,7 @@ msgstr ""
 msgid "Anchura de las estrellas (FWHM) en las últimas {n} fotos: de {min} a {max} px; la línea de puntos es el inicio de la sesión."
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Anotaciones"
 msgstr ""
 
@@ -6497,6 +6497,10 @@ msgstr ""
 msgid "No se localiza el disco ({n}/{max}): {e}"
 msgstr ""
 
+#: static/publico/galeria_publica.js
+msgid "No se pudieron cargar las anotaciones."
+msgstr ""
+
 #: static/js/asistente.js
 msgid "No se pudieron leer los datos guardados: {e}"
 msgstr ""
@@ -6928,6 +6932,10 @@ msgstr ""
 
 #: templates/galeria.html
 msgid "Nombres de los mares, cráteres y montes de la Luna encima de la foto"
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Nombres de los objetos del campo encima de la foto"
 msgstr ""
 
 #: templates/galeria.html
@@ -12291,7 +12299,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. js
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "{n} objeto en el campo"
 msgid_plural "{n} objetos en el campo"
 msgstr[0] ""

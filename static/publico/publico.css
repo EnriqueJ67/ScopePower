@@ -96,6 +96,39 @@ a:hover { text-decoration: underline; }
 .lb-acciones { display: flex; gap: 8px; flex-wrap: wrap; }
 .lb-acciones .btn { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); color: #fff; }
 @media (max-width: 699px) { .lb-flecha { display: none; } .lightbox { padding-bottom: 140px; } }
+.lb-acciones .switch { color: #fff; font-size: 13.5px; font-weight: 600; min-height: 36px; margin-right: 4px; }
+.lb-datos span.lb-anot { color: #ffdc78; }
+
+/* Anotaciones encima de la foto: las mismas capas y los mismos colores que el visor de la app (static/css/scopepower.css) */
+.lightbox-anotaciones { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; overflow: hidden; }
+.lightbox-anotaciones ellipse { fill: none; stroke-width: 1.5px; }
+.lightbox-anotaciones text { font: 600 13px system-ui, -apple-system, "Segoe UI", sans-serif; paint-order: stroke; stroke: rgba(0,0,0,0.85); stroke-width: 3px; stroke-linejoin: round; }
+.lightbox-anotaciones ellipse.anot-catalogo { stroke: #ffdc78; }
+.lightbox-anotaciones text.anot-catalogo { fill: #ffdc78; }
+.lightbox-anotaciones ellipse.anot-simbad { stroke: #fff; }
+.lightbox-anotaciones text.anot-simbad { fill: #fff; }
+.lightbox-anotaciones ellipse.anot-ngc { stroke: #96d2ff; }
+.lightbox-anotaciones text.anot-ngc { fill: #96d2ff; }
+.lightbox-anotaciones .luna-limbo { fill: none; stroke: rgba(120, 210, 200, 0.55); stroke-width: 1px; }
+.lightbox-anotaciones .luna-contorno { fill: none; stroke: rgba(110, 200, 255, 0.6); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.lightbox-anotaciones .luna-terminador { fill: none; stroke: rgba(255, 200, 90, 0.7); stroke-width: 1px; stroke-dasharray: 4 4; }
+.lightbox-anotaciones .luna-mar { fill: #8fd0ff; stroke: rgba(143, 208, 255, 0.9); }
+.lightbox-anotaciones text.luna-mar { stroke: rgba(0,0,0,0.85); letter-spacing: 0.05em; font-size: 14px; }
+.lightbox-anotaciones .luna-crater { stroke: #ffd36b; }
+.lightbox-anotaciones text.luna-crater { fill: #ffd36b; stroke: rgba(0,0,0,0.85); }
+.lightbox-anotaciones .luna-monte { fill: #ffad6b; }
+.lightbox-anotaciones .luna-rima { fill: #8fe3b4; }
+.lightbox-anotaciones .luna-dorso { fill: #b3b9ff; }
+.lightbox-anotaciones .luna-estacion { fill: #ff93b5; }
+.lightbox-anotaciones text.luna-monte, .lightbox-anotaciones text.luna-rima, .lightbox-anotaciones text.luna-dorso,
+.lightbox-anotaciones text.luna-estacion { font-size: 12px; stroke: rgba(0,0,0,0.85); }
+.lightbox-anotaciones .luna-punto { stroke: rgba(0,0,0,0.7); stroke-width: 1px; }
+.lightbox-anotaciones .luna-noche { opacity: 0.55; }
+.lightbox-anotaciones .sol-limbo { fill: none; stroke: rgba(255, 200, 90, 0.45); stroke-width: 1px; }
+.lightbox-anotaciones .sol-mancha { stroke-width: 1.5px; }
+.lightbox-anotaciones .sol-umbra { fill: rgba(255, 120, 60, 0.25); stroke: #ff9a4d; }
+.lightbox-anotaciones .sol-penumbra { fill: rgba(255, 220, 120, 0.12); stroke: #ffd36b; stroke-dasharray: 3 3; }
+.lightbox-anotaciones text.sol-grupo { fill: #ffd36b; font-size: 12px; stroke: rgba(0,0,0,0.85); }
 
 /* Planetario público: barra, mapa y la foto tocada (como .atlas-marco de la app) */
 .barra { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 10px; }
