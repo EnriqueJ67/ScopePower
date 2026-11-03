@@ -16,7 +16,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.11.0\n"
+"Generated-By: Babel 2.16.0\n"
 
 #: puesta_estacion.py
 msgid " y "
@@ -2736,6 +2736,18 @@ msgstr "Guiding is for the Sun or the Moon in day mode."
 msgid "El guiado por el disco ya está activo"
 msgstr "Disk guiding is already on"
 
+#: publicar.py
+msgid "El hosting no admite ficheros tan grandes (código 413)."
+msgstr "The hosting does not accept files this large (code 413)."
+
+#: publicar.py
+msgid "El hosting no responde como el endpoint de ScopePower (código {codigo})."
+msgstr "The hosting does not answer like the ScopePower endpoint (code {codigo})."
+
+#: publicar.py
+msgid "El hosting rechaza la clave: ese nombre ya está en uso o la clave no es la suya."
+msgstr "The hosting rejects the key: that name is already in use or the key is not its own."
+
 #: foto_dia.py
 msgid "El intervalo debe estar entre 1 y 3600 segundos"
 msgstr "The interval must be between 1 and 3600 seconds"
@@ -3893,6 +3905,14 @@ msgstr "The Moon map is missing ({ruta})."
 msgid "Falta el nombre del objeto"
 msgstr "The object name is missing"
 
+#: publicar.py
+msgid "Falta la clave del endpoint (publicar_clave en secretos.ini)."
+msgstr "The endpoint key is missing (publicar_clave in secretos.ini)."
+
+#: publicar.py
+msgid "Falta la dirección del hosting ([Publicar] url_base, con https://)."
+msgstr "The hosting address is missing ([Publicar] url_base, with https://)."
+
 #: ScopePower.py
 msgid "Falta la hora del móvil"
 msgstr "The phone's time is missing"
@@ -3904,6 +3924,10 @@ msgstr "Latitude or longitude is missing. Press “Use this phone's location” 
 #: ScopePower.py
 msgid "Falta la ubicación del observatorio: ponla en Configuración"
 msgstr "The observatory location is missing: set it in Settings"
+
+#: publicar.py
+msgid "Falta un nombre válido para la galería pública ([Publicar] nombre o [Observatorio] autor)."
+msgstr "A valid name for the public gallery is missing ([Publicar] nombre or [Observatorio] autor)."
 
 #: editor_fotos.py
 msgid "Falta uno de los dos apilados de la pareja"
@@ -5068,6 +5092,14 @@ msgstr "This photo is not of the Sun"
 #: disco.py
 msgid "La foto no está disponible."
 msgstr "The shot is not available."
+
+#: publicar.py
+msgid "La foto no existe"
+msgstr "The photo does not exist"
+
+#: publicar.py
+msgid "La galería pública está desactivada en la configuración ([Publicar] activado)."
+msgstr "The public gallery is switched off in the configuration ([Publicar] activado)."
 
 #: ScopePower.py
 msgid "La ganancia tiene que ser un número entero (o vacía)"
@@ -6405,6 +6437,10 @@ msgstr "Couldn't check"
 msgid "No se pudo comprobar ASTAP: {e}"
 msgstr "Couldn't check ASTAP: {e}"
 
+#: publicar.py
+msgid "No se pudo conectar con el hosting: {e}"
+msgstr "Could not connect to the hosting: {e}"
+
 #. js
 #: templates/calibracion.html
 msgid "No se pudo consultar."
@@ -6540,6 +6576,10 @@ msgstr "Couldn't get the position: {e}"
 #: correccion_ejes.py
 msgid "No se pudo parar la montura tras moverla: {e}"
 msgstr "Couldn't stop the mount after moving it: {e}"
+
+#: publicar.py
+msgid "No se pudo preparar la galería pública: {e}"
+msgstr "Could not prepare the public gallery: {e}"
 
 #: ScopePower.py
 msgid "No se pudo procesar: {e}"

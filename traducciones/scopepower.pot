@@ -14,7 +14,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.11.0\n"
+"Generated-By: Babel 2.16.0\n"
 
 #: puesta_estacion.py
 msgid " y "
@@ -2734,6 +2734,18 @@ msgstr ""
 msgid "El guiado por el disco ya está activo"
 msgstr ""
 
+#: publicar.py
+msgid "El hosting no admite ficheros tan grandes (código 413)."
+msgstr ""
+
+#: publicar.py
+msgid "El hosting no responde como el endpoint de ScopePower (código {codigo})."
+msgstr ""
+
+#: publicar.py
+msgid "El hosting rechaza la clave: ese nombre ya está en uso o la clave no es la suya."
+msgstr ""
+
 #: foto_dia.py
 msgid "El intervalo debe estar entre 1 y 3600 segundos"
 msgstr ""
@@ -3891,6 +3903,14 @@ msgstr ""
 msgid "Falta el nombre del objeto"
 msgstr ""
 
+#: publicar.py
+msgid "Falta la clave del endpoint (publicar_clave en secretos.ini)."
+msgstr ""
+
+#: publicar.py
+msgid "Falta la dirección del hosting ([Publicar] url_base, con https://)."
+msgstr ""
+
 #: ScopePower.py
 msgid "Falta la hora del móvil"
 msgstr ""
@@ -3901,6 +3921,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Falta la ubicación del observatorio: ponla en Configuración"
+msgstr ""
+
+#: publicar.py
+msgid "Falta un nombre válido para la galería pública ([Publicar] nombre o [Observatorio] autor)."
 msgstr ""
 
 #: editor_fotos.py
@@ -5065,6 +5089,14 @@ msgstr ""
 
 #: disco.py
 msgid "La foto no está disponible."
+msgstr ""
+
+#: publicar.py
+msgid "La foto no existe"
+msgstr ""
+
+#: publicar.py
+msgid "La galería pública está desactivada en la configuración ([Publicar] activado)."
 msgstr ""
 
 #: ScopePower.py
@@ -6403,6 +6435,10 @@ msgstr ""
 msgid "No se pudo comprobar ASTAP: {e}"
 msgstr ""
 
+#: publicar.py
+msgid "No se pudo conectar con el hosting: {e}"
+msgstr ""
+
 #. js
 #: templates/calibracion.html
 msgid "No se pudo consultar."
@@ -6537,6 +6573,10 @@ msgstr ""
 
 #: correccion_ejes.py
 msgid "No se pudo parar la montura tras moverla: {e}"
+msgstr ""
+
+#: publicar.py
+msgid "No se pudo preparar la galería pública: {e}"
 msgstr ""
 
 #: ScopePower.py
