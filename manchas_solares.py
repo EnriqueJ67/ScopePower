@@ -903,8 +903,8 @@ def serie():
     return sorted(salida, key=lambda d: d["fecha"])
 
 
-def serie_diaria(k=None):
-    """Un valor por día para la gráfica: [{fecha, foto, g, f, R, k, n}].
+def serie_diaria(k=None, fotos=None):
+    """Un valor por día para la gráfica: [{fecha, foto, g, f, R, k, n}], solo de `fotos` si se da.
 
     De las fotos guardadas de un mismo día se toma la de conteo más alto (10·g + f), como el
     observador que se queda con la imagen de mejor nitidez; n dice cuántas había. R se rehace con
@@ -913,6 +913,8 @@ def serie_diaria(k=None):
     k = factor_k() if k is None else k
     dias = {}
     for d in serie():
+        if fotos is not None and d["foto"] not in fotos:
+            continue
         dia = d["fecha"][:10]
         n = dias[dia]["n"] + 1 if dia in dias else 1
         if dia not in dias or 10 * d["g"] + d["f"] >= 10 * dias[dia]["g"] + dias[dia]["f"]:

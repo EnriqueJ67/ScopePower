@@ -26,7 +26,7 @@
     </script>
     {% if idioma != por_defecto %}<script src="{{ comun }}/i18n/{{ idioma }}.js"></script>{% endif %}
     <script src="{{ comun }}/js/i18n.js"></script>
-    <link rel="stylesheet" href="{{ comun }}/publico/publico.css?v=2">
+    <link rel="stylesheet" href="{{ comun }}/publico/publico.css?v=3">
 </head>
 <body>
 <header class="cab">
@@ -62,6 +62,21 @@
     </a>
 </div>
 
+<!-- Con el filtro Sol: las gráficas de las fotos publicadas, como en la galería de la app -->
+<section class="tarjeta" id="wolf-serie" hidden>
+    <h2>{{ _("Número de Wolf") }}</h2>
+    <p class="sub" id="wolf-serie-texto"></p>
+    <svg id="wolf-serie-svg" class="wolf-serie" role="img" aria-label="{{ _('Serie del Número de Wolf') }}"></svg>
+    <p class="nota">{{ _("R = k · (10·g + f): g grupos y f manchas. Un punto por día: si hay varias fotos, la de conteo más alto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k corrige esa diferencia.") }}</p>
+</section>
+<section class="tarjeta" id="sol-diametro" hidden>
+    <h2>{{ _("Diámetro del Sol y órbita de la Tierra") }}</h2>
+    <p class="sub" id="sol-diametro-texto"></p>
+    <svg id="sol-diametro-svg" class="wolf-serie fs-serie" role="img" aria-label="{{ _('Radio del Sol medido en cada foto y el de la efeméride a lo largo del año') }}"></svg>
+    <p class="sub" id="sol-orbita-texto"></p>
+    <p class="nota">{{ _("El radio es el semieje mayor del disco (la refracción achata el vertical) por la escala del último plate solving. El Sol se ve más grande en enero, en el perihelio, y más pequeño en julio: la curva es la efeméride y los puntos, las fotos.") }}</p>
+</section>
+
 <main class="galeria" id="galeria"></main>
 <p class="vacia" id="vacia" hidden>{{ _("No hay fotos de este tipo.") }}</p>
 <p class="vacia" id="error" hidden>{{ _("No se pudo cargar la galería.") }}</p>
@@ -73,6 +88,8 @@
     <img id="lb-imagen" src="" alt="">
     <!-- Objetos del campo pintados encima de la foto (<id>_anotaciones.json) -->
     <svg id="lb-anotaciones" class="lightbox-anotaciones" aria-hidden="true"></svg>
+    <!-- Fotos del Sol: la lista de grupos con su tamaño en km y en Tierras -->
+    <div id="lb-grupos" class="wolf-lista" hidden></div>
     <button type="button" class="lb-flecha lb-next" id="lb-next" aria-label="{{ _('Siguiente') }}">›</button>
     <div class="lb-pie">
         <div class="lb-datos" id="lb-datos"></div>
@@ -90,7 +107,8 @@
 </footer>
 
 <script src="{{ comun }}/js/luna_anotada.js"></script>
-<script src="{{ comun }}/js/manchas_solares.js"></script>
-<script src="{{ comun }}/publico/galeria_publica.js?v=2"></script>
+<script src="{{ comun }}/js/manchas_solares.js?v=2"></script>
+<script src="{{ comun }}/js/fotometria_solar.js"></script>
+<script src="{{ comun }}/publico/galeria_publica.js?v=3"></script>
 </body>
 </html>

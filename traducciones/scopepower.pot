@@ -1814,7 +1814,7 @@ msgid "Con estos datos se calcula qué objetos están altos, los puntos de la al
 msgstr ""
 
 #. js
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "Con fotos fiables de al menos cuatro meses se calculan la excentricidad de la órbita de la Tierra y la fecha del perihelio."
 msgstr ""
 
@@ -2489,7 +2489,7 @@ msgstr ""
 msgid "Diámetro"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Diámetro del Sol y órbita de la Tierra"
 msgstr ""
 
@@ -3015,6 +3015,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "El punto ya está en el centro; no hace falta mover."
+msgstr ""
+
+#: templates/publico/index.html
+msgid "El radio es el semieje mayor del disco (la refracción achata el vertical) por la escala del último plate solving. El Sol se ve más grande en enero, en el perihelio, y más pequeño en julio: la curva es la efeméride y los puntos, las fotos."
 msgstr ""
 
 #: templates/galeria.html
@@ -3890,7 +3894,7 @@ msgid "Evolución del apilado"
 msgstr ""
 
 #. js
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "Excentricidad de la órbita medida: {e} (la real, 0,0167) · perihelio hacia el {fecha} (el real, hacia el 3 de enero), con {n} fotos de {dias} días."
 msgstr ""
 
@@ -6985,7 +6989,7 @@ msgstr ""
 msgid "Núcleo del cometa"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Número de Wolf"
 msgstr ""
 
@@ -7770,12 +7774,16 @@ msgstr ""
 msgid "R = k · (10·g + f): g grupos y f manchas. Un punto por día: si hay varias fotos guardadas, la de conteo más alto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k (config.ini, [Sol]) corrige esa diferencia y se aplica a toda la serie."
 msgstr ""
 
+#: templates/publico/index.html
+msgid "R = k · (10·g + f): g grupos y f manchas. Un punto por día: si hay varias fotos, la de conteo más alto. Con un telescopio pequeño salen menos manchas que en el índice de SILSO; el factor k corrige esa diferencia."
+msgstr ""
+
 #. js
 #: templates/imagen.html
 msgid "R/G {rg} (foco {rg0}) · B/G {bg} (foco {bg0})"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Radio del Sol medido en cada foto y el de la efeméride a lo largo del año"
 msgstr ""
 
@@ -8517,7 +8525,7 @@ msgstr ""
 msgid "Separar las estrellas con {producto} y procesarlas aparte"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Serie del Número de Wolf"
 msgstr ""
 
@@ -10346,7 +10354,7 @@ msgid "el paisaje"
 msgstr ""
 
 #. js
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 #, python-format
 msgid "el radio difiere de la efeméride un {m} % de media"
 msgstr ""
@@ -10757,7 +10765,7 @@ msgid "irreg. {v}"
 msgstr ""
 
 #. js
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "k = {k}"
 msgstr ""
 
@@ -12110,7 +12118,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. js
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "{n} día con conteo"
 msgid_plural "{n} días con conteo"
 msgstr[0] ""
@@ -12162,7 +12170,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. js
-#: fotometria_solar.py templates/galeria.html
+#: fotometria_solar.py static/publico/galeria_publica.js templates/galeria.html
 msgid "{n} foto medida"
 msgid_plural "{n} fotos medidas"
 msgstr[0] ""
@@ -12887,7 +12895,7 @@ msgid "último plate solving ({fecha})"
 msgstr ""
 
 #. js
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "último: R = {R} el {fecha} ({g} grupos, {f} manchas)"
 msgstr ""
 
