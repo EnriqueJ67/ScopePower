@@ -45,6 +45,9 @@ The screenshots show the Spanish interface. More in [docs/capturas](docs/captura
   watchdog, direct UDP access to the SynScan Wi-Fi module as well as ASCOM.
 - **Voice announcements** on the PC, IP announcement at startup,
   low disk space warning and its own Wi-Fi hotspot for the field.
+- **Public gallery**: the photos you mark are published, downsized, on your own hosting
+  (`hosting/LEEME.md`) so you can show them from your phone with the mini PC switched off, with
+  the planetarium and their footprints on the sky; no FITS, no videos, no exact observatory position.
 
 ## Language
 

@@ -53,6 +53,9 @@ Más capturas en [docs/capturas](docs/capturas).
   del seguimiento sidéreo, acceso directo por UDP al SynScan Wi-Fi además de ASCOM.
 - **Avisos por voz** en el PC, anuncio de la IP al arrancar,
   aviso de espacio en disco y punto de acceso wifi propio para el campo.
+- **Galería pública**: las fotos que marques se publican, reducidas, en tu propio hosting
+  (`hosting/LEEME.md`) para enseñarlas desde el móvil con el mini PC apagado, con el planetario
+  y sus huellas en el cielo; ni FITS, ni vídeos, ni la posición exacta del observatorio.
 
 ## Idioma
 
