@@ -14,7 +14,7 @@
     <meta property="og:title" content="{{ _("Galería de {autor}", autor=autor) }} · ScopePower">
     <meta property="og:description" content="{{ _("Fotos del cielo hechas con un telescopio y ScopePower.") }}">
     <link rel="icon" href="{{ comun }}/publico/scopepower.ico" type="image/x-icon">
-    <link rel="apple-touch-icon" href="{{ comun }}/publico/logo.png">
+    <link rel="apple-touch-icon" href="{{ comun }}/publico/icono.png">
     {% for cod in idiomas %}
     <link rel="alternate" hreflang="{{ cod }}" href="{{ raiz }}/{{ '' if cod == por_defecto else cod ~ '/' }}">
     {% endfor %}
@@ -30,7 +30,7 @@
 </head>
 <body>
 <header class="cab">
-    <img class="logo" src="{{ comun }}/publico/logo.png" alt="ScopePower">
+    <img class="logo" src="{{ comun }}/publico/icono.png" alt="ScopePower">
     <div class="cab-texto">
         <h1>{{ _("Galería de {autor}", autor=autor) }}</h1>
         <p id="resumen" class="sub">{{ _("Cargando…") }}</p>

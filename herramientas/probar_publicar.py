@@ -601,7 +601,7 @@ def casos_visor():
             assert prohibido not in html, prohibido
     assert '"raiz": "."' in es and '"raiz": ".."' in en and "../_comun/" in es and "../../_comun/" in en
     comun = publicar.archivos_comun()
-    assert {"js/i18n.js", "i18n/en.js", "publico/logo.png", "publico/publico.css", "publico/galeria_publica.js"} <= set(comun), sorted(comun)
+    assert {"js/i18n.js", "i18n/en.js", "publico/icono.png", "publico/publico.css", "publico/galeria_publica.js"} <= set(comun), sorted(comun)
     assert {"js/atlas_catalogos.js", "js/capa_fotos.js", "atlas/src/index.js", "atlas/dso-catalog.js", "atlas/assets/landscapes/guereins/properties",
             "publico/planetario_publico.js"} <= set(comun), sorted(r for r in comun if not r.startswith("atlas/assets"))
     assert not any(r.endswith(".ts") or "/licenses/" in r for r in comun), "solo lo que el endpoint admite"
