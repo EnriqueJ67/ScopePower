@@ -14,7 +14,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.11.0\n"
+"Generated-By: Babel 2.16.0\n"
 
 #: puesta_estacion.py
 msgid " y "
@@ -51,6 +51,11 @@ msgstr ""
 #. js
 #: templates/dark.html
 msgid "(generar de nuevo lo sustituye)"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "(guardada; escribe otra para cambiarla)"
 msgstr ""
 
 #. js
@@ -430,6 +435,14 @@ msgstr ""
 msgid "Abrir en el PC"
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Abrir la galería pública"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Abrir la galería pública en el hosting"
+msgstr ""
+
 #: ScopePower.py
 msgid "Acción no válida"
 msgstr ""
@@ -701,7 +714,7 @@ msgstr ""
 msgid "Anotando objetos"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/editar_foto.html templates/publico/index.html
 msgid "Anterior"
 msgstr ""
 
@@ -925,7 +938,7 @@ msgid "Asociación estelar"
 msgstr ""
 
 #. js
-#: ScopePower.py catalogo_offline.py
+#: ScopePower.py catalogo_offline.py static/publico/galeria_publica.js
 msgid "Asteroide"
 msgstr ""
 
@@ -971,6 +984,10 @@ msgstr ""
 msgid "Autor de las fotos (firma)"
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Autor que se enseña"
+msgstr ""
+
 #: static/js/asistente.js
 msgid "Autor: {autor}"
 msgstr ""
@@ -993,7 +1010,7 @@ msgid "Avisos por voz del PC"
 msgstr ""
 
 #. js
-#: catalogo_offline.py rastros.py
+#: catalogo_offline.py rastros.py static/publico/galeria_publica.js
 msgid "Avión"
 msgstr ""
 
@@ -1275,6 +1292,10 @@ msgstr ""
 msgid "Cambiar"
 msgstr ""
 
+#: templates/publico/index.html
+msgid "Cambiar entre el tema noche (rojo) y el oscuro"
+msgstr ""
+
 #: templates/planetario.html
 msgid "Cambiar entre horizonte (Alt/Az) y ecuatorial (RA/Dec)"
 msgstr ""
@@ -1366,6 +1387,10 @@ msgstr ""
 #. js
 #: static/js/plan.js templates/configuracion.html
 msgid "Cargando..."
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Cargando…"
 msgstr ""
 
 #: ScopePower.py
@@ -1525,6 +1550,7 @@ msgstr ""
 #: templates/_asistente.html templates/_modal_humor.html
 #: templates/_puesta_estacion.html templates/apilado.html
 #: templates/galeria.html templates/planetario.html
+#: templates/publico/index.html
 msgid "Cerrar"
 msgstr ""
 
@@ -1590,6 +1616,15 @@ msgstr ""
 msgid "Cielo junto al Sol: {c} % del brillo del centro."
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Clave del endpoint"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Clave rechazada por el hosting"
+msgstr ""
+
 #. js
 #: ScopePower.py templates/editar_dia.html
 msgid "Color"
@@ -1630,8 +1665,8 @@ msgid "Comentarios de a bordo"
 msgstr ""
 
 #. js
-#: ScopePower.py catalogo_offline.py templates/editar_foto.html
-#: templates/planetario.html
+#: ScopePower.py catalogo_offline.py static/publico/galeria_publica.js
+#: templates/editar_foto.html templates/planetario.html
 msgid "Cometa"
 msgstr ""
 
@@ -1663,7 +1698,7 @@ msgid "Comparaciones"
 msgstr ""
 
 #. js
-#: templates/apilado.html templates/galeria.html
+#: templates/apilado.html templates/galeria.html templates/publico/index.html
 msgid "Compartir"
 msgstr ""
 
@@ -1970,6 +2005,11 @@ msgstr ""
 msgid "Coordenadas no válidas."
 msgstr ""
 
+#. js
+#: templates/configuracion.html
+msgid "Copia esta clave en publicar_config.php del hosting y pulsa Guardar."
+msgstr ""
+
 #: static/js/ayuda_voz.js
 msgid "Copia esta dirección:"
 msgstr ""
@@ -1980,6 +2020,14 @@ msgstr ""
 
 #: static/js/ayuda_voz.js templates/_modal_voz.html
 msgid "Copiar"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Copiar o compartir el enlace de esta foto en la galería pública"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Copiar o compartir el enlace de la galería pública"
 msgstr ""
 
 #: centrado.py
@@ -2097,7 +2145,8 @@ msgid "Cómo se reparten los objetos a lo largo de la noche"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Cúmulo abierto"
 msgstr ""
 
@@ -2107,7 +2156,8 @@ msgid "Cúmulo con nebulosa"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Cúmulo globular"
 msgstr ""
 
@@ -2187,7 +2237,7 @@ msgstr ""
 msgid "De día no hay plate solving: el movimiento se calcula con la orientación y la escala de la cámara del último que salió bien…"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "De la mejor nota a la peor"
 msgstr ""
 
@@ -2288,6 +2338,10 @@ msgstr ""
 msgid "Descargando la foto de la cámara"
 msgstr ""
 
+#: templates/publico/index.html
+msgid "Descargar"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Descargar FITS"
 msgstr ""
@@ -2359,6 +2413,10 @@ msgstr ""
 #. js
 #: templates/constelacion.html
 msgid "Diga \"constelación X\"."
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Dirección del hosting (https://)"
 msgstr ""
 
 #: disco.py
@@ -2734,6 +2792,23 @@ msgstr ""
 msgid "El guiado por el disco ya está activo"
 msgstr ""
 
+#: publicar.py
+msgid "El hosting no admite ficheros tan grandes (código 413)."
+msgstr ""
+
+#: publicar.py
+msgid "El hosting no responde como el endpoint de ScopePower (código {codigo})."
+msgstr ""
+
+#: publicar.py
+msgid "El hosting rechaza la clave: ese nombre ya está en uso o la clave no es la suya."
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "El hosting responde (PHP {php}, hasta {mb} MB por fichero). Galería: {url}"
+msgstr ""
+
 #: foto_dia.py
 msgid "El intervalo debe estar entre 1 y 3600 segundos"
 msgstr ""
@@ -2821,6 +2896,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "El nombre no puede estar vacío."
+msgstr ""
+
+#: ScopePower.py
+msgid "El nombre solo admite letras, números y guiones (de 2 a 41)"
 msgstr ""
 
 #: foto_dia.py
@@ -3243,6 +3322,28 @@ msgstr ""
 
 #: templates/imagen.html
 msgid "Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Enlace"
+msgstr ""
+
+#. js
+#: static/publico/galeria_publica.js templates/galeria.html
+msgid "Enlace copiado: {url}"
+msgstr ""
+
+#: static/publico/galeria_publica.js
+msgid "Enlace de esta foto"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Enlace de la galería pública"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Enlace público"
 msgstr ""
 
 #: templates/_modal_voz.html
@@ -3703,7 +3804,8 @@ msgid "Estrecho (0,85°)"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Estrella"
 msgstr ""
 
@@ -3891,6 +3993,14 @@ msgstr ""
 msgid "Falta el nombre del objeto"
 msgstr ""
 
+#: publicar.py
+msgid "Falta la clave del endpoint (publicar_clave en secretos.ini)."
+msgstr ""
+
+#: publicar.py
+msgid "Falta la dirección del hosting ([Publicar] url_base, con https://)."
+msgstr ""
+
 #: ScopePower.py
 msgid "Falta la hora del móvil"
 msgstr ""
@@ -3901,6 +4011,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Falta la ubicación del observatorio: ponla en Configuración"
+msgstr ""
+
+#: publicar.py
+msgid "Falta un nombre válido para la galería pública ([Publicar] nombre o [Observatorio] autor)."
 msgstr ""
 
 #: editor_fotos.py
@@ -3916,7 +4030,7 @@ msgstr ""
 msgid "Fase:"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Fecha"
 msgstr ""
 
@@ -4257,8 +4371,16 @@ msgstr ""
 msgid "Fotos de la sesión (FITS)"
 msgstr ""
 
+#: templates/publico/index.html
+msgid "Fotos de {autor}"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Fotos del apilado (máximo)"
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Fotos del cielo hechas con un telescopio y ScopePower."
 msgstr ""
 
 #: templates/galeria.html
@@ -4283,7 +4405,8 @@ msgid "Fuentes de coordenadas: catálogo local (OpenNGC y estrellas) y, si está
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Galaxia"
 msgstr ""
 
@@ -4300,6 +4423,14 @@ msgstr ""
 #: templates/editar_foto.html templates/galeria.html templates/home.html
 #: templates/rastros.html templates/visor_video.html
 msgid "Galería"
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Galería de {autor}"
+msgstr ""
+
+#: templates/configuracion.html templates/galeria.html
+msgid "Galería pública"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -4324,6 +4455,10 @@ msgstr ""
 
 #: flats.py
 msgid "Generación de flats cancelada"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Generar"
 msgstr ""
 
 #: templates/dark.html
@@ -4522,6 +4657,11 @@ msgstr ""
 msgid "Guardada en la galería como {archivo} (falló el procesado del apilado; guardada con el revelado rápido)"
 msgstr ""
 
+#. js
+#: templates/configuracion.html
+msgid "Guardado"
+msgstr ""
+
 #: ScopePower.py
 msgid "Guardado en la galería como {archivo}"
 msgstr ""
@@ -4701,6 +4841,10 @@ msgstr ""
 msgid "Humor desactivado. Volvemos al modo estrictamente profesional."
 msgstr ""
 
+#: templates/publico/index.html
+msgid "Idioma"
+msgstr ""
+
 #: ScopePower.py
 msgid "Idioma cambiado a español"
 msgstr ""
@@ -4867,6 +5011,10 @@ msgstr ""
 msgid "Introduce usuario y contraseña"
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Inventa una clave larga y aleatoria. Cópiala en publicar_config.php del hosting"
+msgstr ""
+
 #: templates/_pad.html
 msgid "Invertir arriba/abajo"
 msgstr ""
@@ -4990,6 +5138,10 @@ msgstr ""
 msgid "La descarga sigue en el PC aunque cierres el asistente; la ruta se guardará sola al terminar."
 msgstr ""
 
+#: ScopePower.py
+msgid "La dirección del hosting debe empezar por https://"
+msgstr ""
+
 #: static/js/fotometria_solar.js
 msgid "La escala de placa no casa con el tamaño del Sol: ¿otro telescopio o reductor desde el último plate solving?"
 msgstr ""
@@ -5067,6 +5219,14 @@ msgstr ""
 msgid "La foto no está disponible."
 msgstr ""
 
+#: publicar.py
+msgid "La foto no existe"
+msgstr ""
+
+#: publicar.py
+msgid "La galería pública está desactivada en la configuración ([Publicar] activado)."
+msgstr ""
+
 #: ScopePower.py
 msgid "La ganancia tiene que ser un número entero (o vacía)"
 msgstr ""
@@ -5081,6 +5241,10 @@ msgstr ""
 
 #: static/js/asistente.js
 msgid "La latitud va de −90 a 90 y la longitud de −180 a 180."
+msgstr ""
+
+#: templates/configuracion.html
+msgid "La misma clave va en publicar_config.php del hosting, junto al nombre. Se guarda en secretos.ini y no se vuelve a mostrar."
 msgstr ""
 
 #: templates/imagen.html
@@ -5319,6 +5483,10 @@ msgstr ""
 msgid "Las fotos de la galería (apilados y mosaicos con su posición) sobre el cielo, a su tamaño real"
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Las fotos que marques con el globo en la Galería se publican, reducidas, en tu propio hosting para enseñarlas desde el móvil con el mini PC apagado. En el hosting solo hay que colocar una vez el endpoint <code>hosting/publicar.php</code> con su clave: está explicado en <code>hosting/LEEME.md</code>. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio."
+msgstr ""
+
 #: seguimiento.py
 msgid "Las medidas no permiten calibrar (ejes sin desplazamiento apreciable)"
 msgstr ""
@@ -5443,7 +5611,8 @@ msgstr ""
 
 #. js
 #: catalogo_offline.py disco.py esta_noche.py foto_dia.py plan_sesion.py
-#: templates/imagen.html templates/planetario.html
+#: static/publico/galeria_publica.js templates/imagen.html
+#: templates/planetario.html
 msgid "Luna"
 msgstr ""
 
@@ -5580,7 +5749,7 @@ msgid "Messier completo"
 msgstr ""
 
 #. js
-#: catalogo_offline.py
+#: catalogo_offline.py static/publico/galeria_publica.js
 msgid "Meteoro"
 msgstr ""
 
@@ -5609,6 +5778,10 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "Minutos sin fotos aceptadas para saltar"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Minúsculas, números y guiones. Vacío: el autor de las fotos."
 msgstr ""
 
 #: templates/home.html
@@ -5937,7 +6110,8 @@ msgid "Navegador: {navegador}"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Nebulosa"
 msgstr ""
 
@@ -5957,7 +6131,8 @@ msgid "Nebulosa oscura"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/constelacion.html templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/constelacion.html templates/planetario.html
 msgid "Nebulosa planetaria"
 msgstr ""
 
@@ -5981,6 +6156,10 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "Ninguna"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Ninguna (posición genérica)"
 msgstr ""
 
 #: static/js/manchas_solares.js
@@ -6101,7 +6280,7 @@ msgstr ""
 msgid "No hay flat maestro."
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "No hay fotos de este tipo."
 msgstr ""
 
@@ -6301,6 +6480,11 @@ msgstr ""
 msgid "No se pudieron separar las estrellas de {archivo}: {e}"
 msgstr ""
 
+#. js
+#: templates/galeria.html
+msgid "No se pudo"
+msgstr ""
+
 #: ScopePower.py
 msgid "No se pudo abrir el navegador en el PC"
 msgstr ""
@@ -6364,6 +6548,10 @@ msgstr ""
 msgid "No se pudo cargar el recorrido"
 msgstr ""
 
+#: templates/publico/index.html
+msgid "No se pudo cargar la galería."
+msgstr ""
+
 #. js
 #: templates/planetario.html
 msgid "No se pudo cargar {fichero}"
@@ -6401,6 +6589,10 @@ msgstr ""
 
 #: static/js/asistente.js
 msgid "No se pudo comprobar ASTAP: {e}"
+msgstr ""
+
+#: publicar.py
+msgid "No se pudo conectar con el hosting: {e}"
 msgstr ""
 
 #. js
@@ -6520,6 +6712,10 @@ msgid "No se pudo leer la imagen"
 msgstr ""
 
 #: ScopePower.py
+msgid "No se pudo marcar la foto: {e}"
+msgstr ""
+
+#: ScopePower.py
 msgid "No se pudo medir: {e}"
 msgstr ""
 
@@ -6537,6 +6733,10 @@ msgstr ""
 
 #: correccion_ejes.py
 msgid "No se pudo parar la montura tras moverla: {e}"
+msgstr ""
+
+#: publicar.py
+msgid "No se pudo preparar la galería pública: {e}"
 msgstr ""
 
 #: ScopePower.py
@@ -6674,6 +6874,10 @@ msgstr ""
 msgid "Nombre del preset:"
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Nombre en la dirección"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Nombre para el rótulo"
 msgstr ""
@@ -6716,7 +6920,7 @@ msgstr ""
 msgid "Norte y este en positivo; oeste en negativo (Valencia: 39,47 y −0,38)."
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Nota"
 msgstr ""
 
@@ -6740,6 +6944,10 @@ msgstr ""
 
 #: templates/galeria.html
 msgid "Número de Wolf"
+msgstr ""
+
+#: static/publico/galeria_publica.js
+msgid "Número de Wolf {r}"
 msgstr ""
 
 #: camara_sdk.py
@@ -6793,6 +7001,7 @@ msgstr ""
 
 #. js
 #: templates/constelacion.html templates/galeria.html templates/goto.html
+#: templates/publico/index.html
 msgid "Objeto"
 msgstr ""
 
@@ -6908,7 +7117,8 @@ msgid "Pad táctil y flechas"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/planetario.html
 msgid "Paisaje"
 msgstr ""
 
@@ -7084,7 +7294,8 @@ msgid "Plan reanudado"
 msgstr ""
 
 #. js
-#: catalogo_offline.py esta_noche.py templates/planetario.html
+#: catalogo_offline.py esta_noche.py static/publico/galeria_publica.js
+#: templates/planetario.html
 msgid "Planeta"
 msgstr ""
 
@@ -7148,7 +7359,7 @@ msgstr ""
 msgid "Por nombre o por voz, con centrado automático por plate solving"
 msgstr ""
 
-#: templates/galeria.html
+#: templates/galeria.html templates/publico/index.html
 msgid "Por objeto y, dentro de cada uno, de la mejor nota a la peor"
 msgstr ""
 
@@ -7159,6 +7370,10 @@ msgstr ""
 
 #: templates/alineacion.html
 msgid "Posición"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Posición del observatorio en el planetario público"
 msgstr ""
 
 #: templates/base.html
@@ -7233,7 +7448,7 @@ msgstr ""
 msgid "Probar"
 msgstr ""
 
-#: templates/_asistente.html
+#: templates/_asistente.html templates/configuracion.html
 msgid "Probar conexión"
 msgstr ""
 
@@ -7300,6 +7515,20 @@ msgstr ""
 msgid "Pruebas: {lista}"
 msgstr ""
 
+#. js
+#: templates/galeria.html
+msgid "Publicar"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Publicar en el hosting"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Publicar en la galería pública"
+msgstr ""
+
 #: templates/_puesta_estacion.html
 msgid "Puesta en estación"
 msgstr ""
@@ -7324,8 +7553,18 @@ msgstr ""
 msgid "Pulsa <b>Iniciar</b> y usa la vista en directo con el pad de abajo como buscador: mueve el telescopio hasta ver el objeto (o apunta por delante de él) y suelta; cuando entre algo que se mueve, el seguimiento lo adquiere solo. Para una luz fija (una prueba de día), tócala en la vista. La cámara se pasa al SDK nativo mientras dura."
 msgstr ""
 
+#. js
+#: templates/configuracion.html
+msgid "Pulsa Generar o pega la del hosting"
+msgstr ""
+
 #: ScopePower.py
 msgid "Pulsa Iniciar para mover con la vista en directo"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Pulsa para sincronizar ahora"
 msgstr ""
 
 #: templates/configuracion.html
@@ -7418,6 +7657,10 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "Píxeles rechazados"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Públicas"
 msgstr ""
 
 #. js
@@ -7600,6 +7843,10 @@ msgstr ""
 
 #: templates/editar_foto.html
 msgid "Recupera detalle y afila las estrellas deshaciendo el desenfoque medido en las estrellas de la propia foto (Richardson-Lucy). 0 = apagada; 0,65 son las 8 pasadas probadas con M13 y la Pacman (la anchura de las estrellas baja de 4,4 a 2,9 px). Las estrellas brillantes y el cielo no se tocan. Al guardar añade unos 10 s en el mini PC."
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Redondeada a grados enteros (unos 100 km)"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -7798,7 +8045,8 @@ msgid "Restaurar la foto original"
 msgstr ""
 
 #. js
-#: catalogo_offline.py templates/planetario.html
+#: catalogo_offline.py static/publico/galeria_publica.js
+#: templates/planetario.html
 msgid "Resto de supernova"
 msgstr ""
 
@@ -7839,6 +8087,16 @@ msgstr ""
 #. js
 #: templates/goto.html
 msgid "Resumen reproducido."
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Retirar"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Retirar de la galería pública"
 msgstr ""
 
 #: templates/editar_dia.html
@@ -7976,7 +8234,7 @@ msgid "Satélite"
 msgstr ""
 
 #. js
-#: catalogo_offline.py
+#: catalogo_offline.py static/publico/galeria_publica.js
 msgid "Satélite artificial"
 msgstr ""
 
@@ -8250,6 +8508,7 @@ msgid "Sigue sumando fotos al apilado que ya hay"
 msgstr ""
 
 #: static/js/asistente.js templates/_asistente.html
+#: templates/publico/index.html
 msgid "Siguiente"
 msgstr ""
 
@@ -8385,12 +8644,17 @@ msgstr ""
 msgid "Sin plate solving: se usa la orientación de la cámara del último que salió bien ({orientacion})."
 msgstr ""
 
+#. js
+#: templates/galeria.html
+msgid "Sin red · {n} por subir"
+msgstr ""
+
 #: montura_ejes.py
 msgid "Sin respuesta de la montura en {direccion} a {orden} ({error})"
 msgstr ""
 
 #. js
-#: ScopePower.py
+#: ScopePower.py static/publico/galeria_publica.js
 msgid "Sin tipo"
 msgstr ""
 
@@ -8412,6 +8676,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Sincronizado con la foto: RA {ra}, DEC {dec}. La montura se equivocaba {error}′."
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Sincronizar ahora"
 msgstr ""
 
 #. js
@@ -8442,8 +8710,8 @@ msgid "Sky-Watcher a través de la app <b>SynScan Pro</b>: ábrela en el PC y co
 msgstr ""
 
 #. js
-#: catalogo_offline.py disco.py foto_dia.py templates/imagen.html
-#: templates/planetario.html
+#: catalogo_offline.py disco.py foto_dia.py static/publico/galeria_publica.js
+#: templates/imagen.html templates/planetario.html
 msgid "Sol"
 msgstr ""
 
@@ -8690,6 +8958,10 @@ msgid_plural "Telescopio sincronizado. Se equivocaba {n} minutos de arco"
 msgstr[0] ""
 msgstr[1] ""
 
+#: templates/publico/index.html
+msgid "Tema"
+msgstr ""
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Temperatura de color"
 msgstr ""
@@ -8863,7 +9135,8 @@ msgstr ""
 msgid "Tocar la foto"
 msgstr ""
 
-#: templates/apilado.html templates/editar_foto.html templates/galeria.html
+#: static/publico/galeria_publica.js templates/apilado.html
+#: templates/editar_foto.html templates/galeria.html
 msgid "Todas"
 msgstr ""
 
@@ -8917,6 +9190,11 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "Todavía no se ha medido ninguna foto."
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "Todavía no se ha subido nada: marca una foto con el globo en la Galería."
 msgstr ""
 
 #: templates/visor_video.html
@@ -9069,6 +9347,10 @@ msgstr ""
 msgid "Vacío = no tocarla (queda la que tenga el driver)."
 msgstr ""
 
+#: templates/configuracion.html
+msgid "Vacío: el autor de la firma."
+msgstr ""
+
 #: templates/apilado.html
 msgid "Vacío: el objeto del último GoTo (o donde apunta la montura). O escribe un objeto: M31, NGC 7000…"
 msgstr ""
@@ -9144,6 +9426,10 @@ msgstr ""
 #. js
 #: templates/galeria.html templates/imagen.html
 msgid "Ver el vídeo fotograma a fotograma"
+msgstr ""
+
+#: templates/publico/index.html
+msgid "Ver en el cielo"
 msgstr ""
 
 #: templates/planetario.html
@@ -9559,6 +9845,10 @@ msgstr ""
 
 #: static/js/plan.js
 msgid "anochece a las {hora}"
+msgstr ""
+
+#: static/publico/galeria_publica.js
+msgid "apilado de un vídeo de {n} fotogramas"
 msgstr ""
 
 #: mosaico.py
@@ -10355,6 +10645,10 @@ msgstr ""
 msgid "hecha"
 msgstr ""
 
+#: templates/publico/index.html
+msgid "hechas con"
+msgstr ""
+
 #: static/js/plan.js templates/apilado.html
 msgid "hecho"
 msgstr ""
@@ -10887,6 +11181,10 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "norte arriba: falta el plate solving de la referencia"
+msgstr ""
+
+#: static/publico/galeria_publica.js
+msgid "nota {n}"
 msgstr ""
 
 #. js
@@ -11616,6 +11914,10 @@ msgstr ""
 msgid "{mensaje}. Ya puedes destapar el telescopio."
 msgstr ""
 
+#: static/publico/galeria_publica.js
+msgid "{min} min · {n} × {s} s"
+msgstr ""
+
 #: camara_sdk.py
 msgid "{modelo} (webcam, sin ASCOM)"
 msgstr ""
@@ -11711,6 +12013,10 @@ msgstr ""
 msgid "{n} de {total} fotos de esta tesela"
 msgstr ""
 
+#: static/publico/galeria_publica.js
+msgid "{n} de {total} fotos · {tipo}"
+msgstr ""
+
 #. js
 #: templates/galeria.html
 msgid "{n} de {total} imágenes · {tipo}"
@@ -11743,9 +12049,16 @@ msgstr[1] ""
 msgid "{n} esta noche"
 msgstr ""
 
-#: templates/galeria.html
+#: static/publico/galeria_publica.js templates/galeria.html
 msgid "{n} estrella"
 msgid_plural "{n} estrellas"
+msgstr[0] ""
+msgstr[1] ""
+
+#. js
+#: templates/configuracion.html templates/galeria.html
+msgid "{n} fichero por subir"
+msgid_plural "{n} ficheros por subir"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -11754,6 +12067,12 @@ msgstr[1] ""
 #: templates/imagen.html templates/planetario.html
 msgid "{n} foto"
 msgid_plural "{n} fotos"
+msgstr[0] ""
+msgstr[1] ""
+
+#: static/publico/galeria_publica.js
+msgid "{n} foto del cielo"
+msgid_plural "{n} fotos del cielo"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -11788,6 +12107,13 @@ msgstr[1] ""
 #: nota_apilado.py
 msgid "{n} foto puntuada"
 msgid_plural "{n} fotos puntuadas"
+msgstr[0] ""
+msgstr[1] ""
+
+#. js
+#: templates/galeria.html
+msgid "{n} foto pública"
+msgid_plural "{n} fotos públicas"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -12414,6 +12740,11 @@ msgstr ""
 msgid "Última release en GitHub"
 msgstr ""
 
+#. js
+#: templates/configuracion.html templates/galeria.html
+msgid "Última subida: {t}"
+msgstr ""
+
 #: templates/apilado.html
 msgid "Última toma"
 msgstr ""
@@ -12563,6 +12894,11 @@ msgstr ""
 
 #. js
 #: templates/configuracion.html
+msgid "⏳ Comparando con el hosting..."
+msgstr ""
+
+#. js
+#: templates/configuracion.html
 msgid "⏳ Comprobando StarNet2..."
 msgstr ""
 
@@ -12607,6 +12943,11 @@ msgstr ""
 
 #: static/js/plan.js
 msgid "⏳ Otra noche: {motivo}"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "⏳ Probando el hosting..."
 msgstr ""
 
 #: ScopePower.py

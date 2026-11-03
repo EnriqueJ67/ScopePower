@@ -88,6 +88,7 @@ import editor_fotos
 import editor_dia
 import galeria_anotada
 import fondo_planetario
+import publicar
 import luna_anotada
 import manchas_solares
 import fotometria_solar
@@ -6106,13 +6107,17 @@ def galeria():
         conteo[t] = conteo.get(t, 0) + 1
     orden = list(catalogo_offline.CATEGORIAS) + [SIN_TIPO]
     filtros = sorted(conteo.items(), key=lambda kv: orden.index(kv[0]) if kv[0] in orden else len(orden))
+    # Galería pública (publicar.py): qué fotos están marcadas y cómo va la cola de subida
+    publicadas = set(publicar.publicadas())
+    estado_publicar = publicar.estado()
     lista_rastros = rastros.listar()
     n_meteoros = sum(1 for d in lista_rastros if d.get("tipo") == "meteoro")
     return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_dia=con_dia, con_luna=con_luna, con_sol=con_sol,
                            serie_wolf=serie_wolf, factor_k=manchas_solares.factor_k(), sol_crudo=sol_crudo, serie_sol=serie_sol,
                            curva_sol=curva_sol, orbita_sol=orbita_sol, n_sol_pendientes=n_sol_pendientes, tipos=tipos, filtros=filtros,
                            n_rastros=len(lista_rastros), n_meteoros=n_meteoros, videos=videos, de_video=de_video,
-                           notas=notas, n_sin_nota=n_sin_nota, partes_nombre=_partes_galeria)
+                           notas=notas, n_sin_nota=n_sin_nota, partes_nombre=_partes_galeria,
+                           publicadas=publicadas, publicar=estado_publicar)
 
 
 @app.route("/galeria/puntuar", methods=["POST"])
@@ -6275,6 +6280,12 @@ def eliminar_imagen():
     nombre_base, extension = os.path.splitext(nombre)
     nombre_fits = f"{nombre_base}.fits"
     ruta_fits = os.path.join(carpeta_fotos, nombre_fits)
+    # Si estaba en la galería pública, al terminar se retira del hosting (publicar.py)
+    try:
+        with open(os.path.join(carpeta_fotos, f"{nombre_base}.json"), encoding="utf-8") as f:
+            era_publica = bool((json.load(f) or {}).get("publicada"))
+    except (OSError, ValueError, AttributeError):
+        era_publica = False
 
     mensajes = []
     try:
@@ -6304,6 +6315,8 @@ def eliminar_imagen():
             os.remove(ruta_json)
         # Original apartado por el editor (static/fotos/originales), si lo hay
         editor_fotos.borrar_original(os.path.join(carpeta_fotos, nombre_base))
+        if era_publica:
+            publicar.al_borrar(nombre)
 
         return jsonify({"ok": True, "mensaje": "✅ " + " ".join(mensajes)})
     except Exception as e:
@@ -6338,6 +6351,88 @@ def galeria_compartir(nombre):
     if not ok:
         return _("No se pudo codificar la imagen"), 500
     return send_file(io.BytesIO(jpg.tobytes()), mimetype="image/jpeg", as_attachment=descargar, download_name=nombre_salida)
+
+
+@app.route("/galeria/publicar/<nombre>", methods=["POST"])
+@app.route("/galeria/retirar/<nombre>", methods=["POST"])
+def galeria_publicar(nombre):
+    """Marca o retira una foto de la galería pública (publicar.py) y pone la cola de subida en marcha."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "error": _("No autorizado")}), 403
+    publicada = request.path.startswith("/galeria/publicar/")
+    falta = publicar.por_que_no()
+    if falta and publicada:
+        return jsonify({"ok": False, "error": falta, "configurar": True}), 409
+    try:
+        publicar.marcar(nombre, publicada)
+    except editor_fotos.ErrorEditor as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        log.exception("Error al marcar %s para la galería pública", nombre)
+        return jsonify({"ok": False, "error": _("No se pudo marcar la foto: {e}", e=e)}), 500
+    return jsonify({"ok": True, "publicada": publicada, "estado": publicar.estado()})
+
+
+@app.route("/publicar/estado")
+def publicar_estado():
+    """Cómo va la cola de subida de la galería pública (para la píldora de la galería)."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "error": _("No autorizado")}), 403
+    return jsonify(publicar.estado())
+
+
+@app.route("/publicar/sincronizar", methods=["POST"])
+def publicar_sincronizar():
+    """Vuelve a comparar la galería con el hosting y sube o borra lo que falte."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "error": _("No autorizado")}), 403
+    if not publicar.sincronizar(verificar=True):
+        return jsonify({"ok": False, "error": publicar.por_que_no()}), 409
+    return jsonify({"ok": True, "estado": publicar.estado()})
+
+
+
+@app.route("/publicar/config", methods=["GET", "POST"])
+def publicar_config():
+    """[Publicar] de config.ini y la clave del hosting (secretos.ini) desde Configuración. La clave nunca se devuelve."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "error": _("No autorizado")}), 403
+    if request.method == "POST":
+        datos = request.get_json(silent=True) or {}
+        url_base = str(datos.get("url_base", "")).strip().rstrip("/")
+        if url_base and not publicar.url_valida(url_base):
+            return jsonify({"ok": False, "error": _("La dirección del hosting debe empezar por https://")}), 400
+        nombre = str(datos.get("nombre", "")).strip()
+        if nombre and not publicar.slug(nombre):
+            return jsonify({"ok": False, "error": _("El nombre solo admite letras, números y guiones (de 2 a 41)")}), 400
+        coordenadas = str(datos.get("coordenadas", "redondeadas")).strip().lower()
+        if coordenadas not in ("redondeadas", "ninguna"):
+            coordenadas = "redondeadas"
+        _guardar_en_config("Publicar", {"activado": "true" if datos.get("activado") else "false", "url_base": url_base,
+                                        "nombre": publicar.slug(nombre) if nombre else "",
+                                        "autor_publico": str(datos.get("autor_publico", "")).strip()[:60], "coordenadas": coordenadas})
+        clave = str(datos.get("clave", "")).strip()
+        if clave:
+            secretos.guardar(publicar.CLAVE_SECRETO, clave)
+        log.info("Galería pública configurada: %s, nombre %r", "activada" if datos.get("activado") else "desactivada", publicar.slug(nombre))
+        if publicar.leer_config()["configurado"]:
+            publicar.sincronizar(verificar=True)
+    cfg = publicar.leer_config()
+    return jsonify({"ok": True, "activado": cfg["activado"], "url_base": cfg["url_base"], "nombre": cfg["nombre"],
+                    "nombre_autor": publicar.slug(cfg["autor"]), "autor_publico": cfg["autor_publico"], "coordenadas": cfg["coordenadas"],
+                    "clave_puesta": bool(cfg["clave"]), "configurado": cfg["configurado"], "falta": publicar.por_que_no(cfg),
+                    "url": publicar.url_publica(cfg), "estado": publicar.estado()})
+
+@app.route("/publicar/probar", methods=["POST"])
+def publicar_probar():
+    """Comprueba el endpoint del hosting y la clave (Configuración)."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False, "error": _("No autorizado")}), 403
+    try:
+        hosting = publicar.probar()
+    except publicar.ErrorHosting as e:
+        return jsonify({"ok": False, "error": str(e)})
+    return jsonify({"ok": True, "hosting": hosting, "url": publicar.url_publica()})
 
 @app.route("/planetario/fotos")
 def planetario_fotos():
@@ -7788,6 +7883,11 @@ if __name__ == '__main__':
     iniciar_hilo_apilado(ruta_absoluta("capturas"), alinear=True)
     # Espacio en disco: aviso por voz si baja del umbral de Configuración y pausa con menos de 1 GB
     espacio_disco.vigilante.iniciar(voz, al_quedar_sin_espacio=_pausar_por_disco_lleno)
+    # Galería pública: si está configurada, comprueba el hosting y sigue con la cola pendiente (publicar.py)
+    try:
+        publicar.iniciar()
+    except Exception:
+        log.exception("No se pudo iniciar la galería pública")
     # Punto de acceso de Windows para la tablet (siempre 192.168.137.1): [Red] punto_acceso
     punto_acceso.iniciar(config)
     # Si la app se cerró con el plan de la noche a medias, devolver a config.ini sus valores
