@@ -647,7 +647,7 @@ def hacer_dither():
 from bucle_captura import BucleCaptura
 bucle = BucleCaptura(
     capturar=lambda usar_dark: capturar_y_guardar(apilar=True, usar_dark=usar_dark,
-                                                  generar_preview=False, descripcion=_("Apilado")),
+                                                  generar_preview=False, descripcion=_("Apilado"), en_bucle=True),
     camara=camara,
     otros_trabajos=(darks.trabajo_darks, centrado.trabajo_centrado, foto_continua.trabajo_continuo),
     dither=hacer_dither,
@@ -1371,18 +1371,23 @@ def generar_fits_monocromo_para_platesolve(ruta_rgb, ruta_monocromo):
         fits.PrimaryHDU(gris, header=header).writeto(ruta_monocromo, overwrite=True)
 
 
+def _sexagesimal(valor, decimales=1):
+    """(entero, minutos, segundos) de un valor positivo, con los segundos redondeados a
+    `decimales` y el acarreo hecho: nunca sale «59 60.0» ni «60 00.0»."""
+    total = int(round(valor * 3600 * 10 ** decimales))          # décimas de segundo
+    seg = total % (60 * 10 ** decimales) / 10 ** decimales
+    minutos_totales = total // (60 * 10 ** decimales)
+    return minutos_totales // 60, minutos_totales % 60, seg
+
+
 def formatear_ra_dec(ra_horas, dec_grados):
-    # RA en horas → HH MM SS.S
-    horas = int(ra_horas)
-    minutos_ra = int((ra_horas - horas) * 60)
-    segundos_ra = ((ra_horas - horas) * 60 - minutos_ra) * 60
-
-    # DEC en grados → ±DD MM SS.S
+    """RA en horas → 'HH MM SS.S'; Dec en grados → '±DD MM SS.S'. El redondeo de los
+    segundos se acarrea a los minutos y a las horas o grados (antes, 59,97″ salía como
+    «60.0» y 23h 59m 59,97s como «23 59 60.0»)."""
+    horas, minutos_ra, segundos_ra = _sexagesimal(float(ra_horas) % 24)
+    horas %= 24
     signo = '+' if dec_grados >= 0 else '-'
-    grados = int(abs(dec_grados))
-    minutos_dec = int((abs(dec_grados) - grados) * 60)
-    segundos_dec = ((abs(dec_grados) - grados) * 60 - minutos_dec) * 60
-
+    grados, minutos_dec, segundos_dec = _sexagesimal(abs(float(dec_grados)))
     ra_str = f"{horas:02d} {minutos_ra:02d} {segundos_ra:04.1f}"
     dec_str = f"{signo}{grados:02d} {minutos_dec:02d} {segundos_dec:04.1f}"
     return ra_str, dec_str
@@ -2042,7 +2047,7 @@ def _escala_revelado_vista():
 
 
 def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descripcion=None, ganancia=None, copia=None,
-                       exposicion=None):
+                       exposicion=None, en_bucle=False):
     """
     Expone, calibra (dark/flat), escribe static/captura.fits y, si `apilar`,
     una copia en capturas/ que recoge el apilador. Devuelve un dict:
@@ -2054,6 +2059,8 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     `copia`: None o {"carpeta", "formato" ("fits" | "jpg"), "nombre"} para guardar además
     esta foto en una carpeta (modo continuo). El FITS es el mismo que static/captura.fits;
     el JPG es la foto revelada a resolución completa. Su ruta vuelve en "archivo".
+    `en_bucle`: la llama el bucle del apilado; sus avisos de cada foto se pueden callar
+    con [Voz] silenciar_bucle_apilado.
     """
     descripcion = descripcion or _("Captura")     # se enseña en la cabecera de Apilado y Cámara
     # Si la cámara ya está exponiendo, no encolar otra captura detrás
@@ -2072,13 +2079,16 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     BINNING, FOCAL_LEN = disp["binning"], disp["focal"]     # valores en vivo, no los de arranque
     GANANCIA = disp["ganancia"] if ganancia is None else int(ganancia)
 
+    # En el bucle del apilado estos avisos se repiten en cada foto: se pueden callar aparte
+    categoria_voz = ("capturas", "bucle_apilado") if en_bucle else "capturas"
+
     def _exponer(cam):
         print(f"📸 Iniciando exposición de {EXPOSICION} segundos...")
         voz.decir(ngettext("Empieza exposición de {n} segundo", "Empieza exposición de {n} segundos", round(EXPOSICION)),
-                  categoria="capturas")
+                  categoria=categoria_voz)
         frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion=descripcion, ganancia=GANANCIA)
         print("✅ Exposición finalizada.")
-        voz.decir(_("Exposición terminada"), categoria="capturas")
+        voz.decir(_("Exposición terminada"), categoria=categoria_voz)
         return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY, leer_ganancia(cam)["actual"]
 
     try:
@@ -6335,7 +6345,9 @@ def planetario_fotos():
     if 'usuario' not in session:
         return jsonify({"error": "sin sesión"}), 401
     try:
-        return jsonify({"ok": True, "fotos": fondo_planetario.lista()})
+        fotos, resolviendo = fondo_planetario.lista()
+        return jsonify({"ok": True, "fotos": fotos, "pendientes": sum(1 for f in fotos if f.get("modo") != "completa"),
+                        "resolviendo": resolviendo})
     except Exception as e:
         log.exception("Error listando las fotos para el planetario")
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -6347,7 +6359,15 @@ def planetario_foto(nombre):
     if 'usuario' not in session:
         return redirect(url_for('login'))
     try:
-        ruta = fondo_planetario.miniatura(nombre)
+        # La versión a campo completo si ya está revelada (?modo=jpg fuerza el JPG de la galería desfirmado)
+        ruta = None
+        if request.args.get("modo") != "jpg":
+            base, __, ruta_fits, __ = editor_fotos.rutas(nombre)
+            candidata = fondo_planetario._ruta_completa(base, os.stat(ruta_fits), fondo_planetario.LADO_MINIATURA)
+            if os.path.isfile(candidata):
+                ruta = candidata
+        if ruta is None:
+            ruta = fondo_planetario.miniatura(nombre)
     except editor_fotos.ErrorEditor as e:
         return str(e), 404
     except Exception as e:

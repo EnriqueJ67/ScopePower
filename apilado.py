@@ -699,8 +699,9 @@ class ApiladorEnTiempoReal:
             voz.decir(_("{base}. Es la peor que ha entrado hasta ahora: {p}, la anterior {anterior}", base=base, p=_hablado(puntuacion), anterior=_hablado(anterior)))
             humor.decir("foto_peor", n=self.total)
         else:
-            voz.decir(base)
-            if evento_humor:
+            # Lo de cada foto (añadida, sustituye a una peor) se calla con [Voz] silenciar_bucle_apilado;
+            # sin el aviso, tampoco su frase de humor
+            if voz.decir(base, categoria="bucle_apilado") and evento_humor:
                 humor.decir(evento_humor)
 
     def _fase(self, nombre):

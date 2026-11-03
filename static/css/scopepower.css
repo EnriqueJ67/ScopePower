@@ -508,6 +508,10 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .panel-btn svg { width: 18px; height: 18px; }
 .panel-btn:hover { background: var(--surface-2); color: var(--text); }
 .panel-btn:disabled { opacity: 0.25; cursor: default; }
+/* Subir y bajar son flechas con palo (base.html); plegar es la «V», con fondo y separada por una
+   raya para no confundirla con ellas */
+.panel-btn.panel-plegar { background: var(--surface-2); color: var(--text-2); margin-left: 9px; position: relative; overflow: visible; }
+.panel-btn.panel-plegar::before { content: ""; position: absolute; left: -7px; top: 7px; bottom: 7px; width: 1px; background: var(--border); }
 .panel-btn.panel-plegar svg { transition: transform .2s; transform: rotate(90deg); }
 .panel.plegado .panel-btn.panel-plegar svg { transform: rotate(0deg); }
 .panel-cuerpo { padding: 0 16px 16px; }
@@ -871,8 +875,26 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .lista-sucesos .chip { cursor: pointer; font-family: inherit; }
 
 /* ── Leyenda de colores de las teselas del mosaico (planetario y panel de Apilado) ── */
-.ma-leyenda { font-size: 11.5px; margin-top: 6px; line-height: 1.6; }
-.ma-leyenda .ley { display: inline-block; width: 14px; height: 9px; margin: 0 3px 0 1px; vertical-align: middle; border: 1.5px dashed var(--warn); background: rgba(255, 200, 60, 0.10); border-radius: 2px; }
+.ma-leyenda { font-size: 12.5px; margin-top: 8px; line-height: 1.7; color: var(--text-2); }
+.ma-leyenda summary { cursor: pointer; color: var(--text-3); font-weight: 600; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.ma-leyenda summary::-webkit-details-marker { display: none; }
+.ma-leyenda summary::before { content: "▸"; font-size: 11px; transition: transform .15s; }
+.ma-leyenda[open] summary::before { transform: rotate(90deg); }
+.ma-leyenda .ley-grupo { margin-top: 4px; }
+.ma-leyenda .ley-grupo b { color: var(--text-3); font-weight: 600; margin-right: 6px; }
+.ma-leyenda .ley { display: inline-block; width: 16px; height: 10px; margin: 0 4px 0 2px; vertical-align: middle; border: 1.5px dashed var(--warn); background: rgba(255, 200, 60, 0.10); border-radius: 2px; }
+/* Objetos: los colores con que el motor del atlas pinta cada tipo (en modo noche todo va en rojo) */
+.ma-leyenda .ley.obj { width: 11px; height: 11px; border-radius: 50%; border-style: solid; border-width: 1.5px; background: none; }
+.ma-leyenda .ley.obj.galaxia { border-color: #aa91ff; border-radius: 50% / 35%; width: 15px; }
+.ma-leyenda .ley.obj.cumulo { border-color: #62d8ff; }
+.ma-leyenda .ley.obj.emision { border-color: #ff8c92; background: rgba(255, 100, 120, 0.15); }
+.ma-leyenda .ley.obj.reflexion { border-color: #75d7ff; background: rgba(117, 215, 255, 0.15); }
+.ma-leyenda .ley.obj.oscura { border-color: #8796ac; background: rgba(0, 0, 0, 0.35); }
+.ma-leyenda .ley.obj.nebulosa { border-color: #f6c978; background: rgba(246, 201, 120, 0.12); }
+.ma-leyenda .ley.obj.contorno { border-color: rgba(140, 210, 255, 0.9); background: rgba(120, 200, 255, 0.08); border-radius: 50% / 40%; width: 15px; }
+.ma-leyenda .ley-noche { display: none; }
+html:not([data-tema="oscuro"]) .ma-leyenda .ley-objetos { display: none; }
+html:not([data-tema="oscuro"]) .ma-leyenda .ley-noche { display: block; }
 .ma-leyenda .ley.en_curso { border: 2px solid var(--accent); background: rgba(80, 160, 255, 0.18); }
 .ma-leyenda .ley.hecha { border: 1.5px solid var(--ok); background: rgba(60, 200, 120, 0.18); }
 .ma-leyenda .ley.fallida { border: 1.5px solid #e55; background: rgba(220, 60, 60, 0.15); }

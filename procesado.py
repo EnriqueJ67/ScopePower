@@ -651,7 +651,9 @@ def quitar_gradiente(rgb, rejilla=12):
     Modelo de fondo: la mediana de cada celda de una rejilla (sin estrellas ni
     bordes negros) suavizada e interpolada, no un polinomio: un polinomio de 2º
     grado no puede seguir un cielo plano por arriba que baja por abajo (viñeteo
-    o gradiente asimétrico) y "rebota" dejando una franja clara en un borde.
+    o gradiente asimétrico) y "rebota" dejando una franja clara en un borde, y
+    ajusta el bulto de una nebulosa grande y se la lleva. En los bordes la malla
+    se extrapola linealmente para que la rampa llegue entera hasta el píxel 0.
     Las celdas con objeto se detectan como envolvente inferior (residuo positivo
     frente al modelo, con la dispersión medida solo en los residuos negativos)
     y se rellenan con sus vecinas, así el halo de una galaxia grande no entra
@@ -664,10 +666,18 @@ def quitar_gradiente(rgb, rejilla=12):
     peq = cv2.resize(rgb, (rejilla * 16, rejilla * 16), interpolation=cv2.INTER_AREA)
     lum = peq.mean(axis=2)
     med = float(np.median(lum))
-    mad = float(np.median(np.abs(lum - med))) * 1.4826 + 1e-6
-    # excluir estrellas y objeto, y también los bordes negros que deja el alineado
-    fondo_ok = (lum < med + 2.5 * mad) & (lum > 0.3 * med)
     ch = peq.shape[0] // rejilla
+    # Excluir estrellas y objeto, y también los bordes negros que deja el alineado. El
+    # umbral va sobre el fondo LOCAL (la luminancia menos su media a dos celdas), no
+    # sobre la mediana de toda la foto: con un gradiente marcado y poco ruido (la capa
+    # sin estrellas de StarNet, mosaico del 1-nov-2026: +16 ADU arriba con un umbral de
+    # 2,5 MAD = 10 ADU) las celdas del borde alto se descartaban enteras, se rellenaban
+    # planas con sus vecinas y el modelo se quedaba corto: franja clara al estirar.
+    grueso = cv2.GaussianBlur(lum, (0, 0), 2.0 * ch, borderType=cv2.BORDER_REFLECT_101)
+    plano = lum - grueso
+    med_plano = float(np.median(plano))
+    mad = float(np.median(np.abs(plano - med_plano))) * 1.4826 + 1e-6
+    fondo_ok = (plano < med_plano + 2.5 * mad) & (lum > 0.3 * med)
     malla = np.full((rejilla, rejilla, 3), np.nan, dtype=np.float32)
     for j in range(rejilla):
         for i in range(rejilla):
@@ -679,8 +689,28 @@ def quitar_gradiente(rgb, rejilla=12):
     if np.count_nonzero(~np.isnan(malla[..., 0])) < 10:
         return rgb
 
+    def extrapolar(m):
+        """Un anillo de celdas extrapoladas linealmente alrededor de la malla (n+2, n+2, 3)."""
+        p = np.pad(m, ((1, 1), (1, 1), (0, 0)), mode="edge")
+        p[0, 1:-1] = 2 * m[0] - m[1]
+        p[-1, 1:-1] = 2 * m[-1] - m[-2]
+        p[1:-1, 0] = 2 * m[:, 0] - m[:, 1]
+        p[1:-1, -1] = 2 * m[:, -1] - m[:, -2]
+        p[0, 0], p[0, -1] = 2 * p[1, 0] - p[2, 0], 2 * p[1, -1] - p[2, -1]
+        p[-1, 0], p[-1, -1] = 2 * p[-2, 0] - p[-3, 0], 2 * p[-2, -1] - p[-3, -1]
+        return p
+
     def modelo_de(m):
-        return cv2.GaussianBlur(_rellenar_huecos(m), (0, 0), 1.0, borderType=cv2.BORDER_REPLICATE)
+        """
+        La malla (con los huecos rellenados) suavizada con una gaussiana de una celda. El
+        suavizado se hace con un anillo de celdas extrapoladas linealmente y borde reflejado:
+        con el borde replicado la rampa se aplanaba en las dos celdas exteriores y en el
+        mosaico del 1-nov-2026 quedaba una franja clara de 5 ADU en el 20 % superior (medida
+        en el FITS lineal), que sin estrellas se veía. No es un polinomio: uno de 2º grado
+        ajusta también el bulto de una nebulosa grande y se la lleva (medido con nebulosas
+        sintéticas: de 60 ADU perdía 37; este modelo, 2).
+        """
+        return cv2.GaussianBlur(extrapolar(_rellenar_huecos(m)), (0, 0), 1.0, borderType=cv2.BORDER_REFLECT_101)[1:-1, 1:-1]
 
     usar = ~np.isnan(malla[..., 0])
     modelo = None
@@ -695,8 +725,13 @@ def quitar_gradiente(rgb, rejilla=12):
             break
         usar = nuevo
 
-    # Superficie a resolución completa (los centros de celda quedan en su sitio)
-    superficie = cv2.resize(modelo, (w, h), interpolation=cv2.INTER_CUBIC)
+    # Superficie a resolución completa: se reescala la malla CON el anillo extrapolado y se
+    # recorta, así fuera de los centros de las celdas exteriores la rampa sigue (cv2.resize
+    # a secas la dejaba plana en el último medio tramo de cada borde)
+    hp, wp = int(round(h * (rejilla + 2) / rejilla)), int(round(w * (rejilla + 2) / rejilla))
+    superficie = cv2.resize(extrapolar(modelo), (wp, hp), interpolation=cv2.INTER_CUBIC)
+    oy, ox = int(round(h / rejilla)), int(round(w / rejilla))
+    superficie = np.ascontiguousarray(superficie[oy:oy + h, ox:ox + w])
     nivel = superficie.reshape(-1, 3).mean(axis=0)   # nivel medio que se conserva
     return rgb - superficie + nivel
 

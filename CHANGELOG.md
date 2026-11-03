@@ -9,6 +9,43 @@ día de la release. El número de versión vive en `version.py`.
   conteo más alto, como el observador que se queda con la imagen más nítida) y aplica el k actual de
   `[Sol] factor_k` a toda la serie y a los conteos guardados, para que sea comparable con SILSO aunque
   k cambie después de guardar.
+- Paneles plegables (Apilado, Cámara y editor): subir y bajar el panel son ahora flechas con palo, y
+  plegar o desplegar es la «V» con fondo propio, separada por una raya. Antes los tres botones usaban
+  la misma «V» y era fácil mover un panel queriendo plegarlo.
+- Voz: nuevo interruptor en Apilado (Opciones) «Voz: callar los avisos de cada foto». Con él, el bucle
+  del apilado en vivo deja de decir «empieza exposición», «exposición terminada» y «foto añadida» en
+  cada vuelta, y solo se oye lo que no es rutina: mejor y peor foto, descartadas, referencia y errores.
+  Se guarda en `[Voz] silenciar_bucle_apilado`.
+- Mosaico: el sello y los datos del editor cuentan las fotos de todas las teselas. En el FITS del
+  mosaico NSTACK es por tesela y EXPTOT de todas, y el 2×2 del 1-nov salía como «50 × 80 s» en vez
+  de «200 × 20 s».
+- Coordenadas: el formateador de RA/Dec del servidor (cabeceras FITS, JSON de la galería, GoTo) acarrea el
+  redondeo de los segundos a los minutos y a las horas o grados: 59,97″ ya no sale como «60.0». El
+  nombre «Campo 2h42m +60°60′» del mosaico del 1-nov venía del redondeo del planetario, corregido esa
+  misma mañana; la foto guardada se puede renombrar desde el editor.
+- Revelado: el modelo de fondo de «quitar gradiente» es ahora un polinomio de 2º grado más el residuo
+  suavizado, evaluado píxel a píxel. La media gaussiana con borde replicado se quedaba corta en las dos
+  celdas exteriores y en el mosaico del 1-nov dejaba una franja 5 ADU más clara en el 20 % superior,
+  que sin estrellas se veía blanquecina; ahora el fondo queda plano a menos de 1 ADU. En fotos sin
+  gradiente el resultado no cambia.
+- Revelado: «quitar gradiente» ya no se queda corto en los bordes ni se lleva las nebulosas grandes. La
+  malla de fondo se extrapola linealmente un anillo de celdas antes de suavizarla y reescalarla (con el
+  borde replicado la rampa se aplanaba en las dos celdas exteriores) y la máscara de estrellas y objeto
+  va sobre el fondo local, no sobre la mediana de toda la foto (en la capa sin estrellas de StarNet,
+  con poco ruido y un gradiente marcado, descartaba enteras las celdas del borde alto). En el mosaico del
+  1-nov quedaba una franja 5 ADU más clara en el 20 % superior, blanquecina al quitar las estrellas; ahora
+  el fondo queda plano a menos de 1 ADU. Con nebulosas sintéticas, una de 300 ADU que llena media foto
+  perdía 198 ADU y ahora 23. En fotos sin gradiente el resultado no cambia.
+- Mosaico: el igualado de fondos entre teselas ajusta la pendiente común a los tres canales y solo el
+  nivel por canal. Con una pendiente por canal, cada una se extrapolaba de los solapes a las esquinas con
+  su propio error y el fondo cambiaba de color hacia los bordes (en el mosaico del 1-nov, un 2,2 % más
+  rojo en las esquinas, que estirado salía como un cerco magenta); ahora queda en el 0,7 %, lo mismo que
+  varía una tesela sola. Con las teselas aún en disco basta «Recombinar» para rehacer el mosaico.
+- Planetario: las fotos de la galería sobre el cielo se enseñan a campo completo y sin firma: el
+  planetario revela su propia versión del FITS (toda la zona útil del sensor, aunque el JPG se guardara
+  con zoom) en segundo plano la primera vez, y mientras tanto pinta el JPG de la galería. Las fotos que
+  nunca se habían resuelto (anteriores al 14-oct sin pasar por la galería anotada) se resuelven con ASTAP
+  también en segundo plano y entran solas.
 - Planetario: interruptor «Fotos» que pone las fotos de la galería (apilados y mosaicos con su posición,
   los guardados desde el 14-oct-2026 o ya resueltos por la galería anotada) sobre el cielo, cada una
   deformada a su huella real, con transparencia ajustable; sirve para ver qué está ya fotografiado y
