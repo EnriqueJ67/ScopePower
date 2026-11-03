@@ -11,6 +11,10 @@ día de la release. El número de versión vive en `version.py`.
   `hosting/publicar.php` con clave (`publicar_clave` en `secretos.ini`, sección `[Publicar]` en
   `config.ini`). Pensado para la red lenta del campo: un fichero cada vez, reintentos y sin bloquear nada.
   Instalación en `hosting/LEEME.md`; prueba `herramientas/probar_publicar.py`.
+- Galería: botón con un globo en cada foto (y en el visor) para publicarla o retirarla de la galería
+  pública; chip «Públicas» en el filtro; en la cabecera, enlace a la galería pública, compartir su
+  dirección y una píldora con el estado de la subida (pendientes, sin red, clave rechazada) que al
+  pulsarla sincroniza. Borrar una foto publicada la retira también del hosting.
 - Número de Wolf: la gráfica de la galería da un punto por día (si hay varias fotos guardadas, la de
   conteo más alto, como el observador que se queda con la imagen más nítida) y aplica el k actual de
   `[Sol] factor_k` a toda la serie y a los conteos guardados, para que sea comparable con SILSO aunque

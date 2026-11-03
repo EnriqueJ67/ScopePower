@@ -13,6 +13,12 @@
         <a class="btn btn-secondary btn-sm" href="/galeria/rastros" title="{{ _('Fotos descartadas del apilado por un rastro de avión, satélite o meteoro') }}">
             ☄️ {{ _("Rastros") }}{% if n_rastros %} <span class="texto-3">{{ n_rastros }}</span>{% endif %}{% if n_meteoros %} · {{ ngettext("{n} meteoro", "{n} meteoros", n_meteoros) }}{% endif %}
         </a>
+        {% if publicar.configurado %}
+        <!-- Galería pública (publicar.py): abrirla, compartir su enlace y el estado de la cola de subida (pulsar = sincronizar) -->
+        <a class="btn btn-secondary btn-sm" href="{{ publicar.url }}" target="_blank" rel="noopener" title="{{ _('Abrir la galería pública en el hosting') }}"><svg class="ico ico-sm"><use href="#i-publicar"/></svg> {{ _("Galería pública") }}</a>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="compartirEnlacePublico()" title="{{ _('Copiar o compartir el enlace de la galería pública') }}"><svg class="ico ico-sm"><use href="#i-compartir"/></svg> {{ _("Enlace") }}</button>
+        <button type="button" class="chip" id="publicar-estado" onclick="sincronizarPublicar()"><span class="dot"></span><span id="publicar-estado-texto"></span></button>
+        {% endif %}
         <div class="segmentado" id="orden-seg">
             <button type="button" class="activo" data-orden="fecha" onclick="ordenarGaleria('fecha')">{{ _("Fecha") }}</button>
             <button type="button" data-orden="objeto" onclick="ordenarGaleria('objeto')" title="{{ _('Por objeto y, dentro de cada uno, de la mejor nota a la peor') }}">{{ _("Objeto") }}</button>
@@ -25,7 +31,7 @@
     </div>
 </div>
 
-{% if filtros|length > 1 or (videos and imagenes) %}
+{% if filtros|length > 1 or (videos and imagenes) or publicadas %}
 <!-- Filtro por tipo de objeto: un chip por tipo con las fotos y vídeos que hay de cada uno, y otro con solo los vídeos -->
 <div class="galeria-filtros" id="galeria-filtros">
     <button type="button" class="chip activo" data-tipo="" onclick="filtrarGaleria('')">{{ _("Todas") }} <span class="n">{{ imagenes|length + videos|length }}</span></button>
@@ -34,6 +40,9 @@
     {% endfor %}
     {% if videos %}
     <button type="button" class="chip" data-tipo="__videos__" onclick="filtrarGaleria('__videos__')">▶ {{ _("Vídeos") }} <span class="n">{{ videos|length }}</span></button>
+    {% endif %}
+    {% if publicadas %}
+    <button type="button" class="chip" data-tipo="__publicas__" onclick="filtrarGaleria('__publicas__')"><svg class="ico ico-sm"><use href="#i-publicar"/></svg> {{ _("Públicas") }} <span class="n">{{ publicadas|length }}</span></button>
     {% endif %}
 </div>
 {% endif %}
@@ -75,7 +84,7 @@
     {% for nombre in imagenes %}
     {% set partes = partes_nombre(nombre) %}
     {% set nota = notas.get(nombre) %}
-    <div class="foto tarjeta" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes[1] else nombre }}" data-tipo="{{ tipos[nombre] }}"{% if nota %} data-nota="{{ nota.puntuacion }}"{% endif %}>
+    <div class="foto tarjeta" data-objeto="{{ partes[0] }}" data-fecha="{{ (partes[1] ~ partes[2]) if partes[1] else nombre }}" data-tipo="{{ tipos[nombre] }}" data-publicada="{{ '1' if nombre in publicadas else '0' }}"{% if nota %} data-nota="{{ nota.puntuacion }}"{% endif %}>
         <img src="{{ url_for('static', filename='fotos/' ~ nombre) }}" alt="{{ nombre }}" loading="lazy" onclick="abrirLightbox(this.src, this.closest('.foto').querySelector('.foto-nombre').textContent)">
         <div class="foto-pie">
             <div class="foto-nombre">{{ partes[0].replace('_', ' ') }}</div>
@@ -91,6 +100,7 @@
         </div>
         <button class="foto-borrar" onclick="eliminarImagen('{{ nombre }}')" title="{{ _('Eliminar imagen') }}">×</button>
         <button class="foto-compartir" onclick="compartirImagen('{{ nombre }}', this)" title="{{ _('Compartir o descargar la foto firmada') }}"><svg class="ico"><use href="#i-compartir"/></svg></button>
+        <button class="foto-publicar{% if nombre in publicadas %} publicada{% endif %}" data-nombre="{{ nombre }}" data-publicada="{{ '1' if nombre in publicadas else '0' }}" onclick="publicarFoto('{{ nombre }}', this)" title="{% if nombre in publicadas %}{{ _('Retirar de la galería pública') }}{% else %}{{ _('Publicar en la galería pública') }}{% endif %}"><svg class="ico"><use href="#i-publicar"/></svg></button>
         {% if nombre in con_fits %}
         <a class="foto-editar" href="/galeria/editar/{{ nombre }}" title="{{ _('Editar: reprocesar el FITS apilado con otros ajustes, firma y nombre') }}"><svg class="ico"><use href="#i-ajustes"/></svg></a>
         {% elif nombre in con_dia %}
@@ -156,6 +166,11 @@
     </div>
     <label class="switch" id="lightbox-anotar" onclick="event.stopPropagation()" style="display: none;" title="{{ _('Nombres de los objetos del campo encima de la foto. La primera vez se resuelve el campo con ASTAP y tarda unos segundos') }}"><input type="checkbox" id="anotar-activo" onchange="cambiarAnotaciones()"> {{ _("Anotaciones") }}</label>
     <button id="lightbox-compartir" class="btn btn-primary" onclick="event.stopPropagation(); compartirImagen(this.dataset.nombre, this)"><svg><use href="#i-compartir"/></svg>{{ _("Compartir") }}</button>
+    <!-- Galería pública: publicar o retirar esta foto y, si está publicada, su enlace en el hosting -->
+    <div class="lightbox-publico" onclick="event.stopPropagation()">
+    <button id="lightbox-publicar" class="btn btn-secondary" onclick="event.stopPropagation(); publicarFoto(this.dataset.nombre, this)"><svg><use href="#i-publicar"/></svg><span>{{ _("Publicar") }}</span></button>
+    <button id="lightbox-enlace" class="btn btn-secondary" onclick="event.stopPropagation(); compartirEnlacePublico(PUBLICAR.url + '#' + this.dataset.id)" style="display: none;" title="{{ _('Copiar o compartir el enlace de esta foto en la galería pública') }}"><svg><use href="#i-compartir"/></svg>{{ _("Enlace público") }}</button>
+    </div>
     <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>{{ _("Editar") }}</a>
     <!-- Apilados y fotogramas que salen de un vídeo que sigue en el mini PC: abrir el vídeo en el visor -->
     <a id="lightbox-video" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-play"/></svg>{{ _("Ver el vídeo") }}</a>
@@ -187,6 +202,8 @@
     const TOTAL_FOTOS = {{ imagenes|length + videos|length }};
     const DE_VIDEO = {{ de_video|tojson }};
     const SOLO_VIDEOS = "__videos__";
+    const SOLO_PUBLICAS = "__publicas__";
+    const PUBLICAR = {{ publicar|tojson }};
 
     // Filtro por tipo de objeto (se recuerda entre visitas en este navegador)
     function filtrarGaleria(tipo) {
@@ -195,7 +212,7 @@
         chips.forEach(c => c.classList.toggle("activo", c.dataset.tipo === tipo));
         let visibles = 0;
         document.querySelectorAll("#galeria .foto").forEach(t => {
-            const ver = !tipo || (tipo === SOLO_VIDEOS ? !!t.dataset.video : t.dataset.tipo === tipo);
+            const ver = !tipo || (tipo === SOLO_VIDEOS ? !!t.dataset.video : tipo === SOLO_PUBLICAS ? t.dataset.publicada === "1" : t.dataset.tipo === tipo);
             t.style.display = ver ? "" : "none";
             if (ver) visibles++;
         });
@@ -211,7 +228,7 @@
             if (tipo === "Sol") pintarDiametroGaleria();
         }
         const resumen = document.getElementById("galeria-resumen");
-        if (resumen && tipo) resumen.textContent = _("{n} de {total} imágenes · {tipo}", { n: visibles, total: TOTAL_FOTOS, tipo: tipo === SOLO_VIDEOS ? _("Vídeos") : _(tipo) });
+        if (resumen && tipo) resumen.textContent = _("{n} de {total} imágenes · {tipo}", { n: visibles, total: TOTAL_FOTOS, tipo: tipo === SOLO_VIDEOS ? _("Vídeos") : tipo === SOLO_PUBLICAS ? _("Públicas") : _(tipo) });
         else if (resumen) resumen.textContent = resumen.dataset.inicial || resumen.textContent;
         try { localStorage.setItem("galeria_filtro_tipo", tipo); } catch (e) {}
     }
@@ -229,6 +246,9 @@
         svgAnot.replaceChildren();
         pieLightbox("");
         document.getElementById('lightbox-compartir').dataset.nombre = nombre_archivo;
+        document.getElementById('lightbox-publicar').dataset.nombre = nombre_archivo;
+        document.getElementById('lightbox-enlace').dataset.id = nombre_archivo.replace(/\.jpg$/i, "");
+        pintarPublicar(nombre_archivo, estaPublicada(nombre_archivo));
         const editar = document.getElementById('lightbox-editar');
         editar.href = (CON_DIA.includes(nombre_archivo) ? "/galeria/editar-dia/" : "/galeria/editar/") + encodeURIComponent(nombre_archivo);
         editar.style.display = CON_FITS.includes(nombre_archivo) || CON_DIA.includes(nombre_archivo) ? "" : "none";
@@ -654,6 +674,85 @@
             })
             .catch(e => alert(e));
     }
+
+
+    // ── Galería pública (publicar.py): publicar o retirar cada foto y seguir la cola de subida ──
+    function estaPublicada(nombre) {
+        const b = document.querySelector(`.foto-publicar[data-nombre="${CSS.escape(nombre)}"]`);
+        return !!b && b.dataset.publicada === "1";
+    }
+    function pintarPublicar(nombre, publicada) {
+        const b = document.querySelector(`.foto-publicar[data-nombre="${CSS.escape(nombre)}"]`);
+        if (b) {
+            b.dataset.publicada = publicada ? "1" : "0";
+            b.classList.toggle("publicada", publicada);
+            b.title = publicada ? _("Retirar de la galería pública") : _("Publicar en la galería pública");
+            b.closest(".foto").dataset.publicada = publicada ? "1" : "0";
+        }
+        const lb = document.getElementById("lightbox-publicar");
+        if (lb.dataset.nombre === nombre) {
+            lb.querySelector("span").textContent = publicada ? _("Retirar") : _("Publicar");
+            document.getElementById("lightbox-enlace").style.display = publicada && PUBLICAR.configurado ? "" : "none";
+        }
+    }
+    async function publicarFoto(nombre, boton) {
+        const publicar = !estaPublicada(nombre);
+        if (boton) boton.disabled = true;
+        try {
+            const r = await fetch((publicar ? "/galeria/publicar/" : "/galeria/retirar/") + encodeURIComponent(nombre), { method: "POST" });
+            const d = await r.json();
+            if (!d.ok) { alert(d.error || _("No se pudo")); return; }
+            pintarPublicar(nombre, d.publicada);
+            const chip = document.querySelector(`#galeria-filtros .chip[data-tipo="${SOLO_PUBLICAS}"] .n`);
+            if (chip) chip.textContent = Math.max(0, parseInt(chip.textContent, 10) + (d.publicada ? 1 : -1));
+            if (d.estado) pintarEstadoPublicar(d.estado);
+            vigilarPublicar();
+        } catch (e) {
+            alert(e);
+        } finally {
+            if (boton) boton.disabled = false;
+        }
+    }
+    // La píldora de la cabecera: qué queda por subir, sin red, clave rechazada o todo al día
+    function pintarEstadoPublicar(e) {
+        const chip = document.getElementById("publicar-estado");
+        if (!chip) return false;
+        chip.className = "chip";
+        let texto;
+        if (e.error_clave) { chip.classList.add("chip-err"); texto = _("Clave rechazada por el hosting"); }
+        else if (e.sin_red) { chip.classList.add("chip-warn"); texto = _("Sin red · {n} por subir", { n: e.pendientes }); }
+        else if (e.pendientes) { chip.classList.add("chip-busy"); texto = ngettext("{n} fichero por subir", "{n} ficheros por subir", e.pendientes) + (e.bytes_pendientes ? " · " + fmtNum(e.bytes_pendientes / 1e6, 1) + " MB" : ""); }
+        else if (e.ultimo_error) { chip.classList.add("chip-warn"); texto = e.ultimo_error; }
+        else { chip.classList.add("chip-ok"); texto = ngettext("{n} foto pública", "{n} fotos públicas", e.fotos || 0); }
+        document.getElementById("publicar-estado-texto").textContent = texto;
+        chip.title = (e.ultimo_ok ? _("Última subida: {t}", { t: e.ultimo_ok }) + " · " : "") + _("Pulsa para sincronizar ahora");
+        return !!(e.pendientes || e.ocupado);
+    }
+    let timerPublicar = null;
+    async function vigilarPublicar() {
+        clearTimeout(timerPublicar);
+        try {
+            const e = await (await fetch("/publicar/estado")).json();
+            if (pintarEstadoPublicar(e)) timerPublicar = setTimeout(vigilarPublicar, 5000);
+        } catch (e) {}
+    }
+    async function sincronizarPublicar() {
+        try {
+            const d = await (await fetch("/publicar/sincronizar", { method: "POST" })).json();
+            if (!d.ok) alert(d.error || _("No se pudo"));
+        } catch (e) {}
+        setTimeout(vigilarPublicar, 500);
+    }
+    // El enlace de la galería pública (o de una foto): menú nativo del móvil si lo hay, si no al portapapeles
+    async function compartirEnlacePublico(url) {
+        url = url || PUBLICAR.url;
+        if (navigator.share) {
+            try { await navigator.share({ url, title: "ScopePower" }); return; } catch (e) { if (e.name === "AbortError") return; }
+        }
+        try { await navigator.clipboard.writeText(url); alert(_("Enlace copiado: {url}", { url })); }
+        catch (e) { prompt(_("Enlace de la galería pública"), url); }
+    }
+    if (PUBLICAR.configurado && pintarEstadoPublicar(PUBLICAR)) vigilarPublicar();
 
     function eliminarImagen(nombre) {
         if (!confirm(_("¿Seguro que quieres eliminar esta imagen?"))) return;

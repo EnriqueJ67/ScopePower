@@ -430,6 +430,10 @@ msgstr ""
 msgid "Abrir en el PC"
 msgstr ""
 
+#: templates/galeria.html
+msgid "Abrir la galería pública en el hosting"
+msgstr ""
+
 #: ScopePower.py
 msgid "Acción no válida"
 msgstr ""
@@ -1591,6 +1595,11 @@ msgid "Cielo junto al Sol: {c} % del brillo del centro."
 msgstr ""
 
 #. js
+#: templates/galeria.html
+msgid "Clave rechazada por el hosting"
+msgstr ""
+
+#. js
 #: ScopePower.py templates/editar_dia.html
 msgid "Color"
 msgstr ""
@@ -1980,6 +1989,14 @@ msgstr ""
 
 #: static/js/ayuda_voz.js templates/_modal_voz.html
 msgid "Copiar"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Copiar o compartir el enlace de esta foto en la galería pública"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Copiar o compartir el enlace de la galería pública"
 msgstr ""
 
 #: centrado.py
@@ -3257,6 +3274,24 @@ msgstr ""
 msgid "Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)"
 msgstr ""
 
+#: templates/galeria.html
+msgid "Enlace"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Enlace copiado: {url}"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Enlace de la galería pública"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Enlace público"
+msgstr ""
+
 #: templates/_modal_voz.html
 msgid "Entendido"
 msgstr ""
@@ -4324,6 +4359,10 @@ msgstr ""
 #: templates/editar_foto.html templates/galeria.html templates/home.html
 #: templates/rastros.html templates/visor_video.html
 msgid "Galería"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Galería pública"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -6333,6 +6372,11 @@ msgstr ""
 msgid "No se pudieron separar las estrellas de {archivo}: {e}"
 msgstr ""
 
+#. js
+#: templates/galeria.html
+msgid "No se pudo"
+msgstr ""
+
 #: ScopePower.py
 msgid "No se pudo abrir el navegador en el PC"
 msgstr ""
@@ -6553,6 +6597,10 @@ msgstr ""
 
 #: ScopePower.py luna_anotada.py manchas_solares.py
 msgid "No se pudo leer la imagen"
+msgstr ""
+
+#: ScopePower.py
+msgid "No se pudo marcar la foto: {e}"
 msgstr ""
 
 #: ScopePower.py
@@ -7340,6 +7388,16 @@ msgstr ""
 msgid "Pruebas: {lista}"
 msgstr ""
 
+#. js
+#: templates/galeria.html
+msgid "Publicar"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Publicar en la galería pública"
+msgstr ""
+
 #: templates/_puesta_estacion.html
 msgid "Puesta en estación"
 msgstr ""
@@ -7366,6 +7424,11 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Pulsa Iniciar para mover con la vista en directo"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Pulsa para sincronizar ahora"
 msgstr ""
 
 #: templates/configuracion.html
@@ -7458,6 +7521,10 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "Píxeles rechazados"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Públicas"
 msgstr ""
 
 #. js
@@ -7879,6 +7946,16 @@ msgstr ""
 #. js
 #: templates/goto.html
 msgid "Resumen reproducido."
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Retirar"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Retirar de la galería pública"
 msgstr ""
 
 #: templates/editar_dia.html
@@ -8423,6 +8500,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Sin plate solving: se usa la orientación de la cámara del último que salió bien ({orientacion})."
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Sin red · {n} por subir"
 msgstr ""
 
 #: montura_ejes.py
@@ -11790,6 +11872,13 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. js
+#: templates/galeria.html
+msgid "{n} fichero por subir"
+msgid_plural "{n} ficheros por subir"
+msgstr[0] ""
+msgstr[1] ""
+
+#. js
 #: firma.py static/js/plan.js templates/apilado.html templates/editar_foto.html
 #: templates/imagen.html templates/planetario.html
 msgid "{n} foto"
@@ -11828,6 +11917,13 @@ msgstr[1] ""
 #: nota_apilado.py
 msgid "{n} foto puntuada"
 msgid_plural "{n} fotos puntuadas"
+msgstr[0] ""
+msgstr[1] ""
+
+#. js
+#: templates/galeria.html
+msgid "{n} foto pública"
+msgid_plural "{n} fotos públicas"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -12452,6 +12548,11 @@ msgstr ""
 
 #: templates/configuracion.html
 msgid "Última release en GitHub"
+msgstr ""
+
+#. js
+#: templates/galeria.html
+msgid "Última subida: {t}"
 msgstr ""
 
 #: templates/apilado.html
