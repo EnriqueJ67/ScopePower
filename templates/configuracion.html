@@ -229,7 +229,7 @@
         <div class="card" id="publicar">
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-publicar"/></svg>{{ _("Galería pública") }}</h3></div>
             <p class="card-sub">
-                {{ _("Las fotos que marques con el globo en la Galería se publican, reducidas, en tu propio hosting para enseñarlas desde el móvil con el mini PC apagado. En el hosting solo hay que colocar una vez el endpoint <code>hosting/publicar.php</code> con su clave: está explicado en <code>hosting/LEEME.md</code>. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio.")|safe }}
+                {{ _("Las fotos que marques con el globo en la Galería se publican, reducidas, en scopepower.es para enseñarlas desde el móvil con el mini PC apagado: activa, elige un nombre que esté libre y publica; el nombre queda reservado para ti en el primer uso. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio. Si prefieres tu propio hosting, instala allí <code>hosting/publicar.php</code> (<code>hosting/LEEME.md</code>).")|safe }}
             </p>
             <label class="fila" style="gap: 8px; cursor: pointer; margin-bottom: 10px;">
                 <input type="checkbox" id="pub-activado"> {{ _("Publicar en el hosting") }}
@@ -259,14 +259,16 @@
                     </select>
                 </div>
             </div>
-            <div class="form-group">
-                <label>{{ _("Clave del endpoint") }}</label>
-                <div class="fila" style="gap: 8px;">
-                    <input type="text" id="pub-clave" class="form-control" autocomplete="off" spellcheck="false" placeholder="">
-                    <button type="button" class="btn btn-secondary" onclick="generarClavePublicar()" title="{{ _('Inventa una clave larga y aleatoria. Cópiala en publicar_config.php del hosting') }}">{{ _("Generar") }}</button>
+            <details class="mb-2">
+                <summary class="texto-3" style="cursor: pointer;">{{ _("Clave del endpoint (solo para un hosting propio con alta manual)") }}</summary>
+                <div class="form-group mt-1">
+                    <div class="fila" style="gap: 8px;">
+                        <input type="text" id="pub-clave" class="form-control" autocomplete="off" spellcheck="false" placeholder="">
+                        <button type="button" class="btn btn-secondary" onclick="generarClavePublicar()" title="{{ _('Inventa una clave larga y aleatoria. Cópiala en publicar_config.php del hosting') }}">{{ _("Generar") }}</button>
+                    </div>
+                    <small class="ayuda">{{ _("Con scopepower.es la clave se genera y se guarda sola: no hace falta tocarla. Con un hosting propio de alta manual, la misma clave va en su publicar_config.php junto al nombre. Se guarda en secretos.ini y no se vuelve a mostrar.") }}</small>
                 </div>
-                <small class="ayuda">{{ _("La misma clave va en publicar_config.php del hosting, junto al nombre. Se guarda en secretos.ini y no se vuelve a mostrar.") }}</small>
-            </div>
+            </details>
             <div class="acciones">
                 <button type="button" class="btn btn-primary" onclick="guardarPublicar()"><svg><use href="#i-guardar"/></svg>{{ _("Guardar") }}</button>
                 <button type="button" class="btn btn-secondary" onclick="probarPublicar()">{{ _("Probar conexión") }}</button>
@@ -901,8 +903,10 @@
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + d.error; return; }
                 est.className = "estado ok mt-1";
-                est.textContent = "✅ " + _("El hosting responde (PHP {php}, hasta {mb} MB por fichero). Galería: {url}", {
-                    php: d.hosting.php || "?", mb: Math.round((d.hosting.max_bytes || 0) / 1048576), url: d.url });
+                const h = d.hosting || {};
+                est.textContent = "✅ " + (h.registrado ? _("Nombre reservado para ti. ") : "")
+                    + _("El hosting responde (PHP {php}, hasta {mb} MB por fichero). Galería: {url}", { php: h.php || "?", mb: Math.round((h.max_bytes || 0) / 1048576), url: d.url })
+                    + (h.cuota_mb ? " · " + _("{usado} de {cuota} MB usados", { usado: fmtNum(h.usado_mb || 0, 1), cuota: h.cuota_mb }) : "");
             })
             .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
     }

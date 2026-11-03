@@ -720,6 +720,7 @@
         chip.className = "chip";
         let texto;
         if (e.error_clave) { chip.classList.add("chip-err"); texto = _("Clave rechazada por el hosting"); }
+        else if (e.parada) { chip.classList.add("chip-err"); texto = e.ultimo_error; }
         else if (e.sin_red) { chip.classList.add("chip-warn"); texto = _("Sin red · {n} por subir", { n: e.pendientes }); }
         else if (e.pendientes) { chip.classList.add("chip-busy"); texto = ngettext("{n} fichero por subir", "{n} ficheros por subir", e.pendientes) + (e.bytes_pendientes ? " · " + fmtNum(e.bytes_pendientes / 1e6, 1) + " MB" : ""); }
         else if (e.ultimo_error) { chip.classList.add("chip-warn"); texto = e.ultimo_error; }
