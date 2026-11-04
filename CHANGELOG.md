@@ -3,6 +3,11 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## 1.3.1 · sin fecha (en preparación)
+
+- Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
+  (en inglés, a su versión `en/`).
+
 ## 1.3.0 · 2026-11-04
 
 Lo principal: la Luna anotada, vídeo con apilado de los mejores fotogramas, revelado y editor de día,

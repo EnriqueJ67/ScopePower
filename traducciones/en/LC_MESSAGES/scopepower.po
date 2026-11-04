@@ -16,7 +16,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.16.0\n"
+"Generated-By: Babel 2.11.0\n"
 
 #: puesta_estacion.py
 msgid " y "
@@ -7763,6 +7763,10 @@ msgid "Puntuar {n} foto"
 msgid_plural "Puntuar {n} fotos"
 msgstr[0] "Score {n} photo"
 msgstr[1] "Score {n} photos"
+
+#: templates/publico/index.html templates/publico/planetario.html
+msgid "Página principal de ScopePower"
+msgstr "ScopePower home page"
 
 #: templates/visor_video.html
 msgid "Pájaros, aviones o nubes: cada fotograma se compara con los de alrededor y salen los momentos en que aparece algo que ni estaba antes ni está después."

@@ -51,6 +51,8 @@ El endpoint reparte los permisos para que nadie pueda colar código en la web de
   listarlas ni borrarlas, y un ScopePower más nuevo que el hosting usa las páginas que haya. Un
   ScopePower anterior a 1.2.3 sube sus propias páginas con esos nombres: el endpoint le contesta que
   sí (`"ignorado": true`), no guarda nada y coloca las genéricas, para que su cola no se atasque.
+  Su botón de la casita lleva a la raíz del hosting, dos carpetas por encima de `galeria/<nombre>/`,
+  y en inglés a `en/`: en un hosting propio sin esa carpeta, esa versión del botón da 404.
 
 ## Instalación en un hosting propio (una vez)
 
