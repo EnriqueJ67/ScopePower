@@ -206,6 +206,7 @@ function elemento(tipo) {
         remove() { hijos.splice(hijos.indexOf(this), 1); } };
 }
 globalThis.document = { createElementNS: (ns, tipo) => elemento(tipo) };
+globalThis._ = globalThis.N_ = texto => texto;
 vm.runInThisContext(fs.readFileSync(entrada.js, "utf8") + "\n;globalThis.pintar = pintarLunaAnotada;");
 const svg = { insertBefore(el) { hijos.push(el); return el; } };
 const salida = {};
@@ -214,6 +215,7 @@ for (const ancho of entrada.anchos) {
     const k = ancho / entrada.datos.ancho;
     const puestos = pintar(svg, entrada.datos, k, ancho, entrada.datos.alto * k);
     salida[ancho] = { puestos,
+        fondo: hijos.filter(e => e.tipo === "rect").map(e => e.attrs)[0] || null,
         textos: hijos.filter(e => e.tipo === "text").map(e => { const c = e.getBBox(); return { nombre: e.textContent, clase: e.attrs.class,
             x: +e.attrs.x, y: +e.attrs.y + c.y, w: c.width, h: c.height }; }),
         elipses: hijos.filter(e => e.tipo === "ellipse").map(e => ({ x: e.attrs.cx, y: e.attrs.cy, a: e.attrs.rx, b: e.attrs.ry })) };
@@ -263,6 +265,8 @@ def probar_reparto():
     salida = json.loads(r.stdout)
     for ancho, minimo in ((347, 12), (375, 12), (768, 40), (900, 55), (1400, 100)):
         v = salida[str(ancho)]
+        v["leyenda"] = [x for x in v["textos"] if "luna-leyenda" in x["clase"]]
+        v["textos"] = [x for x in v["textos"] if "luna-leyenda" not in x["clase"]]
         nombres = [x["nombre"] for x in v["textos"]]
         comprobar(v["puestos"] == len(nombres) and v["puestos"] > minimo, f"a {ancho} px caben {v['puestos']} nombres (más de {minimo})")
         ausentes = [n for n in primera if n not in nombres]
@@ -273,8 +277,21 @@ def probar_reparto():
         comprobar(not solapes, f"a {ancho} px ningún nombre pisa otro {solapes[:3] or ''}")
         dentro = all(c["x"] >= 0 and c["y"] >= 0 and c["x"] + c["w"] <= ancho and c["y"] + c["h"] <= ancho for c in cajas)
         comprobar(dentro, f"a {ancho} px todos los nombres caen dentro de la foto")
+        f = v["fondo"]
+        comprobar(f is not None and len(v["leyenda"]) >= 3, f"a {ancho} px hay leyenda ({len(v['leyenda'])} líneas)")
+        if f:
+            fx, fy, fw, fh = f["x"], f["y"], f["width"], f["height"]
+            pisan = [c["nombre"] for c in cajas if c["x"] < fx + fw and fx < c["x"] + c["w"] and c["y"] < fy + fh and fy < c["y"] + c["h"]]
+            comprobar(not pisan, f"a {ancho} px ningún nombre pisa la leyenda {pisan or ''}")
+            comprobar(fx >= 0 and fy >= 0 and fx + fw <= ancho and fy + fh <= 0.9 * ancho, f"a {ancho} px la leyenda cae dentro de la foto, sobre la firma")
+            k = ancho / 1052
+            fuera = math.hypot(max(disco["cx"] * k - (fx + fw), fx - disco["cx"] * k, 0), max(disco["cy"] * k - (fy + fh), fy - disco["cy"] * k, 0)) >= disco["r"] * k
+            comprobar(fuera or ancho < 600, f"a {ancho} px la leyenda no tapa el disco")
     v = salida["900"]
     nombres = [x["nombre"] for x in v["textos"]]
+    lineas = [x["nombre"] for x in v["leyenda"]]
+    comprobar(lineas[:2] == ["Mares y lagos", "Cráteres"] and "Alunizajes" in lineas and "Más tenue: de noche" in lineas,
+              f"a 900 px la leyenda dice {lineas}")
     clases = " ".join(x["clase"] for x in v["textos"])
     comprobar("luna-estacion" in clases and "luna-monte" in clases and "Montes Apenninus" in nombres,
               "a 900 px salen alunizajes y montes (sus nombres no chocan con su propio punto)")

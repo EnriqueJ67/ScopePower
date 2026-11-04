@@ -16,7 +16,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.16.0\n"
+"Generated-By: Babel 2.11.0\n"
 
 #: puesta_estacion.py
 msgid " y "
@@ -684,6 +684,10 @@ msgstr "Altitude {alt}° below the minimum ({lim}°): tracking stops"
 #: templates/alineacion.html
 msgid "Alturas entre {minima}° y {maxima}° (config.ini, sección [Alineacion]). Antes de empezar: montura encendida en la posición de inicio (horizontal, al norte) y sin apilado en marcha."
 msgstr "Altitudes between {minima}° and {maxima}° (config.ini, section [Alineacion]). Before starting: mount turned on in its home position (level, facing north) and no stacking running."
+
+#: static/js/luna_anotada.js
+msgid "Alunizajes"
+msgstr "Landing sites"
 
 #: plan_sesion.py
 msgid "Amanece"
@@ -2080,6 +2084,10 @@ msgstr "Astronomical twilight (Sun at −18°)"
 msgid "Crepúsculo náutico (Sol a −12°)"
 msgstr "Nautical twilight (Sun at −12°)"
 
+#: static/js/luna_anotada.js
+msgid "Cráteres"
+msgstr "Craters"
+
 #. js
 #: esta_noche.py
 msgid "Cráteres y mares; con exposiciones muy cortas."
@@ -2494,6 +2502,10 @@ msgstr "Diameter"
 #: templates/galeria.html templates/publico/index.html
 msgid "Diámetro del Sol y órbita de la Tierra"
 msgstr "Sun's diameter and the Earth's orbit"
+
+#: static/js/luna_anotada.js
+msgid "Dorsos"
+msgstr "Ridges"
 
 #: templates/_asistente.html templates/configuracion.html
 msgid "Driver de la cámara"
@@ -5717,6 +5729,10 @@ msgstr "It marks the tail of the Swan. It is one of the most luminous stars know
 msgid "Marcar como hecho"
 msgstr "Mark as done"
 
+#: static/js/luna_anotada.js
+msgid "Mares y lagos"
+msgstr "Seas and lakes"
+
 #: templates/imagen.html
 msgid "Mares, cráteres y montes con su nombre, como en un atlas. Se calcula con la fecha, el observatorio y la propia foto: no hace falta plate solving. En vivo se recoloca cada pocos segundos."
 msgstr "Seas, craters and mountains with their names, like in an atlas. It is worked out from the date, the observatory and the photo itself: no plate solving needed. In live mode it is repositioned every few seconds."
@@ -5875,6 +5891,10 @@ msgstr "Making the video… {pct} %"
 #: templates/imagen.html
 msgid "Montar vídeo"
 msgstr "Make video"
+
+#: static/js/luna_anotada.js
+msgid "Montes y escarpes"
+msgstr "Mountains and scarps"
 
 #. js
 #: templates/_asistente.html templates/base.html templates/home.html
@@ -6091,6 +6111,10 @@ msgstr "Highest now"
 #: templates/esta_noche.html
 msgid "Más altos esta noche"
 msgstr "Highest tonight"
+
+#: static/js/luna_anotada.js
+msgid "Más tenue: de noche"
+msgstr "Fainter: on the night side"
 
 #: templates/apilado.html
 msgid "Más… (brillo, temperatura de color, verde)"
@@ -8202,6 +8226,10 @@ msgstr "Developing..."
 #: templates/imagen.html
 msgid "Revelar como el apilado"
 msgstr "Develop like stacking"
+
+#: static/js/luna_anotada.js
+msgid "Rimas y valles"
+msgstr "Rilles and valleys"
 
 #: templates/editar_dia.html
 msgid "Rotación de campo"

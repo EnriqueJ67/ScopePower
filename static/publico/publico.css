@@ -140,6 +140,9 @@ a:hover { text-decoration: underline; }
 .lightbox-anotaciones text.luna-estacion { font-size: 11px; stroke: rgba(0,0,0,0.85); }
 .lightbox-anotaciones .luna-punto { stroke: rgba(0,0,0,0.7); stroke-width: 1px; }
 .lightbox-anotaciones .luna-noche { opacity: 0.55; }
+.lightbox-anotaciones .luna-leyenda-fondo { fill: rgba(0, 0, 0, 0.55); }
+.lightbox-anotaciones text.luna-leyenda { font-size: 11px; letter-spacing: 0; stroke: rgba(0,0,0,0.85); }
+.lightbox-anotaciones text.luna-leyenda-nota { fill: #c8cdd4; font-weight: 400; }
 .lightbox-anotaciones .sol-limbo { fill: none; stroke: rgba(255, 200, 90, 0.45); stroke-width: 1px; }
 .lightbox-anotaciones .sol-mancha { stroke-width: 1.5px; }
 .lightbox-anotaciones .sol-umbra { fill: rgba(255, 120, 60, 0.25); stroke: #ff9a4d; }

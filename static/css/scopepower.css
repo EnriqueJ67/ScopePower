@@ -420,6 +420,9 @@ details[open] > .proc-mas-titulo::before { content: "▾ "; }
 .lightbox-anotaciones text.luna-estacion { font-size: 11px; stroke: rgba(0,0,0,0.85); }
 .lightbox-anotaciones .luna-punto { stroke: rgba(0,0,0,0.7); stroke-width: 1px; }
 .lightbox-anotaciones .luna-noche { opacity: 0.55; }
+.lightbox-anotaciones .luna-leyenda-fondo { fill: rgba(0, 0, 0, 0.55); }
+.lightbox-anotaciones text.luna-leyenda { font-size: 11px; letter-spacing: 0; stroke: rgba(0,0,0,0.85); }
+.lightbox-anotaciones text.luna-leyenda-nota { fill: #c8cdd4; font-weight: 400; }
 
 /* ── Visor de imagen (apilado, foto de prueba) ────────────────────────────── */
 .visor { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
