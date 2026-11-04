@@ -14,7 +14,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.11.0\n"
+"Generated-By: Babel 2.16.0\n"
 
 #: puesta_estacion.py
 msgid " y "
@@ -1643,7 +1643,11 @@ msgstr ""
 msgid "Chrome tiene denegado el permiso del micrófono para esta dirección. Toca el candado o el icono de ajustes junto a la dirección, entra en Permisos y permite el Micrófono; después recarga la página."
 msgstr ""
 
-#: templates/publico/planetario.html
+#: static/publico/planetario_publico.js templates/publico/planetario.html
+msgid "Cielo"
+msgstr ""
+
+#: static/publico/planetario_publico.js
 msgid "Cielo de {autor}"
 msgstr ""
 
@@ -4411,7 +4415,7 @@ msgstr ""
 
 #. js
 #: templates/apilado.html templates/planetario.html
-#: templates/publico/planetario.html
+#: templates/publico/index.html templates/publico/planetario.html
 msgid "Fotos"
 msgstr ""
 
@@ -4428,7 +4432,7 @@ msgstr ""
 msgid "Fotos de la sesión (FITS)"
 msgstr ""
 
-#: templates/publico/index.html templates/publico/planetario.html
+#: static/publico/galeria_publica.js static/publico/planetario_publico.js
 msgid "Fotos de {autor}"
 msgstr ""
 
@@ -4480,14 +4484,15 @@ msgid "Galaxias y nebulosas NGC/IC hasta magnitud"
 msgstr ""
 
 #. js
-#: espacio_disco.py templates/base.html templates/editar_dia.html
-#: templates/editar_foto.html templates/galeria.html templates/home.html
+#: espacio_disco.py static/publico/galeria_publica.js templates/base.html
+#: templates/editar_dia.html templates/editar_foto.html templates/galeria.html
+#: templates/home.html templates/publico/index.html
 #: templates/publico/planetario.html templates/rastros.html
 #: templates/visor_video.html
 msgid "Galería"
 msgstr ""
 
-#: templates/publico/index.html
+#: static/publico/galeria_publica.js
 msgid "Galería de {autor}"
 msgstr ""
 
@@ -4989,6 +4994,10 @@ msgstr ""
 #. js
 #: templates/goto.html
 msgid "Información obtenida, reproduciendo..."
+msgstr ""
+
+#: templates/publico/index.html templates/publico/planetario.html
+msgid "Informar de un problema"
 msgstr ""
 
 #: ScopePower.py
@@ -8861,6 +8870,10 @@ msgstr ""
 
 #: disco.py
 msgid "Solo de día: pon el modo día y haz una foto del Sol o de la Luna."
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Solo fotos propias del cielo (cielo profundo, Sol, Luna, planetas, cometas). El dueño del hosting puede retirar una galería que no lo cumpla."
 msgstr ""
 
 #: camara_nativa.py

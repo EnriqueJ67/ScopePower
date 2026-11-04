@@ -36,6 +36,15 @@ día de la release. El número de versión vive en `version.py`.
 - Luna anotada: leyenda pequeña con qué es cada color (mares, cráteres, montes, rimas, dorsos, alunizajes y lo que está de noche). Solo
   salen las familias que hay en la foto y va en un lateral, sin tapar el disco si se puede ni la firma. La galería pública recibe también el
   dato que le faltaba para reservar el sitio de los destacados: sale igual que en la app.
+- Galería pública, endpoint endurecido (`hosting/publicar.php`, versión 3): un nombre registrado desde la app solo
+  escribe `.jpg` y `.json` en su carpeta, y cada fichero se comprueba al llegar (JPEG real de hasta 1700 px; JSON
+  que parsea, con solo las claves que escribe la app, tipo de objeto de la lista de la app, hasta 1000 fotos); lo
+  compartido (`_comun/`, con el visor) y el `.htaccess` solo los sube el dueño del hosting (claves de
+  `publicar_config.php`), y las páginas de cada galería las coloca el propio endpoint desde `_comun`. Así nadie
+  puede meter código en las galerías de los demás ni colgar HTML propio bajo el dominio. Las páginas del visor son
+  genéricas (título, autor y contacto los pone el JS desde `galeria.json`); la app da por bueno el 403 de lo común
+  cuando no es el dueño. Aviso de uso en Configuración y «Informar de un problema» en el pie del visor con el
+  correo de `contacto` de `publicar_config.php`. Documentado en `hosting/LEEME.md`.
 - Configuración > Galería pública: activar, dirección del hosting, nombre en la dirección, autor que se
   enseña, posición del observatorio en el planetario público, clave del endpoint (con «Generar»),
   «Probar conexión» y «Sincronizar ahora»; sin editar `config.ini` ni `secretos.ini`.

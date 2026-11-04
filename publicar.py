@@ -5,9 +5,14 @@
 # hosting del usuario: por cada foto marcada con «Publicar» en la galería, un JPG reducido,
 # una miniatura, la versión de 1024 px que usa el planetario (si la foto tiene posición), las
 # anotaciones (si ya están calculadas: al publicar no se lanza ASTAP) y un JSON público; más
-# un índice galeria.json (con las gráficas del Sol), el visor (HTML/JS/CSS de templates/publico y static/publico, en
-# español y en inglés) y los ficheros comunes (motor del planetario, traducciones) en
-# _comun/<versión>/, compartidos entre propietarios del mismo hosting.
+# un índice galeria.json (con las gráficas del Sol). En la carpeta del propietario solo van .jpg
+# y .json. El visor (las páginas de templates/publico, genéricas: el título y el autor los pone el
+# JS leyendo galeria.json) y lo común (JS/CSS de static/publico, motor del planetario,
+# traducciones) van a _comun/<versión>/, compartido entre propietarios del mismo hosting, y
+# solo puede subirlo el dueño del hosting (su clave está en publicar_config.php). El endpoint
+# copia las páginas de la versión más alta que tenga a la carpeta de cada propietario al
+# registrarlo y con cada galeria.json: un ScopePower más nuevo que el hosting usa las páginas
+# que haya, por eso el formato de galeria.json se mantiene compatible.
 #
 #   <url_base>/galeria/<nombre>/            la galería pública del propietario
 #   <url_base>/scopepower/publicar.php      el endpoint que recibe los ficheros (hosting/)
@@ -27,6 +32,9 @@
 # Nombres repetidos: el dueño del hosting da de alta cada nombre con su clave en
 # publicar_config.php; la clave manda sobre el nombre, así que otra instalación con el mismo
 # nombre y otra clave recibe un 401 y no puede tocar ni leer esa carpeta.
+#
+# Quien no es el dueño recibe un 403 al subir a _comun/ o el .htaccess: no es un error, es que no
+# le toca. Se anota una vez en el log y no se vuelve a encolar en lo que dure la app.
 
 import os
 import re
@@ -60,6 +68,7 @@ log = logging.getLogger("scopepower.publicar")
 SECCION = "Publicar"
 RUTA_ESTADO = os.path.join("datos", "publicar.json")
 CARPETA_SALIDA = os.path.join("datos", "publicar")
+CARPETA_PAGINAS = os.path.join(CARPETA_SALIDA, "_paginas")      # las páginas genéricas del visor, antes de ir a _comun
 CARPETA_PLANTILLAS = os.path.join("templates", "publico")
 CARPETA_ESTATICOS = os.path.join("static", "publico")
 CARPETA_ATLAS = os.path.join("static", "atlas")
@@ -74,9 +83,11 @@ ESPERAS_REINTENTO = (30, 60, 120, 300, 900)   # tras cada fallo del hosting, en 
 ESPERA_SIN_RED = 60
 INTERVALO_REVISION = 15 * 60
 IDIOMAS_VALIDOS = ("es", "en")
-# Lo que el endpoint admite (hosting/publicar.php): nada de código ejecutable
+# Lo que el endpoint admite en _comun/ (hosting/publicar.php): nada de código ejecutable
 EXTENSIONES_PUBLICAS = (".jpg", ".jpeg", ".webp", ".png", ".json", ".html", ".js", ".css", ".md", ".txt", ".ico")
 NOMBRES_PUBLICOS = ("LICENSE", "properties")
+# En la carpeta del propietario, solo esto (las páginas las coloca el endpoint)
+EXTENSIONES_GALERIA = (".jpg", ".json")
 # Lo que sale de cada objeto anotado, además de su posición y su tamaño (fuente: cielo; familia, luz y rango: Luna)
 CAMPOS_OBJETO = ("nombre", "angulo", "mag", "fuente", "familia", "luz", "rango")
 # Lo que sale de cada grupo de manchas, además de su posición: tamaños y coordenadas sobre el Sol, no dependen del JPG
@@ -112,6 +123,14 @@ class ErrorNombre(ErrorHosting):
 
 class ErrorCuota(ErrorHosting):
     """La galería ha agotado su cuota en el hosting: cola parada hasta que retire fotos."""
+
+
+class ErrorPermiso(ErrorHosting):
+    """El endpoint no deja tocar esa ruta a este nombre (lo común y el .htaccess son del dueño): se salta."""
+
+
+class ErrorContenido(ErrorHosting):
+    """El endpoint no acepta el contenido del fichero (422: no es un JPEG, JSON fuera de la lista blanca): se salta."""
 
 
 # ───────────────────────── Configuración ─────────────────────────
@@ -516,11 +535,12 @@ def _traduccion(codigo):
     return gettext.translation(idioma.DOMINIO, idioma.CARPETA, languages=[codigo], fallback=True)
 
 
-def visor(cfg, salida):
+def visor(salida=CARPETA_PAGINAS):
     """
-    Renderiza las plantillas de templates/publico/*.html en cada idioma de [Publicar] idiomas
-    (español en la raíz, los demás en <codigo>/) con un entorno Jinja propio, sin tocar el idioma
-    de la app. Devuelve {ruta relativa al propietario: ruta local}. Sin plantillas, nada.
+    Renderiza las plantillas de templates/publico/*.html en español (raíz) y en inglés (en/) con un
+    entorno Jinja propio, sin tocar el idioma de la app. Son páginas genéricas, iguales para todos los
+    propietarios del hosting: ni autor, ni nombre, ni dirección; eso lo pone el JS leyendo galeria.json.
+    Devuelve {ruta relativa a _comun/<versión>/publico/paginas/: ruta local}. Sin plantillas, nada.
     """
     if not os.path.isdir(CARPETA_PLANTILLAS):
         return {}
@@ -532,9 +552,9 @@ def visor(cfg, salida):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(CARPETA_PLANTILLAS), extensions=["jinja2.ext.i18n"],
                              autoescape=True, trim_blocks=True, lstrip_blocks=True)
     generados = {}
-    for codigo in cfg["idiomas"]:
+    for codigo in IDIOMAS_VALIDOS:
         trad = _traduccion(codigo)
-        # Como en la app: _("Galería de {autor}", autor=...) rellena los marcadores (idioma._formatear)
+        # Como en la app: _("{n} fotos", n=...) rellena los marcadores (idioma._formatear)
         env.install_gettext_callables(
             lambda mensaje, _t=trad, **valores: idioma._formatear(_t.gettext(mensaje), valores),
             lambda singular, plural, n, _t=trad, **valores: idioma._formatear(_t.ngettext(singular, plural, n), dict(valores, n=n)),
@@ -543,8 +563,7 @@ def visor(cfg, salida):
         raiz = "." if not sub else ".."
         contexto = {"idioma": codigo, "lang": idioma._LANG.get(codigo, codigo), "raiz": raiz,
                     "comun": f"{raiz}/../_comun/{version.VERSION}", "version": version.VERSION,
-                    "idiomas": cfg["idiomas"], "autor": cfg["autor_publico"], "nombre": cfg["nombre"],
-                    "url": url_publica(cfg), "por_defecto": idioma.POR_DEFECTO}
+                    "idiomas": list(IDIOMAS_VALIDOS), "por_defecto": idioma.POR_DEFECTO}
         for p in plantillas:
             html = env.get_template(p).render(**contexto)
             destino = os.path.join(salida, sub, p)
@@ -559,10 +578,13 @@ def visor(cfg, salida):
 def archivos_comun():
     """
     {ruta relativa a _comun/<versión>/: ruta local} de lo que comparten todos los propietarios de un
-    hosting: traducciones y JS/CSS del visor (static/publico) y, si hay planetario público, el motor
-    del atlas entero (6,6 MB, solo rutas relativas: se copia tal cual).
+    hosting: las páginas del visor (publico/paginas/, que el endpoint copia a cada galería),
+    traducciones y JS/CSS del visor (static/publico) y, si hay planetario público, el motor del atlas
+    entero (6,6 MB, solo rutas relativas: se copia tal cual). Solo lo sube el dueño del hosting.
     """
     salida = {}
+    for rel, local in visor().items():
+        salida["publico/paginas/" + rel] = local
     for rel, local in (("js/i18n.js", "static/js/i18n.js"), ("i18n/en.js", "static/i18n/en.js"),
                        ("js/atlas_catalogos.js", "static/js/atlas_catalogos.js"), ("js/capa_fotos.js", "static/js/capa_fotos.js"),
                        ("js/luna_anotada.js", "static/js/luna_anotada.js"), ("js/manchas_solares.js", "static/js/manchas_solares.js"),
@@ -593,6 +615,7 @@ _despertar = threading.Event()
 _hilo = None
 _replanificar = False
 _verificar_remoto = True
+_sin_permiso_comun = False       # el endpoint ha dicho que lo común no es de este nombre: no se vuelve a encolar
 ESTADO = {"activo": False, "ocupado": False, "subiendo": "", "pendientes": 0, "bytes_pendientes": 0,
           "fotos": 0, "ultimo_ok": "", "ultimo_error": "", "error_clave": False, "parada": False, "sin_red": False}
 # Errores que paran la cola hasta que el usuario arregle algo (clave, nombre, cuota)
@@ -612,7 +635,7 @@ def _prioridad_baja():
 
 
 def _estado_vacio():
-    return {"remoto": {}, "cola": [], "derivadas": {}, "comun_version": "", "ultimo_ok": "", "ultimo_error": ""}
+    return {"remoto": {}, "cola": [], "derivadas": {}, "comun_version": "", "contacto": "", "ultimo_ok": "", "ultimo_error": ""}
 
 
 def _leer_estado():
@@ -646,7 +669,7 @@ def planificar(estado, cfg=None):
     salida = os.path.join(CARPETA_SALIDA, nombre)
     os.makedirs(salida, exist_ok=True)
     deseado = []                        # [(ruta remota relativa a galeria/, ruta local, grupo)]
-    if os.path.isfile(RUTA_HTACCESS):
+    if os.path.isfile(RUTA_HTACCESS) and not _sin_permiso_comun:
         deseado.append((".htaccess", RUTA_HTACCESS, "htaccess"))
 
     fotos, vigentes = [], set()
@@ -672,27 +695,29 @@ def planificar(estado, cfg=None):
                     pass
     fotos.sort(key=lambda f: f.get("fecha_iso") or "", reverse=True)
 
-    for rel, local in visor(cfg, salida).items():
-        deseado.append((f"{nombre}/{rel}", local, "visor"))
-    comun = archivos_comun()
+    # Lo común (páginas del visor incluidas) solo lo sube el dueño del hosting; a los demás el endpoint les dice que no
+    comun = {} if _sin_permiso_comun else archivos_comun()
     if comun and estado.get("comun_version") != version.VERSION:
         for rel, local in comun.items():
             deseado.append((f"_comun/{version.VERSION}/{rel}", local, "comun"))
 
+    # El índice: solo claves de la lista blanca del endpoint (hosting/publicar.php, ESQUEMA_INDICE)
     indice = {"version": 1, "generado": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "app": version.VERSION, "comun": f"../_comun/{version.VERSION}", "autor": cfg["autor_publico"],
               "nombre": nombre, "idiomas": cfg["idiomas"], "observador": observador_publico(cfg),
               "planetario": os.path.isfile(os.path.join(CARPETA_PLANTILLAS, "planetario.html")),
-              "sol": sol_publico(marcadas), "fotos": fotos}
+              "contacto": str(estado.get("contacto") or ""), "sol": sol_publico(marcadas), "fotos": fotos}
     ruta_indice = os.path.join(salida, "galeria.json")
     _escribir_json(ruta_indice, indice)
     deseado.append((f"{nombre}/galeria.json", ruta_indice, "indice"))
 
     remoto = estado.setdefault("remoto", {})
-    orden = {"htaccess": 0, "foto": 1, "visor": 2, "comun": 3, "indice": 4}
+    orden = {"htaccess": 0, "foto": 1, "comun": 2, "indice": 3}
     subir = []
     rutas_deseadas = set()
     for ruta, local, grupo in sorted(deseado, key=lambda d: orden[d[2]]):
+        if ruta.startswith(nombre + "/") and not ruta.lower().endswith(EXTENSIONES_GALERIA):
+            continue                    # a la carpeta del propietario solo van fotos y datos
         rutas_deseadas.add(ruta)
         sha = _sha256(local)
         if remoto.get(ruta) != sha:
@@ -726,9 +751,6 @@ class ClienteHosting:
             raise ErrorNombre(_("Ese nombre ya está en uso en el hosting (o está reservado): elige otro en Configuración."))
         if r.status_code == 507:
             raise ErrorCuota(_("La galería ha agotado su cuota en el hosting: retira alguna foto."))
-        if r.status_code == 403:
-            # publicar.php nunca devuelve 403: es el cortafuegos del hosting (o la carpeta) quien corta la petición
-            raise ErrorHosting(_("El hosting bloquea la petición (código 403): revisa el cortafuegos o la carpeta del endpoint."))
         if r.status_code == 404:
             raise ErrorHosting(_("No existe el endpoint en el hosting (código 404): falta subir publicar.php (ver hosting/LEEME.md)."))
         if r.status_code == 413:
@@ -736,9 +758,17 @@ class ClienteHosting:
         try:
             j = r.json()
         except ValueError:
+            if r.status_code == 403:
+                # Sin JSON no es publicar.php: es el cortafuegos del hosting (o la carpeta) quien corta la petición
+                raise ErrorHosting(_("El hosting bloquea la petición (código 403): revisa el cortafuegos o la carpeta del endpoint."))
             raise ErrorHosting(_("El hosting no responde como el endpoint de ScopePower (código {codigo}).", codigo=r.status_code))
+        mensaje = str((j or {}).get("error") if isinstance(j, dict) else "") or f"HTTP {r.status_code}"
+        if r.status_code == 403 and accion in ("subir", "borrar"):
+            raise ErrorPermiso(mensaje)
+        if r.status_code == 422 and accion == "subir":
+            raise ErrorContenido(mensaje)
         if not r.ok or not isinstance(j, dict) or not j.get("ok"):
-            raise ErrorHosting(str((j or {}).get("error") if isinstance(j, dict) else "") or f"HTTP {r.status_code}")
+            raise ErrorHosting(mensaje)
         return j
 
     def probar(self):
@@ -783,6 +813,8 @@ def probar(cfg=None):
     registro = cli.registrar()
     r = cli.probar()
     r["registrado"] = bool(registro.get("registrado"))
+    if "dueno" in r:
+        _anotar_hosting({}, r)
     return r
 
 
@@ -790,7 +822,8 @@ def probar(cfg=None):
 def _reconciliar(cli, estado, nombre):
     """Lo que hay de verdad en el hosting, por si alguien borró o subió a mano: sustituye `remoto`."""
     remoto = {}
-    for prefijo in (f"{nombre}/", f"_comun/{version.VERSION}/", ".htaccess"):
+    prefijos = (f"{nombre}/",) if _sin_permiso_comun else (f"{nombre}/", f"_comun/{version.VERSION}/", ".htaccess")
+    for prefijo in prefijos:
         try:
             lista = cli.listar(prefijo)
         except ErrorClave:
@@ -800,12 +833,22 @@ def _reconciliar(cli, estado, nombre):
             return False
         for ruta, datos in (lista or {}).items():
             remoto[ruta] = (datos or {}).get("sha256", "")
-    # Por contenido, no solo porque esté: un JS o CSS retocado dentro de la misma versión también tiene que subir
-    comun = archivos_comun()
+    # Por contenido, no solo porque esté: un JS o CSS retocado dentro de la misma versión también tiene que subir.
+    # Las páginas que el endpoint coloca en la carpeta del propietario no salen en la lista: no son de la app.
+    comun = {} if _sin_permiso_comun else archivos_comun()
     completo = all(remoto.get(f"_comun/{version.VERSION}/{rel}") == _sha256(local) for rel, local in comun.items())
     estado["remoto"] = remoto
-    estado["comun_version"] = version.VERSION if comun and completo else ""
+    estado["comun_version"] = version.VERSION if (comun and completo) or _sin_permiso_comun else ""
     return True
+
+
+def _anotar_hosting(estado, info):
+    """Lo que dice el endpoint al probar y que va al índice (contacto) o decide qué se encola (si somos el dueño)."""
+    global _sin_permiso_comun
+    estado["contacto"] = str(info.get("contacto") or "")
+    if info.get("dueno") is False and not _sin_permiso_comun:
+        _sin_permiso_comun = True
+        log.info("Galería pública: este nombre no es el dueño del hosting: lo común y las páginas las pone el hosting")
 
 
 def _ejecutar(cli, op):
@@ -842,6 +885,7 @@ def _bucle():
             if verificar:
                 try:
                     cli.registrar()          # reserva el nombre si está libre; con el nombre ya suyo no hace nada
+                    _anotar_hosting(estado, cli.probar())
                     if _reconciliar(cli, estado, cfg["nombre"]):
                         _verificar_remoto = False
                         replan = True
@@ -877,6 +921,7 @@ def _parar(estado, e):
 
 def _vaciar(cli, estado):
     """Ejecuta la cola de una en una. Devuelve cuánto esperar antes de volver (segundos)."""
+    global _sin_permiso_comun
     while estado["cola"]:
         op = estado["cola"][0]
         with _lock:
@@ -886,7 +931,22 @@ def _vaciar(cli, estado):
         except ERRORES_QUE_PARAN as e:
             _parar(estado, e)
             return INTERVALO_REVISION
-        except ErrorTamano as e:
+        except ErrorPermiso as e:
+            if op["ruta"].startswith("_comun/") or op["ruta"] == ".htaccess":
+                # No somos el dueño del hosting: lo común no nos toca. Una vez en el log y fuera de la cola.
+                if not _sin_permiso_comun:
+                    log.info("Galería pública: el hosting no admite lo común de este nombre (%s): lo pone el dueño", e)
+                _sin_permiso_comun = True
+                estado["cola"] = [o for o in estado["cola"] if not (o["ruta"].startswith("_comun/") or o["ruta"] == ".htaccess")]
+                estado["comun_version"] = version.VERSION
+                _guardar_estado(estado)
+                continue
+            log.warning("Galería pública: %s se salta (%s)", op["ruta"], e)
+            estado["ultimo_error"] = f"{op['ruta']}: {e}"
+            estado["cola"].pop(0)
+            _guardar_estado(estado)
+            continue
+        except (ErrorTamano, ErrorContenido) as e:
             log.warning("Galería pública: %s se salta (%s)", op["ruta"], e)
             estado["ultimo_error"] = f"{op['ruta']}: {e}"
             estado["cola"].pop(0)

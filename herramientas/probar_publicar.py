@@ -4,8 +4,10 @@
 # galería de mentira en una carpeta temporal:
 #
 #   1. Un servidor HTTP falso en Python que habla el mismo contrato que publicar.php
-#      (probar / listar / subir / borrar, clave en la cabecera, mismas reglas de rutas) y que
-#      se puede poner a fallar, a rechazar la clave o a no estar.
+#      (probar / listar / subir / borrar, clave en la cabecera, mismas reglas de rutas y de
+#      permisos: lo común y el .htaccess solo para el dueño, en <nombre>/ solo .jpg y .json
+#      comprobados al llegar, páginas que coloca el propio endpoint) y que se puede poner a
+#      fallar, a rechazar la clave o a no estar.
 #   2. Marcar y retirar fotos, las derivadas (≤ 1600 y ≤ 480 px), el JSON por lista blanca
 #      (sin latitud, longitud, ajustes ni rutas), el índice con el observador redondeado y la
 #      huella en el cielo solo donde la hay, el orden de la cola (galeria.json el último al
@@ -13,6 +15,10 @@
 #      (v nuevo), renombrada (borrar + subir), persistencia de la cola, rutas rechazadas y las
 #      anotaciones (de la caché, a la escala del JPG publicado y por lista blanca) y las
 #      gráficas del Sol (todas las medidas, solo si hay alguna foto del Sol publicada).
+#      Y el reparto de permisos: un nombre registrado no sube a _comun ni .htaccess (403, y la
+#      app lo da por bueno sin encolarlo más) ni HTML a su carpeta; un .jpg que no es JPEG o un
+#      galeria.json con claves de más, un tipo inventado o 1001 fotos, 422; las páginas aparecen
+#      en la carpeta del nombre al registrarlo y con cada galeria.json.
 #   3. Si hay `php` en el PATH, lo mismo contra hosting/publicar.php de verdad con el servidor
 #      de PHP (`php -S`); si no, se avisa y se salta (en GitHub no hay PHP).
 #
@@ -42,6 +48,7 @@ import datos_iers
 datos_iers.configurar()
 import cv2
 from astropy.io import fits
+import catalogo_offline
 import editor_fotos
 import fondo_planetario
 import fotometria_solar
@@ -70,14 +77,22 @@ manchas_solares.RUTA_SERIE = os.path.join(DATOS, "numero_wolf.csv")
 fotometria_solar.RUTA_MEDIDAS = os.path.join(DATOS, "medidas_sol.json")
 publicar.RUTA_ESTADO = os.path.join(DATOS, "publicar.json")
 publicar.CARPETA_SALIDA = os.path.join(DATOS, "publicar")
-publicar.CARPETA_PLANTILLAS = os.path.join(RAIZ, "sin_plantillas")
+publicar.CARPETA_PAGINAS = os.path.join(DATOS, "publicar", "_paginas")
+# Unas plantillas mínimas del visor (las de verdad van en casos_visor), sin estáticos ni el atlas (6,6 MB)
+PLANTILLAS = os.path.join(RAIZ, "plantillas_minimas")
+os.makedirs(PLANTILLAS)
+for nombre_plantilla in ("index.html", "planetario.html"):
+    with open(os.path.join(PLANTILLAS, nombre_plantilla), "w", encoding="utf-8") as f:
+        f.write('<!doctype html><html lang="{{ lang }}"><title>{{ _("Galería") }}</title><p>{{ raiz }}/galeria.json {{ comun }}</p></html>')
+publicar.CARPETA_PLANTILLAS = PLANTILLAS
 publicar.CARPETA_ESTATICOS = os.path.join(RAIZ, "sin_estaticos")
+publicar.CARPETA_ATLAS = os.path.join(RAIZ, "sin_atlas")
 publicar.ESPERAS_REINTENTO = (0.3,)
 publicar.ESPERA_SIN_RED = 0.3
 publicar.TIMEOUT = (5, 30)
 publicar.clave = lambda: CONFIG["clave"]
 
-CONFIG = {"endpoint": "", "clave": CLAVE, "coordenadas": "redondeadas"}
+CONFIG = {"endpoint": "", "clave": CLAVE, "coordenadas": "redondeadas", "nombre": ""}
 SEMILLA = [10]                                   # cada tanda reescribe M 31 con un contenido distinto
 _leer_config_original = publicar.leer_config
 
@@ -86,7 +101,7 @@ def config_prueba(ruta="config.ini"):
     ini = os.path.join(RAIZ, "config.ini")
     with open(ini, "w") as f:            # la codificación del sistema, como config.ini de la app
         f.write(f"[Observatorio]\nlatitud_observatorio = {LAT}\nlongitud_observatorio = {LON}\nautor = Enrique Jiménez\n"
-                f"[Publicar]\nactivado = true\nurl_base = http://127.0.0.1:1\nendpoint = {CONFIG['endpoint']}\n"
+                f"[Publicar]\nactivado = true\nurl_base = http://127.0.0.1:1\nendpoint = {CONFIG['endpoint']}\nnombre = {CONFIG['nombre']}\n"
                 f"coordenadas = {CONFIG['coordenadas']}\nlado_foto = 1600\nlado_mini = 480\n")
     return _leer_config_original(ini)
 
@@ -95,7 +110,122 @@ publicar.leer_config = config_prueba
 
 
 # ───────────────────────── Servidor falso con el contrato de publicar.php ─────────────────────────
-EXTENSIONES = ("jpg", "jpeg", "webp", "png", "json", "html", "js", "css", "md", "txt", "ico")
+EXTENSIONES_COMUN = ("jpg", "jpeg", "webp", "png", "json", "html", "js", "css", "md", "txt", "ico")
+EXTENSIONES_GALERIA = ("jpg", "json")
+PAGINAS = ("index.html", "planetario.html", "en/index.html", "en/planetario.html")
+LADO_MAX_JPG, MAX_FOTOS, MAX_TEXTO = 1700, 1000, 200
+MAX_JSON, MAX_JSON_ANOTACIONES, MAX_JSON_INDICE = 256 * 1024, 1024 * 1024, 2 * 1024 * 1024
+CONTACTO = "dueno@hosting.example"
+SOLO_DUENO = "Solo el dueño del hosting puede subir o borrar lo común (_comun) y el .htaccess"
+
+# Los esquemas por lista blanca, como en publicar.php (ESQUEMA_FOTO, ESQUEMA_INDICE, ESQUEMA_ANOTACIONES)
+ESQUEMA_FOTO = {"obj": {
+    "id": "id", "objeto": "texto", "tipo": "categoria", "fecha": "texto", "fecha_iso": "texto", "n_fotos": "num",
+    "exposicion": "num", "ra": "texto", "dec": "texto", "nota": {"obj": {"puntuacion": "num", "estrellas": "num", "fwhm": "num"}},
+    "autor": "texto", "mosaico": "bool", "cometa_nucleo": "bool", "wolf": {"obj": {"R": "num", "g": "num", "f": "num", "k": "num"}},
+    "video": {"obj": {"frames": "num", "duracion_s": "num"}},
+    "ficheros": {"obj": {"jpg": "fichero", "mini": "fichero", "cielo": "fichero", "anotaciones": "fichero"}},
+    "v": {"obj": {"jpg": "texto", "mini": "texto", "cielo": "texto", "anotaciones": "texto"}}, "ancho": "num", "alto": "num",
+    "cielo": {"obj": {"esquinas": "puntos", "ancho": "num", "alto": "num", "modo": "texto", "area_deg2": "num"}}, "anotaciones": "texto"}}
+ESQUEMA_INDICE = {"obj": {
+    "version": "num", "generado": "texto", "app": "texto", "comun": "texto", "autor": "texto", "nombre": "texto", "idiomas": "textos",
+    "planetario": "bool", "contacto": "texto", "observador": {"obj": {"latitud": "num", "longitud": "num", "redondeo_grados": "num"}},
+    "sol": {"obj": {"wolf": {"lista": {"obj": {"fecha": "texto", "g": "num", "f": "num", "R": "num", "k": "num", "n": "num"}}},
+                    "curva": {"lista": {"obj": {"instante": "num", "r": "num"}}},
+                    "orbita": {"obj": {"e": "num", "r0": "num", "perihelio": "texto", "n": "num", "dias": "num"}},
+                    "diametro": {"lista": {"obj": {"instante": "num", "r_arcsec": "num", "r_efem": "num", "desvio_pct": "num",
+                                                   "distancia": "num", "fiable": "bool"}}}}},
+    "fotos": {"lista": ESQUEMA_FOTO, "max": MAX_FOTOS}}}
+ESQUEMA_ANOTACIONES = {"obj": {
+    "ancho": "num", "alto": "num", "disco": {"obj": {"cx": "num", "cy": "num", "r": "num", "cortado": "bool"}}, "sol": "bool",
+    "wolf": {"obj": {"g": "num", "f": "num", "R": "num", "k": "num"}},
+    "manchas": {"lista": {"obj": {"x": "num", "y": "num", "r_px": "num", "umbra": "bool", "grupo": "num"}}},
+    "grupos": {"lista": {"obj": {"id": "num", "n": "num", "lat": "num", "dlon": "num", "km2": "num", "diametro_km": "num",
+                                 "largo_km": "num", "x": "num", "y": "num"}}}, "resolucion_km": "num",
+    "objetos": {"lista": {"obj": {"nombre": "texto", "angulo": "num", "mag": "num", "fuente": "texto", "familia": "texto", "luz": "bool",
+                                  "rango": "num", "x": "num", "y": "num", "a": "num", "b": "num"}}},
+    "luna": "bool", "mares": "trazado", "terminador": "puntos", "iluminada": "num", "dudosa": "bool"}}
+
+
+def es_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def comprobar(valor, esquema, donde):
+    """Lo mismo que comprobar() en publicar.php: qué falla, o None."""
+    if valor is None:
+        return None
+    if isinstance(esquema, str):
+        if esquema == "num":
+            return None if es_num(valor) else f"{donde} no es un número"
+        if esquema == "bool":
+            return None if isinstance(valor, bool) else f"{donde} no es verdadero o falso"
+        if esquema == "texto":
+            return None if isinstance(valor, str) and len(valor.encode("utf-8")) <= MAX_TEXTO else f"{donde} no es un texto corto"
+        if esquema == "trazado":
+            return None if isinstance(valor, str) else f"{donde} no es un texto"
+        if esquema == "id":
+            return None if isinstance(valor, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,200}", valor) else f"{donde} no es un identificador"
+        if esquema == "fichero":
+            return None if isinstance(valor, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,200}\.(jpg|json)", valor) else f"{donde} no es un fichero"
+        if esquema == "categoria":
+            return None if isinstance(valor, str) and (valor == "" or valor in catalogo_offline.CATEGORIAS) else f"{donde} no es un tipo de la app"
+        if esquema == "textos":
+            return None if isinstance(valor, list) and all(isinstance(v, str) and len(v) <= MAX_TEXTO for v in valor) else f"{donde} no es una lista"
+        if esquema == "puntos":
+            ok = isinstance(valor, list) and all(isinstance(p, list) and len(p) == 2 and es_num(p[0]) and es_num(p[1]) for p in valor)
+            return None if ok else f"{donde} no es una lista de puntos"
+        return f"{donde}: esquema desconocido"
+    if "lista" in esquema:
+        if not isinstance(valor, list):
+            return f"{donde} no es una lista"
+        if len(valor) > esquema.get("max", 20000):
+            return f"{donde} tiene más de {esquema.get('max', 20000)} elementos"
+        for i, v in enumerate(valor):
+            e = comprobar(v, esquema["lista"], f"{donde}[{i}]")
+            if e:
+                return e
+        return None
+    if not isinstance(valor, dict):
+        return f"{donde} no es un objeto"
+    for k, v in valor.items():
+        if k not in esquema["obj"]:
+            return f"{donde} tiene una clave que no se publica: {k}"
+        e = comprobar(v, esquema["obj"][k], f"{donde}.{k}")
+        if e:
+            return e
+    return None
+
+
+def comprobar_contenido(ruta, datos):
+    """Como comprobarContenido() en publicar.php: JPEG de verdad y acotado, JSON por lista blanca."""
+    nombre = ruta.rsplit("/", 1)[-1]
+    if nombre.lower().endswith(".jpg"):
+        if not datos.startswith(b"\xff\xd8\xff"):
+            return "El fichero no es un JPEG"
+        im = cv2.imdecode(np.frombuffer(datos, np.uint8), cv2.IMREAD_UNCHANGED)
+        if im is None:
+            return "El fichero no es un JPEG"
+        if max(im.shape[:2]) > LADO_MAX_JPG:
+            return f"La foto pasa de {LADO_MAX_JPG} px de lado"
+        return None
+    es_indice, es_anot = nombre == "galeria.json", nombre.endswith("_anotaciones.json")
+    maximo = MAX_JSON_INDICE if es_indice else MAX_JSON_ANOTACIONES if es_anot else MAX_JSON
+    if len(datos) > maximo:
+        return f"{nombre} pasa de {maximo // 1024} KB"
+    try:
+        d = json.loads(datos.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return f"{nombre} no es un JSON válido"
+    if not isinstance(d, (dict, list)):
+        return f"{nombre} no es un JSON válido"
+    if es_indice:
+        if not isinstance(d, dict) or "version" not in d or not isinstance(d.get("fotos"), list):
+            return "galeria.json necesita version y la lista fotos"
+        return comprobar(d, ESQUEMA_INDICE, "galeria")
+    if isinstance(d, list) and not d:
+        d = {}
+    return comprobar(d, ESQUEMA_ANOTACIONES if es_anot else ESQUEMA_FOTO, nombre)
 
 
 class ServidorFalso(ThreadingHTTPServer):
@@ -106,33 +236,65 @@ class ServidorFalso(ThreadingHTTPServer):
         self.raiz = raiz
         self.fallos_pendientes = 0
         self.registro = []                   # [(accion, ruta)] en orden de llegada (solo las aceptadas)
-        self.claves = {NOMBRE: CLAVE}        # nombres dados de alta a mano (publicar_config.php)
+        self.claves = {NOMBRE: CLAVE}        # nombres dados de alta a mano (publicar_config.php): el dueño
         self.registrados = {}                # nombres reservados desde la app: {nombre: clave}
         self.cuota_nombre = 2 * 1024 * 1024  # como cuota_nombre_mb = 2 en la prueba del PHP real
+        self.endpoint_viejo = False          # True: probar sin 'dueno' ni 'contacto', como un publicar.php anterior
         self.lock = threading.Lock()
 
     @property
     def endpoint(self):
         return f"http://127.0.0.1:{self.server_address[1]}/scopepower/publicar.php"
 
+    def carpeta_paginas(self):
+        """_comun/<versión más alta>/publico/paginas, o None (como carpetaPaginas() en publicar.php)."""
+        comun = os.path.join(self.raiz, "_comun")
+        if not os.path.isdir(comun):
+            return None
+        mejor = None
+        for v in os.listdir(comun):
+            carpeta = os.path.join(comun, v, "publico", "paginas")
+            if re.fullmatch(r"[0-9][A-Za-z0-9.]*", v) and os.path.isfile(os.path.join(carpeta, "index.html")):
+                clave_v = tuple(int(x) if x.isdigit() else 0 for x in v.split("."))
+                if mejor is None or clave_v > mejor[0]:
+                    mejor = (clave_v, carpeta)
+        return mejor[1] if mejor else None
 
-def ruta_segura(slug, ruta):
+    def colocar_paginas(self, slug):
+        origen = self.carpeta_paginas()
+        if origen is None:
+            return
+        for p in PAGINAS:
+            de = os.path.join(origen, p.replace("/", os.sep))
+            if os.path.isfile(de):
+                a = os.path.join(self.raiz, slug, p.replace("/", os.sep))
+                os.makedirs(os.path.dirname(a), exist_ok=True)
+                shutil.copyfile(de, a)
+
+
+def ruta_segura(slug, ruta, es_dueno):
+    """(ruta, None) si se admite; (None, (código, mensaje)) si no: 403 lo que no es suyo, 400 lo que no vale."""
     if ruta == ".htaccess":
-        return ".htaccess"
+        return (ruta, None) if es_dueno else (None, (403, SOLO_DUENO))
     if len(ruta) > 400 or not re.fullmatch(r"[A-Za-z0-9_./-]+", ruta):
-        return None
+        return None, (400, "ruta")
     seg = ruta.split("/")
     if len(seg) < 2 or any(s in ("", ".", "..") or s.startswith(".") for s in seg):
-        return None
-    if seg[0] == "_comun":
-        if len(seg) < 3 or not re.fullmatch(r"[0-9][A-Za-z0-9.]*", seg[1]):
-            return None
-    elif seg[0] != slug:
-        return None
+        return None, (400, "ruta")
     ext = seg[-1].rsplit(".", 1)[-1].lower() if "." in seg[-1] else ""
-    if ext not in EXTENSIONES and seg[-1] not in ("LICENSE", "properties"):
-        return None
-    return ruta
+    if seg[0] == "_comun":
+        if not es_dueno:
+            return None, (403, SOLO_DUENO)
+        if len(seg) < 3 or not re.fullmatch(r"[0-9][A-Za-z0-9.]*", seg[1]):
+            return None, (400, "ruta")
+        if ext not in EXTENSIONES_COMUN and seg[-1] not in ("LICENSE", "properties"):
+            return None, (400, "extensión")
+    else:
+        if seg[0] != slug:
+            return None, (403, "Esa carpeta no es de este nombre")
+        if ext not in EXTENSIONES_GALERIA:
+            return None, (400, "En la galería solo se admiten .jpg y .json (las páginas las pone el hosting)")
+    return ruta, None
 
 
 class ManejadorFalso(BaseHTTPRequestHandler):
@@ -177,10 +339,12 @@ class ManejadorFalso(BaseHTTPRequestHandler):
             return self.responder(400, {"ok": False, "error": "nombre"})
         clave = self.headers.get("X-ScopePower-Clave", "")
         accion = campos.get("accion")
-        valida = clave != "" and (s.claves.get(slug) == clave or s.registrados.get(slug) == clave)
+        es_dueno = clave != "" and s.claves.get(slug) == clave
+        valida = es_dueno or (clave != "" and s.registrados.get(slug) == clave)
         if accion == "registrar":
             if valida:
-                return self.responder(200, {"ok": True, "registrado": False, "nombre": slug})
+                s.colocar_paginas(slug)
+                return self.responder(200, {"ok": True, "registrado": False, "nombre": slug, "contacto": CONTACTO})
             if slug in s.claves or slug in s.registrados or slug in ("admin", "api", "scopepower", "_comun"):
                 return self.responder(409, {"ok": False, "error": "nombre en uso o reservado"})
             if len(clave) < 16:
@@ -188,11 +352,15 @@ class ManejadorFalso(BaseHTTPRequestHandler):
             with s.lock:
                 s.registrados[slug] = clave
             os.makedirs(os.path.join(s.raiz, slug), exist_ok=True)
-            return self.responder(200, {"ok": True, "registrado": True, "nombre": slug, "cuota_mb": 2})
+            s.colocar_paginas(slug)
+            return self.responder(200, {"ok": True, "registrado": True, "nombre": slug, "cuota_mb": 2, "contacto": CONTACTO})
         if not valida:
             return self.responder(401, {"ok": False, "error": "clave"})
         if accion == "probar":
-            return self.responder(200, {"ok": True, "version": 2, "raiz_escribible": True, "max_bytes": 8 << 20, "cuota_mb": 2, "usado_mb": 0, "registro_abierto": True})
+            r = {"ok": True, "version": 3, "raiz_escribible": True, "max_bytes": 8 << 20, "cuota_mb": 2, "usado_mb": 0, "registro_abierto": True}
+            if not s.endpoint_viejo:
+                r.update({"contacto": CONTACTO, "dueno": es_dueno})
+            return self.responder(200, r)
         if accion == "listar":
             prefijo = campos.get("prefijo", "")
             if prefijo == ".htaccess":
@@ -206,17 +374,20 @@ class ManejadorFalso(BaseHTTPRequestHandler):
             carpeta = os.path.join(s.raiz, prefijo.rstrip("/"))
             for c, __, fs in os.walk(carpeta):
                 for f in fs:
+                    if f.startswith(".") or (not prefijo.startswith("_comun/") and f.lower().endswith(".html")):
+                        continue        # las páginas de <slug>/ las pone el endpoint: para la app no existen
                     r = os.path.join(c, f)
                     lista[os.path.relpath(r, s.raiz).replace(os.sep, "/")] = {"bytes": os.path.getsize(r), "sha256": sha(r)}
             return self.responder(200, {"ok": True, "ficheros": lista})
-        ruta = ruta_segura(slug, campos.get("ruta", ""))
+        ruta, error = ruta_segura(slug, campos.get("ruta", ""), es_dueno)
         if ruta is None:
-            return self.responder(400, {"ok": False, "error": "ruta"})
+            return self.responder(error[0], {"ok": False, "error": error[1]})
         abs_ = os.path.join(s.raiz, ruta.replace("/", os.sep))
+        de_galeria = not ruta.startswith("_comun/") and ruta != ".htaccess"
         if accion == "subir":
             if fichero is None:
                 return self.responder(400, {"ok": False, "error": "fichero"})
-            if not ruta.startswith("_comun/") and ruta != ".htaccess":     # cuota de la galería del nombre
+            if de_galeria:     # cuota de la galería del nombre
                 carpeta = os.path.join(s.raiz, slug)
                 usado = sum(os.path.getsize(os.path.join(c, f)) for c, __, fs in os.walk(carpeta) for f in fs) if os.path.isdir(carpeta) else 0
                 viejo = os.path.getsize(abs_) if os.path.isfile(abs_) else 0
@@ -239,10 +410,16 @@ class ManejadorFalso(BaseHTTPRequestHandler):
                 os.remove(parcial)
             if hashlib.sha256(fichero).hexdigest() != campos.get("sha256"):
                 return self.responder(422, {"ok": False, "error": "sha256"})
+            if de_galeria:
+                mal = comprobar_contenido(ruta, fichero)
+                if mal:
+                    return self.responder(422, {"ok": False, "error": mal})
             with open(abs_, "wb") as f:
                 f.write(fichero)
             with s.lock:
                 s.registro.append(("subir", ruta))
+            if de_galeria and ruta.endswith("/galeria.json"):
+                s.colocar_paginas(slug)
             return self.responder(200, {"ok": True, "ruta": ruta, "bytes": len(fichero), "sha256": campos["sha256"]})
         if accion == "borrar":
             existia = os.path.isfile(abs_)
@@ -269,12 +446,17 @@ def foto_sintetica(nombre, lado=2400, semilla=0):
     cv2.imwrite(os.path.join(FOTOS, nombre), img, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
 
-def json_foto(nombre, **extra):
+def json_de_prueba(**extra):
     meta = {"autor": "Enrique Jiménez", "latitud": LAT, "longitud": LON, "objeto": "M 31", "tipo": "Galaxia",
             "fecha": "29/09/2026 23:15", "n_fotos": 40, "exposicion": 20.0, "ra": "00 42 44", "dec": "+41 16 09",
             "firmada": True, "encuadre": {"zoom": 1.0, "giro": 0, "espejo": False},
             "ajustes": {"estirado": 2.5, "ruido": 1}, "nota": {"puntuacion": 3.42, "estrellas": 812, "nitidez": 0.9, "fwhm": 2.3}}
     meta.update(extra)
+    return meta
+
+
+def json_foto(nombre, **extra):
+    meta = json_de_prueba(**extra)
     with open(os.path.join(FOTOS, os.path.splitext(nombre)[0] + ".json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False)
 
@@ -378,6 +560,7 @@ def reiniciar(raiz_servidor):
     os.makedirs(raiz_servidor, exist_ok=True)
     with publicar._lock:
         publicar._verificar_remoto = True
+        publicar._sin_permiso_comun = False
         publicar.ESTADO.update({"error_clave": False, "sin_red": False, "ultimo_error": ""})
 
 
@@ -418,7 +601,8 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     assert cfg["configurado"] and cfg["nombre"] == NOMBRE and cfg["autor_publico"] == "Enrique Jiménez", cfg
     assert publicar.url_publica(cfg) == f"http://127.0.0.1:1/galeria/{NOMBRE}/"
     r = publicar.probar()
-    assert r.get("ok") and r.get("version") == 2 and r.get("registrado") is False, r
+    assert r.get("ok") and r.get("version") == 3 and r.get("registrado") is False, r
+    assert r.get("dueno") is True and r.get("contacto") == CONTACTO, r
     print(f"✅ {etiqueta}: endpoint responde a probar ({r})")
 
     # 1. Marcar: la foto antigua sin JSON lo gana; la marcada se desmarca sin perder nada
@@ -436,6 +620,15 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     # 2. Qué ha llegado al hosting
     remoto = ficheros_de(raiz_servidor)
     assert ".htaccess" in remoto and f"{NOMBRE}/galeria.json" in remoto, sorted(remoto)
+    # Las páginas del visor: el dueño las sube a _comun y el endpoint las copia a la carpeta del nombre
+    V = publicar.version.VERSION
+    for p in PAGINAS:
+        assert f"_comun/{V}/publico/paginas/{p}" in remoto and f"{NOMBRE}/{p}" in remoto, (p, sorted(remoto))
+    assert sha(remoto[f"{NOMBRE}/en/index.html"]) == sha(remoto[f"_comun/{V}/publico/paginas/en/index.html"])
+    assert "Gallery" in open(remoto[f"{NOMBRE}/en/index.html"], encoding="utf-8").read()
+    if servidor:
+        assert not any(a == "subir" and r.startswith(NOMBRE + "/") and not r.endswith((".jpg", ".json")) for a, r in servidor.registro), \
+            "a la carpeta del nombre solo suben .jpg y .json"
     for base in ("M_31_20260929_231500", "Sol_20261022_120000"):
         for sufijo in (".jpg", "_mini.jpg", ".json"):
             assert f"{NOMBRE}/{base}{sufijo}" in remoto, sorted(remoto)
@@ -453,6 +646,7 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
             assert prohibido not in texto, f"{rel} contiene {prohibido!r}"
     indice = leer_json(remoto[f"{NOMBRE}/galeria.json"])
     assert indice["version"] == 1 and indice["nombre"] == NOMBRE and indice["autor"] == "Enrique Jiménez"
+    assert indice["contacto"] == CONTACTO and set(indice) <= set(ESQUEMA_INDICE["obj"]), sorted(indice)
     assert indice["observador"] == {"latitud": 40.0, "longitud": -4.0, "redondeo_grados": 1}, indice["observador"]
     fotos = {f["id"]: f for f in indice["fotos"]}
     m31, sol = fotos["M_31_20260929_231500"], fotos["Sol_20261022_120000"]
@@ -624,7 +818,8 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     # 10. El endpoint rechaza rutas peligrosas
     cli = publicar.cliente()
     for ruta in ("../x.json", f"{NOMBRE}/../otro/x.json", f"{NOMBRE}/x.php", f"{NOMBRE}/.htaccess", "otro-nombre/x.json",
-                 f"{NOMBRE}/sub/.oculto.json", "_comun/x.js", "_comun/../x.js", f"{NOMBRE}/x.phtml", f"{NOMBRE}/x.svg"):
+                 f"{NOMBRE}/sub/.oculto.json", "_comun/x.js", "_comun/../x.js", f"{NOMBRE}/x.phtml", f"{NOMBRE}/x.svg",
+                 f"{NOMBRE}/index.html", f"{NOMBRE}/en/index.html", f"{NOMBRE}/x.js", f"{NOMBRE}/x.css", f"{NOMBRE}/x.png"):
         try:
             cli.subir(ruta, b"{}", hashlib.sha256(b"{}").hexdigest())
             raise AssertionError(f"el endpoint aceptó {ruta!r}")
@@ -640,38 +835,52 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     assert not os.path.isfile(os.path.join(raiz_servidor, NOMBRE, "x.json"))
     cli.subir(f"_comun/{publicar.version.VERSION}/js/x.js", b"//", hashlib.sha256(b"//").hexdigest())
     assert cli.borrar(f"_comun/{publicar.version.VERSION}/js/x.js")["existia"] is True
-    print(f"✅ {etiqueta}: rutas con .., .php, .htaccess fuera de la raíz, otro nombre y sha256 falso, rechazadas")
+    try:
+        cli.borrar(f"{NOMBRE}/index.html")
+        raise AssertionError("las páginas del endpoint no se borran desde la app")
+    except publicar.ErrorHosting:
+        pass
+    assert f"{NOMBRE}/index.html" in ficheros_de(raiz_servidor)
+    assert f"{NOMBRE}/index.html" not in cli.listar(), "las páginas no salen en la lista: la app ni las sube ni las borra"
+    print(f"✅ {etiqueta}: rutas con .., .php, .htaccess fuera de la raíz, otro nombre, HTML/JS/CSS en la galería y sha256 falso, rechazadas; el dueño sí sube _comun")
 
     # 11. Un fichero de 3 MB (como el catálogo del planetario) va en trozos de 1 MB y llega entero;
     #     con el servidor de PHP, que limita cada envío a 2 MB, es la única forma de que entre
-    grande = np.random.default_rng(5).integers(0, 256, 1_500_000, dtype=np.uint8).tobytes()
-    cli.subir(f"{NOMBRE}/grande.json", grande, hashlib.sha256(grande).hexdigest())
+    #     Un JPEG de verdad de ruido (≈1,3 MB): en la galería no entra otra cosa
+    ruido = np.random.default_rng(5).integers(0, 256, (1066, 1600, 3), dtype=np.uint8)
+    grande = cv2.imencode(".jpg", ruido, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
+    assert publicar.TROZO < len(grande) < 1_900_000, len(grande)
+    cli.subir(f"{NOMBRE}/grande.jpg", grande, hashlib.sha256(grande).hexdigest())
     remoto = ficheros_de(raiz_servidor)
-    assert f"{NOMBRE}/grande.json" in remoto and open(remoto[f"{NOMBRE}/grande.json"], "rb").read() == grande
+    assert f"{NOMBRE}/grande.jpg" in remoto and open(remoto[f"{NOMBRE}/grande.jpg"], "rb").read() == grande
     assert not any(".subiendo-" in r for r in remoto), "el parcial debe desaparecer"
     try:
-        cli.subir(f"{NOMBRE}/grande2.json", grande, "1" * 64)
+        cli.subir(f"{NOMBRE}/grande2.jpg", grande, "1" * 64)
         raise AssertionError("un sha256 falso del total debía rechazarse")
     except publicar.ErrorHosting:
         pass
     remoto = ficheros_de(raiz_servidor)
-    assert f"{NOMBRE}/grande2.json" not in remoto and not any(".subiendo-" in r for r in remoto), sorted(remoto)
+    assert f"{NOMBRE}/grande2.jpg" not in remoto and not any(".subiendo-" in r for r in remoto), sorted(remoto)
     try:
-        cli.subir(f"{NOMBRE}/grande3.json", grande, hashlib.sha256(grande).hexdigest())
+        cli.subir(f"{NOMBRE}/grande3.jpg", grande, hashlib.sha256(grande).hexdigest())
         raise AssertionError("la cuota de 2 MB debía agotarse")
     except publicar.ErrorCuota:
         pass
-    cli.borrar(f"{NOMBRE}/grande.json")
-    print(f"✅ {etiqueta}: fichero de 1,5 MB subido en trozos de 1 MB y comprobado entero; sha256 falso rechazado sin dejar parciales; cuota de 2 MB respetada")
+    cli.borrar(f"{NOMBRE}/grande.jpg")
+    print(f"✅ {etiqueta}: JPEG de {len(grande) // 1000} KB subido en trozos de 1 MB y comprobado entero; sha256 falso rechazado sin dejar parciales; cuota de 2 MB respetada")
 
     # 12. Registro abierto: otro ScopePower reserva un nombre libre con su clave; el mismo nombre con otra clave, no
     otro = publicar.ClienteHosting(endpoint, "clave-de-otro-usuario-0123456789", "otro-usuario")
     r = otro.registrar()
-    assert r.get("registrado") is True, r
+    assert r.get("registrado") is True and r.get("contacto") == CONTACTO, r
     assert otro.registrar().get("registrado") is False, "la segunda vez el nombre ya es suyo"
-    assert otro.probar().get("ok")
+    r = otro.probar()
+    assert r.get("ok") and r.get("dueno") is False and r.get("contacto") == CONTACTO, r
     otro.subir("otro-usuario/x.json", b"{}", hashlib.sha256(b"{}").hexdigest())
     assert "otro-usuario/x.json" in ficheros_de(raiz_servidor)
+    # Al registrarlo ya tiene las páginas del visor, puestas por el endpoint
+    for p in PAGINAS:
+        assert f"otro-usuario/{p}" in ficheros_de(raiz_servidor), (p, sorted(ficheros_de(raiz_servidor)))
     intruso = publicar.ClienteHosting(endpoint, "clave-del-intruso-abcdefghijklmnop", "otro-usuario")
     for intento in (intruso.registrar, intruso.probar):
         try:
@@ -693,49 +902,207 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     otro.borrar("otro-usuario/x.json")
     print(f"✅ {etiqueta}: registro abierto: nombre libre reservado desde la app, el mismo nombre con otra clave y los reservados rechazados")
 
+    # 13. El reparto de permisos: un nombre registrado no toca lo común ni el .htaccess (403) ni sube páginas a su carpeta
+    V = publicar.version.VERSION
+    sha_js = hashlib.sha256(b"// mal").hexdigest()
+    for ruta in (f"_comun/{V}/js/i18n.js", f"_comun/{V}/publico/paginas/index.html", ".htaccess", f"_comun/{V}/x.js"):
+        for intento in (lambda r=ruta: otro.subir(r, b"// mal", sha_js), lambda r=ruta: otro.borrar(r)):
+            try:
+                intento()
+                raise AssertionError(f"un nombre registrado tocó {ruta!r}")
+            except publicar.ErrorPermiso:
+                pass
+    assert sha(ficheros_de(raiz_servidor)[f"_comun/{V}/js/i18n.js"]) == sha(os.path.join("static", "js", "i18n.js")), "lo común sigue intacto"
+    for ruta in ("otro-usuario/index.html", "otro-usuario/en/index.html", "otro-usuario/x.js", "otro-usuario/x.css", "otro-usuario/x.php",
+                 f"{NOMBRE}/x.json"):
+        try:
+            otro.subir(ruta, b"{}", hashlib.sha256(b"{}").hexdigest())
+            raise AssertionError(f"el endpoint aceptó {ruta!r} de un nombre registrado")
+        except publicar.ErrorPermiso:
+            assert ruta.startswith(NOMBRE + "/"), ruta          # la carpeta de otro: 403; lo demás, 400
+        except publicar.ErrorHosting:
+            assert not ruta.startswith(NOMBRE + "/"), ruta
+    remoto = ficheros_de(raiz_servidor)
+    assert not any(r.startswith("otro-usuario/x") for r in remoto) and f"{NOMBRE}/x.json" not in remoto, sorted(remoto)
+    assert "Gallery" in open(remoto["otro-usuario/en/index.html"], encoding="utf-8").read(), "la página del endpoint sigue intacta"
+    print(f"✅ {etiqueta}: un nombre registrado recibe 403 en _comun y .htaccess y no puede subir HTML, JS ni CSS a su carpeta")
+
+    # 14. Lo que llega a una galería se comprueba: JPEG de verdad y acotado, JSON por lista blanca
+    def rechazado(ruta, datos, por):
+        try:
+            otro.subir(ruta, datos, hashlib.sha256(datos).hexdigest())
+            raise AssertionError(f"el endpoint aceptó {ruta!r} ({por})")
+        except publicar.ErrorContenido as e:
+            return str(e)
+
+    no_jpeg = b"GIF89a" + bytes(200)
+    rechazado("otro-usuario/foto.jpg", no_jpeg, "no es JPEG")
+    rechazado("otro-usuario/foto.jpg", b"<html><script>alert(1)</script></html>", "HTML con nombre de JPG")
+    png = cv2.imencode(".png", np.zeros((8, 8, 3), np.uint8))[1].tobytes()
+    rechazado("otro-usuario/foto.jpg", png, "PNG con nombre de JPG")
+    enorme = cv2.imencode(".jpg", np.zeros((10, 1701, 3), np.uint8), [cv2.IMWRITE_JPEG_QUALITY, 50])[1].tobytes()
+    assert "1700" in rechazado("otro-usuario/foto.jpg", enorme, "1701 px de lado")
+    justo = cv2.imencode(".jpg", np.zeros((10, 1700, 3), np.uint8), [cv2.IMWRITE_JPEG_QUALITY, 50])[1].tobytes()
+    otro.subir("otro-usuario/foto.jpg", justo, hashlib.sha256(justo).hexdigest())
+    rechazado("otro-usuario/x.json", b"{no es json", "JSON roto")
+    rechazado("otro-usuario/x.json", b"[1, 2]", "lista en vez de ficha")
+    rechazado("otro-usuario/x.json", json.dumps({"id": "x", "latitud": 40.4}).encode(), "clave fuera de la lista blanca")
+    rechazado("otro-usuario/x.json", json.dumps({"id": "x", "ficheros": {"jpg": "../otro/x.jpg"}}).encode(), "fichero con ruta")
+    rechazado("otro-usuario/x.json", json.dumps({"id": "x", "objeto": "a" * 201}).encode(), "texto de más de 200")
+    rechazado("otro-usuario/x.json", json.dumps({"id": "x", "nota": {"puntuacion": "3"}}).encode(), "número como texto")
+    rechazado("otro-usuario/x.json", b"{" + b'"a":' * 1 + b"1}" * 1 + bytes(MAX_JSON), "ficha de más de 256 KB")
+    ficha = publicar.meta_publica("M_31_20260929_231500.jpg", json_de_prueba(), publicar.leer_config())
+    ficha.update({"ancho": 1600, "alto": 1067, "cielo": None, "ficheros": {"jpg": "M_31_20260929_231500.jpg", "mini": "M_31_20260929_231500_mini.jpg"},
+                  "v": {"jpg": "0123456789", "mini": "abcdef0123"}})
+    otro.subir("otro-usuario/M_31_20260929_231500.json", json.dumps(ficha).encode(), hashlib.sha256(json.dumps(ficha).encode()).hexdigest())
+    indice = leer_json(ficheros_de(raiz_servidor)[f"{NOMBRE}/galeria.json"])
+    assert indice["fotos"], "hace falta un índice real para variarlo"
+
+    def indice_variado(**cambios):
+        d = json.loads(json.dumps(indice))
+        d.update(cambios)
+        return json.dumps(d).encode()
+
+    assert "no se publica" in rechazado("otro-usuario/galeria.json", indice_variado(latitud=40.4), "clave desconocida en el índice")
+    f0 = json.loads(json.dumps(indice["fotos"][0]))
+    f0["latitud"] = 40.4
+    assert "no se publica" in rechazado("otro-usuario/galeria.json", indice_variado(fotos=[f0]), "clave desconocida en una foto")
+    f0 = json.loads(json.dumps(indice["fotos"][0]))
+    f0["tipo"] = "Agujero negro"
+    assert "tipo" in rechazado("otro-usuario/galeria.json", indice_variado(fotos=[f0]), "tipo inventado")
+    f0 = json.loads(json.dumps(indice["fotos"][0]))
+    f0["id"] = "../../x"
+    rechazado("otro-usuario/galeria.json", indice_variado(fotos=[f0]), "id con ruta")
+    muchas = [dict(indice["fotos"][0], id=f"foto_{i}") for i in range(MAX_FOTOS + 1)]
+    assert "1000" in rechazado("otro-usuario/galeria.json", indice_variado(fotos=muchas), "1001 fotos")
+    rechazado("otro-usuario/galeria.json", json.dumps({"fotos": []}).encode(), "sin version")
+    rechazado("otro-usuario/galeria.json", json.dumps({"version": 1}).encode(), "sin fotos")
+    rechazado("otro-usuario/galeria.json", indice_variado(sol={"wolf": [{"fecha": "x", "g": 1, "foto": "Sol.jpg"}]}), "clave de más en la serie del Sol")
+    rechazado("otro-usuario/galeria.json", indice_variado(contacto=["x"]), "contacto que no es texto")
+    anot = {"ancho": 1600, "alto": 1067, "objetos": [{"nombre": "M32", "x": 1.0, "y": 2.0, "a": 3.0, "b": 4.0, "angulo": None, "mag": 8.1,
+                                                       "fuente": "catalogo", "ra": 10.6}]}
+    rechazado("otro-usuario/x_anotaciones.json", json.dumps(anot).encode(), "coordenada en las anotaciones")
+    anot["objetos"][0].pop("ra")
+    otro.subir("otro-usuario/x_anotaciones.json", json.dumps(anot).encode(), hashlib.sha256(json.dumps(anot).encode()).hexdigest())
+    # Un galeria.json válido (el real, con 1000 fotos justas, de 'otro') entra, y con él llegan las páginas aunque se hayan borrado
+    for p in PAGINAS:
+        os.remove(os.path.join(raiz_servidor, "otro-usuario", p.replace("/", os.sep)))
+    justas = [dict(indice["fotos"][0], id=f"foto_{i}") for i in range(MAX_FOTOS)]
+    otro.subir("otro-usuario/galeria.json", indice_variado(fotos=justas, nombre="otro-usuario"), hashlib.sha256(indice_variado(fotos=justas, nombre="otro-usuario")).hexdigest())
+    remoto = ficheros_de(raiz_servidor)
+    for p in PAGINAS:
+        assert f"otro-usuario/{p}" in remoto, (p, sorted(remoto))
+    assert leer_json(remoto["otro-usuario/galeria.json"])["nombre"] == "otro-usuario"
+    for r in ("otro-usuario/foto.jpg", "otro-usuario/M_31_20260929_231500.json", "otro-usuario/x_anotaciones.json", "otro-usuario/galeria.json"):
+        otro.borrar(r)
+    print(f"✅ {etiqueta}: 422 para lo que no es JPEG, pasa de 1700 px, no parsea, lleva claves fuera de la lista blanca, un tipo inventado o 1001 fotos; lo válido entra y trae las páginas")
+
+    # 15. La app como nombre registrado (no dueño): no encola lo común ni el .htaccess, y el índice lleva el contacto.
+    #     Con el servidor falso, primero como si el endpoint fuera viejo (probar sin 'dueno'): la app encola lo
+    #     común, recibe el 403, lo da por bueno (una vez en el log) y no lo vuelve a pedir; después con el actual.
+    CONFIG["clave"] = "clave-de-otro-usuario-0123456789"
+    CONFIG["nombre"] = "otro-usuario"
+    publicar.esperar(30)
+
+    def desde_cero(endpoint_viejo):
+        i18n_remoto = os.path.join(raiz_servidor, "_comun", V, "js", "i18n.js")
+        if endpoint_viejo:
+            os.remove(i18n_remoto)       # falta algo en lo común: la app lo encola y se topa con el 403
+        with publicar._lock:
+            publicar._sin_permiso_comun = False
+        estado = publicar._leer_estado()
+        estado.update({"comun_version": "", "remoto": {}, "contacto": ""})
+        publicar._guardar_estado(estado)
+        if servidor:
+            with servidor.lock:
+                servidor.endpoint_viejo = endpoint_viejo
+                servidor.registro.clear()
+        publicar.sincronizar(verificar=True)
+        sincronizado()
+        assert publicar._sin_permiso_comun, "la app tiene que saber que no es el dueño"
+        estado = publicar._leer_estado()
+        assert estado["comun_version"] == V and not estado["cola"] and estado["ultimo_error"] == "", estado["ultimo_error"]
+        remoto = ficheros_de(raiz_servidor)
+        assert "otro-usuario/galeria.json" in remoto and "otro-usuario/M_31_20260929_231500.jpg" in remoto, sorted(remoto)
+        assert "otro-usuario/index.html" in remoto and "otro-usuario/en/planetario.html" in remoto, "las páginas las puso el endpoint"
+        if endpoint_viejo:
+            assert f"_comun/{V}/js/i18n.js" not in remoto, "un nombre registrado no repone lo común"
+            shutil.copyfile(os.path.join("static", "js", "i18n.js"), i18n_remoto)
+        else:
+            assert sha(remoto[f"_comun/{V}/js/i18n.js"]) == sha(os.path.join("static", "js", "i18n.js")), "lo común, intacto"
+        # Al replanificar sin verificar tampoco encola lo común; al verificar de nuevo, tampoco (sigue sin ser el dueño)
+        publicar.sincronizar()
+        sincronizado()
+        publicar.sincronizar(verificar=True)
+        sincronizado()
+        assert not publicar._leer_estado()["cola"] and publicar.estado()["ultimo_error"] == ""
+        if servidor:
+            subidas = [r for a, r in servidor.registro if a == "subir"]
+            assert not any(r.startswith("_comun/") or r == ".htaccess" for r in subidas), subidas
+        return leer_json(remoto["otro-usuario/galeria.json"])
+
+    if servidor:
+        indice = desde_cero(endpoint_viejo=True)
+        assert indice["nombre"] == "otro-usuario" and indice["contacto"] == "", indice["contacto"]
+    indice = desde_cero(endpoint_viejo=False)
+    assert indice["nombre"] == "otro-usuario" and indice["contacto"] == CONTACTO, indice["contacto"]
+    CONFIG["clave"], CONFIG["nombre"] = CLAVE, ""
+    print(f"✅ {etiqueta}: como nombre registrado, la app publica sin encolar lo común ni el .htaccess y el índice lleva el contacto del hosting")
+
 
 def casos_visor():
-    """El visor se genera en cada idioma con un entorno Jinja propio (sin tocar el idioma de la app)."""
+    """El visor se genera en cada idioma con un entorno Jinja propio (sin tocar el idioma de la app) y es genérico."""
     import idioma
     plantillas = os.path.join(RAIZ, "plantillas")
     os.makedirs(plantillas)
     with open(os.path.join(plantillas, "index.html"), "w", encoding="utf-8") as f:
-        f.write('<!doctype html><html lang="{{ lang }}"><title>{{ _("Galería") }} · {{ autor }}</title>'
-                '<script src="{{ comun }}/js/i18n.js"></script><p>{{ raiz }}/galeria.json {{ nombre }} {{ url }}</p></html>')
+        f.write('<!doctype html><html lang="{{ lang }}"><title>{{ _("Galería") }}</title>'
+                '<script src="{{ comun }}/js/i18n.js"></script><p>{{ raiz }}/galeria.json {{ idioma }}</p></html>')
     publicar.CARPETA_PLANTILLAS = plantillas
     salida = os.path.join(RAIZ, "visor")
-    generados = publicar.visor(publicar.leer_config(), salida)
+    generados = publicar.visor(salida)
     assert set(generados) == {"index.html", "en/index.html"}, generados
     es = open(generados["index.html"], encoding="utf-8").read()
     en = open(generados["en/index.html"], encoding="utf-8").read()
     assert 'lang="es-ES"' in es and "Galería" in es and "../_comun/" in es and "./galeria.json" in es, es
     assert 'lang="en-US"' in en and "Gallery" in en and "../../_comun/" in en and "../galeria.json" in en, en
     assert idioma.idioma_actual() == "es", "el visor no debe cambiar el idioma de la app"
-    # El visor de verdad (templates/publico): marcadores rellenos, rutas relativas, sin Jinja ni rutas de la app
+    # El visor de verdad (templates/publico): genérico (sin autor, nombre ni dirección: eso lo pone el JS desde
+    # galeria.json), rutas relativas, sin Jinja ni rutas de la app; y va a _comun, no a la carpeta del propietario
     publicar.CARPETA_PLANTILLAS = os.path.join("templates", "publico")
     publicar.CARPETA_ESTATICOS = os.path.join("static", "publico")
+    publicar.CARPETA_ATLAS = os.path.join("static", "atlas")
     salida = os.path.join(RAIZ, "visor_real")
-    generados = publicar.visor(publicar.leer_config(), salida)
-    assert {"index.html", "en/index.html", "planetario.html", "en/planetario.html"} <= set(generados), generados
+    generados = publicar.visor(salida)
+    assert {"index.html", "en/index.html", "planetario.html", "en/planetario.html"} == set(generados), generados
     pl = open(generados["planetario.html"], encoding="utf-8").read()
-    assert "Cielo de Enrique Jiménez" in pl and "atlas/src/index.js" not in pl and "/atlas/dso-catalog.js" in pl and "url_for" not in pl, pl[:400]
+    assert "atlas/src/index.js" not in pl and "/atlas/dso-catalog.js" in pl and "url_for" not in pl, pl[:400]
     es = open(generados["index.html"], encoding="utf-8").read()
     en = open(generados["en/index.html"], encoding="utf-8").read()
-    assert "Galería de Enrique Jiménez" in es and "Gallery of Enrique Jiménez" in en, (es[:300], en[:300])
-    for html in (es, en):
-        for prohibido in ("{{", "{%", "url_for", "/static/", "{autor}"):
+    for html in (es, en, pl):
+        for prohibido in ("{{", "{%", "url_for", "{autor}", "Enrique Jim", "enrique-jimenez", "127.0.0.1", '"url"'):
             assert prohibido not in html, prohibido
+        assert 'id="titulo"' in html and 'id="pie-autor"' in html and 'id="contacto"' in html, "el JS rellena título, autor y contacto"
+    assert "/static/" not in es and "/static/" not in en        # el planetario enlaza static/atlas/ORIGEN.md en GitHub
+    assert "Galería · ScopePower" in es and "Gallery · ScopePower" in en and "Informar de un problema" in es and "Report a problem" in en
     assert '"raiz": "."' in es and '"raiz": ".."' in en and "../_comun/" in es and "../../_comun/" in en
     comun = publicar.archivos_comun()
     assert {"js/i18n.js", "i18n/en.js", "publico/icono.png", "publico/publico.css", "publico/galeria_publica.js",
             "js/luna_anotada.js", "js/manchas_solares.js", "js/fotometria_solar.js"} <= set(comun), sorted(comun)
+    assert {"publico/paginas/index.html", "publico/paginas/planetario.html", "publico/paginas/en/index.html",
+            "publico/paginas/en/planetario.html"} <= set(comun), sorted(r for r in comun if r.startswith("publico/"))
     assert {"js/atlas_catalogos.js", "js/capa_fotos.js", "atlas/src/index.js", "atlas/dso-catalog.js", "atlas/assets/landscapes/guereins/properties",
             "publico/planetario_publico.js"} <= set(comun), sorted(r for r in comun if not r.startswith("atlas/assets"))
     assert not any(r.endswith(".ts") or "/licenses/" in r for r in comun), "solo lo que el endpoint admite"
     assert all(os.path.isfile(local) for local in comun.values())
-    publicar.CARPETA_PLANTILLAS = os.path.join(RAIZ, "sin_plantillas")
+    # Los tipos de objeto que admite el endpoint son los de la app
+    php = open(os.path.join("hosting", "publicar.php"), encoding="utf-8").read()
+    bloque = re.search(r"const CATEGORIAS = \[(.*?)\];", php, re.S).group(1)
+    assert tuple(re.findall(r"'([^']+)'", bloque)) == tuple(catalogo_offline.CATEGORIAS), bloque
+    publicar.CARPETA_PLANTILLAS = PLANTILLAS
     publicar.CARPETA_ESTATICOS = os.path.join(RAIZ, "sin_estaticos")
-    print("✅ visor en español y en inglés con el entorno Jinja propio; idioma de la app intacto; el visor real renderiza limpio")
+    publicar.CARPETA_ATLAS = os.path.join(RAIZ, "sin_atlas")
+    print("✅ visor en español y en inglés con el entorno Jinja propio, genérico (sin autor ni dirección) y en _comun; idioma de la app intacto; CATEGORIAS del PHP = las de la app")
 
 
 def servidor_php(carpeta):
@@ -747,7 +1114,7 @@ def servidor_php(carpeta):
     os.makedirs(sp)
     shutil.copy(os.path.join("hosting", "publicar.php"), sp)
     with open(os.path.join(sp, "publicar_config.php"), "w", encoding="utf-8") as f:
-        f.write("<?php\nreturn ['registro_abierto' => true, 'claves' => ['%s' => '%s'], 'raiz' => __DIR__ . '/../galeria', 'max_bytes' => 8 * 1024 * 1024, 'cuota_nombre_mb' => 2, 'cuota_total_mb' => 50, 'max_nombres' => 5, 'registros_por_dia' => 5];\n" % (NOMBRE, CLAVE))
+        f.write("<?php\nreturn ['registro_abierto' => true, 'claves' => ['%s' => '%s'], 'raiz' => __DIR__ . '/../galeria', 'max_bytes' => 8 * 1024 * 1024, 'cuota_nombre_mb' => 2, 'cuota_total_mb' => 50, 'max_nombres' => 5, 'registros_por_dia' => 5, 'contacto' => '%s'];\n" % (NOMBRE, CLAVE, CONTACTO))
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         puerto = s.getsockname()[1]

@@ -1,8 +1,10 @@
 {#
-  Galería pública (publicar.py): visor estático que se sube al hosting junto a galeria.json.
-  No hereda de base.html ni usa url_for: se renderiza al publicar, una vez por idioma, con un
-  entorno Jinja propio. `comun` apunta a _comun/<versión>/ (motor, traducciones, CSS y JS
-  compartidos) y `raiz` a la carpeta del propietario (donde están galeria.json y las fotos).
+  Galería pública (publicar.py): visor estático, el mismo para todos los propietarios de un
+  hosting. Se renderiza al publicar, una vez por idioma, con un entorno Jinja propio (sin base.html
+  ni url_for), sube a _comun/<versión>/publico/paginas/ y el endpoint lo copia a la carpeta de cada
+  propietario. Por eso aquí no va ni el autor ni el nombre ni la dirección: el JS los lee de
+  galeria.json. `comun` apunta a _comun/<versión>/ (motor, traducciones, CSS y JS compartidos) y
+  `raiz` a la carpeta del propietario (donde están galeria.json y las fotos).
 #}
 <!doctype html>
 <html lang="{{ idioma }}">
@@ -10,8 +12,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex">
-    <title>{{ _("Galería de {autor}", autor=autor) }} · ScopePower</title>
-    <meta property="og:title" content="{{ _("Galería de {autor}", autor=autor) }} · ScopePower">
+    <title>{{ _("Galería") }} · ScopePower</title>
+    <meta property="og:title" content="{{ _("Galería") }} · ScopePower">
     <meta property="og:description" content="{{ _("Fotos del cielo hechas con un telescopio y ScopePower.") }}">
     <link rel="icon" href="{{ comun }}/publico/scopepower.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="{{ comun }}/publico/icono.png">
@@ -22,17 +24,17 @@
         // Tema: noche (rojo) de serie, oscuro neutro si se eligió; se recuerda en este navegador
         try { if (localStorage.getItem("publico.tema") === "oscuro") document.documentElement.setAttribute("data-tema", "oscuro"); } catch (e) {}
         window.IDIOMA = {"codigo": "{{ idioma }}", "lang": "{{ lang }}", "locale": "{{ lang }}", "depurar": false};
-        window.PUBLICO = {"raiz": "{{ raiz }}", "comun": "{{ comun }}", "idioma": "{{ idioma }}", "url": "{{ url }}", "version": "{{ version }}"};
+        window.PUBLICO = {"raiz": "{{ raiz }}", "comun": "{{ comun }}", "idioma": "{{ idioma }}", "version": "{{ version }}"};
     </script>
     {% if idioma != por_defecto %}<script src="{{ comun }}/i18n/{{ idioma }}.js"></script>{% endif %}
     <script src="{{ comun }}/js/i18n.js"></script>
-    <link rel="stylesheet" href="{{ comun }}/publico/publico.css?v=4">
+    <link rel="stylesheet" href="{{ comun }}/publico/publico.css?v=5">
 </head>
 <body>
 <header class="cab">
     <img class="logo" src="{{ comun }}/publico/icono.png" alt="ScopePower">
     <div class="cab-texto">
-        <h1>{{ _("Galería de {autor}", autor=autor) }}</h1>
+        <h1 id="titulo">{{ _("Galería") }}</h1>
         <p id="resumen" class="sub">{{ _("Cargando…") }}</p>
     </div>
     <nav class="cab-acciones">
@@ -103,12 +105,14 @@
 </div>
 
 <footer class="pie">
-    {{ _("Fotos de {autor}", autor=autor) }} · {{ _("hechas con") }} <a href="https://github.com/EnriqueJ67/ScopePower" rel="noopener">ScopePower</a>
+    <span id="pie-autor">{{ _("Fotos") }}</span> · {{ _("hechas con") }} <a href="https://github.com/EnriqueJ67/ScopePower" rel="noopener">ScopePower</a>
+    <!-- El correo del dueño del hosting (publicar_config.php, 'contacto'), si lo da: llega en galeria.json -->
+    <a id="contacto" class="pie-contacto" href="#" hidden>{{ _("Informar de un problema") }}</a>
 </footer>
 
 <script src="{{ comun }}/js/luna_anotada.js?v=3"></script>
 <script src="{{ comun }}/js/manchas_solares.js?v=2"></script>
 <script src="{{ comun }}/js/fotometria_solar.js"></script>
-<script src="{{ comun }}/publico/galeria_publica.js?v=4"></script>
+<script src="{{ comun }}/publico/galeria_publica.js?v=5"></script>
 </body>
 </html>

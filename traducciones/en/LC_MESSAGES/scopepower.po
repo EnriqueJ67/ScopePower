@@ -16,7 +16,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.11.0\n"
+"Generated-By: Babel 2.16.0\n"
 
 #: puesta_estacion.py
 msgid " y "
@@ -1645,7 +1645,11 @@ msgstr "Chrome has blocked location for this address."
 msgid "Chrome tiene denegado el permiso del micrófono para esta dirección. Toca el candado o el icono de ajustes junto a la dirección, entra en Permisos y permite el Micrófono; después recarga la página."
 msgstr "Chrome has denied microphone permission for this address. Tap the padlock or the settings icon next to the address, go to Permissions and allow the Microphone; then reload the page."
 
-#: templates/publico/planetario.html
+#: static/publico/planetario_publico.js templates/publico/planetario.html
+msgid "Cielo"
+msgstr "Sky"
+
+#: static/publico/planetario_publico.js
 msgid "Cielo de {autor}"
 msgstr "Sky of {autor}"
 
@@ -4413,7 +4417,7 @@ msgstr "Frames to stack"
 
 #. js
 #: templates/apilado.html templates/planetario.html
-#: templates/publico/planetario.html
+#: templates/publico/index.html templates/publico/planetario.html
 msgid "Fotos"
 msgstr "Shots"
 
@@ -4430,7 +4434,7 @@ msgstr "Gallery photos over the sky"
 msgid "Fotos de la sesión (FITS)"
 msgstr "Session shots (FITS)"
 
-#: templates/publico/index.html templates/publico/planetario.html
+#: static/publico/galeria_publica.js static/publico/planetario_publico.js
 msgid "Fotos de {autor}"
 msgstr "Photos by {autor}"
 
@@ -4482,14 +4486,15 @@ msgid "Galaxias y nebulosas NGC/IC hasta magnitud"
 msgstr "NGC/IC galaxies and nebulae down to magnitude"
 
 #. js
-#: espacio_disco.py templates/base.html templates/editar_dia.html
-#: templates/editar_foto.html templates/galeria.html templates/home.html
+#: espacio_disco.py static/publico/galeria_publica.js templates/base.html
+#: templates/editar_dia.html templates/editar_foto.html templates/galeria.html
+#: templates/home.html templates/publico/index.html
 #: templates/publico/planetario.html templates/rastros.html
 #: templates/visor_video.html
 msgid "Galería"
 msgstr "Gallery"
 
-#: templates/publico/index.html
+#: static/publico/galeria_publica.js
 msgid "Galería de {autor}"
 msgstr "Gallery of {autor}"
 
@@ -4992,6 +4997,10 @@ msgstr "Object info"
 #: templates/goto.html
 msgid "Información obtenida, reproduciendo..."
 msgstr "Info received, playing..."
+
+#: templates/publico/index.html templates/publico/planetario.html
+msgid "Informar de un problema"
+msgstr "Report a problem"
 
 #: ScopePower.py
 msgid "Inicia el seguimiento primero (con un objeto fijo a la vista)"
@@ -8864,6 +8873,10 @@ msgstr "Only while tracking is running: it moves through the same path as tracki
 #: disco.py
 msgid "Solo de día: pon el modo día y haz una foto del Sol o de la Luna."
 msgstr "Daytime only: switch to day mode and take a shot of the Sun or the Moon."
+
+#: templates/configuracion.html
+msgid "Solo fotos propias del cielo (cielo profundo, Sol, Luna, planetas, cometas). El dueño del hosting puede retirar una galería que no lo cumpla."
+msgstr "Only your own photos of the sky (deep sky, Sun, Moon, planets, comets). The hosting owner may take down a gallery that does not comply."
 
 #: camara_nativa.py
 msgid "Solo hay {n} cámara Player One; pedida la {pedida}"

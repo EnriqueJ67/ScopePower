@@ -2,7 +2,8 @@
   Planetario público (publicar.py): el cielo con las fotos publicadas pintadas a su huella real,
   como el planetario de la app (static/js/capa_fotos.js y atlas_catalogos.js, compartidos).
   Sin servidor: el motor Celestia Atlas y los catálogos vienen de _comun/<versión>/atlas y la
-  lista de fotos con sus esquinas de galeria.json. Se renderiza al publicar, una vez por idioma.
+  lista de fotos con sus esquinas de galeria.json. Se renderiza al publicar, una vez por idioma, y
+  es la misma página para todos los propietarios del hosting (el autor lo pone el JS desde galeria.json).
 #}
 <!doctype html>
 <html lang="{{ idioma }}">
@@ -10,7 +11,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex">
-    <title>{{ _("Cielo de {autor}", autor=autor) }} · ScopePower</title>
+    <title>{{ _("Cielo") }} · ScopePower</title>
     <link rel="icon" href="{{ comun }}/publico/scopepower.ico" type="image/x-icon">
     {% for cod in idiomas %}
     <link rel="alternate" hreflang="{{ cod }}" href="{{ raiz }}/{{ '' if cod == por_defecto else cod ~ '/' }}planetario.html">
@@ -18,13 +19,13 @@
     <script>
         try { if (localStorage.getItem("publico.tema") === "oscuro") document.documentElement.setAttribute("data-tema", "oscuro"); } catch (e) {}
         window.IDIOMA = {"codigo": "{{ idioma }}", "lang": "{{ lang }}", "locale": "{{ lang }}", "depurar": false};
-        window.PUBLICO = {"raiz": "{{ raiz }}", "comun": "{{ comun }}", "idioma": "{{ idioma }}", "url": "{{ url }}", "version": "{{ version }}"};
+        window.PUBLICO = {"raiz": "{{ raiz }}", "comun": "{{ comun }}", "idioma": "{{ idioma }}", "version": "{{ version }}"};
         // Navegadores algo antiguos (Chrome < 98): el motor usa structuredClone para copiar objetos simples
         if (typeof window.structuredClone !== "function") window.structuredClone = function (v) { return JSON.parse(JSON.stringify(v)); };
     </script>
     {% if idioma != por_defecto %}<script src="{{ comun }}/i18n/{{ idioma }}.js"></script>{% endif %}
     <script src="{{ comun }}/js/i18n.js"></script>
-    <link rel="stylesheet" href="{{ comun }}/publico/publico.css">
+    <link rel="stylesheet" href="{{ comun }}/publico/publico.css?v=5">
     <!-- Los catálogos son scripts clásicos con "defer": están cargados cuando arranca el módulo -->
     <script src="{{ comun }}/atlas/estrellas-brillantes.js" defer></script>
     <script src="{{ comun }}/atlas/hyg-star-catalog.js" defer></script>
@@ -35,7 +36,7 @@
 <header class="cab">
     <img class="logo" src="{{ comun }}/publico/icono.png" alt="ScopePower">
     <div class="cab-texto">
-        <h1>{{ _("Cielo de {autor}", autor=autor) }}</h1>
+        <h1 id="titulo">{{ _("Cielo") }}</h1>
         <p id="resumen" class="sub">{{ _("Cargando el cielo…") }}</p>
     </div>
     <nav class="cab-acciones">
@@ -75,9 +76,10 @@
 <p class="sub" style="margin-top: 8px;">{{ _("Arrastra para mover el cielo y pellizca o usa la rueda para acercarlo. Toca una foto para ver cuál es. El mapa muestra el cielo de ahora mismo.") }}</p>
 
 <footer class="pie">
-    {{ _("Fotos de {autor}", autor=autor) }} · {{ _("hechas con") }} <a href="https://github.com/EnriqueJ67/ScopePower" rel="noopener">ScopePower</a> · {{ _("mapa") }}: <a href="https://github.com/EnriqueJ67/ScopePower/blob/master/static/atlas/ORIGEN.md" rel="noopener">Celestia Atlas</a>
+    <span id="pie-autor">{{ _("Fotos") }}</span> · {{ _("hechas con") }} <a href="https://github.com/EnriqueJ67/ScopePower" rel="noopener">ScopePower</a> · {{ _("mapa") }}: <a href="https://github.com/EnriqueJ67/ScopePower/blob/master/static/atlas/ORIGEN.md" rel="noopener">Celestia Atlas</a>
+    <a id="contacto" class="pie-contacto" href="#" hidden>{{ _("Informar de un problema") }}</a>
 </footer>
 
-<script type="module" src="{{ comun }}/publico/planetario_publico.js"></script>
+<script type="module" src="{{ comun }}/publico/planetario_publico.js?v=2"></script>
 </body>
 </html>
