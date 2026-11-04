@@ -22,6 +22,8 @@ code, comments and commit messages are in Spanish.
 | ![Day mode](docs/capturas/camara-modo-dia-sol.webp) | ![Statistics](docs/capturas/apilado-estadisticas.webp) |
 | **Tonight: what to observe today** | **Night plan schedule** |
 | ![Tonight](docs/capturas/esta-noche.webp) | ![Night plan schedule](docs/capturas/plan-cronograma.webp) |
+| **Annotated Moon** | **Sunspots: groups and size** |
+| ![Annotated Moon](docs/capturas/luna-anotada.webp) | ![Sunspots](docs/capturas/sol-grupos.webp) |
 
 The screenshots show the Spanish interface. More in [docs/capturas](docs/capturas).
 
@@ -45,9 +47,17 @@ The screenshots show the Spanish interface. More in [docs/capturas](docs/captura
   watchdog, direct UDP access to the SynScan Wi-Fi module as well as ASCOM.
 - **Voice announcements** on the PC, IP announcement at startup,
   low disk space warning and its own Wi-Fi hotspot for the field.
-- **Public gallery**: the photos you mark are published, downsized, on your own hosting
-  (`hosting/LEEME.md`) so you can show them from your phone with the mini PC switched off, with
-  the planetarium and their footprints on the sky; no FITS, no videos, no exact observatory position.
+- **The Moon and the Sun**: video with best-frame stacking and its own processing; the annotated Moon with
+  seas, craters, mountains and landing sites, also live; sunspots with their size and an estimate of the
+  Wolf number; limb darkening, temperature and diameter of the disk.
+- **Focus aids**: Bahtinov mask with a virtual crosshair and the offset in pixels, mask-free focusing from
+  the colours of the star, and focusing on the Sun and the Moon from the limb width, with voice prompts.
+- **Stars apart** (optional, with StarNet2): object and stars are processed separately in the editor.
+- **Polar alignment** for equatorial mounts (not yet tested with a real mount).
+- **Public gallery**: the photos you mark are published, downsized, on scopepower.es with nothing to install
+  (or on your own hosting, `hosting/LEEME.md`) so you can show them from your phone with the mini PC switched
+  off, with their annotations and the planetarium with their footprints on the sky; no FITS, no videos, no
+  exact observatory position.
 
 ## Language
 

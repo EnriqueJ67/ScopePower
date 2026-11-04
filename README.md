@@ -11,7 +11,7 @@ apila y se revela sin tocar el PC.
 > [README_en.md](README_en.md). ScopePower turns a small Windows PC next to the mount into a web server
 > you control from your phone: voice GoTo with automatic plate-solve centring (ASTAP), live
 > stacking with darks and flats, an offline planetarium, a night planner, mosaics, comet stacking,
-> solar/lunar guiding and object tracking. It targets Sky-Watcher SynScan mounts (ASCOM or direct
+> solar/lunar video, guiding and annotation, focus aids, a public gallery and object tracking. It targets Sky-Watcher SynScan mounts (ASCOM or direct
 > UDP) and Player One, ZWO, QHY, ToupTek-family and webcam cameras (ASCOM or native SDK). Windows
 > only, English and Spanish UI. Licensed under the GPL-3.0; see [Licencia](#licencia) for third-party data.
 
@@ -30,6 +30,8 @@ los comentarios están en español.
 | ![Modo día](docs/capturas/camara-modo-dia-sol.webp) | ![Estadísticas](docs/capturas/apilado-estadisticas.webp) |
 | **Esta noche: qué observar hoy** | **Cronograma del plan de la noche** |
 | ![Esta noche](docs/capturas/esta-noche.webp) | ![Cronograma del plan](docs/capturas/plan-cronograma.webp) |
+| **Luna anotada** | **Manchas del Sol: grupos y tamaño** |
+| ![Luna anotada](docs/capturas/luna-anotada.webp) | ![Manchas del Sol](docs/capturas/sol-grupos.webp) |
 
 Más capturas en [docs/capturas](docs/capturas).
 
@@ -53,9 +55,17 @@ Más capturas en [docs/capturas](docs/capturas).
   del seguimiento sidéreo, acceso directo por UDP al SynScan Wi-Fi además de ASCOM.
 - **Avisos por voz** en el PC, anuncio de la IP al arrancar,
   aviso de espacio en disco y punto de acceso wifi propio para el campo.
-- **Galería pública**: las fotos que marques se publican, reducidas, en tu propio hosting
-  (`hosting/LEEME.md`) para enseñarlas desde el móvil con el mini PC apagado, con el planetario
-  y sus huellas en el cielo; ni FITS, ni vídeos, ni la posición exacta del observatorio.
+- **La Luna y el Sol**: vídeo con apilado de los mejores fotogramas y revelado propio; la Luna anotada con
+  mares, cráteres, montes y alunizajes, también en directo; manchas del Sol con su tamaño y una estimación del
+  Número de Wolf; oscurecimiento del limbo, temperatura y diámetro del disco.
+- **Ayudas al enfoque**: máscara de Bahtinov con cruceta virtual y desvío en píxeles, enfoque sin máscara por
+  los colores de la estrella y enfoque del Sol y la Luna por la anchura del limbo, con avisos por voz.
+- **Estrellas aparte** (opcional, con StarNet2): objeto y estrellas se procesan por separado en el editor.
+- **Puesta en estación** para monturas ecuatoriales (sin probar todavía con una montura real).
+- **Galería pública**: las fotos que marques se publican, reducidas, en scopepower.es sin instalar nada
+  (o en tu propio hosting, `hosting/LEEME.md`) para enseñarlas desde el móvil con el mini PC apagado, con
+  sus anotaciones y el planetario con sus huellas en el cielo; ni FITS, ni vídeos, ni la posición exacta
+  del observatorio.
 
 ## Idioma
 
