@@ -1165,6 +1165,14 @@ def casos_visor():
     assert "/static/" not in es and "/static/" not in en        # el planetario enlaza static/atlas/ORIGEN.md en GitHub
     assert "Galería · ScopePower" in es and "Gallery · ScopePower" in en and "Informar de un problema" in es and "Report a problem" in en
     assert '"raiz": "."' in es and '"raiz": ".."' in en and "../_comun/" in es and "../../_comun/" in en
+    # El botón de la portada lleva a la raíz del hosting (y a su versión en inglés) sin escribir el dominio
+    for rel, base, esperada in (("index.html", "galeria/fulano/", ""), ("planetario.html", "galeria/fulano/", ""),
+                                ("en/index.html", "galeria/fulano/en/", "en/"), ("en/planetario.html", "galeria/fulano/en/", "en/")):
+        pagina = open(generados[rel], encoding="utf-8").read()
+        enlace = re.search(r'id="portada" href="([^"]+)"', pagina)
+        assert enlace, f"{rel} sin botón de la portada"
+        destino = urllib.parse.urljoin("https://hosting.invalid/" + base, enlace.group(1))
+        assert destino == "https://hosting.invalid/" + esperada, (rel, destino)
     comun = publicar.archivos_comun()
     assert {"js/i18n.js", "i18n/en.js", "publico/icono.png", "publico/publico.css", "publico/galeria_publica.js",
             "js/luna_anotada.js", "js/manchas_solares.js", "js/fotometria_solar.js"} <= set(comun), sorted(comun)
