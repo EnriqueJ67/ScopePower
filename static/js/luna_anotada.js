@@ -12,12 +12,14 @@
 // accidentes con nombre. Los mares llevan el nombre encima de su centro; los cráteres, su
 // contorno (elipse, aplastada cerca del borde) y el nombre al lado; montes, rimas y
 // dorsos, un punto. Los de la parte de noche, más tenues. Ningún nombre pisa otro ni el
-// contorno de un cráter pequeño: el que no cabe se queda sin poner (al ver la foto más
-// grande caben más). Los destacados y los alunizajes (con `rango`, del servidor) tienen su
+// contorno de un cráter pequeño: el que no cabe prueba con la letra algo menor y, si tampoco,
+// se queda sin poner (al ver la foto más grande caben más). Los destacados y los alunizajes (con `rango`, del servidor) tienen su
 // marca reservada desde el principio: el nombre de otro accidente, aunque se coloque antes,
 // busca otro sitio. Una leyenda pequeña dice qué es cada color.
 const LEYENDA_LUNA = [["mar", N_("Mares y lagos")], ["crater", N_("Cráteres")], ["monte", N_("Montes y escarpes")],
                       ["rima", N_("Rimas y valles")], ["dorso", N_("Dorsos")], ["estacion", N_("Alunizajes")]];
+// Los nombres de la UAI son latinos y no se traducen; estos, que no son suyos (luna_anotada.py), sí
+const NOMBRES_TRADUCIBLES_LUNA = new Set([N_("Apolo 11"), N_("Apolo 12"), N_("Apolo 14"), N_("Apolo 15"), N_("Apolo 16"), N_("Apolo 17")]);
 
 function pintarLunaAnotada(svg, d, k, w, h) {
     const NS = "http://www.w3.org/2000/svg";
@@ -33,6 +35,7 @@ function pintarLunaAnotada(svg, d, k, w, h) {
     if (d.terminador.length > 1)
         nuevo("polyline", { points: d.terminador.map(p => `${p[0] * k},${p[1] * k}`).join(" ") }, "luna-terminador");
     const HOLGURA = 2;
+    const ESCALAS_LETRA = [1, 0.9, 0.8], LETRA_MINIMA = 9.5;
     const ocupados = [];
     const solapan = (p, q) => !(p[2] < q[0] || p[0] > q[2] || p[3] < q[1] || p[1] > q[3]);
     const choca = rc => ocupados.some(o => solapan(rc, o));
@@ -44,6 +47,7 @@ function pintarLunaAnotada(svg, d, k, w, h) {
     const MINIMO = { mar: 26, crater: 10, monte: 24, rima: 24, dorso: 24, estacion: 0 };
     const MINIMO_DESTACADO = { 1: 0, 2: 4 };
     const seVe = (o, a, b) => {
+        if (o.familia === "estacion") return true;
         if (o.rango) return 2 * a >= (MINIMO_DESTACADO[o.rango] ?? MINIMO.crater);
         return (o.familia === "crater" ? 2 * Math.sqrt(a * b) : 2 * a) >= (MINIMO[o.familia] ?? MINIMO.crater);
     };
@@ -59,13 +63,14 @@ function pintarLunaAnotada(svg, d, k, w, h) {
         return [Math.hypot(a * c, b * s), Math.hypot(a * s, b * c)];
     };
     // Los contornos de los destacados, reservados: ningún nombre se pone encima. No chocan entre
-    // sí (Theophilus y Cyrillus se tocan), solo con los nombres. Los de segunda, solo con el
-    // disco a buen tamaño: en el móvil no cabe todo y antes que un cráter diminuto va un mar
+    // sí (Theophilus y Cyrillus se tocan), solo con los nombres. Los de segunda y los alunizajes,
+    // solo con el disco a buen tamaño: en el móvil no cabe todo, y antes que un cráter diminuto
+    // va un mar y antes que un alunizaje, Copernicus
     const reservarSegunda = d.disco.r * k >= 150;
     const reservas = [], nombres = [];
     for (const o of d.objetos) {
         const a = o.a * k, b = o.b * k;
-        if (!o.rango || !seVe(o, a, b) || (o.rango !== 1 && !reservarSegunda)) continue;
+        if (!o.rango || !seVe(o, a, b) || ((o.rango !== 1 || o.familia === "estacion") && !reservarSegunda)) continue;
         const m = marcaDe(o, o.x * k, o.y * k, a, ...semicaja(a, b, o.angulo));
         if (m) reservas.push(m);
     }
@@ -83,11 +88,8 @@ function pintarLunaAnotada(svg, d, k, w, h) {
         // Un destacado solo cede ante un nombre; los demás, también ante otro contorno
         if (marca && (o.rango ? nombres.some(n => solapan(marca, n)) : !libre(marca))) continue;
         const texto = nuevo("text", {}, clase);
-        texto.textContent = o.nombre;
-        // Medida real del texto (con el espaciado entre letras y la fuente de su familia)
-        const caja0 = texto.getBBox();
-        const tw = caja0.width, th = caja0.height;
-        let sitios;
+        texto.textContent = NOMBRES_TRADUCIBLES_LUNA.has(o.nombre) ? _(o.nombre) : o.nombre;
+        const sitiosDe = (tw, th) => {
         if (o.familia === "mar") {
             // Sobre su centro y, si está ocupado, cerca de él pero dentro del mar: el mar se ve
             // aunque el nombre no caiga justo en medio, y así deja libres sus cráteres
@@ -97,31 +99,43 @@ function pintarLunaAnotada(svg, d, k, w, h) {
                     const lejos = Math.hypot(dx * tw, dy * (th + 2));
                     if (lejos <= a) desvios.push([lejos, x - tw / 2 + dx * tw, y - th / 2 + dy * (th + 2)]);
                 }
-            sitios = desvios.sort((p, q) => p[0] - q[0]).map(p => [p[1], p[2]]);
-        } else if (o.familia === "crater") {
+            return desvios.sort((p, q) => p[0] - q[0]).map(p => [p[1], p[2]]);
+        }
+        if (o.familia === "crater") {
             // Fuera de su propia marca, con holgura: debajo, encima, a los lados y en las esquinas
             const abajo = y + Math.max(hy, 3) + HOLGURA + 2, arriba = y - Math.max(hy, 3) - HOLGURA - 2 - th;
             const dcha = x + Math.max(hx, 3) + HOLGURA + 3, izda = x - Math.max(hx, 3) - HOLGURA - 3 - tw;
-            sitios = [[x - tw / 2, abajo], [x - tw / 2, arriba], [dcha, y - th / 2], [izda, y - th / 2],
-                      [dcha, abajo], [izda, abajo], [dcha, arriba], [izda, arriba],
-                      [x, abajo], [x - tw, abajo], [x, arriba], [x - tw, arriba]];
-        } else {
-            // Un punto: el nombre tiene que quedar fuera de su marca (4 px) también con la holgura
-            const s = 5 + HOLGURA;
-            sitios = [[x + s, y - th / 2], [x - tw - s, y - th / 2], [x - tw / 2, y + s], [x - tw / 2, y - th - s],
-                      [x + s, y + 2], [x - tw - s, y + 2], [x + s, y - th - 2], [x - tw - s, y - th - 2],
-                      [x, y + s], [x - tw, y + s], [x, y - th - s], [x - tw, y - th - s]];
+            return [[x - tw / 2, abajo], [x - tw / 2, arriba], [dcha, y - th / 2], [izda, y - th / 2],
+                    [dcha, abajo], [izda, abajo], [dcha, arriba], [izda, arriba],
+                    [x, abajo], [x - tw, abajo], [x, arriba], [x - tw, arriba]];
         }
-        // (tx, ty) es la esquina de arriba a la izquierda de la caja; la línea base va más abajo
-        const base = -caja0.y;
+        // Un punto: el nombre tiene que quedar fuera de su marca (4 px) también con la holgura
+        const s = 5 + HOLGURA;
+        return [[x + s, y - th / 2], [x - tw - s, y - th / 2], [x - tw / 2, y + s], [x - tw / 2, y - th - s],
+                [x + s, y + 2], [x - tw - s, y + 2], [x + s, y - th - 2], [x - tw - s, y - th - 2],
+                [x, y + s], [x - tw, y + s], [x, y - th - s], [x - tw, y - th - s]];
+        };
+        // Si no cabe a su tamaño, se prueba con la letra algo menor antes de dejarlo fuera
+        const letra = parseFloat(getComputedStyle(texto).fontSize);
         let puesto = false;
-        for (const [tx, ty] of sitios) {
-            const rc = [tx - HOLGURA, ty - HOLGURA, tx + tw + HOLGURA, ty + th + HOLGURA];
-            if (dentro(rc) && libre(rc) && !(marca && solapan(rc, marca))) {
-                texto.setAttribute("x", tx); texto.setAttribute("y", ty + base);
-                ocupados.push(rc); nombres.push(rc); puesto = true;
-                break;
+        for (const escala of ESCALAS_LETRA) {
+            if (escala < 1) {
+                if (letra * escala < LETRA_MINIMA) break;
+                texto.style.fontSize = letra * escala + "px";
             }
+            // Medida real del texto (con el espaciado entre letras y la fuente de su familia).
+            // (tx, ty) es la esquina de arriba a la izquierda de la caja; la línea base va más abajo
+            const caja = texto.getBBox();
+            const tw = caja.width, th = caja.height, base = -caja.y;
+            for (const [tx, ty] of sitiosDe(tw, th)) {
+                const rc = [tx - HOLGURA, ty - HOLGURA, tx + tw + HOLGURA, ty + th + HOLGURA];
+                if (dentro(rc) && libre(rc) && !(marca && solapan(rc, marca))) {
+                    texto.setAttribute("x", tx); texto.setAttribute("y", ty + base);
+                    ocupados.push(rc); nombres.push(rc); puesto = true;
+                    break;
+                }
+            }
+            if (puesto) break;
         }
         if (!puesto) { texto.remove(); continue; }
         puestos++;
@@ -148,7 +162,7 @@ function prepararLeyendaLuna(nuevo, d, w, h, seVe) {
         .map(([familia, texto]) => ({ clave: familia, texto: _(texto), clase: "luna-leyenda luna-" + familia }));
     if (visibles.some(o => !o.luz)) filas.push({ clave: "noche", texto: _("Más tenue: de noche"), clase: "luna-leyenda luna-leyenda-nota" });
     if (!filas.length) return null;
-    const MARGEN = 6, ALTO = 15;
+    const MARGEN = 6, ALTO = 16;
     for (const f of filas) {
         f.el = nuevo("text", {}, f.clase);
         f.el.textContent = f.texto;

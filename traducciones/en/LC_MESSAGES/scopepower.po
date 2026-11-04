@@ -867,6 +867,30 @@ msgstr "Flatten large-scale background (don't use with extended nebulae)"
 msgid "Aplicar a la vista previa"
 msgstr "Apply to preview"
 
+#: static/js/luna_anotada.js
+msgid "Apolo 11"
+msgstr "Apollo 11"
+
+#: static/js/luna_anotada.js
+msgid "Apolo 12"
+msgstr "Apollo 12"
+
+#: static/js/luna_anotada.js
+msgid "Apolo 14"
+msgstr "Apollo 14"
+
+#: static/js/luna_anotada.js
+msgid "Apolo 15"
+msgstr "Apollo 15"
+
+#: static/js/luna_anotada.js
+msgid "Apolo 16"
+msgstr "Apollo 16"
+
+#: static/js/luna_anotada.js
+msgid "Apolo 17"
+msgstr "Apollo 17"
+
 #. js
 #: templates/calibracion.html
 msgid "Aprendido de la Luna el {fecha}: {valores}. Una calibración con un blanco es más fiable."

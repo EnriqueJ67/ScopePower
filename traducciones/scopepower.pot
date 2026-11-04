@@ -865,6 +865,30 @@ msgstr ""
 msgid "Aplicar a la vista previa"
 msgstr ""
 
+#: static/js/luna_anotada.js
+msgid "Apolo 11"
+msgstr ""
+
+#: static/js/luna_anotada.js
+msgid "Apolo 12"
+msgstr ""
+
+#: static/js/luna_anotada.js
+msgid "Apolo 14"
+msgstr ""
+
+#: static/js/luna_anotada.js
+msgid "Apolo 15"
+msgstr ""
+
+#: static/js/luna_anotada.js
+msgid "Apolo 16"
+msgstr ""
+
+#: static/js/luna_anotada.js
+msgid "Apolo 17"
+msgstr ""
+
 #. js
 #: templates/calibracion.html
 msgid "Aprendido de la Luna el {fecha}: {valores}. Una calibración con un blanco es más fiable."

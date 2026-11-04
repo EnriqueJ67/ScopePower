@@ -15,6 +15,14 @@ borde (hasta 100° del centro): sin los cráteres satélite con letra ni los nom
 del Apolo, y los cráteres desde 15 km. Columnas: nombre, código de tipo del USGS, latitud y longitud
 (grados, este positivo, −180..180) y diámetro en km.
 
+Los seis alunizajes del Apolo no vienen de aquí (la UAI no les da nombre de estación, salvo al 11): están en
+`ALUNIZAJES_APOLO`, en `luna_anotada.py`, con la posición del módulo lunar de la NSSDC de la NASA a partir de
+imágenes del LRO (Wagner et al., Icarus 283, 2017), <https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html>.
+
+Luna 17 y los Surveyor están en `ALUNIZAJES_OTROS`, con las coordenadas del LROC de 2016,
+<https://www.lroc.asu.edu/data/support/downloads/2016_LROC_Coordinates_of_Robotic_Spacecraft.pdf>. Luna 9 no se ha
+localizado en las imágenes: lleva la posición publicada por los soviéticos (7,13° N, 64,37° O), con un error de unos 25 km.
+
 ## albedo_luna.jpg
 
 Mapa de color del LROC (Lunar Reconnaissance Orbiter Camera) del *CGI Moon Kit* del NASA Scientific
