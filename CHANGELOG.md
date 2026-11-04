@@ -43,8 +43,10 @@ día de la release. El número de versión vive en `version.py`.
   `publicar_config.php`), y las páginas de cada galería las coloca el propio endpoint desde `_comun`. Así nadie
   puede meter código en las galerías de los demás ni colgar HTML propio bajo el dominio. Las páginas del visor son
   genéricas (título, autor y contacto los pone el JS desde `galeria.json`); la app da por bueno el 403 de lo común
-  cuando no es el dueño. Aviso de uso en Configuración y «Informar de un problema» en el pie del visor con el
-  correo de `contacto` de `publicar_config.php`. Documentado en `hosting/LEEME.md`.
+  cuando no es el dueño. Cada foto publicada lleva las coordenadas del objeto (salvo las del Sol y la Luna) y las de
+  tipo Paisaje no se publican: el endpoint rechaza el índice si no, y la app avisa al pulsar el globo en vez de
+  encolarla. Aviso de uso en Configuración y «Informar de un problema» en el pie del visor con el correo de
+  `contacto` de `publicar_config.php`. Documentado en `hosting/LEEME.md`.
 - Configuración > Galería pública: activar, dirección del hosting, nombre en la dirección, autor que se
   enseña, posición del observatorio en el planetario público, clave del endpoint (con «Generar»),
   «Probar conexión» y «Sincronizar ahora»; sin editar `config.ini` ni `secretos.ini`.

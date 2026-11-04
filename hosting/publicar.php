@@ -17,7 +17,8 @@
 //   - Un nombre registrado desde la app solo escribe en galeria/<nombre>/, y ahí solo .jpg y .json:
 //     fotos reducidas, la ficha de cada foto, sus anotaciones y el índice galeria.json. Cada fichero
 //     se comprueba al llegar (JPEG de verdad y tamaño acotado; JSON que parsea, con solo las claves
-//     que escribe publicar.py): lo que no cuadra se rechaza con 422 y no se guarda.
+//     que escribe publicar.py, y cada foto con las coordenadas del objeto salvo las del Sol y la
+//     Luna: un freno a fotos que no salen de ScopePower): lo que no cuadra se rechaza con 422.
 //   - Lo compartido (galeria/_comun/<versión>/: motor del planetario, traducciones, JS, CSS y las
 //     páginas del visor) y el .htaccess de galeria/ solo los suben o borran las claves de 'claves'
 //     de publicar_config.php (el dueño del hosting, alta manual). Para cualquier otro, 403.
@@ -25,6 +26,9 @@
 //     este endpoint: al registrar el nombre y cada vez que llega su galeria.json copia las páginas
 //     genéricas de la versión más alta que haya en _comun/<versión>/publico/paginas/. Ningún
 //     nombre puede subirlas, listarlas ni borrarlas: así nadie cuelga HTML propio bajo el dominio.
+//     (Un ScopePower anterior a 1.2.3 sube sus propias páginas con esos mismos nombres: se le
+//     contesta ok con "ignorado": true, no se guarda nada y se colocan las genéricas, para que su
+//     cola no se atasque hasta que se actualice.)
 //
 // Contrato (siempre POST multipart/form-data, respuesta JSON {"ok": true, ...} o
 // {"ok": false, "error": "..."} con su código HTTP; cabecera X-ScopePower-Clave obligatoria):
@@ -80,6 +84,9 @@ const MAX_LISTA = 20000;                   // puntos de una curva, manchas, obje
 const CATEGORIAS = ['Galaxia', 'Nebulosa', 'Nebulosa planetaria', 'Resto de supernova', 'Cúmulo abierto',
     'Cúmulo globular', 'Estrella', 'Planeta', 'Luna', 'Sol', 'Cometa', 'Asteroide', 'Meteoro', 'Satélite artificial',
     'Avión', 'Paisaje'];
+// Cada foto trae las coordenadas del objeto (ra y dec), salvo las de estos tipos; el Paisaje no se publica
+const TIPOS_SIN_COORDENADAS = ['Sol', 'Luna'];
+const SIN_COORDENADAS = 'cada foto debe llevar coordenadas (ra y dec) o ser del Sol o la Luna';
 
 // Esquemas por lista blanca (lo que escribe publicar.py: meta_publica, sol_publico, anotaciones_publicas).
 // Tipos: texto, num, bool, id, fichero, categoria, textos (lista de textos), puntos (lista de [x, y]),
@@ -344,6 +351,24 @@ function comprobar($valor, $esquema, string $donde): ?string
     return null;
 }
 
+/** Lo que una ficha tiene que traer además de cuadrar con el esquema: coordenadas, salvo el Sol y la Luna. */
+function comprobarFoto(array $foto, string $donde): ?string
+{
+    $tipo = $foto['tipo'] ?? '';
+    if ($tipo === 'Paisaje') {
+        return "$donde: las fotos de tipo Paisaje no se publican";
+    }
+    if (in_array($tipo, TIPOS_SIN_COORDENADAS, true)) {
+        return null;
+    }
+    $ra = $foto['ra'] ?? '';
+    $dec = $foto['dec'] ?? '';
+    if (!is_string($ra) || trim($ra) === '' || !is_string($dec) || trim($dec) === '') {
+        return "$donde: " . SIN_COORDENADAS;
+    }
+    return null;
+}
+
 /** Qué está mal en un fichero que llega a <nombre>/ (JPEG de verdad, JSON por lista blanca), o null si vale. */
 function comprobarContenido(string $ruta, string $fichero, int $bytes): ?string
 {
@@ -374,9 +399,23 @@ function comprobarContenido(string $ruta, string $fichero, int $bytes): ?string
         if (!array_key_exists('version', $datos) || !isset($datos['fotos']) || !is_array($datos['fotos'])) {
             return 'galeria.json necesita version y la lista fotos';
         }
-        return comprobar($datos, ESQUEMA_INDICE, 'galeria');
+        $mal = comprobar($datos, ESQUEMA_INDICE, 'galeria');
+        if ($mal !== null) {
+            return $mal;
+        }
+        foreach ($datos['fotos'] as $i => $foto) {
+            $mal = comprobarFoto(is_array($foto) ? $foto : [], "galeria.fotos[$i]");
+            if ($mal !== null) {
+                return $mal;
+            }
+        }
+        return null;
     }
-    return comprobar($datos, $esAnotaciones ? ESQUEMA_ANOTACIONES : ESQUEMA_FOTO, pathinfo($nombre, PATHINFO_FILENAME));
+    $donde = pathinfo($nombre, PATHINFO_FILENAME);
+    if ($esAnotaciones) {
+        return comprobar($datos, ESQUEMA_ANOTACIONES, $donde);
+    }
+    return comprobar($datos, ESQUEMA_FOTO, $donde) ?? comprobarFoto($datos, $donde);
 }
 
 if (!is_dir($raiz) && !@mkdir($raiz, 0755, true)) {
@@ -568,6 +607,15 @@ switch ($accion) {
     case 'subir':
         $ruta = (string)($_POST['ruta'] ?? '');
         $sha = strtolower((string)($_POST['sha256'] ?? ''));
+        if (strncmp($ruta, $slug . '/', strlen($slug) + 1) === 0 && in_array(substr($ruta, strlen($slug) + 1), PAGINAS, true)) {
+            // Las páginas de una app anterior: se aceptan y se descartan; en su sitio van las genéricas
+            $subido = $_FILES['fichero'] ?? null;
+            if (is_array($subido) && isset($subido['tmp_name'])) {
+                @unlink((string)$subido['tmp_name']);
+            }
+            colocarPaginas($raizReal, $slug);
+            responder(200, ['ok' => true, 'ruta' => $ruta, 'ignorado' => true, 'bytes' => 0, 'sha256' => $sha]);
+        }
         $abs = rutaSegura($slug, $ruta, $raizReal, $esDueno);
         if (!preg_match('/^[0-9a-f]{64}$/', $sha)) {
             fallo(400, 'sha256 no válido');

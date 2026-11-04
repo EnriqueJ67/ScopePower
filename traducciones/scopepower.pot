@@ -3738,6 +3738,10 @@ msgstr ""
 msgid "Esta foto no tiene FITS guardado; no se puede resolver"
 msgstr ""
 
+#: publicar.py
+msgid "Esta foto no tiene coordenadas del objeto y no se puede publicar en la galería pública (solo las del Sol y la Luna pueden ir sin ellas)."
+msgstr ""
+
 #: templates/editar_foto.html
 msgid "Esta foto no tiene el FITS apilado guardado a su lado, así que no se puede reprocesar. Solo las fotos guardadas desde el apilado con su FITS se pueden editar."
 msgstr ""
@@ -5553,6 +5557,10 @@ msgstr ""
 
 #: templates/planetario.html
 msgid "Las fotos de la galería (apilados y mosaicos con su posición) sobre el cielo, a su tamaño real"
+msgstr ""
+
+#: publicar.py
+msgid "Las fotos de tipo Paisaje no se publican en la galería pública."
 msgstr ""
 
 #: templates/configuracion.html
@@ -8873,7 +8881,7 @@ msgid "Solo de día: pon el modo día y haz una foto del Sol o de la Luna."
 msgstr ""
 
 #: templates/configuracion.html
-msgid "Solo fotos propias del cielo (cielo profundo, Sol, Luna, planetas, cometas). El dueño del hosting puede retirar una galería que no lo cumpla."
+msgid "Solo fotos propias del cielo hechas con ScopePower (cielo profundo, Sol, Luna, planetas, cometas): cada foto lleva las coordenadas del objeto, salvo las del Sol y la Luna; las de tipo Paisaje no se publican. El dueño del hosting puede retirar una galería que no lo cumpla."
 msgstr ""
 
 #: camara_nativa.py

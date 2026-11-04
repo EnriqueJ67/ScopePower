@@ -3740,6 +3740,10 @@ msgstr "This shot has no saved FITS; it cannot be reprocessed"
 msgid "Esta foto no tiene FITS guardado; no se puede resolver"
 msgstr "This shot has no saved FITS; it cannot be solved"
 
+#: publicar.py
+msgid "Esta foto no tiene coordenadas del objeto y no se puede publicar en la galería pública (solo las del Sol y la Luna pueden ir sin ellas)."
+msgstr "This photo has no object coordinates and cannot be published in the public gallery (only Sun and Moon photos may go without them)."
+
 #: templates/editar_foto.html
 msgid "Esta foto no tiene el FITS apilado guardado a su lado, así que no se puede reprocesar. Solo las fotos guardadas desde el apilado con su FITS se pueden editar."
 msgstr "This photo doesn't have its stacked FITS saved next to it, so it can't be reprocessed. Only photos saved from stacking with their FITS can be edited."
@@ -5556,6 +5560,10 @@ msgstr "The arrows are for someone behind the mount looking towards the pole. If
 #: templates/planetario.html
 msgid "Las fotos de la galería (apilados y mosaicos con su posición) sobre el cielo, a su tamaño real"
 msgstr "Gallery photos (stacks and mosaics with a known position) over the sky, at their real size"
+
+#: publicar.py
+msgid "Las fotos de tipo Paisaje no se publican en la galería pública."
+msgstr "Landscape photos are not published in the public gallery."
 
 #: templates/configuracion.html
 msgid "Las fotos que marques con el globo en la Galería se publican, reducidas, en scopepower.es para enseñarlas desde el móvil con el mini PC apagado: activa, elige un nombre que esté libre y publica; el nombre queda reservado para ti en el primer uso. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio. Si prefieres tu propio hosting, instala allí <code>hosting/publicar.php</code> (<code>hosting/LEEME.md</code>)."
@@ -8875,8 +8883,8 @@ msgid "Solo de día: pon el modo día y haz una foto del Sol o de la Luna."
 msgstr "Daytime only: switch to day mode and take a shot of the Sun or the Moon."
 
 #: templates/configuracion.html
-msgid "Solo fotos propias del cielo (cielo profundo, Sol, Luna, planetas, cometas). El dueño del hosting puede retirar una galería que no lo cumpla."
-msgstr "Only your own photos of the sky (deep sky, Sun, Moon, planets, comets). The hosting owner may take down a gallery that does not comply."
+msgid "Solo fotos propias del cielo hechas con ScopePower (cielo profundo, Sol, Luna, planetas, cometas): cada foto lleva las coordenadas del objeto, salvo las del Sol y la Luna; las de tipo Paisaje no se publican. El dueño del hosting puede retirar una galería que no lo cumpla."
+msgstr "Only your own photos of the sky taken with ScopePower (deep sky, Sun, Moon, planets, comets): every photo carries the object coordinates, except Sun and Moon photos; Landscape photos are not published. The hosting owner may take down a gallery that does not comply."
 
 #: camara_nativa.py
 msgid "Solo hay {n} cámara Player One; pedida la {pedida}"

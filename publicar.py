@@ -35,6 +35,11 @@
 #
 # Quien no es el dueño recibe un 403 al subir a _comun/ o el .htaccess: no es un error, es que no
 # le toca. Se anota una vez en el log y no se vuelve a encolar en lo que dure la app.
+#
+# Qué foto se puede publicar: las que llevan las coordenadas del objeto (ra y dec: del JSON hermano
+# o de la cabecera del FITS), y las del Sol y la Luna, que no las necesitan; las de tipo Paisaje,
+# nunca. El endpoint exige lo mismo (un freno a fotos que no salen de ScopePower, no un filtro de
+# contenido), así que la app avisa al marcar en vez de encolarla y fallar.
 
 import os
 import re
@@ -93,6 +98,7 @@ CAMPOS_OBJETO = ("nombre", "angulo", "mag", "fuente", "familia", "luz", "rango")
 # Lo que sale de cada grupo de manchas, además de su posición: tamaños y coordenadas sobre el Sol, no dependen del JPG
 CAMPOS_GRUPO = ("id", "n", "lat", "dlon", "km2", "diametro_km", "largo_km")
 FORMATO_ANOTACIONES = 4                       # sube si cambia lo que se publica: se regeneran todas
+TIPOS_SIN_COORDENADAS = ("Sol", "Luna")       # como TIPOS_SIN_COORDENADAS en hosting/publicar.php
 
 # El hosting de serie: scopepower.es admite altas desde la app (registro abierto): basta un nombre libre
 HOSTING_PUBLICO = "https://scopepower.es"
@@ -209,12 +215,35 @@ def por_que_no(cfg=None):
 
 
 # ───────────────────────── Selección ─────────────────────────
+def por_que_no_publicable(nombre, meta):
+    """
+    Por qué una foto no puede ir a la galería pública (en palabras para el usuario), o '' si puede: el
+    endpoint rechaza el índice si una foto no lleva coordenadas del objeto y no es del Sol ni la Luna,
+    y las de tipo Paisaje no se publican.
+    """
+    meta = meta if isinstance(meta, dict) else {}
+    objeto = str(meta.get("objeto") or partes_nombre(nombre)[0].replace("_", " "))
+    tipo = catalogo_offline.categoria_objeto(str(meta.get("tipo") or ""), objeto) or ""
+    if tipo == "Paisaje":
+        return _("Las fotos de tipo Paisaje no se publican en la galería pública.")
+    if tipo not in TIPOS_SIN_COORDENADAS and not (_texto(meta.get("ra")) and _texto(meta.get("dec"))):
+        return _("Esta foto no tiene coordenadas del objeto y no se puede publicar en la galería pública (solo las del Sol y la Luna pueden ir sin ellas).")
+    return ""
+
+
 def marcar(nombre, publicada=True):
-    """Marca (o retira) una foto de la galería para la galería pública y pone la cola en marcha."""
+    """
+    Marca (o retira) una foto de la galería para la galería pública y pone la cola en marcha. Una foto
+    sin coordenadas (y que no sea del Sol ni la Luna) o de tipo Paisaje no se marca: ErrorEditor con el porqué.
+    """
     __, ruta_jpg, __, __ = rutas(nombre)
     if not os.path.isfile(ruta_jpg):
         raise ErrorEditor(_("La foto no existe"))
     meta = firma.meta_de_archivo(ruta_jpg) or {}
+    if publicada:
+        motivo = por_que_no_publicable(nombre, meta)
+        if motivo:
+            raise ErrorEditor(motivo)
     meta["publicada"] = bool(publicada)
     firma.guardar_meta(ruta_jpg, meta)
     log.info("Galería pública: %s %s", nombre, "publicada" if publicada else "retirada")
@@ -676,6 +705,10 @@ def planificar(estado, cfg=None):
     derivadas = estado.setdefault("derivadas", {})
     marcadas = publicadas()
     for jpg, meta in marcadas.items():
+        motivo = por_que_no_publicable(jpg, meta)
+        if motivo:                        # marcada a mano o antes de este freno: el endpoint la rechazaría con el índice
+            log.warning("Galería pública: %s no se publica (%s)", jpg, motivo)
+            continue
         try:
             ficha, locales = _preparar_foto(jpg, meta, cfg, salida, derivadas)
         except Exception as e:

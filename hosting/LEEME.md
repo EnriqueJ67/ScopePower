@@ -14,9 +14,13 @@ escribir en su galería. Cada galería tiene una cuota de espacio en scopepower.
 Solo salen JPG reducidos y datos de cada foto (objeto, fecha, exposición, coordenadas, nota,
 autor): ni FITS, ni vídeos, ni la posición exacta del observatorio.
 
-Uso: solo fotos propias del cielo (cielo profundo, Sol, Luna, planetas, cometas). El dueño del
-hosting puede retirar una galería que no lo cumpla; en el pie de cada galería hay un enlace
-«Informar de un problema» con su correo (si lo ha puesto en `contacto`).
+Uso: solo fotos propias del cielo hechas con ScopePower (cielo profundo, Sol, Luna, planetas,
+cometas). Cada foto publicada lleva las coordenadas del objeto (de su JSON o de la cabecera del
+FITS), salvo las del Sol y la Luna, que no las necesitan; las de tipo Paisaje no se publican. Una
+foto sin coordenadas (una antigua sin FITS, o una que no sale de ScopePower) no se deja marcar: la
+app lo dice al pulsar el globo. El dueño del hosting puede retirar una galería que no lo cumpla; en
+el pie de cada galería hay un enlace «Informar de un problema» con su correo (si lo ha puesto en
+`contacto`).
 
 El resto de este documento es para quien quiera montar el endpoint en su propio hosting.
 
@@ -29,8 +33,10 @@ El endpoint reparte los permisos para que nadie pueda colar código en la web de
   anotaciones y el índice `galeria.json`. Cada fichero se comprueba al llegar: un `.jpg` tiene que
   ser un JPEG de verdad de hasta 1700 px de lado; un `.json` tiene que parsear y llevar solo las
   claves que escribe la app (tipo de objeto de la lista de la app, textos de hasta 200 caracteres,
-  hasta 1000 fotos en el índice). Lo que no cuadra se rechaza con 422 y no se guarda. Nada de
-  HTML, JS ni CSS en la carpeta de un nombre.
+  hasta 1000 fotos en el índice) y cada foto con las coordenadas del objeto (`ra` y `dec`) o de
+  tipo Sol o Luna, nunca Paisaje (un freno a fotos que no salen de ScopePower, no un filtro de
+  contenido). Lo que no cuadra se rechaza con 422 y no se guarda. Nada de HTML, JS ni CSS en la
+  carpeta de un nombre.
 - **Lo compartido** (`galeria/_comun/<versión>/`: motor del planetario, traducciones, JS y CSS del
   visor y las páginas genéricas en `publico/paginas/`) y el `.htaccess` de `galeria/` solo los suben
   o borran las claves de `claves` de `publicar_config.php`: el dueño del hosting. Lo sube su propio
@@ -40,7 +46,9 @@ El endpoint reparte los permisos para que nadie pueda colar código en la web de
   coloca el endpoint: al registrar el nombre y cada vez que llega su `galeria.json` copia las de la
   versión más alta que haya en `_comun/<versión>/publico/paginas/`. Son iguales para todos (el
   título, el autor y el contacto los pone el JS leyendo `galeria.json`), ningún nombre puede subirlas,
-  listarlas ni borrarlas, y un ScopePower más nuevo que el hosting usa las páginas que haya.
+  listarlas ni borrarlas, y un ScopePower más nuevo que el hosting usa las páginas que haya. Un
+  ScopePower anterior a 1.2.3 sube sus propias páginas con esos nombres: el endpoint le contesta que
+  sí (`"ignorado": true`), no guarda nada y coloca las genéricas, para que su cola no se atasque.
 
 ## Instalación en un hosting propio (una vez)
 
@@ -96,6 +104,10 @@ Las versiones viejas de `_comun/` se pueden borrar a mano cuando ninguna galerí
 - **422 / «no es un JPEG», «tiene una clave que no se publica»…**: el fichero no es lo que la app
   escribe (una versión de ScopePower más nueva que el endpoint, o alguien probando a mano). La app
   lo salta y sigue con el resto; actualiza `publicar.php` en el hosting.
+- **422 / «cada foto debe llevar coordenadas o ser del Sol o la Luna»**: una foto marcada sin
+  coordenadas (a mano en su JSON, o con una app anterior a este freno). La app actual no la encola
+  y lo anota en el log; retírala de la galería pública o dale coordenadas (FITS con `OBJCTRA` y
+  `OBJCTDEC`).
 - **404 / «No existe el endpoint»**: falta `publicar.php` en `public_html/scopepower/`.
 - **413**: algún fichero pasa de `max_bytes` de `publicar_config.php` (8 MB de serie). Los
   ficheros grandes viajan en trozos de 1 MB, así que el límite por envío del hosting
