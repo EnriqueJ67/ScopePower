@@ -100,6 +100,20 @@ DESTACADOS_SEGUNDA = (
 _RANGO_DESTACADO = {**{n: 2 for n in DESTACADOS_SEGUNDA}, **{n: 1 for n in DESTACADOS_PRIMERA}}
 _RANGOS_ORDEN = {n: i for lista in (DESTACADOS_PRIMERA, DESTACADOS_SEGUNDA) for i, n in enumerate(lista)}
 
+# Los alunizajes del Apolo: la UAI solo tiene nombre de estación para el 11 (Statio Tranquillitatis, que
+# aquí se llama como los demás). Posición del módulo lunar (lat, lon) según la NSSDC de la NASA, a partir
+# de imágenes del LRO (ver luna/ORIGEN.md). El visor traduce estos nombres (static/js/luna_anotada.js)
+ALUNIZAJES_APOLO = (("Apolo 11", 0.674, 23.473), ("Apolo 12", -3.013, -23.422), ("Apolo 14", -3.646, -17.472),
+                    ("Apolo 15", 26.132, 3.633), ("Apolo 16", -8.973, 15.501), ("Apolo 17", 20.191, 30.772))
+SUSTITUIDOS_APOLO = {"Statio Tranquillitatis"}
+# Otros alunizajes conocidos, tras los destacados para que quiten poco sitio. Según las coordenadas del LROC
+# de 2016 (Luna 17 es el módulo que llevó al Lunojod 1). Luna 9 no se ha localizado: su posición es la
+# publicada por los soviéticos, que puede errar unos 25 km. Sus nombres valen igual en inglés
+ALUNIZAJES_OTROS = (("Luna 9", 7.13, -64.37), ("Luna 17", 38.238, -35.002), ("Surveyor 1", -2.475, -43.340),
+                    ("Surveyor 3", -3.016, -23.418), ("Surveyor 5", 1.455, 23.194), ("Surveyor 6", 0.474, -1.427),
+                    ("Surveyor 7", -40.981, -11.513))
+_NOMBRES_OTROS = {nombre for nombre, __, __ in ALUNIZAJES_OTROS}
+
 _lock = threading.Lock()
 _cache = {}
 
@@ -117,11 +131,13 @@ class SinLuna(ErrorLuna):
 # ─────────────────────────────────────────────────────────────────────────────
 def _accidentes():
     if "accidentes" not in _cache:
-        filas = []
+        # Los Apolo primero: entre los alunizajes se rotulan en este orden
+        filas = [{"nombre": nombre, "codigo": "ST", "familia": FAMILIAS["ST"][0], "lat": lat, "lon": lon, "diametro": 0.0}
+                 for nombre, lat, lon in ALUNIZAJES_APOLO + ALUNIZAJES_OTROS]
         with open(RUTA_ACCIDENTES, encoding="utf-8") as f:
             for r in csv.DictReader(f):
                 codigo = r["codigo"]
-                if codigo not in FAMILIAS:
+                if codigo not in FAMILIAS or r["nombre"] in SUSTITUIDOS_APOLO:
                     continue
                 filas.append({"nombre": r["nombre"], "codigo": codigo, "familia": FAMILIAS[codigo][0],
                               "lat": float(r["lat"]), "lon": float(r["lon"]), "diametro": float(r["diametro_km"])})
@@ -902,7 +918,7 @@ def _prioridad(a, cos_e, cos_i, rango):
     dice lo que está a oscuras.
     """
     if a["familia"] == "estacion":
-        return 3, 0.0
+        return (1 if a["nombre"] in _NOMBRES_OTROS else 3), 0.0
     if rango:
         return (5 if rango == 1 else 2), -_RANGOS_ORDEN[a["nombre"]]
     visto = a["diametro"] * float(cos_e)
@@ -936,8 +952,11 @@ def accidentes(geo, disco, orient, ancho, alto):
         radio_px = a["diametro"] / 2.0 / RADIO_KM * disco["r"]
         familia = a["familia"]
         # Un destacado a oscuras no se reconoce: pasa a ser uno más. Un alunizaje no se ve nunca:
-        # sale de día y de noche, con su sitio reservado como los destacados de primera
-        rango = 1 if familia == "estacion" else _RANGO_DESTACADO.get(a["nombre"]) if cos_i[i] > 0 else None
+        # sale de día y de noche, con su sitio reservado como los destacados (el rango dice cuánto)
+        if familia == "estacion":
+            rango = 2 if a["nombre"] in _NOMBRES_OTROS else 1
+        else:
+            rango = _RANGO_DESTACADO.get(a["nombre"]) if cos_i[i] > 0 else None
         if not rango and 2.0 * radio_px < MIN_DIAMETRO_PX * (1.0 if familia == "crater" else 2.0):
             continue
         # En la parte de noche no se ve nada pequeño: solo los mares y los cráteres grandes de

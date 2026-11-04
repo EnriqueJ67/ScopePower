@@ -200,13 +200,14 @@ const entrada = JSON.parse(fs.readFileSync(0, "utf8"));
 const TAM = c => c.includes("luna-mar") ? [13, 0.56] : c.includes("luna-crater") ? [12, 0.52] : [11, 0.49];
 const hijos = [];
 function elemento(tipo) {
-    return { tipo, attrs: {}, textContent: "",
+    return { tipo, attrs: {}, style: {}, textContent: "",
         setAttribute(a, v) { this.attrs[a] = v; },
-        getBBox() { const [t, em] = TAM(this.attrs.class); return { x: 0, y: -t, width: this.textContent.length * t * em, height: t * 1.35 }; },
+        getBBox() { const [t0, em] = TAM(this.attrs.class); const t = parseFloat(this.style.fontSize) || t0; return { x: 0, y: -t, width: this.textContent.length * t * em, height: t * 1.35 }; },
         remove() { hijos.splice(hijos.indexOf(this), 1); } };
 }
 globalThis.document = { createElementNS: (ns, tipo) => elemento(tipo) };
 globalThis._ = globalThis.N_ = texto => texto;
+globalThis.getComputedStyle = e => ({ fontSize: TAM(e.attrs.class)[0] + "px" });
 vm.runInThisContext(fs.readFileSync(entrada.js, "utf8") + "\n;globalThis.pintar = pintarLunaAnotada;");
 const svg = { insertBefore(el) { hijos.push(el); return el; } };
 const salida = {};
@@ -217,7 +218,7 @@ for (const ancho of entrada.anchos) {
     salida[ancho] = { puestos,
         fondo: hijos.filter(e => e.tipo === "rect").map(e => e.attrs)[0] || null,
         textos: hijos.filter(e => e.tipo === "text").map(e => { const c = e.getBBox(); return { nombre: e.textContent, clase: e.attrs.class,
-            x: +e.attrs.x, y: +e.attrs.y + c.y, w: c.width, h: c.height }; }),
+            x: +e.attrs.x, y: +e.attrs.y + c.y, w: c.width, h: c.height, letra: parseFloat(e.style.fontSize) || TAM(e.attrs.class)[0] }; }),
         elipses: hijos.filter(e => e.tipo === "ellipse").map(e => ({ x: e.attrs.cx, y: e.attrs.cy, a: e.attrs.rx, b: e.attrs.ry })) };
 }
 console.log(JSON.stringify(salida));
@@ -239,7 +240,7 @@ def probar_reparto():
     comprobar(all(orden.get(n, 999) < 25 for n in primera), "los destacados de primera con luz, entre los 25 primeros: "
               + str([orden.get(n) for n in primera]))
     lagos = [i for a, i in ((a, orden[a["nombre"]]) for a in acc) if a["nombre"].split()[0] in ("Lacus", "Sinus", "Palus")]
-    segunda = [orden[a["nombre"]] for a in acc if a.get("rango") == 2]
+    segunda = [orden[a["nombre"]] for a in acc if a.get("rango") == 2 and a["familia"] != "estacion"]
     comprobar(segunda and lagos and max(segunda) < min(lagos), "los destacados de segunda van antes que lagos, bahías y pantanos")
     arista = next((a for a in acc if a["nombre"] == "Aristarchus"), None)
     comprobar(arista is None or "rango" not in arista, "un destacado de noche (Aristarchus) no tiene prioridad")
@@ -250,7 +251,22 @@ def probar_reparto():
     # Un disco pequeño: los destacados siguen, aunque midan menos que el mínimo
     pequeno = L.accidentes(geo, {"cx": 150.0, "cy": 150.0, "r": 120.0}, orient, 300, 300)
     comprobar(any(a["nombre"] == "Kepler" for a in pequeno), "con un disco de 120 px, Kepler sigue en la lista")
-    comprobar(all(a.get("rango") == 1 for a in acc if a["familia"] == "estacion"), "los alunizajes llevan su sitio reservado")
+    comprobar(all(a.get("rango") for a in acc if a["familia"] == "estacion"), "los alunizajes llevan su sitio reservado")
+    apolos = {f"Apolo {n}" for n in (11, 12, 14, 15, 16, 17)}
+    comprobar(apolos <= set(orden) and "Statio Tranquillitatis" not in orden, "salen los seis Apolo, y el 11 sustituye a Statio Tranquillitatis")
+    otros = [orden.get(n) for n, __, __ in L.ALUNIZAJES_OTROS]
+    # Luna 9 cae de noche en esta foto, pero un alunizaje sale igual: de noche y de día
+    comprobar(None not in otros and min(otros) > max(segunda), f"Luna 9, Luna 17 y los Surveyor salen en la lista, tras los destacados ({otros})")
+    # Cada uno junto a lo que se ve desde el lugar: al accidente del nomenclátor, a menos de 300 km
+    junto_a = {"Apolo 11": "Mare Tranquillitatis", "Apolo 12": "Mare Cognitum", "Apolo 14": "Fra Mauro", "Apolo 15": "Rima Hadley",
+               "Apolo 16": "Descartes", "Apolo 17": "Littrow"}
+    lista = {a["nombre"]: a for a in L._accidentes()}
+    lejos = {}
+    for apolo, cerca in junto_a.items():
+        v = L._vectores_superficie(np.array([lista[apolo]["lat"], lista[cerca]["lat"]]), np.array([lista[apolo]["lon"], lista[cerca]["lon"]]))
+        lejos[apolo] = math.acos(float(np.clip(v[0] @ v[1], -1, 1))) * L.RADIO_KM
+    comprobar(max(lejos[n] for n in junto_a if n != "Apolo 11") < 300 and lejos["Apolo 11"] < 600,
+              f"cada Apolo cae junto a su sitio ({ {n: round(d) for n, d in lejos.items()} } km)")
 
     node = shutil.which("node")
     if not node:
@@ -277,6 +293,8 @@ def probar_reparto():
         comprobar(not solapes, f"a {ancho} px ningún nombre pisa otro {solapes[:3] or ''}")
         dentro = all(c["x"] >= 0 and c["y"] >= 0 and c["x"] + c["w"] <= ancho and c["y"] + c["h"] <= ancho for c in cajas)
         comprobar(dentro, f"a {ancho} px todos los nombres caen dentro de la foto")
+        menores = [c for c in cajas if c["letra"] < 11]
+        comprobar(all(c["letra"] >= 9.5 for c in cajas), f"a {ancho} px ninguna letra baja de 9,5 px ({len(menores)} nombres con letra reducida)")
         f = v["fondo"]
         comprobar(f is not None and len(v["leyenda"]) >= 3, f"a {ancho} px hay leyenda ({len(v['leyenda'])} líneas)")
         if f:
@@ -293,6 +311,10 @@ def probar_reparto():
     comprobar(lineas[:2] == ["Mares y lagos", "Cráteres"] and "Alunizajes" in lineas and "Más tenue: de noche" in lineas,
               f"a 900 px la leyenda dice {lineas}")
     clases = " ".join(x["clase"] for x in v["textos"])
+    comprobar(all(f"Apolo {n}" in nombres for n in (11, 12, 14, 15, 16, 17)), "a 900 px salen los seis Apolo")
+    grande = [x["nombre"] for x in salida["1400"]["textos"]]
+    faltan = [n for n, __, __ in L.ALUNIZAJES_OTROS if n not in grande]
+    comprobar(len(faltan) <= 2, f"a 1400 px salen las demás misiones (faltan {faltan or 'ninguna'})")
     comprobar("luna-estacion" in clases and "luna-monte" in clases and "Montes Apenninus" in nombres,
               "a 900 px salen alunizajes y montes (sus nombres no chocan con su propio punto)")
     pedidos = [n for n in ("Ptolemaeus", "Theophilus", "Cyrillus", "Catharina", "Langrenus", "Petavius", "Gassendi", "Eudoxus", "Posidonius") if n in nombres]

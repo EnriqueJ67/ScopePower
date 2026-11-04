@@ -81,7 +81,7 @@ NOMBRES_PUBLICOS = ("LICENSE", "properties")
 CAMPOS_OBJETO = ("nombre", "angulo", "mag", "fuente", "familia", "luz", "rango")
 # Lo que sale de cada grupo de manchas, además de su posición: tamaños y coordenadas sobre el Sol, no dependen del JPG
 CAMPOS_GRUPO = ("id", "n", "lat", "dlon", "km2", "diametro_km", "largo_km")
-FORMATO_ANOTACIONES = 3                       # sube si cambia lo que se publica: se regeneran todas
+FORMATO_ANOTACIONES = 4                       # sube si cambia lo que se publica: se regeneran todas
 
 # El hosting de serie: scopepower.es admite altas desde la app (registro abierto): basta un nombre libre
 HOSTING_PUBLICO = "https://scopepower.es"

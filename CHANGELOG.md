@@ -30,6 +30,9 @@ día de la release. El número de versión vive en `version.py`.
   quite el tamaño mínimo; los cráteres aplastados contra el limbo y los de noche pierden prioridad, y el nombre de un mar busca otro sitio
   en vez de pisar un destacado. Textos un punto más pequeños y etiquetas más ajustadas: a 900 px de ancho, 63 nombres en vez de
   55 en una foto real. Arreglado: los nombres de montes, rimas, dorsos y alunizajes no llegaban a salir nunca.
+- Luna anotada: los seis alunizajes del Apolo con su nombre (la UAI solo da nombre de estación al 11, que antes salía como Statio
+  Tranquillitatis) y, si queda sitio, Luna 9, Luna 17 y los cinco Surveyor. También en la galería pública.
+- Luna anotada: un nombre que no cabe prueba con la letra algo menor (hasta 9,5 px) antes de quedarse fuera.
 - Luna anotada: leyenda pequeña con qué es cada color (mares, cráteres, montes, rimas, dorsos, alunizajes y lo que está de noche). Solo
   salen las familias que hay en la foto y va en un lateral, sin tapar el disco si se puede ni la firma. La galería pública recibe también el
   dato que le faltaba para reservar el sitio de los destacados: sale igual que en la app.
