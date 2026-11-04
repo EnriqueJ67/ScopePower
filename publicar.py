@@ -77,11 +77,11 @@ IDIOMAS_VALIDOS = ("es", "en")
 # Lo que el endpoint admite (hosting/publicar.php): nada de código ejecutable
 EXTENSIONES_PUBLICAS = (".jpg", ".jpeg", ".webp", ".png", ".json", ".html", ".js", ".css", ".md", ".txt", ".ico")
 NOMBRES_PUBLICOS = ("LICENSE", "properties")
-# Lo que sale de cada objeto anotado, además de su posición y su tamaño (fuente: cielo; familia y luz: Luna)
-CAMPOS_OBJETO = ("nombre", "angulo", "mag", "fuente", "familia", "luz")
+# Lo que sale de cada objeto anotado, además de su posición y su tamaño (fuente: cielo; familia, luz y rango: Luna)
+CAMPOS_OBJETO = ("nombre", "angulo", "mag", "fuente", "familia", "luz", "rango")
 # Lo que sale de cada grupo de manchas, además de su posición: tamaños y coordenadas sobre el Sol, no dependen del JPG
 CAMPOS_GRUPO = ("id", "n", "lat", "dlon", "km2", "diametro_km", "largo_km")
-FORMATO_ANOTACIONES = 2                       # sube si cambia lo que se publica: se regeneran todas
+FORMATO_ANOTACIONES = 3                       # sube si cambia lo que se publica: se regeneran todas
 
 # El hosting de serie: scopepower.es admite altas desde la app (registro abierto): basta un nombre libre
 HOSTING_PUBLICO = "https://scopepower.es"
@@ -384,7 +384,7 @@ def _origen_anotaciones(nombre, meta, ruta_fits, cfg):
         conteo = hashlib.sha256(json.dumps(meta.get("wolf"), sort_keys=True).encode("utf-8")).hexdigest()[:16]
         return f"sol|{obs}|{conteo}", lambda: manchas_solares.objetos_foto(nombre, obs)    # el conteo corregido no toca el JPG
     if luna_anotada.es_luna(nombre, meta):
-        return f"luna2|{obs}", lambda: luna_anotada.objetos_foto(nombre, obs)
+        return f"luna|{obs}", lambda: luna_anotada.objetos_foto(nombre, obs)
     solucion = _solucion_guardada(ruta_fits)
     if not solucion:
         return "sin solucion", None

@@ -15,7 +15,10 @@
 // contorno de un cráter pequeño: el que no cabe se queda sin poner (al ver la foto más
 // grande caben más). Los destacados y los alunizajes (con `rango`, del servidor) tienen su
 // marca reservada desde el principio: el nombre de otro accidente, aunque se coloque antes,
-// busca otro sitio.
+// busca otro sitio. Una leyenda pequeña dice qué es cada color.
+const LEYENDA_LUNA = [["mar", N_("Mares y lagos")], ["crater", N_("Cráteres")], ["monte", N_("Montes y escarpes")],
+                      ["rima", N_("Rimas y valles")], ["dorso", N_("Dorsos")], ["estacion", N_("Alunizajes")]];
+
 function pintarLunaAnotada(svg, d, k, w, h) {
     const NS = "http://www.w3.org/2000/svg";
     const nuevo = (tipo, attrs, clase, antes) => {
@@ -68,6 +71,9 @@ function pintarLunaAnotada(svg, d, k, w, h) {
     }
     const reservado = rc => reservas.some(m => solapan(rc, m));
     const libre = rc => !choca(rc) && !reservado(rc);
+    const leyenda = prepararLeyendaLuna(nuevo, d, w, h, o => seVe(o, o.a * k, o.b * k));
+    if (leyenda) { ocupados.push(leyenda.caja); nombres.push(leyenda.caja); }
+    const salieron = new Set();
     for (const o of d.objetos) {
         const x = o.x * k, y = o.y * k, a = o.a * k, b = o.b * k;
         if (!seVe(o, a, b)) continue;
@@ -119,13 +125,69 @@ function pintarLunaAnotada(svg, d, k, w, h) {
         }
         if (!puesto) { texto.remove(); continue; }
         puestos++;
+        salieron.add(o.familia);
+        if (!o.luz) salieron.add("noche");
         if (marca) (o.rango ? reservas : ocupados).push(marca);
         if (o.familia === "crater")
             nuevo("ellipse", { cx: x, cy: y, rx: a, ry: Math.max(b, 1), transform: `rotate(${o.angulo} ${x} ${y})` }, clase, texto);
         else if (o.familia !== "mar")
             nuevo("circle", { cx: x, cy: y, r: 2.5 }, clase + " luna-punto", texto);
     }
+    if (leyenda) leyenda.pintar(salieron);
     return puestos;
+}
+
+// La leyenda se mide y se le busca sitio antes de poner los nombres, para que la esquiven, con
+// todas las familias que podrían salir; al final se pinta solo con las que han salido. Va en
+// un lateral, fuera del disco si se puede y por encima de la firma de la foto. Devuelve
+// { caja, pintar(salieron) }, o null si la foto se ve tan pequeña que taparía demasiado.
+function prepararLeyendaLuna(nuevo, d, w, h, seVe) {
+    if (w < 240 || h < 200) return null;
+    const visibles = d.objetos.filter(seVe);
+    const filas = LEYENDA_LUNA.filter(([familia]) => visibles.some(o => o.familia === familia))
+        .map(([familia, texto]) => ({ clave: familia, texto: _(texto), clase: "luna-leyenda luna-" + familia }));
+    if (visibles.some(o => !o.luz)) filas.push({ clave: "noche", texto: _("Más tenue: de noche"), clase: "luna-leyenda luna-leyenda-nota" });
+    if (!filas.length) return null;
+    const MARGEN = 6, ALTO = 15;
+    for (const f of filas) {
+        f.el = nuevo("text", {}, f.clase);
+        f.el.textContent = f.texto;
+        f.base = -f.el.getBBox().y;
+        f.ancho = f.el.getBBox().width;
+    }
+    const ancho = Math.max(...filas.map(f => f.ancho)) + 2 * MARGEN, alto = filas.length * ALTO + 2 * MARGEN;
+    // Cuánto del disco tapa la caja (de una rejilla de puntos): gana el primer sitio que menos tape,
+    // sin subir hasta los botones que el visor pone sobre la parte de arriba de la foto
+    const cx = d.disco.cx * w / d.ancho, cy = d.disco.cy * w / d.ancho, r = d.disco.r * w / d.ancho;
+    const tapa = (x, y) => {
+        let n = 0;
+        for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++)
+            if (Math.hypot(x + ancho * i / 4 - cx, y + alto * j / 4 - cy) < r) n++;
+        return n;
+    };
+    let mejor = null;
+    for (const x of [w - ancho - 4, 4])
+        for (const pie of [0.86, 0.7, 0.5, 0.3]) {
+            const y = Math.max(0.14 * h, pie * h - alto), n = tapa(x, y);
+            if (!mejor || n < mejor.n) mejor = { x, y, n };
+        }
+    const { x, y } = mejor;
+    return {
+        caja: [x, y, x + ancho, y + alto],
+        pintar(salieron) {
+            const quedan = filas.filter(f => {
+                if (salieron.has(f.clave)) return true;
+                f.el.remove();
+                return false;
+            });
+            if (!quedan.length) return;
+            quedan.forEach((f, i) => {
+                f.el.setAttribute("x", x + MARGEN);
+                f.el.setAttribute("y", y + MARGEN + i * ALTO + f.base);
+            });
+            nuevo("rect", { x, y, width: ancho, height: quedan.length * ALTO + 2 * MARGEN, rx: 6 }, "luna-leyenda-fondo", quedan[0].el);
+        },
+    };
 }
 
 // Resumen para el pie de la foto: cuántos nombres caben, la fase y si el espejo es dudoso

@@ -322,11 +322,13 @@ def casos_anotaciones_publicas():
     luna = {"ok": True, "luna": True, "ancho": 3200, "alto": 2400, "iluminada": 0.89, "dudosa": False,
             "disco": {"cx": 1600.0, "cy": 1200.0, "r": 1000.0}, "terminador": [[100.0, 200.0], [300.0, 400.0]],
             "mares": "M100 200l10 -20 4 6M-40 8l2 2", "orientacion": {"giro": 10.0, "espejo": False, "latitud": LAT},
-            "objetos": [{"nombre": "Mare Imbrium", "familia": "mar", "x": 800.0, "y": 600.0, "a": 200.0, "b": 100.0, "angulo": 12.5, "luz": True}]}
+            "objetos": [{"nombre": "Mare Imbrium", "familia": "mar", "x": 800.0, "y": 600.0, "a": 200.0, "b": 100.0, "angulo": 12.5, "luz": True},
+                        {"nombre": "Tycho", "familia": "crater", "x": 200.0, "y": 400.0, "a": 20.0, "b": 16.0, "angulo": 8.0, "luz": True, "rango": 1}]}
     p = publicar.anotaciones_publicas(luna, 1600, 1200)
     assert p["mares"] == "M50 100l5 -10 2 3M-20 4l1 1" and p["terminador"] == [[50.0, 100.0], [150.0, 200.0]], p
     assert p["disco"] == {"cx": 800.0, "cy": 600.0, "r": 500.0} and p["objetos"] == [
-        {"nombre": "Mare Imbrium", "familia": "mar", "luz": True, "angulo": 12.5, "x": 400.0, "y": 300.0, "a": 100.0, "b": 50.0}], p
+        {"nombre": "Mare Imbrium", "familia": "mar", "luz": True, "angulo": 12.5, "x": 400.0, "y": 300.0, "a": 100.0, "b": 50.0},
+        {"nombre": "Tycho", "familia": "crater", "luz": True, "rango": 1, "angulo": 8.0, "x": 100.0, "y": 200.0, "a": 10.0, "b": 8.0}], p
     assert set(p) == {"ancho", "alto", "luna", "disco", "mares", "terminador", "iluminada", "dudosa", "objetos"}, set(p)
     sol = {"ok": True, "sol": True, "ancho": 3200, "alto": 2400, "guardado": True, "origen": "guardado",
            "disco": {"cx": 1600.0, "cy": 1200.0, "r": 1000.0, "cortado": False},

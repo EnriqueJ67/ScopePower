@@ -30,6 +30,9 @@ día de la release. El número de versión vive en `version.py`.
   quite el tamaño mínimo; los cráteres aplastados contra el limbo y los de noche pierden prioridad, y el nombre de un mar busca otro sitio
   en vez de pisar un destacado. Textos un punto más pequeños y etiquetas más ajustadas: a 900 px de ancho, 63 nombres en vez de
   55 en una foto real. Arreglado: los nombres de montes, rimas, dorsos y alunizajes no llegaban a salir nunca.
+- Luna anotada: leyenda pequeña con qué es cada color (mares, cráteres, montes, rimas, dorsos, alunizajes y lo que está de noche). Solo
+  salen las familias que hay en la foto y va en un lateral, sin tapar el disco si se puede ni la firma. La galería pública recibe también el
+  dato que le faltaba para reservar el sitio de los destacados: sale igual que en la app.
 - Configuración > Galería pública: activar, dirección del hosting, nombre en la dirección, autor que se
   enseña, posición del observatorio en el planetario público, clave del endpoint (con «Generar»),
   «Probar conexión» y «Sincronizar ahora»; sin editar `config.ini` ni `secretos.ini`.
