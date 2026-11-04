@@ -62,7 +62,11 @@ LADO_VISTA_TROZO = 1024        # ...y para buscar un trozo sin limbo (la foto a 
 SEGUIR_TOLERANCIA = 0.03       # en vivo, el trozo se sigue mientras encaje casi tan bien como en la imagen anterior
 MARGEN_SIN_LIMBO = 0.04        # sin limbo, la mejor solución debe sacar esto a cualquier otra distinta
 PARECIDO_MIN_SIN_LIMBO = 0.75
-MIN_CRATER_NOCHE_KM = 90.0    # en la parte de noche solo se nombran los cráteres desde este tamaño
+MIN_CRATER_NOCHE_KM = 90.0    # en la parte de noche solo se nombran los cráteres desde este tamaño...
+MIN_COS_E_NOCHE = 0.35        # ...y si no están además aplastados contra el limbo: ahí no se ve nada
+PESO_NOCHE = 0.25             # lo que le queda a un cráter de noche al repartir los rótulos
+MIN_MAR_GRANDE_KM = 200.0     # un mar desde este tamaño (ya aplastado por la perspectiva) va antes que los destacados de segunda...
+MIN_MAR_ENORME_KM = 900.0     # ...y desde este, también antes que los de primera (con la foto pequeña su nombre no cabría)
 MAX_ACCIDENTES = 300
 NOMBRES_LUNA = {"luna", "moon"}
 
@@ -75,8 +79,26 @@ FAMILIAS = {
     "MO": ("monte", 0.8), "RU": ("monte", 0.8), "PR": ("monte", 0.8), "AL": ("monte", 0.8),
     "VA": ("rima", 0.6), "RI": ("rima", 0.6), "CA": ("rima", 0.6),
     "DO": ("dorso", 0.6),
-    "ST": ("estacion", 0.0),   # alunizajes: siempre, aunque midan cero
+    "ST": ("estacion", 0.0),   # alunizajes: aunque midan cero (ver _prioridad)
 }
+
+# Lo que se reconoce en cualquier foto de la Luna: el diámetro no lo dice (Copernicus mide 96 km
+# y hay 150 cráteres mayores que no destacan; Kepler, 30 km, se ve desde lejos). Mientras les dé
+# el Sol se colocan antes que el resto y no los quita el tamaño mínimo. Los de primera, casi por
+# delante de todo; los de segunda, tras los mares grandes y antes que lagos, bahías y pantanos.
+DESTACADOS_PRIMERA = ("Tycho", "Copernicus", "Plato", "Clavius", "Kepler", "Aristarchus")
+DESTACADOS_SEGUNDA = (
+    "Montes Apenninus", "Montes Alpes", "Rupes Altai",
+    "Ptolemaeus", "Alphonsus", "Arzachel", "Theophilus", "Cyrillus", "Catharina", "Langrenus", "Petavius",
+    "Gassendi", "Grimaldi", "Archimedes", "Aristoteles", "Eudoxus", "Posidonius", "Eratosthenes", "Proclus",
+    "Montes Caucasus", "Montes Carpatus", "Montes Jura", "Montes Haemus", "Montes Taurus", "Montes Pyrenaeus",
+    "Montes Riphaeus", "Rupes Recta",
+    "Albategnius", "Hipparchus", "Maginus", "Longomontanus", "Schickard", "Bullialdus", "Fracastorius",
+    "Piccolomini", "Atlas", "Hercules", "Cleomedes", "Endymion", "Autolycus", "Aristillus", "Cassini",
+    "Timocharis", "Menelaus", "Manilius", "Herodotus", "Stevinus",
+)
+_RANGO_DESTACADO = {**{n: 2 for n in DESTACADOS_SEGUNDA}, **{n: 1 for n in DESTACADOS_PRIMERA}}
+_RANGOS_ORDEN = {n: i for lista in (DESTACADOS_PRIMERA, DESTACADOS_SEGUNDA) for i, n in enumerate(lista)}
 
 _lock = threading.Lock()
 _cache = {}
@@ -870,12 +892,35 @@ def _a_foto(X, Y, disco, orient):
     return disco["cx"] + disco["r"] * Xr, disco["cy"] - disco["r"] * Yr
 
 
+def _prioridad(a, cos_e, cos_i, rango):
+    """
+    Orden de rotulado de un accidente: (banda, importancia), mayor primero. Dentro de cada banda
+    decide el tamaño que se ve, no el real: el aplastado contra el limbo (cos_e) cuenta menos,
+    y un cráter de noche, mucho menos. No se mide el contraste en la foto: con la caja de un
+    cráter pegado al limbo se mide el limbo, y de los demás no separa a los que se reconocen
+    (Copernicus queda el 93.º y Proclus el 353.º de 571 en una foto real); la geometría ya
+    dice lo que está a oscuras.
+    """
+    if a["familia"] == "estacion":
+        return 3, 0.0
+    if rango:
+        return (5 if rango == 1 else 2), -_RANGOS_ORDEN[a["nombre"]]
+    visto = a["diametro"] * float(cos_e)
+    # Los mares enormes, antes que nada para que quepa su nombre (Oceanus no: el suyo es muy largo
+    # y le quitaría el sitio a los destacados); no pisan a los destacados, porque el visor les
+    # reserva el contorno
+    if a["codigo"] in ("OC", "ME") and visto >= MIN_MAR_GRANDE_KM:
+        return (6 if a["codigo"] == "ME" and visto >= MIN_MAR_ENORME_KM else 4), visto
+    return 0, visto * FAMILIAS[a["codigo"]][1] * (PESO_NOCHE if a["familia"] == "crater" and cos_i <= 0 else 1.0)
+
+
 def accidentes(geo, disco, orient, ancho, alto):
     """
     Los accidentes con nombre que se ven en la foto, en sus píxeles: nombre, familia, x, y,
     semiejes a y b de la elipse (b en la dirección del centro del disco, aplastado por la
-    perspectiva), angulo en grados (el de a, como en SVG) y si les da el Sol. Primero los
-    que más importan, que es el orden en que se rotulan.
+    perspectiva), angulo en grados (el de a, como en SVG), si les da el Sol y, en los alunizajes
+    y en los destacados con luz, su rango (el visor les reserva el sitio). Primero los que más
+    importan, que es el orden en que se rotulan (_prioridad).
     """
     lista = _accidentes()
     lat = np.array([a["lat"] for a in lista])
@@ -890,20 +935,27 @@ def accidentes(geo, disco, orient, ancho, alto):
             continue
         radio_px = a["diametro"] / 2.0 / RADIO_KM * disco["r"]
         familia = a["familia"]
-        if familia != "estacion" and 2.0 * radio_px < MIN_DIAMETRO_PX * (1.0 if familia == "crater" else 2.0):
+        # Un destacado a oscuras no se reconoce: pasa a ser uno más. Un alunizaje no se ve nunca:
+        # sale de día y de noche, con su sitio reservado como los destacados de primera
+        rango = 1 if familia == "estacion" else _RANGO_DESTACADO.get(a["nombre"]) if cos_i[i] > 0 else None
+        if not rango and 2.0 * radio_px < MIN_DIAMETRO_PX * (1.0 if familia == "crater" else 2.0):
             continue
-        # En la parte de noche no se ve nada pequeño: solo los mares y los cráteres grandes
-        if cos_i[i] <= 0 and not (familia in ("mar", "estacion") or (familia == "crater" and a["diametro"] >= MIN_CRATER_NOCHE_KM)):
+        # En la parte de noche no se ve nada pequeño: solo los mares y los cráteres grandes de
+        # frente (uno aplastado contra el limbo, ni eso)
+        if cos_i[i] <= 0 and not (familia in ("mar", "estacion")
+                                  or (familia == "crater" and a["diametro"] >= MIN_CRATER_NOCHE_KM and cos_e[i] >= MIN_COS_E_NOCHE)):
             continue
         dx, dy = xc[i] - x[i], yc[i] - y[i]
         angulo = math.degrees(math.atan2(dy, dx)) + 90.0 if math.hypot(dx, dy) > 1e-9 else 0.0
-        importancia = 1e9 if familia == "estacion" else a["diametro"] * FAMILIAS[a["codigo"]][1]
-        salida.append({"nombre": a["nombre"], "familia": familia, "x": round(float(x[i]), 1), "y": round(float(y[i]), 1),
-                       "a": round(radio_px, 1), "b": round(radio_px * float(cos_e[i]), 1), "angulo": round(angulo, 1),
-                       "luz": bool(cos_i[i] > 0), "importancia": importancia})
-    salida.sort(key=lambda s: -s["importancia"])
+        s = {"nombre": a["nombre"], "familia": familia, "x": round(float(x[i]), 1), "y": round(float(y[i]), 1),
+             "a": round(radio_px, 1), "b": round(radio_px * float(cos_e[i]), 1), "angulo": round(angulo, 1),
+             "luz": bool(cos_i[i] > 0), "_prioridad": _prioridad(a, cos_e[i], cos_i[i], rango)}
+        if rango:
+            s["rango"] = rango
+        salida.append(s)
+    salida.sort(key=lambda s: s["_prioridad"], reverse=True)
     for s in salida:
-        del s["importancia"]
+        del s["_prioridad"]
     return salida[:MAX_ACCIDENTES]
 
 

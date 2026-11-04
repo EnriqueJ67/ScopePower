@@ -8,14 +8,20 @@
 #      del radio), el giro (a 1°) y el espejo.
 #   3. Los accidentes: los de una foto salen dentro del disco, con los grandes primero, y
 #      Tycho cae donde debe; el terminador y los contornos de los mares salen bien formados.
+#   4. El reparto de nombres con la geometría de una foto real (Luna del 21-oct-2026, disco de
+#      317 px): los destacados por delante de lo que apenas se ve y, con el propio
+#      static/js/luna_anotada.js ejecutado en Node, qué nombres caben y que no se solapan.
 #
 # Uso:
 #   python herramientas\probar_luna_anotada.py
 
 import os
 import sys
+import json
 import math
 import time
+import shutil
+import subprocess
 from datetime import datetime, timezone
 
 import numpy as np
@@ -186,10 +192,103 @@ def probar_trozos():
     _caso("interior liso (Oceanus Procellarum)", int(x - 250), int(y - 250), 500, debe_anotar=False)
 
 
+# Ejecuta pintarLunaAnotada de verdad, con un SVG de mentira: la anchura de las letras es una
+# aproximación a lo medido en el navegador (en em, con la fuente de cada familia de la hoja de estilos)
+PINTAR_EN_NODE = r"""
+const fs = require("fs"), vm = require("vm");
+const entrada = JSON.parse(fs.readFileSync(0, "utf8"));
+const TAM = c => c.includes("luna-mar") ? [13, 0.56] : c.includes("luna-crater") ? [12, 0.52] : [11, 0.49];
+const hijos = [];
+function elemento(tipo) {
+    return { tipo, attrs: {}, textContent: "",
+        setAttribute(a, v) { this.attrs[a] = v; },
+        getBBox() { const [t, em] = TAM(this.attrs.class); return { x: 0, y: -t, width: this.textContent.length * t * em, height: t * 1.35 }; },
+        remove() { hijos.splice(hijos.indexOf(this), 1); } };
+}
+globalThis.document = { createElementNS: (ns, tipo) => elemento(tipo) };
+vm.runInThisContext(fs.readFileSync(entrada.js, "utf8") + "\n;globalThis.pintar = pintarLunaAnotada;");
+const svg = { insertBefore(el) { hijos.push(el); return el; } };
+const salida = {};
+for (const ancho of entrada.anchos) {
+    hijos.length = 0;
+    const k = ancho / entrada.datos.ancho;
+    const puestos = pintar(svg, entrada.datos, k, ancho, entrada.datos.alto * k);
+    salida[ancho] = { puestos,
+        textos: hijos.filter(e => e.tipo === "text").map(e => { const c = e.getBBox(); return { nombre: e.textContent, clase: e.attrs.class,
+            x: +e.attrs.x, y: +e.attrs.y + c.y, w: c.width, h: c.height }; }),
+        elipses: hijos.filter(e => e.tipo === "ellipse").map(e => ({ x: e.attrs.cx, y: e.attrs.cy, a: e.attrs.rx, b: e.attrs.ry })) };
+}
+console.log(JSON.stringify(salida));
+"""
+
+
+def probar_reparto():
+    print("Reparto de nombres (geometría de la foto real del 21-oct-2026)")
+    t = datetime(2026, 10, 21, 17, 39, 56, tzinfo=timezone.utc).timestamp()
+    geo = L.geometria(t, 39.515, -0.377)
+    disco, orient = {"cx": 431.8, "cy": 430.6, "r": 317.0}, {"giro": 146.06, "espejo": True}
+    acc = L.accidentes(geo, disco, orient, 1052, 1052)
+    orden = {a["nombre"]: i for i, a in enumerate(acc)}
+    conocidos = {a["nombre"] for a in L._accidentes()}
+    faltan = [n for n in L.DESTACADOS_PRIMERA + L.DESTACADOS_SEGUNDA if n not in conocidos]
+    comprobar(not faltan, f"todos los destacados están en el nomenclátor {faltan or ''}")
+    # Kepler (5,4 px en el JPG) pasa el mínimo; Aristarchus, con el terminador ya pasado, no es destacado
+    primera = ("Tycho", "Copernicus", "Plato", "Clavius", "Kepler")
+    comprobar(all(orden.get(n, 999) < 25 for n in primera), "los destacados de primera con luz, entre los 25 primeros: "
+              + str([orden.get(n) for n in primera]))
+    lagos = [i for a, i in ((a, orden[a["nombre"]]) for a in acc) if a["nombre"].split()[0] in ("Lacus", "Sinus", "Palus")]
+    segunda = [orden[a["nombre"]] for a in acc if a.get("rango") == 2]
+    comprobar(segunda and lagos and max(segunda) < min(lagos), "los destacados de segunda van antes que lagos, bahías y pantanos")
+    arista = next((a for a in acc if a["nombre"] == "Aristarchus"), None)
+    comprobar(arista is None or "rango" not in arista, "un destacado de noche (Aristarchus) no tiene prioridad")
+    limbo = [n for n in ("Bailly", "Hedin", "Einstein") if n in orden]
+    comprobar(not limbo, f"los cráteres de noche aplastados contra el limbo no salen {limbo or ''}")
+    comprobar(orden.get("Gauss", 999) > orden["Tycho"] and orden.get("Humboldt", 999) > orden["Tycho"],
+              "los del limbo con luz (Gauss, Humboldt), por detrás de Tycho")
+    # Un disco pequeño: los destacados siguen, aunque midan menos que el mínimo
+    pequeno = L.accidentes(geo, {"cx": 150.0, "cy": 150.0, "r": 120.0}, orient, 300, 300)
+    comprobar(any(a["nombre"] == "Kepler" for a in pequeno), "con un disco de 120 px, Kepler sigue en la lista")
+    comprobar(all(a.get("rango") == 1 for a in acc if a["familia"] == "estacion"), "los alunizajes llevan su sitio reservado")
+
+    node = shutil.which("node")
+    if not node:
+        print("  OMITIDO: sin Node no se puede ejecutar el visor (static/js/luna_anotada.js)")
+        return
+    datos = {"ancho": 1052, "alto": 1052, "objetos": acc, "disco": disco, "terminador": [], "mares": ""}
+    entrada = {"js": os.path.join(RAIZ, "static", "js", "luna_anotada.js"), "datos": datos, "anchos": [347, 375, 768, 900, 1400]}
+    r = subprocess.run([node, "-e", PINTAR_EN_NODE], input=json.dumps(entrada), capture_output=True, encoding="utf-8", timeout=60)
+    if r.returncode != 0:
+        comprobar(False, f"el visor no se ejecuta en Node: {r.stderr[:400]}")
+        return
+    salida = json.loads(r.stdout)
+    for ancho, minimo in ((347, 12), (375, 12), (768, 40), (900, 55), (1400, 100)):
+        v = salida[str(ancho)]
+        nombres = [x["nombre"] for x in v["textos"]]
+        comprobar(v["puestos"] == len(nombres) and v["puestos"] > minimo, f"a {ancho} px caben {v['puestos']} nombres (más de {minimo})")
+        ausentes = [n for n in primera if n not in nombres]
+        comprobar(not ausentes, f"a {ancho} px salen Tycho, Copernicus, Plato, Clavius y Kepler {ausentes or ''}")
+        cajas = v["textos"]
+        solapes = [(p["nombre"], q["nombre"]) for i, p in enumerate(cajas) for q in cajas[i + 1:]
+                   if p["x"] < q["x"] + q["w"] and q["x"] < p["x"] + p["w"] and p["y"] < q["y"] + q["h"] and q["y"] < p["y"] + p["h"]]
+        comprobar(not solapes, f"a {ancho} px ningún nombre pisa otro {solapes[:3] or ''}")
+        dentro = all(c["x"] >= 0 and c["y"] >= 0 and c["x"] + c["w"] <= ancho and c["y"] + c["h"] <= ancho for c in cajas)
+        comprobar(dentro, f"a {ancho} px todos los nombres caen dentro de la foto")
+    v = salida["900"]
+    nombres = [x["nombre"] for x in v["textos"]]
+    clases = " ".join(x["clase"] for x in v["textos"])
+    comprobar("luna-estacion" in clases and "luna-monte" in clases and "Montes Apenninus" in nombres,
+              "a 900 px salen alunizajes y montes (sus nombres no chocan con su propio punto)")
+    pedidos = [n for n in ("Ptolemaeus", "Theophilus", "Cyrillus", "Catharina", "Langrenus", "Petavius", "Gassendi", "Eudoxus", "Posidonius") if n in nombres]
+    comprobar(len(pedidos) >= 7, f"a 900 px salen destacados de segunda: {pedidos}")
+    limbo = [n for n in ("Bailly", "Hedin", "Einstein", "Gauss", "Humboldt") if n in nombres]
+    comprobar(not limbo, f"a 900 px no salen cráteres aplastados del limbo {limbo or ''}")
+
+
 if __name__ == "__main__":
     probar_geometria()
     probar_sinteticas()
     probar_accidentes()
+    probar_reparto()
     probar_trozos()
     if fallos:
         print(f"\n{len(fallos)} comprobaciones fallidas")

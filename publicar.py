@@ -384,7 +384,7 @@ def _origen_anotaciones(nombre, meta, ruta_fits, cfg):
         conteo = hashlib.sha256(json.dumps(meta.get("wolf"), sort_keys=True).encode("utf-8")).hexdigest()[:16]
         return f"sol|{obs}|{conteo}", lambda: manchas_solares.objetos_foto(nombre, obs)    # el conteo corregido no toca el JPG
     if luna_anotada.es_luna(nombre, meta):
-        return f"luna|{obs}", lambda: luna_anotada.objetos_foto(nombre, obs)
+        return f"luna2|{obs}", lambda: luna_anotada.objetos_foto(nombre, obs)
     solucion = _solucion_guardada(ruta_fits)
     if not solucion:
         return "sin solucion", None
