@@ -25,6 +25,11 @@ día de la release. El número de versión vive en `version.py`.
   y del diámetro con la órbita de la Tierra, con todas las medidas (de las fotos sin publicar sale el
   número y la fecha, no la foto).
 - Visor de la galería: los botones de la foto ya no se pisan entre sí ni con la barra del Número de Wolf, en el PC ni en el móvil.
+- Luna anotada: salen primero los accidentes que se reconocen en la foto. Una lista de destacados (Tycho, Copernicus, Plato, Clavius,
+  Kepler, Aristarchus y unos cuarenta más, con los montes principales) y los alunizajes se colocan antes que lagos, bahías y pantanos, sin que los
+  quite el tamaño mínimo; los cráteres aplastados contra el limbo y los de noche pierden prioridad, y el nombre de un mar busca otro sitio
+  en vez de pisar un destacado. Textos un punto más pequeños y etiquetas más ajustadas: a 900 px de ancho, 63 nombres en vez de
+  55 en una foto real. Arreglado: los nombres de montes, rimas, dorsos y alunizajes no llegaban a salir nunca.
 - Configuración > Galería pública: activar, dirección del hosting, nombre en la dirección, autor que se
   enseña, posición del observatorio en el planetario público, clave del endpoint (con «Generar»),
   «Probar conexión» y «Sincronizar ahora»; sin editar `config.ini` ni `secretos.ini`.
