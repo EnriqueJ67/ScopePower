@@ -262,6 +262,7 @@ class ServidorFalso(ThreadingHTTPServer):
         self.fallos_pendientes = 0
         self.registro = []                   # [(accion, ruta)] en orden de llegada (solo las aceptadas)
         self.claves = {NOMBRE: CLAVE}        # nombres dados de alta a mano (publicar_config.php): el dueño
+        self.duenos = ["dueno-registrado"]   # nombres registrados desde la app que también son el dueño
         self.registrados = {}                # nombres reservados desde la app: {nombre: clave}
         self.cuota_nombre = 2 * 1024 * 1024  # como cuota_nombre_mb = 2 en la prueba del PHP real
         self.endpoint_viejo = False          # True: probar sin 'dueno' ni 'contacto', como un publicar.php anterior
@@ -364,8 +365,9 @@ class ManejadorFalso(BaseHTTPRequestHandler):
             return self.responder(400, {"ok": False, "error": "nombre"})
         clave = self.headers.get("X-ScopePower-Clave", "")
         accion = campos.get("accion")
-        es_dueno = clave != "" and s.claves.get(slug) == clave
-        valida = es_dueno or (clave != "" and s.registrados.get(slug) == clave)
+        registrada = clave != "" and s.registrados.get(slug) == clave
+        valida = (clave != "" and s.claves.get(slug) == clave) or registrada
+        es_dueno = (clave != "" and s.claves.get(slug) == clave) or (registrada and slug in s.duenos)
         if accion == "registrar":
             if valida:
                 s.colocar_paginas(slug)
@@ -983,7 +985,12 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     assert not any(r.startswith("otro-usuario/x") for r in remoto) and f"{NOMBRE}/x.json" not in remoto, sorted(remoto)
     assert "Gallery" in open(remoto["otro-usuario/en/index.html"], encoding="utf-8").read(), "la página del endpoint sigue intacta"
     assert propia != open(remoto["otro-usuario/index.html"], "rb").read(), "la página propia no se guarda"
-    print(f"✅ {etiqueta}: un nombre registrado recibe 403 en _comun y .htaccess y no puede subir HTML, JS ni CSS a su carpeta")
+    # Un nombre registrado desde la app que está en 'duenos' sí es el dueño (sin copiar su clave a la configuración)
+    dueno2 = publicar.ClienteHosting(endpoint, "clave-del-dueno-registrado-0123456789", "dueno-registrado")
+    assert dueno2.registrar().get("registrado") is True and dueno2.probar().get("dueno") is True
+    dueno2.subir(f"_comun/{V}/js/x.js", b"//", hashlib.sha256(b"//").hexdigest())
+    assert dueno2.borrar(f"_comun/{V}/js/x.js")["existia"] is True
+    print(f"✅ {etiqueta}: un nombre registrado recibe 403 en _comun y .htaccess y no puede subir HTML, JS ni CSS a su carpeta; uno de 'duenos' sí")
 
     # 14. Lo que llega a una galería se comprueba: JPEG de verdad y acotado, JSON por lista blanca
     def rechazado(ruta, datos, por):
@@ -1186,7 +1193,7 @@ def servidor_php(carpeta):
     os.makedirs(sp)
     shutil.copy(os.path.join("hosting", "publicar.php"), sp)
     with open(os.path.join(sp, "publicar_config.php"), "w", encoding="utf-8") as f:
-        f.write("<?php\nreturn ['registro_abierto' => true, 'claves' => ['%s' => '%s'], 'raiz' => __DIR__ . '/../galeria', 'max_bytes' => 8 * 1024 * 1024, 'cuota_nombre_mb' => 2, 'cuota_total_mb' => 50, 'max_nombres' => 5, 'registros_por_dia' => 5, 'contacto' => '%s'];\n" % (NOMBRE, CLAVE, CONTACTO))
+        f.write("<?php\nreturn ['registro_abierto' => true, 'claves' => ['%s' => '%s'], 'duenos' => ['dueno-registrado'], 'raiz' => __DIR__ . '/../galeria', 'max_bytes' => 8 * 1024 * 1024, 'cuota_nombre_mb' => 2, 'cuota_total_mb' => 50, 'max_nombres' => 5, 'registros_por_dia' => 5, 'contacto' => '%s'];\n" % (NOMBRE, CLAVE, CONTACTO))
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         puerto = s.getsockname()[1]

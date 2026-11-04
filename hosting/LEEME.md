@@ -38,10 +38,12 @@ El endpoint reparte los permisos para que nadie pueda colar código en la web de
   contenido). Lo que no cuadra se rechaza con 422 y no se guarda. Nada de HTML, JS ni CSS en la
   carpeta de un nombre.
 - **Lo compartido** (`galeria/_comun/<versión>/`: motor del planetario, traducciones, JS y CSS del
-  visor y las páginas genéricas en `publico/paginas/`) y el `.htaccess` de `galeria/` solo los suben
-  o borran las claves de `claves` de `publicar_config.php`: el dueño del hosting. Lo sube su propio
-  ScopePower al sincronizar (con su clave en `secretos.ini`). A cualquier otro nombre el endpoint le
-  contesta 403 y la app lo da por bueno: lo anota una vez en el log y no lo vuelve a intentar.
+  visor y las páginas genéricas en `publico/paginas/`) y el `.htaccess` de `galeria/` solo los sube
+  o borra el dueño del hosting: las claves de `claves` de `publicar_config.php` y los nombres de
+  `duenos` (nombres registrados desde la app, con su clave cifrada en `claves.php`, que el dueño
+  señala como suyos sin copiar la clave). Lo sube su propio ScopePower al sincronizar. A cualquier
+  otro nombre el endpoint le contesta 403 y la app lo da por bueno: lo anota una vez en el log y no
+  lo vuelve a intentar.
 - **Las páginas de cada galería** (`index.html`, `planetario.html` y sus versiones en `en/`) las
   coloca el endpoint: al registrar el nombre y cada vez que llega su `galeria.json` copia las de la
   versión más alta que haya en `_comun/<versión>/publico/paginas/`. Son iguales para todos (el
@@ -64,10 +66,11 @@ cPanel compartidos.
      hosting abierto no se llene. 300 MB por nombre son unas 600 fotos.
    - `claves`: nombres dados de alta a mano, con su clave en claro. La misma clave va en
      `secretos.ini` de ese ScopePower (`publicar_clave`) o en Configuración > Galería pública >
-     «Clave del endpoint». Son las claves del dueño: las únicas que pueden subir lo común
-     (`_comun/`) y el `.htaccess`, así que hace falta al menos una, la del ScopePower del dueño,
-     para que el hosting tenga el visor y el motor del planetario. Con registro abierto no hace
-     falta más.
+     «Clave del endpoint». Son claves del dueño: pueden subir lo común (`_comun/`) y el
+     `.htaccess`. Con registro abierto puede quedar vacío si pones tu nombre en `duenos`.
+   - `duenos`: nombres registrados desde la app que son el dueño (lo normal con registro abierto:
+     el nombre de tu propio ScopePower). Hace falta al menos un dueño, en `claves` o aquí, para que
+     el hosting reciba el visor y el motor del planetario.
    - `contacto`: tu correo, para el enlace «Informar de un problema» del pie de las galerías.
      Vacío: no sale.
 3. En el ScopePower que vaya a publicar ahí: Configuración > Galería pública, dirección del

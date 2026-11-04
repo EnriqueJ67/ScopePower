@@ -20,8 +20,9 @@
 //     que escribe publicar.py, y cada foto con las coordenadas del objeto salvo las del Sol y la
 //     Luna: un freno a fotos que no salen de ScopePower): lo que no cuadra se rechaza con 422.
 //   - Lo compartido (galeria/_comun/<versión>/: motor del planetario, traducciones, JS, CSS y las
-//     páginas del visor) y el .htaccess de galeria/ solo los suben o borran las claves de 'claves'
-//     de publicar_config.php (el dueño del hosting, alta manual). Para cualquier otro, 403.
+//     páginas del visor) y el .htaccess de galeria/ solo los suben o borran el dueño del hosting:
+//     las claves de 'claves' de publicar_config.php (alta manual) o los nombres de 'duenos'
+//     registrados desde la app (su clave sigue cifrada en claves.php). Para cualquier otro, 403.
 //   - Las páginas de cada galería (index.html, planetario.html y sus versiones en en/) las coloca
 //     este endpoint: al registrar el nombre y cada vez que llega su galeria.json copia las páginas
 //     genéricas de la versión más alta que haya en _comun/<versión>/publico/paginas/. Ningún
@@ -157,6 +158,7 @@ $cuotaTotal = (int)($config['cuota_total_mb'] ?? 4000) * 1024 * 1024;
 $maxNombres = (int)($config['max_nombres'] ?? 200);
 $registrosPorDia = (int)($config['registros_por_dia'] ?? 20);
 $contacto = trim((string)($config['contacto'] ?? ''));
+$duenos = is_array($config['duenos'] ?? null) ? $config['duenos'] : [];
 $reservados = array_merge(RESERVADOS, is_array($config['nombres_reservados'] ?? null) ? $config['nombres_reservados'] : []);
 $ficheroClaves = __DIR__ . DIRECTORY_SEPARATOR . 'claves.php';
 
@@ -426,14 +428,15 @@ if ($raizReal === false) {
     fallo(500, 'La carpeta de la galería no existe');
 }
 
-// ── Quién es: clave de la configuración (hash_equals: el dueño) o registrada desde la app (password_verify) ──
+// ── Quién es: clave de la configuración (hash_equals) o registrada desde la app (password_verify).
+//    Dueño: clave de 'claves', o nombre registrado que está en 'duenos' ──
 $registro = cargarClaves($ficheroClaves);
 $esperada = (string)($claves[$slug] ?? '');
 $entrada = $registro[$slug] ?? null;
-$esDueno = $clave !== '' && $esperada !== '' && hash_equals($esperada, $clave);
-$valida = $esDueno || (
-    $clave !== '' && is_array($entrada) && isset($entrada['hash']) && password_verify($clave, (string)$entrada['hash'])
-);
+$manual = $clave !== '' && $esperada !== '' && hash_equals($esperada, $clave);
+$registrada = $clave !== '' && is_array($entrada) && isset($entrada['hash']) && password_verify($clave, (string)$entrada['hash']);
+$valida = $manual || $registrada;
+$esDueno = $manual || ($registrada && in_array($slug, $duenos, true));
 
 if ($accion === 'registrar') {
     if ($valida) {

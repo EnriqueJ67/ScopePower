@@ -18,13 +18,16 @@
 // 'cuota_total_mb': tope de todo galeria/ para admitir nombres nuevos (ajústalo a tu plan).
 // 'max_nombres', 'registros_por_dia': frenos a las altas automáticas.
 // 'nombres_reservados': además de los fijos (_comun, scopepower, admin, api, galeria, www...).
+// 'duenos':  nombres registrados desde la app (con su clave cifrada en claves.php) que además son el
+//           dueño: pueden subir lo común y el .htaccess sin copiar su clave aquí. Lo normal en un
+//           hosting con registro abierto: el nombre del ScopePower de quien lo administra.
 // 'contacto': correo del dueño del hosting. Sale en el pie de cada galería («Informar de un problema»)
 //           para que quien vea algo que no debería estar pueda avisar. Vacío: no sale nada.
 //
 // Quién escribe dónde: un nombre registrado desde la app solo escribe .jpg y .json en galeria/<nombre>/,
 // y cada fichero se comprueba al llegar. Lo común (galeria/_comun/<versión>/: motor del planetario,
-// traducciones, JS, CSS y las páginas del visor) y el .htaccess de galeria/ solo los suben las claves
-// de 'claves': el ScopePower del dueño, con su clave aquí, lo sube al sincronizar. Las páginas de cada
+// traducciones, JS, CSS y las páginas del visor) y el .htaccess de galeria/ solo los sube el dueño (las
+// claves de 'claves' y los nombres de 'duenos'): su ScopePower lo sube al sincronizar. Las páginas de cada
 // galería (index.html, planetario.html y en/) las copia el endpoint desde _comun: nadie sube HTML.
 
 return [
@@ -39,5 +42,8 @@ return [
     'max_nombres' => 200,
     'registros_por_dia' => 20,
     'nombres_reservados' => [],
+    'duenos' => [
+        // 'mi-nombre',
+    ],
     'contacto' => '',
 ];
