@@ -4,9 +4,11 @@
 // el orden (fecha, objeto, nota), las gráficas del Sol y la rejilla con las miniaturas; al tocar una foto se abre a
 // 1600 px con sus datos y, si las tiene, sus anotaciones. Sin servidor: todo es estático.
 // #<id> en la dirección abre esa foto. Los textos van por _() (static/js/i18n.js); los tipos vienen en español y se traducen al pintar.
+// La página es la misma para todos los propietarios del hosting: el título, el autor del pie y el
+// correo de contacto (del dueño del hosting) salen también de galeria.json.
 (function () {
     "use strict";
-    const P = window.PUBLICO || { raiz: ".", comun: "..", idioma: "es", url: "" };
+    const P = window.PUBLICO || { raiz: ".", comun: "..", idioma: "es" };
     const $ = id => document.getElementById(id);
     // El orden de los chips es el del catálogo de la app (catalogo_offline.CATEGORIAS)
     const TIPOS = [N_("Galaxia"), N_("Nebulosa"), N_("Nebulosa planetaria"), N_("Resto de supernova"), N_("Cúmulo abierto"),
@@ -183,7 +185,7 @@
     }, { passive: true });
     $("lb-compartir").onclick = async () => {
         const f = visibles[abierta];
-        const enlace = (P.url || location.href.split("#")[0]) + "#" + encodeURIComponent(f.id);
+        const enlace = location.href.split("#")[0] + "#" + encodeURIComponent(f.id);
         if (navigator.share) {
             try { await navigator.share({ title: f.objeto + " · ScopePower", url: enlace }); return; } catch (e) { if (e.name === "AbortError") return; }
         }
@@ -330,6 +332,7 @@
 
     // ── Carga ──
     fetch(P.raiz + "/galeria.json").then(r => r.json()).then(d => {
+        encabezar(d, _("Galería de {autor}", { autor: d.autor }), _("Galería"));
         fotos = (d.fotos || []).filter(f => f && f.ficheros && f.ficheros.jpg);
         sol = d.sol || null;
         if (d.planetario && fotos.some(f => f.cielo)) $("planetario").hidden = false;
@@ -346,4 +349,20 @@
         $("resumen").textContent = "";
         $("error").hidden = false;
     });
+
+    // Título, autor del pie, idiomas publicados y el correo del dueño del hosting (si lo da)
+    function encabezar(d, conAutor, sinAutor) {
+        const titulo = d.autor ? conAutor : sinAutor;
+        document.title = titulo + " · ScopePower";
+        $("titulo").textContent = titulo;
+        if (d.autor) $("pie-autor").textContent = _("Fotos de {autor}", { autor: d.autor });
+        if (Array.isArray(d.idiomas) && d.idiomas.length)
+            document.querySelectorAll("[data-idioma]").forEach(a => { a.hidden = !d.idiomas.includes(a.dataset.idioma); });
+        const c = $("contacto"), correo = typeof d.contacto === "string" ? d.contacto.trim() : "";
+        if (c && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+            c.href = "mailto:" + correo + "?subject=" + encodeURIComponent("ScopePower: " + (d.nombre || "") + " " + location.href.split("#")[0]);
+            c.hidden = false;
+        }
+    }
+    window.encabezarPublico = encabezar;
 })();

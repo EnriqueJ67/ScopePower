@@ -231,6 +231,9 @@
             <p class="card-sub">
                 {{ _("Las fotos que marques con el globo en la Galería se publican, reducidas, en scopepower.es para enseñarlas desde el móvil con el mini PC apagado: activa, elige un nombre que esté libre y publica; el nombre queda reservado para ti en el primer uso. Solo salen JPG y datos de la foto: ni FITS, ni vídeos, ni la posición exacta del observatorio. Si prefieres tu propio hosting, instala allí <code>hosting/publicar.php</code> (<code>hosting/LEEME.md</code>).")|safe }}
             </p>
+            <p class="card-sub aviso-uso">
+                {{ _("Solo fotos propias del cielo hechas con ScopePower (cielo profundo, Sol, Luna, planetas, cometas): cada foto lleva las coordenadas del objeto, salvo las del Sol y la Luna; las de tipo Paisaje no se publican. El dueño del hosting puede retirar una galería que no lo cumpla.") }}
+            </p>
             <label class="fila" style="gap: 8px; cursor: pointer; margin-bottom: 10px;">
                 <input type="checkbox" id="pub-activado"> {{ _("Publicar en el hosting") }}
             </label>
@@ -914,8 +917,16 @@
         const est = document.getElementById("estado-publicar");
         est.className = "estado mt-1"; est.textContent = _("⏳ Comparando con el hosting...");
         fetch("/publicar/sincronizar", { method: "POST" }).then(r => r.json())
-            .then(d => { if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + d.error; } else setTimeout(cargarPublicar, 3000); })
+            .then(d => { if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + d.error; } else vigilarPublicar(40); })
             .catch(err => { est.className = "estado err mt-1"; est.textContent = "❌ " + err; });
+    }
+    // Tras sincronizar, el estado se refresca cada 3 s mientras quede algo por subir (si no, se quedaba «N ficheros por subir»)
+    function vigilarPublicar(veces) {
+        setTimeout(() => fetch("/publicar/config").then(r => r.json()).then(d => {
+            pintarPublicar(d);
+            const e = d.estado || {};
+            if (veces > 1 && d.activado && !e.error_clave && (e.pendientes || e.ocupado)) vigilarPublicar(veces - 1);
+        }).catch(err => document.getElementById("estado-publicar").textContent = "❌ " + err), 3000);
     }
     document.addEventListener("DOMContentLoaded", () => { cargarConfig(); cargarVoz(); cargarRed(); cargarObservatorio(); cargarAsentamiento(); cargarDisco(); cargarActualizar(); cargarHumor(); cargarEstrellas(); cargarPublicar(); });
 </script>

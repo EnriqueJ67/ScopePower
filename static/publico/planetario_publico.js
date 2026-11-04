@@ -8,7 +8,7 @@
 // y la hora, la del navegador. #<id> centra el mapa en esa foto; tocar una foto dice cuál es.
 (async function () {
     "use strict";
-    const P = window.PUBLICO || { raiz: ".", comun: "..", idioma: "es", url: "" };
+    const P = window.PUBLICO || { raiz: ".", comun: "..", idioma: "es" };
     const $ = id => document.getElementById(id);
     const estadoEl = $("estado");
 
@@ -37,6 +37,7 @@
         ]);
         atlas = motor;
         datos = await respuesta.json();
+        encabezar(datos);
         // Observador: la posición redondeada del dueño o, si no la publica, una genérica (sin paisaje)
         const o = datos.observador;
         observador = o ? { latitudeDeg: o.latitud, longitudeDeg: o.longitud, elevationM: 0 } : { latitudeDeg: 40, longitudeDeg: 0, elevationM: 0 };
@@ -151,6 +152,21 @@
     function aplicarTema() {
         const noche = document.documentElement.getAttribute("data-tema") !== "oscuro";
         viewer?.setDisplayOptions({ nightMode: noche });
+    }
+
+    // Como en la galería: la página es genérica y el autor, los idiomas y el contacto vienen de galeria.json
+    function encabezar(d) {
+        const titulo = d.autor ? _("Cielo de {autor}", { autor: d.autor }) : _("Cielo");
+        document.title = titulo + " · ScopePower";
+        $("titulo").textContent = titulo;
+        if (d.autor) $("pie-autor").textContent = _("Fotos de {autor}", { autor: d.autor });
+        if (Array.isArray(d.idiomas) && d.idiomas.length)
+            document.querySelectorAll("[data-idioma]").forEach(a => { a.hidden = !d.idiomas.includes(a.dataset.idioma); });
+        const c = $("contacto"), correo = typeof d.contacto === "string" ? d.contacto.trim() : "";
+        if (c && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+            c.href = "mailto:" + correo + "?subject=" + encodeURIComponent("ScopePower: " + (d.nombre || "") + " " + location.href.split("#")[0]);
+            c.hidden = false;
+        }
     }
     new MutationObserver(aplicarTema).observe(document.documentElement, { attributes: true, attributeFilter: ["data-tema"] });
 })();

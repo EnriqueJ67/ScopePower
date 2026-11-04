@@ -96,6 +96,7 @@ a:hover { text-decoration: underline; }
 .foto-nota b { color: var(--warn); }
 .vacia { color: var(--text-2); text-align: center; padding: 30px 10px; }
 .pie { margin-top: 28px; color: var(--text-3); font-size: 13px; text-align: center; }
+.pie-contacto { display: block; margin-top: 6px; }
 
 /* Visor a pantalla completa */
 .lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.94); display: none; align-items: center; justify-content: center; z-index: 50; padding: 14px 14px 110px; }
