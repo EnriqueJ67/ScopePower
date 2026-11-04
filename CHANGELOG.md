@@ -3,7 +3,12 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
-## 1.2.3 · sin fecha (en preparación)
+## 1.3.0 · 2026-11-04
+
+Lo principal: la Luna anotada, vídeo con apilado de los mejores fotogramas, revelado y editor de día,
+manchas del Sol con Número de Wolf, limbo y diámetro del disco, ayudas al enfoque (Bahtinov con cruceta
+virtual, enfoque sin máscara y del Sol y la Luna), estrellas aparte con StarNet2, galería y planetario
+públicos, fotos sobre el planetario, configurador de mosaicos y asistente de puesta en estación.
 
 - Galería pública (núcleo, sin interfaz todavía): `publicar.py` prepara una copia estática de las fotos
   marcadas como publicadas (JPG reducido, miniatura, versión para el planetario y JSON por lista blanca,
@@ -127,7 +132,7 @@ día de la release. El número de versión vive en `version.py`.
   los trazos se ponen verdes y el PC dice «Bahtinov centrada». Al quitar la máscara sin tocar el
   enfoque, ScopePower aprende cuánto más anchos que el verde salen el rojo y el azul en el foco
   bueno, y las veces siguientes, sin máscara, dice «Enfocado» cuando vuelven a esa relación.
-  Probado con una estrella simulada; falta probarlo con la cámara y la máscara reales.
+  Probado con una estrella simulada y, el 1-nov, con la cámara y la máscara reales en fotos sueltas.
   Al tocar el enfocador el tubo vibra y algún fotograma sale movido y sin cruz: eso ya no se toma
   por la máscara quitada (en vivo hacen falta 3 s seguidos sin la cruz) ni sirve para aprender
   (una estrella alargada no cuenta, y el texto dice «estrella movida»). Antes, en foto suelta, una
