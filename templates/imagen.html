@@ -1301,6 +1301,7 @@
             if (i.bahtinov.centrada) t += " · " + _("centrada");
             return t;
         }
+        if (i.sin_estrella) return _("no se ve ninguna estrella: ¿nubes?");
         let s = _("FWHM verde {v} px", { v: f(i.fwhm_g) });
         if (f(i.fwhm_r) !== null) s += " · " + _("rojo {v}", { v: f(i.fwhm_r) });
         if (f(i.fwhm_b) !== null) s += " · " + _("azul {v}", { v: f(i.fwhm_b) });
