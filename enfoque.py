@@ -321,13 +321,16 @@ def medir(verde, rojo=None, azul=None, escala_px=1.0):
     # 7 px del sensor: en vivo, 7 superpíxeles llegarían a los primeros órdenes de la Bahtinov y la anchura saldría de 16 px
     radio = max(3, int(round(7 / float(escala_px))))
     alarg = alargamiento(verde, x, y, radio)
-    info = {"x": int(x), "y": int(y), "pico": round(pico), "fwhm_g": round(fwhm(verde, x, y, radio) * escala_px, 2),
+    info = {"x": int(x), "y": int(y), "pico": round(pico),
             "saturada": bool(pico >= 0.97 * 65535),     # con el núcleo recortado la anchura sale falsa
             "movida": bool(np.isfinite(alarg) and alarg >= ALARGAMIENTO_MOVIDA),
             "sin_estrella": bool(senal is not None and senal < SENAL_ESTRELLA)}
-    for nombre, plano in (("fwhm_r", rojo), ("fwhm_b", azul)):
+    # Una anchura sin medir (sin luz en ese color) no se pone: NaN no es JSON y la web dejaría de leer el estado
+    for nombre, plano in (("fwhm_g", verde), ("fwhm_r", rojo), ("fwhm_b", azul)):
         if plano is not None:
-            info[nombre] = round(fwhm(plano, x, y, radio) * escala_px, 2)
+            ancho = fwhm(plano, x, y, radio)
+            if np.isfinite(ancho):
+                info[nombre] = round(ancho * escala_px, 2)
     return info
 
 

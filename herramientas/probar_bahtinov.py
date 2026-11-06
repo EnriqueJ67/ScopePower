@@ -24,7 +24,8 @@
 #      fotos sueltas aprende con la mediana de 3.
 #   6. La estrella alargada por un golpe al tubo sale «movida»; la redonda, con o sin máscara, no.
 #   7. Recortes de los crudos reales de Altair (herramientas/altair_bahtinov.npz): el desvío y las
-#      rayas medidas el 5-nov, un píxel caliente no se toma por la estrella, sin estrella se dice.
+#      rayas medidas el 5-nov, un píxel caliente no se toma por la estrella, sin estrella se dice,
+#      y un color sin luz no deja un NaN en el estado (no es JSON y la web dejaría de leerlo).
 #   8. imagen_foto_noche e imagen_vivo componen la imagen con el recorte de la Bahtinov.
 #
 # Uso: python herramientas/probar_bahtinov.py [--guardar CARPETA]   (desde la carpeta de ScopePower)
@@ -404,6 +405,12 @@ def probar_altair_real():
         i = ayuda.anotar(dict(info), None, "foto")
         assert ayuda.centrada and "firma" not in i and not ayuda.muestras, i
     print(f"  sin estrella: «{enfoque.texto_info(info)}», sigue centrada y no aprende")
+    # Un color sin luz medible: la anchura no se pone, porque NaN no es JSON y la web dejaría de leer el estado en vivo
+    r, g, b = enfoque.planos_superpixel(tomas["cerca_del_foco"], "RGGB")
+    info = enfoque.medir(g, np.zeros_like(r), b, 2.0)
+    json.dumps(info, allow_nan=False)
+    assert "fwhm_r" not in info and "fwhm_g" in info and "fwhm_b" in info, info
+    print(f"  un color sin luz: JSON válido, sin su anchura ({sorted(k for k in info if k.startswith('fwhm'))})")
     # Una nube fina: la estrella se ve. Solo quedan los primeros órdenes: si sale cruz es la de la máscara, con el pico
     # central en su sitio, no una falsa de estrellas sueltas (salían +12 y +8 px a cualquier ángulo)
     for modo, fn in (("vivo", medir_vivo), ("foto", medir_foto_real)):
