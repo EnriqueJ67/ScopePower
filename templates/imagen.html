@@ -102,9 +102,22 @@
             <!-- Modo enfoque (enfoque.py): solo el canal verde, con la estrella más brillante ampliada; con la máscara de Bahtinov, la cruceta virtual y el desvío -->
             <div class="fila mt-2" id="fila-enfoque" style="justify-content: space-between;">
                 <label class="switch" style="margin: 0;"><input type="checkbox" id="modo-enfoque" onchange="cambiarModoEnfoque()"> {{ _("Enfoque: solo verde (Bahtinov · limbo del Sol y la Luna)") }}</label>
-                <span class="texto-3" style="font-size: 12.5px;">{{ _("foto de prueba y modo en vivo") }}</span>
             </div>
-            <div id="enfoque-ayuda" class="texto-3" style="font-size: 12.5px;" hidden>{{ _("Con la cámara de color cada canal enfoca en un punto distinto y la imagen en color enseña tres cruces de Bahtinov que no coinciden. Aquí se ve solo el verde (el canal con más píxeles y el del medio del espectro) y, arriba a la derecha, la estrella más brillante ampliada. Con la máscara de Bahtinov puesta, el recorte junta los tres colores (con uno solo los picos salen a trozos) y dibuja la cruceta virtual: las dos rayas de la X en verde fino y, a trazos, por dónde tiene que pasar el pico central. El número es lo que se aparta el pico central de los trazos, en píxeles, y la barra de abajo lo enseña a un lado o a otro: gira el enfocador hasta que el punto entre en la zona verde. Entonces los trazos se ponen verdes y el PC dice «Bahtinov centrada». Quita la máscara sin tocar el enfoque y sin apagar este interruptor: con las fotos siguientes (en vivo, a partir de unos segundos sin la cruz, para que la vibración al tocar el enfocador no cuente) ScopePower aprende cuánto más anchos que el verde salen el rojo y el azul en el foco bueno, y lo guarda. Las próximas veces, sin máscara, dice «Enfocado» cuando los tres colores vuelven a esa relación. Sin máscara, el recorte es la estrella ×5 en verde con su anchura en cada color. De noche, con este interruptor encendido, sale el botón «En vivo» (con la cámara por SDK): la exposición sigue al pico de esa estrella (hasta 2 s) con la ganancia de noche, el desvío es la mediana de 2 s y el foco se aprende con 10 fotogramas; con fotos sueltas, con 3. Con el Sol o la Luna (modo día) la Bahtinov no sirve: se amplía el limbo del disco (en la Luna, el terminador, con sus cráteres y sombras; el recorte lleva su nombre) y el número es siempre la anchura del limbo en píxeles (cuanto menor, mejor foco). En vivo el seeing hace variar cada fotograma, así que el número es el de los mejores fotogramas de los últimos segundos, con el mejor de la sesión al lado y la gráfica del último minuto debajo: al girar el enfocador se ve si baja o sube, y el PC lo dice por voz («mejora», «empeora», «igual»). Cerca del foco la curva es plana porque el seeing tapa el desenfoque pequeño: el foco bueno es el centro de esa zona plana, no el número más bajo. Sigue girando hasta que el PC diga «te has pasado del foco»: la gráfica sombrea la zona plana y marca su centro, y al volver hacia él dice «estás en la zona buena».") }}</div>
+            <!-- La ayuda va plegada y solo con los pasos del modo en que se está (pintarBotonesFoto): de noche, con la app en rojo, un párrafo largo no se lee -->
+            <details id="enfoque-ayuda" hidden>
+                <summary class="proc-mas-titulo">{{ _("Cómo se enfoca") }}</summary>
+                <ol id="enfoque-pasos-noche" class="enfoque-pasos">
+                    <li>{{ _("Con la máscara de Bahtinov puesta, pulsa «En vivo» o haz fotos de 1 o 2 s.") }}</li>
+                    <li>{{ _("Gira el enfocador hasta que el punto de la barra entre en la zona verde. El PC dice «Bahtinov centrada».") }}</li>
+                    <li>{{ _("Quita la máscara sin tocar el enfoque y sin apagar este interruptor. Aprende el foco con 10 fotogramas en vivo o con 3 fotos.") }}</li>
+                    <li>{{ _("Las próximas veces, sin máscara, dice «Enfocado» al volver a ese foco.") }}</li>
+                </ol>
+                <ol id="enfoque-pasos-dia" class="enfoque-pasos" hidden>
+                    <li>{{ _("Apunta al Sol o a la Luna y pulsa «En vivo». El recuadro amplía el borde del disco.") }}</li>
+                    <li>{{ _("Gira el enfocador: cuanto menor es el número, mejor. El PC dice «mejora», «empeora» o «igual».") }}</li>
+                    <li>{{ _("Sigue hasta que diga «te has pasado del foco» y vuelve hasta que diga «estás en la zona buena».") }}</li>
+                </ol>
+            </details>
             <!-- Modo continuo: una foto tras otra en el servidor hasta que se pare (ver foto_continua.py).
                  Cada foto puede guardarse en JPG (revelada, pocos MB) o FITS (en bruto, 18 MB) para no llenar el disco sin querer. -->
             <div id="fila-continuo" class="fila mt-2" style="justify-content: space-between;">
@@ -435,6 +448,8 @@
     function pintarBotonesFoto() {
         // El vivo necesita la cámara por SDK; de noche solo sirve para enfocar estrellas (con la Bahtinov)
         document.getElementById("btn-vivo").hidden = !((modoDia || enfoqueActivo) && CAMARA_SDK);
+        document.getElementById("enfoque-pasos-noche").hidden = modoDia;
+        document.getElementById("enfoque-pasos-dia").hidden = !modoDia;
         document.getElementById("btn-sync").disabled = continuoActivo || !hayFotoNueva;
         document.getElementById("btn-puntero").disabled = modoDia ? !hayFoto : (continuoActivo || !hayFotoNueva);
         document.getElementById("btn-galeria").disabled = !hayFoto;
@@ -1014,9 +1029,18 @@
     function alternarVivo() { if (vivoActivo) pararVivo(); else empezarVivo(); }
     function empezarVivo() {
         const est = document.getElementById("estado-foto");
-        if (objetivoDia === "sol" && !solConfirmado) {
+        // De noche objetivoDia sigue siendo el último de día (se guarda en las preferencias), pero el vivo va a la estrella
+        if (modoDia && objetivoDia === "sol" && !solConfirmado) {
             if (!confirm(_("¿Está puesto el FILTRO SOLAR delante del objetivo y tapado el buscador?\n\nSin filtro, el Sol destroza la cámara y puede cegar a quien mire por el telescopio."))) return;
             solConfirmado = true;
+        }
+        // La cámara no puede con los dos: se para el continuo y el vivo empieza al acabar su última foto (pintarContinuo)
+        if (continuoActivo) {
+            vivoTrasContinuo = true;
+            document.getElementById("btn-vivo").disabled = true;
+            pararContinuo();
+            est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>' + _("Parando el modo continuo: en cuanto acabe la foto, empieza en vivo...");
+            return;
         }
         est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>' + _("Pasando la cámara al modo en vivo...");
         document.getElementById("btn-vivo").disabled = true;
@@ -1279,7 +1303,7 @@
     }
 
     // ——— Modo enfoque: solo verde (enfoque.py) ———
-    function hayEnfoque(i) { return !!i && (!!i.fwhm_g || ("limbo" in i) || !!i.bahtinov); }
+    function hayEnfoque(i) { return !!i && (!!i.fwhm_g || ("limbo" in i) || !!i.bahtinov || !!i.sin_estrella); }
     function textoEnfoque(i) {
         const f = v => (v === null || v === undefined || !isFinite(v)) ? null : fmtNum(v, 1);
         if ("limbo" in i) {
@@ -1343,7 +1367,7 @@
     fetch("/enfoque").then(r => r.json()).then(d => pintarModoEnfoque(d.activo)).catch(() => {});
 
     // ——— Modo continuo ———
-    let modoContinuo = false, guardarContinuo = "no", sondeoContinuo = null, ultimaVersionContinuo = -1, continuoActivo = false;
+    let modoContinuo = false, guardarContinuo = "no", sondeoContinuo = null, ultimaVersionContinuo = -1, continuoActivo = false, vivoTrasContinuo = false;
     const AYUDA_GUARDAR = {
         no: N_("Solo se ve en pantalla; no se guarda nada."),
         jpg: N_("Cada foto se guarda revelada a resolución completa (unos 2–4 MB) en static/continuo/. Para tener la serie sin llenar el disco."),
@@ -1446,7 +1470,8 @@
         if (activo) {
             const u = e.ultima;
             est.className = "estado mt-2";
-            est.innerHTML = u
+            est.innerHTML = vivoTrasContinuo ? '<span class="spinner"></span>' + _("Parando el modo continuo: en cuanto acabe la foto, empieza en vivo...")
+                : u
                 ? '<span class="spinner"></span>' + _("Continuo · foto {n} a las {hora}", { n: u.n, hora: u.hora }) + (u.exposicion ? ` · ${formatearExp(u.exposicion)}` : "")
                   + (u.nivel !== null && u.nivel !== undefined ? " · " + _("nivel {pct} %", { pct: Math.round(100 * u.nivel) }) : "")
                   + (u.ev ? ` (${textoEv(u.ev)})` : "")
@@ -1464,6 +1489,7 @@
         } else if (activo || e.terminado) {
             info.textContent = ngettext("{n} foto sin guardar", "{n} fotos sin guardar", e.hechas);
         }
+        if (!activo && vivoTrasContinuo) { vivoTrasContinuo = false; empezarVivo(); }
         return activo;
     }
     function sondearContinuo() {

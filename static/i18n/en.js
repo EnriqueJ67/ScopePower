@@ -565,6 +565,7 @@ window.I18N_CATALOGO = {
 "Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.":"For focusing and checking the framing. Uses the exposure from Settings, or the one you set below, and subtracts the dark if there is one.",
 "Parado":"Stopped",
 "Parando":"Stopping",
+"Parando el modo continuo: en cuanto acabe la foto, empieza en vivo...":"Stopping continuous mode: live view starts as soon as the photo finishes...",
 "Parando el seguimiento...":"Stopping tracking...",
 "Parar":"Stop",
 "Parar en vivo":"Stop live",

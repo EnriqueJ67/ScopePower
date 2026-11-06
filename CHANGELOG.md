@@ -7,6 +7,17 @@ día de la release. El número de versión vive en `version.py`.
 
 - Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
   (en inglés, a su versión `en/`).
+- Enfoque con la Bahtinov, afinado con las fotos reales de Altair del 5-nov (con nubes): con la máscara
+  real las rayas finas salen de 36 px afuera y ahí se miden y se ven, con un blanco propio, así que ahora
+  se ve la cruz afilada. Antes no se encontraba la cruz en esas fotos. Con nubes, un píxel caliente ya no
+  se toma por la estrella (la estrella tiene luz en los tres colores, él solo en uno), se avisa «no se ve
+  ninguna estrella» y no se aprende nada; unas estrellas sueltas ya no arman una cruz falsa.
+- Arreglado: «En vivo» de noche pedía confirmar el filtro solar si el último objetivo de día era el Sol.
+  Y con el modo continuo en marcha daba error: ahora para el continuo y entra en vivo al acabar la foto.
+- Arreglado: con un color sin luz medible, el estado del enfoque llevaba un NaN que no es JSON válido y la
+  página dejaba de actualizar el estado sin avisar. Ahora esa anchura simplemente no se envía.
+- La ayuda del enfoque en Cámara pasa de un párrafo largo a un plegable «Cómo se enfoca», con letra mayor
+  y solo los pasos del modo en que se está (noche o día).
 
 ## 1.3.0 · 2026-11-04
 
@@ -147,11 +158,6 @@ públicos, fotos sobre el planetario, configurador de mosaicos y asistente de pu
   noche y hasta 2 s por fotograma. Con fotos sueltas el foco se aprende con 3 fotos, no con una.
   El recorte de la Bahtinov amplía menos (×2,5) y se revela con una curva más suave: las manchas
   brillantes del pico central ya no se hinchan en bolas blancas y las rayas se ven más finas.
-  Afinado con las fotos reales de Altair del 5-nov (con nubes): con la máscara real las rayas finas
-  salen de 36 px afuera y ahí se miden y se ven, con un blanco propio, así que ahora se ve la cruz
-  afilada. Antes no se encontraba la cruz en esas fotos. Con nubes, un píxel caliente ya no se toma
-  por la estrella (la estrella tiene luz en los tres colores, él solo en uno), se avisa «no se ve
-  ninguna estrella» y no se aprende nada; unas estrellas sueltas ya no arman una cruz falsa.
 - Arreglado: el apilado descartaba fotos de campos densos de la Vía Láctea que ASTAP no resolvía
   a la primera (una de M 11 el 29-oct), con un aviso rojo ilegible («Command … returned non-zero
   exit status 1») que se quedaba en la página toda la sesión. Ahora el alineado repite con más
