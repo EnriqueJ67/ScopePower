@@ -100,6 +100,8 @@ NIVEL_PICO_OBJETIVO = 0.6 # en vivo: el pico de la estrella al 60 % del rango (s
 RADIO_BAHTINOV = 112      # px del sensor alrededor de la estrella donde se buscan los picos
 RADIO_BAHTINOV_MIN = 48   # más cerca del borde de la foto no se mide
 NUCLEO_BAHTINOV = 6       # px del sensor: el núcleo de la estrella no cuenta para situar las rayas
+ANILLO_BAHTINOV = 36      # px del sensor: de aquí afuera las tres rayas salen separadas. Más cerca, los primeros
+                          # órdenes de las tres se juntan en unas manchas anchas (Altair real, 5-nov)
 SENAL_BAHTINOV = 6.0      # una raya tiene que destacar 6 veces la dispersión de la fuerza por ángulo...
 FRACCION_RAYA = 0.03      # ...y al menos un 3 % del trazo más fuerte (cada raya de la X lleva ~10 % del central)
 ANGULO_BAHTINOV_MIN = 10.0  # las rayas de la X, entre 10° y 45° del pico central...
@@ -108,6 +110,9 @@ ASIMETRIA_BAHTINOV = 4.0  # ...y casi simétricas (una araña de reflector da ra
                           # trazos se deja el doble: desenfocado, el pico central no pasa por la estrella
 OPUESTO_GRADOS = 8        # el trazo de enfrente de una raya, hasta 8° fuera de la línea por la estrella
 FRANJA_BAHTINOV = 3.0     # px del sensor a cada lado de una raya con que se ajusta su recta
+LARGO_RAYA_BAHTINOV = 8.0  # px del sensor con luz a lo largo de cada trazo: una estrella suelta del campo no llega y una
+                          # raya sí, aunque salga a trozos (con nubes, tres estrellas armaban una cruz falsa, 5-nov)
+DESVIO_MAX_BAHTINOV = 10.0  # px del sensor: más desenfocado ya no hay cruz; un desvío así es ruido o estrellas sueltas
 # Centrada: con la Bahtinov simulada de una focal de 260 mm a f/4,3, el desvío crece unos 0,023 px del
 # sensor por µm de desenfoque y la zona crítica de foco es de ±25 µm (±0,55 px): 0,3 px queda dentro
 UMBRAL_BAHTINOV_PX = 0.3  # desvío del pico central por debajo del cual la Bahtinov está centrada...
@@ -116,6 +121,7 @@ VENTANA_BAHTINOV_S = 2.0  # en vivo, el desvío enseñado es la mediana de los �
 FOTOGRAMAS_CENTRADA = 3   # en vivo, «centrada» necesita al menos estos fotogramas en la ventana
 GRACIA_SIN_CRUZ_S = 3.0   # en vivo, la máscara no se da por quitada hasta 3 s sin ver la cruz (al tocar el
                           # enfocador el tubo vibra y algún fotograma sale movido y sin cruz)
+SENAL_ESTRELLA = 10.0     # sigmas del color más débil por debajo de los cuales no se ve ninguna estrella (nubes)
 ALARGAMIENTO_MOVIDA = 1.4 # una estrella con un eje 1,4 veces el otro está movida: no es «sin máscara» ni sirve
                           # para la firma (el movimiento ensancha igual los tres colores y la relación tira a 1)
 ESCALA_BARRA_PX = 3.0     # la barra de debajo del recorte va de −3 a +3 px
@@ -220,7 +226,7 @@ def revelar_gris(plano, negro=None):
 #  La estrella más brillante y su anchura
 # ─────────────────────────────────────────────────────────────────────────────
 def estrella_mas_brillante(plano, margen=MARGEN):
-    """(x, y, pico) de la estrella más brillante, lejos de los bordes; los píxeles calientes no cuentan (suavizado)."""
+    """(x, y, pico) de lo más brillante de un plano, lejos de los bordes (un píxel caliente puede ganar: estrella_en_los_colores)."""
     x = np.asarray(plano, dtype=np.float32)
     suav = cv2.GaussianBlur(x, (0, 0), 1.2)
     m = max(1, min(int(margen), min(suav.shape) // 4))
@@ -244,6 +250,40 @@ def _momentos(plano, x, y, radio=7):
     cx, cy = (xx * w).sum() / w.sum(), (yy * w).sum() / w.sum()
     dx, dy = xx - cx, yy - cy
     return (float((dx * dx * w).sum() / w.sum()), float((dy * dy * w).sum() / w.sum()), float((dx * dy * w).sum() / w.sum()))
+
+
+def estrella_en_los_colores(verde, rojo, azul, margen=MARGEN):
+    """
+    (x, y, señal): la estrella más brillante mirando los tres colores a la vez: donde el color más
+    débil, en sigmas de su ruido, da más. Una estrella tiene luz en los tres en el mismo sitio; un píxel
+    caliente solo en uno (con nubes ganaba a Altair: FWHM verde 1,3, rojo 10, azul 10, 5-nov), y los
+    órdenes de la Bahtinov salen separados por colores, así que tampoco ganan al núcleo.
+    """
+    verde = np.asarray(verde, dtype=np.float32)
+    reducir = 2 if min(verde.shape) > 2000 else 1       # la foto completa, a media resolución: 0,6 s → 0,15 s
+    minimo = None
+    for plano in (verde, rojo, azul):
+        plano = np.asarray(plano, dtype=np.float32)
+        if reducir > 1:
+            plano = cv2.resize(plano, None, fx=1.0 / reducir, fy=1.0 / reducir, interpolation=cv2.INTER_AREA)
+        suav = cv2.GaussianBlur(plano, (0, 0), 1.2)
+        muestra = suav[::4, ::4]
+        fondo = float(np.median(muestra))
+        sigma = 1.4826 * float(np.median(np.abs(muestra - fondo))) + 1e-6
+        nivel = (suav - fondo) / sigma
+        minimo = nivel if minimo is None else np.minimum(minimo, nivel)
+    m = max(1, min(int(margen) // reducir, min(minimo.shape) // 4))
+    interior = minimo[m:-m, m:-m]
+    iy, ix = np.unravel_index(int(np.argmax(interior)), interior.shape)
+    senal = float(interior[iy, ix])
+    x, y = (ix + m) * reducir, (iy + m) * reducir
+    if reducir > 1:
+        # El punto exacto, en la resolución completa alrededor del que ha salido
+        y0, x0 = max(0, y - 3), max(0, x - 3)
+        ventana = cv2.GaussianBlur(verde[y0:y + 5, x0:x + 5], (0, 0), 1.0)
+        jy, jx = np.unravel_index(int(np.argmax(ventana)), ventana.shape)
+        x, y = x0 + jx, y0 + jy
+    return x, y, senal
 
 
 def fwhm(plano, x, y, radio=7):
@@ -271,14 +311,23 @@ def medir(verde, rojo=None, azul=None, escala_px=1.0):
     píxeles del sensor (`escala_px` = píxeles del sensor por píxel del plano:
     2 con el verde superpíxel). Devuelve un dict para la web.
     """
-    x, y, pico = estrella_mas_brillante(verde)
-    alarg = alargamiento(verde, x, y)
-    info = {"x": int(x), "y": int(y), "pico": round(pico), "fwhm_g": round(fwhm(verde, x, y) * escala_px, 2),
+    verde = np.asarray(verde, dtype=np.float32)
+    senal = None
+    if rojo is not None and azul is not None:
+        x, y, senal = estrella_en_los_colores(verde, rojo, azul)
+        pico = float(verde[max(0, y - 2):y + 3, max(0, x - 2):x + 3].max())      # el núcleo, que el suavizado aplana
+    else:
+        x, y, pico = estrella_mas_brillante(verde)
+    # 7 px del sensor: en vivo, 7 superpíxeles llegarían a los primeros órdenes de la Bahtinov y la anchura saldría de 16 px
+    radio = max(3, int(round(7 / float(escala_px))))
+    alarg = alargamiento(verde, x, y, radio)
+    info = {"x": int(x), "y": int(y), "pico": round(pico), "fwhm_g": round(fwhm(verde, x, y, radio) * escala_px, 2),
             "saturada": bool(pico >= 0.97 * 65535),     # con el núcleo recortado la anchura sale falsa
-            "movida": bool(np.isfinite(alarg) and alarg >= ALARGAMIENTO_MOVIDA)}
+            "movida": bool(np.isfinite(alarg) and alarg >= ALARGAMIENTO_MOVIDA),
+            "sin_estrella": bool(senal is not None and senal < SENAL_ESTRELLA)}
     for nombre, plano in (("fwhm_r", rojo), ("fwhm_b", azul)):
         if plano is not None:
-            info[nombre] = round(fwhm(plano, x, y) * escala_px, 2)
+            info[nombre] = round(fwhm(plano, x, y, radio) * escala_px, 2)
     return info
 
 
@@ -306,6 +355,8 @@ def texto_info(info, para_imagen=False):
         if bahtinov.get("centrada"):
             partes.append(_("CENTRADA") if para_imagen else _("centrada"))
         return sep.join(partes)
+    if info.get("sin_estrella"):
+        return _("SIN ESTRELLA") if para_imagen else _("no se ve ninguna estrella: ¿nubes?")
     if not np.isfinite(info.get("fwhm_g", float("nan"))):
         return ""
     partes = [_("FWHM verde {px} px", px=fmt_num(info['fwhm_g'], 1))]
@@ -491,6 +542,9 @@ def medir_bahtinov(lum, x, y, escala_px=1.0):
     los trazos alrededor de la estrella (brillo por ángulo, en polares), cada raya es una pareja de
     trazos opuestos, y su recta se ajusta con los píxeles de una franja estrecha a lo largo de la
     pareja (mínimos cuadrados totales, tres vueltas), sin el núcleo, donde las rayas se cruzan.
+    Con una estrella brillante (Altair real, 5-nov) también salen los terceros órdenes, a 44–100 px: las
+    tres rayas se ven separadas, y se buscan y ajustan solo ahí, de ANILLO_BAHTINOV afuera. Si ahí no hay
+    tres rayas, con el primer orden, como queda dicho.
 
     Devuelve None si no hay tres rayas con la forma de una Bahtinov (sin máscara, la araña de un
     reflector...) o un dict con el desvío en px del sensor (con signo), los ángulos de las rayas y
@@ -503,14 +557,34 @@ def medir_bahtinov(lum, x, y, escala_px=1.0):
         return None
     c = p[y - r:y + r + 1, x - r:x + r + 1].astype(np.float32)
     c = c - float(np.median(c))
+    # Sin píxeles calientes: uno suelto, mucho más brillante que todos sus vecinos, se queda como el mayor de ellos
+    # (una mediana los quita también, pero mueve las rayas finas: 0,2 px en el foco)
+    vecinos = cv2.dilate(c, np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]], np.uint8))
+    calientes = c > 8.0 * np.maximum(vecinos, 1.0)
+    c[calientes] = vecinos[calientes]
     # Suavizado de un píxel (los trazos tienen varios: el ruido baja y ellos no) y solo lo que sale del ruido
     suave = cv2.GaussianBlur(c, (0, 0), max(0.5, 1.0 / escala_px))
     sigma = 1.4826 * float(np.median(np.abs(suave - float(np.median(suave))))) + 1e-6
     senal = np.clip(suave - float(np.median(suave)) - 3.0 * sigma, 0, None)
-    interior = NUCLEO_BAHTINOV / escala_px
-    # Brillo por ángulo (1°) entre el núcleo y el borde del recorte
     n_ang = 360
     polar = cv2.warpPolar(senal, (r, n_ang), (float(r), float(r)), float(r), cv2.WARP_POLAR_LINEAR + cv2.INTER_LINEAR)
+    for interior in (ANILLO_BAHTINOV / escala_px, NUCLEO_BAHTINOV / escala_px):
+        medida = _rayas_bahtinov(senal, polar, r, interior, escala_px)
+        if medida is not None:
+            return medida
+    return None
+
+
+def _largo_con_luz(polar, angulo, inicio):
+    """Cuántos radios tienen luz a `angulo` ±3° (una raya desenfocada no pasa por la estrella), de `inicio` hacia fuera."""
+    filas = [(int(angulo) + d) % polar.shape[0] for d in range(-3, 4)]
+    return int(np.count_nonzero(polar[filas][:, int(inicio):].max(axis=0) > 0))
+
+
+def _rayas_bahtinov(senal, polar, r, interior, escala_px):
+    """Las tres rayas de la Bahtinov de `interior` (px del recorte) al borde del recorte; None si no están. Ver medir_bahtinov."""
+    n_ang = polar.shape[0]
+    # Brillo por ángulo (1°) entre `interior` y el borde del recorte
     radios = np.arange(r)
     brillo = polar[:, radios >= interior].sum(axis=1)
     brillo = np.convolve(np.r_[brillo[-2:], brillo, brillo[:2]], np.ones(3) / 3.0, mode="same")[2:-2]
@@ -526,6 +600,9 @@ def medir_bahtinov(lum, x, y, escala_px=1.0):
     # destaque un FRACCION_RAYA del trazo más fuerte
     umbral = fondo + max(SENAL_BAHTINOV * dispersion, FRACCION_RAYA * float(fuerza.max()))
     picos = [i for i in range(180) if fuerza[i] >= fuerza[i - 1] and fuerza[i] >= fuerza[(i + 1) % 180] and fuerza[i] > umbral]
+    largo = LARGO_RAYA_BAHTINOV / escala_px
+    picos = [i for i in picos if _largo_con_luz(polar, i, interior) >= largo
+             and _largo_con_luz(polar, i + 180 + desfase[i], interior) >= largo]
     picos = sorted(picos, key=lambda i: -fuerza[i])[:6]
     mejor = None
     for ic in picos:
@@ -584,6 +661,8 @@ def medir_bahtinov(lum, x, y, escala_px=1.0):
     # El signo depende de hacia dónde apunte la normal del pico central, que _recta_pesada da con el
     # ángulo de la raya en (−90°, 90°]: es estable mientras la máscara y la cámara no giren
     desvio = float(nc @ cruce - dc) * escala_px
+    if abs(desvio) > DESVIO_MAX_BAHTINOV:
+        return None
     return {"desvio": desvio, "angulos": [round(a, 2) for a in angulos],
             "rectas": [(float(n[0]), float(n[1]), float(d)) for n, d in rectas],
             "cruce": (float(cruce[0]), float(cruce[1])), "radio": r, "escala": float(escala_px)}
@@ -633,17 +712,26 @@ def recorte_bahtinov(lum, x, y, medida, estado=None):
     c = np.asarray(lum, dtype=np.float32)[y - rv:y + rv + 1, x - rv:x + rv + 1]
     # Negro justo encima del ruido del cielo y blanco en lo más brillante de los trazos (fuera del núcleo, que
     # se quema), con un asinh: los trazos fuertes del pico central conservan su forma en vez de hincharse en
-    # bolas y las rayas de la X, un 5–10 % de ellos, quedan a un tercio del blanco
+    # bolas. Los terceros órdenes, a 44–100 px, son las rayas finas de verdad y salen unas 20 veces más débiles
+    # que los primeros (Altair real, 5-nov): de ANILLO_BAHTINOV afuera tienen su propio blanco, y entre los dos
+    # se pasa poco a poco
+    escala = float(medida.get("escala", 1.0))
     fondo = float(np.median(c))
     sigma = 1.4826 * float(np.median(np.abs(c - fondo))) + 1e-6
     negro = fondo + 3.0 * sigma
     yy, xx = np.mgrid[-rv:rv + 1, -rv:rv + 1]
-    trazos = c[(xx * xx + yy * yy > (NUCLEO_BAHTINOV / float(medida.get("escala", 1.0))) ** 2) & (c > negro + 3.0 * sigma)]
+    dist = np.hypot(xx, yy).astype(np.float32)
+    trazos = c[(dist > NUCLEO_BAHTINOV / escala) & (c > negro + 3.0 * sigma)]
     if trazos.size >= 20:
-        blanco = negro + float(np.percentile(trazos - negro, 99.5))
+        blanco = max(float(np.percentile(trazos - negro, 99.5)), 8.0 * sigma)
     else:
-        blanco = negro + max(0.2 * (float(c.max()) - negro), 8.0 * sigma)
-    v = np.clip((c - negro) / (blanco - negro), 0.0, 1.0)
+        blanco = max(0.2 * (float(c.max()) - negro), 8.0 * sigma)
+    fuera = c[(dist >= ANILLO_BAHTINOV / escala) & (c > negro + 3.0 * sigma)]
+    blanco_fuera = max(float(np.percentile(fuera - negro, 99.5)), 8.0 * sigma) if fuera.size >= 20 else blanco
+    blanco_fuera = min(blanco, blanco_fuera)
+    paso_radio = np.clip((dist * escala - 0.6 * ANILLO_BAHTINOV) / (0.6 * ANILLO_BAHTINOV), 0.0, 1.0)
+    blancos = np.exp((1.0 - paso_radio) * math.log(blanco) + paso_radio * math.log(blanco_fuera))
+    v = np.clip((c - negro) / blancos, 0.0, 1.0)
     gris = (np.arcsinh(ESTIRADO_BAHTINOV * v) / np.arcsinh(ESTIRADO_BAHTINOV) * 255.0 + 0.5).astype(np.uint8)
     lado = LADO_RECORTE_BAHTINOV
     k = lado / float(2 * rv + 1)
@@ -720,7 +808,8 @@ class AyudaBahtinov:
         refractor muy corregido con mal seeing), no sirve y se dice.
       - Un fotograma sin cruz no basta para dar la máscara por quitada: al tocar el enfocador el
         tubo vibra y la cruz se emborrona. En vivo hacen falta GRACIA_SIN_CRUZ_S seguidos sin ella;
-        y una estrella movida (alargada) no cuenta nunca, ni para eso ni para la firma.
+        y una estrella movida (alargada) no cuenta nunca, ni para eso ni para la firma. Tampoco
+        una toma sin estrella (una nube que pasa): sigue todo como estaba.
     """
 
     def __init__(self, ruta=RUTA_FIRMA, reloj=time.monotonic):
@@ -773,8 +862,8 @@ class AyudaBahtinov:
             self.t_ultimo = t
             ventana = VENTANA_BAHTINOV_S if modo == "vivo" else 0.0
             aviso = None
-            hueco = medida is None and (info.get("movida") or (modo == "vivo" and self.t_cruz is not None
-                                                                and t - self.t_cruz <= GRACIA_SIN_CRUZ_S))
+            hueco = medida is None and (info.get("movida") or info.get("sin_estrella")
+                                        or (modo == "vivo" and self.t_cruz is not None and t - self.t_cruz <= GRACIA_SIN_CRUZ_S))
             if hueco:
                 pass            # sin cruz, pero quizá solo emborronada por la vibración: no cambia nada
             elif medida is not None:
@@ -1332,9 +1421,8 @@ def imagen_foto_noche(rgb_lineal, girar):
     gris = revelar_gris(g)
     recorte = _recorte_estrella_o_bahtinov(gris, r + g + b, info, 1.0, "foto")
     girada, encuadre = girar(gris)
-    # La estrella en la imagen girada: se vuelve a localizar en el gris girado (barato)
-    xg, yg, __ = estrella_mas_brillante(girada)
-    return componer(girada, recorte, info, pulsado=(xg, yg)), encuadre, info
+    pulsado = _punto_en_vista(info["x"], info["y"], gris.shape, 1, lambda im: im, girar)
+    return componer(girada, recorte, info, pulsado=pulsado), encuadre, info
 
 
 def imagen_vivo(cfa, patron, paso, orientar, girar):
@@ -1351,8 +1439,8 @@ def imagen_vivo(cfa, patron, paso, orientar, girar):
     vista = gris_completo[::paso, ::paso] if paso > 1 else gris_completo
     vista = orientar(np.ascontiguousarray(vista))
     girada, encuadre = girar(vista)
-    xg, yg, __ = estrella_mas_brillante(girada)
-    return componer(girada, recorte, info, pulsado=(xg, yg)), encuadre, info
+    pulsado = _punto_en_vista(info["x"], info["y"], gris_completo.shape, paso, orientar, girar)
+    return componer(girada, recorte, info, pulsado=pulsado), encuadre, info
 
 
 def nueva_exposicion_estrella(exposicion_s, cfa, minima_s, maxima_s, blanco=65535.0):

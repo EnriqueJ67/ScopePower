@@ -8308,6 +8308,10 @@ msgstr ""
 msgid "SIMBAD no devolvió estrellas brillantes"
 msgstr ""
 
+#: enfoque.py
+msgid "SIN ESTRELLA"
+msgstr ""
+
 #. js
 #: ScopePower.py templates/planetario.html
 msgid "SO"
@@ -11277,6 +11281,11 @@ msgstr ""
 #. js
 #: enfoque.py templates/imagen.html
 msgid "no se ve el disco"
+msgstr ""
+
+#. js
+#: enfoque.py templates/imagen.html
+msgid "no se ve ninguna estrella: ¿nubes?"
 msgstr ""
 
 #. js

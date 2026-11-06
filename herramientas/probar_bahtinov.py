@@ -23,7 +23,9 @@
 #      la máscara ni aprenden (en vivo hay 3 s de gracia; una foto suelta movida no cuenta). Con
 #      fotos sueltas aprende con la mediana de 3.
 #   6. La estrella alargada por un golpe al tubo sale «movida»; la redonda, con o sin máscara, no.
-#   7. imagen_foto_noche e imagen_vivo componen la imagen con el recorte de la Bahtinov.
+#   7. Recortes de los crudos reales de Altair (herramientas/altair_bahtinov.npz): el desvío y las
+#      rayas medidas el 5-nov, un píxel caliente no se toma por la estrella, sin estrella se dice.
+#   8. imagen_foto_noche e imagen_vivo componen la imagen con el recorte de la Bahtinov.
 #
 # Uso: python herramientas/probar_bahtinov.py [--guardar CARPETA]   (desde la carpeta de ScopePower)
 #      --guardar deja los recortes (verde solo y tres colores, en el foco y desenfocado) para mirarlos.
@@ -106,14 +108,14 @@ def con_ruido(plano, pico=20000.0, fondo=1000.0, lectura=8.0, rng=None):
     return (v + rng.normal(0, 1, v.shape) * np.sqrt(v + lectura ** 2)).astype(np.float32)
 
 
-def mosaico(ch, rng):
+def mosaico(ch, rng, pico=PICO):
     """Mosaico RGGB (16 bits) con ruido, como lo da el SDK."""
     cfa = np.zeros((LADO, LADO), np.float32)
     cfa[0::2, 0::2] = ch["r"][0::2, 0::2]
     cfa[0::2, 1::2] = ch["g"][0::2, 1::2]
     cfa[1::2, 0::2] = ch["g"][1::2, 0::2]
     cfa[1::2, 1::2] = ch["b"][1::2, 1::2]
-    return np.clip(con_ruido(cfa, pico=PICO, rng=rng), 0, 65535).astype(np.uint16)
+    return np.clip(con_ruido(cfa, pico=pico, rng=rng), 0, 65535).astype(np.uint16)
 
 
 def medir_foto(ch, rng, pico=PICO):
@@ -154,11 +156,11 @@ def probar_serie():
         m = medir_foto(canales(0.06, angulo=angulo), rng)
         assert m is not None and abs(abs(enfoque._dif_angulo(m["angulos"][1], m["angulos"][0])) - angulo) < 2.0, (angulo, m)
         print(f"  X de {angulo:.0f}°: rayas a {m['angulos']}, desvío {m['desvio']:+.2f} px con +0,06 mm")
-    # Una estrella la mitad de brillante (exposición corta en la foto de prueba): en el foco sigue saliendo.
-    # Con un cuarto, las rayas de la X ya no salen del ruido: hay que exponer más
+    # Una estrella la mitad de brillante (exposición corta en la foto de prueba): la X casi no sale del ruido. O no
+    # hay cruz (hay que exponer más) o sale bien, nunca un desvío de ruido
     m = medir_foto(canales(0.0, giro=33.0), rng, pico=PICO / 2)
-    assert m is not None and abs(m["desvio"]) < enfoque.UMBRAL_BAHTINOV_PX, m
-    print(f"  estrella la mitad de brillante, en el foco: desvío {m['desvio']:+.2f} px")
+    assert m is None or abs(m["desvio"]) < enfoque.UMBRAL_BAHTINOV_PX, m
+    print("  estrella la mitad de brillante, en el foco: " + ("sin cruz" if m is None else f"desvío {m['desvio']:+.2f} px"))
 
 
 def probar_sin_cruz():
@@ -361,6 +363,55 @@ def probar_movida():
         print(f"  con la máscara, movida {pasos * 1.41:.0f} px: " + ("cruz" if cruz is not None else "sin cruz, pero movida"))
 
 
+def probar_altair_real():
+    """Recortes del mosaico crudo de las fotos de Altair con la máscara real (5-nov-2026, Saturn-C, 1,25–5 s, con nubes)."""
+    tomas = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "altair_bahtinov.npz"))
+
+    def medir_vivo(cfa):
+        r, g, b = enfoque.planos_superpixel(cfa, "RGGB")
+        info = enfoque.medir(g, r, b, 2.0)
+        return info, enfoque.medir_bahtinov(r + g + b, info["x"], info["y"], 2.0)
+
+    def medir_foto_real(cfa):
+        rgb = cv2.cvtColor(cfa, cv2.COLOR_BayerRG2RGB).astype(np.float32)
+        r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+        info = enfoque.medir(g, r, b, 1.0)
+        return info, enfoque.medir_bahtinov(r + g + b, info["x"], info["y"], 1.0)
+
+    for nombre, esperado in (("cerca_del_foco", 0.15), ("desenfocada", -1.85)):
+        for modo, fn in (("vivo", medir_vivo), ("foto", medir_foto_real)):
+            info, m = fn(tomas[nombre])
+            assert m is not None and abs(m["desvio"] - esperado) < 0.25, (nombre, modo, m)
+            assert not info["movida"] and not info["sin_estrella"] and info["fwhm_g"] < 5.0, (nombre, modo, info)      # con la máscara, 16 px antes
+            ac, a1, a2 = m["angulos"]
+            assert abs(ac - 33.65) < 1.0 and abs(abs(enfoque._dif_angulo(a1, ac)) - 19.8) < 1.0 and abs(abs(enfoque._dif_angulo(a2, ac)) - 19.8) < 1.0, m["angulos"]
+            print(f"  {nombre}, {modo}: desvío {m['desvio']:+.2f} px, rayas {m['angulos']}")
+    # Un píxel verde caliente mucho más brillante que la estrella: con nubes se lo quedaba como «estrella»
+    cfa = tomas["cerca_del_foco"].copy()
+    cfa[40, 41] = 60000
+    r, g, b = enfoque.planos_superpixel(cfa, "RGGB")
+    assert g[20, 20] > 20000
+    info, m = medir_vivo(cfa)
+    assert abs(info["x"] - 75) <= 3 and abs(info["y"] - 75) <= 3 and m is not None, (info["x"], info["y"], m)
+    print(f"  con un píxel caliente de 60000: la estrella sigue en ({info['x']},{info['y']})")
+    # Tapada por una nube: lo dice, y no aprende ni deshace nada
+    info, m = medir_foto_real(tomas["sin_estrella"])
+    assert info["sin_estrella"] and m is None, (info, m)
+    assert "estrella" in enfoque.texto_info(info), enfoque.texto_info(info)
+    with tempfile.TemporaryDirectory() as carpeta:
+        ayuda = enfoque.AyudaBahtinov(ruta=os.path.join(carpeta, "firma.json"), reloj=Reloj())
+        ayuda.anotar(info_estrella(3.0, 3.0, 3.0), medida_falsa(0.1), "foto")
+        i = ayuda.anotar(dict(info), None, "foto")
+        assert ayuda.centrada and "firma" not in i and not ayuda.muestras, i
+    print(f"  sin estrella: «{enfoque.texto_info(info)}», sigue centrada y no aprende")
+    # Una nube fina: la estrella se ve. Solo quedan los primeros órdenes: si sale cruz es la de la máscara, con el pico
+    # central en su sitio, no una falsa de estrellas sueltas (salían +12 y +8 px a cualquier ángulo)
+    for modo, fn in (("vivo", medir_vivo), ("foto", medir_foto_real)):
+        info, m = fn(tomas["nube_fina"])
+        assert not info["sin_estrella"] and (m is None or abs(m["angulos"][0] - 33.65) < 2.0), (modo, info, m)
+        print(f"  nube fina, {modo}: " + ("sin cruz" if m is None else f"pico central a {m['angulos'][0]:.1f}°, desvío de poco fiar {m['desvio']:+.2f} px"))
+
+
 def probar_imagenes(guardar=None):
     rng = np.random.default_rng(6)
     with tempfile.TemporaryDirectory() as carpeta:
@@ -373,7 +424,9 @@ def probar_imagenes(guardar=None):
             texto = enfoque.texto_info(info)
             assert "Bahtinov" in texto, texto
             print(f"  foto {d:+.2f} mm: {texto}")
-            cfa = mosaico(ch, rng)
+            # Más brillante que PICO: la estrella simulada, tan fina en el foco, se queda justa para el primer orden;
+            # Altair de verdad a esa exposición saca además los terceros órdenes (probar_altair_real)
+            cfa = mosaico(ch, rng, pico=2 * PICO)
             img_v, __, info_v = enfoque.imagen_vivo(cfa, "RGGB", 1, lambda im: im, lambda im: (im, None))
             assert "bahtinov" in info_v, info_v
             if guardar:
@@ -408,7 +461,9 @@ def main():
     probar_ayuda()
     print("6. Estrella movida")
     probar_movida()
-    print("7. Imágenes")
+    print("7. Altair con la máscara real")
+    probar_altair_real()
+    print("8. Imágenes")
     probar_imagenes(args.guardar)
     print(f"✅ Bahtinov: todo bien ({time.perf_counter() - t0:.0f} s)")
 

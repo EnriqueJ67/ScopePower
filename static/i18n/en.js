@@ -941,6 +941,7 @@ window.I18N_CATALOGO = {
 "no se pudo anotar":"couldn't annotate",
 "no se pudo consultar":"couldn't check",
 "no se ve el disco":"the disk is not visible",
+"no se ve ninguna estrella: ¿nubes?":"no star visible: clouds?",
 "no se ve y no hay previsión: la foto no entra en el apilado del cometa":"not visible and no prediction: the shot is left out of the comet stack",
 "no se ve; se usa la previsión ({x}, {y})":"not visible; using the prediction ({x}, {y})",
 "noche":"night",

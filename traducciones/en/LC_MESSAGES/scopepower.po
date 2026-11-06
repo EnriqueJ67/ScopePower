@@ -8310,6 +8310,10 @@ msgstr "SER and MP4"
 msgid "SIMBAD no devolvió estrellas brillantes"
 msgstr "SIMBAD returned no bright stars"
 
+#: enfoque.py
+msgid "SIN ESTRELLA"
+msgstr "NO STAR"
+
 #. js
 #: ScopePower.py templates/planetario.html
 msgid "SO"
@@ -11280,6 +11284,11 @@ msgstr "the motors can't be read over the mount's Wi-Fi ({e}): it stays at altit
 #: enfoque.py templates/imagen.html
 msgid "no se ve el disco"
 msgstr "the disk is not visible"
+
+#. js
+#: enfoque.py templates/imagen.html
+msgid "no se ve ninguna estrella: ¿nubes?"
+msgstr "no star visible: clouds?"
 
 #. js
 #: templates/apilado.html
