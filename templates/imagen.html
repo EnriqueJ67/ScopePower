@@ -436,6 +436,7 @@
 </style>
 
 <script src="{{ url_for('static', filename='js/luna_anotada.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/darks.js') }}?v={{ VERSION }}"></script>
 <script>
     let sondeo = null;
     let hayFotoNueva = false;                 // foto hecha en esta visita (de noche, ASTAP la resuelve)
@@ -1476,6 +1477,7 @@
                   + (u.nivel !== null && u.nivel !== undefined ? " · " + _("nivel {pct} %", { pct: Math.round(100 * u.nivel) }) : "")
                   + (u.ev ? ` (${textoEv(u.ev)})` : "")
                   + (u.dark ? " " + _("(dark restado)") : "") + (u.ganancia !== null && u.ganancia !== undefined ? " · " + _("ganancia {g}", { g: u.ganancia }) : "")
+                  + textoTemperaturaFoto(u)
                 : '<span class="spinner"></span>' + (e.mensaje || _("Empezando..."));
         } else if (e.terminado) {
             pintarProgreso(null);
@@ -1522,6 +1524,7 @@
                     est.className = "estado ok mt-2";
                     est.textContent = "✅ " + d.mensaje + (d.dark ? " " + _("(dark restado)") : "")
                         + (d.ganancia !== null && d.ganancia !== undefined ? " · " + _("ganancia {g}", { g: d.ganancia }) : "")
+                        + textoTemperaturaFoto(d)
                         + (hayEnfoque(d.enfoque) ? " · " + textoEnfoque(d.enfoque) : "");
                     cargarFoto("/imagen-capturada?" + Date.now(), { hora: d.hora, alTerminar: info => { est.textContent += textoLlegada(info); } });
                     fotoMostrada(true);

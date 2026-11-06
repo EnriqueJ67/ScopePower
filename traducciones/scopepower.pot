@@ -49,11 +49,6 @@ msgid "(dispersión ±{a}, ±{b} px en {n} fotos)"
 msgstr ""
 
 #. js
-#: templates/dark.html
-msgid "(generar de nuevo lo sustituye)"
-msgstr ""
-
-#. js
 #: templates/configuracion.html
 msgid "(guardada; escribe otra para cambiarla)"
 msgstr ""
@@ -119,6 +114,11 @@ msgstr ""
 
 #: foto_dia.py
 msgid "(sigue saturada con la exposición mínima: hace falta filtro o menos luz)"
+msgstr ""
+
+#. js
+#: templates/dark.html
+msgid "(solo lo sustituye un dark nuevo a su misma temperatura, redondeada al grado)"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -5174,7 +5174,7 @@ msgstr ""
 
 #. js
 #: templates/configuracion.html
-msgid "La biblioteca guarda un dark por exposición, ganancia y binning: si cambias la ganancia se usa el dark de esa ganancia, y si no lo hay toca generarlo."
+msgid "La biblioteca guarda un dark por exposición, ganancia, binning y temperatura: si cambias la ganancia se usa el dark de esa ganancia, y si no lo hay toca generarlo. A igualdad de lo demás, cada foto usa el dark más cercano a la temperatura del sensor."
 msgstr ""
 
 #: actualizar.py
@@ -10277,6 +10277,10 @@ msgstr ""
 msgid "cúmulo"
 msgstr ""
 
+#: static/js/darks.js
+msgid "dark de {t} °C"
+msgstr ""
+
 #. js
 #: ScopePower.py
 msgid "darks"
@@ -10417,6 +10421,10 @@ msgstr ""
 
 #: instalar_astap.py
 msgid "el catálogo no ha quedado en la carpeta de ASTAP"
+msgstr ""
+
+#: static/js/darks.js
+msgid "el dark está a {d} °C de diferencia: conviene hacer uno a esta temperatura"
 msgstr ""
 
 #: enfoque.py
@@ -11668,7 +11676,8 @@ msgid "seis"
 msgstr ""
 
 #. js
-#: templates/apilado.html templates/calibracion.html templates/dark.html
+#: static/js/darks.js templates/apilado.html templates/calibracion.html
+#: templates/dark.html
 msgid "sensor a {t} °C"
 msgstr ""
 
@@ -12990,6 +12999,10 @@ msgstr ""
 msgid "índice de cámara no válido"
 msgstr ""
 
+#: static/js/darks.js
+msgid "última lectura del sensor: {t} °C a las {hora}"
+msgstr ""
+
 #: mosaico.py
 msgid "última resolución"
 msgstr ""
@@ -13320,6 +13333,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "⚠️ Error: No se encontró la imagen <b>{ruta}</b>."
+msgstr ""
+
+#: static/js/darks.js
+msgid "⚠️ Es el dark más cercano, pero está a {d} °C de diferencia: conviene hacer uno a esta temperatura."
 msgstr ""
 
 #. js
@@ -13879,7 +13896,7 @@ msgstr ""
 
 #. js
 #: templates/dark.html
-msgid "📚 Biblioteca: un dark por exposición, ganancia y binning. Guardados ({n}): {lista}"
+msgid "📚 Biblioteca: un dark por exposición, ganancia, binning y temperatura; cada foto usa el más cercano a la del sensor. Guardados ({n}): {lista}"
 msgstr ""
 
 #. js

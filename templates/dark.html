@@ -37,6 +37,7 @@
     <div id="dark-final" class="centro mt-2" style="display: none; font-size: 16px; font-weight: 600;"></div>
 </div>
 
+<script src="{{ url_for('static', filename='js/darks.js') }}?v={{ VERSION }}"></script>
 <script>
     let sondeoDarks = null;
 
@@ -53,16 +54,17 @@
         }
         if (u.temperatura !== null && u.temperatura !== undefined) s += " · " + _("sensor a {t} °C", { t: fmtNum(u.temperatura, 1) });
         if (u.ndarks) s += " · " + ngettext("{n} toma", "{n} tomas", u.ndarks);
-        s += " " + _("(generar de nuevo lo sustituye)");
+        s += textoSensorDark(u);
+        s += " " + _("(solo lo sustituye un dark nuevo a su misma temperatura, redondeada al grado)");
         return s;
     }
     function describirBiblioteca(lista, actual) {
         if (!lista || !lista.length) return "";
         const partes = lista.map(d => {
-            const t = `${d.exposicion} s · ${etiquetaGanancia(d.gain)} · bin ${d.binning} (${d.fecha.slice(0, 10)})`;
+            const t = `${d.exposicion} s · ${etiquetaGanancia(d.gain)} · bin ${d.binning}${etiquetaTemperaturaDark(d)} (${d.fecha.slice(0, 10)})`;
             return (actual && actual.existe && actual.nombre === d.nombre) ? `<b>${t}</b>` : t;
         });
-        return _("📚 Biblioteca: un dark por exposición, ganancia y binning. Guardados ({n}): {lista}", { n: lista.length, lista: partes.join(" &nbsp;|&nbsp; ") });
+        return _("📚 Biblioteca: un dark por exposición, ganancia, binning y temperatura; cada foto usa el más cercano a la del sensor. Guardados ({n}): {lista}", { n: lista.length, lista: partes.join(" &nbsp;|&nbsp; ") });
     }
 
     function pintarEstado(d) {

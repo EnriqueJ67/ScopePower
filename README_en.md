@@ -42,7 +42,7 @@ The screenshots show the Spanish interface. More in [docs/capturas](docs/captura
 - **Special modes**: tiled mosaics, stacking on the comet nucleus, tracking of moving objects with
   video, daytime imaging and guiding on the disk of the Sun or the Moon, timelapse.
 - **Camera**: test shot, live mode, assisted focusing (Bahtinov and daytime), darks and flats, a
-  calibration library by exposure, gain and binning.
+  calibration library by exposure, gain, binning and sensor temperature.
 - **Mount**: speed pad, multi-point alignment, altitude limits, parking, a sidereal tracking
   watchdog, direct UDP access to the SynScan Wi-Fi module as well as ASCOM.
 - **Voice announcements** on the PC, IP announcement at startup,
