@@ -44,6 +44,7 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/darks.js') }}?v={{ VERSION }}"></script>
 <script>
     // ——— Color de día ———
     let sondeoColor = null, versionColor = null;
@@ -112,6 +113,7 @@
             ? _("Último dark para {exp} s: {fecha}", { exp: u.exposicion, fecha: u.fecha })
               + (u.temperatura != null ? " · " + _("sensor a {t} °C", { t: fmtNum(u.temperatura, 1) }) : "")
               + (u.ndarks ? " · " + ngettext("{n} toma", "{n} tomas", u.ndarks) : "")
+              + textoSensorDark(u)
             : _("No hay dark para la exposición actual ({exp} s).", { exp: u.exposicion });
         const f = d.flat || {};
         document.getElementById("info-flat").textContent = f.existe

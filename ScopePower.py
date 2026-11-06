@@ -2088,12 +2088,13 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         voz.decir(ngettext("Empieza exposición de {n} segundo", "Empieza exposición de {n} segundos", round(EXPOSICION)),
                   categoria=categoria_voz)
         frame = capturar_frame(cam, EXPOSICION, BINNING, descripcion=descripcion, ganancia=GANANCIA)
+        temperatura = darks.leer_temperatura(cam)     # recién descargada: la del dark se lee en el mismo momento
         print("✅ Exposición finalizada.")
         voz.decir(_("Exposición terminada"), categoria=categoria_voz)
-        return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY, leer_ganancia(cam)["actual"]
+        return frame, cam.SensorType, cam.PixelSizeX, cam.PixelSizeY, leer_ganancia(cam)["actual"], temperatura
 
     try:
-        imagen_fits, sensor_type, pixel_size_x, pixel_size_y, ganancia_real = camara.ejecutar(
+        imagen_fits, sensor_type, pixel_size_x, pixel_size_y, ganancia_real, temperatura = camara.ejecutar(
             _exponer, timeout=EXPOSICION + 90)
     except CapturaCancelada:
         voz.decir(_("Captura cancelada"))
@@ -2125,12 +2126,12 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
 
     try:
         estado_captura.poner_fase(_("Restando el dark y el flat"))
-        # ───── Aplicar dark maestro (el de la biblioteca que casa con exposición, ganancia y binning) ─────
-        ruta_dark = darks.buscar_dark(EXPOSICION, GANANCIA, BINNING)
+        # ───── Aplicar dark maestro (el de la biblioteca que casa con exposición, ganancia y binning, y más cercano en temperatura) ─────
+        eleccion_dark = darks.elegir_dark(EXPOSICION, GANANCIA, BINNING, temperatura) if usar_dark else None
         dark_aplicado = False
-        if usar_dark and ruta_dark:
-            print(f"🌑 Aplicando dark maestro: {ruta_dark}")
-            with fits.open(ruta_dark) as hdul_dark:
+        if eleccion_dark:
+            print(f"🌑 Aplicando dark maestro: {eleccion_dark['ruta']} ({eleccion_dark['temperatura']} °C; sensor a {temperatura} °C)")
+            with fits.open(eleccion_dark["ruta"]) as hdul_dark:
                 dark_data = hdul_dark[0].data.astype(np.float32)
 
                 if dark_data.shape == imagen_fits.shape:
@@ -2141,6 +2142,11 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
                     print(f"⚠️ Tamaño del dark no coincide. Saltando corrección.")
         elif usar_dark:
             print(f"ℹ️ No hay dark maestro para {EXPOSICION:.2f} s, ganancia {GANANCIA}, binning {BINNING}.")
+        # Para los textos de Apilado y Cámara
+        info_temperatura = {"temperatura": temperatura,
+                            "dark_temperatura": eleccion_dark["temperatura"] if dark_aplicado else None,
+                            "dark_diferencia": eleccion_dark["diferencia"] if dark_aplicado else None,
+                            "dark_lejos": bool(dark_aplicado and eleccion_dark["lejos"])}
 
         # ───── Aplicar flat maestro (el del binning actual) ─────
         ruta_flat = flats.buscar_flat(BINNING)
@@ -2173,9 +2179,13 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
         if ganancia_real is not None:
             hdu.header['GAIN'] = (ganancia_real, 'Ganancia de la camara')
         hdu.header['DATE-OBS'] = time.strftime("%Y%m%d_%H%M%S")
+        if temperatura is not None:
+            hdu.header['CCD-TEMP'] = (round(temperatura, 2), 'Temperatura del sensor al descargar (C)')
         hdu.header['DARKCORR'] = ('T' if dark_aplicado else 'F', 'Dark master aplicado')
         if dark_aplicado:
-            hdu.header['DARKFILE'] = (os.path.basename(ruta_dark), 'Archivo dark utilizado')
+            hdu.header['DARKFILE'] = (eleccion_dark["nombre"], 'Archivo dark utilizado')
+            if eleccion_dark["temperatura"] is not None:
+                hdu.header['DARKTEMP'] = (round(eleccion_dark["temperatura"], 2), 'Temperatura del dark utilizado (C)')
         hdu.header['FLATCORR'] = ('T' if flat_aplicado else 'F', 'Flat master aplicado')
         if flat_aplicado:
             hdu.header['FLATFILE'] = (os.path.basename(ruta_flat), 'Archivo flat utilizado')
@@ -2208,14 +2218,14 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
             ULTIMA_CAPTURA.update({"version": ULTIMA_CAPTURA["version"] + 1,
                                    "hora": time.strftime("%H:%M:%S"),
                                    "exposicion": EXPOSICION, "dark": dark_aplicado,
-                                   "ganancia": ganancia_real, "pixel_um": float(pixel_size_x)})
+                                   "ganancia": ganancia_real, "pixel_um": float(pixel_size_x), **info_temperatura})
         except Exception as e:
             log.warning("No se pudo generar la miniatura de la captura: %s", e)
 
         if not generar_preview:
             return {"ok": True, "mensaje": _("Captura de {s} s guardada", s=fmt_num(EXPOSICION)), "ruta": ruta_guardada,
                     "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia,
-                    "hora": ULTIMA_CAPTURA.get("hora")}
+                    "hora": ULTIMA_CAPTURA.get("hora"), **info_temperatura}
 
         # ───   Revelado (debayer, STF, saturación) y versión reducida para la web   ───
         estado_captura.poner_fase(_("Revelando la foto"))
@@ -2244,7 +2254,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
 
         return {"ok": True, "mensaje": _("Captura de {s} s guardada", s=fmt_num(EXPOSICION)), "ruta": ruta_guardada,
                 "dark": dark_aplicado, "ganancia": ganancia_real, "exposicion": EXPOSICION, "archivo": archivo_copia,
-                "hora": ULTIMA_CAPTURA.get("hora"), "enfoque": info_enfoque}
+                "hora": ULTIMA_CAPTURA.get("hora"), "enfoque": info_enfoque, **info_temperatura}
 
     except Exception as e:
         log.exception("Error al procesar la captura")
@@ -5553,13 +5563,31 @@ def _config_darks():
     }
 
 
+def _temperatura_camara():
+    """
+    La última temperatura del sensor. Si tiene más de un minuto y la cámara está libre, se lee otra vez;
+    durante el apilado ya se lee en cada foto, y así estas consultas no se cruzan con las capturas.
+    """
+    ultima = darks.ultima_temperatura()
+    if (ultima and ultima["edad"] < 60) or not camara.esta_conectado() or camara.ocupado or camara.reservado_por:
+        return ultima
+    try:
+        camara.ejecutar(darks.leer_temperatura, timeout=3, conectar=False)
+    except ErrorHardware as e:
+        log.warning("No se pudo leer la temperatura de la cámara: %s", e)
+    return darks.ultima_temperatura()
+
+
 @app.route('/darks/estado')
 def darks_estado():
-    """Trabajo de darks en curso, el dark que casa con exposición/ganancia/binning actuales y la biblioteca."""
+    """Trabajo de darks en curso, el dark que se usaría ahora (el más cercano en temperatura) y la biblioteca."""
     conf = _config_darks()
+    lectura = _temperatura_camara()
+    ultimo = darks.info_dark(conf["exposicion"], conf["ganancia"], conf["binning"], lectura["valor"] if lectura else None)
+    ultimo["temperatura_hora"] = lectura["hora"] if lectura else None
     return jsonify({
         "trabajo": darks.trabajo_darks.estado(),
-        "ultimo": darks.info_dark(conf["exposicion"], conf["ganancia"], conf["binning"]),
+        "ultimo": ultimo,
         "biblioteca": darks.listar_darks(),
         "flat": flats.info_flat(conf["binning"]),
         "captura": estado_captura.como_dict(),

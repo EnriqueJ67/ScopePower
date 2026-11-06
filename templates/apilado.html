@@ -593,6 +593,7 @@
 <!-- La pantalla se mantiene encendida desde base.html (static/js/pantalla.js) -->
 
 <script src="{{ url_for('static', filename='js/curvas.js') }}?v={{ VERSION }}"></script>
+<script src="{{ url_for('static', filename='js/darks.js') }}?v={{ VERSION }}"></script>
 <script>
     // ——— Inicialización: mostrar el panel de darks/arranque. NO se captura
     //     nada hasta que el usuario pulsa Empezar (así abrir la página no
@@ -691,14 +692,15 @@
         const g = (u.gain !== null && u.gain !== undefined) ? u.gain : u.ganancia;
         if (g !== null && g !== undefined) s += " · " + _("ganancia {g}", { g: Math.round(g) });
         if (u.ndarks) s += " · " + ngettext("{n} toma", "{n} tomas", u.ndarks);
+        s += textoSensorDark(u);
         if (darkNoCasa(u, conf)) s += " " + _("⚠️ La cámara está ahora a ganancia {g}: este dark no sirve, genera darks nuevos.", { g: conf.ganancia });
         return s;
     }
-    // Biblioteca de darks: uno por exposición, ganancia y binning (el que casa con la configuración va en negrita)
+    // Biblioteca de darks: uno por exposición, ganancia, binning y temperatura (el que se usaría ahora va en negrita)
     function describirBiblioteca(lista, actual) {
         if (!lista || !lista.length) return "";
         const partes = lista.map(d => {
-            const t = `${d.exposicion} s · ${etiquetaGanancia(d.gain)} · bin ${d.binning}`;
+            const t = `${d.exposicion} s · ${etiquetaGanancia(d.gain)} · bin ${d.binning}${etiquetaTemperaturaDark(d)}`;
             return (actual && actual.existe && actual.nombre === d.nombre) ? `<b>${t}</b>` : t;
         });
         return _("📚 Biblioteca de darks ({n}): {lista}", { n: lista.length, lista: partes.join(" &nbsp;|&nbsp; ") });
@@ -1201,7 +1203,8 @@
         if (info && info.hora) {
             document.getElementById("ultima-toma-texto").textContent =
                 _("Última toma {hora} · {exp} s", { hora: info.hora, exp: info.exposicion }) + (info.dark ? " · dark" : "")
-                + (info.ganancia !== null && info.ganancia !== undefined ? " · " + _("ganancia {g}", { g: info.ganancia }) : "");
+                + (info.ganancia !== null && info.ganancia !== undefined ? " · " + _("ganancia {g}", { g: info.ganancia }) : "")
+                + textoTemperaturaFoto(info);
         }
     }
 

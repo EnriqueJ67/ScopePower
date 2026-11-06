@@ -169,6 +169,10 @@ class TrabajoContinuo:
                         self.ultima = {"n": n, "hora": hora, "exposicion": resultado.get("exposicion"),
                                        "nivel": resultado.get("nivel"), "ev": resultado.get("ev"),
                                        "dark": bool(resultado.get("dark")), "ganancia": resultado.get("ganancia"),
+                                       "temperatura": resultado.get("temperatura"),
+                                       "dark_temperatura": resultado.get("dark_temperatura"),
+                                       "dark_diferencia": resultado.get("dark_diferencia"),
+                                       "dark_lejos": bool(resultado.get("dark_lejos")),
                                        "archivo": os.path.basename(archivo) if archivo else ""}
                         self.version += 1
                     self._msg(_("Foto {n} a las {hora} · guardada {archivo}", n=n, hora=hora, archivo=os.path.basename(archivo)) if archivo

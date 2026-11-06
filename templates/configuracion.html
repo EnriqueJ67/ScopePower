@@ -695,7 +695,7 @@
             } else if (g.conectada) {
                 s += " " + _("Este driver no permite cambiar la ganancia desde la app.");
             }
-            s += " " + _("La biblioteca guarda un dark por exposición, ganancia y binning: si cambias la ganancia se usa el dark de esa ganancia, y si no lo hay toca generarlo.");
+            s += " " + _("La biblioteca guarda un dark por exposición, ganancia, binning y temperatura: si cambias la ganancia se usa el dark de esa ganancia, y si no lo hay toca generarlo. A igualdad de lo demás, cada foto usa el dark más cercano a la temperatura del sensor.");
             ayuda.textContent = s;
         }).catch(() => {});
     }

@@ -50,7 +50,7 @@ Más capturas en [docs/capturas](docs/capturas).
 - **Modos especiales**: mosaico por teselas, apilado por el núcleo del cometa, seguimiento de
   objetos en movimiento con vídeo, foto y guiado de día por el disco del Sol o la Luna, timelapse.
 - **Cámara**: foto de prueba, modo en vivo, enfoque asistido (Bahtinov y de día), darks y flats,
-  biblioteca de calibración por exposición, ganancia y binning.
+  biblioteca de calibración por exposición, ganancia, binning y temperatura del sensor.
 - **Montura**: pad de velocidades, alineación por puntos, límites de altura, aparcado, vigilante
   del seguimiento sidéreo, acceso directo por UDP al SynScan Wi-Fi además de ASCOM.
 - **Avisos por voz** en el PC, anuncio de la IP al arrancar,

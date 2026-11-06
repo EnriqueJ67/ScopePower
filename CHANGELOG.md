@@ -18,6 +18,10 @@ día de la release. El número de versión vive en `version.py`.
   página dejaba de actualizar el estado sin avisar. Ahora esa anchura simplemente no se envía.
 - La ayuda del enfoque en Cámara pasa de un párrafo largo a un plegable «Cómo se enfoca», con letra mayor
   y solo los pasos del modo en que se está (noche o día).
+- Biblioteca de darks por temperatura: hacer un dark nuevo ya no borra el de otra temperatura (solo sustituye
+  al de su mismo grado) y cada foto usa el más cercano a la temperatura del sensor al descargarla. Si el más
+  cercano queda a 5 °C o más, se avisa. La temperatura de cada foto y la del dark usado quedan en su FITS, y
+  la del dark es ahora la media de sus tomas. Los darks que ya tienes siguen valiendo.
 
 ## 1.3.0 · 2026-11-04
 
