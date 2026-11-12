@@ -9835,16 +9835,16 @@ msgid "Windows no aceptó la orden: {detalle}"
 msgstr "Windows didn't accept the command: {detalle}"
 
 #: voz.py
-msgid "Windows no encuentra la salida de audio (salidas que ve: {salidas}); revisa el altavoz"
-msgstr "Windows can't find the audio output (outputs it sees: {salidas}); check the speaker"
+msgid "Windows no encuentra la salida de audio (salidas que ve: {salidas}); revisa el altavoz y su conexión Bluetooth"
+msgstr "Windows can't find the audio output (outputs it sees: {salidas}); check the speaker and its Bluetooth connection"
 
 #: voz.py
-msgid "Windows no encuentra la salida de audio; revisa el altavoz"
-msgstr "Windows can't find the audio output; check the speaker"
+msgid "Windows no encuentra la salida de audio; revisa el altavoz y su conexión Bluetooth"
+msgstr "Windows can't find the audio output; check the speaker and its Bluetooth connection"
 
 #: voz.py
-msgid "Windows no tiene ninguna salida de audio: el altavoz está apagado, desconectado o sin emparejar"
-msgstr "Windows has no audio output: the speaker is off, unplugged or not paired"
+msgid "Windows no tiene ninguna salida de audio: el altavoz está apagado, desconectado, sin emparejar o fuera del alcance del Bluetooth (dentro de un coche se corta)"
+msgstr "Windows has no audio output: the speaker is off, unplugged, not paired or out of Bluetooth range (it cuts out inside a car)"
 
 #: templates/apagar.html
 msgid "Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio"

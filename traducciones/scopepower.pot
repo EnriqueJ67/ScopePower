@@ -9833,15 +9833,15 @@ msgid "Windows no aceptó la orden: {detalle}"
 msgstr ""
 
 #: voz.py
-msgid "Windows no encuentra la salida de audio (salidas que ve: {salidas}); revisa el altavoz"
+msgid "Windows no encuentra la salida de audio (salidas que ve: {salidas}); revisa el altavoz y su conexión Bluetooth"
 msgstr ""
 
 #: voz.py
-msgid "Windows no encuentra la salida de audio; revisa el altavoz"
+msgid "Windows no encuentra la salida de audio; revisa el altavoz y su conexión Bluetooth"
 msgstr ""
 
 #: voz.py
-msgid "Windows no tiene ninguna salida de audio: el altavoz está apagado, desconectado o sin emparejar"
+msgid "Windows no tiene ninguna salida de audio: el altavoz está apagado, desconectado, sin emparejar o fuera del alcance del Bluetooth (dentro de un coche se corta)"
 msgstr ""
 
 #: templates/apagar.html

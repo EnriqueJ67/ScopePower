@@ -27,7 +27,7 @@
 # Las voces inglesas (David, Zira) vienen con Windows; otras se añaden en Configuración de
 # Windows > Hora e idioma > Voz, y herramientas/activar_voces_windows.bat las hace visibles.
 #
-# Si Windows deja de dar salida de audio (altavoz apagado, desconectado o sin emparejar), SAPI
+# Si Windows deja de dar salida de audio (altavoz apagado, desconectado o con el Bluetooth cortándose), SAPI
 # falla en cada aviso con SPERR_NOT_FOUND aunque se reinicie la app. Se sigue intentando con cada
 # aviso, para volver a hablar en cuanto haya sonido; el log lo cuenta una vez al empezar y otra al
 # volver, y la web (estado de la cabecera y Configuración) enseña que la voz no suena y por qué.
@@ -75,12 +75,12 @@ def _salidas_audio():
 def diagnosticar(e, salidas):
     """Por qué no suena la voz, en palabras: `e` es el error de Speak y `salidas` lo de _salidas_audio()."""
     if salidas == []:
-        return _("Windows no tiene ninguna salida de audio: el altavoz está apagado, desconectado o sin emparejar")
+        return _("Windows no tiene ninguna salida de audio: el altavoz está apagado, desconectado, sin emparejar o fuera del alcance del Bluetooth (dentro de un coche se corta)")
     if _codigo_sapi(e) == SPERR_NOT_FOUND:
         if salidas:
-            return _("Windows no encuentra la salida de audio (salidas que ve: {salidas}); revisa el altavoz",
+            return _("Windows no encuentra la salida de audio (salidas que ve: {salidas}); revisa el altavoz y su conexión Bluetooth",
                      salidas=", ".join(salidas))
-        return _("Windows no encuentra la salida de audio; revisa el altavoz")
+        return _("Windows no encuentra la salida de audio; revisa el altavoz y su conexión Bluetooth")
     return _("error de la voz de Windows: {e}", e=e)
 
 
