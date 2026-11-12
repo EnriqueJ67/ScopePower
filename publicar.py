@@ -918,6 +918,7 @@ def _bucle():
             if verificar:
                 try:
                     cli.registrar()          # reserva el nombre si está libre; con el nombre ya suyo no hace nada
+                    _con_red()
                     _anotar_hosting(estado, cli.probar())
                     if _reconciliar(cli, estado, cfg["nombre"]):
                         _verificar_remoto = False
@@ -925,7 +926,10 @@ def _bucle():
                 except ERRORES_QUE_PARAN as e:
                     _parar(estado, e)
                     continue
+                except ErrorRed as e:
+                    _sin_red(e)
                 except ErrorHosting as e:
+                    _con_red()
                     log.warning("Galería pública: el hosting no responde al registrar (%s)", e)
             if replan or not estado["cola"]:
                 try:
@@ -940,6 +944,28 @@ def _bucle():
         finally:
             with _lock:
                 ESTADO.update({"ocupado": False, "subiendo": ""})
+
+
+def _sin_red(e, ruta=""):
+    """Sin conexión con el hosting. En el campo es lo normal y se reintenta cada minuto: el log lo dice
+    una vez al perderla, y los reintentos van a depuración para no tapar los avisos que importan."""
+    with _lock:
+        primera = not ESTADO["sin_red"]
+        ESTADO["sin_red"] = True
+    if primera:
+        log.warning("Galería pública: sin conexión con el hosting (%s); %s se reintenta cada %s s "
+                    "sin repetir este aviso", e, f"{ruta} y el resto de la cola" if ruta else "la cola", ESPERA_SIN_RED)
+    else:
+        log.debug("Galería pública: sigue sin conexión con el hosting (%s)", e)
+
+
+def _con_red():
+    """El hosting ha contestado (bien o mal): si antes no había red, una línea para decir que ha vuelto."""
+    with _lock:
+        volvio = ESTADO["sin_red"]
+        ESTADO["sin_red"] = False
+    if volvio:
+        log.info("Galería pública: vuelve la conexión con el hosting")
 
 
 def _parar(estado, e):
@@ -985,18 +1011,21 @@ def _vaciar(cli, estado):
             estado["cola"].pop(0)
             _guardar_estado(estado)
             continue
-        except ErrorHosting as e:
-            sin_red = isinstance(e, ErrorRed)
-            op["intentos"] = op.get("intentos", 0) + (0 if sin_red else 1)
+        except ErrorRed as e:
+            # Sin red el intento no cuenta: en el campo es lo normal y la cola espera entera
             estado["ultimo_error"] = str(e)
-            with _lock:
-                ESTADO["sin_red"] = sin_red
             _guardar_estado(estado)
-            espera = ESPERA_SIN_RED if sin_red else ESPERAS_REINTENTO[min(op["intentos"], len(ESPERAS_REINTENTO)) - 1]
+            _sin_red(e, op["ruta"])
+            return ESPERA_SIN_RED
+        except ErrorHosting as e:
+            _con_red()
+            op["intentos"] = op.get("intentos", 0) + 1
+            estado["ultimo_error"] = str(e)
+            _guardar_estado(estado)
+            espera = ESPERAS_REINTENTO[min(op["intentos"], len(ESPERAS_REINTENTO)) - 1]
             log.warning("Galería pública: %s falló (%s); se reintenta en %s s", op["ruta"], e, espera)
             return espera
-        with _lock:
-            ESTADO["sin_red"] = False
+        _con_red()
         if op["op"] == "subir":
             estado["remoto"][op["ruta"]] = op["sha256"]
             if op["ruta"].startswith("_comun/"):
