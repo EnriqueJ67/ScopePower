@@ -34,6 +34,7 @@ import email
 import shutil
 import socket
 import hashlib
+import logging
 import tempfile
 import threading
 import subprocess
@@ -794,13 +795,35 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     SEMILLA[0] += 1
     foto_sintetica("M_31_20260929_231500.jpg", semilla=SEMILLA[0])     # reescrita: contenido y fecha nuevos
     v_antes = m31["v"]["jpg"]
-    publicar.sincronizar()
-    assert esperar(lambda: publicar.estado()["sin_red"], 20), publicar.estado()
-    assert publicar._leer_estado()["cola"][0]["intentos"] == 0
-    CONFIG["endpoint"] = endpoint
-    publicar.sincronizar()
-    sincronizado()
+    # El log: un aviso al perder la red aunque se reintente varias veces, y una línea al volver
+    registros = []
+    capturador = logging.Handler(logging.DEBUG)
+    capturador.emit = registros.append
+    log_publicar = logging.getLogger("scopepower.publicar")
+    nivel_antes, espera_antes = log_publicar.level, publicar.ESPERA_SIN_RED
+    log_publicar.addHandler(capturador)
+    log_publicar.setLevel(logging.DEBUG)
+    publicar.ESPERA_SIN_RED = 0.3
+    try:
+        publicar.sincronizar()
+        assert esperar(lambda: publicar.estado()["sin_red"], 20), publicar.estado()
+        assert esperar(lambda: sum("sigue sin conexión" in r.getMessage() for r in registros) >= 3, 20), \
+            [r.getMessage() for r in registros]
+        assert publicar._leer_estado()["cola"][0]["intentos"] == 0
+        CONFIG["endpoint"] = endpoint
+        publicar.ESPERA_SIN_RED = espera_antes
+        publicar.sincronizar()
+        sincronizado()
+    finally:
+        publicar.ESPERA_SIN_RED = espera_antes
+        log_publicar.removeHandler(capturador)
+        log_publicar.setLevel(nivel_antes)
     assert not publicar.estado()["sin_red"]
+    avisos = [r.getMessage() for r in registros if r.levelno >= logging.WARNING]
+    assert len(avisos) == 1 and "sin conexión con el hosting" in avisos[0], avisos
+    vuelta = [r.getMessage() for r in registros if "vuelve la conexión" in r.getMessage()]
+    assert len(vuelta) == 1, [r.getMessage() for r in registros]
+    print(f"✅ {etiqueta}: sin red, un solo aviso en el log aunque reintente; otro al volver")
     indice = leer_json(ficheros_de(raiz_servidor)[f"{NOMBRE}/galeria.json"])
     v_despues = {f["id"]: f for f in indice["fotos"]}["M_31_20260929_231500"]["v"]["jpg"]
     assert v_despues != v_antes, "la foto reescrita debe subirse con v nuevo"
