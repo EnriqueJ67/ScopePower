@@ -368,6 +368,11 @@ msgstr ""
 msgid "A la galería"
 msgstr ""
 
+#. js
+#: templates/base.html
+msgid "A las {hora} el sensor estaba a {sensor} °C y el dark más cercano a {dark} °C ({d} °C de diferencia). Toca para hacer darks a esta temperatura."
+msgstr ""
+
 #: static/js/fotometria_solar.js
 msgid "A profundidad óptica 0,3 los tres colores dan {r}, {g} y {b} K (el modelo gris de Eddington, {e} K, en discontinua). Si los tres coinciden, la medida cuadra con la física."
 msgstr ""
@@ -2787,6 +2792,10 @@ msgstr ""
 msgid "El corazón del escorpión. Su nombre significa 'rival de Marte'."
 msgstr ""
 
+#: ScopePower.py
+msgid "El dark vuelve a estar cerca de la temperatura del sensor"
+msgstr ""
+
 #. js
 #: templates/base.html
 msgid "El disco del PC está casi lleno: {libre} GB libres de {total} GB ({pct} %)."
@@ -3130,6 +3139,10 @@ msgstr ""
 
 #: seguimiento.py
 msgid "El seguimiento ya está en marcha"
+msgstr ""
+
+#: ScopePower.py
+msgid "El sensor está a {sensor} grados y el dark más cercano a {dark}: conviene hacer darks a esta temperatura"
 msgstr ""
 
 #: puesta_estacion.py
@@ -10346,6 +10359,11 @@ msgstr ""
 
 #: static/js/darks.js
 msgid "dark de {t} °C"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "dark {d} °C"
 msgstr ""
 
 #. js

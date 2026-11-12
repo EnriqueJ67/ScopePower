@@ -257,6 +257,59 @@ def info_dark(exposicion, ganancia=None, binning=1, temperatura=None):
     }
 
 
+HISTERESIS_C = 1.0        # se apaga por debajo de AVISO_DIFERENCIA_C - HISTERESIS_C: que no parpadee rondando el umbral
+CADUCA_S = 15 * 60        # sin fotos en este tiempo el aviso deja de verse, y la siguiente sesión empieza de cero
+
+
+class AvisoTemperatura:
+    """
+    Aviso de que el dark de las fotos queda lejos de la temperatura del sensor, a lo largo de la
+    sesión: sin refrigeración el sensor sigue al aire, y en una noche puede bajar varios grados.
+    Lo alimenta cada foto (registrar) y lo lee la cabecera de la web (estado).
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.activo = False
+        self.ultimo = None        # la última foto con dark: sensor, dark, diferencia, hora e instante
+
+    def registrar(self, temperatura, eleccion):
+        """
+        Apunta una foto: `temperatura` del sensor y `eleccion` el dark que se le restó (de elegir_dark,
+        o None si no se restó ninguno). Devuelve "empieza" si con ella el aviso se enciende,
+        "termina" si se apaga y None si sigue como estaba.
+        """
+        diferencia = eleccion["diferencia"] if eleccion else None
+        with self._lock:
+            caducado = self.ultimo is None or time.monotonic() - self.ultimo["instante"] > CADUCA_S
+            antes = self.activo and not caducado
+            if temperatura is None or diferencia is None:
+                # Sin dark (o sin temperatura) no hay nada que comparar: se apaga sin anunciarlo
+                self.activo, self.ultimo = False, None
+                return None
+            self.activo = diferencia >= (AVISO_DIFERENCIA_C - HISTERESIS_C if antes else AVISO_DIFERENCIA_C)
+            self.ultimo = {"sensor": temperatura, "dark": eleccion["temperatura"], "diferencia": diferencia,
+                           "nombre": eleccion["nombre"], "hora": datetime.now().strftime("%H:%M"),
+                           "instante": time.monotonic()}
+            if self.activo and not antes:
+                return "empieza"
+            if antes and not self.activo:
+                return "termina"
+            return None
+
+    def estado(self):
+        """Para la cabecera: {"sensor", "dark", "diferencia", "hora"} mientras el aviso está encendido, o None."""
+        with self._lock:
+            u = self.ultimo
+            if not self.activo or u is None or time.monotonic() - u["instante"] > CADUCA_S:
+                return None
+            return {"sensor": round(u["sensor"], 1), "dark": round(u["dark"], 1),
+                    "diferencia": round(u["diferencia"], 1), "hora": u["hora"]}
+
+
+aviso_temperatura = AvisoTemperatura()
+
+
 class TrabajoDarks:
     """Estado de la generación de darks en curso (una sola a la vez)."""
 
