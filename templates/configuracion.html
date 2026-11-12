@@ -724,6 +724,8 @@
         }
         let disp = "";
         if (e.disponible === false) disp = _("❌ Voz no disponible en este PC: {error}", { error: e.ultimo_error || "" });
+        else if (e.disponible === true && e.fallando_desde) disp = _("⚠️ La voz no suena desde las {hora}: {motivo}. Se vuelve a intentar con cada aviso ({n} perdidos hasta ahora).",
+            { hora: e.fallando_desde, motivo: e.motivo_fallo, n: e.perdidos });
         else if (e.disponible === true) disp = _("✅ Voz en uso: {voz}", { voz: e.voz_usada || "?" })
             + (e.voz_del_idioma === false ? " — " + _("⚠️ No hay ninguna voz de este idioma instalada en Windows: añádela en Configuración de Windows > Hora e idioma > Voz y ejecuta herramientas/activar_voces_windows.bat.") : "");
         else disp = _("ℹ️ Aún no se ha hablado desde el arranque; pulsa Probar voz para comprobarla.");

@@ -212,12 +212,17 @@
 <script src="{{ url_for('static', filename='js/asistente.js') }}?v=3"></script>
 <script>
     // ——— Interruptor de los avisos hablados por el altavoz del PC (SAPI, ver voz.py) ———
+    // Activada pero sin sonido (Windows sin salida de audio): se ve en el botón, para no fiarse de unos avisos que no se oyen
     function pintarVoz(e) {
-        const on = !!e.activada;
-        window.vozPCActiva = on;      // las páginas evitan repetir en el móvil lo que ya dice el PC
-        document.getElementById("nav-voz-icono").setAttribute("href", on ? "#i-voz-on" : "#i-voz-off");
-        document.getElementById("nav-voz-texto").textContent = on ? _("Voz on") : _("Voz off");
-        document.getElementById("nav-voz").classList.toggle("encendido", on);
+        const on = !!e.activada, muda = on && !!e.fallando_desde;
+        window.vozPCActiva = on && !muda;      // las páginas evitan repetir en el móvil lo que ya dice el PC
+        const nav = document.getElementById("nav-voz");
+        document.getElementById("nav-voz-icono").setAttribute("href", on && !muda ? "#i-voz-on" : "#i-voz-off");
+        document.getElementById("nav-voz-texto").textContent = muda ? _("Sin sonido") : (on ? _("Voz on") : _("Voz off"));
+        nav.classList.toggle("encendido", on && !muda);
+        nav.classList.toggle("sin-sonido", muda);
+        nav.title = muda ? _("La voz del PC no suena desde las {hora}: {motivo}", { hora: e.fallando_desde, motivo: e.motivo_fallo })
+                         : _("Avisos por voz del PC");
     }
     function alternarVoz(ev) {
         ev.preventDefault();
@@ -288,6 +293,7 @@
     function pintarChipsEquipo(d) {
         comprobarHora(d);
         comprobarDisco(d);
+        if (d.voz) pintarVoz(d.voz);
         const m = document.getElementById("chip-montura"), c = document.getElementById("chip-camara");
         if (!m || !c) return;
         const clase = (ok, busy) => "chip chip-icono " + (busy ? "chip-busy" : (ok ? "chip-ok" : "chip-err"));

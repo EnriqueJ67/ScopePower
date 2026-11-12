@@ -318,7 +318,7 @@ class TrabajoFlats:
                 self.ruta, self.vinyeteo = ruta, vinyeteo
             self._msg(_("Flat maestro guardado ({n} flats, viñeteo {v} %)", n=len(flats), v=round(vinyeteo)), fase="")
             log.info("Flat maestro guardado en %s", ruta)
-            self._decir(voz, _("Flat maestro guardado. Ya puedes destapar el telescopio"))
+            self._decir(voz, _("Flat maestro guardado. Quita la tapa del telescopio antes de hacer fotos"))
         except (FlatsCancelado, CapturaCancelada):
             error = _("Generación de flats cancelada")
         except ErrorHardware as e:

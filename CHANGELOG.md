@@ -22,6 +22,12 @@ día de la release. El número de versión vive en `version.py`.
   al de su mismo grado) y cada foto usa el más cercano a la temperatura del sensor al descargarla. Si el más
   cercano queda a 5 °C o más, se avisa. La temperatura de cada foto y la del dark usado quedan en su FITS, y
   la del dark es ahora la media de sus tomas. Los darks que ya tienes siguen valiendo.
+- Voz sin sonido: si Windows se queda sin salida de audio (altavoz apagado o desconectado), el botón de la voz
+  pasa a «Sin sonido» con el motivo, y Configuración dice desde cuándo y cuántos avisos se han perdido. El log
+  lo cuenta una vez al empezar y otra al volver, en vez de dos líneas por aviso. Se sigue intentando con cada
+  aviso y vuelve a hablar en cuanto hay sonido; mientras tanto el móvil lee lo que el PC no puede decir.
+- Tras los darks y los flats, la voz y la web piden «Quita la tapa del telescopio antes de hacer fotos», también
+  si los darks fallan o se cancelan.
 
 ## 1.3.0 · 2026-11-04
 
