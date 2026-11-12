@@ -26,6 +26,11 @@
 # ninguna elegida) se usa la primera voz instalada del idioma, y al cambiar el idioma se reajusta.
 # Las voces inglesas (David, Zira) vienen con Windows; otras se añaden en Configuración de
 # Windows > Hora e idioma > Voz, y herramientas/activar_voces_windows.bat las hace visibles.
+#
+# Si Windows deja de dar salida de audio (altavoz apagado, desconectado o con el Bluetooth cortándose), SAPI
+# falla en cada aviso con SPERR_NOT_FOUND aunque se reinicie la app. Se sigue intentando con cada
+# aviso, para volver a hablar en cuanto haya sonido; el log lo cuenta una vez al empezar y otra al
+# volver, y la web (estado de la cabecera y Configuración) enseña que la voz no suena y por qué.
 
 import queue
 import threading
@@ -34,6 +39,7 @@ import logging
 import configparser
 
 import idioma
+from idioma import _
 
 log = logging.getLogger("scopepower.voz")
 
@@ -42,6 +48,40 @@ _DEFECTOS = {"activada": "true", "anunciar_capturas": "true", "silenciar_bucle_a
              "describir_objeto": "true", "volumen": "100", "velocidad": "0", "voz": ""}
 _INTERRUPTORES = ("anunciar_capturas", "silenciar_bucle_apilado", "describir_objeto")
 _MAX_COLA = 6
+SPERR_NOT_FOUND = -2147200966        # 0x8004503A: SAPI no encuentra lo que necesita, en la práctica la salida de audio
+
+
+def _codigo_sapi(e):
+    """El código de error de SAPI dentro de una excepción COM (excepinfo[5]), o el HRESULT si no lo trae."""
+    try:
+        codigo = e.excepinfo[5]
+        if codigo:
+            return codigo
+    except Exception:
+        pass
+    return getattr(e, "hresult", None)
+
+
+def _salidas_audio():
+    """Nombres de las salidas de audio que ve SAPI, o None si ni siquiera se pueden listar."""
+    try:
+        import win32com.client
+        salidas = win32com.client.Dispatch("SAPI.SpVoice").GetAudioOutputs()
+        return [salidas.Item(i).GetDescription() for i in range(salidas.Count)]
+    except Exception:
+        return None
+
+
+def diagnosticar(e, salidas):
+    """Por qué no suena la voz, en palabras: `e` es el error de Speak y `salidas` lo de _salidas_audio()."""
+    if salidas == []:
+        return _("Windows no tiene ninguna salida de audio: el altavoz está apagado, desconectado, sin emparejar o fuera del alcance del Bluetooth (dentro de un coche se corta)")
+    if _codigo_sapi(e) == SPERR_NOT_FOUND:
+        if salidas:
+            return _("Windows no encuentra la salida de audio (salidas que ve: {salidas}); revisa el altavoz y su conexión Bluetooth",
+                     salidas=", ".join(salidas))
+        return _("Windows no encuentra la salida de audio; revisa el altavoz y su conexión Bluetooth")
+    return _("error de la voz de Windows: {e}", e=e)
 
 
 def _leer_config():
@@ -83,6 +123,9 @@ class Locutor:
         self.ultimo_error = ""
         self.ultimo_texto = ""
         self.voces = []
+        self.fallando_desde = None   # "HH:MM" del primer aviso que no sonó, mientras no vuelva a sonar ninguno
+        self.motivo_fallo = ""
+        self.perdidos = 0            # avisos que no han sonado desde fallando_desde
         self._hilo = threading.Thread(target=self._bucle, name="voz", daemon=True)
         self._hilo.start()
 
@@ -161,7 +204,16 @@ class Locutor:
                 "pendientes": self._cola.qsize(),
                 "ultimo_texto": self.ultimo_texto,
                 "ultimo_error": self.ultimo_error,
+                "fallando_desde": self.fallando_desde,
+                "motivo_fallo": self.motivo_fallo,
+                "perdidos": self.perdidos,
             }
+
+    def resumen(self):
+        """Lo justo para la cabecera de la web, que lo pide cada 15 s."""
+        with self._lock:
+            return {"activada": self.config["activada"], "fallando_desde": self.fallando_desde,
+                    "motivo_fallo": self.motivo_fallo, "perdidos": self.perdidos}
 
     # ── Hilo SAPI ─────────────────────────────────────────────────────
     def _bucle(self):
@@ -185,6 +237,7 @@ class Locutor:
         # Si SAPI falla (p. ej. SPERR_NOT_FOUND al apagar, o la salida de audio
         # que cambia), se vuelve a crear la voz y se reintenta UNA vez el mismo
         # texto, para no perder el aviso
+        error = None
         for intento in (1, 2):
             try:
                 if self._aplicar_ajustes:
@@ -193,15 +246,40 @@ class Locutor:
                 with self._lock:
                     self.ultimo_texto = texto
                 sapi.Speak(texto)   # síncrono dentro de este hilo; no bloquea a nadie más
-                break
+                self._ha_sonado()
+                return
             except Exception as e:
+                error = e
                 with self._lock:
                     self.ultimo_error = str(e)
-                log.warning("Error hablando «%s» (intento %d): %s", texto, intento, e)
+                log.debug("Error hablando «%s» (intento %d): %s", texto, intento, e)
                 sapi = self._sapi = self._inicializar() if intento == 1 else None
                 self._aplicar_ajustes = True
                 if sapi is None:
                     break
+        if error is not None:
+            self._no_ha_sonado(texto, error)
+
+    def _no_ha_sonado(self, texto, error):
+        """Un aviso perdido: el primero de una racha va al log con el motivo; los siguientes solo se cuentan."""
+        with self._lock:
+            primero = self.fallando_desde is None
+            if primero:
+                self.fallando_desde = time.strftime("%H:%M")
+            self.perdidos += 1
+        if primero:
+            motivo = diagnosticar(error, _salidas_audio())
+            with self._lock:
+                self.motivo_fallo = motivo
+            log.warning("La voz no suena: %s (error: %s). Se perdió «%s»; se seguirá intentando con cada aviso",
+                        motivo, error, texto)
+
+    def _ha_sonado(self):
+        with self._lock:
+            desde, perdidos = self.fallando_desde, self.perdidos
+            self.fallando_desde, self.motivo_fallo, self.perdidos = None, "", 0
+        if desde is not None:
+            log.info("La voz vuelve a sonar (desde las %s se perdieron %d avisos)", desde, perdidos)
 
     def _inicializar(self):
         try:

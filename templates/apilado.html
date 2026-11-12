@@ -839,7 +839,7 @@
             }
             clearInterval(sondeoDarks); sondeoDarks = null;
             if (t.error) {
-                document.getElementById("darks-error").textContent = "❌ " + t.error;
+                document.getElementById("darks-error").textContent = "❌ " + t.error + " " + _("Quita la tapa del telescopio antes de hacer fotos.");
                 mostrarPaso("inicio");
             } else {
                 document.getElementById("darks-resultado").textContent = "✅ " + t.mensaje;

@@ -1043,6 +1043,7 @@ msgstr "Voice announcements"
 msgid "Avisos por voz activados"
 msgstr "Voice announcements on"
 
+#. js
 #: templates/base.html
 msgid "Avisos por voz del PC"
 msgstr "PC voice announcements"
@@ -2246,8 +2247,8 @@ msgstr[0] "Master dark saved ({n} frame)"
 msgstr[1] "Master dark saved ({n} frames)"
 
 #: darks.py
-msgid "Dark maestro guardado. Ya puedes destapar el telescopio"
-msgstr "Master dark saved. You can uncover the telescope now"
+msgid "Dark maestro guardado. Quita la tapa del telescopio antes de hacer fotos"
+msgstr "Master dark saved. Take the cap off the telescope before taking photos"
 
 #: darks.py
 msgid "Dark {i}/{n}"
@@ -4149,8 +4150,8 @@ msgid "Flat maestro guardado ({n} flats, viñeteo {v} %)"
 msgstr "Master flat saved ({n} flats, vignetting {v} %)"
 
 #: flats.py
-msgid "Flat maestro guardado. Ya puedes destapar el telescopio"
-msgstr "Master flat saved. You can uncover the telescope now"
+msgid "Flat maestro guardado. Quita la tapa del telescopio antes de hacer fotos"
+msgstr "Master flat saved. Take the cap off the telescope before taking photos"
 
 #: flats.py
 msgid "Flat prueba {n}"
@@ -5490,6 +5491,11 @@ msgstr "The preview before the last change, to compare it with the previous one"
 #: templates/seguimiento.html
 msgid "La vista se estira para que se vea la escena; con exposición automática, si no encuentra nada sube la exposición hasta el máximo ({max} ms)."
 msgstr "The view is stretched so the scene can be seen; with automatic exposure, if it finds nothing it raises the exposure up to the maximum ({max} ms)."
+
+#. js
+#: templates/base.html
+msgid "La voz del PC no suena desde las {hora}: {motivo}"
+msgstr "The PC voice hasn't been heard since {hora}: {motivo}"
 
 #: static/js/ayuda_voz.js
 msgid "La voz necesita Internet en el móvil"
@@ -7837,6 +7843,11 @@ msgid "Quita la máscara sin tocar el enfoque y sin apagar este interruptor. Apr
 msgstr "Take the mask off without touching the focus or turning off this switch. It learns the focus from 10 live frames or 3 photos."
 
 #. js
+#: templates/apilado.html templates/dark.html
+msgid "Quita la tapa del telescopio antes de hacer fotos."
+msgstr "Take the cap off the telescope before taking photos."
+
+#. js
 #: ScopePower.py
 msgid "Quitando el gradiente"
 msgstr "Removing the gradient"
@@ -8820,6 +8831,11 @@ msgstr "No network · {n} to upload"
 #: montura_ejes.py
 msgid "Sin respuesta de la montura en {direccion} a {orden} ({error})"
 msgstr "No response from the mount at {direccion} to {orden} ({error})"
+
+#. js
+#: templates/base.html
+msgid "Sin sonido"
+msgstr "No sound"
 
 #. js
 #: ScopePower.py static/publico/galeria_publica.js
@@ -9818,6 +9834,18 @@ msgstr "WCS of the previous tile"
 msgid "Windows no aceptó la orden: {detalle}"
 msgstr "Windows didn't accept the command: {detalle}"
 
+#: voz.py
+msgid "Windows no encuentra la salida de audio (salidas que ve: {salidas}); revisa el altavoz y su conexión Bluetooth"
+msgstr "Windows can't find the audio output (outputs it sees: {salidas}); check the speaker and its Bluetooth connection"
+
+#: voz.py
+msgid "Windows no encuentra la salida de audio; revisa el altavoz y su conexión Bluetooth"
+msgstr "Windows can't find the audio output; check the speaker and its Bluetooth connection"
+
+#: voz.py
+msgid "Windows no tiene ninguna salida de audio: el altavoz está apagado, desconectado, sin emparejar o fuera del alcance del Bluetooth (dentro de un coche se corta)"
+msgstr "Windows has no audio output: the speaker is off, unplugged, not paired or out of Bluetooth range (it cuts out inside a car)"
+
 #: templates/apagar.html
 msgid "Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio"
 msgstr "Windows restarts and ScopePower starts again if it's in startup"
@@ -10552,6 +10580,10 @@ msgstr "hardware error"
 #: camara_toupcam.py
 msgid "error de la cámara"
 msgstr "camera error"
+
+#: voz.py
+msgid "error de la voz de Windows: {e}"
+msgstr "Windows voice error: {e}"
 
 #: ScopePower.py
 msgid "error de montura: {e}"
@@ -12013,6 +12045,10 @@ msgstr "{driver} (not installed on this PC)"
 msgid "{driver} (no registrado)"
 msgstr "{driver} (not registered)"
 
+#: darks.py
+msgid "{error}. Quita la tapa del telescopio antes de hacer fotos"
+msgstr "{error}. Take the cap off the telescope before taking photos"
+
 #: ScopePower.py
 msgid "{e}. El objeto está a {alt}° de altura: si pasa del límite de SynScan Pro (Settings > Altitude Limit > Upper Go To Limit, 75° de serie) no hace el GoTo; espera a que baje o sube ese límite si el tubo no choca con la base"
 msgstr "{e}. The object is at {alt}° altitude: above SynScan Pro's limit (Settings > Altitude Limit > Upper Go To Limit, 75° by default) it won't do the GoTo; wait for it to sink or raise that limit if the tube doesn't hit the base"
@@ -12112,8 +12148,8 @@ msgstr "{marca} via native SDK (no ASCOM) — none connected now"
 
 #. js
 #: templates/dark.html templates/flats.html
-msgid "{mensaje}. Ya puedes destapar el telescopio."
-msgstr "{mensaje}. You can uncover the telescope now."
+msgid "{mensaje}. Quita la tapa del telescopio antes de hacer fotos."
+msgstr "{mensaje}. Take the cap off the telescope before taking photos."
 
 #: static/publico/planetario_publico.js
 msgid "{min} min"
@@ -13368,6 +13404,11 @@ msgstr "⚠️ The camera is now at gain {g}: this dark won't work, take new dar
 #: templates/imagen.html
 msgid "⚠️ La foto llega con problemas por la wifi: reintentando…"
 msgstr "⚠️ The shot is having trouble arriving over Wi-Fi: retrying…"
+
+#. js
+#: templates/configuracion.html
+msgid "⚠️ La voz no suena desde las {hora}: {motivo}. Se vuelve a intentar con cada aviso ({n} perdidos hasta ahora)."
+msgstr "⚠️ The voice hasn't been heard since {hora}: {motivo}. It tries again with every announcement ({n} lost so far)."
 
 #: static/js/plan.js
 msgid "⚠️ MODO PRUEBA: la noche empieza ahora y dura 6 h. Desactívalo antes de una sesión real."

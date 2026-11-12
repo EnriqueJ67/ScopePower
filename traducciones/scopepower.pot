@@ -1041,6 +1041,7 @@ msgstr ""
 msgid "Avisos por voz activados"
 msgstr ""
 
+#. js
 #: templates/base.html
 msgid "Avisos por voz del PC"
 msgstr ""
@@ -2244,7 +2245,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: darks.py
-msgid "Dark maestro guardado. Ya puedes destapar el telescopio"
+msgid "Dark maestro guardado. Quita la tapa del telescopio antes de hacer fotos"
 msgstr ""
 
 #: darks.py
@@ -4147,7 +4148,7 @@ msgid "Flat maestro guardado ({n} flats, viñeteo {v} %)"
 msgstr ""
 
 #: flats.py
-msgid "Flat maestro guardado. Ya puedes destapar el telescopio"
+msgid "Flat maestro guardado. Quita la tapa del telescopio antes de hacer fotos"
 msgstr ""
 
 #: flats.py
@@ -5487,6 +5488,11 @@ msgstr ""
 
 #: templates/seguimiento.html
 msgid "La vista se estira para que se vea la escena; con exposición automática, si no encuentra nada sube la exposición hasta el máximo ({max} ms)."
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "La voz del PC no suena desde las {hora}: {motivo}"
 msgstr ""
 
 #: static/js/ayuda_voz.js
@@ -7835,6 +7841,11 @@ msgid "Quita la máscara sin tocar el enfoque y sin apagar este interruptor. Apr
 msgstr ""
 
 #. js
+#: templates/apilado.html templates/dark.html
+msgid "Quita la tapa del telescopio antes de hacer fotos."
+msgstr ""
+
+#. js
 #: ScopePower.py
 msgid "Quitando el gradiente"
 msgstr ""
@@ -8817,6 +8828,11 @@ msgstr ""
 
 #: montura_ejes.py
 msgid "Sin respuesta de la montura en {direccion} a {orden} ({error})"
+msgstr ""
+
+#. js
+#: templates/base.html
+msgid "Sin sonido"
 msgstr ""
 
 #. js
@@ -9816,6 +9832,18 @@ msgstr ""
 msgid "Windows no aceptó la orden: {detalle}"
 msgstr ""
 
+#: voz.py
+msgid "Windows no encuentra la salida de audio (salidas que ve: {salidas}); revisa el altavoz y su conexión Bluetooth"
+msgstr ""
+
+#: voz.py
+msgid "Windows no encuentra la salida de audio; revisa el altavoz y su conexión Bluetooth"
+msgstr ""
+
+#: voz.py
+msgid "Windows no tiene ninguna salida de audio: el altavoz está apagado, desconectado, sin emparejar o fuera del alcance del Bluetooth (dentro de un coche se corta)"
+msgstr ""
+
 #: templates/apagar.html
 msgid "Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio"
 msgstr ""
@@ -10549,6 +10577,10 @@ msgstr ""
 
 #: camara_toupcam.py
 msgid "error de la cámara"
+msgstr ""
+
+#: voz.py
+msgid "error de la voz de Windows: {e}"
 msgstr ""
 
 #: ScopePower.py
@@ -12011,6 +12043,10 @@ msgstr ""
 msgid "{driver} (no registrado)"
 msgstr ""
 
+#: darks.py
+msgid "{error}. Quita la tapa del telescopio antes de hacer fotos"
+msgstr ""
+
 #: ScopePower.py
 msgid "{e}. El objeto está a {alt}° de altura: si pasa del límite de SynScan Pro (Settings > Altitude Limit > Upper Go To Limit, 75° de serie) no hace el GoTo; espera a que baje o sube ese límite si el tubo no choca con la base"
 msgstr ""
@@ -12110,7 +12146,7 @@ msgstr ""
 
 #. js
 #: templates/dark.html templates/flats.html
-msgid "{mensaje}. Ya puedes destapar el telescopio."
+msgid "{mensaje}. Quita la tapa del telescopio antes de hacer fotos."
 msgstr ""
 
 #: static/publico/planetario_publico.js
@@ -13362,6 +13398,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "⚠️ La foto llega con problemas por la wifi: reintentando…"
+msgstr ""
+
+#. js
+#: templates/configuracion.html
+msgid "⚠️ La voz no suena desde las {hora}: {motivo}. Se vuelve a intentar con cada aviso ({n} perdidos hasta ahora)."
 msgstr ""
 
 #: static/js/plan.js

@@ -407,7 +407,9 @@ class TrabajoDarks:
             with self._lock:
                 self.en_curso = False
                 self.terminado = True
-                aviso = self.error or _("Dark maestro guardado. Ya puedes destapar el telescopio")
+                # También si falla o se cancela: la tapa sigue puesta y la siguiente foto saldría negra
+                aviso = (_("{error}. Quita la tapa del telescopio antes de hacer fotos", error=self.error) if self.error
+                         else _("Dark maestro guardado. Quita la tapa del telescopio antes de hacer fotos"))
             try:
                 import voz
                 voz.decir(aviso)

@@ -1554,6 +1554,8 @@ def estado_conexion():
         "hora_local": datetime.now().strftime("%H:%M:%S"),
         # Espacio libre en el disco de las fotos: la cabecera avisa si baja del umbral
         "disco": espacio_disco.vigilante.estado(),
+        # Si la voz del PC no suena (sin salida de audio), la cabecera lo enseña en el botón de la voz
+        "voz": voz.locutor.resumen(),
     })
 
 

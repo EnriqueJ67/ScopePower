@@ -125,6 +125,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_darks_temperatura.py
 
+      - name: Prueba de la voz sin salida de audio y del aviso de quitar la tapa (voz SAPI falsa)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_voz.py
+
       - name: Prueba de la galería pública (hosting falso en Python con el contrato de publicar.php; sin PHP en GitHub)
         env:
           PYTHONIOENCODING: utf-8

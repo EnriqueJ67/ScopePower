@@ -82,7 +82,7 @@
                 const f = document.getElementById("flat-final");
                 f.style.display = "block";
                 f.style.color = t.error ? "var(--err)" : "var(--ok)";
-                f.textContent = t.error ? "❌ " + t.error : "✅ " + _("{mensaje}. Ya puedes destapar el telescopio.", { mensaje: t.mensaje });
+                f.textContent = t.error ? "❌ " + t.error : "✅ " + _("{mensaje}. Quita la tapa del telescopio antes de hacer fotos.", { mensaje: t.mensaje });
             }
         }
         return t.en_curso;
