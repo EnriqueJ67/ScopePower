@@ -370,6 +370,11 @@ msgstr "Nothing to add at this level. Turn it up a bit."
 msgid "A la galería"
 msgstr "To the gallery"
 
+#. js
+#: templates/base.html
+msgid "A las {hora} el sensor estaba a {sensor} °C y el dark más cercano a {dark} °C ({d} °C de diferencia). Toca para hacer darks a esta temperatura."
+msgstr "At {hora} the sensor was at {sensor} °C and the closest dark at {dark} °C ({d} °C apart). Tap to make darks at this temperature."
+
 #: static/js/fotometria_solar.js
 msgid "A profundidad óptica 0,3 los tres colores dan {r}, {g} y {b} K (el modelo gris de Eddington, {e} K, en discontinua). Si los tres coinciden, la medida cuadra con la física."
 msgstr "At optical depth 0.3 the three colours give {r}, {g} and {b} K (the grey Eddington model, {e} K, dashed). If the three agree, the measurement is physically consistent."
@@ -2789,6 +2794,10 @@ msgstr "The color your solar filter gives, with daylight balance (the Moon's)."
 msgid "El corazón del escorpión. Su nombre significa 'rival de Marte'."
 msgstr "The heart of the scorpion. Its name means 'rival of Mars'."
 
+#: ScopePower.py
+msgid "El dark vuelve a estar cerca de la temperatura del sensor"
+msgstr "The dark is close to the sensor temperature again"
+
 #. js
 #: templates/base.html
 msgid "El disco del PC está casi lleno: {libre} GB libres de {total} GB ({pct} %)."
@@ -3133,6 +3142,10 @@ msgstr "Tracking isn't running"
 #: seguimiento.py
 msgid "El seguimiento ya está en marcha"
 msgstr "Object tracking is already running"
+
+#: ScopePower.py
+msgid "El sensor está a {sensor} grados y el dark más cercano a {dark}: conviene hacer darks a esta temperatura"
+msgstr "The sensor is at {sensor} degrees and the closest dark at {dark}: it's worth making darks at this temperature"
 
 #: puesta_estacion.py
 msgid "El telescopio apunta al polo (Dec {dec}°): apártalo unos 20° con el pad"
@@ -10349,6 +10362,11 @@ msgstr "cluster"
 #: static/js/darks.js
 msgid "dark de {t} °C"
 msgstr "dark at {t} °C"
+
+#. js
+#: templates/base.html
+msgid "dark {d} °C"
+msgstr "dark {d} °C"
 
 #. js
 #: ScopePower.py

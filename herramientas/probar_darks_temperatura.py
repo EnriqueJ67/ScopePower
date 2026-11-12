@@ -11,6 +11,8 @@
 #   - Generar con una cámara falsa que se calienta: guarda la media y los extremos, un dark a otra
 #     temperatura no pisa al anterior, y uno al mismo grado sí (también si es un fichero sin _t).
 #   - Una cámara sin temperatura (o con un valor sin sentido) sigue funcionando como antes.
+#   - Aviso de la sesión (voz y chip): se enciende a 5 °C, no parpadea, se apaga con un dark cercano
+#     y caduca sin fotos.
 #
 #   python herramientas\probar_darks_temperatura.py
 #
@@ -224,6 +226,42 @@ def probar_sin_temperatura():
     comprobar(darks.leer_temperatura(CamaraFalsa(None)) is None, "el driver lanza: None, sin propagar el error")
 
 
+def probar_aviso_sesion():
+    print("Aviso a lo largo de la sesión")
+    aviso = darks.AvisoTemperatura()
+
+    def foto(sensor, dark=20.6):
+        return aviso.registrar(sensor, {"temperatura": dark, "diferencia": abs(sensor - dark), "nombre": "dark"})
+
+    eventos = [foto(t) for t in (20.4, 19.5, 18.0, 16.5)]
+    comprobar(eventos == [None, None, None, None] and aviso.estado() is None, "el sensor baja hasta 4,1 °C del dark: sin aviso")
+    comprobar(foto(15.4) == "empieza", "a 5,2 °C: se enciende (una vez)")
+    e = aviso.estado()
+    comprobar(e == {"sensor": 15.4, "dark": 20.6, "diferencia": 5.2, "hora": e["hora"]}, "el estado lleva sensor, dark y diferencia")
+    comprobar(foto(14.0) is None and foto(16.0) is None, "sigue lejos o vuelve a 4,6 °C: no se repite (histéresis)")
+    comprobar(aviso.estado() is not None, "y el chip sigue")
+    comprobar(foto(16.8, dark=20.6) == "termina" and aviso.estado() is None, "a 3,8 °C: se apaga")
+    comprobar(foto(14.0) == "empieza", "si se vuelve a alejar, avisa otra vez")
+    comprobar(foto(14.0, dark=13.5) == "termina", "una foto con un dark nuevo a su temperatura lo apaga")
+
+    foto(14.0)
+    comprobar(aviso.registrar(14.0, None) is None and aviso.estado() is None, "foto sin dark: se apaga sin anunciarlo")
+    comprobar(foto(14.0) == "empieza", "y con dark otra vez, vuelve a avisar")
+
+    reloj = darks.time.monotonic
+    try:
+        ahora = reloj()
+        darks.time.monotonic = lambda: ahora + darks.CADUCA_S + 1
+        comprobar(aviso.estado() is None, "sin fotos en 15 minutos el chip desaparece")
+        comprobar(foto(14.0) == "empieza", "y la sesión siguiente avisa de nuevo")
+    finally:
+        darks.time.monotonic = reloj
+
+    otro = darks.AvisoTemperatura()
+    comprobar(otro.registrar(None, {"temperatura": 20.0, "diferencia": None, "nombre": "x"}) is None and otro.estado() is None,
+              "cámara sin temperatura: nunca avisa")
+
+
 def main():
     carpeta = tempfile.mkdtemp(prefix="darks_temperatura_")
     darks.CARPETA = carpeta
@@ -233,6 +271,7 @@ def main():
         probar_antiguos()
         probar_generar()
         probar_sin_temperatura()
+        probar_aviso_sesion()
     finally:
         shutil.rmtree(carpeta, ignore_errors=True)
     if FALLOS:

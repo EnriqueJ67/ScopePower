@@ -1556,6 +1556,8 @@ def estado_conexion():
         "disco": espacio_disco.vigilante.estado(),
         # Si la voz del PC no suena (sin salida de audio), la cabecera lo enseña en el botón de la voz
         "voz": voz.locutor.resumen(),
+        # Dark de las últimas fotos lejos de la temperatura del sensor: chip en la cabecera
+        "dark_temperatura": darks.aviso_temperatura.estado(),
     })
 
 
@@ -2149,6 +2151,16 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
                             "dark_temperatura": eleccion_dark["temperatura"] if dark_aplicado else None,
                             "dark_diferencia": eleccion_dark["diferencia"] if dark_aplicado else None,
                             "dark_lejos": bool(dark_aplicado and eleccion_dark["lejos"])}
+        # Si el sensor se aleja del dark a lo largo de la sesión, se dice una vez (y otra al volver); la cabecera lo enseña
+        cambio = darks.aviso_temperatura.registrar(temperatura, eleccion_dark if dark_aplicado else None)
+        if cambio == "empieza":
+            aviso = _("El sensor está a {sensor} grados y el dark más cercano a {dark}: conviene hacer darks a esta temperatura",
+                      sensor=round(temperatura), dark=round(eleccion_dark["temperatura"]))
+            log.warning("Dark lejos de la temperatura del sensor: %s (%s)", aviso, eleccion_dark["nombre"])
+            voz.decir(aviso)
+        elif cambio == "termina":
+            log.info("El dark vuelve a estar cerca de la temperatura del sensor (%s)", eleccion_dark["nombre"])
+            voz.decir(_("El dark vuelve a estar cerca de la temperatura del sensor"))
 
         # ───── Aplicar flat maestro (el del binning actual) ─────
         ruta_flat = flats.buscar_flat(BINNING)
