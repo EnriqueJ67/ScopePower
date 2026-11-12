@@ -10,8 +10,15 @@
 # canal más fino (FWHM B 5,2 px, G 5,6) y las estrellas salían con halos verdes
 # y un punto azul dentro de un halo naranja; el 9-oct el verde era el más fino
 # (G 3,8, R 4,2, B 4,4) y las estrellas salían blancas. El verde es el canal que
-# conviene: tiene el doble de píxeles, está en medio del espectro (rojo y azul
-# quedan igual de desenfocados a cada lado) y es el que mide la nitidez del apilado.
+# conviene mirar: tiene el doble de píxeles, está en medio del espectro y es el
+# que mide la nitidez del apilado.
+# Pero en el foco bueno el verde NO tiene por qué ser el más fino. El 7-nov-2026,
+# con la Bahtinov centrada a 0,1 px (refractor ED de 50 mm, Altair en vivo), salió
+# G 4,2 px, R 3,8 y B 4,3: el rojo, el más fino. En un refractor bien corregido el
+# desenfoque entre colores es pequeño y cuál queda más fino depende del diseño de
+# la lente; lo que manda es el seeing y el seguimiento (4 px son ~12″), iguales
+# para los tres colores salvo que el seeing es algo mejor en rojo (∝ λ^-1/5, un
+# 4 % menos que en verde). El foco lo decide la Bahtinov, no qué color sale más fino.
 #
 # Con el modo activado:
 #   - La imagen que se enseña es solo el canal verde, en gris, con un estirado
@@ -21,8 +28,8 @@
 #     hecho en el mini PC a resolución completa (por el wifi del SynScan solo
 #     viaja el JPG pequeño; ampliar el JPG en el móvil no serviría).
 #   - Debajo del recorte, la anchura (FWHM) de esa estrella en verde y, en
-#     pequeño, en rojo y azul: sin máscara sirve para comprobar que el verde es
-#     el canal más fino.
+#     pequeño, en rojo y azul: informativas; la relación entre ellas en el foco
+#     es la «firma» que se aprende (ver AyudaBahtinov).
 #   - Con la máscara puesta (30-oct-2026, tras la prueba del 29-oct con la Saturn-C):
 #     en el verde solo, los picos de la Bahtinov salían como «borroncitos» sueltos.
 #     La máscara es una rejilla que abre la luz por colores a lo largo de cada pico,
@@ -803,12 +810,14 @@ class AyudaBahtinov:
         tener picos), la relación entre las anchuras de los tres colores (R/G y B/G) de las
         siguientes FOTOGRAMAS_APRENDER tomas es la del foco bueno de este telescopio y esta cámara:
         se guarda en RUTA_FIRMA, una por modo (en vivo el verde es el superpíxel, en la foto el
-        revelado completo, y las anchuras no salen iguales). Con un telescopio con color residual,
-        en el foco el verde es más fino y los otros dos se abren; muy desenfocado, los tres son
-        el mismo círculo y la relación vuelve a 1.
+        revelado completo, y las anchuras no salen iguales). Cada telescopio tiene la suya: no se
+        supone que el verde sea el más fino (el 7-nov-2026, con un refractor ED, en el foco
+        salió R/G 0,91 y B/G 1,01). Con color residual las relaciones se apartan de 1 en el foco;
+        muy desenfocado, los tres son el mismo círculo y la relación vuelve a 1.
       - Sin máscara y con firma: «enfocado» cuando R/G y B/G llegan a los aprendidos y el verde está
         cerca del más fino de la sesión. Si la firma casi no se aparta de 1 (un reflector, o un
-        refractor muy corregido con mal seeing), no sirve y se dice.
+        refractor muy corregido con mal seeing), no sirve y se dice. Le pasó a la del 7-nov: se
+        aparta un 9 % con un 5 % de dispersión entre fotogramas, y haría falta un 22 %.
       - Un fotograma sin cruz no basta para dar la máscara por quitada: al tocar el enfocador el
         tubo vibra y la cruz se emborrona. En vivo hacen falta GRACIA_SIN_CRUZ_S seguidos sin ella;
         y una estrella movida (alargada) no cuenta nunca, ni para eso ni para la firma. Tampoco
