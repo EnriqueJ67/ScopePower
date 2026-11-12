@@ -125,6 +125,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_darks_temperatura.py
 
+      - name: Prueba de los avisos de deriva en el apilado y de trípode desnivelado (fotos sintéticas y montura inclinada de mentira)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_deriva_y_desnivel.py
+
       - name: Prueba de la voz sin salida de audio y del aviso de quitar la tapa (voz SAPI falsa)
         env:
           PYTHONIOENCODING: utf-8

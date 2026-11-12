@@ -36,6 +36,11 @@
     </div>
 
     <div id="alineacion-final" class="centro mt-2" style="display: none; font-size: 16px; font-weight: 700;"></div>
+    <!-- Desnivel del trípode medido con las fotos de la alineación (desnivel.py); solo en altacimutal -->
+    <div id="alineacion-desnivel" class="aviso mt-2" style="display: none;">
+        <svg class="ico"><use href="#i-info"/></svg>
+        <span id="alineacion-desnivel-texto"></span>
+    </div>
 
     <div class="tabla-wrap mt-2">
         <table id="alineacion-tabla" class="tabla" style="display: none;">
@@ -86,6 +91,14 @@
             fin.style.display = "block"; fin.style.color = color; fin.textContent = e.detalle;
         } else {
             fin.style.display = "none";
+        }
+        const desnivel = document.getElementById("alineacion-desnivel");
+        if (!enCurso && e.terminado && e.desnivel) {
+            desnivel.style.display = "";
+            document.getElementById("alineacion-desnivel-texto").textContent = e.desnivel.texto;
+            desnivel.style.color = e.desnivel.aviso ? "var(--warn)" : "";
+        } else {
+            desnivel.style.display = "none";
         }
         return enCurso;
     }

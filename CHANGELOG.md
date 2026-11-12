@@ -28,6 +28,15 @@ día de la release. El número de versión vive en `version.py`.
   aviso y vuelve a hablar en cuanto hay sonido; mientras tanto el móvil lee lo que el PC no puede decir.
 - Tras los darks y los flats, la voz y la web piden «Quita la tapa del telescopio antes de hacer fotos», también
   si los darks fallan o se cancelan.
+- Aviso de estrellas alargadas en el apilado: de cada foto se mide, además de la anchura, cuánto más largas que
+  anchas salen las estrellas. Si las últimas fotos salen alargadas es que la montura deriva dentro de cada
+  exposición, cosa que el alineado no arregla: Apilado lo marca y la voz lo dice, con la exposición más corta
+  que lo dejaría en casi nada. Salió de la Nebulosa Creciente del 7-nov (61 × 20 s a 73° de altura, 6 px de
+  deriva en acimut en cada foto), que se apiló entera sin que nada avisara.
+- Desnivel del trípode: al terminar la alineación automática, en una montura altacimutal, se dice cuánto se
+  aparta de la vertical el eje de acimut y hacia qué lado cae, medido con las mismas fotos resueltas. A partir
+  de 1° se avisa, porque SynScan sigue el cielo como si estuviera nivelado y por encima de unos 70° de altura
+  la montura deriva.
 
 ## 1.3.0 · 2026-11-04
 

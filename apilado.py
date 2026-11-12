@@ -25,6 +25,7 @@ import rotacion_camara
 import rastros
 import apilado_incremental
 import cometa
+import alargamiento
 import cv2
 
 from astropy.io.fits import Header, PrimaryHDU
@@ -222,22 +223,10 @@ def fwhm_estrellas(plano, maximo=60):
     Sirve para ver si el foco se va a lo largo de la noche (la temperatura mueve
     el enfoque del tubo): la nitidez (pico/flujo) lo nota, pero la anchura en
     píxeles se entiende de un vistazo. NaN si no hay estrellas que medir.
+    La medida, junto con la forma de las estrellas, está en alargamiento.medir.
     """
-    import enfoque
-    img = np.asarray(plano, dtype=np.float32)
-    suav = cv2.GaussianBlur(img, (0, 0), 1.2)
-    fondo = float(np.median(suav[::8, ::8]))
-    mad = float(np.median(np.abs(suav[::8, ::8] - fondo))) * 1.4826 + 1e-3
-    dil = cv2.dilate(suav, np.ones((15, 15), np.uint8))
-    cand = np.argwhere((suav == dil) & (suav - fondo > 20.0 * mad) & (img < 55000))
-    if len(cand) == 0:
-        return float("nan")
-    h, w = img.shape
-    cand = [(suav[y, x], y, x) for y, x in cand if 10 < y < h - 10 and 10 < x < w - 10]
-    cand.sort(reverse=True)
-    anchos = [enfoque.fwhm(img, x, y) for __, y, x in cand[:maximo]]
-    anchos = [a for a in anchos if np.isfinite(a)]
-    return float(np.median(anchos)) if anchos else float("nan")
+    forma = alargamiento.medir(plano, maximo)
+    return forma["fwhm"] if forma else float("nan")
 
 
 def calcular_puntuacion_photutils(plano, fwhm_px=2.5, umbral_sigma=4.0):
@@ -315,6 +304,9 @@ def leer_config_calidad():
         # se apartan (no se pierden: se suman en cuanto la referencia queda fijada).
         # 0 = sin repaso
         "umbral_referencia": float(c.get("umbral_referencia", 0.6)),
+        # Estrellas alargadas (la montura deriva dentro de cada exposición): se avisa cuando
+        # el eje mayor entre el menor de las últimas fotos llega a esto. 0 = no avisar
+        "aviso_alargamiento": float(c.get("aviso_alargamiento", alargamiento.UMBRAL_DEFECTO)),
     }
 
 
@@ -649,6 +641,7 @@ class ApiladorEnTiempoReal:
         # referencia: sirve para ver cuánto "dithering natural" da la montura
         self.desplazamientos = []
         self.fwhms = []                 # anchura de las estrellas (px) de cada foto medida, para ver si se va el foco
+        self.aviso_alargamiento = alargamiento.Aviso()   # forma de las estrellas: ¿la montura deriva al exponer?
         # Mejores puntuaciones vistas (para el umbral relativo) y umbral actual
         self.mejores_puntuaciones = []
         self.umbral = None
@@ -703,6 +696,29 @@ class ApiladorEnTiempoReal:
             # sin el aviso, tampoco su frase de humor
             if voz.decir(base, categoria="bucle_apilado") and evento_humor:
                 humor.decir(evento_humor)
+
+    def _vigilar_alargamiento(self, forma, exposicion, umbral):
+        """
+        Apunta la forma de las estrellas de la foto recién medida y avisa (consola, voz y, por
+        el estado, la web) cuando las últimas fotos salen alargadas: la montura se mueve dentro
+        de cada exposición (deriva del seguimiento, viento) y eso no lo arregla el alineado.
+        Avisa una vez al empezar y otra cuando se pasa, no en cada foto.
+        """
+        with self.lock:
+            evento = self.aviso_alargamiento.anadir(forma, exposicion, umbral)
+            estado = self.aviso_alargamiento.estado()
+        if evento == "empieza":
+            sugerida = estado["exposicion_sugerida"]
+            print(f"⚠️ Estrellas alargadas: eje mayor ×{estado['reciente']:.2f} el menor en las últimas {estado['fotos']} fotos "
+                  f"(trazo de {estado['trazo_px']:.1f} px en {exposicion:g} s). La montura se mueve durante la exposición"
+                  + (f"; con {sugerida:g} s saldrían casi redondas" if sugerida else ""))
+            aviso = _("Atención: las estrellas salen alargadas. La montura se mueve durante la exposición.")
+            if sugerida:
+                aviso += " " + _("Prueba con exposiciones de {s} segundos.", s=fmt_num(sugerida))
+            voz.decir(aviso)
+        elif evento == "termina":
+            print(f"✅ Las estrellas vuelven a salir redondas (eje mayor ×{estado['reciente']:.2f} el menor)")
+            voz.decir(_("Las estrellas vuelven a salir redondas"))
 
     def _fase(self, nombre):
         ahora = time.time()
@@ -1343,12 +1359,14 @@ class ApiladorEnTiempoReal:
             # Fondo de cielo: mediana del verde (ADU de 16 bits), submuestreado para que sea instantáneo
             fondo = float(np.median(g[::8, ::8]))
             # Anchura de las estrellas (px): el foco a lo largo de la noche
+            # y su forma: alargadas a lo largo de una dirección, la montura deriva dentro de la exposición
             try:
-                fwhm_foto = fwhm_estrellas(g)
+                forma = alargamiento.medir(g)
             except Exception as e:
                 print(f"⚠️ No se pudo medir la anchura de las estrellas: {e}")
-                fwhm_foto = float("nan")
-            fwhm_foto = round(fwhm_foto, 2) if np.isfinite(fwhm_foto) else None
+                forma = None
+            fwhm_foto = round(forma["fwhm"], 2) if forma and np.isfinite(forma["fwhm"]) else None
+            alargamiento_foto = round(forma["alargamiento"], 2) if forma and np.isfinite(forma["alargamiento"]) else None
             # Un rastro de avión o una linterna no bajan las estrellas ni la
             # nitidez (el rastro hasta suma "estrellas"), pero se quedan en el
             # apilado: la puntuación se hunde y la foto no entra
@@ -1363,6 +1381,8 @@ class ApiladorEnTiempoReal:
                     "nombre": nombre_fits, "hora": datetime.now().strftime("%H:%M:%S"),
                     "puntuacion": round(puntuacion, 3), "estrellas": n_estrellas,
                     "nitidez": round(nitidez, 3), "fondo": round(fondo), "fwhm": fwhm_foto,
+                    "alargamiento": alargamiento_foto,
+                    "trazo_px": round(forma["trazo_px"], 1) if alargamiento_foto else None,
                     "exposicion": EXPOSICION, "desplazamiento": None,
                     "resultado": "midiendo", "motivo": "",
                     "defecto": defecto[0] if defecto else "",
@@ -1370,12 +1390,14 @@ class ApiladorEnTiempoReal:
                 }
             print(f"⭐ {nombre_fits}: {n_estrellas} estrellas, nitidez {nitidez:.3f}, puntuación {puntuacion:.3f}"
                   + (f", FWHM {fwhm_foto:.1f} px" if fwhm_foto else "")
+                  + (f", alargamiento {alargamiento_foto:.2f}" if alargamiento_foto else "")
                   + (f" ({defecto[0]}; sin él {puntuacion_limpia:.3f})" if defecto else ""))
             if fwhm_foto:
                 with self.lock:
                     self.fwhms.append(fwhm_foto)
                     if len(self.fwhms) > 1000:
                         self.fwhms.pop(0)
+            self._vigilar_alargamiento(forma, EXPOSICION, calidad["aviso_alargamiento"])
 
             if n_estrellas == 0:
                 self._descartar(_("{foto}: sin estrellas detectables (¿nubes, tapa, desenfoque?)", foto=nombre_fits),
@@ -1745,6 +1767,7 @@ def reiniciar_apilado_global():
             apilador_global.apilados_realizados = 0
             apilador_global.evolucion.clear()
             apilador_global.desplazamientos.clear()
+            apilador_global.aviso_alargamiento.reiniciar()     # otro objeto, otra altura: se mide de nuevo
             apilador_global.mejores_puntuaciones.clear()
             apilador_global.umbral = None
             apilador_global.record_mejor = None
@@ -1903,6 +1926,8 @@ def obtener_estado_apilado():
             "fwhm_minima": round(float(min(a.fwhms)), 2) if a.fwhms else None,
             "fwhm_n": len(a.fwhms),
             "fwhms": [float(x) for x in a.fwhms[-60:]],
+            # Forma de las estrellas de las últimas fotos y aviso de deriva dentro de la exposición
+            "alargamiento": a.aviso_alargamiento.estado(),
             "umbral": round(a.umbral, 3) if a.umbral is not None else None,
             "metrica": leer_config_calidad()["metrica"],
             # Apilado por el núcleo del cometa (None si el objeto no es un cometa)

@@ -18,6 +18,11 @@
 # Antes de cada sync se mide cuánto se equivocaba la montura en ese punto
 # (posición que decía tener frente a la resuelta). Esa lista de errores es el
 # informe: debería ir bajando conforme el modelo acumula puntos.
+#
+# De paso se mide el desnivel del trípode (desnivel.py): cada foto resuelta da el ángulo
+# de la cámara respecto al acimut verdadero, que con el eje de acimut vertical es el mismo
+# en todo el cielo. Si cambia de un punto a otro como sen(acimut)/cos(altura), el eje está
+# inclinado, SynScan no lo sabe y cerca del cénit el seguimiento deriva.
 
 import time
 import threading
@@ -34,11 +39,16 @@ import astropy.units as u
 from hardware import capturar_frame_con_pixel, pistas_platesolve, ganancia_configurada, asentamiento_montura, CapturaCancelada, ErrorHardware, estado_captura
 from centrado import resolver_con_astap, CentradoCancelado
 import coordenadas
-from idioma import _, ngettext, fmt_num
+import desnivel
+import orientacion_camara
+from idioma import _, N_, ngettext, fmt_num
 
 log = logging.getLogger("scopepower.alineacion")
 
 RUTA_FITS_ALINEACION = "static/alineacion_mono.fits"
+# Hacia dónde cae el trípode, dicho con todas las letras (la voz leería «SO» como una palabra)
+NOMBRE_RUMBO = {"N": N_("norte"), "NE": N_("noreste"), "E": N_("este"), "SE": N_("sureste"),
+                "S": N_("sur"), "SO": N_("suroeste"), "O": N_("oeste"), "NO": N_("noroeste")}
 
 
 def leer_config():
@@ -54,6 +64,8 @@ def leer_config():
         "altura_minima": float(a.get("altura_minima", 35)),
         "asentamiento_s": asentamiento_montura("Alineacion"),
         "limpiar_antes": str(a.get("limpiar_antes", "true")).lower() == "true",
+        # Desnivel del trípode (grados) a partir del cual se avisa al acabar; 0 = no avisar
+        "aviso_desnivel": float(a.get("aviso_desnivel", 1.0) or 0),
         "exposicion": float(c.get("exposicion_centrado", 5.0)),
         "binning": int(d.get("binning_camara", 1)),
         "focal": float(d.get("focal_len", 250)),
@@ -118,6 +130,8 @@ class TrabajoAlineacion:
         self.puntos = []          # [{"n", "alt", "az", "estado", "error_arcmin"}]
         self.sincronizados = 0
         self.fallidos = 0
+        self.orientaciones = []   # (acimut, altura, ángulo de la cámara respecto al acimut) de cada foto resuelta
+        self.desnivel = None      # resultado de desnivel.ajustar con su texto, al terminar
 
     def estado(self):
         with self._lock:
@@ -127,6 +141,7 @@ class TrabajoAlineacion:
                 "mensaje": self.mensaje, "resultado": self.resultado, "detalle": self.detalle,
                 "puntos": [dict(p) for p in self.puntos],
                 "sincronizados": self.sincronizados, "fallidos": self.fallidos,
+                "desnivel": dict(self.desnivel) if self.desnivel else None,
                 "captura": estado_captura.como_dict(),
             }
 
@@ -177,6 +192,7 @@ class TrabajoAlineacion:
 
     def _ejecutar(self, camara, montura, conf, limpiar_sync, resolver, voz):
         resultado, detalle = "error", ""
+        aviso_desnivel = None
         lugar = EarthLocation(lat=conf["latitud"] * u.deg, lon=conf["longitud"] * u.deg,
                               height=conf["altitud"] * u.m)
         try:
@@ -208,6 +224,8 @@ class TrabajoAlineacion:
                 self._comprobar()
                 self._sincronizar_punto(i, camara, montura, conf, resolver, voz, (alt, az, lugar))
 
+            aviso_desnivel = self._medir_desnivel(montura, conf)
+
             with self._lock:
                 s, f = self.sincronizados, self.fallidos
             if s >= 2 and f == 0:
@@ -230,6 +248,61 @@ class TrabajoAlineacion:
                 errores = [p["error_arcmin"] for p in self.puntos if p["error_arcmin"] is not None]
             log.info("Alineación terminada: %s (%s) errores=%s", resultado, detalle, errores)
             self._decir(voz, detalle)
+            if aviso_desnivel:
+                self._decir(voz, aviso_desnivel)
+
+    def _medir_desnivel(self, montura, conf):
+        """
+        Ajusta el desnivel del trípode a las orientaciones de la cámara de los puntos resueltos y lo
+        deja en self.desnivel (para la web) y en el log. Devuelve el texto del aviso si hay que
+        darlo, o None. Solo tiene sentido en una montura altacimutal: en una ecuatorial la cámara
+        gira respecto al horizonte por diseño. Nunca lanza: no debe estropear la alineación.
+        """
+        try:
+            with self._lock:
+                puntos = list(self.orientaciones)
+            try:
+                altacimutal = int(montura.ejecutar(lambda t: t.AlignmentMode, timeout=10)) == 0
+            except Exception:
+                altacimutal = True      # la AZ GoTo; un driver que no lo dice se trata como en correccion_ejes
+            ajuste = desnivel.ajustar(puntos) if altacimutal else None
+            if ajuste is None:
+                return None
+            grados = fmt_num(ajuste["inclinacion_deg"], 1)
+            nombre_rumbo = NOMBRE_RUMBO[desnivel.rumbo(ajuste["hacia_az"])]
+            hacia = _(nombre_rumbo)
+            avisar = desnivel.hay_que_avisar(ajuste, conf.get("aviso_desnivel", 1.0))
+            if avisar:
+                texto = _("Trípode desnivelado {g}°: está bajo por el {rumbo}. Por encima de {alt}° de altura las estrellas "
+                          "pueden salir alargadas; nivélalo y repite la alineación.", g=grados, rumbo=hacia, alt=desnivel.ALTURA_SENSIBLE)
+            elif desnivel.es_de_fiar(ajuste):
+                texto = _("Desnivel del trípode: {g}°, bajo por el {rumbo}", g=grados, rumbo=hacia)
+            else:
+                texto = _("Trípode nivelado (desnivel de {g}° ± {s}°)", g=grados, s=fmt_num(ajuste["incertidumbre_deg"], 1))
+            with self._lock:
+                self.desnivel = dict(ajuste, aviso=avisar, texto=texto)
+            log.info("Desnivel del trípode: %.1f° ± %.1f° hacia el acimut %.0f° (%s), giro de la cámara %.1f°, "
+                     "residuo %.1f° con %d puntos%s", ajuste["inclinacion_deg"], ajuste["incertidumbre_deg"], ajuste["hacia_az"],
+                     desnivel.rumbo(ajuste["hacia_az"]), ajuste["giro_camara_deg"], ajuste["residuo_deg"], ajuste["n"],
+                     "; se avisa" if avisar else "")
+            return texto if avisar else None
+        except Exception:
+            log.exception("No se pudo medir el desnivel del trípode")
+            return None
+
+    def _apuntar_orientacion(self, desde):
+        """
+        Guarda el ángulo de la cámara respecto al acimut de la foto recién resuelta. Lo calcula
+        orientacion_camara al resolver (rotacion_camara.anotar_ini) y lo deja en datos/: aquí solo
+        se recoge, comprobando que es de esta foto y no de una resolución anterior.
+        """
+        try:
+            o = orientacion_camara.leer()
+            if o and datetime.fromisoformat(o["fecha"]) >= desde.replace(microsecond=0):
+                with self._lock:
+                    self.orientaciones.append((float(o["az"]), float(o["alt"]), float(o["angulo_x_deg"])))
+        except Exception as e:
+            log.debug("Sin orientación de la cámara en este punto: %s", e)
 
     def _marcar(self, idx, **cambios):
         with self._lock:
@@ -276,7 +349,10 @@ class TrabajoAlineacion:
             self._comprobar()
             self._marcar(idx, estado="resolviendo")
             self._msg(_("Punto {i}/{total}: resolviendo", i=idx + 1, total=total))
+            antes_de_resolver = datetime.now()
             solucion = resolver(RUTA_FITS_ALINEACION)
+            if solucion is not None:
+                self._apuntar_orientacion(antes_de_resolver)
             if solucion is None:
                 self._marcar(idx, estado="fallido", detalle=_("no resuelta"))
                 with self._lock:
