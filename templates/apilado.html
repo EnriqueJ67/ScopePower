@@ -1225,6 +1225,19 @@
     function claseFoco(d) {
         return (hayNum(d.fwhm_ultima) && d.fwhm_inicial > 0 && d.fwhm_ultima >= 1.15 * d.fwhm_inicial) ? "warn" : "";
     }
+    // ——— Forma de las estrellas: alargadas a lo largo de una dirección, la montura deriva
+    // dentro de cada exposición (objeto muy alto, trípode desnivelado, viento) y el alineado
+    // no lo arregla. El servidor mira las últimas fotos y decide el aviso (alargamiento.py).
+    function textoForma(d) {
+        const a = d.alargamiento;
+        if (!a || !hayNum(a.reciente)) return "";
+        let s = ngettext("eje mayor ×{r} el menor en la última foto", "eje mayor ×{r} el menor en las últimas {n} fotos", a.fotos, { r: fmtNum(a.reciente, 2) });
+        if (a.aviso) {
+            s += " · " + _("⚠️ alargadas: la montura se mueve unos {px} px en cada foto de {exp} s", { px: Math.round(a.trazo_px), exp: a.exposicion });
+            if (hayNum(a.exposicion_sugerida)) s += " · " + _("prueba con exposiciones de {s} s", { s: fmtNum(a.exposicion_sugerida) });
+        } else if (a.reciente < 1.2) s += " · " + _("redondas");
+        return s;
+    }
     // Gráfica mínima (SVG) de la anchura foto a foto, debajo de las estadísticas
     function pintarFoco(d) {
         const cont = document.getElementById("grafica-foco");
@@ -1405,6 +1418,7 @@
                 [_("Estrellas"), hayNum(d.estrellas_media) ? _("{n} de media", { n: Math.round(d.estrellas_media) }) : ""],
                 [_("Nitidez"), hayNum(d.nitidez_media) ? _("{n} de media", { n: Number(d.nitidez_media).toFixed(3) }) : ""],
                 [_("Foco (FWHM)"), textoFoco(d), claseFoco(d)],
+                [_("Forma de las estrellas"), textoForma(d), d.alargamiento && d.alargamiento.aviso ? "warn" : ""],
                 [_("Fondo de cielo"), hayNum(d.fondo_medio) ? `${Math.round(d.fondo_medio)} ADU` : ""],
                 [_("Deriva"), std ? `±${std[0]} / ±${std[1]} px (` + ngettext("{n} foto", "{n} fotos", d.desplazamientos_n) + ")" : ""],
                 [_("Descartadas"), desc.length ? desc.join(" · ") : _("ninguna"), desc.length ? "warn" : ""],
@@ -1439,6 +1453,7 @@
                 [_("Estrellas"), hayNum(u.estrellas) ? u.estrellas : ""],
                 [_("Nitidez"), hayNum(u.nitidez) ? Number(u.nitidez).toFixed(3) : ""],
                 [_("Anchura de estrellas"), hayNum(u.fwhm) ? `${fmtPx(u.fwhm)} px` + (hayNum(d.fwhm_minima) && d.fwhm_minima > 0 ? " " + _("(mejor de la sesión {fwhm})", { fwhm: fmtPx(d.fwhm_minima) }) : "") : ""],
+                [_("Alargamiento"), hayNum(u.alargamiento) ? `×${fmtNum(u.alargamiento, 2)}` + (hayNum(u.trazo_px) ? " " + _("(trazo de {px} px)", { px: fmtNum(u.trazo_px, 1) }) : "") : ""],
                 [_("Fondo de cielo"), hayNum(u.fondo) ? `${u.fondo} ADU` : ""],
                 [_("Desplazamiento"), u.desplazamiento ? `${u.desplazamiento[0]} / ${u.desplazamiento[1]} px` : ""],
                 [_("Exposición"), u.exposicion ? `${u.exposicion} s` : ""],

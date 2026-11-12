@@ -128,6 +128,11 @@ msgid "(supuesta, sin comprobar)"
 msgstr "(assumed, not verified)"
 
 #. js
+#: templates/apilado.html
+msgid "(trazo de {px} px)"
+msgstr "({px} px trail)"
+
+#. js
 #: templates/imagen.html
 msgid "(unos {v}′)"
 msgstr "(about {v}′)"
@@ -599,6 +604,11 @@ msgstr "When a stack is saved, StarNet2 separates the object and the stars and e
 msgid "Al llegar a un objeto con GoTo, el móvil lee su descripción (sin Internet, solo los del catálogo)"
 msgstr "When a GoTo reaches an object, the phone reads its description (without Internet, catalogue objects only)"
 
+#. js
+#: templates/apilado.html
+msgid "Alargamiento"
+msgstr "Elongation"
+
 #: templates/alineacion.html
 msgid "Alineación"
 msgstr "Alignment"
@@ -995,6 +1005,10 @@ msgstr "Warning. {texto} Is the solar filter on?"
 #: espacio_disco.py
 msgid "Atención: el disco está casi lleno. Quedan {espacio}."
 msgstr "Warning: the disk is almost full. {espacio} left."
+
+#: apilado.py
+msgid "Atención: las estrellas salen alargadas. La montura se mueve durante la exposición."
+msgstr "Warning: the stars are coming out elongated. The mount is moving during the exposure."
 
 #: templates/_asistente.html
 msgid "Atrás"
@@ -2427,6 +2441,10 @@ msgstr "Disconnecting the equipment..."
 #: templates/constelacion.html
 msgid "Descripción no disponible."
 msgstr "Description not available."
+
+#: alineacion.py
+msgid "Desnivel del trípode: {g}°, bajo por el {rumbo}"
+msgstr "Tripod tilt: {g}°, low on the {rumbo} side"
 
 #. js
 #: templates/apilado.html
@@ -4196,6 +4214,11 @@ msgid "Forma de la curva que lleva el cielo al brillo elegido. Asinh y MTF dan m
 msgstr "Shape of the curve that brings the sky to the chosen brightness. Asinh and MTF give more gain just above the background: a faint nebula rises twice as much with the same sky, and so does mid-scale noise (lower local contrast and raise noise reduction). Measured on the Pacman: +17 levels above the sky with gamma, +37 with asinh."
 
 #. js
+#: templates/apilado.html
+msgid "Forma de las estrellas"
+msgstr "Star shape"
+
+#. js
 #: templates/constelacion.html
 msgid "Forma parte del triángulo de verano. Es una estrella rápida y cercana."
 msgstr "It is part of the Summer Triangle. A fast-spinning, nearby star."
@@ -5574,6 +5597,10 @@ msgstr "The two passwords don't match"
 #: editor_fotos.py
 msgid "Las estrellas de esta foto aún no están separadas"
 msgstr "The stars of this photo are not separated yet"
+
+#: apilado.py
+msgid "Las estrellas vuelven a salir redondas"
+msgstr "The stars are round again"
 
 #: templates/_puesta_estacion.html
 msgid "Las flechas valen mirando hacia el polo desde detrás de la montura. Si el ajuste se alarga más de un cuarto de hora o has movido mucho la montura, «Repetir la medición» vuelve a medir el eje."
@@ -7655,6 +7682,10 @@ msgstr "ASTAP program"
 msgid "Programa ASTAP (línea de órdenes)"
 msgstr "ASTAP program (command line)"
 
+#: apilado.py
+msgid "Prueba con exposiciones de {s} segundos."
+msgstr "Try {s}-second exposures."
+
 #: flats.py
 msgid "Prueba {n}: {s} s → nivel {nivel} %"
 msgstr "Test {n}: {s} s → level {nivel} %"
@@ -9424,6 +9455,14 @@ msgstr "Galaxy triplet"
 msgid "Trío de galaxias"
 msgstr "Galaxy triplet"
 
+#: alineacion.py
+msgid "Trípode desnivelado {g}°: está bajo por el {rumbo}. Por encima de {alt}° de altura las estrellas pueden salir alargadas; nivélalo y repite la alineación."
+msgstr "Tripod {g}° off level: it is low on the {rumbo} side. Above {alt}° of altitude the stars may come out elongated; level it and repeat the alignment."
+
+#: alineacion.py
+msgid "Trípode nivelado (desnivel de {g}° ± {s}°)"
+msgstr "Tripod level (tilt of {g}° ± {s}°)"
+
 #: templates/configuracion.html
 msgid "Tu nombre"
 msgstr "Your name"
@@ -10420,6 +10459,13 @@ msgstr "edit"
 msgid "efeméride del MPC"
 msgstr "MPC ephemeris"
 
+#. js
+#: templates/apilado.html
+msgid "eje mayor ×{r} el menor en la última foto"
+msgid_plural "eje mayor ×{r} el menor en las últimas {n} fotos"
+msgstr[0] "major axis ×{r} the minor one in the last photo"
+msgstr[1] "major axis ×{r} the minor one in the last {n} photos"
+
 #: templates/editar_dia.html
 msgid "el 10 % más nítido"
 msgstr "the sharpest 10 %"
@@ -10630,6 +10676,11 @@ msgstr "waiting"
 #: static/js/seguimiento.js
 msgid "esperando al bloqueo"
 msgstr "waiting for lock"
+
+#. js
+#: alineacion.py
+msgid "este"
+msgstr "east"
 
 #. js
 #: templates/apilado.html
@@ -11393,6 +11444,21 @@ msgid "nombre del equipo"
 msgstr "computer name"
 
 #. js
+#: alineacion.py
+msgid "noreste"
+msgstr "northeast"
+
+#. js
+#: alineacion.py
+msgid "noroeste"
+msgstr "northwest"
+
+#. js
+#: alineacion.py
+msgid "norte"
+msgstr "north"
+
+#. js
 #: templates/apilado.html
 msgid "norte arriba"
 msgstr "north up"
@@ -11434,6 +11500,11 @@ msgstr "selected object"
 #: anuncio_ip.py
 msgid "ocho"
 msgstr "eight"
+
+#. js
+#: alineacion.py
+msgid "oeste"
+msgstr "west"
 
 #. js
 #: templates/alineacion.html
@@ -11569,6 +11640,11 @@ msgstr "optical depth τ (deeper to the right)"
 
 #. js
 #: templates/apilado.html
+msgid "prueba con exposiciones de {s} s"
+msgstr "try {s} s exposures"
+
+#. js
+#: templates/apilado.html
 msgid "próximo en {n} foto"
 msgid_plural "próximo en {n} fotos"
 msgstr[0] "next in {n} shot"
@@ -11613,6 +11689,11 @@ msgstr "plane trail"
 #: apilado.py
 msgid "rastro de satélite"
 msgstr "satellite trail"
+
+#. js
+#: templates/apilado.html
+msgid "redondas"
+msgstr "round"
 
 #. js
 #: templates/apilado.html
@@ -11833,6 +11914,21 @@ msgstr "raise {v} minutes"
 #: mosaico.py
 msgid "supuesto (Saturn-C)"
 msgstr "assumed (Saturn-C)"
+
+#. js
+#: alineacion.py
+msgid "sur"
+msgstr "south"
+
+#. js
+#: alineacion.py
+msgid "sureste"
+msgstr "southeast"
+
+#. js
+#: alineacion.py
+msgid "suroeste"
+msgstr "southwest"
 
 #. js
 #: camara_zwo.py
@@ -13460,6 +13556,11 @@ msgstr "⚠️ No connection to the mini PC since {hora}: check the Wi-Fi. Retry
 #: static/js/seguimiento.js
 msgid "⚠️ Sin grabación: {e}"
 msgstr "⚠️ Not recording: {e}"
+
+#. js
+#: templates/apilado.html
+msgid "⚠️ alargadas: la montura se mueve unos {px} px en cada foto de {exp} s"
+msgstr "⚠️ elongated: the mount moves about {px} px in each {exp} s photo"
 
 #. js
 #: templates/apilado.html

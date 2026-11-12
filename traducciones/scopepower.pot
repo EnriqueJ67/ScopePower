@@ -126,6 +126,11 @@ msgid "(supuesta, sin comprobar)"
 msgstr ""
 
 #. js
+#: templates/apilado.html
+msgid "(trazo de {px} px)"
+msgstr ""
+
+#. js
 #: templates/imagen.html
 msgid "(unos {v}′)"
 msgstr ""
@@ -597,6 +602,11 @@ msgstr ""
 msgid "Al llegar a un objeto con GoTo, el móvil lee su descripción (sin Internet, solo los del catálogo)"
 msgstr ""
 
+#. js
+#: templates/apilado.html
+msgid "Alargamiento"
+msgstr ""
+
 #: templates/alineacion.html
 msgid "Alineación"
 msgstr ""
@@ -992,6 +1002,10 @@ msgstr ""
 
 #: espacio_disco.py
 msgid "Atención: el disco está casi lleno. Quedan {espacio}."
+msgstr ""
+
+#: apilado.py
+msgid "Atención: las estrellas salen alargadas. La montura se mueve durante la exposición."
 msgstr ""
 
 #: templates/_asistente.html
@@ -2424,6 +2438,10 @@ msgstr ""
 #. js
 #: templates/constelacion.html
 msgid "Descripción no disponible."
+msgstr ""
+
+#: alineacion.py
+msgid "Desnivel del trípode: {g}°, bajo por el {rumbo}"
 msgstr ""
 
 #. js
@@ -4194,6 +4212,11 @@ msgid "Forma de la curva que lleva el cielo al brillo elegido. Asinh y MTF dan m
 msgstr ""
 
 #. js
+#: templates/apilado.html
+msgid "Forma de las estrellas"
+msgstr ""
+
+#. js
 #: templates/constelacion.html
 msgid "Forma parte del triángulo de verano. Es una estrella rápida y cercana."
 msgstr ""
@@ -5571,6 +5594,10 @@ msgstr ""
 
 #: editor_fotos.py
 msgid "Las estrellas de esta foto aún no están separadas"
+msgstr ""
+
+#: apilado.py
+msgid "Las estrellas vuelven a salir redondas"
 msgstr ""
 
 #: templates/_puesta_estacion.html
@@ -7653,6 +7680,10 @@ msgstr ""
 msgid "Programa ASTAP (línea de órdenes)"
 msgstr ""
 
+#: apilado.py
+msgid "Prueba con exposiciones de {s} segundos."
+msgstr ""
+
 #: flats.py
 msgid "Prueba {n}: {s} s → nivel {nivel} %"
 msgstr ""
@@ -9422,6 +9453,14 @@ msgstr ""
 msgid "Trío de galaxias"
 msgstr ""
 
+#: alineacion.py
+msgid "Trípode desnivelado {g}°: está bajo por el {rumbo}. Por encima de {alt}° de altura las estrellas pueden salir alargadas; nivélalo y repite la alineación."
+msgstr ""
+
+#: alineacion.py
+msgid "Trípode nivelado (desnivel de {g}° ± {s}°)"
+msgstr ""
+
 #: templates/configuracion.html
 msgid "Tu nombre"
 msgstr ""
@@ -10418,6 +10457,13 @@ msgstr ""
 msgid "efeméride del MPC"
 msgstr ""
 
+#. js
+#: templates/apilado.html
+msgid "eje mayor ×{r} el menor en la última foto"
+msgid_plural "eje mayor ×{r} el menor en las últimas {n} fotos"
+msgstr[0] ""
+msgstr[1] ""
+
 #: templates/editar_dia.html
 msgid "el 10 % más nítido"
 msgstr ""
@@ -10627,6 +10673,11 @@ msgstr ""
 
 #: static/js/seguimiento.js
 msgid "esperando al bloqueo"
+msgstr ""
+
+#. js
+#: alineacion.py
+msgid "este"
 msgstr ""
 
 #. js
@@ -11391,6 +11442,21 @@ msgid "nombre del equipo"
 msgstr ""
 
 #. js
+#: alineacion.py
+msgid "noreste"
+msgstr ""
+
+#. js
+#: alineacion.py
+msgid "noroeste"
+msgstr ""
+
+#. js
+#: alineacion.py
+msgid "norte"
+msgstr ""
+
+#. js
 #: templates/apilado.html
 msgid "norte arriba"
 msgstr ""
@@ -11431,6 +11497,11 @@ msgstr ""
 #. js
 #: anuncio_ip.py
 msgid "ocho"
+msgstr ""
+
+#. js
+#: alineacion.py
+msgid "oeste"
 msgstr ""
 
 #. js
@@ -11567,6 +11638,11 @@ msgstr ""
 
 #. js
 #: templates/apilado.html
+msgid "prueba con exposiciones de {s} s"
+msgstr ""
+
+#. js
+#: templates/apilado.html
 msgid "próximo en {n} foto"
 msgid_plural "próximo en {n} fotos"
 msgstr[0] ""
@@ -11610,6 +11686,11 @@ msgstr ""
 
 #: apilado.py
 msgid "rastro de satélite"
+msgstr ""
+
+#. js
+#: templates/apilado.html
+msgid "redondas"
 msgstr ""
 
 #. js
@@ -11830,6 +11911,21 @@ msgstr ""
 
 #: mosaico.py
 msgid "supuesto (Saturn-C)"
+msgstr ""
+
+#. js
+#: alineacion.py
+msgid "sur"
+msgstr ""
+
+#. js
+#: alineacion.py
+msgid "sureste"
+msgstr ""
+
+#. js
+#: alineacion.py
+msgid "suroeste"
 msgstr ""
 
 #. js
@@ -13454,6 +13550,11 @@ msgstr ""
 
 #: static/js/seguimiento.js
 msgid "⚠️ Sin grabación: {e}"
+msgstr ""
+
+#. js
+#: templates/apilado.html
+msgid "⚠️ alargadas: la montura se mueve unos {px} px en cada foto de {exp} s"
 msgstr ""
 
 #. js
