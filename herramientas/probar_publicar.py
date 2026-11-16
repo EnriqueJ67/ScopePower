@@ -85,7 +85,10 @@ PLANTILLAS = os.path.join(RAIZ, "plantillas_minimas")
 os.makedirs(PLANTILLAS)
 for nombre_plantilla in ("index.html", "planetario.html"):
     with open(os.path.join(PLANTILLAS, nombre_plantilla), "w", encoding="utf-8") as f:
-        f.write('<!doctype html><html lang="{{ lang }}"><title>{{ _("Galería") }}</title><p>{{ raiz }}/galeria.json {{ comun }}</p></html>')
+        f.write('<!doctype html><html lang="{{ lang }}"><title>{{ _("Galería") }}</title>'
+                + ('<!--og-imagen-->' if nombre_plantilla == "index.html" else '') + '<p>{{ raiz }}/galeria.json {{ comun }}</p></html>')
+# La de la página de cada foto, la de verdad: el PHP real la rellena (casos_vista_previa)
+shutil.copy(os.path.join("templates", "publico", "foto.html"), PLANTILLAS)
 publicar.CARPETA_PLANTILLAS = PLANTILLAS
 publicar.CARPETA_ESTATICOS = os.path.join(RAIZ, "sin_estaticos")
 publicar.CARPETA_ATLAS = os.path.join(RAIZ, "sin_atlas")
@@ -636,7 +639,8 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     assert cfg["configurado"] and cfg["nombre"] == NOMBRE and cfg["autor_publico"] == "Enrique Jiménez", cfg
     assert publicar.url_publica(cfg) == f"http://127.0.0.1:1/galeria/{NOMBRE}/"
     r = publicar.probar()
-    assert r.get("ok") and r.get("version") == 3 and r.get("registrado") is False, r
+    # El PHP real escribe las páginas de cada foto (versión 4); el servidor falso solo copia las del visor
+    assert r.get("ok") and r.get("version") == (3 if servidor else 4) and r.get("registrado") is False, r
     assert r.get("dueno") is True and r.get("contacto") == CONTACTO, r
     print(f"✅ {etiqueta}: endpoint responde a probar ({r})")
 
@@ -670,7 +674,9 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     V = publicar.version.VERSION
     for p in PAGINAS:
         assert f"_comun/{V}/publico/paginas/{p}" in remoto and f"{NOMBRE}/{p}" in remoto, (p, sorted(remoto))
-    assert sha(remoto[f"{NOMBRE}/en/index.html"]) == sha(remoto[f"_comun/{V}/publico/paginas/en/index.html"])
+    # Iguales a las genéricas salvo lo que el PHP real añade en la marca de la vista previa
+    sin_og = lambda ruta: re.sub(r"(?s)(?<=<!--og-imagen-->).*?<!--/og-imagen-->", "", open(ruta, encoding="utf-8").read())
+    assert sin_og(remoto[f"{NOMBRE}/en/index.html"]) == sin_og(remoto[f"_comun/{V}/publico/paginas/en/index.html"])
     assert "Gallery" in open(remoto[f"{NOMBRE}/en/index.html"], encoding="utf-8").read()
     if servidor:
         assert not any(a == "subir" and r.startswith(NOMBRE + "/") and not r.endswith((".jpg", ".json")) for a, r in servidor.registro), \
@@ -678,6 +684,9 @@ def casos(endpoint, raiz_servidor, servidor=None, etiqueta=""):
     for base in ("M_31_20260929_231500", "Sol_20261022_120000"):
         for sufijo in (".jpg", "_mini.jpg", ".json"):
             assert f"{NOMBRE}/{base}{sufijo}" in remoto, sorted(remoto)
+        # El PHP real escribe la página de cada foto para la vista previa; la app lo sabe y comparte esa dirección
+        assert (f"{NOMBRE}/f/{base}.html" in remoto) == (servidor is None), sorted(remoto)
+    assert publicar.estado()["vista_previa"] is (servidor is None), publicar.estado()
     assert f"{NOMBRE}/M_31_20260929_231500_cielo.jpg" in remoto and f"{NOMBRE}/Sol_20261022_120000_cielo.jpg" not in remoto, sorted(remoto)
     assert f"{NOMBRE}/Otra_20261022_140000.jpg" not in remoto
     im = cv2.imread(remoto[f"{NOMBRE}/M_31_20260929_231500.jpg"])
@@ -1176,7 +1185,16 @@ def casos_visor():
     publicar.CARPETA_ATLAS = os.path.join("static", "atlas")
     salida = os.path.join(RAIZ, "visor_real")
     generados = publicar.visor(salida)
-    assert {"index.html", "en/index.html", "planetario.html", "en/planetario.html"} == set(generados), generados
+    assert {"index.html", "en/index.html", "planetario.html", "en/planetario.html", "foto.html", "en/foto.html"} == set(generados), generados
+    # La plantilla de la página de cada foto: lo rellena el endpoint (@@...@@) y lo común queda un nivel más arriba (f/)
+    foto = open(generados["foto.html"], encoding="utf-8").read()
+    for marca in ("@@TITULO@@", "@@DESCRIPCION@@", "@@IMAGEN@@", "@@URL@@", "@@IMAGEN_RELATIVA@@", "@@ID@@", 'property="og:image"'):
+        assert marca in foto, marca
+    assert "{{" not in foto and "Ver la foto en la galería" in foto, foto[-600:]
+    icono = re.search(r'rel="icon" href="([^"]+)"', foto).group(1)
+    assert urllib.parse.urljoin("https://hosting.invalid/galeria/fulano/f/x.html", icono) == \
+        f"https://hosting.invalid/galeria/_comun/{publicar.version.VERSION}/publico/scopepower.ico", icono
+    assert "<!--og-imagen-->" in open(generados["index.html"], encoding="utf-8").read(), "index.html sin la marca de la imagen"
     pl = open(generados["planetario.html"], encoding="utf-8").read()
     assert "atlas/src/index.js" not in pl and "/atlas/dso-catalog.js" in pl and "url_for" not in pl, pl[:400]
     es = open(generados["index.html"], encoding="utf-8").read()
@@ -1213,6 +1231,71 @@ def casos_visor():
     publicar.CARPETA_ESTATICOS = os.path.join(RAIZ, "sin_estaticos")
     publicar.CARPETA_ATLAS = os.path.join(RAIZ, "sin_atlas")
     print("✅ visor en español y en inglés con el entorno Jinja propio, genérico (sin autor ni dirección) y en _comun; idioma de la app intacto; CATEGORIAS del PHP = las de la app")
+
+
+def casos_vista_previa(endpoint, raiz_servidor):
+    """
+    PHP real: con cada galeria.json el endpoint escribe f/<id>.html con las etiquetas og: de cada foto
+    (escapadas, con direcciones absolutas) y pone la imagen de la más reciente en index.html; las de las
+    fotos retiradas desaparecen, y todas sin índice. Nadie las lista ni las borra.
+    """
+    otro = publicar.ClienteHosting(endpoint, "clave-de-otro-usuario-0123456789", "otro-usuario")
+
+    def subir(ruta, datos):
+        otro.subir(ruta, datos, hashlib.sha256(datos).hexdigest())
+
+    ligera = cv2.imencode(".jpg", np.full((600, 900, 3), 40, np.uint8))[1].tobytes()
+    mini = cv2.imencode(".jpg", np.full((320, 480, 3), 40, np.uint8))[1].tobytes()
+    ruido = np.random.default_rng(5).integers(0, 255, (500, 700, 3), dtype=np.uint8)
+    pesada = cv2.imencode(".jpg", ruido, [cv2.IMWRITE_JPEG_QUALITY, 90])[1].tobytes()
+    assert len(pesada) > 300 * 1024, len(pesada)
+    for nombre, datos in (("vp_ligera.jpg", ligera), ("vp_mini.jpg", mini), ("vp_pesada.jpg", pesada)):
+        subir(f"otro-usuario/{nombre}", datos)
+
+    def ficha(id_, objeto, jpg, **extra):
+        return dict({"id": id_, "objeto": objeto, "tipo": "Galaxia", "fecha": "13/11/2026 20:04", "ra": "22 29 38", "dec": "-20 50 13",
+                     "n_fotos": 20, "exposicion": 20.0, "ficheros": {"jpg": jpg, "mini": "vp_mini.jpg"},
+                     "v": {"jpg": "a1b2c3d4e5", "mini": "0f0f0f0f0f"}}, **extra)
+    indice = {"version": 1, "autor": "Ana <Astro>", "nombre": "otro-usuario", "fotos": [
+        ficha("vp_nueva", 'M 31 "><script>alert(1)</script>', "vp_ligera.jpg"),
+        ficha("vp_pesada", "Hélice", "vp_pesada.jpg", tipo="Nebulosa planetaria", n_fotos=547, exposicion=0.000144)]}
+    subir("otro-usuario/galeria.json", json.dumps(indice).encode())
+
+    base = endpoint.split("/scopepower/")[0] + "/galeria/otro-usuario/"
+    carpeta = os.path.join(raiz_servidor, "otro-usuario")
+    leer = lambda *partes: open(os.path.join(carpeta, *partes), encoding="utf-8").read()
+    nueva = leer("f", "vp_nueva.html")
+    assert "@@" not in nueva and "<script>alert" not in nueva and "&lt;script&gt;alert(1)" in nueva, nueva[:900]
+    assert f'property="og:image" content="{base}vp_ligera.jpg?v=a1b2c3d4e5"' in nueva, nueva[:900]
+    assert f'property="og:url" content="{base}f/vp_nueva.html"' in nueva
+    assert 'og:image:width" content="900"' in nueva and 'og:image:height" content="600"' in nueva
+    assert "Galaxia · 13/11/2026 20:04 · 6,7 min · 20 × 20 s · Ana &lt;Astro&gt;" in nueva, re.findall(r'og:description" content="[^"]*"', nueva)
+    assert 'src="../vp_ligera.jpg?v=a1b2c3d4e5"' in nueva and 'href="../#vp_nueva"' in nueva
+    pesada_html = leer("f", "vp_pesada.html")
+    assert f'property="og:image" content="{base}vp_mini.jpg?v=0f0f0f0f0f"' in pesada_html, "la de 1600 px pasa de 300 KB: va la miniatura"
+    assert "547 × 144 µs" in pesada_html
+    portada = f'property="og:image" content="{base}vp_ligera.jpg?v=a1b2c3d4e5"'
+    assert portada in leer("index.html") and f'property="og:url" content="{base}"' in leer("index.html")
+    assert portada in leer("en", "index.html") and f'property="og:url" content="{base}en/"' in leer("en", "index.html")
+    assert "og:image" not in leer("planetario.html"), "solo index.html lleva la marca"
+    # Son del endpoint: la app no las ve al listar ni puede borrarlas
+    assert not any(r.endswith(".html") for r in otro.listar("otro-usuario/")), otro.listar("otro-usuario/")
+    try:
+        otro.borrar("otro-usuario/f/vp_nueva.html")
+        raise AssertionError("una página de foto se pudo borrar desde la app")
+    except publicar.ErrorHosting as e:
+        assert "solo se admiten .jpg y .json" in str(e), e
+        pass
+    # Una foto menos: su página fuera. Sin índice: ninguna, y index.html sin imagen
+    indice["fotos"].pop()
+    subir("otro-usuario/galeria.json", json.dumps(indice).encode())
+    assert sorted(os.listdir(os.path.join(carpeta, "f"))) == ["vp_nueva.html"], os.listdir(os.path.join(carpeta, "f"))
+    otro.borrar("otro-usuario/galeria.json")
+    assert os.listdir(os.path.join(carpeta, "f")) == [] and "og:image" not in leer("index.html")
+    for nombre in ("vp_ligera.jpg", "vp_mini.jpg", "vp_pesada.jpg"):
+        otro.borrar(f"otro-usuario/{nombre}")
+    print("✅ PHP real: página de cada foto con su imagen (la miniatura si la grande pesa más de 300 KB), textos escapados, "
+          "imagen de la galería en index.html, y fuera las de fotos retiradas")
 
 
 def servidor_php(carpeta):
@@ -1275,6 +1358,7 @@ try:
         print("⚠️ php no está en el PATH: no se prueba hosting/publicar.php de verdad")
     else:
         casos(endpoint_php, os.path.join(RAIZ, "php", "galeria"), None, "PHP real")
+        casos_vista_previa(endpoint_php, os.path.join(RAIZ, "php", "galeria"))
     print("✅ Todo bien")
 except AssertionError as e:
     print(f"❌ {e}")

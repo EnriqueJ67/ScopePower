@@ -9695,6 +9695,10 @@ msgstr "Open in the gallery"
 msgid "Ver la foto"
 msgstr "See the photo"
 
+#: templates/publico/foto.html
+msgid "Ver la foto en la galería"
+msgstr "See the photo in the gallery"
+
 #. js
 #: templates/imagen.html
 msgid "Ver la galería"

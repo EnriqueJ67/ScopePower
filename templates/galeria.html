@@ -169,7 +169,7 @@
     <!-- Galería pública: publicar o retirar esta foto y, si está publicada, su enlace en el hosting -->
     <div class="lightbox-publico" onclick="event.stopPropagation()">
     <button id="lightbox-publicar" class="btn btn-secondary" onclick="event.stopPropagation(); publicarFoto(this.dataset.nombre, this)"><svg><use href="#i-publicar"/></svg><span>{{ _("Publicar") }}</span></button>
-    <button id="lightbox-enlace" class="btn btn-secondary" onclick="event.stopPropagation(); compartirEnlacePublico(PUBLICAR.url + '#' + this.dataset.id)" style="display: none;" title="{{ _('Copiar o compartir el enlace de esta foto en la galería pública') }}"><svg><use href="#i-compartir"/></svg>{{ _("Enlace público") }}</button>
+    <button id="lightbox-enlace" class="btn btn-secondary" onclick="event.stopPropagation(); compartirEnlacePublico(enlaceFotoPublica(this.dataset.id))" style="display: none;" title="{{ _('Copiar o compartir el enlace de esta foto en la galería pública') }}"><svg><use href="#i-compartir"/></svg>{{ _("Enlace público") }}</button>
     </div>
     <a id="lightbox-editar" class="btn btn-secondary" href="#" onclick="event.stopPropagation()" style="display: none;"><svg><use href="#i-ajustes"/></svg>{{ _("Editar") }}</a>
     <!-- Apilados y fotogramas que salen de un vídeo que sigue en el mini PC: abrir el vídeo en el visor -->
@@ -746,6 +746,11 @@
             if (!d.ok) alert(d.error || _("No se pudo"));
         } catch (e) {}
         setTimeout(vigilarPublicar, 500);
+    }
+    // El enlace de una foto: su página (f/<id>.html, con la foto en la vista previa de WhatsApp) si el
+    // hosting las escribe (publicar.php 4); si no, la galería con la foto abierta
+    function enlaceFotoPublica(id) {
+        return PUBLICAR.vista_previa ? PUBLICAR.url + "f/" + encodeURIComponent(id) + ".html" : PUBLICAR.url + "#" + id;
     }
     // El enlace de la galería pública (o de una foto): menú nativo del móvil si lo hay, si no al portapapeles
     async function compartirEnlacePublico(url) {

@@ -7,6 +7,12 @@ día de la release. El número de versión vive en `version.py`.
 
 - Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
   (en inglés, a su versión `en/`).
+- Galería pública: al compartir una foto por WhatsApp o Telegram sale su vista previa, con la imagen, el
+  nombre del objeto, el tipo, la fecha, la integración y el autor. Cada foto tiene su página
+  (`f/<id>.html`), que escribe el endpoint (`hosting/publicar.php`, versión 4) a partir de la plantilla
+  `foto.html`, y que lleva enseguida a la galería con la foto abierta. «Compartir» y «Enlace público»
+  dan esa dirección; el enlace de la galería entera enseña la foto más reciente. Nueva clave
+  `url_galeria` en `publicar_config.php`.
 - Enfoque con la Bahtinov, afinado con las fotos reales de Altair del 5-nov (con nubes): con la máscara
   real las rayas finas salen de 36 px afuera y ahí se miden y se ven, con un blanco propio, así que ahora
   se ve la cruz afilada. Antes no se encontraba la cruz en esas fotos. Con nubes, un píxel caliente ya no

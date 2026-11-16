@@ -9693,6 +9693,10 @@ msgstr ""
 msgid "Ver la foto"
 msgstr ""
 
+#: templates/publico/foto.html
+msgid "Ver la foto en la galería"
+msgstr ""
+
 #. js
 #: templates/imagen.html
 msgid "Ver la galería"
