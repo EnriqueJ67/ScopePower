@@ -53,6 +53,15 @@ El endpoint reparte los permisos para que nadie pueda colar código en la web de
   sí (`"ignorado": true`), no guarda nada y coloca las genéricas, para que su cola no se atasque.
   Su botón de la casita lleva a la raíz del hosting, dos carpetas por encima de `galeria/<nombre>/`,
   y en inglés a `en/`: en un hosting propio sin esa carpeta, esa versión del botón da 404.
+- **La página de cada foto** (`<nombre>/f/<id>.html`): la vista previa de un enlace en WhatsApp o
+  Telegram sale de las etiquetas `og:` de la página, y su robot no ejecuta JavaScript ni ve lo que va
+  tras el `#`. Por eso, con cada `galeria.json`, el endpoint escribe una página por foto con su título,
+  su descripción (tipo, fecha, integración y autor) y su imagen: la de 1600 px si pesa hasta 300 KB, si
+  no la miniatura. Quien abre el enlace salta a la galería con la foto abierta. La plantilla es
+  `foto.html` de `_comun/<versión>/publico/paginas/`; los datos vienen del `galeria.json` ya comprobado
+  y van escapados. A `index.html` le añade la imagen de la foto más reciente. Las páginas de fotos
+  retiradas se borran, y todas si se borra `galeria.json`. «Compartir» en la galería pública y
+  «Enlace público» en la app dan esta dirección cuando el endpoint es de la versión 4 o posterior.
 
 ## Instalación en un hosting propio (una vez)
 
@@ -75,6 +84,8 @@ cPanel compartidos.
      el hosting reciba el visor y el motor del planetario.
    - `contacto`: tu correo, para el enlace «Informar de un problema» del pie de las galerías.
      Vacío: no sale.
+   - `url_galeria`: `https://tu-dominio/galeria`, para las direcciones completas de la vista previa
+     de los enlaces. Vacío: se deduce de la petición, que vale si `galeria/` está junto a `scopepower/`.
 3. En el ScopePower que vaya a publicar ahí: Configuración > Galería pública, dirección del
    hosting (`https://tu-dominio`), nombre, «Probar conexión» (reserva el nombre si el registro
    está abierto) y a publicar.

@@ -879,6 +879,9 @@ def _anotar_hosting(estado, info):
     """Lo que dice el endpoint al probar y que va al índice (contacto) o decide qué se encola (si somos el dueño)."""
     global _sin_permiso_comun
     estado["contacto"] = str(info.get("contacto") or "")
+    # publicar.php 4 escribe f/<id>.html para cada foto: el enlace que se comparte enseña la foto en WhatsApp
+    if "version" in info:
+        estado["vista_previa"] = int(info.get("version") or 0) >= 4
     if info.get("dueno") is False and not _sin_permiso_comun:
         _sin_permiso_comun = True
         log.info("Galería pública: este nombre no es el dueño del hosting: lo común y las páginas las pone el hosting")
@@ -1089,7 +1092,8 @@ def estado():
     cfg = leer_config()
     with _lock:
         d = dict(ESTADO)
-    d.update({"configurado": cfg["configurado"], "url": url_publica(cfg), "nombre": cfg["nombre"], "falta": por_que_no(cfg)})
+    d.update({"configurado": cfg["configurado"], "url": url_publica(cfg), "nombre": cfg["nombre"], "falta": por_que_no(cfg),
+              "vista_previa": bool(_leer_estado().get("vista_previa"))})
     return d
 
 
