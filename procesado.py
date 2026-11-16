@@ -916,9 +916,16 @@ def calibrar_color(rgb, balance):
 #     de la Vía Láctea la dispersión a 4-16 px son estrellas débiles, no ruido.
 #     Se mide en los planos de color (canal - luminancia), donde las estrellas
 #     casi se cancelan; con canales independientes var(L) = suma var(C) / 6.
-#   - El color se limpia más fuerte que la luminancia, pero se conserva donde
-#     la luminancia tiene estructura (estrellas, bordes): ahí su ruido no se ve
-#     y sin ello las estrellas débiles perdían el color.
+#   - El color se limpia más fuerte que la luminancia. Donde la luminancia
+#     tiene estructura (estrellas, bordes) el color la sigue: se conserva la
+#     parte del color proporcional a la luminancia (beta * wL, con beta medido
+#     en el entorno), así las estrellas débiles no pierden el color. El resto
+#     del color pasa entero solo donde la estructura es extensa (nebulosa,
+#     cúmulo denso), no junto a una estrella suelta. Hasta nov-2026 pasaba
+#     entero junto a cualquier estrella, con su ruido: la huella de una
+#     estrella en las escalas de 4 a 16 px llega a 16-24 px de ella, y la
+#     saturación convertía ese disco de ruido en manchas oscuras de color
+#     alrededor de cada estrella (Hélice del 13-nov-2026).
 #   - En el cielo no hay detalles oscuros: un hueco de la luminancia solo se
 #     conserva si tiene algo brillante al lado (ver ganancia_huecos).
 
@@ -929,6 +936,10 @@ ANCHOS_ENERGIA = (3, 5)                 # entorno de la energía en las escalas 
 REDUCCION_ESCALA = (1, 1, 2, 4, 8)
 PESO_LUMINANCIA = (1.0, 1.0, 0.9, 0.7, 0.0)     # la escala de 16 px de la luminancia no se toca: ahí ya es cielo real
 RAZON_RUIDO_MAX = 0.7                   # el ruido de una escala no pasa de 0,7 veces el de la anterior: lo demás es señal
+# Vecindario (a la resolución de cada escala) donde se busca el entorno con menos energía
+# para la guía extensa del color: con 9 una estrella suelta deja de contar igual que sin
+# guía, y la Pacman y M 57 conservan el color de la nebulosa (con 3 y 5 volvían los huecos)
+NUCLEO_GUIA_EXTENSA = np.ones((9, 9), np.uint8)
 
 
 def _caja2(img, n):
@@ -978,16 +989,19 @@ def reducir_ruido(rgb, fuerza, progreso=None):
             return _caja2(cv2.resize(cuadrados, tam(f), interpolation=cv2.INTER_AREA), 5 if ancha else 3)
         return _caja2(cuadrados, 2 * ANCHOS_ENERGIA[j] + 1 if ancha else ANCHOS_ENERGIA[j])
 
-    def ganancia(wj, j, sig, umbral):
+    def ganancia_de(e, j, sig, umbral):
         """
         Wiener local, a la resolución de la escala: 1 donde la energía del entorno
-        supera de largo la del ruido (umbral² sigma² por el nivel local), 0 donde
-        es solo ruido.
+        `e` supera de largo la del ruido (umbral² sigma² por el nivel local), 0
+        donde es solo ruido.
         """
-        r = nivel[REDUCCION_ESCALA[j]] / np.maximum(energia(cv2.multiply(wj, wj), j), 1e-20)
+        r = nivel[REDUCCION_ESCALA[j]] / np.maximum(e, 1e-20)
         r *= -((umbral * sig) ** 2)
         r += 1.0
         return np.clip(r, 0.0, 1.0, out=r)
+
+    def ganancia(wj, j, sig, umbral):
+        return ganancia_de(energia(cv2.multiply(wj, wj), j), j, sig, umbral)
 
     def ganancia_huecos(wj, j, sig, umbral, g):
         """
@@ -1039,17 +1053,34 @@ def reducir_ruido(rgb, fuerza, progreso=None):
             sig_l, sig_r, sig_b = (min(s, RAZON_RUIDO_MAX * a) for s, a in zip((sig_l, sig_r, sig_b), anterior))
         anterior = (sig_l, sig_r, sig_b)
 
-        guia = ganancia(wL, j, sig_l, 1.5)                # dónde tiene estructura la luminancia
+        energia_L = energia(cv2.multiply(wL, wL), j)
+        guia = ganancia_de(energia_L, j, sig_l, 1.5)      # dónde tiene estructura la luminancia
         if PESO_LUMINANCIA[j] > 0:
             umbral = k * PESO_LUMINANCIA[j]
-            g = ganancia(wL, j, sig_l, umbral)
+            g = ganancia_de(energia_L, j, sig_l, umbral)
             sumar(oL, wL, g, cantidad, huecos=ganancia_huecos(wL, j, sig_l, umbral, g))
         else:
             oL += wL
+        # La guía con la energía más baja de los entornos vecinos: una estrella suelta no
+        # la sube (algún vecino ya no la ve) y una nebulosa o un cúmulo denso sí
+        guia_extensa = ganancia_de(cv2.erode(energia_L, NUCLEO_GUIA_EXTENSA), j, sig_l, 1.5)
         for wC, oC, sig in ((wR, oR, sig_r), (wB, oB, sig_b)):
             g = ganancia(wC, j, sig, k_color)
-            np.maximum(g, guia, out=g)
-            sumar(oC, wC, g, cantidad_color)
+            np.maximum(g, guia_extensa, out=g)
+            # Donde hay estructura de luminancia el color la sigue: beta = <wC wL> / <wL²>
+            # en el entorno es el color de esa estructura (el de una estrella rojiza es
+            # proporcional a su luz) y el ruido de color, que no se parece a la luminancia,
+            # no entra. El resto del color (wC - modelo) pasa según su propia ganancia o,
+            # dentro de una nebulosa, según la guía extensa, como antes de nov-2026.
+            modelo = energia(cv2.multiply(wC, wL), j)
+            modelo /= np.maximum(energia_L, 1e-20)
+            np.clip(modelo, -1.0, 2.0, out=modelo)
+            modelo *= guia
+            if modelo.shape != wL.shape:
+                modelo = cv2.resize(modelo, (w, h), interpolation=cv2.INTER_LINEAR)
+            modelo *= wL
+            sumar(oC, wC - modelo, g, cantidad_color)
+            oC += modelo
         log.debug("ruido escala %d: sigma L %.3f, R-L %.3f, B-L %.3f", j + 1, sig_l, sig_r, sig_b)
         if progreso:
             try:

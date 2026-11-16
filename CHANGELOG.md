@@ -41,6 +41,11 @@ día de la release. El número de versión vive en `version.py`.
   aparta de la vertical el eje de acimut y hacia qué lado cae, medido con las mismas fotos resueltas. A partir
   de 1° se avisa, porque SynScan sigue el cielo como si estuviera nivelado y por encima de unos 70° de altura
   la montura deriva.
+- Arreglado: manchas oscuras de color alrededor de las estrellas al procesar (se veían en el cielo de la Nebulosa
+  de la Hélice del 13-nov). La reducción de ruido dejaba sin tocar el ruido de color hasta unos 20 px alrededor
+  de cada estrella y la saturación lo volvía manchas. Ahora junto a una estrella suelta el color sigue la forma y
+  el color de la propia estrella, y en las nebulosas se conserva como antes. Con los mismos ajustes, alguna
+  nebulosa puede salir un poco menos roja: antes el ruido de color, al pasar por el SCNR, la teñía algo de rojo.
 
 ## 1.3.0 · 2026-11-04
 
