@@ -46,6 +46,11 @@ día de la release. El número de versión vive en `version.py`.
   de cada estrella y la saturación lo volvía manchas. Ahora junto a una estrella suelta el color sigue la forma y
   el color de la propia estrella, y en las nebulosas se conserva como antes. Con los mismos ajustes, alguna
   nebulosa puede salir un poco menos roja: antes el ruido de color, al pasar por el SCNR, la teñía algo de rojo.
+- Arreglado: zonas oscuras de 20-40 px por todo el cielo con la reducción de ruido baja (Hélice del 13-nov con
+  ruido 0,25 y una curva con el negro subido). El relleno de los huecos del cielo iba en proporción a la
+  reducción de ruido y solo existía con «estrellas aparte»: ahora el cielo se limpia del todo desde 0,25 (el
+  deslizador sigue graduando el grano fino) y también en la foto normal, a la escala del moteado. Los huecos
+  hondos no se rellenan, para no borrar nebulosas oscuras como las de la Trompa de Elefante.
 
 ## 1.3.0 · 2026-11-04
 
