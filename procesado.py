@@ -18,7 +18,8 @@
 #      - base (color_base): reneutralizar el fondo y un solo color por estrella;
 #        necesita el vecindario y las máscaras de estrellas.
 #      - ajustes rápidos (ajustes_rapidos): temperatura de color, brillo general,
-#        SCNR (quitar dominante verde), saturación y curvas por puntos de control.
+#        SCNR (quitar dominante verde), saturación (la general y la de los colores
+#        elegidos con el cuentagotas) y curvas por puntos de control.
 #        Son píxel a píxel (o por tabla), así que el editor de la galería los
 #        repite en el navegador sobre la base en 8 bits para verlos al instante
 #        (static/js/retoque.js); al guardar se hacen aquí en coma flotante a
@@ -1700,19 +1701,122 @@ def color_estrellas_uniforme(rgbf, estrellas, sigma_px=4.0, cociente=False):
     return np.clip(L + C * (1.0 - mezcla) + Cm * mezcla, 0, 1).astype(np.float32)
 
 
-def saturar(rgbf, factor, estrellas=None, factor_estrellas=None):
+# ── Color selectivo (el cuentagotas del editor de la galería) ──
+#
+# El usuario toca un punto de la foto y cambia la saturación solo de ese color.
+# De cada color se guardan cuatro números: el tono (H de HSV, 0..360°) y la croma
+# (V - mínimo, 0..1) del punto tocado, medidos donde se aplica la saturación
+# (después de la temperatura, el brillo y el SCNR, antes de las curvas), la
+# anchura del rango en grados de tono y su saturación (1 = sin cambio, 0 = gris).
+# Cada píxel entra con un peso 0..1 que es el producto de dos caídas suaves:
+#   - por tono: 1 en el tono tocado y coseno alzado hasta 0 a `anchura` grados;
+#   - por croma: 0 por debajo de RAMPA_CROMA[0] veces la croma tocada y 1 desde
+#     RAMPA_CROMA[1] veces (smoothstep entre las dos).
+# y su saturación, ya multiplicada por la general, se multiplica además por
+# 1 + (saturación - 1)·peso, en el mismo paso HSV (tono y brillo fijos). Al
+# subirla no se recorta en 1: se acerca a 1 con una tangente hiperbólica,
+#   S' = S + (1 - S)·tanh((S·m - S) / (1 - S))
+# porque con el recorte los rojos de la Pacman (9-oct-2026) a ×1,8 quedaban
+# planos, a tope, con el borde duro (el 0,4 % de la foto; así, el 0,01 %).
+# La caída por croma es la que protege el cielo: el tono de un píxel casi gris
+# es ruido, y sin ella subir el rojo ×2 teñía el fondo de la Pacman 1,2 niveles
+# y subía su moteado de color de 2,10 a 2,52; con ella, 0,03 niveles y 2,18. Es
+# ancha a propósito (de 0,1 a 1 vez la croma tocada): con una estrecha (0,25 a
+# 0,75) el paso de la parte rosada de la nebulosa a la roja se notaba. Para
+# incluir la parte débil de una nebulosa se toca la parte débil. Sin colores, o
+# con todos a saturación 1, no se hace nada. La misma cuenta en static/js/retoque.js.
+
+MAX_COLORES = 4
+ANCHURA_COLOR = 45.0                  # grados de tono: anchura por defecto del rango
+ANCHURAS_COLOR = (15.0, 90.0)         # mínima y máxima
+SATURACION_COLOR_MAX = 3.0
+RAMPA_CROMA = (0.1, 1.0)              # el peso sube de 0 a 1 entre estas fracciones de la croma tocada
+RAMPA_CROMA_MIN = (2.0 / 255.0, 8.0 / 255.0)   # ...y nunca por debajo de estos niveles (el tono ahí es ruido)
+
+
+def normalizar_colores(colores):
+    """
+    Colores del cuentagotas tal como llegan de la web o del JSON -> lista limpia
+    [{"tono", "croma", "anchura", "saturacion"}, ...] (MAX_COLORES como mucho);
+    [] si no hay ninguno válido.
+    """
+    limpios = []
+    if not isinstance(colores, (list, tuple)):
+        return limpios
+    for c in colores:
+        if not isinstance(c, dict):
+            continue
+        try:
+            tono, croma = float(c["tono"]), float(c["croma"])
+            anchura = float(c.get("anchura", ANCHURA_COLOR))
+            saturacion = float(c.get("saturacion", 1.0))
+        except (TypeError, ValueError, KeyError):
+            continue
+        if not all(math.isfinite(v) for v in (tono, croma, anchura, saturacion)):
+            continue
+        limpios.append({"tono": round(tono % 360.0, 1), "croma": round(min(max(croma, 0.0), 1.0), 4),
+                        "anchura": round(min(max(anchura, ANCHURAS_COLOR[0]), ANCHURAS_COLOR[1]), 1),
+                        "saturacion": round(min(max(saturacion, 0.0), SATURACION_COLOR_MAX), 3)})
+        if len(limpios) >= MAX_COLORES:
+            break
+    return limpios
+
+
+def peso_color(H, C, color):
+    """
+    Peso 0..1 con que cada píxel entra en el rango de `color` (un dict de
+    normalizar_colores). H: tono en grados (0..360); C: croma (V - mínimo, 0..1).
+    """
+    d = np.abs((H - color["tono"] + 180.0) % 360.0 - 180.0)
+    por_tono = np.where(d < color["anchura"], 0.5 * (1.0 + np.cos(np.pi * d / color["anchura"])), 0.0)
+    c0 = max(RAMPA_CROMA[0] * color["croma"], RAMPA_CROMA_MIN[0])
+    c1 = max(RAMPA_CROMA[1] * color["croma"], RAMPA_CROMA_MIN[1])
+    t = np.clip((C - c0) / (c1 - c0), 0.0, 1.0)
+    return (por_tono * t * t * (3.0 - 2.0 * t)).astype(np.float32)
+
+
+def ganancia_colores(hsv, colores):
+    """
+    Por cuánto multiplica la saturación de cada píxel el color selectivo: el
+    producto de 1 + (saturación - 1)·peso de cada color. hsv: la imagen en HSV
+    (H 0..360, S y V 0..1) ANTES de la saturación general, que es donde se
+    midieron el tono y la croma del color. None si no hay ningún color que
+    cambie algo.
+    """
+    activos = [c for c in normalizar_colores(colores) if abs(c["saturacion"] - 1.0) >= 1e-3]
+    if not activos:
+        return None
+    H, C = hsv[..., 0], hsv[..., 1] * hsv[..., 2]
+    ganancia = np.ones(H.shape, dtype=np.float32)
+    for c in activos:
+        ganancia *= 1.0 + (c["saturacion"] - 1.0) * peso_color(H, C, c)
+    return ganancia
+
+
+def saturar(rgbf, factor, estrellas=None, factor_estrellas=None, colores=None):
     """
     Multiplica la saturación por `factor`; donde `estrellas` (máscara 0..1) vale 1
     se usa `factor_estrellas` en su lugar (None = el mismo), para que los halos
     de las estrellas no hereden la saturación pensada para la nebulosa.
+    colores: los del cuentagotas (ver arriba), que multiplican además la
+    saturación de los píxeles de su rango; None o vacío = nada.
     """
     factor = float(factor)
     fe = factor if factor_estrellas is None or estrellas is None else float(factor_estrellas)
-    if abs(factor - 1.0) < 1e-3 and abs(fe - 1.0) < 1e-3:
+    hay_colores = any(abs(c["saturacion"] - 1.0) >= 1e-3 for c in normalizar_colores(colores))
+    if abs(factor - 1.0) < 1e-3 and abs(fe - 1.0) < 1e-3 and not hay_colores:
         return rgbf
     hsv = cv2.cvtColor(np.clip(rgbf, 0, 1).astype(np.float32), cv2.COLOR_RGB2HSV)   # H 0..360, S y V 0..1
     ganancia = factor if abs(fe - factor) < 1e-3 else factor * (1.0 - estrellas) + fe * estrellas
+    selectiva = ganancia_colores(hsv, colores) if hay_colores else None
     hsv[..., 1] = np.clip(hsv[..., 1] * ganancia, 0, 1)
+    if selectiva is not None:
+        # El color selectivo, sobre la saturación ya multiplicada por la general: al
+        # subir se acerca a 1 sin recortarse (los rojos a tope quedaban planos)
+        S = hsv[..., 1]
+        buscada = S * selectiva
+        hueco = np.maximum(1.0 - S, 1e-6)
+        hsv[..., 1] = np.clip(np.where(buscada > S, S + hueco * np.tanh((buscada - S) / hueco), buscada), 0, 1)
     return np.clip(cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB), 0, 1).astype(np.float32)
 
 
@@ -1916,14 +2020,15 @@ def color_base(rgb, ajustes):
 def ajustes_rapidos(f, ajustes, estrellas=None, pequenas=None, fondo=None):
     """
     Segunda parte de la etapa de color, píxel a píxel: temperatura, brillo, SCNR,
-    saturación y curvas, en este orden. Es lo que el navegador repite en vivo
+    saturación (con el color selectivo del cuentagotas, ajustes["colores"]) y
+    curvas, en este orden. Es lo que el navegador repite en vivo
     sobre la base en 8 bits (static/js/retoque.js); aquí se hace en float.
     fondo: nivel del cielo por canal (fondo_cielo) si ya está medido.
     """
     f = temperatura_color(f, ajustes.get("temperatura", 0.0), fondo=fondo)
     f = brillo_general(f, ajustes.get("brillo", 0.0))
     f = scnr_verde(f, ajustes.get("scnr", 0.8), None if _bool(ajustes.get("scnr_estrellas", True)) else estrellas)
-    f = saturar(f, ajustes.get("saturacion", 1.5), pequenas, ajustes.get("saturacion_estrellas"))
+    f = saturar(f, ajustes.get("saturacion", 1.5), pequenas, ajustes.get("saturacion_estrellas"), colores=ajustes.get("colores"))
     return aplicar_curvas(f, ajustes.get("curvas"))
 
 
@@ -2280,7 +2385,8 @@ def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
     """
     Los ajustes rápidos con las estrellas aparte, en este orden (el navegador
     hace lo mismo, static/js/retoque.js, modo capas): sobre el objeto,
-    temperatura, brillo, SCNR y saturación general; sobre la capa de estrellas,
+    temperatura, brillo, SCNR y saturación general (con el color selectivo del
+    cuentagotas, que no toca las estrellas); sobre la capa de estrellas,
     temperatura (sobre negro) y brillo, el SCNR si scnr_estrellas, su propia
     saturación y sus propias curvas (curvas_estrellas; el tamaño, 0..100 %, va
     antes de todo: la capa se vuelve a pintar con reducir_estrellas y su
@@ -2289,7 +2395,7 @@ def ajustes_rapidos_capas(f, capa, ajustes, fondo=None):
     f = temperatura_color(f, ajustes.get("temperatura", 0.0), fondo=fondo)
     f = brillo_general(f, ajustes.get("brillo", 0.0))
     f = scnr_verde(f, ajustes.get("scnr", 0.8))
-    f = saturar(f, ajustes.get("saturacion", 1.5))
+    f = saturar(f, ajustes.get("saturacion", 1.5), colores=ajustes.get("colores"))     # el color selectivo, solo en el objeto
     try:
         tamano = float(np.clip(float(ajustes.get("tamano_estrellas", TAMANO_ESTRELLAS)), 0, 100)) / 100.0
     except (TypeError, ValueError):

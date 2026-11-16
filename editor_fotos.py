@@ -283,6 +283,7 @@ def ajustes_desde(datos):
         aj["radio_cometa"] = RADIO_COMETA[2]
     aj["curvas"] = procesado.normalizar_curvas(datos.get("curvas"))
     aj["curvas_estrellas"] = procesado.normalizar_curvas(datos.get("curvas_estrellas"))     # solo con las estrellas aparte
+    aj["colores"] = procesado.normalizar_colores(datos.get("colores"))     # el cuentagotas: saturación de un color (lista, [] = ninguno)
     # Estrellas aparte: la casilla y el tamaño (0..100 %); una foto de antes no las trae
     aj["estrellas_aparte"] = bool(aj.get("estrellas_aparte", False))
     try:
@@ -329,6 +330,8 @@ def _ajustes_para_json(aj):
         guardar["curvas"] = aj["curvas"]
     if aj.get("curvas_estrellas"):
         guardar["curvas_estrellas"] = aj["curvas_estrellas"]
+    if aj.get("colores"):
+        guardar["colores"] = aj["colores"]
     return guardar
 
 

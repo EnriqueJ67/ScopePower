@@ -5,6 +5,11 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Editor de la galería: panel nuevo «Color selectivo» con un cuentagotas. Se pulsa, se toca un color en la
+  foto y se cambia la saturación solo de ese color y de sus tonos vecinos (1 lo deja igual, 0 lo deja gris),
+  con la anchura del rango a elegir y «Ver la selección» para ver qué entra. Hasta 4 colores por foto, al
+  instante en el dispositivo y guardados con la foto. El rango cae suavemente y los colores mucho más apagados
+  que el tocado no entran, así el fondo del cielo no se tiñe. Con las estrellas aparte solo cambia el objeto.
 - Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
   (en inglés, a su versión `en/`).
 - Enfoque con la Bahtinov, afinado con las fotos reales de Altair del 5-nov (con nubes): con la máscara

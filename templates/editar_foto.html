@@ -227,6 +227,42 @@
             </div>
         </section>
 
+        <!-- Color selectivo (el cuentagotas): se toca un color en la foto y se cambia la saturación solo
+             de ese color y de sus tonos vecinos. Se toma y se aplica en el navegador (static/js/retoque.js);
+             al guardar, procesado.saturar hace la misma cuenta con los mismos números -->
+        <section class="card panel" data-panel="color">
+            <div class="panel-header" onclick="alternarPanel(this)">
+                <h3 class="card-title">💧 {{ _("Color selectivo") }} <span class="rayo">⚡</span></h3>
+                <div class="panel-botones" onclick="event.stopPropagation()">
+                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
+                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
+                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
+                </div>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="fila" id="colores-fichas" style="gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-cuentagotas" onclick="armarCuentagotas()" title="{{ _('Toca después la foto: se toma el color del punto que toques para ajustar su saturación') }}">{{ _("💧 Cuentagotas") }}</button>
+                </div>
+                <div id="estado-color" class="estado"></div>
+                <div id="controles-color" style="display: none;">
+                    <canvas id="tira-color" class="tira-color" width="360" height="16" title="{{ _('Los tonos que entran en el rango, con el color tocado en el centro') }}"></canvas>
+                    <div class="campo">
+                        <div class="rango-titulo"><span>{{ _("Saturación de este color") }}</span><span id="v-color-saturacion"></span></div>
+                        <input type="range" id="c-color-saturacion" min="0" max="3" step="0.05">
+                    </div>
+                    <div class="campo">
+                        <div class="rango-titulo"><span>{{ _("Anchura del rango") }}</span><span id="v-color-anchura"></span></div>
+                        <input type="range" id="c-color-anchura" min="15" max="90" step="5">
+                    </div>
+                    <div class="fila" style="gap: 6px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-ver-color" onclick="verSeleccionColor()" title="{{ _('Enseña en color lo que entra en el rango y en gris lo demás; solo en pantalla, no se guarda') }}" style="flex: 1;">{{ _("Ver la selección") }}</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="quitarColor()" style="flex: 1;">{{ _("Quitar este color") }}</button>
+                    </div>
+                </div>
+                <small class="ayuda">{{ _("Pulsa el cuentagotas y toca un color en la foto: cambias la saturación de ese color y de sus tonos vecinos (según la anchura) sin tocar el resto. 1 lo deja igual y 0 lo deja gris. El rango cae suavemente, y los colores mucho más apagados que el que tocaste no entran, así el fondo del cielo no se tiñe: para incluir la parte débil de una nebulosa, toca la parte débil. Con las estrellas aparte solo cambia el objeto; las estrellas tienen su propia saturación. Hasta 4 colores, que se guardan con la foto.") }}</small>
+            </div>
+        </section>
+
         <!-- Estrellas aparte: StarNet2 (programa externo, estrellas_aparte.py) separa el apilado en
              objeto y estrellas, que se procesan por separado y se juntan con una pantalla -->
         <section class="card panel" data-panel="estrellas">
@@ -370,6 +406,8 @@
     .visor canvas { display: block; width: 100%; height: auto; }
     .visor.visor-toque canvas { cursor: crosshair; }
     .rayo { color: var(--accent); font-size: 12px; font-weight: 700; opacity: 0.9; }
+    .ficha-color .muestra-color { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 6px; border: 1px solid rgba(255,255,255,0.35); vertical-align: -2px; }
+    .tira-color { display: block; width: 100%; height: 16px; border-radius: 6px; border: 1px solid var(--border); margin: 8px 0 4px; }
     .lateral .card + .card { margin-top: 0; }
     /* Pantalla ancha: la columna lateral se queda fija y hace su propio scroll, así la
        foto no se pierde de vista al tocar los controles */
@@ -523,6 +561,8 @@
         else if (inicial) document.getElementById("c-curva").value = "gamma";
         if (a.curvas !== undefined || inicial) { editorCurvas.poner(a.curvas || {}); pintarCanalesCurvas(); }
         if (a.curvas_estrellas !== undefined || inicial) { editorCurvasEstrellas.poner(a.curvas_estrellas || {}); pintarCanalesCurvasEstrellas(); }
+        // Los colores del cuentagotas son de cada foto: un estilo o un preset (que no los traen) no los quitan
+        if (a.colores !== undefined || inicial) ponerColores(a.colores || []);
         if (COMETA) {
             const r = document.getElementById("c-radio_cometa");
             if (a.radio_cometa !== undefined && a.radio_cometa !== null) r.value = a.radio_cometa;
@@ -649,6 +689,7 @@
     }
 
     function armarToque(armar = !toqueArmado) {
+        if (armar && cuentagotasArmado) armarCuentagotas(false);      // un toque solo puede ser para una cosa
         toqueArmado = armar;
         document.getElementById("btn-centro-toque").classList.toggle("activo", armar);
         document.getElementById("btn-centro-toque").textContent = armar ? _("Toca la foto...") : _("Tocar la foto");
@@ -669,6 +710,7 @@
     }
 
     async function toqueEnFoto(ev) {
+        if (cuentagotasArmado) { tomarColor(ev); return; }
         if (!toqueArmado) return;
         const img = document.getElementById("lienzo"), estado = document.getElementById("estado-centro");
         if (!hayNueva || vistaActual() !== "nueva" || !ajustesVista) {
@@ -712,6 +754,154 @@
     document.getElementById("imagen").addEventListener("click", toqueEnFoto);
     document.getElementById("lienzo").addEventListener("click", toqueEnFoto);
 
+    // ── Color selectivo (el cuentagotas): [{tono, croma, anchura, saturacion}], como procesado.normalizar_colores.
+    // «Cuentagotas» arma el siguiente toque sobre la vista previa; el color se toma aquí mismo
+    // (retoque.muestra: la base con la temperatura, el brillo y el SCNR, que es donde se aplica la
+    // saturación) y cambiarlo solo repite el retoque rápido, sin pedir nada al mini PC.
+    const MAX_COLORES = 4;             // procesado.MAX_COLORES
+    const CROMA_MINIMA = 3 / 255;      // por debajo, el punto tocado es gris: su tono es ruido
+    let colores = [], colorActivo = -1, cuentagotasArmado = false, verColor = false;
+
+    function nombreTono(tono) {
+        const t = ((Number(tono) % 360) + 360) % 360;
+        return t < 15 || t >= 340 ? _("rojo") : t < 45 ? _("naranja") : t < 70 ? _("amarillo") : t < 165 ? _("verde") :
+               t < 200 ? _("cian") : t < 260 ? _("azul") : t < 290 ? _("violeta") : _("magenta");
+    }
+
+    function ponerColores(lista) {
+        const num = (v, defecto) => (v !== null && v !== undefined && isFinite(Number(v))) ? Number(v) : defecto;
+        colores = (Array.isArray(lista) ? lista : [])
+            .filter(c => c && !isNaN(num(c.tono, NaN)) && !isNaN(num(c.croma, NaN))).slice(0, MAX_COLORES)
+            .map(c => ({ tono: num(c.tono, 0), croma: num(c.croma, 0), anchura: num(c.anchura, 45), saturacion: num(c.saturacion, 1) }));
+        colorActivo = colores.length ? 0 : -1;
+        verColor = false;
+        pintarColores();
+    }
+
+    // La tira de tonos del color activo: el tocado en el centro, 180° a cada lado, y más luz cuanto más entra cada tono
+    function pintarTiraColor(c) {
+        const lienzo = document.getElementById("tira-color"), ctx = lienzo.getContext("2d"), w = lienzo.width, h = lienzo.height;
+        for (let x = 0; x < w; x++) {
+            const d = Math.abs((x + 0.5) / w * 360 - 180);
+            const peso = d < c.anchura ? 0.5 * (1 + Math.cos(Math.PI * d / c.anchura)) : 0;
+            ctx.fillStyle = `hsl(${(c.tono - 180 + (x + 0.5) / w * 360 + 360) % 360}, 85%, ${10 + 40 * peso}%)`;
+            ctx.fillRect(x, 0, 1, h);
+        }
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(w / 2 - 0.5, 0, 1, 4); ctx.fillRect(w / 2 - 0.5, h - 4, 1, 4);
+    }
+
+    function textoFicha(c) { return "× " + fmtNum(c.saturacion, 2); }
+
+    function pintarValoresColor() {
+        const c = colores[colorActivo];
+        if (!c) return;
+        document.getElementById("v-color-saturacion").textContent = fmtNum(c.saturacion, 2);
+        document.getElementById("v-color-anchura").textContent = "± " + Math.round(c.anchura) + "°";
+        const ficha = document.querySelectorAll("#colores-fichas .ficha-color")[colorActivo];
+        if (ficha) ficha.lastChild.textContent = textoFicha(c);
+        pintarTiraColor(c);
+    }
+
+    function pintarColores() {
+        const cont = document.getElementById("colores-fichas"), boton = document.getElementById("btn-cuentagotas");
+        cont.querySelectorAll(".ficha-color").forEach(b => b.remove());
+        colores.forEach((c, i) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "btn btn-secondary btn-sm ficha-color" + (i === colorActivo ? " activo" : "");
+            b.title = _("{nombre} (tono {t}°)", { nombre: nombreTono(c.tono), t: Math.round(c.tono) });
+            const m = document.createElement("span");
+            m.className = "muestra-color";
+            m.style.background = `hsl(${c.tono}, 85%, 50%)`;
+            b.appendChild(m);
+            b.appendChild(document.createTextNode(textoFicha(c)));
+            b.addEventListener("click", () => { colorActivo = i; pintarColores(); if (verColor) retocar(); });
+            cont.insertBefore(b, boton);
+        });
+        boton.disabled = colores.length >= MAX_COLORES;
+        const c = colores[colorActivo];
+        if (!c) verColor = false;
+        document.getElementById("controles-color").style.display = c ? "" : "none";
+        document.getElementById("btn-ver-color").classList.toggle("activo", verColor);
+        if (c) {
+            document.getElementById("c-color-saturacion").value = c.saturacion;
+            document.getElementById("c-color-anchura").value = c.anchura;
+            pintarValoresColor();
+        }
+    }
+
+    function armarCuentagotas(armar = !cuentagotasArmado) {
+        if (armar) armarToque(false);
+        cuentagotasArmado = armar;
+        const boton = document.getElementById("btn-cuentagotas"), estado = document.getElementById("estado-color");
+        boton.classList.toggle("activo", armar);
+        boton.textContent = armar ? _("Toca la foto...") : _("💧 Cuentagotas");
+        document.querySelector(".visor").classList.toggle("visor-toque", armar || toqueArmado);
+        if (!armar) { if (estado.textContent.startsWith("👆")) estado.textContent = ""; return; }
+        if (!hayNueva) {
+            estado.textContent = _("👆 Preparando la vista previa; después toca el color en la foto");
+            pedirVistaPrevia(false);
+        } else {
+            if (vistaActual() !== "nueva") mostrarVista("nueva");
+            estado.textContent = _("👆 Toca en la foto el color que quieras ajustar");
+            document.querySelector(".visor").scrollIntoView({ behavior: "smooth", block: "center" });   // en el móvil el panel queda debajo de la foto
+        }
+    }
+
+    function tomarColor(ev) {
+        const lienzo = document.getElementById("lienzo"), estado = document.getElementById("estado-color");
+        if (!hayNueva || vistaActual() !== "nueva" || !retoque.lista) {
+            estado.textContent = _("⏳ Espera a que esté la vista previa y vuelve a tocar");
+            return;
+        }
+        const r = lienzo.getBoundingClientRect();
+        const u = (ev.clientX - r.left) / r.width, v = (ev.clientY - r.top) / r.height;
+        if (u < 0 || u > 1 || v < 0 || v > 1) return;
+        const m = retoque.muestra(u, v, leerAjustes());
+        if (!m || m.croma < CROMA_MINIMA) {      // sigue armado: basta tocar otro punto
+            estado.textContent = _("👆 Ese punto casi no tiene color; toca una zona con más color");
+            return;
+        }
+        armarCuentagotas(false);
+        colores.push({ tono: Math.round(m.tono * 10) / 10, croma: Math.round(m.croma * 1e4) / 1e4, anchura: 45, saturacion: 1 });
+        colorActivo = colores.length - 1;
+        pintarColores();
+        estado.textContent = _("✅ Color tomado: {nombre} (tono {t}°). Mueve ahora su saturación", { nombre: nombreTono(m.tono), t: Math.round(m.tono) });
+        retocar();
+        document.querySelector('[data-panel="color"]').scrollIntoView({ behavior: "smooth", block: "nearest" });   // de vuelta a los deslizadores
+    }
+
+    function verSeleccionColor() {
+        verColor = !verColor && colorActivo >= 0;
+        document.getElementById("btn-ver-color").classList.toggle("activo", verColor);
+        retocar();
+    }
+
+    function quitarColor() {
+        if (colorActivo < 0) return;
+        colores.splice(colorActivo, 1);
+        colorActivo = Math.min(colorActivo, colores.length - 1);
+        document.getElementById("estado-color").textContent = "";
+        pintarColores();
+        retocar();
+    }
+
+    document.getElementById("c-color-saturacion").addEventListener("input", ev => {
+        const c = colores[colorActivo];
+        if (!c) return;
+        c.saturacion = parseFloat(ev.target.value);
+        pintarValoresColor();
+        retocar();
+    });
+    document.getElementById("c-color-anchura").addEventListener("input", ev => {
+        const c = colores[colorActivo];
+        if (!c) return;
+        c.anchura = parseFloat(ev.target.value);
+        pintarValoresColor();
+        retocar();
+    });
+
     function leerAjustes() {
         const a = {
             estirado: (document.querySelector("#estirado-seg button.activo") || {}).dataset?.estirado || "multiescala",
@@ -729,7 +919,8 @@
             firma: document.getElementById("c-firma").checked,
             objeto: document.getElementById("c-objeto").value.trim(),
             curvas: editorCurvas.curvas,
-            curvas_estrellas: editorCurvasEstrellas.curvas
+            curvas_estrellas: editorCurvasEstrellas.curvas,
+            colores: colores.map(c => Object.assign({}, c))
         };
         if (COMETA) {
             a.composicion = composicion;
@@ -760,6 +951,7 @@
         requestAnimationFrame(() => {
             retoquePedido = false;
             const a = leerAjustes();
+            a.ver_color = verColor ? colorActivo : -1;      // «Ver la selección» del cuentagotas: solo en pantalla
             const inicio = performance.now();
             const hist = retoque.aplicar(a, editorCurvas.tablas(), a.firma, estrellasAparte() ? editorCurvasEstrellas.tablas() : null);
             if (hist) editorCurvas.histograma(hist);
@@ -851,6 +1043,7 @@
             ajustesVista = ajustes;
             retocar();
             if (toqueArmado) document.getElementById("estado-centro").textContent = _("👆 Toca el objeto en la foto para dejarlo en el centro");
+            if (cuentagotasArmado) document.getElementById("estado-color").textContent = _("👆 Toca en la foto el color que quieras ajustar");
             document.getElementById("btn-vista-nueva").disabled = false;
             ultimaDuracion = (Date.now() - inicio) / 1000;
             mostrarVista("nueva");
