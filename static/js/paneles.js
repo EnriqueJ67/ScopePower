@@ -154,8 +154,25 @@
 
     const vigia = new MutationObserver(ajustar);
     paneles.forEach(p => vigia.observe(p, { attributes: true, attributeFilter: ["hidden"] }));
-    if (typeof ResizeObserver !== "undefined") new ResizeObserver(repartir).observe(barra);
-    else window.addEventListener("resize", repartir);
+    // Dos columnas con la cabecera de la página dentro de la rejilla (.con-cabecera, scopepower.css):
+    // la cabecera mide como poco lo que la fila de pestañas y la fila baja hasta que su borde inferior
+    // coincide con el de la cabecera, así el panel empieza a la misma altura que la foto. En una
+    // columna (la cabecera ocupa todo el ancho, encima de la foto) no se toca nada.
+    const rejilla = cont.parentElement;
+    const cabecera = rejilla && rejilla.classList.contains("con-cabecera") ? rejilla.querySelector(":scope > .pagina-cabecera") : null;
+    function alinear() {
+        if (!cabecera) return;
+        const lado = cabecera.getBoundingClientRect().right <= cont.getBoundingClientRect().left + 1;
+        rejilla.style.setProperty("--alto-pestanas", lado ? barra.offsetHeight + "px" : "0px");
+        const hueco = lado ? Math.max(0, Math.round(cabecera.offsetHeight - barra.offsetHeight)) + "px" : "";
+        if (barra.style.marginTop !== hueco) barra.style.marginTop = hueco;
+    }
+    function ajustarFila() { repartir(); alinear(); }
+    if (typeof ResizeObserver !== "undefined") {
+        const vigiaTam = new ResizeObserver(ajustarFila);
+        vigiaTam.observe(barra);
+        if (cabecera) vigiaTam.observe(cabecera);
+    } else window.addEventListener("resize", ajustarFila);
 
     // Alto de la columna en dos columnas (scopepower.css): lo que queda de pantalla por debajo de donde
     // empieza. Arriba del todo empieza bajo el título de la página y, al bajar, se pega bajo la cabecera:
@@ -168,7 +185,7 @@
     function pedirMedida() { if (!midiendo) { midiendo = true; requestAnimationFrame(medir); } }
     window.addEventListener("scroll", pedirMedida, { passive: true });
     window.addEventListener("resize", pedirMedida);
-    window.addEventListener("load", medir);
+    window.addEventListener("load", () => { alinear(); medir(); });
     medir();
 
     let guardada = "";
@@ -176,6 +193,7 @@
     deseado = panelDe(guardada) ? guardada : (panelDe(cont.dataset.inicial) ? cont.dataset.inicial : paneles[0].dataset.panel);
     cont.classList.add("listo");
     ajustar();
+    alinear();
 
     window.Paneles = {
         activar: (id, opciones) => activar(id, opciones),

@@ -27,6 +27,10 @@ día de la release. El número de versión vive en `version.py`.
   Detalle, Encuadre), con el brillo, la temperatura y el verde a la vista en su grupo y un único «Más ajustes»
   para lo que casi nunca se toca. El estilo se elige con los mismos tres botones. «Aplicar a la vista previa»
   queda siempre visible al pie del panel, sin bajar hasta el final.
+- Cámara, Apilado y el editor: la fila de pestañas sube a la altura del título de la página, con su borde
+  inferior alineado con el de la cabecera, y el panel empieza a la misma altura que la foto: el panel gana
+  el alto de la cabecera. El título y sus botones (Galería en el editor; Pausar, Detener y Reiniciar en
+  Apilado) quedan encima de la foto.
 - Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
   (en inglés, a su versión `en/`).
 - Galería pública: al compartir una foto por WhatsApp o Telegram sale su vista previa, con la imagen, el

@@ -4,15 +4,16 @@
 {% block title %}{{ _("Cámara") }}{% endblock %}
 
 {% block content %}
-<div class="pagina-cabecera">
-    <div>
-        <h1 class="pagina-titulo">{{ _("Cámara") }}</h1>
-        <p class="pagina-sub" id="sub-foto">{{ _("Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.") }}</p>
-    </div>
-</div>
-
 <!-- En pantalla ancha: foto a la izquierda, botones y ajustes a la derecha -->
-<div class="grid-2 ancha foto-layout">
+<div class="grid-2 ancha foto-layout con-cabecera">
+    <!-- Cabecera dentro de la rejilla: en dos columnas queda encima de la foto y las pestañas a su altura -->
+    <div class="pagina-cabecera">
+        <div>
+            <h1 class="pagina-titulo">{{ _("Cámara") }}</h1>
+            <p class="pagina-sub" id="sub-foto">{{ _("Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.") }}</p>
+        </div>
+    </div>
+
     <div class="foto-imagen">
         <div class="visor">
             <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" alt="{{ _('Última foto') }}">
