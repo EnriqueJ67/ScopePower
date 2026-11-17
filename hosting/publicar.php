@@ -30,6 +30,12 @@
 //     (Un ScopePower anterior a 1.2.3 sube sus propias páginas con esos mismos nombres: se le
 //     contesta ok con "ignorado": true, no se guarda nada y se colocan las genéricas, para que su
 //     cola no se atasque hasta que se actualice.)
+//   - La vista previa de los enlaces (WhatsApp, Telegram...): su robot no ejecuta JavaScript ni ve lo
+//     que va tras el "#", solo las etiquetas og: de la página. Por eso, con las páginas, el endpoint
+//     escribe <nombre>/f/<id>.html para cada foto de galeria.json a partir de la plantilla genérica
+//     foto.html (título, descripción e imagen de esa foto; quien la abre salta a la galería con la foto
+//     abierta) y añade a index.html la imagen de la foto más reciente. Todo lo que mete viene de un
+//     galeria.json ya comprobado y va escapado; las direcciones absolutas salen de 'url_galeria'.
 //
 // Contrato (siempre POST multipart/form-data, respuesta JSON {"ok": true, ...} o
 // {"ok": false, "error": "..."} con su código HTTP; cabecera X-ScopePower-Clave obligatoria):
@@ -62,7 +68,7 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-const VERSION_ENDPOINT = 3;
+const VERSION_ENDPOINT = 4;   // 4: páginas de cada foto (f/<id>.html) e imagen en la vista previa de los enlaces
 // Lo que admite _comun/<versión>/ (solo el dueño): nada ejecutable en el servidor
 const EXTENSIONES_COMUN = ['jpg', 'jpeg', 'webp', 'png', 'json', 'html', 'js', 'css', 'md', 'txt', 'ico'];
 const NOMBRES_EXACTOS = ['LICENSE', 'properties'];
@@ -70,6 +76,12 @@ const NOMBRES_EXACTOS = ['LICENSE', 'properties'];
 const EXTENSIONES_GALERIA = ['jpg', 'json'];
 // Las páginas del visor que el endpoint copia de _comun/<versión>/publico/paginas/ a cada galería
 const PAGINAS = ['index.html', 'planetario.html', 'en/index.html', 'en/planetario.html'];
+// La página de cada foto, para la vista previa de los enlaces: plantilla en paginas/ y copias en <nombre>/f/
+const PLANTILLA_FOTO = 'foto.html';
+const CARPETA_FOTOS = 'f';
+const MAX_BYTES_VISTA_PREVIA = 300 * 1024;   // WhatsApp no enseña una imagen más pesada: entonces va la miniatura
+const MARCA_OG = '<!--og-imagen-->';         // donde index.html recibe la imagen de la galería
+const FIN_MARCA_OG = '<!--/og-imagen-->';
 const MAX_LISTADO = 5000;
 const RESERVADOS = ['_comun', 'comun', 'scopepower', 'admin', 'api', 'galeria', 'www', 'static', 'publico', 'test', 'prueba'];
 
@@ -161,6 +173,18 @@ $contacto = trim((string)($config['contacto'] ?? ''));
 $duenos = is_array($config['duenos'] ?? null) ? $config['duenos'] : [];
 $reservados = array_merge(RESERVADOS, is_array($config['nombres_reservados'] ?? null) ? $config['nombres_reservados'] : []);
 $ficheroClaves = __DIR__ . DIRECTORY_SEPARATOR . 'claves.php';
+// Dirección pública de galeria/ (https://dominio/galeria): la vista previa necesita direcciones absolutas.
+// Mejor en la configuración; si falta, se deduce de esta petición (el hosting solo la sirve para su dominio).
+$urlGaleria = rtrim(trim((string)($config['url_galeria'] ?? '')), '/');
+if (!preg_match('#^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~-]+)*$#', $urlGaleria)) {
+    $urlGaleria = '';
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+    if (preg_match('/^[A-Za-z0-9.-]+(:[0-9]+)?$/', $host)) {
+        $https = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off';
+        $arriba = rtrim(str_replace('\\', '/', dirname(dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/scopepower/publicar.php')))), '/');
+        $urlGaleria = ($https ? 'https' : 'http') . '://' . $host . $arriba . '/galeria';
+    }
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     fallo(405, 'Solo POST');
@@ -235,34 +259,201 @@ function carpetaPaginas(string $raizReal): ?string
     return $mejor === null ? null : $mejor[1];
 }
 
-/** Copia a <slug>/ las páginas genéricas del visor (solo las que cambian; con nombre temporal y rename). */
-function colocarPaginas(string $raizReal, string $slug): void
+function esc(string $texto): string
 {
-    $origen = carpetaPaginas($raizReal);
-    if ($origen === null) {
+    return htmlspecialchars($texto, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+/** Escribe un fichero solo si cambia su contenido (con nombre temporal y rename). */
+function escribirSiCambia(string $destino, string $contenido): void
+{
+    if (is_file($destino) && filesize($destino) === strlen($contenido) && file_get_contents($destino) === $contenido) {
         return;
     }
-    foreach (PAGINAS as $pagina) {
-        $de = $origen . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pagina);
-        if (!is_file($de)) {
+    $carpeta = dirname($destino);
+    if (!is_dir($carpeta) && !@mkdir($carpeta, 0755, true)) {
+        return;
+    }
+    $temporal = $carpeta . DIRECTORY_SEPARATOR . '.pagina-' . bin2hex(random_bytes(4));
+    if (@file_put_contents($temporal, $contenido) === false) {
+        @unlink($temporal);
+        return;
+    }
+    @chmod($temporal, 0644);
+    if (!@rename($temporal, $destino)) {
+        @unlink($temporal);
+    }
+}
+
+/** El galeria.json que hay en la carpeta del nombre (se comprobó al subirlo), o []. */
+function leerIndice(string $carpetaSlug): array
+{
+    $ruta = $carpetaSlug . DIRECTORY_SEPARATOR . 'galeria.json';
+    $texto = is_file($ruta) ? file_get_contents($ruta) : false;
+    $datos = $texto === false ? null : json_decode($texto, true, 16);
+    return is_array($datos) ? $datos : [];
+}
+
+/**
+ * La imagen de la vista previa de una foto: la de 1600 px si pesa poco, si no la miniatura.
+ * Devuelve [nombre?v=..., ancho, alto] o null si no hay ninguna en la carpeta.
+ */
+function imagenVistaPrevia(string $carpetaSlug, array $foto): ?array
+{
+    $ficheros = is_array($foto['ficheros'] ?? null) ? $foto['ficheros'] : [];
+    $versiones = is_array($foto['v'] ?? null) ? $foto['v'] : [];
+    foreach (['jpg', 'mini'] as $clase) {
+        $nombre = $ficheros[$clase] ?? null;
+        if (!is_string($nombre) || !preg_match('/^[A-Za-z0-9_-]{1,200}\.jpg$/', $nombre)) {
             continue;
         }
-        $a = $raizReal . DIRECTORY_SEPARATOR . $slug . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pagina);
-        if (is_file($a) && filesize($a) === filesize($de) && hash_file('sha256', $a) === hash_file('sha256', $de)) {
+        $abs = $carpetaSlug . DIRECTORY_SEPARATOR . $nombre;
+        if (!is_file($abs) || ($clase === 'jpg' && filesize($abs) > MAX_BYTES_VISTA_PREVIA)) {
             continue;
         }
-        $carpeta = dirname($a);
-        if (!is_dir($carpeta) && !@mkdir($carpeta, 0755, true)) {
+        $info = @getimagesize($abs);
+        if ($info === false) {
             continue;
         }
-        $temporal = $carpeta . DIRECTORY_SEPARATOR . '.pagina-' . bin2hex(random_bytes(4));
-        if (@copy($de, $temporal)) {
-            @chmod($temporal, 0644);
-            if (!@rename($temporal, $a)) {
-                @unlink($temporal);
+        $v = $versiones[$clase] ?? '';
+        $v = is_string($v) && preg_match('/^[0-9a-f]{1,64}$/', $v) ? '?v=' . $v : '';
+        return [$nombre . $v, (int)$info[0], (int)$info[1]];
+    }
+    return null;
+}
+
+/** Un número a la española: coma decimal, sin ceros de más. */
+function numero(float $x, int $decimales): string
+{
+    $texto = number_format($x, $decimales, ',', '.');
+    return $decimales > 0 ? rtrim(rtrim($texto, '0'), ',') : $texto;
+}
+
+/** «6,7 min · 20 × 20 s», «547 × 144 µs»... como la ficha de la galería; '' si la foto no lo dice. */
+function integracion(array $foto): string
+{
+    $n = $foto['n_fotos'] ?? null;
+    $e = $foto['exposicion'] ?? null;
+    if (!(is_int($e) || is_float($e)) || $e <= 0) {
+        return '';
+    }
+    if ($e >= 1) {
+        $t = numero((float)$e, 0) . ' s';
+        if ((is_int($n) || is_float($n)) && $n > 1) {
+            $minutos = $n * $e / 60;
+            return numero($minutos, $minutos < 10 ? 1 : 0) . ' min · ' . (int)$n . ' × ' . $t;
+        }
+    } elseif ($e >= 0.001) {
+        $ms = $e * 1000;
+        $t = numero($ms, $ms < 10 ? 2 : ($ms < 100 ? 1 : 0)) . ' ms';
+    } else {
+        $t = numero($e * 1e6, 0) . ' µs';
+    }
+    return (is_int($n) || is_float($n)) && $n > 1 ? (int)$n . ' × ' . $t : $t;
+}
+
+/** index.html con su dirección y la imagen de la galería en la marca <!--og-imagen--> (si la plantilla la trae). */
+function insertarOg(string $html, ?array $imagen, string $base, string $url): string
+{
+    $pos = strpos($html, MARCA_OG);
+    if ($pos === false || $base === '') {
+        return $html;
+    }
+    $metas = "\n    <meta property=\"og:url\" content=\"" . esc($url) . "\">";
+    if ($imagen !== null) {
+        $metas .= "\n    <meta property=\"og:image\" content=\"" . esc($base . $imagen[0]) . "\">"
+            . "\n    <meta property=\"og:image:width\" content=\"" . $imagen[1] . "\">"
+            . "\n    <meta property=\"og:image:height\" content=\"" . $imagen[2] . "\">"
+            . "\n    <meta name=\"twitter:card\" content=\"summary_large_image\">";
+    }
+    return substr_replace($html, MARCA_OG . $metas . "\n    " . FIN_MARCA_OG, $pos, strlen(MARCA_OG));
+}
+
+/**
+ * <slug>/f/<id>.html para cada foto de galeria.json, desde la plantilla foto.html: lo que lee el robot
+ * de la vista previa. Se borran las de fotos que ya no están (y todas si no hay índice o plantilla).
+ */
+function colocarFotos(string $carpetaSlug, string $slug, string $plantilla, array $indice, string $urlGaleria): void
+{
+    $carpeta = $carpetaSlug . DIRECTORY_SEPARATOR . CARPETA_FOTOS;
+    $quedan = [];
+    $fotos = is_array($indice['fotos'] ?? null) ? $indice['fotos'] : [];
+    $autor = is_string($indice['autor'] ?? null) ? trim($indice['autor']) : '';
+    $base = $urlGaleria . '/' . $slug . '/';
+    if ($plantilla !== '' && $urlGaleria !== '') {
+        foreach ($fotos as $foto) {
+            $id = is_array($foto) ? ($foto['id'] ?? null) : null;
+            if (!is_string($id) || !preg_match('/^[A-Za-z0-9_-]{1,200}$/', $id)) {
+                continue;
+            }
+            $imagen = imagenVistaPrevia($carpetaSlug, $foto);
+            if ($imagen === null) {
+                continue;
+            }
+            $objeto = is_string($foto['objeto'] ?? null) && trim($foto['objeto']) !== '' ? trim($foto['objeto']) : $id;
+            $partes = [];
+            $deQuien = is_string($foto['autor'] ?? null) && trim($foto['autor']) !== '' ? $foto['autor'] : $autor;
+            foreach ([$foto['tipo'] ?? '', $foto['fecha'] ?? '', integracion($foto), $deQuien] as $p) {
+                if (is_string($p) && trim($p) !== '' && trim($p) !== $objeto) {
+                    $partes[] = trim($p);
+                }
+            }
+            $html = strtr($plantilla, [
+                '@@TITULO@@' => esc($objeto),
+                '@@DESCRIPCION@@' => esc(implode(' · ', $partes)),
+                '@@SITIO@@' => esc($autor !== '' ? $autor . ' · ScopePower' : 'ScopePower'),
+                '@@ID@@' => esc($id),
+                '@@IMAGEN@@' => esc($base . $imagen[0]),
+                '@@IMAGEN_RELATIVA@@' => esc('../' . $imagen[0]),
+                '@@ANCHO@@' => (string)$imagen[1],
+                '@@ALTO@@' => (string)$imagen[2],
+                '@@URL@@' => esc($base . CARPETA_FOTOS . '/' . $id . '.html'),
+            ]);
+            escribirSiCambia($carpeta . DIRECTORY_SEPARATOR . $id . '.html', $html);
+            $quedan[$id . '.html'] = true;
+        }
+    }
+    if (is_dir($carpeta)) {
+        foreach (scandir($carpeta) ?: [] as $f) {
+            if (!isset($quedan[$f]) && preg_match('/^[A-Za-z0-9_-]{1,200}\.html$/', $f)) {
+                @unlink($carpeta . DIRECTORY_SEPARATOR . $f);
             }
         }
     }
+}
+
+/**
+ * Las páginas de <slug>/: las genéricas del visor (index.html con su imagen para la vista previa) y
+ * la de cada foto. Solo se escribe lo que cambia.
+ */
+function colocarPaginas(string $raizReal, string $slug, string $urlGaleria): void
+{
+    $carpetaSlug = $raizReal . DIRECTORY_SEPARATOR . $slug;
+    $origen = carpetaPaginas($raizReal);
+    $indice = leerIndice($carpetaSlug);
+    $base = $urlGaleria !== '' ? $urlGaleria . '/' . $slug . '/' : '';
+    $portada = null;
+    foreach ((is_array($indice['fotos'] ?? null) ? $indice['fotos'] : []) as $foto) {
+        if (is_array($foto) && ($portada = imagenVistaPrevia($carpetaSlug, $foto)) !== null) {
+            break;
+        }
+    }
+    $plantilla = '';
+    if ($origen !== null) {
+        foreach (PAGINAS as $pagina) {
+            $de = $origen . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pagina);
+            $html = is_file($de) ? file_get_contents($de) : false;
+            if ($html === false) {
+                continue;
+            }
+            $url = $base . (substr($pagina, -10) === 'index.html' ? substr($pagina, 0, -10) : $pagina);
+            escribirSiCambia($carpetaSlug . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pagina),
+                insertarOg($html, $portada, $base, $url));
+        }
+        $de = $origen . DIRECTORY_SEPARATOR . PLANTILLA_FOTO;
+        $plantilla = is_file($de) ? (string)file_get_contents($de) : '';
+    }
+    colocarFotos($carpetaSlug, $slug, $plantilla, $indice, $urlGaleria);
 }
 
 /** ¿Es una lista (claves 0..n-1)? La vacía también (json_decode da [] tanto para {} como para []). */
@@ -440,7 +631,7 @@ $esDueno = $manual || ($registrada && in_array($slug, $duenos, true));
 
 if ($accion === 'registrar') {
     if ($valida) {
-        colocarPaginas($raizReal, $slug);
+        colocarPaginas($raizReal, $slug, $urlGaleria);
         responder(200, ['ok' => true, 'registrado' => false, 'nombre' => $slug, 'cuota_mb' => (int)($cuotaNombre / 1048576), 'contacto' => $contacto]);
     }
     if ($esperada !== '' || $entrada !== null) {
@@ -474,7 +665,7 @@ if ($accion === 'registrar') {
     $registro[$slug] = ['hash' => password_hash($clave, PASSWORD_DEFAULT), 'creado' => time()];
     guardarClaves($ficheroClaves, $registro);
     @mkdir($raizReal . DIRECTORY_SEPARATOR . $slug, 0755);
-    colocarPaginas($raizReal, $slug);
+    colocarPaginas($raizReal, $slug, $urlGaleria);
     responder(200, ['ok' => true, 'registrado' => true, 'nombre' => $slug, 'cuota_mb' => (int)($cuotaNombre / 1048576), 'contacto' => $contacto]);
 }
 
@@ -616,7 +807,7 @@ switch ($accion) {
             if (is_array($subido) && isset($subido['tmp_name'])) {
                 @unlink((string)$subido['tmp_name']);
             }
-            colocarPaginas($raizReal, $slug);
+            colocarPaginas($raizReal, $slug, $urlGaleria);
             responder(200, ['ok' => true, 'ruta' => $ruta, 'ignorado' => true, 'bytes' => 0, 'sha256' => $sha]);
         }
         $abs = rutaSegura($slug, $ruta, $raizReal, $esDueno);
@@ -712,7 +903,7 @@ switch ($accion) {
             fallo(500, 'No se pudo colocar el fichero');
         }
         if ($deGaleria && basename($ruta) === 'galeria.json') {
-            colocarPaginas($raizReal, $slug);
+            colocarPaginas($raizReal, $slug, $urlGaleria);
         }
         responder(200, ['ok' => true, 'ruta' => $ruta, 'bytes' => $bytes, 'sha256' => $sha]);
         // no break
@@ -723,6 +914,10 @@ switch ($accion) {
         $existia = is_file($abs) && dentro($abs, $raizReal);
         if ($existia && !@unlink($abs)) {
             fallo(500, 'No se pudo borrar');
+        }
+        // Sin índice, fuera también las páginas de cada foto y la imagen de la galería
+        if ($ruta === $slug . '/galeria.json') {
+            colocarPaginas($raizReal, $slug, $urlGaleria);
         }
         responder(200, ['ok' => true, 'existia' => $existia]);
         // no break

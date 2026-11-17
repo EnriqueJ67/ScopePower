@@ -62,6 +62,12 @@ FALLOS_AVISO, FALLOS_PARAR = 5, 10   # fotos sin resolver seguidas en el ajuste
 MIN_SEPARACION_PUNTOS = 2.0          # grados entre fotos consecutivas de la medición
 ESTE_OESTE_AVISO = 5.0               # grados: el campo al este/oeste exactos condiciona mal el ajuste
 SILENCIO_VOZ_S = 8.0
+# Con un error inicial de grados, el modelo de giro de los tornillos deja de ser exacto y la estimación
+# del ajuste se desvía ~1 % de lo corregido (16-nov-2026, primera noche de campo: tras corregir 11°, el
+# ajuste decía 4,7′ y la nueva medición dio 7,8′). Si la medición pasó de REPETIR_SI_INICIAL_ARCMIN, al
+# bajar de REPETIR_AL_BAJAR_DE_ARCMIN se propone (pantalla y voz) repetir la medición para afinar.
+REPETIR_SI_INICIAL_ARCMIN = 60.0
+REPETIR_AL_BAJAR_DE_ARCMIN = 30.0
 OMEGA_SIDEREA = 360.0 / 86164.0905   # °/s: lo que gira el cielo (y la montura siguiendo) en el marco de la Tierra
 
 _Z = np.array([0.0, 0.0, 1.0])
@@ -724,7 +730,7 @@ class TrabajoPuestaEstacion:
         # Referencia del ajuste: el apuntado de la foto 3 en el marco de la Tierra, su instante y el
         # eje real; con ellos referencia_seguida() sabe dónde estará el tubo en cada foto del ajuste
         return {"p3": vectores[-1], "t3": puntos[-1][2], "eje": eje,
-                "rot0": (rot_alt, rot_az), "norte": norte, "az_polo": az_polo}
+                "rot0": (rot_alt, rot_az), "norte": norte, "az_polo": az_polo, "total0": total}
 
     @staticmethod
     def _frase_medicion(err_alt, err_az):
@@ -735,7 +741,9 @@ class TrabajoPuestaEstacion:
         return _("El eje está {alt} y {az}", alt=alt, az=az)
 
     @staticmethod
-    def _frase_ajuste(err_alt, err_az, dentro):
+    def _frase_ajuste(err_alt, err_az, dentro, repetir=False):
+        if dentro and repetir:
+            return _("Dentro de la tolerancia según la estimación: repite la medición para confirmarlo")
         if dentro:
             return _("Dentro de la tolerancia: la montura está en estación")
         partes = []
@@ -757,6 +765,8 @@ class TrabajoPuestaEstacion:
         n = 0
         fallos = 0
         ultima_voz = (None, None, 0.0)
+        proponer_repetir = medicion["total0"] > REPETIR_SI_INICIAL_ARCMIN
+        repetir_sugerido = False
         while True:
             if self._terminar.is_set() or self._repetir.is_set():
                 return
@@ -794,20 +804,33 @@ class TrabajoPuestaEstacion:
                 self._avisar("este_oeste", _("El campo está casi al este u oeste: la medida del acimut es poco precisa"))
             else:
                 self._quitar_aviso("este_oeste")
+            recien_sugerido = (proponer_repetir and not repetir_sugerido and est["fiable"]
+                               and total <= REPETIR_AL_BAJAR_DE_ARCMIN)
+            if recien_sugerido:
+                repetir_sugerido = True
+                self._avisar("repetir", _("Ya estás cerca. Repite la medición para afinar: tras corregir {g}°, la estimación del ajuste pierde precisión",
+                                          g=fmt_num(medicion["total0"] / 60.0, 1)))
             ajuste = {"n": n, "err_alt_arcmin": round(err_alt, 2), "err_az_arcmin": round(err_az, 2),
                       "total_arcmin": round(total, 2), "dentro_tolerancia": dentro, "fiable": est["fiable"],
                       "cond": round(est["cond"], 1), "residuo_arcsec": round(est["residuo_arcsec"], 1),
-                      "fallos_seguidos": 0, "cerca_este_oeste": este_oeste, "hora": time.strftime("%H:%M:%S")}
+                      "fallos_seguidos": 0, "cerca_este_oeste": este_oeste, "repetir_sugerido": repetir_sugerido,
+                      "hora": time.strftime("%H:%M:%S")}
             with self._lock:
                 self.ajuste = ajuste
-            log.info("Puesta en estación: ajuste %d → altura %+.2f' acimut %+.2f' total %.2f' (residuo %.1f\", cond %.1f, fiable %s)",
-                     n, err_alt, err_az, total, est["residuo_arcsec"], est["cond"], est["fiable"])
+            log.info("Puesta en estación: ajuste %d → altura %+.2f' acimut %+.2f' total %.2f' (residuo %.1f\", cond %.1f, fiable %s)%s",
+                     n, err_alt, err_az, total, est["residuo_arcsec"], est["cond"], est["fiable"],
+                     " · se propone repetir la medición" if recien_sugerido else "")
             if conf["voz"] and voz is not None:
+                if recien_sugerido:
+                    # La propuesta va antes que la instrucción de los tornillos y sin esperar al silencio
+                    self._decir(voz, _("Ya estás cerca: repite la medición para afinar"))
+                    ultima_voz = (err_alt, err_az, time.time())
+                    continue
                 v_alt, v_az, cuando = ultima_voz
                 cambio = (v_alt is None or abs(err_alt - v_alt) > 0.5 or abs(err_az - v_az) > 0.5
                           or dentro != (math.hypot(v_alt, v_az) <= conf["tolerancia_arcmin"]))
                 if cambio and time.time() - cuando >= SILENCIO_VOZ_S:
-                    self._decir(voz, self._frase_ajuste(err_alt, err_az, dentro))
+                    self._decir(voz, self._frase_ajuste(err_alt, err_az, dentro, repetir_sugerido))
                     ultima_voz = (err_alt, err_az, time.time())
 
 

@@ -15,6 +15,9 @@
     <title>{{ _("Galería") }} · ScopePower</title>
     <meta property="og:title" content="{{ _("Galería") }} · ScopePower">
     <meta property="og:description" content="{{ _("Fotos del cielo hechas con un telescopio y ScopePower.") }}">
+    <meta property="og:type" content="website">
+    {# El endpoint pone aquí la dirección de la galería y la imagen de su foto más reciente (vista previa de los enlaces) #}
+    <!--og-imagen-->
     <link rel="icon" href="{{ comun }}/publico/scopepower.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="{{ comun }}/publico/icono.png">
     {% for cod in idiomas %}
@@ -117,6 +120,6 @@
 <script src="{{ comun }}/js/luna_anotada.js?v=3"></script>
 <script src="{{ comun }}/js/manchas_solares.js?v=2"></script>
 <script src="{{ comun }}/js/fotometria_solar.js"></script>
-<script src="{{ comun }}/publico/galeria_publica.js?v=5"></script>
+<script src="{{ comun }}/publico/galeria_publica.js?v=6"></script>
 </body>
 </html>
