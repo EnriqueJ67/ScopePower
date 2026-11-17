@@ -724,6 +724,10 @@ msgstr ""
 msgid "Anchura de las estrellas (FWHM) en las últimas {n} fotos: de {min} a {max} px; la línea de puntos es el inicio de la sesión."
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Anchura del rango"
+msgstr ""
+
 #: templates/galeria.html templates/publico/index.html
 msgid "Anotaciones"
 msgstr ""
@@ -1706,6 +1710,10 @@ msgstr ""
 #. js
 #: templates/calibracion.html
 msgid "Color olvidado: se usa el valor típico."
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Color selectivo"
 msgstr ""
 
 #. js
@@ -3461,6 +3469,10 @@ msgstr ""
 
 #: templates/galeria.html
 msgid "Enlace público"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Enseña en color lo que entra en el rango y en gris lo demás; solo en pantalla, no se guarda"
 msgstr ""
 
 #: templates/_modal_voz.html
@@ -5788,6 +5800,10 @@ msgstr ""
 msgid "Los presets se crean aquí o en el editor de la galería. Al elegir uno se cargan todos sus ajustes; luego pulsa \"Aplicar a la vista previa\". Al apuntar a un objeto se carga solo el preset de su familia si existe: «Galaxias», «Nebulosas» (también planetarias y restos de supernova) o «Cúmulos»."
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Los tonos que entran en el rango, con el color tocado en el centro"
+msgstr ""
+
 #. js
 #: catalogo_offline.py disco.py esta_noche.py foto_dia.py plan_sesion.py
 #: static/publico/galeria_publica.js static/publico/planetario_publico.js
@@ -7790,6 +7806,10 @@ msgstr ""
 msgid "Pulsa Iniciar para mover con la vista en directo"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Pulsa el cuentagotas y toca un color en la foto: cambias la saturación de ese color y de sus tonos vecinos (según la anchura) sin tocar el resto. 1 lo deja igual y 0 lo deja gris. El rango cae suavemente, y los colores mucho más apagados que el que tocaste no entran, así el fondo del cielo no se tiñe: para incluir la parte débil de una nebulosa, toca la parte débil. Con las estrellas aparte solo cambia el objeto; las estrellas tienen su propia saturación. Hasta 4 colores, que se guardan con la foto."
+msgstr ""
+
 #. js
 #: templates/galeria.html
 msgid "Pulsa para sincronizar ahora"
@@ -7954,6 +7974,10 @@ msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Quitar el verde también en las estrellas"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Quitar este color"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -8474,6 +8498,10 @@ msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Saturación"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Saturación de este color"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -9364,6 +9392,10 @@ msgstr ""
 msgid "Toca después la foto: el punto que toques pasa a ser el centro del encuadre"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Toca después la foto: se toma el color del punto que toques para ajustar su saturación"
+msgstr ""
+
 #: static/js/ubicacion_movil.js
 msgid "Toca el icono de la izquierda de la dirección (ⓘ o candado) → Permisos → Ubicación → Permitir."
 msgstr ""
@@ -9749,6 +9781,10 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "Ver la noche"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Ver la selección"
 msgstr ""
 
 #. js
@@ -10161,6 +10197,11 @@ msgstr ""
 msgid "amanece a las {hora}: solo caben {fp} de {n}"
 msgstr ""
 
+#. js
+#: templates/editar_foto.html
+msgid "amarillo"
+msgstr ""
+
 #: static/js/plan.js
 msgid "anochece a las {hora}"
 msgstr ""
@@ -10190,6 +10231,11 @@ msgstr ""
 
 #: camara_toupcam.py
 msgid "arrancar la cámara"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "azul"
 msgstr ""
 
 #: enfoque.py
@@ -10304,6 +10350,11 @@ msgstr ""
 
 #: static/js/seguimiento.js
 msgid "cerrada"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "cian"
 msgstr ""
 
 #. js
@@ -11246,6 +11297,11 @@ msgstr ""
 msgid "mag {mag}"
 msgstr ""
 
+#. js
+#: templates/editar_foto.html
+msgid "magenta"
+msgstr ""
+
 #: descripciones.py
 msgid "magnitud {mag}"
 msgstr ""
@@ -11372,6 +11428,11 @@ msgstr ""
 #. js
 #: templates/configuracion.html
 msgid "móvil: {hora}"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "naranja"
 msgstr ""
 
 #: templates/planetario.html
@@ -11810,6 +11871,11 @@ msgstr ""
 msgid "revelando {p} a campo completo…"
 msgstr ""
 
+#. js
+#: templates/editar_foto.html
+msgid "rojo"
+msgstr ""
+
 #: enfoque.py
 msgid "rojo {px}"
 msgstr ""
@@ -12140,6 +12206,16 @@ msgstr ""
 msgid "ver y editar el apilado"
 msgstr ""
 
+#. js
+#: templates/editar_foto.html
+msgid "verde"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "violeta"
+msgstr ""
+
 #: templates/apilado.html
 msgid "visible"
 msgstr ""
@@ -12355,6 +12431,11 @@ msgid "{motivo}. Esta noche: {n} objeto hecho; quedan {p} para otra noche"
 msgid_plural "{motivo}. Esta noche: {n} objetos hechos; quedan {p} para otra noche"
 msgstr[0] ""
 msgstr[1] ""
+
+#. js
+#: templates/editar_foto.html
+msgid "{nombre} (tono {t}°)"
+msgstr ""
 
 #: static/js/plan.js
 msgid "{nombre} ya estaba en el plan"
@@ -13709,6 +13790,11 @@ msgstr ""
 msgid "✅ Cancelado. El equipo sigue encendido (hay que volver a conectar el equipo desde Inicio)."
 msgstr ""
 
+#. js
+#: templates/editar_foto.html
+msgid "✅ Color tomado: {nombre} (tono {t}°). Mueve ahora su saturación"
+msgstr ""
+
 #: ScopePower.py
 msgid "✅ Configuración guardada correctamente"
 msgstr ""
@@ -14115,12 +14201,32 @@ msgstr ""
 
 #. js
 #: templates/editar_foto.html
+msgid "👆 Ese punto casi no tiene color; toca una zona con más color"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "👆 Preparando la vista previa; después toca el color en la foto"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
 msgid "👆 Preparando la vista previa; después toca el objeto en la foto"
 msgstr ""
 
 #. js
 #: templates/editar_foto.html
 msgid "👆 Toca el objeto en la foto para dejarlo en el centro"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "👆 Toca en la foto el color que quieras ajustar"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "💧 Cuentagotas"
 msgstr ""
 
 #. js

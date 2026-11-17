@@ -9,7 +9,8 @@
 //   1. temperatura de color   afín alrededor del nivel del cielo (fondo), por canal
 //   2. brillo general         potencia 2^(-brillo), por canal
 //   3. SCNR                   G -= factor · max(G - (R + B) / 2, 0), sin las estrellas si se pide
-//   4. saturación             S × factor en HSV (V y H fijos), × factor_estrellas en las estrellas pequeñas
+//   4. saturación             S × factor en HSV (V y H fijos), × factor_estrellas en las estrellas pequeñas,
+//                             y × el color selectivo del cuentagotas (ver más abajo)
 //   5. curvas                 la de los tres canales y después la de cada uno (curvas.js)
 //
 // Con las ESTRELLAS APARTE (estrellas_aparte.py) el paquete trae además la capa de
@@ -29,12 +30,24 @@
 // (tamaño/0,25)², y entre el 100 y el 85 % se funde con la capa original. Se pinta una
 // vez por valor del deslizador (_reducida, con caché).
 //
+// El COLOR SELECTIVO (el cuentagotas; procesado.ganancia_colores, la misma cuenta): de cada
+// color elegido se guardan el tono (H de HSV, 0..360°) y la croma (V - mínimo, 0..1) del punto
+// tocado, medidos a la entrada del paso 4, la anchura del rango en grados y su saturación. Cada
+// píxel entra con un peso = coseno alzado del tono (1 en el tono tocado, 0 a `anchura` grados) ×
+// smoothstep de la croma (0 por debajo de 0,1 veces la croma tocada, 1 desde 1 vez; nunca por
+// debajo de 2 y 8 niveles: el tono de un píxel casi gris es ruido y sin esto se teñía el cielo),
+// y su saturación, ya multiplicada por la general, se multiplica además por m = 1 + (saturación
+// - 1)·peso; al subir no se recorta en 1, se acerca con S' = S + (1 - S)·tanh((S·m - S) / (1 - S))
+// (recortados, los rojos a tope quedaban planos). Con las estrellas aparte solo cambia el objeto;
+// la capa de estrellas sigue con su propia saturación.
+//
 // Los pasos 1, 2 y 5 son por tabla (256 entradas por canal); 3 y 4 píxel a píxel.
 // Si se cambia algo aquí hay que cambiarlo también en procesado.py, y al revés.
 //
 //   const r = new Retoque(canvas);
 //   await r.cargar(paquete)       {base: Blob, mascaras: Blob, firma: Blob, fondo: [r, g, b], estrellas?: Blob}
 //   r.aplicar(ajustes, editorCurvas.tablas(), conFirma)   → pinta el lienzo; devuelve el histograma {r, g, b, l}
+//   r.muestra(u, v, ajustes)      → {tono, croma} del punto (u, v) de la foto, para el cuentagotas
 (function () {
     "use strict";
 
@@ -77,6 +90,41 @@
             cat[k + 6] = Math.pow(2, v.getUint8(o + 9) / 32);
         }
         return cat;
+    }
+
+    // Colores del cuentagotas listos para el bucle (procesado.normalizar_colores y los límites de
+    // la rampa de croma de procesado.peso_color): [{i, tono, anchura, k = saturación - 1, c0, inv}]
+    function prepararColores(colores) {
+        const lista = [];
+        if (!Array.isArray(colores)) return lista;
+        for (let i = 0; i < colores.length && lista.length < 4; i++) {           // procesado.MAX_COLORES
+            const c = colores[i] || {};
+            if (c.tono === null || c.tono === undefined || c.croma === null || c.croma === undefined) continue;
+            const tono = Number(c.tono), croma = Number(c.croma), a = Number(c.anchura), s = Number(c.saturacion);
+            if (!isFinite(tono) || !isFinite(croma)) continue;
+            const cr = Math.min(1, Math.max(0, croma));
+            const c0 = Math.max(0.1 * cr, 2 / 255), c1 = Math.max(cr, 8 / 255);          // procesado.RAMPA_CROMA y RAMPA_CROMA_MIN
+            lista.push({ i, tono: ((tono % 360) + 360) % 360, anchura: Math.min(90, Math.max(15, isFinite(a) ? a : 45)),
+                         k: Math.min(3, Math.max(0, isFinite(s) ? s : 1)) - 1, c0, inv: 1 / (c1 - c0) });
+        }
+        return lista;
+    }
+
+    // Tono H de HSV en grados (0..360), como cv2.COLOR_RGB2HSV en float; V = máximo, diff = V - mínimo > 0
+    function tonoHSV(r, g, b, V, diff) {
+        const H = V === r ? 60 * (g - b) / diff : V === g ? 120 + 60 * (b - r) / diff : 240 + 60 * (r - g) / diff;
+        return H < 0 ? H + 360 : H;
+    }
+
+    // Peso 0..1 de un píxel de tono H y croma C en el rango del color c (procesado.peso_color)
+    function pesoColor(H, C, c) {
+        if (C <= c.c0) return 0;
+        let d = Math.abs(H - c.tono);
+        if (d > 180) d = 360 - d;
+        if (d >= c.anchura) return 0;
+        let t = (C - c.c0) * c.inv;
+        if (t > 1) t = 1;
+        return 0.5 * (1 + Math.cos(Math.PI * d / c.anchura)) * t * t * (3 - 2 * t);
     }
 
     class Retoque {
@@ -242,7 +290,9 @@
 
         /**
          * Aplica los ajustes y pinta. aj: {temperatura, brillo, scnr, scnr_estrellas, saturacion,
-         * saturacion_estrellas, tamano_estrellas}; curvas: tablas de EditorCurvas.tablas() (o null);
+         * saturacion_estrellas, tamano_estrellas, colores: los del cuentagotas, ver_color: índice del
+         * color cuya selección se enseña (lo que entra en su rango en color y el resto en gris; solo
+         * en pantalla, no se guarda) o -1}; curvas: tablas de EditorCurvas.tablas() (o null);
          * conFirma: pintar la firma; curvasEstrellas: las tablas de las curvas propias de las
          * estrellas (estrellas aparte, o null). Devuelve el histograma {r, g, b, l} (Uint32Array(256))
          * de la imagen ANTES de las curvas, que es lo que el editor de curvas enseña de fondo.
@@ -257,6 +307,14 @@
             const sat = Number(aj.saturacion); const satG = isFinite(sat) ? sat : 1;
             const satE = aj.saturacion_estrellas === undefined || aj.saturacion_estrellas === null || !isFinite(Number(aj.saturacion_estrellas)) ? satG : Number(aj.saturacion_estrellas);
             const haySat = Math.abs(satG - 1) >= 1e-3 || Math.abs(satE - 1) >= 1e-3;
+            // Color selectivo: los colores que cambian algo, el que se enseña y la croma desde la que hay que mirar el tono
+            const todos = prepararColores(aj.colores);
+            const sel = todos.filter(c => Math.abs(c.k) >= 1e-3), nSel = sel.length;
+            const ver = todos.find(c => c.i === aj.ver_color) || null;
+            const hayColores = nSel > 0 || !!ver;
+            let cMin = 2;
+            for (const c of sel) if (c.c0 < cMin) cMin = c.c0;
+            if (ver && ver.c0 < cMin) cMin = ver.c0;
             const cR = this._tablasCurvas(curvas), hayCurvas = !!(curvas && (curvas.rgb || curvas.r || curvas.g || curvas.b));
             const cE = this.capa ? this._tablasCurvasFloat(curvasEstrellas) : null;
             const hR = new Uint32Array(256), hG = new Uint32Array(256), hB = new Uint32Array(256), hL = new Uint32Array(256);
@@ -271,14 +329,24 @@
                 const tamano = isFinite(t) ? Math.min(100, Math.max(0, t)) / 100 : 1;
                 if (tamano < 1) capa = this._reducida(tamano, aj.halo_estrellas);      // el tamaño va antes que el color, como en el servidor
             }
-            // Saturación en HSV (V y H fijos), sin crear arrays por píxel: deja el resultado en `rgb3`
+            // Saturación en HSV (V y H fijos), sin crear arrays por píxel: deja el resultado en `rgb3`.
+            // mult: lo que multiplica además el color selectivo (1 = nada)
             const rgb3 = new Float32Array(3);
-            const saturar = (r, g, b, gan) => {
+            const saturar = (r, g, b, gan, mult) => {
                 const V = r > g ? (r > b ? r : b) : (g > b ? g : b);
                 const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
                 if (V <= 0 || V <= mn) { rgb3[0] = r; rgb3[1] = g; rgb3[2] = b; return; }
                 const S = (V - mn) / V;
-                if (gan * S > 1) gan = 1 / S;       // la saturación no pasa de 1 (como el clip del servidor)
+                if (mult !== 1) {
+                    // Color selectivo, sobre la saturación ya multiplicada por la general: al subir
+                    // se acerca a 1 sin recortarse (procesado.saturar)
+                    let S1 = gan * S;
+                    if (S1 > 1) S1 = 1;
+                    const buscada = S1 * mult;
+                    if (buscada > S1) { const hueco = 1 - S1; S1 = hueco > 1e-6 ? S1 + hueco * Math.tanh((buscada - S1) / hueco) : 1; }
+                    else S1 = buscada;
+                    gan = S1 / S;
+                } else if (gan * S > 1) gan = 1 / S;       // la saturación no pasa de 1 (como el clip del servidor)
                 rgb3[0] = V - gan * (V - r); rgb3[1] = V - gan * (V - g); rgb3[2] = V - gan * (V - b);
             };
             for (let i = 0, j = 0; i < n; i++, j += 4) {
@@ -291,11 +359,23 @@
                         if (g < 0) g = 0;
                     }
                 }
-                if (haySat) {
+                let pesoVer = 0;
+                if (haySat || hayColores) {
                     // Sin capas, la saturación de las estrellas va por la máscara de las pequeñas; con
                     // capas el objeto lleva la general y la capa la suya
                     const pe = capa ? 0 : peq[i] / 255;
-                    saturar(r, g, b, satG * (1 - pe) + satE * pe); r = rgb3[0]; g = rgb3[1]; b = rgb3[2];
+                    const gan = satG * (1 - pe) + satE * pe;
+                    let mult = 1;
+                    if (hayColores) {      // el color selectivo multiplica la saturación de los píxeles de su rango
+                        const V = r > g ? (r > b ? r : b) : (g > b ? g : b);
+                        const C = V - (r < g ? (r < b ? r : b) : (g < b ? g : b));
+                        if (C > cMin) {
+                            const H = tonoHSV(r, g, b, V, C);
+                            for (let q = 0; q < nSel; q++) mult *= 1 + sel[q].k * pesoColor(H, C, sel[q]);
+                            if (ver) pesoVer = pesoColor(H, C, ver);
+                        }
+                    }
+                    saturar(r, g, b, gan, mult); r = rgb3[0]; g = rgb3[1]; b = rgb3[2];
                 }
                 if (capa) {
                     let er = cRt[capa[j]], eg = cGt[capa[j + 1]], eb = cBt[capa[j + 2]];
@@ -303,7 +383,7 @@
                         const exceso = eg - (er + eb) / 2;
                         if (exceso > 0) { eg -= scnr * exceso; if (eg < 0) eg = 0; }
                     }
-                    if (Math.abs(satE - 1) >= 1e-3) { saturar(er, eg, eb, satE); er = rgb3[0]; eg = rgb3[1]; eb = rgb3[2]; }
+                    if (Math.abs(satE - 1) >= 1e-3) { saturar(er, eg, eb, satE, 1); er = rgb3[0]; eg = rgb3[1]; eb = rgb3[2]; }
                     if (cE) {      // curvas propias de las estrellas (procesado.ajustes_rapidos_capas: curvas_estrellas)
                         er = cE[0][Math.round(Math.min(1, Math.max(0, er)) * 1023)];
                         eg = cE[1][Math.round(Math.min(1, Math.max(0, eg)) * 1023)];
@@ -316,11 +396,54 @@
                 let r8 = Math.round(r * 255), g8 = Math.round(g * 255), b8 = Math.round(b * 255);
                 hR[r8]++; hG[g8]++; hB[b8]++; hL[(r8 + g8 + b8) / 3 | 0]++;
                 if (hayCurvas) { r8 = cR[0][Math.round(r * 1023)]; g8 = cR[1][Math.round(g * 1023)]; b8 = cR[2][Math.round(b * 1023)]; }
+                if (ver) {      // «Ver la selección»: fuera del rango, gris y más apagado
+                    const gris = (r8 + g8 + b8) * 0.2;
+                    r8 = gris + pesoVer * (r8 - gris); g8 = gris + pesoVer * (g8 - gris); b8 = gris + pesoVer * (b8 - gris);
+                }
                 dst[j] = r8; dst[j + 1] = g8; dst[j + 2] = b8; dst[j + 3] = 255;
             }
             this.ctx.putImageData(this.salida, 0, 0);
             if (conFirma && this.firma) this.ctx.drawImage(this.firma, 0, 0, this.ancho, this.alto);
             return { r: hR, g: hG, b: hB, l: hL };
+        }
+
+        /**
+         * El cuentagotas: el color de la foto en el punto (u, v) (fracciones 0..1 del ancho y del
+         * alto del lienzo) tal como entra en la saturación, es decir, la base con la temperatura,
+         * el brillo y el SCNR de `aj` (los mismos pasos que aplicar). Se toma la mediana por canal
+         * de un disco de ~6 px de radio (a 1200 px), para que una estrella o un píxel de ruido
+         * bajo el dedo no cuenten. Devuelve {tono (0..360), croma (0..1)} o null sin base.
+         */
+        muestra(u, v, aj) {
+            if (!this.base) return null;
+            const w = this.ancho, h = this.alto, src = this.base.data, est = this.estrellas;
+            const previas = this._tablasPrevias(aj, this.fondo);
+            const tR = previas[0], tG = previas[1], tB = previas[2];
+            const scnr = Math.min(1, Math.max(0, Number(aj.scnr) || 0));
+            const scnrEstrellas = aj.scnr_estrellas !== false;
+            const R = Math.max(3, Math.round(Math.max(w, h) / 200));
+            const xc = Math.min(w - 1, Math.max(0, Math.floor(u * w))), yc = Math.min(h - 1, Math.max(0, Math.floor(v * h)));
+            const rs = [], gs = [], bs = [];
+            for (let yy = Math.max(0, yc - R); yy <= Math.min(h - 1, yc + R); yy++) {
+                for (let xx = Math.max(0, xc - R); xx <= Math.min(w - 1, xc + R); xx++) {
+                    if ((xx - xc) * (xx - xc) + (yy - yc) * (yy - yc) > R * R) continue;
+                    const i = yy * w + xx, j = i * 4;
+                    const r = tR[src[j]], b = tB[src[j + 2]];
+                    let g = tG[src[j + 1]];
+                    if (scnr > 0) {
+                        let exceso = g - (r + b) / 2;
+                        if (exceso > 0) {
+                            if (!scnrEstrellas && !this.capa) exceso *= 1 - est[i] / 255;
+                            g = Math.max(0, g - scnr * exceso);
+                        }
+                    }
+                    rs.push(r); gs.push(g); bs.push(b);
+                }
+            }
+            const mediana = a => { a.sort((x, y) => x - y); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+            const r = mediana(rs), g = mediana(gs), b = mediana(bs);
+            const V = Math.max(r, g, b), croma = V - Math.min(r, g, b);
+            return { tono: croma > 0 ? tonoHSV(r, g, b, V, croma) : 0, croma };
         }
     }
 

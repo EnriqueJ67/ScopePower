@@ -30,6 +30,9 @@
 #  13. el halo de las estrellas reducidas (perfil de Moffat): misma media altura, alas más largas;
 #  14. la comprobación de la instalación de StarNet2 de la tarjeta de Configuración;
 #  15. la cola de después de guardar (cola_estrellas.py) y un solo StarNet2 a la vez.
+#  16. el color selectivo (el cuentagotas del editor): sin colores la foto sale idéntica, el
+#      color tocado gana saturación y los demás no, el cielo no se tiñe, el rango cae sin
+#      escalones y el servidor coincide con el navegador, con y sin las estrellas aparte.
 
 import os
 import sys
@@ -542,6 +545,155 @@ def prueba_cola():
         comprobar(prioridades == [True], "la de la cola, con prioridad baja")
 
 
+def prueba_color_selectivo(base, capa, aj):
+    print("16. Color selectivo (el cuentagotas del editor)")
+    # a) Lo que llega de la web o del JSON se limpia y se limita
+    n = procesado.normalizar_colores([{"tono": 725.04, "croma": 0.2, "anchura": 200, "saturacion": 9}, {"tono": "x", "croma": 0.1}, "nada",
+                                      {"tono": 10, "croma": 0.1}] + [{"tono": 1, "croma": 0.1}] * 6)
+    comprobar(len(n) == procesado.MAX_COLORES and n[0] == {"tono": 5.0, "croma": 0.2, "anchura": 90.0, "saturacion": 3.0}
+              and n[1] == {"tono": 10.0, "croma": 0.1, "anchura": procesado.ANCHURA_COLOR, "saturacion": 1.0},
+              f"normalizar_colores limpia, recorta a sus límites y deja {procesado.MAX_COLORES} como mucho")
+    comprobar(procesado.normalizar_colores(None) == [] and procesado.normalizar_colores({"tono": 1}) == [] and procesado.normalizar_colores([{"tono": 1}]) == [],
+              "sin colores válidos, lista vacía")
+
+    # La foto normal (con estrellas), a media resolución, y sus ajustes rápidos de siempre
+    original, __, __, __ = cielo_sintetico()
+    f, estrellas, pequenas = procesado.procesar(original, 1, aj, escala=0.5, balance={"r": 1.1, "b": 1.3, "n": 50}, solo_base=True)
+    ajustes = dict(aj, temperatura=0.3, brillo=0.2, scnr=0.8, scnr_estrellas=True, saturacion=1.6, saturacion_estrellas=1.0, curvas=None)
+    fondo = procesado.fondo_cielo(f)
+    antes = procesado.ajustes_rapidos(f, ajustes, estrellas, pequenas, fondo=fondo)
+
+    # b) Sin colores, o con un color a saturación 1, la foto sale idéntica (las fotos ya guardadas no cambian)
+    neutro = [{"tono": 300.0, "croma": 0.2, "anchura": 45.0, "saturacion": 1.0}]
+    iguales = [np.array_equal(antes, procesado.ajustes_rapidos(f, dict(ajustes, colores=c), estrellas, pequenas, fondo=fondo)) for c in (None, [], neutro)]
+    comprobar(all(iguales), "sin colores, o con un color a saturación 1, el resultado es idéntico bit a bit")
+
+    # c) El cuentagotas: la mediana de un disco en el centro de la nebulosa, a la entrada de la
+    # saturación (base + temperatura + brillo + SCNR), como retoque.muestra en el navegador
+    def tono_croma(img):
+        r, g, b = img[..., 0].astype(np.float64), img[..., 1].astype(np.float64), img[..., 2].astype(np.float64)
+        V, C = img.max(axis=-1).astype(np.float64), (img.max(axis=-1) - img.min(axis=-1)).astype(np.float64)
+        d = np.maximum(C, 1e-12)
+        H = np.where(V == r, 60 * (g - b) / d, np.where(V == g, 120 + 60 * (b - r) / d, 240 + 60 * (r - g) / d))
+        return np.where(H < 0, H + 360, H), C
+
+    def entrada_saturacion(img, fondo_cielo):
+        img = procesado.brillo_general(procesado.temperatura_color(img, 0.3, fondo=fondo_cielo), 0.2)
+        return procesado.scnr_verde(img, 0.8)
+    g = entrada_saturacion(f, fondo)
+    h, w = g.shape[:2]
+    yc, xc, R = int(h * 0.45), int(w * 0.55), 3
+    yy, xx = np.mgrid[-R:R + 1, -R:R + 1]
+    muestra = np.median(g[yc - R:yc + R + 1, xc - R:xc + R + 1][yy * yy + xx * xx <= R * R], axis=0)
+    H0, C0 = tono_croma(muestra.reshape(1, 1, 3))
+    color = {"tono": round(float(H0[0, 0]), 1), "croma": round(float(C0[0, 0]), 4), "anchura": 45.0, "saturacion": 2.0}
+    comprobar(color["croma"] > 8 / 255, f"el centro de la nebulosa tiene color que tomar: tono {color['tono']:.0f}°, croma {color['croma'] * 255:.0f} niveles")
+    despues = procesado.ajustes_rapidos(f, dict(ajustes, colores=[color]), estrellas, pequenas, fondo=fondo)
+
+    def saturacion_hsv(img):
+        return (img.max(axis=2) - img.min(axis=2)) / np.maximum(img.max(axis=2), 1e-6)
+    nucleo = (slice(yc - 10, yc + 11), slice(xc - 10, xc + 11))
+    s_antes, s_despues = float(np.median(saturacion_hsv(antes)[nucleo])), float(np.median(saturacion_hsv(despues)[nucleo]))
+    comprobar(1.5 * s_antes < s_despues < 0.99, f"el color tocado gana saturación en la nebulosa sin llegar al tope ({s_antes:.2f} -> {s_despues:.2f} con ×2)")
+    comprobar(np.abs(despues.max(axis=2) - antes.max(axis=2)).max() < 1e-4, "el brillo (V de HSV) no cambia")
+
+    # d) Los otros colores no se tocan: a más de la anchura del tono elegido, ni un nivel
+    Hg, Cg = tono_croma(g)
+    lejos = (np.abs((Hg - color["tono"] + 180) % 360 - 180) > color["anchura"] + 1) & (Cg > 8 / 255)
+    comprobar(lejos.sum() > 50 and np.array_equal(antes[lejos], despues[lejos]), f"los {int(lejos.sum())} píxeles de otros tonos quedan idénticos")
+
+    # e) El cielo no se tiñe: su color medio no se mueve ni medio nivel
+    L = g.mean(axis=2)
+    m = float(np.median(L))
+    mad = float(np.median(np.abs(L - m))) * 1.4826 + 1e-6
+    cielo = (L < m + mad) & (pequenas < 0.05) & (np.hypot(*np.mgrid[0:h, 0:w][::-1] - np.array([xc, yc]).reshape(2, 1, 1)) > 0.3 * w)
+    corrido = np.abs((despues - antes)[cielo].mean(axis=0)) * 255
+    comprobar(cielo.sum() > 1000 and corrido.max() < 0.5, f"el cielo no se tiñe: se mueve {corrido.max():.2f} niveles de media")
+
+    # f) El rango cae sin escalones, en tono y en croma, y vale 1 en el color tocado
+    tonos = np.arange(0, 360, 0.25)
+    por_tono = procesado.peso_color(tonos, np.full_like(tonos, color["croma"]), color)
+    cromas = np.linspace(0, 1, 2001)
+    por_croma = procesado.peso_color(np.full_like(cromas, color["tono"]), cromas, color)
+    comprobar(abs(float(por_tono.max()) - 1.0) < 1e-3 and float(np.abs(np.diff(np.append(por_tono, por_tono[0]))).max()) < 0.01
+              and float(np.abs(np.diff(por_croma)).max()) < 0.02 and por_croma[0] == 0 and por_croma[-1] > 0.999,
+              f"el peso cae sin escalones (salto máximo {float(np.abs(np.diff(por_tono)).max()):.3f} por cuarto de grado) y los grises no entran")
+    comprobar(float(procesado.peso_color(np.array([color["tono"] + color["anchura"] / 2]), np.array([1.0]), color)[0]) == np.float32(0.5),
+              "a media anchura el peso es la mitad")
+
+    # g) Paridad servidor / navegador: lo mismo en 8 bits, paso a paso como retoque.js
+    def previas(img, fondo_cielo):
+        gan = np.array([1 + 0.3 * 0.3, 1, 1 - 0.3 * 0.3], dtype=np.float32)
+        return np.power(np.clip(fondo_cielo + (img - fondo_cielo) * gan, 0, 1), 2 ** (-0.2))
+
+    def scnr(img, factor):
+        exceso = np.clip(img[..., 1] - (img[..., 0] + img[..., 2]) / 2, 0, None)
+        out = img.copy()
+        out[..., 1] = np.clip(out[..., 1] - factor * exceso, 0, None)
+        return out
+
+    def peso_js(Hn, Cn, c):
+        c0, c1 = max(0.1 * c["croma"], 2 / 255), max(c["croma"], 8 / 255)
+        d = np.abs(Hn - c["tono"])
+        d = np.where(d > 180, 360 - d, d)
+        t = np.minimum((Cn - c0) / (c1 - c0), 1)
+        return np.where((Cn > c0) & (d < c["anchura"]), 0.5 * (1 + np.cos(np.pi * d / c["anchura"])) * t * t * (3 - 2 * t), 0)
+
+    def saturar(img, gan, colores):
+        V, mn = img.max(axis=2), img.min(axis=2)
+        gan = np.broadcast_to(np.asarray(gan, dtype=np.float64), V.shape).copy()
+        Hn, Cn = tono_croma(img)
+        mult = np.ones(V.shape)
+        for c in colores:
+            mult *= 1 + (c["saturacion"] - 1) * peso_js(Hn, Cn, c)
+        S = np.where(V > 0, (V - mn) / np.maximum(V, 1e-9), 0)
+        S1 = np.minimum(gan * S, 1)
+        hueco = np.maximum(1 - S1, 1e-6)
+        S2 = np.where(S1 * mult > S1, S1 + hueco * np.tanh((S1 * mult - S1) / hueco), S1 * mult)
+        k = (np.where(mult != 1, S2, S1) / np.maximum(S, 1e-9))[..., None]
+        return np.where((V > 0)[..., None] & (V > mn)[..., None], V[..., None] - k * (V[..., None] - img), img)
+
+    def a8(img):
+        return np.clip(img * 255 + 0.5, 0, 255).astype(np.uint8)
+    segundo = dict(color, tono=(color["tono"] + 60) % 360, saturacion=0.3, anchura=30.0)
+    colores = [color, segundo]
+    servidor = a8(procesado.ajustes_rapidos(f, dict(ajustes, colores=colores), estrellas, pequenas, fondo=fondo))
+    f8 = a8(f).astype(np.float32) / 255.0
+    p8 = np.round(np.clip(pequenas * 15.0 + 0.5, 0, 15).astype(np.uint8) * 17 / 255.0, 6)       # la máscara llega en 16 niveles
+    nav = a8(saturar(scnr(previas(f8, fondo), 0.8), 1.6 * (1 - p8) + 1.0 * p8, colores))
+    dif = np.abs(servidor.astype(int) - nav.astype(int))
+    comprobar(np.percentile(dif, 99.5) <= 2 and dif.max() <= 8, f"paridad sin capas, con dos colores: p99,5 = {np.percentile(dif, 99.5):.0f}, máx = {dif.max()} niveles")
+
+    # h) Con las estrellas aparte: el color selectivo solo en el objeto, la capa de estrellas con su saturación
+    fondo_b = procesado.fondo_cielo(base)
+    aj_capas = dict(ajustes, saturacion_estrellas=1.2, tamano_estrellas=100, curvas_estrellas=None)
+    gb = entrada_saturacion(base, fondo_b)
+    hb, wb = gb.shape[:2]
+    yb, xb = int(hb * 0.45), int(wb * 0.55)
+    mb = np.median(gb[yb - R:yb + R + 1, xb - R:xb + R + 1][yy * yy + xx * xx <= R * R], axis=0)
+    Hb, Cb = tono_croma(mb.reshape(1, 1, 3))
+    color_b = {"tono": round(float(Hb[0, 0]), 1), "croma": round(float(Cb[0, 0]), 4), "anchura": 45.0, "saturacion": 2.0}
+    sin = procesado.ajustes_rapidos_capas(base, capa, aj_capas, fondo=fondo_b)
+    con = procesado.ajustes_rapidos_capas(base, capa, dict(aj_capas, colores=[color_b]), fondo=fondo_b)
+    comprobar(float(np.abs(con - sin).max()) * 255 > 4, f"con capas el color tocado cambia el objeto ({float(np.abs(con - sin).max()) * 255:.0f} niveles)")
+    # La capa de estrellas sola (sobre un objeto negro) y un color tomado de la estrella más coloreada: no cambia nada
+    ge = entrada_saturacion(capa, np.zeros(3, np.float32))
+    He, Ce = tono_croma(ge)
+    ye, xe = np.unravel_index(int(np.argmax(Ce)), Ce.shape)
+    color_e = {"tono": round(float(He[ye, xe]), 1), "croma": round(float(Ce[ye, xe]), 4), "anchura": 90.0, "saturacion": 0.0}
+    negro = np.zeros_like(base)
+    comprobar(color_e["croma"] > 0.1 and np.array_equal(procesado.ajustes_rapidos_capas(negro, capa, aj_capas, fondo=fondo_b),
+                                                        procesado.ajustes_rapidos_capas(negro, capa, dict(aj_capas, colores=[color_e]), fondo=fondo_b)),
+              "con capas las estrellas no se tocan, ni con el color tomado de una estrella")
+    b8 = a8(base).astype(np.float32) / 255.0
+    c8 = np.clip(np.round(capa * 255), 0, 255).astype(np.float32) / 255.0
+    o = saturar(scnr(previas(b8, fondo_b), 0.8), 1.6, [color_b])
+    e = saturar(scnr(previas(c8, np.zeros(3, np.float32)), 0.8), 1.2, [])
+    nav = a8(1 - (1 - o) * (1 - e))
+    dif = np.abs(a8(con).astype(int) - nav.astype(int))
+    comprobar(np.percentile(dif, 99.5) <= 2 and dif.max() <= 8, f"paridad con capas: p99,5 = {np.percentile(dif, 99.5):.0f}, máx = {dif.max()} niveles")
+
+
 if __name__ == "__main__":
     prueba_pantalla()
     base, capa, aj = prueba_procesado()
@@ -559,6 +711,7 @@ if __name__ == "__main__":
     prueba_comprobar_instalacion()
     prueba_arranque_fallido()
     prueba_cola()
+    prueba_color_selectivo(base, capa, aj)
     print()
     if FALLOS:
         print(f"❌ {len(FALLOS)} fallo(s):")

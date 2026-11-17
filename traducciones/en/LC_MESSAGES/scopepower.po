@@ -726,6 +726,10 @@ msgstr "Star width"
 msgid "Anchura de las estrellas (FWHM) en las últimas {n} fotos: de {min} a {max} px; la línea de puntos es el inicio de la sesión."
 msgstr "Star width (FWHM) over the last {n} shots: from {min} to {max} px; the dotted line is the start of the session."
 
+#: templates/editar_foto.html
+msgid "Anchura del rango"
+msgstr "Range width"
+
 #: templates/galeria.html templates/publico/index.html
 msgid "Anotaciones"
 msgstr "Annotations"
@@ -1709,6 +1713,10 @@ msgstr "Sun color"
 #: templates/calibracion.html
 msgid "Color olvidado: se usa el valor típico."
 msgstr "Color forgotten: using the typical value."
+
+#: templates/editar_foto.html
+msgid "Color selectivo"
+msgstr "Selective colour"
 
 #. js
 #: templates/flats.html
@@ -3464,6 +3472,10 @@ msgstr "Public gallery link"
 #: templates/galeria.html
 msgid "Enlace público"
 msgstr "Public link"
+
+#: templates/editar_foto.html
+msgid "Enseña en color lo que entra en el rango y en gris lo demás; solo en pantalla, no se guarda"
+msgstr "Shows in colour what falls inside the range and everything else in grey; on screen only, it is not saved"
 
 #: templates/_modal_voz.html
 msgid "Entendido"
@@ -5790,6 +5802,10 @@ msgstr "The two stacks are not the same size"
 msgid "Los presets se crean aquí o en el editor de la galería. Al elegir uno se cargan todos sus ajustes; luego pulsa \"Aplicar a la vista previa\". Al apuntar a un objeto se carga solo el preset de su familia si existe: «Galaxias», «Nebulosas» (también planetarias y restos de supernova) o «Cúmulos»."
 msgstr "Presets are created here or in the gallery editor. Choosing one loads all its settings; then press “Apply to preview”. When you point at an object, the preset for its family is loaded automatically if it exists: “Galaxias” (galaxies), “Nebulosas” (nebulae, also planetary nebulae and supernova remnants) or “Cúmulos” (clusters)."
 
+#: templates/editar_foto.html
+msgid "Los tonos que entran en el rango, con el color tocado en el centro"
+msgstr "The hues inside the range, with the colour you touched in the centre"
+
 #. js
 #: catalogo_offline.py disco.py esta_noche.py foto_dia.py plan_sesion.py
 #: static/publico/galeria_publica.js static/publico/planetario_publico.js
@@ -7792,6 +7808,10 @@ msgstr "Press Generate or paste the hosting one"
 msgid "Pulsa Iniciar para mover con la vista en directo"
 msgstr "Press Start to move with the live view"
 
+#: templates/editar_foto.html
+msgid "Pulsa el cuentagotas y toca un color en la foto: cambias la saturación de ese color y de sus tonos vecinos (según la anchura) sin tocar el resto. 1 lo deja igual y 0 lo deja gris. El rango cae suavemente, y los colores mucho más apagados que el que tocaste no entran, así el fondo del cielo no se tiñe: para incluir la parte débil de una nebulosa, toca la parte débil. Con las estrellas aparte solo cambia el objeto; las estrellas tienen su propia saturación. Hasta 4 colores, que se guardan con la foto."
+msgstr "Press the eyedropper and touch a colour in the photo: you change the saturation of that colour and its neighbouring hues (depending on the width) without touching the rest. 1 leaves it as it is and 0 turns it grey. The range falls off smoothly, and colours much duller than the one you touched stay out, so the sky background is not tinted: to include the faint part of a nebula, touch the faint part. With the stars apart only the object changes; the stars have their own saturation. Up to 4 colours, saved with the photo."
+
 #. js
 #: templates/galeria.html
 msgid "Pulsa para sincronizar ahora"
@@ -7957,6 +7977,10 @@ msgstr "Remove the pointer"
 #: templates/apilado.html templates/editar_foto.html
 msgid "Quitar el verde también en las estrellas"
 msgstr "Remove green from stars too"
+
+#: templates/editar_foto.html
+msgid "Quitar este color"
+msgstr "Remove this colour"
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Quitar gradiente de contaminación lumínica"
@@ -8477,6 +8501,10 @@ msgstr "Skip this step"
 #: templates/apilado.html templates/editar_foto.html
 msgid "Saturación"
 msgstr "Saturation"
+
+#: templates/editar_foto.html
+msgid "Saturación de este color"
+msgstr "Saturation of this colour"
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Saturación de las estrellas"
@@ -9366,6 +9394,10 @@ msgstr "Type:"
 msgid "Toca después la foto: el punto que toques pasa a ser el centro del encuadre"
 msgstr "Then tap the photo: the point you tap becomes the center of the framing"
 
+#: templates/editar_foto.html
+msgid "Toca después la foto: se toma el color del punto que toques para ajustar su saturación"
+msgstr "Then touch the photo: the colour of the point you touch is picked so you can adjust its saturation"
+
 #: static/js/ubicacion_movil.js
 msgid "Toca el icono de la izquierda de la dirección (ⓘ o candado) → Permisos → Ubicación → Permitir."
 msgstr "Tap the icon to the left of the address (ⓘ or padlock) → Permissions → Location → Allow."
@@ -9752,6 +9784,10 @@ msgstr "View the gallery"
 #: templates/apilado.html
 msgid "Ver la noche"
 msgstr "View the night"
+
+#: templates/editar_foto.html
+msgid "Ver la selección"
+msgstr "Show the selection"
 
 #. js
 #: templates/imagen.html
@@ -10163,6 +10199,11 @@ msgstr "dawn is coming"
 msgid "amanece a las {hora}: solo caben {fp} de {n}"
 msgstr "dawn comes at {hora}: only {fp} of {n} fit"
 
+#. js
+#: templates/editar_foto.html
+msgid "amarillo"
+msgstr "yellow"
+
 #: static/js/plan.js
 msgid "anochece a las {hora}"
 msgstr "night falls at {hora}"
@@ -10193,6 +10234,11 @@ msgstr "invalid argument"
 #: camara_toupcam.py
 msgid "arrancar la cámara"
 msgstr "start the camera"
+
+#. js
+#: templates/editar_foto.html
+msgid "azul"
+msgstr "blue"
 
 #: enfoque.py
 msgid "azul {px}"
@@ -10307,6 +10353,11 @@ msgstr "zero"
 #: static/js/seguimiento.js
 msgid "cerrada"
 msgstr "closed"
+
+#. js
+#: templates/editar_foto.html
+msgid "cian"
+msgstr "cyan"
 
 #. js
 #: anuncio_ip.py
@@ -11248,6 +11299,11 @@ msgstr "stray light (background +{s} σ over {p} % of the shot)"
 msgid "mag {mag}"
 msgstr "mag {mag}"
 
+#. js
+#: templates/editar_foto.html
+msgid "magenta"
+msgstr "magenta"
+
 #: descripciones.py
 msgid "magnitud {mag}"
 msgstr "magnitude {mag}"
@@ -11375,6 +11431,11 @@ msgstr "metric {m}"
 #: templates/configuracion.html
 msgid "móvil: {hora}"
 msgstr "phone: {hora}"
+
+#. js
+#: templates/editar_foto.html
+msgid "naranja"
+msgstr "orange"
 
 #: templates/planetario.html
 msgid "nebulosa de emisión"
@@ -11812,6 +11873,11 @@ msgstr "plate solving {r} with ASTAP…"
 msgid "revelando {p} a campo completo…"
 msgstr "developing {p} at full field…"
 
+#. js
+#: templates/editar_foto.html
+msgid "rojo"
+msgstr "red"
+
 #: enfoque.py
 msgid "rojo {px}"
 msgstr "red {px}"
@@ -12142,6 +12208,16 @@ msgstr "see it in the gallery"
 msgid "ver y editar el apilado"
 msgstr "view and edit the stack"
 
+#. js
+#: templates/editar_foto.html
+msgid "verde"
+msgstr "green"
+
+#. js
+#: templates/editar_foto.html
+msgid "violeta"
+msgstr "violet"
+
 #: templates/apilado.html
 msgid "visible"
 msgstr "visible"
@@ -12357,6 +12433,11 @@ msgid "{motivo}. Esta noche: {n} objeto hecho; quedan {p} para otra noche"
 msgid_plural "{motivo}. Esta noche: {n} objetos hechos; quedan {p} para otra noche"
 msgstr[0] "{motivo}. Tonight: {n} object done; {p} left for another night"
 msgstr[1] "{motivo}. Tonight: {n} objects done; {p} left for another night"
+
+#. js
+#: templates/editar_foto.html
+msgid "{nombre} (tono {t}°)"
+msgstr "{nombre} (hue {t}°)"
 
 #: static/js/plan.js
 msgid "{nombre} ya estaba en el plan"
@@ -13714,6 +13795,11 @@ msgstr "✅ Calibrated with a white target on {fecha}: {valores}."
 msgid "✅ Cancelado. El equipo sigue encendido (hay que volver a conectar el equipo desde Inicio)."
 msgstr "✅ Canceled. The computer stays on (you'll need to connect the equipment again from Home)."
 
+#. js
+#: templates/editar_foto.html
+msgid "✅ Color tomado: {nombre} (tono {t}°). Mueve ahora su saturación"
+msgstr "✅ Colour picked: {nombre} (hue {t}°). Now move its saturation"
+
 #: ScopePower.py
 msgid "✅ Configuración guardada correctamente"
 msgstr "✅ Settings saved"
@@ -14120,6 +14206,16 @@ msgstr "🏔️ Landscape"
 
 #. js
 #: templates/editar_foto.html
+msgid "👆 Ese punto casi no tiene color; toca una zona con más color"
+msgstr "👆 That point has hardly any colour; touch an area with more colour"
+
+#. js
+#: templates/editar_foto.html
+msgid "👆 Preparando la vista previa; después toca el color en la foto"
+msgstr "👆 Preparing the preview; then touch the colour in the photo"
+
+#. js
+#: templates/editar_foto.html
 msgid "👆 Preparando la vista previa; después toca el objeto en la foto"
 msgstr "👆 Preparing the preview; then tap the object in the photo"
 
@@ -14127,6 +14223,16 @@ msgstr "👆 Preparing the preview; then tap the object in the photo"
 #: templates/editar_foto.html
 msgid "👆 Toca el objeto en la foto para dejarlo en el centro"
 msgstr "👆 Tap the object in the photo to put it in the center"
+
+#. js
+#: templates/editar_foto.html
+msgid "👆 Toca en la foto el color que quieras ajustar"
+msgstr "👆 Touch in the photo the colour you want to adjust"
+
+#. js
+#: templates/editar_foto.html
+msgid "💧 Cuentagotas"
+msgstr "💧 Eyedropper"
 
 #. js
 #: templates/apilado.html
