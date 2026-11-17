@@ -152,6 +152,33 @@ def main():
     if not bien:
         fallos.append("rutas de la guía")
 
+    print("Guía: cielo profundo en mosaico y con varios objetos:")
+    cliente.post("/guia/empezar", json={"actividad": "cielo_profundo"})
+    cliente.post("/guia/paso", json={"accion": "ir", "paso": "objeto"})
+    cliente.post("/guia/objeto", json={"nombre": "M 31", "ra_h": 0.712, "dec_deg": 41.27, "tipo": "Galaxia", "tamano_arcmin": 190})
+    ses = (cliente.post("/guia/objeto", json={"mosaico": True}).get_json() or {}).get("sesion") or {}
+    claves = [p["clave"] for p in ses.get("pasos", [])]
+    rejilla = ses.get("rejilla") or {}
+    mosaico_ok = ses.get("variante") == "mosaico" and "mosaico" in claves and "apuntar" not in claves and rejilla.get("filas", 0) >= 2
+    ses = (cliente.post("/guia/rejilla", json={"filas": 3, "columnas": 2, "solape_pct": 25, "fotos_por_tesela": 12}).get_json() or {}).get("sesion") or {}
+    cambia = (ses.get("rejilla") or {}).get("filas") == 3 and cliente.post("/guia/rejilla", json={"filas": 9, "columnas": 2}).status_code == 400
+    cliente.post("/guia/paso", json={"accion": "ir", "paso": "mosaico"})
+    ses = (cliente.get("/guia/estado").get_json() or {}).get("sesion") or {}
+    previsto = ses.get("previsto") or {}
+    prevision = bool(previsto.get("tamano_deg")) and previsto.get("duracion_min") is not None and bool(ses.get("campo"))
+    ses = (cliente.post("/guia/varios", json={"activado": True}).get_json() or {}).get("sesion") or {}
+    claves = [p["clave"] for p in ses.get("pasos", [])]
+    varios = ses.get("variante") == "varios" and claves[-1] == "listo_plan" and "mosaico" not in claves
+    cliente.post("/guia/paso", json={"accion": "ir", "paso": "listo_plan"})
+    ses = (cliente.get("/guia/estado").get_json() or {}).get("sesion") or {}
+    final = ses.get("paso") == "listo_plan" and not ses.get("puede_seguir")      # el plan de la copia de pruebas está vacío
+    cliente.post("/guia/terminar", json={})
+    bien = mosaico_ok and cambia and prevision and varios and final
+    print(f"  {'✅' if bien else '❌'} mosaico con su rejilla ({mosaico_ok}, {rejilla.get('filas')}×{rejilla.get('columnas')}), se cambia y rechaza la mala ({cambia}), "
+          f"previsión ({prevision}), varios objetos ({varios}), final del plan vacío ({final})")
+    if not bien:
+        fallos.append("guía: mosaico y varios objetos")
+
     print("Guía: enfocar, fotos de calibración y galería:")
     ses = (cliente.post("/guia/empezar", json={"actividad": "enfocar"}).get_json() or {}).get("sesion") or {}
     enfocar = ses.get("paso") == "equipo" and ses.get("total") == 4

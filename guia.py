@@ -41,6 +41,9 @@ MARCABLES = ("alineacion", "puesta_estacion", "enfoque")      # lo hecho en la n
 PASOS_MARCABLES = ("apuntar_disco", "encuadre", "apuntar_enfoque")      # lo hecho en esta sesión de la guía
 MODOS = ("foto", "video", "timelapse")
 ALTURA_MINIMA_DISCO = 3.0        # grados: por debajo, el Sol o la Luna se dan por puestos
+OMEGA_TIERRA = 7.2921e-5         # rad/s: giro de la Tierra, del que sale el giro del campo en una altacimutal
+TOLERANCIA_GIRO_PX = 3.0         # lo que pueden estirarse las estrellas de las esquinas en una foto sin que se note
+EXPOSICION_TOPE_ALTAZ = 30.0     # s: aunque el campo casi no gire, el seguimiento de una altacimutal no da para más
 MODOS_ECUATORIALES = ("ecuatorial", "ecuatorial_alemana")
 
 # El fondo de cada tarjeta es static/guia/<clave>.jpg (ver herramientas/imagenes_guia.py); «imagen_ancha»
@@ -78,13 +81,17 @@ PASOS = {
          "banda": N_("Alinea la montura y pulsa «Hecho, siguiente»")},
         {"clave": "objeto", "titulo": N_("Objeto"), "pantalla": "/planetario",
          "banda": N_("Ve a un objeto desde esta pantalla y pulsa «Hecho, siguiente»")},
+        {"clave": "mosaico", "titulo": N_("Mosaico"), "solo": "mosaico"},
         {"clave": "captura", "titulo": N_("Exposición")},
         {"clave": "calibracion", "titulo": N_("Darks y flats")},
         {"clave": "enfoque", "titulo": N_("Enfoque"), "saltable": True, "pantalla": "/foto-prueba",
          "banda": N_("Enfoca y pulsa «Hecho, siguiente»")},
-        {"clave": "apuntar", "titulo": N_("Apuntar y centrar")},
-        {"clave": "listo", "titulo": N_("Listo"), "pantalla": "/apilado",
+        # El mosaico y el plan de la noche hacen ellos el GoTo y el centrado de cada tesela o de cada objeto
+        {"clave": "apuntar", "titulo": N_("Apuntar y centrar"), "solo": "uno"},
+        {"clave": "listo", "titulo": N_("Listo"), "pantalla": "/apilado", "solo": "uno",
          "banda": N_("Todo listo: pulsa «Empezar»")},
+        {"clave": "listo_mosaico", "titulo": N_("Listo"), "solo": "mosaico"},
+        {"clave": "listo_plan", "titulo": N_("Listo"), "solo": "varios"},
     ],
     # De día no hay estrellas: la montura se sincroniza con el disco del Sol o de la Luna (disco.py)
     "sol": [
@@ -223,19 +230,28 @@ def actividad(clave):
     raise ValueError(_("Actividad desconocida: {clave}", clave=clave))
 
 
-def _pasos(clave_actividad):
-    return PASOS.get(clave_actividad, [])
+def variante(ses):
+    """Cómo se hace el cielo profundo: "uno" (un objeto), "mosaico" o "varios" (plan de la noche)."""
+    if ses and ses.get("varios"):
+        return "varios"
+    return "mosaico" if ses and ses.get("mosaico") else "uno"
+
+
+def _pasos(clave_actividad, ses=None):
+    """Los pasos de la ruta; con la sesión, solo los de su variante (un objeto, mosaico o varios)."""
+    cual = variante(ses)
+    return [p for p in PASOS.get(clave_actividad, []) if p.get("solo") in (None, cual)]
 
 
 def _paso(ses):
-    for p in _pasos(ses["actividad"]):
+    for p in _pasos(ses["actividad"], ses):
         if p["clave"] == ses["paso"]:
             return p
-    return _pasos(ses["actividad"])[0]
+    return _pasos(ses["actividad"], ses)[0]
 
 
 def _indice(ses):
-    claves = [p["clave"] for p in _pasos(ses["actividad"])]
+    claves = [p["clave"] for p in _pasos(ses["actividad"], ses)]
     return claves.index(ses["paso"]) if ses["paso"] in claves else 0
 
 
@@ -262,7 +278,7 @@ def empezar(clave):
             return None
         ahora = _ahora()
         m["sesion"] = {"actividad": clave, "paso": _pasos(clave)[0]["clave"], "objeto": None, "mosaico": False,
-                       "modo": "foto", "hechos_paso": {},
+                       "modo": "foto", "hechos_paso": {}, "varios": False, "rejilla": None,
                        "saltados": [], "inicio": ahora, "actualizado": ahora, "paso_desde": ahora}
         _guardar()
         return sesion()
@@ -287,7 +303,7 @@ def ir_a(clave_paso):
         ses = _leer()["sesion"]
         if not ses:
             raise ValueError(_("No hay ninguna guía en marcha"))
-        if clave_paso not in [p["clave"] for p in _pasos(ses["actividad"])]:
+        if clave_paso not in [p["clave"] for p in _pasos(ses["actividad"], ses)]:
             raise ValueError(_("Paso desconocido: {paso}", paso=clave_paso))
         _mover(ses, clave_paso)
         _guardar()
@@ -300,7 +316,7 @@ def avanzar(delta=1, saltar=False):
         ses = _leer()["sesion"]
         if not ses:
             raise ValueError(_("No hay ninguna guía en marcha"))
-        pasos = _pasos(ses["actividad"])
+        pasos = _pasos(ses["actividad"], ses)
         i = _indice(ses)
         if saltar:
             if not pasos[i].get("saltable"):
@@ -339,6 +355,35 @@ def fijar_mosaico(activado):
         if not ses:
             raise ValueError(_("No hay ninguna guía en marcha"))
         ses["mosaico"] = bool(activado)
+        if activado:
+            ses["varios"] = False
+        ses["actualizado"] = _ahora()
+        _guardar()
+        return sesion()
+
+
+def fijar_varios(activado):
+    """Varios objetos en la noche: la lista vive en el plan de la noche (plan_sesion.py), no en la sesión."""
+    with _lock:
+        ses = _leer()["sesion"]
+        if not ses:
+            raise ValueError(_("No hay ninguna guía en marcha"))
+        ses["varios"] = bool(activado)
+        if activado:
+            ses["mosaico"] = False
+        ses["actualizado"] = _ahora()
+        _guardar()
+        return sesion()
+
+
+def fijar_rejilla(filas, columnas, solape_pct, fotos_por_tesela):
+    """La rejilla del mosaico elegida en la guía (ya validada por quien llama)."""
+    with _lock:
+        ses = _leer()["sesion"]
+        if not ses:
+            raise ValueError(_("No hay ninguna guía en marcha"))
+        ses["rejilla"] = {"filas": int(filas), "columnas": int(columnas), "solape_pct": float(solape_pct),
+                          "fotos_por_tesela": max(1, int(fotos_por_tesela))}
         ses["actualizado"] = _ahora()
         _guardar()
         return sesion()
@@ -413,15 +458,57 @@ def observar(datos):
 
 # ───────────────────────── Cálculos ─────────────────────────
 
-def altura(ra_h, dec_deg, lat, lon, ts=None):
-    """Altura sobre el horizonte, en grados, con la precisión que pide un semáforo (≈ medio grado)."""
+def altaz(ra_h, dec_deg, lat, lon, ts=None):
+    """(altura, acimut) en grados, el acimut desde el norte hacia el este; con la precisión de un semáforo (≈ medio grado)."""
     ts = _ahora() if ts is None else ts
     dias = ts / 86400.0 + 2440587.5 - 2451545.0
     tsl = (280.46061837 + 360.98564736629 * dias + lon) % 360.0          # tiempo sidéreo local, en grados
     h = math.radians(tsl - ra_h * 15.0)
     fi, de = math.radians(lat), math.radians(dec_deg)
     seno = math.sin(fi) * math.sin(de) + math.cos(fi) * math.cos(de) * math.cos(h)
-    return math.degrees(math.asin(max(-1.0, min(1.0, seno))))
+    alt = math.degrees(math.asin(max(-1.0, min(1.0, seno))))
+    az = math.degrees(math.atan2(-math.cos(de) * math.sin(h), math.sin(de) * math.cos(fi) - math.cos(de) * math.sin(fi) * math.cos(h)))
+    return alt, az % 360.0
+
+
+def altura(ra_h, dec_deg, lat, lon, ts=None):
+    """Altura sobre el horizonte, en grados."""
+    return altaz(ra_h, dec_deg, lat, lon, ts)[0]
+
+
+def giro_campo_px_s(alt, az, lat, radio_px):
+    """
+    Píxeles por segundo que se mueven las estrellas de las esquinas porque el campo gira en una montura
+    altacimutal: el giro vale Ω·cos(latitud)·cos(acimut)/cos(altura). Es nulo hacia el este y el oeste,
+    máximo en el meridiano y se dispara cerca del cénit.
+    """
+    coseno = math.cos(math.radians(alt))
+    if coseno < 1e-3:
+        return float("inf")
+    return abs(OMEGA_TIERRA * math.cos(math.radians(lat)) * math.cos(math.radians(az)) / coseno) * float(radio_px)
+
+
+def radio_campo_px(campo):
+    """Del centro de la foto a una esquina, en píxeles; None si no se conoce el sensor."""
+    try:
+        return 0.5 * math.hypot(float(campo["ancho_px"]), float(campo["alto_px"]))
+    except (TypeError, KeyError, ValueError):
+        return None
+
+
+def rejilla_recomendada(tamano_arcmin, campo, solape_pct=20.0):
+    """(filas, columnas) de la rejilla cuadrada más pequeña, hasta 6×6, que cubre el objeto con un 10 % de margen."""
+    try:
+        lado = min(float(campo["ancho_deg"]), float(campo["alto_deg"])) * 60.0
+    except (TypeError, KeyError, ValueError):
+        lado = 0.0
+    if not tamano_arcmin or lado <= 0:
+        return 2, 2
+    paso = 1.0 - float(solape_pct) / 100.0
+    for n in range(2, 7):
+        if lado * (1 + (n - 1) * paso) >= 1.1 * float(tamano_arcmin):
+            return n, n
+    return 6, 6
 
 
 def separacion(ra1_h, dec1, ra2_h, dec2):
@@ -442,10 +529,12 @@ def estrella_para_enfocar(lat, lon, ts=None):
     return mejor
 
 
-def exposicion_recomendada(modo_montura, altura_objeto=None):
+def exposicion_recomendada(modo_montura, altura_objeto=None, acimut=None, lat=None, radio_px=None):
     """
     Margen razonable de exposición por foto: {"minimo", "maximo", "texto"}. Una altacimutal no compensa
-    el giro del campo, y cerca del cénit además deriva en acimut; una ecuatorial aguanta más.
+    el giro del campo, y cerca del cénit además deriva en acimut; una ecuatorial aguanta más. Con el
+    acimut del objeto, la latitud y el tamaño del sensor, el máximo sale del giro del campo de verdad:
+    lo que tardan las estrellas de las esquinas en estirarse TOLERANCIA_GIRO_PX píxeles.
     """
     if modo_montura in MODOS_ECUATORIALES:
         return {"minimo": 15.0, "maximo": 60.0,
@@ -454,6 +543,18 @@ def exposicion_recomendada(modo_montura, altura_objeto=None):
         return {"minimo": 5.0, "maximo": 10.0,
                 "texto": _("El objeto está muy alto ({alt}°): cerca del cénit una montura altacimutal alarga las estrellas. "
                            "Mejor entre 5 y 10 s, o esperar a que baje.", alt=fmt_num(altura_objeto, 0))}
+    if None not in (altura_objeto, acimut, lat, radio_px):
+        velocidad = giro_campo_px_s(altura_objeto, acimut, lat, radio_px)
+        tope = TOLERANCIA_GIRO_PX / velocidad if velocidad > 0 else float("inf")
+        if tope >= EXPOSICION_TOPE_ALTAZ:
+            return {"minimo": 10.0, "maximo": EXPOSICION_TOPE_ALTAZ,
+                    "texto": _("Donde está ahora el objeto el campo casi no gira: hasta {t} s por foto, que es lo que "
+                               "aguanta el seguimiento de una montura altacimutal.", t=fmt_num(EXPOSICION_TOPE_ALTAZ, 0))}
+        maximo = float(max(5, int(tope)))
+        return {"minimo": min(10.0, maximo), "maximo": maximo,
+                "texto": _("Donde está ahora el objeto, el giro del campo de la montura altacimutal mueve las estrellas de las "
+                           "esquinas {v} px por segundo: hasta unos {t} s por foto salen redondas.",
+                           v=fmt_num(velocidad, 2), t=fmt_num(maximo, 0))}
     return {"minimo": 10.0, "maximo": 25.0,
             "texto": _("En una montura altacimutal, entre 10 y 25 s por foto para que las estrellas no se muevan.")}
 
@@ -578,7 +679,29 @@ def _comprobar_alineacion(ses, hechos_, datos):
     return lista, "alineacion" in hechos_ and not ali.get("en_curso")
 
 
+def recomendacion_captura(ses, datos):
+    """La exposición recomendada para el objeto de la sesión, con el giro del campo si se sabe dónde está."""
+    obj = ses.get("objeto")
+    if not obj or variante(ses) == "varios" or datos.get("lat") is None or datos.get("lon") is None:
+        return exposicion_recomendada(datos.get("modo_montura"))
+    alt, az = altaz(obj["ra_h"], obj["dec_deg"], float(datos["lat"]), float(datos["lon"]), datos.get("ahora"))
+    return exposicion_recomendada(datos.get("modo_montura"), alt, az, float(datos["lat"]), radio_campo_px(datos.get("campo")))
+
+
 def _comprobar_objeto(ses, hechos_, datos):
+    if ses.get("varios"):
+        # El plan de la noche es una lista que dura varias noches (un maratón Messier, por ejemplo): lo que se
+        # elige aquí entra como prioritario, para esta noche, y lo que ya había pendiente sigue detrás
+        plan = datos.get("plan") or {}
+        n, otros = int(plan.get("prioritarios") or 0), int(plan.get("otros") or 0)
+        if not n and not otros:
+            return [_c("plan", "falta", _("Toca los objetos que quieres fotografiar esta noche"))], False
+        lista = [_c("plan", "ok", ngettext("Un objeto elegido para esta noche", "{n} objetos elegidos para esta noche", n)) if n
+                 else _c("plan", "warn", _("No has elegido ninguno: el plan seguirá con lo que ya tenía pendiente"))]
+        if otros:
+            lista.append(_c("otros", "ok", ngettext("El plan tiene además un objeto pendiente de otras noches",
+                                                    "El plan tiene además {n} objetos pendientes de otras noches", otros)))
+        return lista, True
     obj = ses.get("objeto")
     if not obj:
         return [_c("objeto", "falta", _("Elige el objeto que quieres fotografiar"))], False
@@ -605,7 +728,7 @@ def _comprobar_objeto(ses, hechos_, datos):
 
 def _comprobar_captura(ses, hechos_, datos):
     cap = datos.get("captura") or {}
-    rec = exposicion_recomendada(datos.get("modo_montura"), altura_objeto(ses, datos))
+    rec = recomendacion_captura(ses, datos)
     exp = float(cap.get("exposicion") or 0)
     if exp > rec["maximo"]:
         nivel, texto = "warn", _("{exp} s es mucha exposición para esta montura", exp=fmt_num(exp, 1))
@@ -706,6 +829,77 @@ def _comprobar_listo(ses, hechos_, datos):
     if datos.get("trabajo"):
         lista.append(_c("trabajo", "warn", _("Ahora mismo el equipo está con: {trabajo}", trabajo=datos["trabajo"])))
     return lista, True
+
+
+# ── Cielo profundo en mosaico o con varios objetos ──
+
+def _comprobar_mosaico(ses, hechos_, datos):
+    obj = ses.get("objeto")
+    if not obj:
+        return [_c("mosaico", "falta", _("Falta elegir el objeto"))], False
+    previsto = datos.get("mosaico_previsto") or {}
+    rejilla = ses.get("rejilla") or {}
+    lista = []
+    if previsto.get("error"):
+        return [_c("mosaico", "err", previsto["error"])], False
+    tamano = previsto.get("tamano_deg")
+    if tamano:
+        lista.append(_c("mosaico", "ok", _("Rejilla de {f} × {c}: cubre {w}° × {h}°", f=rejilla.get("filas"), c=rejilla.get("columnas"),
+                                           w=fmt_num(tamano[0], 1), h=fmt_num(tamano[1], 1))))
+        if obj.get("tamano_arcmin") and float(obj["tamano_arcmin"]) > 60.0 * min(tamano):
+            lista.append(_c("tamano", "warn", _("{objeto} mide {t}′ y la rejilla se queda corta: añade teselas",
+                                                objeto=obj["nombre"], t=fmt_num(obj["tamano_arcmin"], 0))))
+    if previsto.get("duracion_min") is not None:
+        lista.append(_c("duracion", "ok", _("Unos {min} min: acabaría a las {hora}", min=previsto["duracion_min"], hora=previsto.get("fin_hora") or "")))
+    if previsto.get("solape_min_pct") is not None and previsto["solape_min_pct"] < 8:
+        lista.append(_c("solape", "warn", _("Con el giro del campo, alguna tesela solo solapará un {s} % con su vecina: sube el solape",
+                                            s=fmt_num(previsto["solape_min_pct"], 0))))
+    if datos.get("mosaico_en_curso"):
+        lista.append(_c("en_curso", "warn", _("Ya hay un mosaico en marcha: detenlo antes de empezar otro")))
+    return lista, True
+
+
+def _resumen_comun(ses, hechos_, datos):
+    """Los semáforos que comparten los tres finales de cielo profundo: exposición, dark, enfoque y equipo libre."""
+    lista = [_c("captura", "ok", _("{exp} s por foto, ganancia {gan}", exp=fmt_num((datos.get("captura") or {}).get("exposicion") or 0, 1),
+                                   gan=((datos.get("captura") or {}).get("ganancia") if (datos.get("captura") or {}).get("ganancia")
+                                        not in (None, "") else _("la del driver"))))]
+    dark = datos.get("dark") or {}
+    lista.append(_c("dark", "ok", _("Con dark")) if dark.get("existe") else _c("dark", "warn", _("Sin dark")))
+    if "enfoque" in hechos_:
+        lista.append(_c("enfoque", "ok", _("Enfocado a las {hora}", hora=_hora(hechos_["enfoque"]))))
+    else:
+        lista.append(_c("enfoque", "warn", _("Enfoque sin comprobar")))
+    if datos.get("trabajo"):
+        lista.append(_c("trabajo", "warn", _("Ahora mismo el equipo está con: {trabajo}", trabajo=datos["trabajo"])))
+    return lista
+
+
+def _comprobar_listo_mosaico(ses, hechos_, datos):
+    lista = [c for c in _comprobar_mosaico(ses, hechos_, datos)[0] if c["clave"] in ("mosaico", "duracion", "en_curso")]
+    lista.extend(_resumen_comun(ses, hechos_, datos))
+    return lista, bool(ses.get("objeto")) and not datos.get("mosaico_en_curso")
+
+
+def _comprobar_listo_plan(ses, hechos_, datos):
+    plan = datos.get("plan") or {}
+    lista = []
+    if plan.get("error"):
+        lista.append(_c("plan", "warn", plan["error"]))
+    else:
+        n, fuera = int(plan.get("programados") or 0), int(plan.get("elegidos_fuera") or 0)
+        if n:
+            lista.append(_c("plan", "ok", ngettext("Un objeto cabe esta noche: acabaría a las {hora}",
+                                                   "{n} objetos caben esta noche: acabaría a las {hora}", n, hora=plan.get("fin_previsto") or "")))
+        else:
+            lista.append(_c("plan", "warn", _("Ningún objeto del plan cabe esta noche")))
+        if fuera:
+            lista.append(_c("fuera", "warn", ngettext("Uno de los que has elegido no cabe esta noche y se queda para otra",
+                                                      "{n} de los que has elegido no caben esta noche y se quedan para otra", fuera)))
+    if plan.get("en_curso"):
+        lista.append(_c("en_curso", "warn", _("El plan de la noche ya está en marcha")))
+    lista.extend(_resumen_comun(ses, hechos_, datos))
+    return lista, int(plan.get("pendientes") or 0) > 0 and not plan.get("en_curso")
 
 
 # ── Rutas de día: Sol, Luna y paisaje ──
@@ -844,7 +1038,8 @@ _COMPROBADORES = {"equipo": _comprobar_equipo, "alineacion": _comprobar_alineaci
                   "filtro": _comprobar_filtro, "apuntar_disco": _comprobar_apuntar_disco, "encuadre": _comprobar_encuadre,
                   "modo": _comprobar_modo, "listo_camara": _comprobar_listo_camara,
                   "apuntar_enfoque": _comprobar_apuntar_enfoque, "listo_enfoque": _comprobar_listo_enfoque,
-                  "flats": _comprobar_flats, "listo_calibracion": _comprobar_listo_calibracion}
+                  "flats": _comprobar_flats, "listo_calibracion": _comprobar_listo_calibracion,
+                  "mosaico": _comprobar_mosaico, "listo_mosaico": _comprobar_listo_mosaico, "listo_plan": _comprobar_listo_plan}
 
 
 def comprobaciones(ses, hechos_, datos):
@@ -863,7 +1058,7 @@ def estado(datos):
     if not ses:
         return salida
     act = actividad(ses["actividad"])
-    pasos = _pasos(ses["actividad"])
+    pasos = _pasos(ses["actividad"], ses)
     i = _indice(ses)
     paso = pasos[i]
     lista, puede = comprobaciones(ses, hechos_, datos)
@@ -877,6 +1072,7 @@ def estado(datos):
         "pantalla": paso.get("pantalla"), "banda": _tr(paso, "banda"),
         "objeto": ses.get("objeto"), "mosaico": bool(ses.get("mosaico")),
         "astro": act.get("astro"), "modo": ses.get("modo") if ses.get("modo") in MODOS else "foto",
+        "variante": variante(ses), "rejilla": ses.get("rejilla"),
         "comprobaciones": lista, "puede_seguir": puede,
     }
     return salida

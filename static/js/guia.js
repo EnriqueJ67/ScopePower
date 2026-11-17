@@ -20,6 +20,7 @@
         equipo: N_("Conecta la montura y la cámara para seguir."),
         alineacion: N_("Alinea la montura, di que ya está alineada o salta este paso."),
         objeto: N_("Elige un objeto para seguir."),
+        plan: N_("Toca al menos un objeto para seguir."),
         calibracion: N_("Espera a que terminen los darks."),
         enfoque: N_("Enfoca, di que ya está enfocado o salta este paso."),
         apuntar: N_("Pulsa el botón para ir al objeto y espera a que termine el centrado."),
@@ -36,6 +37,8 @@
     let sondeo = null;
     let recomendados = null;    // respuesta de /esta-noche/objetos
     let resultados = [];        // última búsqueda
+    let planObjetos = null;     // objetos pendientes del plan de la noche (GET /plan), en la variante «varios»
+    const planCreados = new Set();   // los que ha añadido la guía en esta página: al quitarlos, se borran del plan
     let darksLanzados = false;
     let gotoLanzado = 0;        // cuándo se pidió el GoTo: unos segundos de gracia hasta que la montura arranca
     const espera = ms => new Promise(r => setTimeout(r, ms));
@@ -150,11 +153,16 @@
                 pintarRecomendados();
                 pintarResultados();
             }
+            const varios = s.variante === "varios";
+            document.querySelectorAll("#guia-variante button").forEach(b => b.classList.toggle("activo", (b.dataset.v === "varios") === varios));
+            $("guia-plan").hidden = !varios;
+            $("guia-planetario").hidden = varios;
+            if (varios && (entrando || !planObjetos)) cargarPlan();
             const mosaico = semaforo("mosaico");
-            $("guia-mosaico").hidden = !(mosaico && mosaico.accion === "mosaico");
-            $("guia-sin-mosaico").hidden = !s.mosaico;
+            $("guia-mosaico").hidden = varios || !(mosaico && mosaico.accion === "mosaico");
+            $("guia-sin-mosaico").hidden = varios || !s.mosaico;
             const ug = s.ultimo_goto, boton = $("guia-ultimo-goto");
-            boton.hidden = !(ug && ug.objeto) || (s.objeto && s.objeto.nombre === ug.objeto);
+            boton.hidden = varios || !(ug && ug.objeto) || (s.objeto && s.objeto.nombre === ug.objeto);
             if (!boton.hidden) boton.textContent = _("Usar {objeto}, donde apunta la montura", { objeto: ug.objeto });
         },
         captura(s, entrando) {
@@ -164,7 +172,8 @@
                 $("guia-fotos").value = s.captura.fotos;
             }
             const calibracion = s.actividad === "calibracion";
-            $("guia-fotos").closest(".form-group").hidden = calibracion;
+            // El número de fotos solo cuenta con un objeto: el mosaico y el plan llevan el suyo
+            $("guia-fotos").closest(".form-group").hidden = calibracion || s.variante !== "uno";
             $("guia-captura-calibracion").hidden = !calibracion;
             $("guia-recomendacion").textContent = (s.recomendacion || {}).texto || "";
             pintarDuracion();
@@ -223,6 +232,21 @@
                 $("guia-semaforos").innerHTML = '<li class="pendiente"><span class="spinner"></span><span>' +
                     esc(_("La montura va hacia {objeto}...", { objeto: s.objeto.nombre })) + "</span></li>";
             }
+        },
+        mosaico(s, entrando) {
+            const r = s.rejilla || {};
+            $("guia-filas").textContent = r.filas || 2;
+            $("guia-columnas").textContent = r.columnas || 2;
+            if (entrando || document.activeElement !== $("guia-solape")) $("guia-solape").value = r.solape_pct;
+            if (entrando || document.activeElement !== $("guia-fotos-tesela")) $("guia-fotos-tesela").value = r.fotos_por_tesela;
+            dibujarRejilla(s);
+        },
+        listo_mosaico(s) {
+            $("guia-empezar-mosaico").disabled = !s.puede_seguir;
+        },
+        listo_plan(s, entrando) {
+            $("guia-empezar-plan").disabled = !s.puede_seguir;
+            if (entrando) cargarPlan();
         },
         apuntar_enfoque(s) {
             const hecho = (semaforo("apuntar_enfoque") || {}).nivel === "ok", estrella = $("guia-enf-estrella");
@@ -385,7 +409,7 @@
             }
             await pedir("/preferencias", { opcion_dark: opcion === "sin" ? "sin" : "ultimo" });
         } else if (!s.puede_seguir) {
-            const falta = FALTA[s.paso];
+            const falta = FALTA[s.paso === "objeto" && s.variante === "varios" ? "plan" : s.paso];
             mostrarError(falta ? _(falta) : _("Falta algo en este paso."));
             return;
         }
@@ -422,7 +446,8 @@
     }
 
     function tarjetaObjeto(o, lista, i) {
-        const elegido = sesion() && sesion().objeto && sesion().objeto.nombre === o.nombre;
+        const s = sesion();
+        const elegido = s && (s.variante === "varios" ? !!(enPlan(o) || {}).prioritario : (s.objeto && s.objeto.nombre === o.nombre));
         const alt = o.alt_ahora;
         const tipo = o.tipo ? _(o.tipo) : "";
         const detalle = [tipo, o.mag != null ? _("mag {m}", { m: fmtNum(o.mag, 1) }) : "",
@@ -482,6 +507,133 @@
             ? { nombre: o.nombre, ra_h: o.ra_h, dec_deg: o.dec_deg, tipo: o.tipo || "", tamano_arcmin: o.tamano_arcmin || conocido.tamano_arcmin || null }
             : { nombre: o.nombre };
         aplicar(await pedir("/guia/objeto", cuerpo));
+    }
+
+    // ——— Varios objetos: la lista es la del plan de la noche (rutas /plan/*) ———
+    // El mismo objeto puede estar en el plan con otro nombre («M 31» y «Galaxia de Andrómeda»): se busca
+    // también por posición, a menos de 0,2°, para no añadirlo dos veces
+    function enPlan(o) {
+        const cerca = p => o.ra_h != null && o.dec_deg != null && p.ra_h != null && Math.abs(p.dec_deg - o.dec_deg) < 0.2 &&
+            Math.abs(p.ra_h - o.ra_h) * 15 * Math.cos(o.dec_deg * Math.PI / 180) < 0.2;
+        return (planObjetos || []).find(p => p.nombre === o.nombre || cerca(p)) || null;
+    }
+
+    async function cargarPlan() {
+        const d = await pedir("/plan");
+        planObjetos = (d.objetos || []).filter(o => o.estado !== "hecho");
+        pintarPlan();
+        pintarRecomendados();
+        pintarResultados();
+    }
+
+    // El plan de la noche dura varias noches y puede traer cien objetos: aquí solo se enseñan los elegidos para
+    // esta (los prioritarios, que reservan antes su hueco); el resto sigue en el plan, detrás
+    function pintarPlan() {
+        const lista = (planObjetos || []).filter(o => o.prioritario);
+        const vacio = _("Todavía no has elegido ninguno.");
+        const quitar = _("Quitar de esta noche");
+        $("guia-plan-lista").innerHTML = lista.length ? lista.map(o =>
+            '<span class="guia-plan-chip">' + esc(o.nombre) + '<button type="button" data-plan="' + esc(o.id) + '" title="' + esc(quitar) +
+            '" aria-label="' + esc(quitar) + '">×</button></span>').join("")
+            : '<span class="texto-3">' + esc(vacio) + "</span>";
+        // En el último paso: el programa de esta noche (primero los elegidos, cada grupo por orden de hora)
+        // y los elegidos que no caben
+        const programados = (planObjetos || []).filter(o => (o.previsto || {}).programado)
+            .sort((a, b) => (b.prioritario ? 1 : 0) - (a.prioritario ? 1 : 0) || a.previsto.inicio_ms - b.previsto.inicio_ms);
+        const fuera = lista.filter(o => !(o.previsto || {}).programado);
+        const visibles = programados.slice(0, 10), resto = programados.length - visibles.length;
+        const mas = resto > 0 ? '<span class="guia-plan-chip otros">' + esc(_("y {n} más", { n: resto })) + "</span>" : "";
+        $("guia-plan-programa").innerHTML = visibles.map(o =>
+            '<span class="guia-plan-chip' + (o.prioritario ? "" : " otros") + '">' + esc(o.nombre) + "<small>" +
+            esc(o.previsto.inicio + " – " + o.previsto.fin) + "</small></span>").join("") + mas +
+            fuera.map(o => '<span class="guia-plan-chip fuera">' + esc(o.nombre) + "<small>" + esc((o.previsto || {}).motivo || "") + "</small></span>").join("");
+    }
+
+    // Tocar un objeto: pasa a ser de esta noche (prioritario), o deja de serlo. Los que estaban en el plan de
+    // antes no se borran al quitarlos: solo pierden la prioridad
+    async function alternarEnPlan(o) {
+        mostrarError("");
+        const ya = enPlan(o);
+        let d;
+        if (ya && ya.prioritario) {
+            d = await quitarDeEstaNoche(ya.id, true);
+        } else if (ya) {
+            d = await pedir("/plan/objetos/" + encodeURIComponent(ya.id), { prioritario: true });
+        } else {
+            const cuerpo = o.ra_h != null && o.dec_deg != null ? { nombre: o.nombre, ra: o.ra_h, dec: o.dec_deg, tipo: o.tipo || "" } : { nombre: o.nombre };
+            d = await pedir("/plan/objetos", Object.assign(cuerpo, { prioritario: true }));
+            if (d.ok && d.objeto && !d.duplicado) planCreados.add(d.objeto.id);
+            else if (d.ok && d.objeto) d = await pedir("/plan/objetos/" + encodeURIComponent(d.objeto.id), { prioritario: true });
+        }
+        if (d && d.ok === false) mostrarError(d.error || "");
+        await cargarPlan();
+        refrescar();
+    }
+
+    async function quitarDeEstaNoche(id, sinRefrescar) {
+        const d = planCreados.has(id) ? await pedir("/plan/objetos/" + encodeURIComponent(id) + "/borrar", {})
+            : await pedir("/plan/objetos/" + encodeURIComponent(id), { prioritario: false });
+        planCreados.delete(id);
+        if (sinRefrescar) return d;
+        await cargarPlan();
+        refrescar();
+        return d;
+    }
+
+    async function varios(activado) {
+        mostrarError("");
+        if (aplicar(await pedir("/guia/varios", { activado: activado })) && activado) cargarPlan();
+    }
+
+    async function empezarPlan() {
+        mostrarError("");
+        const d = await pedir("/plan/iniciar", {});
+        if (!d.ok) { mostrarError(d.error || _("No se pudo iniciar")); return; }
+        await pedir("/guia/terminar", {});
+        irA("/apilado", "plan");
+    }
+
+    // ——— Mosaico ———
+    // La rejilla a escala: un recuadro por tesela, con su solape, y un círculo del tamaño del objeto
+    function dibujarRejilla(s) {
+        const r = s.rejilla, c = s.campo || {};
+        if (!r) return;
+        const w = c.ancho_deg || 1, h = c.alto_deg || 1, paso = 1 - r.solape_pct / 100;
+        const ancho = w * (1 + (r.columnas - 1) * paso), alto = h * (1 + (r.filas - 1) * paso);
+        const k = 180 / Math.max(ancho, alto), x0 = (200 - ancho * k) / 2, y0 = (200 - alto * k) / 2;
+        const piezas = [];
+        for (let i = 0; i < r.filas; i++) {
+            for (let j = 0; j < r.columnas; j++) {
+                piezas.push('<rect x="' + (x0 + j * w * paso * k).toFixed(1) + '" y="' + (y0 + i * h * paso * k).toFixed(1) +
+                            '" width="' + (w * k).toFixed(1) + '" height="' + (h * k).toFixed(1) + '" rx="3"/>');
+            }
+        }
+        const radio = s.objeto && s.objeto.tamano_arcmin ? s.objeto.tamano_arcmin / 60 * k / 2 : 0;
+        if (radio) piezas.push('<circle cx="100" cy="100" r="' + radio.toFixed(1) + '"/>');
+        $("guia-rejilla").innerHTML = piezas.join("");
+    }
+
+    async function rejilla(campo, delta) {
+        const s = sesion();
+        if (!s || !s.rejilla) return;
+        mostrarError("");
+        const r = Object.assign({}, s.rejilla, { solape_pct: parseFloat($("guia-solape").value) || s.rejilla.solape_pct,
+                                                 fotos_por_tesela: parseInt($("guia-fotos-tesela").value) || s.rejilla.fotos_por_tesela });
+        if (campo) r[campo] = Math.max(1, Math.min(6, r[campo] + delta));
+        aplicar(await pedir("/guia/rejilla", r));
+    }
+
+    async function empezarMosaico() {
+        const s = sesion();
+        if (!s || !s.objeto || !s.rejilla) return;
+        mostrarError("");
+        const p = await pedir("/preferencias");
+        const d = await pedir("/mosaico/iniciar", Object.assign({}, s.rejilla, {
+            nombre: s.objeto.nombre, ra_h: s.objeto.ra_h, dec_deg: s.objeto.dec_deg, tipo: s.objeto.tipo || "",
+            usar_dark: p.opcion_dark !== "sin" }));
+        if (!d.ok) { mostrarError(d.error || _("No se pudo iniciar")); return; }
+        await pedir("/guia/terminar", {});
+        irA("/apilado", "mosaico");
     }
 
     async function usarUltimoGoto() { mostrarError(""); aplicar(await pedir("/guia/objeto", { desde_goto: true })); }
@@ -740,8 +892,13 @@
         const objeto = ev.target.closest("#guia .guia-objeto");
         if (objeto) {
             const lista = objeto.dataset.lista === "resultados" ? resultados : (recomendados || []);
-            if (lista[objeto.dataset.i]) elegirObjeto(lista[objeto.dataset.i]);
+            const o = lista[objeto.dataset.i];
+            if (o && sesion() && sesion().variante === "varios") alternarEnPlan(o);
+            else if (o) elegirObjeto(o);
+            return;
         }
+        const fuera = ev.target.closest("#guia-plan-lista button[data-plan]");
+        if (fuera) quitarDeEstaNoche(fuera.dataset.plan);
     });
     $("guia").addEventListener("click", ev => { if (ev.target === $("guia")) cerrar(); });
     document.addEventListener("keydown", ev => { if (ev.key === "Escape" && abierta()) cerrar(); });
@@ -752,7 +909,8 @@
 
     window.Guia = { abrir, cerrar, verMenu, verRuta, dejar, irA, paso, siguiente, saltar, marcar, conectar, buscar, usarUltimoGoto,
                     mosaico, cancelarTapar, hacerDarks, irAlObjeto, irAEstrella, enfocarAqui, abrirApilado, hechoSiguiente,
-                    confirmarFiltro, hecho, irAlDisco, abrirCamara, apuntarEnfoque, terminarAlMenu, verGaleria };
+                    confirmarFiltro, hecho, irAlDisco, abrirCamara, apuntarEnfoque, terminarAlMenu, verGaleria,
+                    varios, rejilla, empezarMosaico, empezarPlan };
 
     // Al cargar: una consulta para la banda y la franja del inicio, y lo que la pantalla prepare al llegar
     refrescar().then(() => {

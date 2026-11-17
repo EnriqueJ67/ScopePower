@@ -1408,6 +1408,10 @@ msgstr ""
 msgid "Cada foto tarda la exposición elegida arriba (o la de Configuración) más unos segundos de descarga y revelado."
 msgstr ""
 
+#: templates/_guia.html
+msgid "Cada recuadro es una foto y el círculo, el tamaño del objeto. Las teselas se solapan para poder unirlas."
+msgstr ""
+
 #: templates/galeria.html
 msgid "Calcula la nota de los apilados que aún no la tienen. Lee cada FITS: tarda unos segundos por foto"
 msgstr ""
@@ -2005,6 +2009,11 @@ msgstr ""
 #. js
 #: guia.py
 msgid "Con el enfoque sin afinar se pierde el detalle: las estrellas salen gordas y el borde del Sol o de la Luna, blando."
+msgstr ""
+
+#: guia.py
+#, python-format
+msgid "Con el giro del campo, alguna tesela solo solapará un {s} % con su vecina: sube el solape"
 msgstr ""
 
 #: templates/imagen.html
@@ -2807,6 +2816,14 @@ msgstr ""
 msgid "Diámetro del Sol y órbita de la Tierra"
 msgstr ""
 
+#: guia.py
+msgid "Donde está ahora el objeto el campo casi no gira: hasta {t} s por foto, que es lo que aguanta el seguimiento de una montura altacimutal."
+msgstr ""
+
+#: guia.py
+msgid "Donde está ahora el objeto, el giro del campo de la montura altacimutal mueve las estrellas de las esquinas {v} px por segundo: hasta unos {t} s por foto salen redondas."
+msgstr ""
+
 #: static/js/luna_anotada.js
 msgid "Dorsos"
 msgstr ""
@@ -3342,6 +3359,10 @@ msgstr ""
 msgid "El plan de la noche está en marcha; páusalo o detenlo antes."
 msgstr ""
 
+#: guia.py
+msgid "El plan de la noche ya está en marcha"
+msgstr ""
+
 #: plan_sesion.py
 msgid "El plan está vacío: añade algún objeto"
 msgstr ""
@@ -3351,9 +3372,19 @@ msgstr ""
 msgid "El plan fija las fotos de cada objeto: tócalo en la lista del plan para cambiarlas."
 msgstr ""
 
+#: templates/_guia.html
+msgid "El plan irá a cada objeto, lo centrará, apilará sus fotos y lo guardará en la galería. Lo que no quepa esta noche se queda para otra."
+msgstr ""
+
 #: ScopePower.py
 msgid "El plan no está en marcha"
 msgstr ""
+
+#: guia.py
+msgid "El plan tiene además un objeto pendiente de otras noches"
+msgid_plural "El plan tiene además {n} objetos pendientes de otras noches"
+msgstr[0] ""
+msgstr[1] ""
 
 #: plan_sesion.py
 msgid "El plan ya está en marcha"
@@ -3617,11 +3648,11 @@ msgstr ""
 msgid "Empezar modo continuo"
 msgstr ""
 
-#: templates/apilado.html templates/planetario.html
+#: templates/_guia.html templates/apilado.html templates/planetario.html
 msgid "Empezar mosaico"
 msgstr ""
 
-#: templates/apilado.html
+#: templates/_guia.html templates/apilado.html
 msgid "Empezar plan"
 msgstr ""
 
@@ -4589,7 +4620,7 @@ msgstr ""
 msgid "Filas y columnas: de 1 a 6"
 msgstr ""
 
-#: templates/apilado.html templates/planetario.html
+#: templates/_guia.html templates/apilado.html templates/planetario.html
 msgid "Filas × columnas"
 msgstr ""
 
@@ -4991,7 +5022,7 @@ msgstr ""
 msgid "Fotos por objeto (por defecto)"
 msgstr ""
 
-#: templates/apilado.html templates/planetario.html
+#: templates/_guia.html templates/apilado.html templates/planetario.html
 msgid "Fotos por tesela"
 msgstr ""
 
@@ -5795,6 +5826,10 @@ msgstr ""
 
 #: templates/imagen.html
 msgid "La app busca sola la exposición, de microsegundos a segundos, con la ganancia al mínimo y sin darks. Elige qué vas a fotografiar:"
+msgstr ""
+
+#: templates/_guia.html
+msgid "La app irá a cada tesela, la centrará, apilará sus fotos y al final las unirá en una sola imagen. No hace falta apuntar antes."
 msgstr ""
 
 #. js
@@ -6783,7 +6818,9 @@ msgstr ""
 msgid "Montura: {e}"
 msgstr ""
 
-#: static/js/mosaico.js templates/apilado.html templates/planetario.html
+#. js
+#: guia.py static/js/mosaico.js templates/apilado.html
+#: templates/planetario.html
 msgid "Mosaico"
 msgstr ""
 
@@ -7032,6 +7069,10 @@ msgstr ""
 msgid "Ningún formato de vídeo válido (ser, mp4)"
 msgstr ""
 
+#: guia.py
+msgid "Ningún objeto del plan cabe esta noche"
+msgstr ""
+
 #. js
 #: templates/apilado.html templates/editar_dia.html
 msgid "Nitidez"
@@ -7133,6 +7174,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "No había ningún apagado pendiente"
+msgstr ""
+
+#: guia.py
+msgid "No has elegido ninguno: el plan seguirá con lo que ya tenía pendiente"
 msgstr ""
 
 #: ScopePower.py
@@ -7418,6 +7463,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "No se pudo borrar: {e}"
+msgstr ""
+
+#: ScopePower.py
+msgid "No se pudo calcular el plan de esta noche: {e}"
 msgstr ""
 
 #: static/js/plan.js
@@ -8702,6 +8751,10 @@ msgstr ""
 msgid "Quitar"
 msgstr ""
 
+#: static/js/guia.js
+msgid "Quitar de esta noche"
+msgstr ""
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Quitar dominante verde (SCNR)"
 msgstr ""
@@ -8944,6 +8997,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Reinicio de ScopePower"
+msgstr ""
+
+#: guia.py
+msgid "Rejilla de {f} × {c}: cubre {w}° × {h}°"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -9834,7 +9891,7 @@ msgstr ""
 msgid "Solape (%)"
 msgstr ""
 
-#: templates/apilado.html
+#: templates/_guia.html templates/apilado.html
 msgid "Solape entre teselas (%)"
 msgstr ""
 
@@ -10197,6 +10254,10 @@ msgstr ""
 msgid "Tipo:"
 msgstr ""
 
+#: static/js/guia.js
+msgid "Toca al menos un objeto para seguir."
+msgstr ""
+
 #: templates/editar_foto.html
 msgid "Toca después la foto: el punto que toques pasa a ser el centro del encuadre"
 msgstr ""
@@ -10224,6 +10285,14 @@ msgstr ""
 #. js
 #: templates/editar_foto.html
 msgid "Toca la foto..."
+msgstr ""
+
+#: guia.py
+msgid "Toca los objetos que quieres fotografiar esta noche"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Toca los objetos que quieres: se añaden al plan de la noche, que los fotografía solo, uno detrás de otro."
 msgstr ""
 
 #: templates/imagen.html
@@ -10263,6 +10332,10 @@ msgstr ""
 
 #: guia.py
 msgid "Todavía es de día: sin estrellas no hay centrado ni apilado."
+msgstr ""
+
+#: static/js/guia.js
+msgid "Todavía no has elegido ninguno."
 msgstr ""
 
 #: ScopePower.py
@@ -10441,6 +10514,22 @@ msgstr ""
 msgid "Un detalle lejano en tierra"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Un objeto"
+msgstr ""
+
+#: guia.py
+msgid "Un objeto cabe esta noche: acabaría a las {hora}"
+msgid_plural "{n} objetos caben esta noche: acabaría a las {hora}"
+msgstr[0] ""
+msgstr[1] ""
+
+#: guia.py
+msgid "Un objeto elegido para esta noche"
+msgid_plural "{n} objetos elegidos para esta noche"
+msgstr[0] ""
+msgstr[1] ""
+
 #: templates/apilado.html
 msgid "Un plan exportado o un texto con un nombre por línea"
 msgstr ""
@@ -10485,6 +10574,16 @@ msgstr ""
 
 #: templates/_guia.html
 msgid "Una sola foto, sin mosaico"
+msgstr ""
+
+#: guia.py
+msgid "Uno de los que has elegido no cabe esta noche y se queda para otra"
+msgid_plural "{n} de los que has elegido no caben esta noche y se quedan para otra"
+msgstr[0] ""
+msgstr[1] ""
+
+#: guia.py
+msgid "Unos {min} min: acabaría a las {hora}"
 msgstr ""
 
 #. js
@@ -10549,6 +10648,10 @@ msgstr ""
 
 #: static/js/asistente.js templates/_asistente.html
 msgid "Vamos a dejar ScopePower listo"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Varios en la noche"
 msgstr ""
 
 #: ScopePower.py static/js/filtro_solar.js static/js/guia.js
@@ -10957,6 +11060,10 @@ msgstr ""
 
 #: mosaico.py
 msgid "Ya hay un mosaico en marcha"
+msgstr ""
+
+#: guia.py
+msgid "Ya hay un mosaico en marcha: detenlo antes de empezar otro"
 msgstr ""
 
 #: foto_dia.py
@@ -13196,6 +13303,10 @@ msgid "vídeo"
 msgstr ""
 
 #: static/js/guia.js
+msgid "y {n} más"
+msgstr ""
+
+#: static/js/guia.js
 msgid "{actividad} · paso {n} de {total}"
 msgstr ""
 
@@ -13269,6 +13380,10 @@ msgstr ""
 
 #: guia.py
 msgid "{exp} s es poca exposición: harán falta muchas más fotos"
+msgstr ""
+
+#: guia.py
+msgid "{exp} s por foto, ganancia {gan}"
 msgstr ""
 
 #: guia.py
@@ -13824,6 +13939,10 @@ msgid "{objeto} hecho: {n} foto, guardado como {archivo}"
 msgid_plural "{objeto} hecho: {n} fotos, guardado como {archivo}"
 msgstr[0] ""
 msgstr[1] ""
+
+#: guia.py
+msgid "{objeto} mide {t}′ y la rejilla se queda corta: añade teselas"
+msgstr ""
 
 #: plan_sesion.py
 msgid "{objeto} terminado y guardado en la galería"

@@ -1410,6 +1410,10 @@ msgstr "Each shot is saved developed at full resolution (about 2–4 MB) in stat
 msgid "Cada foto tarda la exposición elegida arriba (o la de Configuración) más unos segundos de descarga y revelado."
 msgstr "Each shot takes the exposure chosen above (or the one in Settings) plus a few seconds to download and develop."
 
+#: templates/_guia.html
+msgid "Cada recuadro es una foto y el círculo, el tamaño del objeto. Las teselas se solapan para poder unirlas."
+msgstr "Each box is one shot and the circle is the size of the object. The tiles overlap so they can be joined."
+
 #: templates/galeria.html
 msgid "Calcula la nota de los apilados que aún no la tienen. Lee cada FITS: tarda unos segundos por foto"
 msgstr "Works out the score of the stacks that don't have one yet. It reads each FITS: a few seconds per photo"
@@ -2008,6 +2012,11 @@ msgstr "While continuous mode, live mode or the timelapse is running, it correct
 #: guia.py
 msgid "Con el enfoque sin afinar se pierde el detalle: las estrellas salen gordas y el borde del Sol o de la Luna, blando."
 msgstr "Without fine focus, detail is lost: stars come out bloated and the edge of the Sun or the Moon looks soft."
+
+#: guia.py
+#, python-format
+msgid "Con el giro del campo, alguna tesela solo solapará un {s} % con su vecina: sube el solape"
+msgstr "With field rotation, some tile will overlap its neighbor by only {s} %: increase the overlap"
 
 #: templates/imagen.html
 #, python-format
@@ -2809,6 +2818,14 @@ msgstr "Diameter"
 msgid "Diámetro del Sol y órbita de la Tierra"
 msgstr "Sun's diameter and the Earth's orbit"
 
+#: guia.py
+msgid "Donde está ahora el objeto el campo casi no gira: hasta {t} s por foto, que es lo que aguanta el seguimiento de una montura altacimutal."
+msgstr "Where the object is now the field hardly rotates: up to {t} s per shot, which is what the tracking of an alt-azimuth mount can hold."
+
+#: guia.py
+msgid "Donde está ahora el objeto, el giro del campo de la montura altacimutal mueve las estrellas de las esquinas {v} px por segundo: hasta unos {t} s por foto salen redondas."
+msgstr "Where the object is now, the field rotation of the alt-azimuth mount moves the corner stars {v} px per second: up to about {t} s per shot they stay round."
+
 #: static/js/luna_anotada.js
 msgid "Dorsos"
 msgstr "Ridges"
@@ -3344,6 +3361,10 @@ msgstr "The night plan is running; stop it before parking"
 msgid "El plan de la noche está en marcha; páusalo o detenlo antes."
 msgstr "The night plan is running; pause or stop it first."
 
+#: guia.py
+msgid "El plan de la noche ya está en marcha"
+msgstr "The night plan is already running"
+
 #: plan_sesion.py
 msgid "El plan está vacío: añade algún objeto"
 msgstr "The plan is empty: add an object"
@@ -3353,9 +3374,19 @@ msgstr "The plan is empty: add an object"
 msgid "El plan fija las fotos de cada objeto: tócalo en la lista del plan para cambiarlas."
 msgstr "The plan sets the shots for each object: tap it in the plan list to change them."
 
+#: templates/_guia.html
+msgid "El plan irá a cada objeto, lo centrará, apilará sus fotos y lo guardará en la galería. Lo que no quepa esta noche se queda para otra."
+msgstr "The plan will go to each object, center it, stack its shots and save it to the gallery. Whatever does not fit tonight is left for another night."
+
 #: ScopePower.py
 msgid "El plan no está en marcha"
 msgstr "The plan isn't running"
+
+#: guia.py
+msgid "El plan tiene además un objeto pendiente de otras noches"
+msgid_plural "El plan tiene además {n} objetos pendientes de otras noches"
+msgstr[0] "The plan also has one object pending from other nights"
+msgstr[1] "The plan also has {n} objects pending from other nights"
 
 #: plan_sesion.py
 msgid "El plan ya está en marcha"
@@ -3619,11 +3650,11 @@ msgstr "Start stacking"
 msgid "Empezar modo continuo"
 msgstr "Start continuous mode"
 
-#: templates/apilado.html templates/planetario.html
+#: templates/_guia.html templates/apilado.html templates/planetario.html
 msgid "Empezar mosaico"
 msgstr "Start mosaic"
 
-#: templates/apilado.html
+#: templates/_guia.html templates/apilado.html
 msgid "Empezar plan"
 msgstr "Start plan"
 
@@ -4591,7 +4622,7 @@ msgstr "File not found"
 msgid "Filas y columnas: de 1 a 6"
 msgstr "Rows and columns: 1 to 6"
 
-#: templates/apilado.html templates/planetario.html
+#: templates/_guia.html templates/apilado.html templates/planetario.html
 msgid "Filas × columnas"
 msgstr "Rows × columns"
 
@@ -4993,7 +5024,7 @@ msgstr "Shots rejected from stacking because of a plane, satellite or meteor tra
 msgid "Fotos por objeto (por defecto)"
 msgstr "Shots per object (default)"
 
-#: templates/apilado.html templates/planetario.html
+#: templates/_guia.html templates/apilado.html templates/planetario.html
 msgid "Fotos por tesela"
 msgstr "Shots per tile"
 
@@ -5798,6 +5829,10 @@ msgstr "Alignment teaches the mount where everything is in the sky. It is done o
 #: templates/imagen.html
 msgid "La app busca sola la exposición, de microsegundos a segundos, con la ganancia al mínimo y sin darks. Elige qué vas a fotografiar:"
 msgstr "The app finds the exposure on its own, from microseconds to seconds, with minimum gain and no darks. Choose what you are going to shoot:"
+
+#: templates/_guia.html
+msgid "La app irá a cada tesela, la centrará, apilará sus fotos y al final las unirá en una sola imagen. No hace falta apuntar antes."
+msgstr "The app will go to each tile, center it, stack its shots and finally join them into a single image. There is no need to point first."
 
 #. js
 #: templates/configuracion.html
@@ -6785,7 +6820,9 @@ msgstr "Mount synced with the Moon: it was off by {error}′."
 msgid "Montura: {e}"
 msgstr "Mount: {e}"
 
-#: static/js/mosaico.js templates/apilado.html templates/planetario.html
+#. js
+#: guia.py static/js/mosaico.js templates/apilado.html
+#: templates/planetario.html
 msgid "Mosaico"
 msgstr "Mosaic"
 
@@ -7034,6 +7071,10 @@ msgstr "No spots on the disc."
 msgid "Ningún formato de vídeo válido (ser, mp4)"
 msgstr "No valid video format (ser, mp4)"
 
+#: guia.py
+msgid "Ningún objeto del plan cabe esta noche"
+msgstr "No object in the plan fits tonight"
+
 #. js
 #: templates/apilado.html templates/editar_dia.html
 msgid "Nitidez"
@@ -7136,6 +7177,10 @@ msgstr "There was nothing to update"
 #: ScopePower.py
 msgid "No había ningún apagado pendiente"
 msgstr "There was no pending shutdown"
+
+#: guia.py
+msgid "No has elegido ninguno: el plan seguirá con lo que ya tenía pendiente"
+msgstr "You have not chosen any: the plan will carry on with what it already had pending"
 
 #: ScopePower.py
 msgid "No hay GOTO previo y no se pudo leer la montura: {e}"
@@ -7421,6 +7466,10 @@ msgstr "Could not delete"
 #: ScopePower.py
 msgid "No se pudo borrar: {e}"
 msgstr "Could not delete: {e}"
+
+#: ScopePower.py
+msgid "No se pudo calcular el plan de esta noche: {e}"
+msgstr "Could not work out tonight's plan: {e}"
 
 #: static/js/plan.js
 msgid "No se pudo calcular el plan: {e}"
@@ -8704,6 +8753,10 @@ msgstr "Removing the gradient"
 msgid "Quitar"
 msgstr "Remove"
 
+#: static/js/guia.js
+msgid "Quitar de esta noche"
+msgstr "Remove from tonight"
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Quitar dominante verde (SCNR)"
 msgstr "Remove green cast (SCNR)"
@@ -8947,6 +9000,10 @@ msgstr "Reset results (everything to pending)"
 #: ScopePower.py
 msgid "Reinicio de ScopePower"
 msgstr "ScopePower restart"
+
+#: guia.py
+msgid "Rejilla de {f} × {c}: cubre {w}° × {h}°"
+msgstr "{f} × {c} grid: covers {w}° × {h}°"
 
 #: templates/seguimiento.html
 msgid "Relee la resolución más reciente que quede en disco"
@@ -9836,7 +9893,7 @@ msgstr "Sun or Moon by hand"
 msgid "Solape (%)"
 msgstr "Overlap (%)"
 
-#: templates/apilado.html
+#: templates/_guia.html templates/apilado.html
 msgid "Solape entre teselas (%)"
 msgstr "Tile overlap (%)"
 
@@ -10199,6 +10256,10 @@ msgstr "Stretch type"
 msgid "Tipo:"
 msgstr "Type:"
 
+#: static/js/guia.js
+msgid "Toca al menos un objeto para seguir."
+msgstr "Tap at least one object to continue."
+
 #: templates/editar_foto.html
 msgid "Toca después la foto: el punto que toques pasa a ser el centro del encuadre"
 msgstr "Then tap the photo: the point you tap becomes the center of the framing"
@@ -10227,6 +10288,14 @@ msgstr "Tap the curve to add a point and drag it; the preview's histogram is sho
 #: templates/editar_foto.html
 msgid "Toca la foto..."
 msgstr "Tap the photo..."
+
+#: guia.py
+msgid "Toca los objetos que quieres fotografiar esta noche"
+msgstr "Tap the objects you want to photograph tonight"
+
+#: templates/_guia.html
+msgid "Toca los objetos que quieres: se añaden al plan de la noche, que los fotografía solo, uno detrás de otro."
+msgstr "Tap the objects you want: they are added to the night plan, which photographs them by itself, one after another."
 
 #: templates/imagen.html
 msgid "Toca o arrastra sobre la foto para poner el puntero donde quieras que apunte el telescopio."
@@ -10266,6 +10335,10 @@ msgstr "It is still daytime: with no stars there is no centering or stacking unt
 #: guia.py
 msgid "Todavía es de día: sin estrellas no hay centrado ni apilado."
 msgstr "It is still daytime: with no stars there is no centering or stacking."
+
+#: static/js/guia.js
+msgid "Todavía no has elegido ninguno."
+msgstr "You have not chosen any yet."
 
 #: ScopePower.py
 msgid "Todavía no has ido a ningún objeto"
@@ -10443,6 +10516,22 @@ msgstr "A distant detail of the landscape"
 msgid "Un detalle lejano en tierra"
 msgstr "A distant detail on the ground"
 
+#: templates/_guia.html
+msgid "Un objeto"
+msgstr "One object"
+
+#: guia.py
+msgid "Un objeto cabe esta noche: acabaría a las {hora}"
+msgid_plural "{n} objetos caben esta noche: acabaría a las {hora}"
+msgstr[0] "One object fits tonight: it would finish at {hora}"
+msgstr[1] "{n} objects fit tonight: it would finish at {hora}"
+
+#: guia.py
+msgid "Un objeto elegido para esta noche"
+msgid_plural "{n} objetos elegidos para esta noche"
+msgstr[0] "One object chosen for tonight"
+msgstr[1] "{n} objects chosen for tonight"
+
 #: templates/apilado.html
 msgid "Un plan exportado o un texto con un nombre por línea"
 msgstr "An exported plan or a text file with one name per line"
@@ -10488,6 +10577,16 @@ msgstr "A daytime shot every so many seconds, with the exposure readjusted for e
 #: templates/_guia.html
 msgid "Una sola foto, sin mosaico"
 msgstr "A single frame, no mosaic"
+
+#: guia.py
+msgid "Uno de los que has elegido no cabe esta noche y se queda para otra"
+msgid_plural "{n} de los que has elegido no caben esta noche y se quedan para otra"
+msgstr[0] "One of the objects you chose does not fit tonight and is left for another night"
+msgstr[1] "{n} of the objects you chose do not fit tonight and are left for another night"
+
+#: guia.py
+msgid "Unos {min} min: acabaría a las {hora}"
+msgstr "About {min} min: it would finish at {hora}"
 
 #. js
 #: plan_sesion.py static/publico/planetario_publico.js
@@ -10552,6 +10651,10 @@ msgstr "Values out of range"
 #: static/js/asistente.js templates/_asistente.html
 msgid "Vamos a dejar ScopePower listo"
 msgstr "Let's get ScopePower ready"
+
+#: templates/_guia.html
+msgid "Varios en la noche"
+msgstr "Several tonight"
 
 #: ScopePower.py static/js/filtro_solar.js static/js/guia.js
 msgid "Vas a apuntar el telescopio al Sol."
@@ -10960,6 +11063,10 @@ msgstr "A save is already in progress"
 #: mosaico.py
 msgid "Ya hay un mosaico en marcha"
 msgstr "A mosaic is already running"
+
+#: guia.py
+msgid "Ya hay un mosaico en marcha: detenlo antes de empezar otro"
+msgstr "A mosaic is already running: stop it before starting another"
 
 #: foto_dia.py
 msgid "Ya hay un timelapse en marcha"
@@ -13198,6 +13305,10 @@ msgid "vídeo"
 msgstr "video"
 
 #: static/js/guia.js
+msgid "y {n} más"
+msgstr "and {n} more"
+
+#: static/js/guia.js
 msgid "{actividad} · paso {n} de {total}"
 msgstr "{actividad} · step {n} of {total}"
 
@@ -13272,6 +13383,10 @@ msgstr "{exp} s is a long exposure for this mount"
 #: guia.py
 msgid "{exp} s es poca exposición: harán falta muchas más fotos"
 msgstr "{exp} s is a short exposure: many more shots will be needed"
+
+#: guia.py
+msgid "{exp} s por foto, ganancia {gan}"
+msgstr "{exp} s per shot, gain {gan}"
 
 #: guia.py
 msgid "{exp} s por foto, ganancia {gan}, hasta {n} fotos"
@@ -13826,6 +13941,10 @@ msgid "{objeto} hecho: {n} foto, guardado como {archivo}"
 msgid_plural "{objeto} hecho: {n} fotos, guardado como {archivo}"
 msgstr[0] "{objeto} done: {n} shot, saved as {archivo}"
 msgstr[1] "{objeto} done: {n} shots, saved as {archivo}"
+
+#: guia.py
+msgid "{objeto} mide {t}′ y la rejilla se queda corta: añade teselas"
+msgstr "{objeto} spans {t}′ and the grid falls short: add tiles"
 
 #: plan_sesion.py
 msgid "{objeto} terminado y guardado en la galería"
