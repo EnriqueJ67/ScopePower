@@ -1772,6 +1772,18 @@
     // Listener para el checkbox de Objetos anotados
     document.getElementById("checkbox-objetos-anotados")
         .addEventListener("change", toggleObjetosAnotados);
+
+    // ——— Llegada desde la guía «¿Qué quieres hacer hoy?» (static/js/guia.js) ———
+    // "listo": el panel de inicio desplegado y Empezar resaltado, que es lo único que queda por pulsar;
+    // "mosaico": la pestaña del mosaico, con el objeto de la guía como centro (el último GoTo)
+    window.guiaAlLlegar = function (paso) {
+        if (paso === "mosaico") { if (window.Paneles) Paneles.activar("mosaico"); return; }
+        if (paso !== "listo") return;
+        panelInicioAbierto = true;
+        plegarPanelInicio(false);
+        const boton = document.querySelector("#inicio-botones .btn-primary");
+        if (boton) { boton.classList.add("guia-resaltado"); boton.scrollIntoView({ block: "center", behavior: "smooth" }); }
+    };
 </script>
 <script src="{{ url_for('static', filename='js/plan.js') }}"></script>
 <script src="{{ url_for('static', filename='js/mosaico.js') }}"></script>

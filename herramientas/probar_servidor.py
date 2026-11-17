@@ -107,6 +107,41 @@ def main():
     if not bien:
         fallos.append("pestaña en /preferencias")
 
+    print("Guía «¿Qué quieres hacer hoy?» (guia.py, static/js/guia.js):")
+    pedir("/static/js/guia.js")
+    html = cliente.get("/").get_data(as_text=True)
+    e = cliente.get("/guia/estado").get_json() or {}
+    menu = e.get("menu") or []
+    fondos = [a["imagen"] for a in menu] + ["inicio.jpg"]
+    sin_fondo = [f for f in fondos if cliente.get("/static/guia/" + f).status_code != 200]
+    bien = ('id="guia-franja"' in html and 'id="guia"' in html and 'id="guia-banda"' in html and "js/guia.js" in html
+            and len(menu) == 7 and not e.get("activa") and not sin_fondo)
+    print(f"  {'✅' if bien else '❌'} franja, ventana y banda en el inicio; {len(menu)} actividades con su fondo"
+          + (f" (faltan {sin_fondo})" if sin_fondo else ""))
+    if not bien:
+        fallos.append("guía en el inicio")
+    ses = (cliente.post("/guia/empezar", json={"actividad": "cielo_profundo"}).get_json() or {}).get("sesion") or {}
+    sin_equipo = ses.get("paso") == "equipo" and ses.get("total") == 8 and not ses.get("puede_seguir")
+    cliente.post("/guia/paso", json={"accion": "ir", "paso": "objeto"})
+    ses = (cliente.post("/guia/objeto", json={"nombre": "M 31", "ra_h": 0.712, "dec_deg": 41.27, "tipo": "Galaxia",
+                                               "tamano_arcmin": 190}).get_json() or {}).get("sesion") or {}
+    objeto = (ses.get("objeto") or {}).get("nombre") == "M 31" and ses.get("puede_seguir")
+    ses = (cliente.post("/guia/captura", json={"exposicion": "12,5", "ganancia": "", "fotos": 40}).get_json() or {}).get("sesion") or {}
+    captura = (ses.get("captura") or {}).get("exposicion") == 12.5 and (ses.get("captura") or {}).get("fotos") == 40
+    rechazo = cliente.post("/guia/captura", json={"exposicion": "mucho", "fotos": 1}).status_code == 400
+    sp.idioma.cambiar("en")
+    en_ingles = "Deep sky" in [a["titulo"] for a in (cliente.get("/guia/estado").get_json() or {}).get("menu", [])]
+    sp.idioma.cambiar("es")
+    directo = cliente.post("/guia/empezar", json={"actividad": "luna"}).get_json() or {}
+    prefs = cliente.get("/preferencias").get_json() or {}
+    acceso = directo.get("destino") == "/foto-prueba" and prefs.get("modo_dia") == "on" and prefs.get("foto_dia_objetivo") == "luna"
+    cerrada = (cliente.post("/guia/terminar", json={}).get_json() or {}).get("activa") is False
+    bien = sin_equipo and objeto and captura and rechazo and en_ingles and acceso and cerrada
+    print(f"  {'✅' if bien else '❌'} cielo profundo: sin equipo no pasa del primer paso ({sin_equipo}), objeto ({objeto}), "
+          f"exposición ({captura}, rechaza la mala: {rechazo}), menú en inglés ({en_ingles}), acceso directo a la Luna ({acceso}), cierre ({cerrada})")
+    if not bien:
+        fallos.append("rutas de la guía")
+
     print("Firma de una foto sintética (Pillow):")
     import numpy as np
     import firma

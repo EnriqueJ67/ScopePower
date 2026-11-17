@@ -45,6 +45,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_traducciones.py
 
+      - name: Prueba de la guía «¿Qué quieres hacer hoy?» (pasos y semáforos con un equipo inventado)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_guia.py
+
       - name: Prueba del mosaico (cielo sintético, sin ASTAP)
         env:
           PYTHONIOENCODING: utf-8

@@ -5,6 +5,16 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Inicio: botón principal «¿Qué quieres hacer hoy?». Abre un menú de tarjetas con foto (cielo profundo, Luna,
+  Sol, paisaje, enfocar, fotos de calibración y galería), ordenadas según sea de día o de noche, y lleva de la
+  mano hasta dejarlo todo a un toque de «Empezar». Cielo profundo va guiado paso a paso, con un semáforo por
+  comprobación: equipo conectado y disco, alineación, objeto (los mejores de ahora, buscador o el planetario;
+  si no cabe en el campo propone mosaico), exposición con el margen recomendado para la montura, darks y flats
+  (hace los darks allí mismo si faltan o quedan lejos de la temperatura del sensor), enfoque con una estrella
+  brillante, GoTo con centrado y, al final, Apilado abierto con «Empezar» resaltado. Lo que se hace a mano
+  (alinear, enfocar) se hace en su pantalla de siempre, con una banda arriba que devuelve a la guía con
+  «Hecho, siguiente». La guía recuerda lo hecho en la noche y se puede dejar y retomar. Las demás actividades
+  abren su pantalla ya preparada (el Sol, tras confirmar el filtro solar).
 - Editor de la galería: panel nuevo «Color selectivo» con un cuentagotas. Se pulsa, se toca un color en la
   foto y se cambia la saturación solo de ese color y de sus tonos vecinos (1 lo deja igual, 0 lo deja gris),
   con la anchura del rango a elegir y «Ver la selección» para ver qué entra. Hasta 4 colores por foto, al

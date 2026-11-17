@@ -103,6 +103,7 @@ import aparcado
 import vigilante_seguimiento
 import plan_sesion
 import mosaico
+import guia
 import actualizar
 
 def ruta_absoluta(relativa):
@@ -7745,6 +7746,228 @@ def guardar_mosaico_en_galeria():
 
     threading.Thread(target=_procesar_y_guardar, name="guardar-mosaico", daemon=True).start()
     return {"ok": True, "mensaje": GUARDADO["mensaje"], "archivo": base + ".jpg", "en_curso": True, "codigo": 200}
+
+
+# ───────────────────────── Guía «¿Qué quieres hacer hoy?» (guia.py) ─────────────────────────
+# El botón principal del inicio: se elige una actividad y la guía lleva paso a paso hasta dejarla
+# a un toque de «Empezar» (templates/_guia.html + static/js/guia.js, incluidos en base.html).
+# Aquí solo se reúnen los datos del equipo; qué está bien y qué falta lo decide guia.py.
+_cielo_guia_cache = {"hora": 0.0, "datos": None}
+
+
+def _cielo_guia():
+    """Día o noche, altura de la Luna y hora a la que anochece. Con caché: lo pide cada pantalla al abrirse."""
+    if _cielo_guia_cache["datos"] and time.time() - _cielo_guia_cache["hora"] < 120:
+        return _cielo_guia_cache["datos"]
+    datos = {"de_dia": False, "altura_sol": None, "altura_luna": None, "noche_desde": None}
+    try:
+        lugar = EarthLocation(lat=LATITUD_OBSERVATORIO * u.deg, lon=LONGITUD_OBSERVATORIO * u.deg,
+                              height=ALTITUD_OBSERVATORIO * u.m)
+        ahora = Time.now()
+        marco = AltAz(obstime=ahora, location=lugar)
+        datos["altura_sol"] = round(float(get_body("sun", ahora, lugar).transform_to(marco).alt.deg), 1)
+        datos["altura_luna"] = round(float(get_body("moon", ahora, lugar).transform_to(marco).alt.deg), 1)
+        datos["de_dia"] = datos["altura_sol"] > ALTURA_SOL_DE_DIA
+        if datos["de_dia"]:
+            inicio, __ = esta_noche.ventana_nocturna(lugar, ahora)
+            datos["noche_desde"] = esta_noche._hora_local(inicio).strftime("%H:%M")
+    except Exception as e:
+        log.warning("Guía: no se pudo calcular si es de día: %s", e)
+    _cielo_guia_cache.update(hora=time.time(), datos=datos)
+    return datos
+
+
+def _captura_guia():
+    """Exposición, ganancia, binning y número de fotos que usará el apilado (config.ini, en vivo)."""
+    conf = _config_darks()
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    return {"exposicion": conf["exposicion"], "ganancia": conf["ganancia"], "binning": conf["binning"],
+            "fotos": cfg["Dispositivos"].getint("numero_maximo_imagenes", fallback=0), "numero_darks": conf["numero_darks"]}
+
+
+def _montura_moviendose():
+    if not montura.esta_conectado():
+        return False
+    try:
+        return bool(montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=5))
+    except ErrorHardware:
+        return False
+
+
+def _datos_guia():
+    """Lo que guia.py necesita saber del equipo. Solo se lee lo que pide el paso en curso."""
+    ses = guia.sesion()
+    paso = ses["paso"] if ses else ""
+    datos = dict(_cielo_guia())
+    datos.update({
+        "montura": montura.esta_conectado(), "camara": camara.esta_conectado(), "conectando": _conexion_auto["en_curso"],
+        "modo_montura": _montura_info["modo"] if montura.esta_conectado() else None,
+        "disco": espacio_disco.vigilante.estado(),
+        "lat": LATITUD_OBSERVATORIO, "lon": LONGITUD_OBSERVATORIO, "altura_minima": float(ALTURA_MINIMA),
+        "alineacion": alineacion.trabajo_alineacion.estado(),
+        "puesta_estacion": puesta_estacion.trabajo_puesta_estacion.estado(),
+        "bucle_activo": bool(bucle.activo), "trabajo": _trabajos_en_curso(),
+    })
+    if not ses:
+        return datos
+    datos["captura"] = _captura_guia()
+    if paso == "objeto":
+        datos["campo"] = mosaico.campo_camara()
+    if paso in ("objeto", "apuntar", "listo"):
+        datos["ultimo_goto"] = ({"objeto": ULTIMO_GOTO.get("objeto", ""), "ra_h": ULTIMO_GOTO.get("ra"),
+                                 "dec_deg": ULTIMO_GOTO.get("dec"), "hora": ULTIMO_GOTO.get("hora")} if ULTIMO_GOTO else None)
+    if paso in ("apuntar", "listo"):
+        datos["centrado"] = centrado.trabajo_centrado.estado()
+        datos["centrado_objetivo"] = centrado.trabajo_centrado.objetivo
+        datos["moviendose"] = _montura_moviendose() if paso == "apuntar" else False
+    if paso in ("calibracion", "listo"):
+        cap = datos["captura"]
+        lectura = _temperatura_camara() if paso == "calibracion" else darks.ultima_temperatura()
+        datos["dark"] = darks.info_dark(cap["exposicion"], cap["ganancia"], cap["binning"], lectura["valor"] if lectura else None)
+        datos["flat"] = flats.info_flat(cap["binning"])
+        datos["trabajo_darks"] = darks.trabajo_darks.estado()
+    return datos
+
+
+def _estado_guia():
+    datos = _datos_guia()
+    salida = guia.estado(datos)
+    ses = salida["sesion"]
+    if ses:
+        # Lo que pinta cada paso además de sus semáforos
+        ses["captura"] = datos.get("captura")
+        if ses["paso"] == "objeto":
+            ses["ultimo_goto"] = datos.get("ultimo_goto")
+        elif ses["paso"] == "captura":
+            ses["recomendacion"] = guia.exposicion_recomendada(datos.get("modo_montura"), guia.altura_objeto(guia.sesion(), datos))
+        elif ses["paso"] == "calibracion":
+            ses["trabajo_darks"] = datos.get("trabajo_darks")
+            ses["hay_dark"] = bool((datos.get("dark") or {}).get("existe"))
+            ses["hay_flat"] = bool((datos.get("flat") or {}).get("existe"))
+            ses["opcion_dark"] = _leer_preferencias().get("opcion_dark", "ultimo")
+        elif ses["paso"] == "enfoque":
+            ses["estrella"] = guia.estrella_para_enfocar(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO)
+    return salida
+
+
+def _error_guia(e, codigo=400):
+    return jsonify({"ok": False, "error": str(e)}), codigo
+
+
+@app.route('/guia/estado')
+def guia_estado():
+    return jsonify(_estado_guia())
+
+
+@app.route('/guia/empezar', methods=['POST'])
+def guia_empezar():
+    """
+    {"actividad": clave}. Una actividad guiada abre su sesión; un acceso directo deja preparada su
+    pantalla (preferencias de Cámara) y devuelve a dónde ir: {"ok", "destino", "al_llegar"}.
+    """
+    datos = request.get_json(silent=True) or {}
+    try:
+        act = guia.actividad(str(datos.get("actividad", "")))
+        guia.empezar(act["clave"])
+    except ValueError as e:
+        return _error_guia(e)
+    if act.get("guiada"):
+        return jsonify(dict(_estado_guia(), ok=True))
+    preferencias = dict(act.get("preferencias") or {})
+    if act["clave"] == "enfocar":
+        # De noche se enfoca con una estrella (solo verde, máscara de Bahtinov); de día, con el borde del Sol o de la Luna
+        de_dia = _cielo_guia()["de_dia"]
+        preferencias["modo_dia"] = "on" if de_dia else "off"
+        enfoque.poner(not de_dia)
+    for clave, valor in preferencias.items():
+        seccion, clave_ini, __ = PREFERENCIAS[clave]
+        _guardar_en_config(seccion, {clave_ini: valor})
+    return jsonify({"ok": True, "destino": act["destino"], "al_llegar": act.get("al_llegar", "")})
+
+
+@app.route('/guia/paso', methods=['POST'])
+def guia_paso():
+    """{"accion": "siguiente" | "atras" | "saltar" | "ir", "paso": clave (solo con "ir")}."""
+    datos = request.get_json(silent=True) or {}
+    accion = str(datos.get("accion", "siguiente"))
+    try:
+        if accion == "ir":
+            guia.ir_a(str(datos.get("paso", "")))
+        else:
+            guia.avanzar(-1 if accion == "atras" else 1, saltar=(accion == "saltar"))
+    except ValueError as e:
+        return _error_guia(e)
+    return jsonify(dict(_estado_guia(), ok=True))
+
+
+@app.route('/guia/objeto', methods=['POST'])
+def guia_objeto():
+    """
+    El objeto de la sesión: {"nombre", "ra_h", "dec_deg", "tipo", "tamano_arcmin"}; solo {"nombre"} lo busca
+    como el plan de la noche; {"desde_goto": true} toma el último GoTo (elegido en el planetario o en GoTo).
+    {"mosaico": true|false} decide si se hará en mosaico.
+    """
+    datos = request.get_json(silent=True) or {}
+    try:
+        if "mosaico" in datos and len(datos) == 1:
+            guia.fijar_mosaico(bool(datos["mosaico"]))
+        elif datos.get("desde_goto"):
+            if not ULTIMO_GOTO:
+                return _error_guia(_("Todavía no has ido a ningún objeto"))
+            nombre = str(ULTIMO_GOTO.get("objeto") or _("Objeto"))
+            ficha = catalogo_offline.buscar(nombre) or {}
+            guia.fijar_objeto(nombre, ULTIMO_GOTO["ra"], ULTIMO_GOTO["dec"], ficha.get("type") or "")
+        elif datos.get("ra_h") is not None and datos.get("dec_deg") is not None:
+            guia.fijar_objeto(datos.get("nombre"), datos["ra_h"], datos["dec_deg"], datos.get("tipo") or "", datos.get("tamano_arcmin"))
+        else:
+            ficha = _resolver_nombre_plan(datos.get("nombre"))
+            if not ficha:
+                return _error_guia(_("No encuentro «{nombre}»", nombre=datos.get("nombre") or ""), 404)
+            guia.fijar_objeto(ficha["nombre"], ficha["ra_h"], ficha["dec_deg"], ficha.get("tipo") or "")
+    except (ValueError, TypeError) as e:
+        return _error_guia(e)
+    return jsonify(dict(_estado_guia(), ok=True))
+
+
+@app.route('/guia/captura', methods=['POST'])
+def guia_captura():
+    """{"exposicion": s, "ganancia": n | "" (la del driver), "fotos": n}: los guarda en [Dispositivos] de config.ini."""
+    datos = request.get_json(silent=True) or {}
+    if bucle.activo and not bucle.pausado:
+        return _error_guia(_("El apilado está capturando; páusalo o detenlo antes de cambiar la exposición"), 409)
+    try:
+        exposicion = float(str(datos.get("exposicion", "")).replace(",", "."))
+        fotos = int(datos.get("fotos"))
+        ganancia = str(datos.get("ganancia", "") if datos.get("ganancia") is not None else "").strip()
+        if ganancia:
+            ganancia = str(int(ganancia))
+    except (ValueError, TypeError):
+        return _error_guia(_("Revisa los números: exposición en segundos, ganancia y fotos en números enteros"))
+    if not 0.001 <= exposicion <= 3600:
+        return _error_guia(_("La exposición tiene que estar entre 0,001 y 3600 segundos."))
+    if not 1 <= fotos <= 100000:
+        return _error_guia(_("El número de fotos tiene que ser al menos 1."))
+    _guardar_en_config("Dispositivos", {"exposicion_captura": f"{exposicion:g}", "ganancia_camara": ganancia,
+                                        "numero_maximo_imagenes": fotos})
+    return jsonify(dict(_estado_guia(), ok=True))
+
+
+@app.route('/guia/marcar', methods=['POST'])
+def guia_marcar():
+    """{"clave": "alineacion" | "puesta_estacion" | "enfoque", "hecho": true|false}: «ya está hecho» esta noche."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        guia.marcar(str(datos.get("clave", "")), bool(datos.get("hecho", True)))
+    except ValueError as e:
+        return _error_guia(e)
+    return jsonify(dict(_estado_guia(), ok=True))
+
+
+@app.route('/guia/terminar', methods=['POST'])
+def guia_terminar():
+    guia.terminar()
+    return jsonify(dict(_estado_guia(), ok=True))
 
 
 @app.route("/red/estado")

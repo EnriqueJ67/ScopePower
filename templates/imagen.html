@@ -1748,5 +1748,12 @@
 
     // Si ya hay una exposición en marcha (p. ej. desde otra pestaña), mostrarla
     fetch("/estado-captura").then(r => r.json()).then(c => { if (c.en_curso && !sondeo) sondeo = setInterval(sondearCaptura, 1000); }).catch(() => {});
+
+    // ——— Llegada desde la guía «¿Qué quieres hacer hoy?» (static/js/guia.js) ———
+    // El modo día, el objetivo y el modo enfoque ya vienen puestos del PC (preferencias y /enfoque):
+    // aquí solo se abre la pestaña que toca. paso: "enfoque" | "dia"
+    window.guiaAlLlegar = function (paso) {
+        if (window.Paneles) Paneles.activar(paso === "dia" ? "dia" : "captura");
+    };
 </script>
 {% endblock %}
