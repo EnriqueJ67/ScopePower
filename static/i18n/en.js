@@ -1173,6 +1173,7 @@ window.I18N_CATALOGO = {
 "¿Volver ScopePower a la versión anterior ({nombre})?":"Roll ScopePower back to the previous version ({nombre})?",
 "¿Volver a la foto original tal como se guardó desde el apilado?":"Go back to the original photo as it was saved from stacking?",
 "¿Volver a la foto original tal como se guardó?":"Go back to the original photo as it was saved?",
+"¿Volver a los valores del estilo? El encuadre, la firma y la separación de las estrellas no cambian.":"Go back to the style's values? The framing, the signature and the star separation do not change.",
 "Última exposición buena para {objetivo}: {texto}. La búsqueda empieza ahí.":"Last good exposure for {objetivo}: {texto}. The search starts there.",
 "Última subida: {t}":"Last upload: {t}",
 "Última toma {hora} · {exp} s":"Latest frame {hora} · {exp} s",

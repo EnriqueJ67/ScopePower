@@ -9,7 +9,7 @@
 //
 // La plantilla no cambia: el botón se cuelga solo de la etiqueta del control (.rango-titulo, label
 // o la casilla o el renglón que la explicación tiene justo encima). Si no hay etiqueta, la explicación es del
-// panel entero y el botón va junto a su título. Se quedan siempre a la vista:
+// desplegable (<details>) en el que está o del panel entero, y el botón va junto a su título. Se quedan siempre a la vista:
 //   - las que llevan id: su texto lo escribe el JS de la pantalla (lo que está pasando ahora);
 //   - las que llevan data-fija: avisos que no deben esconderse.
 // data-ayuda-panel manda el botón al título del panel aunque haya una etiqueta cerca.
@@ -57,6 +57,9 @@
             ev.preventDefault();
             ev.stopPropagation();
             const abierta = ayuda.classList.toggle("plegada") === false;
+            // La explicación de un desplegable cerrado no se vería: se abre con ella
+            const desplegable = ayuda.closest("details");
+            if (abierta && desplegable) desplegable.open = true;
             b.setAttribute("aria-expanded", abierta ? "true" : "false");
         });
         return b;
@@ -67,7 +70,10 @@
             if (ayuda.hasAttribute("data-fija") || (ayuda.id && !ayuda.hasAttribute("data-ayuda-panel"))) return;
             let ancla = ayuda.hasAttribute("data-ayuda-panel") ? null : etiquetaDe(ayuda);
             if (!ancla || ancla.querySelector(".ayuda-btn")) {
-                const titulo = tituloDelPanel(ayuda);
+                // Sin etiqueta: es la explicación del desplegable en el que está o, si no, del panel entero
+                const desplegable = ayuda.closest("details");
+                const resumen = desplegable && zona.contains(desplegable) ? desplegable.querySelector(":scope > summary") : null;
+                const titulo = resumen || tituloDelPanel(ayuda);
                 ancla = titulo && !titulo.querySelector(".ayuda-btn") ? titulo : null;
             }
             const b = boton(ayuda);
