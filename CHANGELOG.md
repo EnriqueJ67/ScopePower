@@ -15,6 +15,14 @@ día de la release. El número de versión vive en `version.py`.
   control hay un botón ⓘ que despliega la suya. Los paneles quedan mucho más cortos (el de procesado del
   editor, de 1200 a 900 px). Lo que cuenta qué está pasando ahora (exposición, ganancia, estados) sigue a
   la vista.
+- Editor de fotos agrupado por temas: cinco pestañas (Luz, Color, Detalle, Estrellas y Encuadre) en lugar de
+  siete paneles, con cada control en un único sitio. Todo el estirado está en Luz, también el de las estrellas
+  cuando están separadas, junto con el estilo, el preset y las curvas por puntos. Lo que casi nunca se toca
+  (STF clásico, curva del fondo, aplanar el fondo, verde y color único en las estrellas, recorte de bordes) va
+  plegado en el «Más ajustes» de su pestaña, que avisa («en uso») si algo de dentro no está en su valor de serie.
+  El estilo se elige con tres botones (Natural, Equilibrado, Intenso) y una flecha devuelve los deslizadores a
+  los valores del estilo. Con el STF clásico o con las estrellas separadas, lo que deja de actuar se apaga a la
+  vista en vez de desaparecer.
 - Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
   (en inglés, a su versión `en/`).
 - Galería pública: al compartir una foto por WhatsApp o Telegram sale su vista previa, con la imagen, el

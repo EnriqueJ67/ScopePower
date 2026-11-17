@@ -515,7 +515,7 @@ msgstr ""
 msgid "Afilando (deconvolución)"
 msgstr ""
 
-#: templates/apilado.html templates/editar_foto.html
+#: templates/apilado.html
 msgid "Agresivo: máximo ruido y contraste"
 msgstr ""
 
@@ -1690,7 +1690,7 @@ msgid "Clave rechazada por el hosting"
 msgstr ""
 
 #. js
-#: ScopePower.py templates/editar_dia.html
+#: ScopePower.py templates/editar_dia.html templates/editar_foto.html
 msgid "Color"
 msgstr ""
 
@@ -1832,7 +1832,11 @@ msgid "Comprueba que la montura está encendida y conectada al PC y que el drive
 msgstr ""
 
 #: templates/editar_foto.html
-msgid "Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en el panel Procesado (⚡)."
+msgid "Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en la pestaña Color (⚡)."
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Con el STF clásico (en «Más ajustes») el brillo del fondo y la compresión no se usan."
 msgstr ""
 
 #: templates/imagen.html
@@ -2151,10 +2155,6 @@ msgstr ""
 msgid "Curva del fondo"
 msgstr ""
 
-#: templates/editar_foto.html
-msgid "Curvas"
-msgstr ""
-
 #. js
 #: templates/apilado.html
 msgid "Curvas cambiadas · pulsa \"Aplicar a la vista previa\""
@@ -2162,6 +2162,10 @@ msgstr ""
 
 #: templates/editar_foto.html
 msgid "Curvas de las estrellas"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Curvas por puntos"
 msgstr ""
 
 #: templates/apilado.html
@@ -2482,7 +2486,7 @@ msgstr ""
 msgid "Destino no válido"
 msgstr ""
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Detalle"
 msgstr ""
 
@@ -3485,6 +3489,10 @@ msgstr ""
 msgid "Eq"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Equilibrado"
+msgstr ""
+
 #. js
 #: templates/home.html
 msgid "Equipo listo. Alinea, ve a un objeto o empieza a apilar."
@@ -3911,10 +3919,6 @@ msgid "Estilo"
 msgstr ""
 
 #: templates/editar_foto.html
-msgid "Estirado"
-msgstr ""
-
-#: templates/editar_foto.html
 msgid "Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto."
 msgstr ""
 
@@ -3963,7 +3967,7 @@ msgstr ""
 msgid "Estrellas"
 msgstr ""
 
-#: templates/configuracion.html templates/editar_foto.html
+#: templates/configuracion.html
 msgid "Estrellas aparte"
 msgstr ""
 
@@ -4172,10 +4176,6 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Filas, columnas y solape tienen que ser números"
-msgstr ""
-
-#: templates/editar_foto.html
-msgid "Firma"
 msgstr ""
 
 #: templates/editar_dia.html
@@ -5163,6 +5163,10 @@ msgstr ""
 msgid "Intensidad de las estrellas"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Intenso"
+msgstr ""
+
 #: ScopePower.py
 msgid "Introduce usuario y contraseña"
 msgstr ""
@@ -5516,6 +5520,10 @@ msgstr ""
 msgid "La más oriental del Cinturón de Orión. Muy joven y masiva."
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "La nitidez no actúa con las estrellas separadas."
+msgstr ""
+
 #: templates/apilado.html
 msgid "La noche"
 msgstr ""
@@ -5788,6 +5796,10 @@ msgstr ""
 #: static/publico/galeria_publica.js static/publico/planetario_publico.js
 #: templates/imagen.html templates/planetario.html
 msgid "Luna"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Luz"
 msgstr ""
 
 #: flats.py
@@ -6241,6 +6253,10 @@ msgstr ""
 msgid "Más adelante se puede cambiar con {programa}."
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Más ajustes"
+msgstr ""
+
 #: templates/esta_noche.html
 msgid "Más altos ahora"
 msgstr ""
@@ -6288,7 +6304,11 @@ msgstr ""
 msgid "Nada más que fotografiar esta noche"
 msgstr ""
 
-#: templates/apilado.html templates/editar_foto.html
+#: templates/editar_foto.html
+msgid "Natural"
+msgstr ""
+
+#: templates/apilado.html
 msgid "Natural: gradiente y ruido suave"
 msgstr ""
 
@@ -7359,6 +7379,10 @@ msgstr ""
 msgid "Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay."
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Para estirarlas aparte, sepáralas en la pestaña Estrellas."
+msgstr ""
+
 #: static/js/seguimiento.js templates/seguimiento.html
 msgid "Parado"
 msgstr ""
@@ -7683,10 +7707,6 @@ msgstr ""
 msgid "Procesa el apilado acumulado a resolución completa y lo guarda en la galería"
 msgstr ""
 
-#: templates/editar_foto.html
-msgid "Procesado"
-msgstr ""
-
 #: templates/apilado.html
 msgid "Procesado de la vista previa"
 msgstr ""
@@ -7801,6 +7821,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Puntero: {donde} del centro{lejos}."
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "Punto de partida de toda la foto. Natural: poca reducción de ruido y color suave. Equilibrado: valores medios. Intenso: máxima reducción de ruido, contraste y color. Al elegir uno se recolocan los deslizadores de luz, color y detalle; la flecha de al lado los devuelve a los de ese estilo."
 msgstr ""
 
 #. js
@@ -8616,7 +8640,7 @@ msgstr ""
 msgid "Se verá en la próxima foto."
 msgstr ""
 
-#: templates/apilado.html templates/editar_foto.html
+#: templates/apilado.html
 msgid "Seestar: todo activado, valores medios"
 msgstr ""
 
@@ -9050,7 +9074,7 @@ msgid "Solo para fotos de noche; haz una foto primero."
 msgstr ""
 
 #: templates/editar_foto.html
-msgid "Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas del panel Curvas actúan después sobre la foto entera."
+msgid "Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas de la pestaña Luz actúan después sobre la foto entera."
 msgstr ""
 
 #: templates/apilado.html
@@ -9338,6 +9362,10 @@ msgstr ""
 msgid "Timelapses guardados"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Tipo de estirado"
+msgstr ""
+
 #. js
 #: templates/goto.html
 msgid "Tipo:"
@@ -9551,7 +9579,7 @@ msgid "Un plan exportado o un texto con un nombre por línea"
 msgstr ""
 
 #: templates/editar_foto.html
-msgid "Un preset guarda el estirado, el brillo, la temperatura y todos los controles de procesado; se puede cargar también en la pantalla de Apilado."
+msgid "Un preset guarda los ajustes de luz, color y detalle (no el encuadre ni lo de las estrellas separadas); se puede cargar también en la pantalla de Apilado."
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -9864,6 +9892,10 @@ msgstr ""
 msgid "Vuelve a fundir las teselas que hay (p. ej. un mosaico a medias)"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Vuelve a los valores del estilo elegido; el encuadre, la firma y la separación de las estrellas no cambian"
+msgstr ""
+
 #: templates/imagen.html
 msgid "Vuelve a revelar la última foto de noche con el procesado y el preset de Apilado (gradiente, ruido, contraste...). Tarda unos segundos; la foto siguiente vuelve al revelado rápido."
 msgstr ""
@@ -10095,7 +10127,7 @@ msgstr ""
 msgid "acceso denegado"
 msgstr ""
 
-#: templates/apilado.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "activas"
 msgstr ""
 
@@ -10659,6 +10691,10 @@ msgstr ""
 #. js
 #: static/js/mosaico.js static/js/plan.js templates/planetario.html
 msgid "en pausa"
+msgstr ""
+
+#: templates/editar_foto.html
+msgid "en uso"
 msgstr ""
 
 #. js
@@ -13121,6 +13157,11 @@ msgstr ""
 #. js
 #: templates/editar_dia.html
 msgid "¿Volver a la foto original tal como se guardó?"
+msgstr ""
+
+#. js
+#: templates/editar_foto.html
+msgid "¿Volver a los valores del estilo? El encuadre, la firma y la separación de las estrellas no cambian."
 msgstr ""
 
 #: templates/seguimiento.html

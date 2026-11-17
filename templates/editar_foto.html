@@ -57,21 +57,232 @@
         <small class="ayuda">{{ _("El encuadre, el estirado, el ruido y la nitidez se calculan a media resolución en el mini PC (unos segundos). Los controles con ⚡ (color, firma y curvas) se aplican al instante en este dispositivo, sin esperar al mini PC. Al guardar se procesa todo el FITS con todos los ajustes y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos.") }}</small>
     </div>
 
-    <!-- ─── Columna lateral: una pestaña por panel y uno solo a la vista (static/js/paneles.js),
-         como en Apilado; la pestaña abierta se guarda en config.ini vía /preferencias ─── -->
-    <div class="columna lateral paneles" id="paneles-editor" data-paneles="editor_paneles" data-inicial="procesado" data-ayudas>
-        <!-- Encuadre: lo que decide qué trozo del FITS se ve y cómo está orientado -->
+    <!-- ─── Columna lateral: una pestaña por tema y un solo panel a la vista (static/js/paneles.js),
+         como en Apilado. Lo que casi nunca se toca va en el «Más ajustes» de su pestaña ─── -->
+    <div class="columna lateral paneles" id="paneles-editor" data-paneles="editor_paneles" data-inicial="luz" data-ayudas>
+        <!-- Luz: cuánto se levanta la foto. El estilo y el preset (que recolocan los demás deslizadores),
+             el estirado de la foto y el de las estrellas, y las curvas -->
+        <section class="card panel" data-panel="luz">
+            <div class="panel-header">
+                <h3 class="card-title"><svg class="ico"><use href="#i-sol"/></svg>{{ _("Luz") }}</h3>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="campo">
+                    <label>{{ _("Estilo") }}</label>
+                    <div class="fila" style="gap: 6px; flex-wrap: nowrap;">
+                        <div class="segmentado" id="estilo-seg" style="flex: 1; min-width: 0;">
+                            <button type="button" data-estilo="natural" onclick="elegirEstilo('natural')" style="flex: 1;">{{ _("Natural") }}</button>
+                            <button type="button" data-estilo="seestar" onclick="elegirEstilo('seestar')" style="flex: 1;">{{ _("Equilibrado") }}</button>
+                            <button type="button" data-estilo="agresivo" onclick="elegirEstilo('agresivo')" style="flex: 1;">{{ _("Intenso") }}</button>
+                        </div>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="restablecerAjustes()" title="{{ _('Vuelve a los valores del estilo elegido; el encuadre, la firma y la separación de las estrellas no cambian') }}"><svg><use href="#i-refrescar"/></svg></button>
+                    </div>
+                    <!-- El estilo se guarda con sus nombres de siempre (procesado.ESTILOS): natural, seestar, agresivo -->
+                    <select id="c-estilo" hidden>
+                        <option value="natural">natural</option>
+                        <option value="seestar">seestar</option>
+                        <option value="agresivo">agresivo</option>
+                    </select>
+                    <small class="ayuda">{{ _("Punto de partida de toda la foto. Natural: poca reducción de ruido y color suave. Equilibrado: valores medios. Intenso: máxima reducción de ruido, contraste y color. Al elegir uno se recolocan los deslizadores de luz, color y detalle; la flecha de al lado los devuelve a los de ese estilo.") }}</small>
+                </div>
+                <div class="campo">
+                    <label>{{ _("Preset") }}</label>
+                    <div class="fila" style="gap: 6px;">
+                        <select id="c-preset" class="form-control" style="flex: 1; min-width: 0;" onchange="cargarPreset()">
+                            <option value="">{{ _("— ninguno —") }}</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="guardarPreset()" title="{{ _('Guardar los ajustes actuales con un nombre, para reutilizarlos aquí y en el apilado en tiempo real') }}">{{ _("Guardar") }}</button>
+                        <button type="button" class="btn btn-ghost btn-sm" id="btn-borrar-preset" onclick="borrarPreset()" title="{{ _('Borrar el preset seleccionado') }}" style="display: none;">{{ _("Borrar") }}</button>
+                    </div>
+                    <small class="ayuda">{{ _("Un preset guarda los ajustes de luz, color y detalle (no el encuadre ni lo de las estrellas separadas); se puede cargar también en la pantalla de Apilado.") }}</small>
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Brillo general") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-brillo"></span></div>
+                    <input type="range" id="c-brillo" data-clave="brillo" min="-1" max="1" step="0.05">
+                    <small class="ayuda">{{ _("0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro.") }}</small>
+                </div>
+                <div id="controles-multiescala">
+                    <div class="campo">
+                        <div class="rango-titulo"><span>{{ _("Brillo del fondo de cielo") }}</span><span id="v-fondo_objetivo"></span></div>
+                        <input type="range" id="c-fondo_objetivo" data-clave="fondo_objetivo" min="0.02" max="0.30" step="0.01">
+                    </div>
+                    <div class="campo">
+                        <div class="rango-titulo"><span>{{ _("Compresión de lo brillante") }}</span><span id="v-compresion"></span></div>
+                        <input type="range" id="c-compresion" data-clave="compresion" min="0" max="1" step="0.05">
+                        <small class="ayuda">{{ _("0 = igual que el STF clásico (estrellas y núcleos saturan a blanco); a más valor, más se protegen y más color y estructura conservan, a costa de pegada. 0,1-0,3 nebulosas, 0,3-0,6 galaxias y cúmulos.") }}</small>
+                    </div>
+                </div>
+                <div class="nota-inactivo" id="nota-stf" hidden>{{ _("Con el STF clásico (en «Más ajustes») el brillo del fondo y la compresión no se usan.") }}</div>
+                <!-- Estirado propio de las estrellas (procesado.estirar_capa_estrellas): con los dos a 0, el de la foto -->
+                <div class="seccion-titulo">{{ _("Estrellas") }}</div>
+                <div class="nota-inactivo suave" id="nota-luz-estrellas" hidden>{{ _("Para estirarlas aparte, sepáralas en la pestaña Estrellas.") }}</div>
+                <div id="luz-estrellas">
+                    <div class="campo">
+                        <div class="rango-titulo"><span>{{ _("Intensidad de las estrellas") }}</span><span id="v-intensidad_estrellas"></span></div>
+                        <input type="range" id="c-intensidad_estrellas" data-clave="intensidad_estrellas" min="-1" max="1" step="0.05">
+                        <small class="ayuda">{{ _("Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto.") }}</small>
+                    </div>
+                    <div class="campo">
+                        <div class="rango-titulo"><span>{{ _("Compresión de los núcleos") }}</span><span id="v-compresion_estrellas"></span></div>
+                        <input type="range" id="c-compresion_estrellas" data-clave="compresion_estrellas" min="0" max="1" step="0.05">
+                        <small class="ayuda">{{ _("Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en la pestaña Color (⚡).") }}</small>
+                    </div>
+                </div>
+                <!-- Curvas por puntos de control (static/js/curvas.js): se aplican en el navegador sobre la base
+                     y, al guardar, en el servidor (procesado.aplicar_curvas) con el mismo spline -->
+                <details id="det-curvas" class="mas">
+                    <summary class="proc-mas-titulo">{{ _("Curvas por puntos") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span><span class="chip mas-marca" id="curvas-marca" hidden>{{ _("activas") }}</span></summary>
+                    <div class="segmentado" id="curvas-seg" style="width: 100%;">
+                        <button type="button" class="activo" data-canal="rgb" onclick="elegirCanalCurva('rgb')" style="flex: 1;"><span class="punto-canal" style="background: linear-gradient(135deg, #ff5a5a, #5ad26b 50%, #5a9bff);"></span>RGB</button>
+                        <button type="button" data-canal="r" onclick="elegirCanalCurva('r')" style="flex: 1;"><span class="punto-canal" style="background: #ff5a5a;"></span>R</button>
+                        <button type="button" data-canal="g" onclick="elegirCanalCurva('g')" style="flex: 1;"><span class="punto-canal" style="background: #5ad26b;"></span>G</button>
+                        <button type="button" data-canal="b" onclick="elegirCanalCurva('b')" style="flex: 1;"><span class="punto-canal" style="background: #5a9bff;"></span>B</button>
+                    </div>
+                    <canvas id="curvas-lienzo" class="curvas-lienzo mt-2"></canvas>
+                    <div class="fila mt-2" style="gap: 6px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-curva-borrar" onclick="editorCurvas.borrarPunto()" disabled title="{{ _('Quita el punto seleccionado (los extremos no se quitan)') }}" style="flex: 1;">{{ _("Borrar punto") }}</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciar()" title="{{ _('Deja recta la curva de este canal') }}" style="flex: 1;">{{ _("Reiniciar") }}</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciarTodo()" title="{{ _('Deja rectas las cuatro curvas') }}" style="flex: 1;">{{ _("Todas") }}</button>
+                    </div>
+                    <small class="ayuda">{{ _("Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste. Los extremos también se mueven en horizontal: el de la izquierda hacia la derecha recorta el negro y oscurece el fondo; el de la derecha hacia la izquierda recorta el blanco. RGB va primero y después la curva de cada color. Se guardan con la foto y en los presets.") }}</small>
+                </details>
+                <details id="mas-luz" class="mas">
+                    <summary class="proc-mas-titulo">{{ _("Más ajustes") }}<span class="chip mas-marca" hidden>{{ _("en uso") }}</span></summary>
+                    <div class="campo">
+                        <label>{{ _("Tipo de estirado") }}</label>
+                        <div class="segmentado" id="estirado-seg" style="width: 100%;">
+                            <button type="button" data-estirado="multiescala" onclick="elegirEstirado('multiescala')" style="flex: 1;">{{ _("Multiescala (nuevo)") }}</button>
+                            <button type="button" data-estirado="stf" onclick="elegirEstirado('stf')" style="flex: 1;">{{ _("STF clásico") }}</button>
+                        </div>
+                        <small class="ayuda">{{ _("El multiescala levanta el fondo con una ganancia local: las estrellas y los núcleos de las galaxias conservan el perfil y el color. El STF es la curva global de siempre, para comparar.") }}</small>
+                    </div>
+                    <div class="campo" id="campo-curva">
+                        <label>{{ _("Curva del fondo") }}</label>
+                        <select id="c-curva" class="form-control">
+                            <option value="gamma">{{ _("Gamma: la de siempre") }}</option>
+                            <option value="asinh">{{ _("Asinh: levanta más lo tenue") }}</option>
+                            <option value="mtf">{{ _("MTF (PixInsight): aún más pegada") }}</option>
+                        </select>
+                        <small class="ayuda">{{ _("Forma de la curva que lleva el cielo al brillo elegido. Asinh y MTF dan más ganancia justo por encima del fondo: una nebulosa débil sube el doble con el mismo cielo, y con ella el ruido a media escala (bajar el contraste local y subir la reducción de ruido). Medido en la Pacman: +17 niveles sobre el cielo con gamma, +37 con asinh.") }}</small>
+                    </div>
+                </details>
+            </div>
+        </section>
+
+        <section class="card panel" data-panel="color">
+            <div class="panel-header">
+                <h3 class="card-title"><svg class="ico"><use href="#i-gota"/></svg>{{ _("Color") }}</h3>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Saturación") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-saturacion"></span></div>
+                    <input type="range" id="c-saturacion" data-clave="saturacion" min="0.5" max="3" step="0.1">
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Temperatura de color") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-temperatura"></span></div>
+                    <input type="range" id="c-temperatura" data-clave="temperatura" min="-1" max="1" step="0.05">
+                    <small class="ayuda">{{ _("Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro.") }}</small>
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Saturación de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-saturacion_estrellas"></span></div>
+                    <input type="range" id="c-saturacion_estrellas" data-clave="saturacion_estrellas" min="0" max="2" step="0.1">
+                    <small class="ayuda">{{ _("Solo sobre las estrellas y sus halos; la nebulosa sigue con la saturación general. En un refractor con cámara de color el halo de las estrellas azules es rojo + azul (enfocan fuera del verde) y con mucha saturación sale violeta: 0,5-0,8 las deja blancas, azules o naranjas según su color real.") }}</small>
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Quitar dominante verde (SCNR)") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-scnr"></span></div>
+                    <input type="range" id="c-scnr" data-clave="scnr" min="0" max="1" step="0.05">
+                </div>
+                <details id="mas-color" class="mas">
+                    <summary class="proc-mas-titulo">{{ _("Más ajustes") }}<span class="chip mas-marca" hidden>{{ _("en uso") }}</span></summary>
+                    <label class="fila-check"><input type="checkbox" id="c-scnr_estrellas"> {{ _("Quitar el verde también en las estrellas") }} <span class="rayo">⚡</span></label>
+                    <small class="ayuda">{{ _("El SCNR solo baja el verde hasta la media de rojo y azul: las estrellas azules y naranjas no cambian; las de halo verdoso (el foco de la noche no es igual en los tres colores) quedan neutras.") }}</small>
+                    <label class="fila-check"><input type="checkbox" id="c-color_estrellas_uniforme"> {{ _("Un solo color por estrella") }}</label>
+                    <small class="ayuda">{{ _("El azul y el verde enfocan en el núcleo y el rojo desenfocado forma el halo, y la misma estrella sale con un punto azul dentro de una mancha naranja. Con esto cada estrella toma el color medio de su luz.") }}</small>
+                </details>
+            </div>
+        </section>
+
+        <section class="card panel" data-panel="detalle">
+            <div class="panel-header">
+                <h3 class="card-title"><svg class="ico"><use href="#i-lupa"/></svg>{{ _("Detalle") }}</h3>
+            </div>
+            <div class="panel-cuerpo">
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Reducción de ruido") }}</span><span id="v-ruido"></span></div>
+                    <input type="range" id="c-ruido" data-clave="ruido" min="0" max="1" step="0.05">
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Contraste local") }}</span><span id="v-contraste"></span></div>
+                    <input type="range" id="c-contraste" data-clave="contraste" min="0" max="1" step="0.05">
+                </div>
+                <div class="campo" id="campo-nitidez">
+                    <div class="rango-titulo"><span>{{ _("Nitidez (deconvolución)") }}</span><span id="v-nitidez"></span></div>
+                    <input type="range" id="c-nitidez" data-clave="nitidez" min="0" max="1" step="0.05">
+                    <small class="ayuda">{{ _("Recupera detalle y afila las estrellas deshaciendo el desenfoque medido en las estrellas de la propia foto (Richardson-Lucy). 0 = apagada; 0,65 son las 8 pasadas probadas con M13 y la Pacman (la anchura de las estrellas baja de 4,4 a 2,9 px). Las estrellas brillantes y el cielo no se tocan. Al guardar añade unos 10 s en el mini PC.") }}</small>
+                </div>
+                <div class="nota-inactivo" id="nota-nitidez" hidden>{{ _("La nitidez no actúa con las estrellas separadas.") }}</div>
+                <label class="fila-check"><input type="checkbox" id="c-gradiente"> {{ _("Quitar gradiente de contaminación lumínica") }}</label>
+                <details id="mas-detalle" class="mas">
+                    <summary class="proc-mas-titulo">{{ _("Más ajustes") }}<span class="chip mas-marca" hidden>{{ _("en uso") }}</span></summary>
+                    <label class="fila-check"><input type="checkbox" id="c-aplanar"> {{ _("Aplanar fondo a gran escala (no usar con nebulosas extensas)") }}</label>
+                </details>
+            </div>
+        </section>
+
+        <!-- Estrellas aparte: StarNet2 (programa externo, estrellas_aparte.py) separa el apilado en
+             objeto y estrellas, que se procesan por separado y se juntan con una pantalla -->
+        <section class="card panel" data-panel="estrellas">
+            <div class="panel-header">
+                <h3 class="card-title"><svg class="ico"><use href="#i-noche"/></svg>{{ _("Estrellas") }}</h3>
+            </div>
+            <div class="panel-cuerpo">
+                <label class="fila-check"><input type="checkbox" id="c-estrellas_aparte" {% if not info.starnet.disponible %}disabled{% endif %}> {{ _("Separar las estrellas con {producto} y procesarlas aparte", producto=info.starnet.producto) }}</label>
+                <div id="estado-estrellas" class="estado"></div>
+                {% if info.starnet.disponible %}
+                <small class="ayuda">{{ _("La primera vez {producto} separa el apilado en objeto y estrellas (varios minutos; después queda guardado). El objeto se estira y se limpia sin que las estrellas estorben (el fondo pierde el moteado de color) y las estrellas conservan su color sin saturar. La nitidez no actúa con las estrellas aparte.", producto=info.starnet.producto) }}</small>
+                {% else %}
+                <small class="ayuda" data-fija>{{ _("{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini. Necesita además el Visual C++ de Microsoft (vc_redist.x64.exe), que muchos PC ya tienen.", producto=info.starnet.producto) }}</small>
+                {% endif %}
+                <div id="controles-estrellas">
+                    <div class="campo mt-2">
+                        <div class="rango-titulo"><span>{{ _("Tamaño de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-tamano_estrellas"></span></div>
+                        <input type="range" id="c-tamano_estrellas" data-clave="tamano_estrellas" min="0" max="100" step="5">
+                        <small class="ayuda">{{ _("Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer.") }}</small>
+                    </div>
+                    <div class="campo mt-2">
+                        <div class="rango-titulo"><span>{{ _("Halo de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-halo_estrellas"></span></div>
+                        <input type="range" id="c-halo_estrellas" data-clave="halo_estrellas" min="0" max="1" step="0.05">
+                        <small class="ayuda">{{ _("La forma de las estrellas reducidas (por debajo del 100 %). 0 = campana de Gauss: bolitas redondas de borde suave. A más valor, núcleo más picudo y un halo que se apaga despacio, como las estrellas de un telescopio (perfil de Moffat); 0,75 = Moffat beta 2. La anchura a media altura no cambia.") }}</small>
+                    </div>
+                    <!-- Curvas propias de las estrellas: se aplican a la capa de estrellas antes de juntarla
+                         con el objeto (procesado.ajustes_rapidos_capas: curvas_estrellas) -->
+                    <div class="campo mt-2">
+                        <label>{{ _("Curvas de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></label>
+                        <div class="segmentado" id="curvas-estrellas-seg" style="width: 100%;">
+                            <button type="button" class="activo" data-canal="rgb" onclick="elegirCanalCurvaEstrellas('rgb')" style="flex: 1;"><span class="punto-canal" style="background: linear-gradient(135deg, #ff5a5a, #5ad26b 50%, #5a9bff);"></span>RGB</button>
+                            <button type="button" data-canal="r" onclick="elegirCanalCurvaEstrellas('r')" style="flex: 1;"><span class="punto-canal" style="background: #ff5a5a;"></span>R</button>
+                            <button type="button" data-canal="g" onclick="elegirCanalCurvaEstrellas('g')" style="flex: 1;"><span class="punto-canal" style="background: #5ad26b;"></span>G</button>
+                            <button type="button" data-canal="b" onclick="elegirCanalCurvaEstrellas('b')" style="flex: 1;"><span class="punto-canal" style="background: #5a9bff;"></span>B</button>
+                        </div>
+                        <canvas id="curvas-estrellas-lienzo" class="curvas-lienzo mt-2"></canvas>
+                        <div class="fila mt-2" style="gap: 6px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-curva-estrellas-borrar" onclick="editorCurvasEstrellas.borrarPunto()" disabled style="flex: 1;">{{ _("Borrar punto") }}</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasEstrellas.reiniciar()" style="flex: 1;">{{ _("Reiniciar") }}</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasEstrellas.reiniciarTodo()" style="flex: 1;">{{ _("Todas") }}</button>
+                        </div>
+                        <small class="ayuda">{{ _("Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas de la pestaña Luz actúan después sobre la foto entera.") }}</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Encuadre: lo que decide qué trozo del FITS se ve y cómo está orientado, y la firma -->
         <section class="card panel" data-panel="encuadre">
             <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-pantalla"/></svg>{{ _("Encuadre") }}</h3>
             </div>
             <div class="panel-cuerpo">
                 <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Recorte de bordes") }}</span><span id="v-bordes"></span></div>
-                    <input type="range" id="c-bordes" data-clave="bordes" min="0" max="20" step="1">
-                    <small class="ayuda">{{ _("% que se quita por cada lado antes de procesar (ni el fondo ni nada se calcula con lo recortado). Los bordes negros de la rotación de campo se detectan y se quitan solos; esto es para apurar más.") }}</small>
-                </div>
-                <div class="campo mt-2">
                     <label>{{ _("Campo visible (zoom)") }}</label>
                     <select id="c-zoom" class="form-control">
                         <option value="0">{{ _("100 % (campo completo)") }}</option>
@@ -107,171 +318,29 @@
                     <div id="estado-giro" class="estado"></div>
                     <small class="ayuda">{{ _("Gira la foto en sentido horario. Los cuartos de vuelta no pierden nada; con el ajuste fino las esquinas se salen del campo y la foto se recorta lo justo (hasta quedarse en el 71 % a 45°). Con el zoom al 50 % o menos el giro no quita campo. «Norte arriba» resuelve la foto y la deja como en los atlas (norte arriba, este a la izquierda), con espejo si hace falta.") }}</small>
                 </div>
-            </div>
-        </section>
-
-        <section class="card panel" data-panel="estirado">
-            <div class="panel-header">
-                <h3 class="card-title"><svg class="ico"><use href="#i-foto"/></svg>{{ _("Estirado") }}</h3>
-            </div>
-            <div class="panel-cuerpo">
-                <div class="segmentado" id="estirado-seg" style="width: 100%;">
-                    <button type="button" data-estirado="multiescala" onclick="elegirEstirado('multiescala')" style="flex: 1;">{{ _("Multiescala (nuevo)") }}</button>
-                    <button type="button" data-estirado="stf" onclick="elegirEstirado('stf')" style="flex: 1;">{{ _("STF clásico") }}</button>
+                <div class="seccion-titulo">{{ _("Firma y nombre") }}</div>
+                <div class="campo">
+                    <label for="c-objeto">{{ _("Nombre del objeto") }}</label>
+                    <input type="text" id="c-objeto" class="form-control" maxlength="60" value="{{ info.objeto }}" placeholder="{{ _('p. ej. Galaxia de Andrómeda') }}">
+                    <small class="ayuda">{{ _("Va en el rótulo de la firma y, al guardar, en el nombre del archivo.") }}</small>
                 </div>
-                <small class="ayuda">{{ _("El multiescala levanta el fondo con una ganancia local: las estrellas y los núcleos de las galaxias conservan el perfil y el color. El STF es la curva global de siempre, para comparar.") }}</small>
-                <div id="controles-multiescala">
-                    <div class="campo mt-2">
-                        <div class="rango-titulo"><span>{{ _("Brillo del fondo de cielo") }}</span><span id="v-fondo_objetivo"></span></div>
-                        <input type="range" id="c-fondo_objetivo" data-clave="fondo_objetivo" min="0.02" max="0.30" step="0.01">
-                    </div>
+                <label class="fila-check"><input type="checkbox" id="c-firma"> {{ _("Firma: logo, autor, lugar, fecha, objeto, integración y coordenadas") }} <span class="rayo">⚡</span></label>
+                {% if info.ra and info.dec %}<small class="ayuda" data-fija>{{ _("Coordenadas del FITS: AR {ra} · Dec {dec}", ra=info.ra, dec=info.dec) }}</small>{% endif %}
+                <details id="mas-encuadre" class="mas">
+                    <summary class="proc-mas-titulo">{{ _("Más ajustes") }}<span class="chip mas-marca" hidden>{{ _("en uso") }}</span></summary>
                     <div class="campo">
-                        <div class="rango-titulo"><span>{{ _("Compresión de lo brillante") }}</span><span id="v-compresion"></span></div>
-                        <input type="range" id="c-compresion" data-clave="compresion" min="0" max="1" step="0.05">
-                        <small class="ayuda">{{ _("0 = igual que el STF clásico (estrellas y núcleos saturan a blanco); a más valor, más se protegen y más color y estructura conservan, a costa de pegada. 0,1-0,3 nebulosas, 0,3-0,6 galaxias y cúmulos.") }}</small>
+                        <div class="rango-titulo"><span>{{ _("Recorte de bordes") }}</span><span id="v-bordes"></span></div>
+                        <input type="range" id="c-bordes" data-clave="bordes" min="0" max="20" step="1">
+                        <small class="ayuda">{{ _("% que se quita por cada lado antes de procesar (ni el fondo ni nada se calcula con lo recortado). Los bordes negros de la rotación de campo se detectan y se quitan solos; esto es para apurar más.") }}</small>
                     </div>
-                    <div class="campo">
-                        <label>{{ _("Curva del fondo") }}</label>
-                        <select id="c-curva" class="form-control">
-                            <option value="gamma">{{ _("Gamma: la de siempre") }}</option>
-                            <option value="asinh">{{ _("Asinh: levanta más lo tenue") }}</option>
-                            <option value="mtf">{{ _("MTF (PixInsight): aún más pegada") }}</option>
-                        </select>
-                        <small class="ayuda">{{ _("Forma de la curva que lleva el cielo al brillo elegido. Asinh y MTF dan más ganancia justo por encima del fondo: una nebulosa débil sube el doble con el mismo cielo, y con ella el ruido a media escala (bajar el contraste local y subir la reducción de ruido). Medido en la Pacman: +17 niveles sobre el cielo con gamma, +37 con asinh.") }}</small>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="card panel" data-panel="procesado">
-            <div class="panel-header">
-                <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>{{ _("Procesado") }}</h3>
-            </div>
-            <div class="panel-cuerpo">
-                <div class="campo">
-                    <label>{{ _("Preset") }}</label>
-                    <div class="fila" style="gap: 6px;">
-                        <select id="c-preset" class="form-control" style="flex: 1; min-width: 0;" onchange="cargarPreset()">
-                            <option value="">{{ _("— ninguno —") }}</option>
-                        </select>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="guardarPreset()" title="{{ _('Guardar los ajustes actuales con un nombre, para reutilizarlos aquí y en el apilado en tiempo real') }}">{{ _("Guardar") }}</button>
-                        <button type="button" class="btn btn-ghost btn-sm" id="btn-borrar-preset" onclick="borrarPreset()" title="{{ _('Borrar el preset seleccionado') }}" style="display: none;">{{ _("Borrar") }}</button>
-                    </div>
-                    <small class="ayuda">{{ _("Un preset guarda el estirado, el brillo, la temperatura y todos los controles de procesado; se puede cargar también en la pantalla de Apilado.") }}</small>
-                </div>
-                <div class="campo">
-                    <label>{{ _("Estilo") }}</label>
-                    <select id="c-estilo" class="form-control" onchange="aplicarEstilo()">
-                        <option value="natural">{{ _("Natural: gradiente y ruido suave") }}</option>
-                        <option value="seestar">{{ _("Seestar: todo activado, valores medios") }}</option>
-                        <option value="agresivo">{{ _("Agresivo: máximo ruido y contraste") }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Brillo general") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-brillo"></span></div>
-                    <input type="range" id="c-brillo" data-clave="brillo" min="-1" max="1" step="0.05">
-                    <small class="ayuda">{{ _("0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro.") }}</small>
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Temperatura de color") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-temperatura"></span></div>
-                    <input type="range" id="c-temperatura" data-clave="temperatura" min="-1" max="1" step="0.05">
-                    <small class="ayuda">{{ _("Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro.") }}</small>
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Reducción de ruido") }}</span><span id="v-ruido"></span></div>
-                    <input type="range" id="c-ruido" data-clave="ruido" min="0" max="1" step="0.05">
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Contraste local") }}</span><span id="v-contraste"></span></div>
-                    <input type="range" id="c-contraste" data-clave="contraste" min="0" max="1" step="0.05">
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Nitidez (deconvolución)") }}</span><span id="v-nitidez"></span></div>
-                    <input type="range" id="c-nitidez" data-clave="nitidez" min="0" max="1" step="0.05">
-                    <small class="ayuda">{{ _("Recupera detalle y afila las estrellas deshaciendo el desenfoque medido en las estrellas de la propia foto (Richardson-Lucy). 0 = apagada; 0,65 son las 8 pasadas probadas con M13 y la Pacman (la anchura de las estrellas baja de 4,4 a 2,9 px). Las estrellas brillantes y el cielo no se tocan. Al guardar añade unos 10 s en el mini PC.") }}</small>
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Saturación") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-saturacion"></span></div>
-                    <input type="range" id="c-saturacion" data-clave="saturacion" min="0.5" max="3" step="0.1">
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Saturación de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-saturacion_estrellas"></span></div>
-                    <input type="range" id="c-saturacion_estrellas" data-clave="saturacion_estrellas" min="0" max="2" step="0.1">
-                    <small class="ayuda">{{ _("Solo sobre las estrellas y sus halos; la nebulosa sigue con la saturación general. En un refractor con cámara de color el halo de las estrellas azules es rojo + azul (enfocan fuera del verde) y con mucha saturación sale violeta: 0,5-0,8 las deja blancas, azules o naranjas según su color real.") }}</small>
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Quitar dominante verde (SCNR)") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-scnr"></span></div>
-                    <input type="range" id="c-scnr" data-clave="scnr" min="0" max="1" step="0.05">
-                </div>
-                <label class="fila-check"><input type="checkbox" id="c-scnr_estrellas"> {{ _("Quitar el verde también en las estrellas") }} <span class="rayo">⚡</span></label>
-                <small class="ayuda">{{ _("El SCNR solo baja el verde hasta la media de rojo y azul: las estrellas azules y naranjas no cambian; las de halo verdoso (el foco de la noche no es igual en los tres colores) quedan neutras.") }}</small>
-                <label class="fila-check"><input type="checkbox" id="c-color_estrellas_uniforme"> {{ _("Un solo color por estrella") }}</label>
-                <small class="ayuda">{{ _("El azul y el verde enfocan en el núcleo y el rojo desenfocado forma el halo, y la misma estrella sale con un punto azul dentro de una mancha naranja. Con esto cada estrella toma el color medio de su luz.") }}</small>
-                <label class="fila-check"><input type="checkbox" id="c-gradiente"> {{ _("Quitar gradiente de contaminación lumínica") }}</label>
-                <label class="fila-check"><input type="checkbox" id="c-aplanar"> {{ _("Aplanar fondo a gran escala (no usar con nebulosas extensas)") }}</label>
-            </div>
-        </section>
-
-        <!-- Estrellas aparte: StarNet2 (programa externo, estrellas_aparte.py) separa el apilado en
-             objeto y estrellas, que se procesan por separado y se juntan con una pantalla -->
-        <section class="card panel" data-panel="estrellas" data-pestana="{{ _('Estrellas') }}" data-icono="i-noche">
-            <div class="panel-header">
-                <h3 class="card-title">✨ {{ _("Estrellas aparte") }}</h3>
-            </div>
-            <div class="panel-cuerpo">
-                <label class="fila-check"><input type="checkbox" id="c-estrellas_aparte" {% if not info.starnet.disponible %}disabled{% endif %}> {{ _("Separar las estrellas con {producto} y procesarlas aparte", producto=info.starnet.producto) }}</label>
-                <div id="estado-estrellas" class="estado"></div>
-                {% if info.starnet.disponible %}
-                <small class="ayuda">{{ _("La primera vez {producto} separa el apilado en objeto y estrellas (varios minutos; después queda guardado). El objeto se estira y se limpia sin que las estrellas estorben (el fondo pierde el moteado de color) y las estrellas conservan su color sin saturar. La nitidez no actúa con las estrellas aparte.", producto=info.starnet.producto) }}</small>
-                {% else %}
-                <small class="ayuda" data-fija>{{ _("{producto} no está instalado. Es un programa aparte de Mikita Misiura con su propia licencia (gratis): se descarga de starnetastro.com (Command-line Tools) y, si no queda en su carpeta de siempre, se indica dónde en ruta_starnet de config.ini. Necesita además el Visual C++ de Microsoft (vc_redist.x64.exe), que muchos PC ya tienen.", producto=info.starnet.producto) }}</small>
-                {% endif %}
-                <div class="campo mt-2" id="controles-estrellas">
-                    <div class="rango-titulo"><span>{{ _("Tamaño de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-tamano_estrellas"></span></div>
-                    <input type="range" id="c-tamano_estrellas" data-clave="tamano_estrellas" min="0" max="100" step="5">
-                    <small class="ayuda">{{ _("Reduce las estrellas: 100 % = como salieron, 0 % = solo el objeto y el fondo. Cada estrella se vuelve a pintar más estrecha, con su brillo y su color, y todas encogen en la misma proporción (al 50 %, la mitad de anchura), así las brillantes siguen siendo mayores que las débiles; las más pequeñas no bajan de medio píxel y no desaparecen. Por debajo del 25 % pierden luz todas por igual, hasta desaparecer.") }}</small>
-                    <div class="campo mt-2">
-                        <div class="rango-titulo"><span>{{ _("Halo de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></span><span id="v-halo_estrellas"></span></div>
-                        <input type="range" id="c-halo_estrellas" data-clave="halo_estrellas" min="0" max="1" step="0.05">
-                        <small class="ayuda">{{ _("La forma de las estrellas reducidas (por debajo del 100 %). 0 = campana de Gauss: bolitas redondas de borde suave. A más valor, núcleo más picudo y un halo que se apaga despacio, como las estrellas de un telescopio (perfil de Moffat); 0,75 = Moffat beta 2. La anchura a media altura no cambia.") }}</small>
-                    </div>
-                    <!-- Estirado propio de las estrellas (procesado.estirar_capa_estrellas): con los dos a 0, el de la foto -->
-                    <div class="campo mt-2">
-                        <div class="rango-titulo"><span>{{ _("Intensidad de las estrellas") }}</span><span id="v-intensidad_estrellas"></span></div>
-                        <input type="range" id="c-intensidad_estrellas" data-clave="intensidad_estrellas" min="-1" max="1" step="0.05">
-                        <small class="ayuda">{{ _("Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto.") }}</small>
-                    </div>
-                    <div class="campo">
-                        <div class="rango-titulo"><span>{{ _("Compresión de los núcleos") }}</span><span id="v-compresion_estrellas"></span></div>
-                        <input type="range" id="c-compresion_estrellas" data-clave="compresion_estrellas" min="0" max="1" step="0.05">
-                        <small class="ayuda">{{ _("Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en el panel Procesado (⚡).") }}</small>
-                    </div>
-                    <!-- Curvas propias de las estrellas: se aplican a la capa de estrellas antes de juntarla
-                         con el objeto (procesado.ajustes_rapidos_capas: curvas_estrellas) -->
-                    <div class="campo mt-2">
-                        <label>{{ _("Curvas de las estrellas") }} <span class="rayo" title="{{ _('Se aplica al instante en este dispositivo') }}">⚡</span></label>
-                        <div class="segmentado" id="curvas-estrellas-seg" style="width: 100%;">
-                            <button type="button" class="activo" data-canal="rgb" onclick="elegirCanalCurvaEstrellas('rgb')" style="flex: 1;"><span class="punto-canal" style="background: linear-gradient(135deg, #ff5a5a, #5ad26b 50%, #5a9bff);"></span>RGB</button>
-                            <button type="button" data-canal="r" onclick="elegirCanalCurvaEstrellas('r')" style="flex: 1;"><span class="punto-canal" style="background: #ff5a5a;"></span>R</button>
-                            <button type="button" data-canal="g" onclick="elegirCanalCurvaEstrellas('g')" style="flex: 1;"><span class="punto-canal" style="background: #5ad26b;"></span>G</button>
-                            <button type="button" data-canal="b" onclick="elegirCanalCurvaEstrellas('b')" style="flex: 1;"><span class="punto-canal" style="background: #5a9bff;"></span>B</button>
-                        </div>
-                        <canvas id="curvas-estrellas-lienzo" class="curvas-lienzo mt-2"></canvas>
-                        <div class="fila mt-2" style="gap: 6px;">
-                            <button type="button" class="btn btn-secondary btn-sm" id="btn-curva-estrellas-borrar" onclick="editorCurvasEstrellas.borrarPunto()" disabled style="flex: 1;">{{ _("Borrar punto") }}</button>
-                            <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasEstrellas.reiniciar()" style="flex: 1;">{{ _("Reiniciar") }}</button>
-                            <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvasEstrellas.reiniciarTodo()" style="flex: 1;">{{ _("Todas") }}</button>
-                        </div>
-                        <small class="ayuda">{{ _("Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas del panel Curvas actúan después sobre la foto entera.") }}</small>
-                    </div>
-                </div>
+                </details>
             </div>
         </section>
 
         {% if info.cometa %}
-        <section class="card panel" data-panel="cometa" data-pestana="{{ _('Cometa') }}" data-icono="i-cometa">
+        <section class="card panel" data-panel="cometa">
             <div class="panel-header">
-                <h3 class="card-title">☄️ {{ _("Cometa") }}</h3>
+                <h3 class="card-title"><svg class="ico"><use href="#i-cometa"/></svg>{{ _("Cometa") }}</h3>
             </div>
             <div class="panel-cuerpo">
                 <div class="segmentado" id="composicion-seg" style="width: 100%;">
@@ -289,44 +358,6 @@
             </div>
         </section>
         {% endif %}
-
-        <!-- Curvas por puntos de control (static/js/curvas.js): se aplican en el navegador sobre la base
-             y, al guardar, en el servidor (procesado.aplicar_curvas) con el mismo spline -->
-        <section class="card panel" data-panel="curvas" data-pestana="{{ _('Curvas') }}">
-            <div class="panel-header">
-                <h3 class="card-title"><svg class="ico"><use href="#i-grafica"/></svg>{{ _("Curvas") }} <span class="rayo">⚡</span></h3>
-            </div>
-            <div class="panel-cuerpo">
-                <div class="segmentado" id="curvas-seg" style="width: 100%;">
-                    <button type="button" class="activo" data-canal="rgb" onclick="elegirCanalCurva('rgb')" style="flex: 1;"><span class="punto-canal" style="background: linear-gradient(135deg, #ff5a5a, #5ad26b 50%, #5a9bff);"></span>RGB</button>
-                    <button type="button" data-canal="r" onclick="elegirCanalCurva('r')" style="flex: 1;"><span class="punto-canal" style="background: #ff5a5a;"></span>R</button>
-                    <button type="button" data-canal="g" onclick="elegirCanalCurva('g')" style="flex: 1;"><span class="punto-canal" style="background: #5ad26b;"></span>G</button>
-                    <button type="button" data-canal="b" onclick="elegirCanalCurva('b')" style="flex: 1;"><span class="punto-canal" style="background: #5a9bff;"></span>B</button>
-                </div>
-                <canvas id="curvas-lienzo" class="curvas-lienzo mt-2"></canvas>
-                <div class="fila mt-2" style="gap: 6px;">
-                    <button type="button" class="btn btn-secondary btn-sm" id="btn-curva-borrar" onclick="editorCurvas.borrarPunto()" disabled title="{{ _('Quita el punto seleccionado (los extremos no se quitan)') }}" style="flex: 1;">{{ _("Borrar punto") }}</button>
-                    <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciar()" title="{{ _('Deja recta la curva de este canal') }}" style="flex: 1;">{{ _("Reiniciar") }}</button>
-                    <button type="button" class="btn btn-ghost btn-sm" onclick="editorCurvas.reiniciarTodo()" title="{{ _('Deja rectas las cuatro curvas') }}" style="flex: 1;">{{ _("Todas") }}</button>
-                </div>
-                <small class="ayuda">{{ _("Toca la curva para añadir un punto y arrástralo: hacia arriba aclara, hacia abajo oscurece. Una S suave (bajar la izquierda, subir la derecha) da contraste. Los extremos también se mueven en horizontal: el de la izquierda hacia la derecha recorta el negro y oscurece el fondo; el de la derecha hacia la izquierda recorta el blanco. RGB va primero y después la curva de cada color. Se guardan con la foto y en los presets.") }}</small>
-            </div>
-        </section>
-
-        <section class="card panel" data-panel="firma" data-pestana="{{ _('Firma') }}">
-            <div class="panel-header">
-                <h3 class="card-title"><svg class="ico"><use href="#i-guardar"/></svg>{{ _("Firma y nombre") }}</h3>
-            </div>
-            <div class="panel-cuerpo">
-                <div class="campo">
-                    <label for="c-objeto">{{ _("Nombre del objeto") }}</label>
-                    <input type="text" id="c-objeto" class="form-control" maxlength="60" value="{{ info.objeto }}" placeholder="{{ _('p. ej. Galaxia de Andrómeda') }}">
-                    <small class="ayuda">{{ _("Va en el rótulo de la firma y, al guardar, en el nombre del archivo.") }}</small>
-                </div>
-                <label class="fila-check"><input type="checkbox" id="c-firma"> {{ _("Firma: logo, autor, lugar, fecha, objeto, integración y coordenadas") }} <span class="rayo">⚡</span></label>
-                {% if info.ra and info.dec %}<small class="ayuda" data-fija>{{ _("Coordenadas del FITS: AR {ra} · Dec {dec}", ra=info.ra, dec=info.dec) }}</small>{% endif %}
-            </div>
-        </section>
     </div>
 </div>
 
@@ -427,6 +458,7 @@
             pintarEstrellasAparte();
         }
         if (a.estilo) document.getElementById("c-estilo").value = a.estilo;
+        pintarEstiloSeg();
         if (a.zoom !== undefined) document.getElementById("c-zoom").value = String(a.zoom);
         if (a.giro !== undefined) pintarGiro(a.giro);
         if (a.espejo !== undefined) document.getElementById("c-espejo").checked = !!a.espejo;
@@ -445,6 +477,9 @@
             if (a.composicion) elegirComposicion(a.composicion, false);
             else if (inicial) elegirComposicion(composicion, false);
         }
+        pintarMasAjustes(inicial);
+        // Una foto que ya trae curvas las enseña desplegadas
+        if (inicial && Object.keys(editorCurvas.curvas).length) document.getElementById("det-curvas").open = true;
     }
 
     function aplicarEstilo() {
@@ -456,6 +491,13 @@
     function estrellasAparte() { return STARNET.disponible && document.getElementById("c-estrellas_aparte").checked; }
     function pintarEstrellasAparte() {
         Paneles.marcar("estrellas", estrellasAparte() ? "activo" : "");
+        // El estirado propio de las estrellas (pestaña Luz) solo existe con las estrellas separadas: sin
+        // separar, en su sitio queda un renglón que dice dónde se separan. Y la nitidez no actúa con
+        // ellas aparte: se queda a la vista, apagada.
+        document.getElementById("luz-estrellas").hidden = !estrellasAparte();
+        document.getElementById("nota-luz-estrellas").hidden = estrellasAparte();
+        apagar(document.getElementById("campo-nitidez"), estrellasAparte());
+        document.getElementById("nota-nitidez").hidden = !estrellasAparte();
         document.getElementById("controles-estrellas").style.display = estrellasAparte() ? "" : "none";
         const estado = document.getElementById("estado-estrellas");
         if (!STARNET.disponible) estado.textContent = "";
@@ -504,9 +546,60 @@
 
     function elegirEstirado(tipo, refrescar = true) {
         document.querySelectorAll("#estirado-seg button").forEach(b => b.classList.toggle("activo", b.dataset.estirado === tipo));
-        document.getElementById("controles-multiescala").style.display = tipo === "stf" ? "none" : "";
+        // Con el STF clásico el brillo del fondo, la compresión y la curva no se usan: siguen a la vista, apagados
+        const stf = tipo === "stf";
+        apagar(document.getElementById("controles-multiescala"), stf);
+        apagar(document.getElementById("campo-curva"), stf);
+        document.getElementById("nota-stf").hidden = !stf;
+        pintarMasAjustes();
         if (refrescar) programarVistaPrevia();
     }
+    // Apaga o enciende los controles de un bloque sin esconderlo (apagados siguen dando su valor a leerAjustes)
+    function apagar(bloque, si) {
+        bloque.classList.toggle("inactivo", si);
+        bloque.querySelectorAll("input, select").forEach(c => { c.disabled = si; });
+    }
+
+    // ——— Estilo: tres botones que escriben en el <select> oculto de siempre ———
+    function elegirEstilo(v) {
+        document.getElementById("c-estilo").value = v;
+        pintarEstiloSeg();
+        aplicarEstilo();
+    }
+    function pintarEstiloSeg() {
+        const v = document.getElementById("c-estilo").value;
+        document.querySelectorAll("#estilo-seg button").forEach(b => b.classList.toggle("activo", b.dataset.estilo === v));
+    }
+    // Vuelve a los valores del estilo elegido. No toca el encuadre, la firma, el nombre ni la separación de las estrellas.
+    function restablecerAjustes() {
+        if (!confirm(_("¿Volver a los valores del estilo? El encuadre, la firma y la separación de las estrellas no cambian."))) return;
+        const estilo = ESTILOS[document.getElementById("c-estilo").value] || {};
+        pintarAjustes(Object.assign({ estirado: "multiescala", curva: "gamma", brillo: 0, temperatura: 0, nitidez: 0, curvas: {}, curvas_estrellas: {},
+                                      intensidad_estrellas: 0, compresion_estrellas: 0, halo_estrellas: 0.75, tamano_estrellas: 100 }, estilo));
+        document.getElementById("c-preset").value = "";
+        document.getElementById("btn-borrar-preset").style.display = "none";
+        retocar();
+        programarVistaPrevia();
+    }
+
+    // ——— «Más ajustes» de cada pestaña: lo que casi nunca se toca ———
+    //     Si algo de dentro no está en su valor de serie, el desplegable lo dice («en uso») y, al abrir
+    //     la foto, sale desplegado: nada actúa a escondidas.
+    const FUERA_DE_SERIE = {
+        "mas-luz": () => ((document.querySelector("#estirado-seg button.activo") || {}).dataset?.estirado || "multiescala") !== "multiescala"
+                         || document.getElementById("c-curva").value !== "gamma",
+        "mas-color": () => !document.getElementById("c-scnr_estrellas").checked || !document.getElementById("c-color_estrellas_uniforme").checked,
+        "mas-detalle": () => document.getElementById("c-aplanar").checked,
+        "mas-encuadre": () => (parseInt(document.getElementById("c-bordes").value) || 0) > 0
+    };
+    function pintarMasAjustes(abrir = false) {
+        for (const id in FUERA_DE_SERIE) {
+            const det = document.getElementById(id), enUso = FUERA_DE_SERIE[id]();
+            det.querySelector(".mas-marca").hidden = !enUso;
+            if (abrir && enUso) det.open = true;
+        }
+    }
+    document.querySelectorAll("#paneles-editor details.mas").forEach(d => d.addEventListener("change", () => pintarMasAjustes()));
 
     // Giro = cuartos de vuelta (botones, sin pérdida) + ajuste fino (-45..45, deslizador), en horario
     function pintarGiro(giro) {
@@ -697,7 +790,7 @@
         // El botón «Borrar punto» solo con un punto intermedio seleccionado (los extremos no se quitan)
         alSeleccionar: i => { const p = editorCurvas.puntos[editorCurvas.activo]; document.getElementById("btn-curva-borrar").disabled = !(i > 0 && i < p.length - 1); }
     });
-    // Curvas propias de las estrellas (panel «Estrellas aparte»): otro editor, con sus cuatro curvas
+    // Curvas propias de las estrellas (pestaña Estrellas): otro editor, con sus cuatro curvas
     const editorCurvasEstrellas = new EditorCurvas(document.getElementById("curvas-estrellas-lienzo"), {
         alArrastrar: retocar,
         alCambiar: () => { retocar(); pintarCanalesCurvasEstrellas(); },
@@ -717,6 +810,7 @@
     function pintarCanalesCurvas() {
         // Un punto lleno en el chip de cada canal cuya curva no es la recta
         document.querySelectorAll("#curvas-seg button").forEach(b => b.classList.toggle("tocada", editorCurvas.tocada(b.dataset.canal)));
+        document.getElementById("curvas-marca").hidden = !Object.keys(editorCurvas.curvas).length;
     }
 
     // Los cambios en los controles piden una vista previa nueva (con un pequeño retardo para

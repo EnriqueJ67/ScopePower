@@ -517,7 +517,7 @@ msgstr "Turn it on to shoot the Sun (with a filter), the Moon or a landscape: th
 msgid "Afilando (deconvolución)"
 msgstr "Sharpening (deconvolution)"
 
-#: templates/apilado.html templates/editar_foto.html
+#: templates/apilado.html
 msgid "Agresivo: máximo ruido y contraste"
 msgstr "Aggressive: maximum noise and contrast"
 
@@ -1692,7 +1692,7 @@ msgid "Clave rechazada por el hosting"
 msgstr "Key rejected by the hosting"
 
 #. js
-#: ScopePower.py templates/editar_dia.html
+#: ScopePower.py templates/editar_dia.html templates/editar_foto.html
 msgid "Color"
 msgstr "Color"
 
@@ -1834,8 +1834,12 @@ msgid "Comprueba que la montura está encendida y conectada al PC y que el drive
 msgstr "Check that the mount is on and connected to the PC and that the driver is the one for your model."
 
 #: templates/editar_foto.html
-msgid "Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en el panel Procesado (⚡)."
-msgstr "At 0 the cores of the bright stars are clipped at their top and come out flat; the higher the value, the less they are clipped and the more they keep their profile and colour up to the centre. The stars' own saturation is in the Processing panel (⚡)."
+msgid "Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en la pestaña Color (⚡)."
+msgstr "At 0 the cores of the bright stars are clipped at their top and come out flat; the higher the value, the less they are clipped and the more they keep their profile and colour up to the centre. The stars' own saturation is in the Color tab (⚡)."
+
+#: templates/editar_foto.html
+msgid "Con el STF clásico (en «Más ajustes») el brillo del fondo y la compresión no se usan."
+msgstr "With the classic STF (under “More settings”) the background brightness and the compression are not used."
 
 #: templates/imagen.html
 msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes. Mientras se graba un vídeo, la corrección espera a que termine."
@@ -2153,10 +2157,6 @@ msgstr "Any mount with an ASCOM driver installed on the PC."
 msgid "Curva del fondo"
 msgstr "Background curve"
 
-#: templates/editar_foto.html
-msgid "Curvas"
-msgstr "Curves"
-
 #. js
 #: templates/apilado.html
 msgid "Curvas cambiadas · pulsa \"Aplicar a la vista previa\""
@@ -2165,6 +2165,10 @@ msgstr "Curves changed · press \"Apply to the preview\""
 #: templates/editar_foto.html
 msgid "Curvas de las estrellas"
 msgstr "Star curves"
+
+#: templates/editar_foto.html
+msgid "Curvas por puntos"
+msgstr "Point curves"
 
 #: templates/apilado.html
 msgid "Curvas por puntos (RGB y por canal)"
@@ -2484,7 +2488,7 @@ msgstr "Uncover the telescope and press Start."
 msgid "Destino no válido"
 msgstr "Invalid target"
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/editar_foto.html
 msgid "Detalle"
 msgstr "Detail"
 
@@ -3487,6 +3491,10 @@ msgstr "Sending the phone's time to the PC..."
 msgid "Eq"
 msgstr "Eq"
 
+#: templates/editar_foto.html
+msgid "Equilibrado"
+msgstr "Balanced"
+
 #. js
 #: templates/home.html
 msgid "Equipo listo. Alinea, ve a un objeto o empieza a apilar."
@@ -3913,10 +3921,6 @@ msgid "Estilo"
 msgstr "Style"
 
 #: templates/editar_foto.html
-msgid "Estirado"
-msgstr "Stretch"
-
-#: templates/editar_foto.html
 msgid "Estirado propio de las estrellas, sin tocar la nebulosa ni el fondo: a la derecha salen más estrellas y más brillantes, a la izquierda menos y más discretas. 0 = el mismo estirado que la foto."
 msgstr "The stars' own stretch, without touching the nebula or the background: to the right more and brighter stars, to the left fewer and more discreet ones. 0 = the same stretch as the photo."
 
@@ -3965,7 +3969,7 @@ msgstr "A lonely star known as the 'mouth of the fish'. It has an observed plane
 msgid "Estrellas"
 msgstr "Stars"
 
-#: templates/configuracion.html templates/editar_foto.html
+#: templates/configuracion.html
 msgid "Estrellas aparte"
 msgstr "Stars apart"
 
@@ -4175,10 +4179,6 @@ msgstr "Rows × columns"
 #: ScopePower.py
 msgid "Filas, columnas y solape tienen que ser números"
 msgstr "Rows, columns and overlap must be numbers"
-
-#: templates/editar_foto.html
-msgid "Firma"
-msgstr "Signature"
 
 #: templates/editar_dia.html
 msgid "Firma en la foto"
@@ -5165,6 +5165,10 @@ msgstr "Color intensity"
 msgid "Intensidad de las estrellas"
 msgstr "Star intensity"
 
+#: templates/editar_foto.html
+msgid "Intenso"
+msgstr "Strong"
+
 #: ScopePower.py
 msgid "Introduce usuario y contraseña"
 msgstr "Enter user and password"
@@ -5518,6 +5522,10 @@ msgstr "The mount responds."
 msgid "La más oriental del Cinturón de Orión. Muy joven y masiva."
 msgstr "The easternmost star of Orion's Belt. Very young and massive."
 
+#: templates/editar_foto.html
+msgid "La nitidez no actúa con las estrellas separadas."
+msgstr "Sharpness has no effect with the stars separated."
+
 #: templates/apilado.html
 msgid "La noche"
 msgstr "The night"
@@ -5791,6 +5799,10 @@ msgstr "Presets are created here or in the gallery editor. Choosing one loads al
 #: templates/imagen.html templates/planetario.html
 msgid "Luna"
 msgstr "Moon"
+
+#: templates/editar_foto.html
+msgid "Luz"
+msgstr "Light"
 
 #: flats.py
 #, python-format
@@ -6243,6 +6255,10 @@ msgstr "Very fast (3°/s)"
 msgid "Más adelante se puede cambiar con {programa}."
 msgstr "You can change it later with {programa}."
 
+#: templates/editar_foto.html
+msgid "Más ajustes"
+msgstr "More settings"
+
 #: templates/esta_noche.html
 msgid "Más altos ahora"
 msgstr "Highest now"
@@ -6290,7 +6306,11 @@ msgstr "Nothing matches the filter. Try another type or turn off “visible now 
 msgid "Nada más que fotografiar esta noche"
 msgstr "Nothing else to image tonight"
 
-#: templates/apilado.html templates/editar_foto.html
+#: templates/editar_foto.html
+msgid "Natural"
+msgstr "Natural"
+
+#: templates/apilado.html
 msgid "Natural: gradiente y ruido suave"
 msgstr "Natural: gradient and gentle noise"
 
@@ -7361,6 +7381,10 @@ msgstr "Stop tracking first"
 msgid "Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay."
 msgstr "For focusing and checking the framing. Uses the exposure from Settings, or the one you set below, and subtracts the dark if there is one."
 
+#: templates/editar_foto.html
+msgid "Para estirarlas aparte, sepáralas en la pestaña Estrellas."
+msgstr "To stretch them on their own, separate them in the Stars tab."
+
 #: static/js/seguimiento.js templates/seguimiento.html
 msgid "Parado"
 msgstr "Stopped"
@@ -7685,10 +7709,6 @@ msgstr "Processes the FITS at full resolution with these settings and replaces t
 msgid "Procesa el apilado acumulado a resolución completa y lo guarda en la galería"
 msgstr "Processes the accumulated stack at full resolution and saves it to the gallery"
 
-#: templates/editar_foto.html
-msgid "Procesado"
-msgstr "Processing"
-
 #: templates/apilado.html
 msgid "Procesado de la vista previa"
 msgstr "Preview processing"
@@ -7804,6 +7824,10 @@ msgstr "Press “Test connection” to check that the mount responds, or “Skip
 #: templates/imagen.html
 msgid "Puntero: {donde} del centro{lejos}."
 msgstr "Pointer: {donde} from the center{lejos}."
+
+#: templates/editar_foto.html
+msgid "Punto de partida de toda la foto. Natural: poca reducción de ruido y color suave. Equilibrado: valores medios. Intenso: máxima reducción de ruido, contraste y color. Al elegir uno se recolocan los deslizadores de luz, color y detalle; la flecha de al lado los devuelve a los de ese estilo."
+msgstr "Starting point for the whole photo. Natural: little noise reduction and gentle colour. Balanced: middle values. Strong: maximum noise reduction, contrast and colour. Choosing one moves the light, colour and detail sliders; the arrow next to it puts them back to that style's values."
 
 #. js
 #: templates/planetario.html
@@ -8618,7 +8642,7 @@ msgstr "Too little of the Moon's edge is visible and the photo fits more than on
 msgid "Se verá en la próxima foto."
 msgstr "You'll see it in the next shot."
 
-#: templates/apilado.html templates/editar_foto.html
+#: templates/apilado.html
 msgid "Seestar: todo activado, valores medios"
 msgstr "Seestar: everything on, medium values"
 
@@ -9052,8 +9076,8 @@ msgid "Solo para fotos de noche; haz una foto primero."
 msgstr "Night shots only; take one first."
 
 #: templates/editar_foto.html
-msgid "Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas del panel Curvas actúan después sobre la foto entera."
-msgstr "Only for the stars, before putting them back with the object: lowering the middle of the curve makes them more discreet without dimming the bright ones; raising it, more present. The curves of the Curves panel act afterwards on the whole photo."
+msgid "Solo para las estrellas, antes de juntarlas con el objeto: bajar la mitad de la curva las hace más discretas sin apagar las brillantes; subirla, más presentes. Las curvas de la pestaña Luz actúan después sobre la foto entera."
+msgstr "Only for the stars, before putting them back with the object: lowering the middle of the curve makes them more discreet without dimming the bright ones; raising it, more present. The curves in the Light tab act afterwards on the whole photo."
 
 #: templates/apilado.html
 msgid "Solo para pruebas con simuladores: la noche empieza ahora y dura 6 h"
@@ -9340,6 +9364,10 @@ msgstr "Timelapses"
 msgid "Timelapses guardados"
 msgstr "Saved timelapses"
 
+#: templates/editar_foto.html
+msgid "Tipo de estirado"
+msgstr "Stretch type"
+
 #. js
 #: templates/goto.html
 msgid "Tipo:"
@@ -9553,8 +9581,8 @@ msgid "Un plan exportado o un texto con un nombre por línea"
 msgstr "An exported plan or a text file with one name per line"
 
 #: templates/editar_foto.html
-msgid "Un preset guarda el estirado, el brillo, la temperatura y todos los controles de procesado; se puede cargar también en la pantalla de Apilado."
-msgstr "A preset saves the stretch, brightness, temperature and all the processing controls; it can also be loaded on the Stacking screen."
+msgid "Un preset guarda los ajustes de luz, color y detalle (no el encuadre ni lo de las estrellas separadas); se puede cargar también en la pantalla de Apilado."
+msgstr "A preset stores the light, colour and detail settings (not the framing or the separated-stars settings); it can also be loaded on the Stacking screen."
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Un solo color por estrella"
@@ -9866,6 +9894,10 @@ msgstr "Chooses, aligns and stacks the video frames again (one or two minutes) a
 msgid "Vuelve a fundir las teselas que hay (p. ej. un mosaico a medias)"
 msgstr "Blends the existing tiles again (e.g. a half-finished mosaic)"
 
+#: templates/editar_foto.html
+msgid "Vuelve a los valores del estilo elegido; el encuadre, la firma y la separación de las estrellas no cambian"
+msgstr "Goes back to the values of the chosen style; the framing, the signature and the star separation do not change"
+
 #: templates/imagen.html
 msgid "Vuelve a revelar la última foto de noche con el procesado y el preset de Apilado (gradiente, ruido, contraste...). Tarda unos segundos; la foto siguiente vuelve al revelado rápido."
 msgstr "Redevelops the latest night shot with the Stacking processing and preset (gradient, noise, contrast...). It takes a few seconds; the next shot goes back to the quick development."
@@ -10097,7 +10129,7 @@ msgstr "ends inside"
 msgid "acceso denegado"
 msgstr "access denied"
 
-#: templates/apilado.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "activas"
 msgstr "active"
 
@@ -10662,6 +10694,10 @@ msgstr "on time"
 #: static/js/mosaico.js static/js/plan.js templates/planetario.html
 msgid "en pausa"
 msgstr "paused"
+
+#: templates/editar_foto.html
+msgid "en uso"
+msgstr "in use"
 
 #. js
 #: enfoque.py templates/imagen.html
@@ -13127,6 +13163,11 @@ msgstr "Go back to the original photo as it was saved from stacking?"
 #: templates/editar_dia.html
 msgid "¿Volver a la foto original tal como se guardó?"
 msgstr "Go back to the original photo as it was saved?"
+
+#. js
+#: templates/editar_foto.html
+msgid "¿Volver a los valores del estilo? El encuadre, la firma y la separación de las estrellas no cambian."
+msgstr "Go back to the style's values? The framing, the signature and the star separation do not change."
 
 #: templates/seguimiento.html
 msgid "Órdenes / errores"
