@@ -515,10 +515,6 @@ msgstr ""
 msgid "Afilando (deconvolución)"
 msgstr ""
 
-#: templates/apilado.html
-msgid "Agresivo: máximo ruido y contraste"
-msgstr ""
-
 #. js
 #: templates/esta_noche.html
 msgid "Ahora a {alt}° · máximo {max}° a las {hora}"
@@ -1690,7 +1686,8 @@ msgid "Clave rechazada por el hosting"
 msgstr ""
 
 #. js
-#: ScopePower.py templates/editar_dia.html templates/editar_foto.html
+#: ScopePower.py templates/apilado.html templates/editar_dia.html
+#: templates/editar_foto.html
 msgid "Color"
 msgstr ""
 
@@ -2486,7 +2483,7 @@ msgstr ""
 msgid "Destino no válido"
 msgstr ""
 
-#: templates/editar_dia.html templates/editar_foto.html
+#: templates/apilado.html templates/editar_dia.html templates/editar_foto.html
 msgid "Detalle"
 msgstr ""
 
@@ -3428,7 +3425,7 @@ msgstr ""
 msgid "Enciende la montura y conéctala al PC como indique su fabricante. Si es la primera vez que usas este driver en este PC, elige su puerto COM o su dirección IP con «Configurar el driver en el PC»."
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Encuadre"
 msgstr ""
 
@@ -3489,7 +3486,7 @@ msgstr ""
 msgid "Eq"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Equilibrado"
 msgstr ""
 
@@ -5163,7 +5160,7 @@ msgstr ""
 msgid "Intensidad de las estrellas"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Intenso"
 msgstr ""
 
@@ -5798,7 +5795,7 @@ msgstr ""
 msgid "Luna"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Luz"
 msgstr ""
 
@@ -6253,7 +6250,7 @@ msgstr ""
 msgid "Más adelante se puede cambiar con {programa}."
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Más ajustes"
 msgstr ""
 
@@ -6267,10 +6264,6 @@ msgstr ""
 
 #: static/js/luna_anotada.js
 msgid "Más tenue: de noche"
-msgstr ""
-
-#: templates/apilado.html
-msgid "Más… (brillo, temperatura de color, verde)"
 msgstr ""
 
 #: templates/configuracion.html
@@ -6304,12 +6297,8 @@ msgstr ""
 msgid "Nada más que fotografiar esta noche"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Natural"
-msgstr ""
-
-#: templates/apilado.html
-msgid "Natural: gradiente y ruido suave"
 msgstr ""
 
 #: templates/base.html
@@ -7827,6 +7816,10 @@ msgstr ""
 msgid "Punto de partida de toda la foto. Natural: poca reducción de ruido y color suave. Equilibrado: valores medios. Intenso: máxima reducción de ruido, contraste y color. Al elegir uno se recolocan los deslizadores de luz, color y detalle; la flecha de al lado los devuelve a los de ese estilo."
 msgstr ""
 
+#: templates/apilado.html
+msgid "Punto de partida del procesado. Natural: poca reducción de ruido y color suave. Equilibrado: valores medios. Intenso: máxima reducción de ruido, contraste y color. Al elegir uno se recolocan los deslizadores."
+msgstr ""
+
 #. js
 #: templates/planetario.html
 msgid "Punto del cielo"
@@ -8638,10 +8631,6 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Se verá en la próxima foto."
-msgstr ""
-
-#: templates/apilado.html
-msgid "Seestar: todo activado, valores medios"
 msgstr ""
 
 #. js
@@ -10693,7 +10682,7 @@ msgstr ""
 msgid "en pausa"
 msgstr ""
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "en uso"
 msgstr ""
 

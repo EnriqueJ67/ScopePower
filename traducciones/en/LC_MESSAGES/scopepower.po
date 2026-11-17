@@ -517,10 +517,6 @@ msgstr "Turn it on to shoot the Sun (with a filter), the Moon or a landscape: th
 msgid "Afilando (deconvolución)"
 msgstr "Sharpening (deconvolution)"
 
-#: templates/apilado.html
-msgid "Agresivo: máximo ruido y contraste"
-msgstr "Aggressive: maximum noise and contrast"
-
 #. js
 #: templates/esta_noche.html
 msgid "Ahora a {alt}° · máximo {max}° a las {hora}"
@@ -1692,7 +1688,8 @@ msgid "Clave rechazada por el hosting"
 msgstr "Key rejected by the hosting"
 
 #. js
-#: ScopePower.py templates/editar_dia.html templates/editar_foto.html
+#: ScopePower.py templates/apilado.html templates/editar_dia.html
+#: templates/editar_foto.html
 msgid "Color"
 msgstr "Color"
 
@@ -2488,7 +2485,7 @@ msgstr "Uncover the telescope and press Start."
 msgid "Destino no válido"
 msgstr "Invalid target"
 
-#: templates/editar_dia.html templates/editar_foto.html
+#: templates/apilado.html templates/editar_dia.html templates/editar_foto.html
 msgid "Detalle"
 msgstr "Detail"
 
@@ -3430,7 +3427,7 @@ msgstr "Live: {nombre}"
 msgid "Enciende la montura y conéctala al PC como indique su fabricante. Si es la primera vez que usas este driver en este PC, elige su puerto COM o su dirección IP con «Configurar el driver en el PC»."
 msgstr "Turn on the mount and connect it to the PC as its manufacturer says. If it's the first time you use this driver on this PC, choose its COM port or IP address with “Set up the driver on the PC”."
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Encuadre"
 msgstr "Framing"
 
@@ -3491,7 +3488,7 @@ msgstr "Sending the phone's time to the PC..."
 msgid "Eq"
 msgstr "Eq"
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Equilibrado"
 msgstr "Balanced"
 
@@ -5165,7 +5162,7 @@ msgstr "Color intensity"
 msgid "Intensidad de las estrellas"
 msgstr "Star intensity"
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Intenso"
 msgstr "Strong"
 
@@ -5800,7 +5797,7 @@ msgstr "Presets are created here or in the gallery editor. Choosing one loads al
 msgid "Luna"
 msgstr "Moon"
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Luz"
 msgstr "Light"
 
@@ -6255,7 +6252,7 @@ msgstr "Very fast (3°/s)"
 msgid "Más adelante se puede cambiar con {programa}."
 msgstr "You can change it later with {programa}."
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Más ajustes"
 msgstr "More settings"
 
@@ -6270,10 +6267,6 @@ msgstr "Highest tonight"
 #: static/js/luna_anotada.js
 msgid "Más tenue: de noche"
 msgstr "Fainter: on the night side"
-
-#: templates/apilado.html
-msgid "Más… (brillo, temperatura de color, verde)"
-msgstr "More… (brightness, color temperature, green)"
 
 #: templates/configuracion.html
 msgid "Máximo de fotos a apilar"
@@ -6306,13 +6299,9 @@ msgstr "Nothing matches the filter. Try another type or turn off “visible now 
 msgid "Nada más que fotografiar esta noche"
 msgstr "Nothing else to image tonight"
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Natural"
 msgstr "Natural"
-
-#: templates/apilado.html
-msgid "Natural: gradiente y ruido suave"
-msgstr "Natural: gradient and gentle noise"
 
 #: templates/base.html
 msgid "Navegación principal"
@@ -7829,6 +7818,10 @@ msgstr "Pointer: {donde} from the center{lejos}."
 msgid "Punto de partida de toda la foto. Natural: poca reducción de ruido y color suave. Equilibrado: valores medios. Intenso: máxima reducción de ruido, contraste y color. Al elegir uno se recolocan los deslizadores de luz, color y detalle; la flecha de al lado los devuelve a los de ese estilo."
 msgstr "Starting point for the whole photo. Natural: little noise reduction and gentle colour. Balanced: middle values. Strong: maximum noise reduction, contrast and colour. Choosing one moves the light, colour and detail sliders; the arrow next to it puts them back to that style's values."
 
+#: templates/apilado.html
+msgid "Punto de partida del procesado. Natural: poca reducción de ruido y color suave. Equilibrado: valores medios. Intenso: máxima reducción de ruido, contraste y color. Al elegir uno se recolocan los deslizadores."
+msgstr "Starting point for the processing. Natural: little noise reduction and gentle colour. Balanced: middle values. Strong: maximum noise reduction, contrast and colour. Choosing one moves the sliders."
+
 #. js
 #: templates/planetario.html
 msgid "Punto del cielo"
@@ -8641,10 +8634,6 @@ msgstr "Too little of the Moon's edge is visible and the photo fits more than on
 #: templates/imagen.html
 msgid "Se verá en la próxima foto."
 msgstr "You'll see it in the next shot."
-
-#: templates/apilado.html
-msgid "Seestar: todo activado, valores medios"
-msgstr "Seestar: everything on, medium values"
 
 #. js
 #: espacio_disco.py
@@ -10695,7 +10684,7 @@ msgstr "on time"
 msgid "en pausa"
 msgstr "paused"
 
-#: templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "en uso"
 msgstr "in use"
 
