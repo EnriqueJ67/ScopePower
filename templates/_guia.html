@@ -1,0 +1,155 @@
+<!-- templates/_guia.html: guía «¿Qué quieres hacer hoy?» (static/js/guia.js, guia.py, rutas /guia/*).
+     La incluye base.html para cualquier usuario con sesión. Dos piezas:
+       · la ventana: el menú de actividades (tarjetas con foto) y, elegida una, sus pasos con semáforos;
+       · la banda: una tira bajo la cabecera que acompaña en las pantallas donde se hace un paso a mano
+         (alinear, enfocar) y devuelve a la guía con «Hecho, siguiente». -->
+<div id="guia-banda" class="guia-banda" hidden>
+    <button type="button" class="guia-banda-texto" onclick="Guia.abrir()" title="{{ _('Ver los pasos de la guía') }}">
+        <span class="guia-banda-paso" id="guia-banda-paso"></span>
+        <span class="guia-banda-que" id="guia-banda-que"></span>
+    </button>
+    <button type="button" class="btn btn-sm btn-primary" id="guia-banda-hecho" onclick="Guia.hechoSiguiente()">{{ _("Hecho, siguiente") }}<svg><use href="#i-flecha"/></svg></button>
+    <button type="button" class="btn btn-sm btn-secondary" id="guia-banda-seguir" onclick="Guia.abrir()">{{ _("Seguir") }}<svg><use href="#i-flecha"/></svg></button>
+    <button type="button" class="btn btn-sm btn-ghost btn-icono" onclick="Guia.dejar()" aria-label="{{ _('Dejar la guía') }}" title="{{ _('Dejar la guía') }}"><svg><use href="#i-cerrar"/></svg></button>
+</div>
+
+<div id="guia" class="modal">
+    <div class="modal-caja guia-caja" role="dialog" aria-modal="true" aria-labelledby="guia-titulo">
+
+        <!-- Menú de actividades: una tarjeta con foto por actividad (las pinta guia.js) -->
+        <section id="guia-menu">
+            <div class="guia-menu-cabecera">
+                <div class="modal-titulo" id="guia-titulo">{{ _("¿Qué quieres hacer hoy?") }}</div>
+                <button type="button" class="btn btn-sm btn-ghost btn-icono" onclick="Guia.cerrar()" aria-label="{{ _('Cerrar') }}" title="{{ _('Cerrar') }}"><svg><use href="#i-cerrar"/></svg></button>
+            </div>
+            <div id="guia-seguir" class="aviso aviso-info" hidden>
+                <svg class="ico"><use href="#i-info"/></svg>
+                <div style="flex: 1;"><span id="guia-seguir-texto"></span></div>
+                <button type="button" class="btn btn-sm btn-primary" onclick="Guia.verRuta()">{{ _("Seguir") }}</button>
+            </div>
+            <div class="guia-tarjetas" id="guia-tarjetas"><div class="estado"><span class="spinner"></span>{{ _("Mirando el cielo...") }}</div></div>
+        </section>
+
+        <!-- Ruta guiada -->
+        <section id="guia-ruta" hidden>
+            <div class="guia-foto" id="guia-foto">
+                <div class="guia-foto-texto">
+                    <span class="guia-foto-actividad" id="guia-actividad"></span>
+                    <span class="guia-foto-contador" id="guia-contador"></span>
+                </div>
+                <button type="button" class="btn btn-sm btn-ghost btn-icono guia-foto-cerrar" onclick="Guia.cerrar()" aria-label="{{ _('Cerrar') }}" title="{{ _('Cerrar: la guía sigue en la banda de arriba') }}"><svg><use href="#i-cerrar"/></svg></button>
+            </div>
+            <div class="guia-pasos" id="guia-pasos"></div>
+            <div class="modal-titulo guia-paso-titulo" id="guia-paso-titulo"></div>
+            <ul class="guia-semaforos" id="guia-semaforos"></ul>
+
+            <!-- 1. Equipo -->
+            <div class="guia-cuerpo" data-paso="equipo" hidden>
+                <p class="modal-texto">{{ _("Enciende la montura, conéctala al PC y enchufa la cámara. Si tu montura usa un programa intermedio (SynScan Pro, EQMOD...), ábrelo antes.") }}</p>
+                <button type="button" class="btn btn-primary guia-boton-ancho" id="guia-conectar" onclick="Guia.conectar()"><svg><use href="#i-conectar"/></svg>{{ _("Conectar equipo") }}</button>
+            </div>
+
+            <!-- 2. Alineación -->
+            <div class="guia-cuerpo" data-paso="alineacion" hidden>
+                <p class="modal-texto">{{ _("La alineación enseña a la montura dónde está cada cosa en el cielo. Se hace una vez por noche; después el GoTo cae dentro del campo y el centrado es rápido.") }}</p>
+                <div class="guia-botones">
+                    <button type="button" class="btn btn-primary" onclick="Guia.irA('/alineacion')"><svg><use href="#i-brujula"/></svg>{{ _("Ir a alinear") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-alineada" onclick="Guia.marcar('alineacion')"><svg><use href="#i-ok"/></svg>{{ _("Ya está alineada") }}</button>
+                </div>
+            </div>
+
+            <!-- 3. Objeto -->
+            <div class="guia-cuerpo" data-paso="objeto" hidden>
+                <div class="guia-buscar">
+                    <input type="search" id="guia-buscar" class="form-control" placeholder="{{ _('Busca un objeto: M 31, Orión, NGC 7000...') }}" autocomplete="off" enterkeyhint="search">
+                    <button type="button" class="btn btn-secondary" onclick="Guia.buscar()"><svg><use href="#i-lupa"/></svg>{{ _("Buscar") }}</button>
+                </div>
+                <div id="guia-resultados" class="guia-objetos"></div>
+                <div class="guia-botones">
+                    <button type="button" class="btn btn-secondary" id="guia-mosaico" onclick="Guia.mosaico(true)" hidden><svg><use href="#i-mosaico"/></svg>{{ _("Hacerlo en mosaico") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-sin-mosaico" onclick="Guia.mosaico(false)" hidden>{{ _("Una sola foto, sin mosaico") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-ultimo-goto" onclick="Guia.usarUltimoGoto()" hidden></button>
+                    <button type="button" class="btn btn-secondary" onclick="Guia.irA('/planetario')"><svg><use href="#i-planetario"/></svg>{{ _("Elegir en el planetario") }}</button>
+                </div>
+                <div class="seccion-titulo guia-subtitulo">{{ _("Lo mejor de ahora") }}</div>
+                <div id="guia-recomendados" class="guia-objetos"><div class="estado"><span class="spinner"></span>{{ _("Calculando qué se ve...") }}</div></div>
+            </div>
+
+            <!-- 4. Exposición -->
+            <div class="guia-cuerpo" data-paso="captura" hidden>
+                <div class="guia-campos">
+                    <div class="form-group">
+                        <label for="guia-exposicion">{{ _("Exposición de cada foto (s)") }}</label>
+                        <input type="number" id="guia-exposicion" class="form-control" min="0.1" max="3600" step="0.1" inputmode="decimal">
+                    </div>
+                    <div class="form-group">
+                        <label for="guia-ganancia">{{ _("Ganancia") }}</label>
+                        <input type="number" id="guia-ganancia" class="form-control" min="0" step="1" inputmode="numeric" placeholder="{{ _('la del driver') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="guia-fotos">{{ _("Número de fotos") }}</label>
+                        <input type="number" id="guia-fotos" class="form-control" min="1" step="1" inputmode="numeric">
+                    </div>
+                </div>
+                <div class="aviso aviso-info"><svg class="ico"><use href="#i-info"/></svg><div><span id="guia-recomendacion"></span> <span id="guia-duracion"></span></div></div>
+            </div>
+
+            <!-- 5. Darks y flats -->
+            <div class="guia-cuerpo" data-paso="calibracion" hidden>
+                <div id="guia-darks-opciones">
+                    <label class="opcion"><input type="radio" name="guia-dark" value="ultimo" id="guia-dark-ultimo"> {{ _("Usar el dark que hay") }}</label>
+                    <label class="opcion"><input type="radio" name="guia-dark" value="nuevo" id="guia-dark-nuevo"> {{ _("Hacer darks nuevos ahora") }}
+                        <span style="white-space: nowrap; margin-left: auto;"><input type="number" id="guia-darks-n" class="corto" min="1" max="50" value="10"> {{ _("tomas") }}</span></label>
+                    <label class="opcion"><input type="radio" name="guia-dark" value="sin" id="guia-dark-sin"> {{ _("Sin darks") }}</label>
+                </div>
+                <div id="guia-darks-tapar" hidden>
+                    <div class="aviso aviso-warn"><svg class="ico"><use href="#i-info"/></svg><div>{{ _("Tapa el telescopio completamente: un dark es una foto a oscuras con la misma exposición.") }}</div></div>
+                    <div class="guia-botones">
+                        <button type="button" class="btn btn-danger" onclick="Guia.hacerDarks()">{{ _("Ya está tapado: hacer los darks") }}</button>
+                        <button type="button" class="btn btn-ghost" onclick="Guia.cancelarTapar()">{{ _("Cancelar") }}</button>
+                    </div>
+                </div>
+                <div id="guia-darks-progreso" hidden>
+                    <div class="progress alta"><div id="guia-darks-barra" class="progress-bar"></div></div>
+                    <div id="guia-darks-texto" class="estado mt-1"></div>
+                </div>
+                <div id="guia-darks-hechos" class="aviso aviso-ok" hidden><svg class="ico"><use href="#i-ok"/></svg><div>{{ _("Darks hechos. Quita la tapa del telescopio antes de seguir.") }}</div></div>
+                <div class="guia-botones">
+                    <button type="button" class="btn btn-secondary" id="guia-flats" onclick="Guia.irA('/flats')"><svg><use href="#i-calibracion"/></svg>{{ _("Hacer flats") }}</button>
+                </div>
+            </div>
+
+            <!-- 6. Enfoque -->
+            <div class="guia-cuerpo" data-paso="enfoque" hidden>
+                <p class="modal-texto">{{ _("Se enfoca con una estrella brillante. Con la máscara de Bahtinov puesta, la pantalla Cámara dice hacia dónde girar el enfocador; sin máscara, busca la estrella más pequeña.") }}</p>
+                <div class="guia-botones">
+                    <button type="button" class="btn btn-primary" id="guia-ir-estrella" onclick="Guia.irAEstrella()" hidden></button>
+                    <button type="button" class="btn btn-secondary" onclick="Guia.enfocarAqui()"><svg><use href="#i-foto"/></svg>{{ _("Enfocar donde apunta ahora") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-enfocado" onclick="Guia.marcar('enfoque')"><svg><use href="#i-ok"/></svg>{{ _("Ya está enfocado") }}</button>
+                </div>
+                <div id="guia-estrella-estado" class="estado mt-2"></div>
+            </div>
+
+            <!-- 7. Apuntar y centrar -->
+            <div class="guia-cuerpo" data-paso="apuntar" hidden>
+                <p class="modal-texto">{{ _("La montura va al objeto y la app lo centra sola: hace una foto, reconoce las estrellas y corrige hasta dejarlo en el centro.") }}</p>
+                <button type="button" class="btn btn-primary guia-boton-ancho" id="guia-goto" onclick="Guia.irAlObjeto()"></button>
+            </div>
+
+            <!-- 8. Listo -->
+            <div class="guia-cuerpo" data-paso="listo" hidden>
+                <p class="modal-texto" id="guia-listo-texto"></p>
+                <button type="button" class="btn btn-primary guia-boton-ancho guia-boton-final" onclick="Guia.abrirApilado()"><svg><use href="#i-apilado"/></svg><span id="guia-abrir-apilado"></span></button>
+            </div>
+
+            <div id="guia-error" class="aviso aviso-err mt-2" hidden></div>
+
+            <div class="modal-acciones guia-acciones">
+                <button type="button" class="btn btn-secondary" id="guia-atras" onclick="Guia.paso('atras')"><svg class="giro-180"><use href="#i-flecha"/></svg>{{ _("Atrás") }}</button>
+                <button type="button" class="btn btn-ghost" id="guia-otra" onclick="Guia.verMenu()">{{ _("Otra actividad") }}</button>
+                <button type="button" class="btn btn-ghost" id="guia-saltar" onclick="Guia.saltar()">{{ _("Saltar este paso") }}</button>
+                <button type="button" class="btn btn-primary" id="guia-siguiente" onclick="Guia.siguiente()">{{ _("Siguiente") }}<svg><use href="#i-flecha"/></svg></button>
+            </div>
+        </section>
+    </div>
+</div>

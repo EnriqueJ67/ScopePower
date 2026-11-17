@@ -433,12 +433,28 @@ msgstr ""
 msgid "ASTAP y el catálogo {nombre} instalados"
 msgstr ""
 
+#: static/js/guia.js
+msgid "Abre Apilado en la pestaña Mosaico: el centro ya es tu objeto. Elige las teselas y pulsa «Empezar mosaico»."
+msgstr ""
+
+#: static/js/guia.js
+msgid "Abre Apilado y pulsa «Empezar»: el objeto está en su sitio y todo lo demás, preparado."
+msgstr ""
+
 #: templates/_modal_voz.html
 msgid "Abre una pestaña nueva en Chrome y entra en esta dirección:"
 msgstr ""
 
+#: static/js/guia.js
+msgid "Abrir Apilado"
+msgstr ""
+
 #: static/centrado.js
 msgid "Abrir a tamaño completo"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Abrir el mosaico"
 msgstr ""
 
 #: templates/configuracion.html
@@ -475,6 +491,10 @@ msgstr ""
 
 #: templates/imagen.html
 msgid "Activado"
+msgstr ""
+
+#: guia.py
+msgid "Actividad desconocida: {clave}"
 msgstr ""
 
 #: ScopePower.py
@@ -516,13 +536,30 @@ msgid "Afilando (deconvolución)"
 msgstr ""
 
 #. js
+#: guia.py
+msgid "Afina el enfoque antes de hacer fotos"
+msgstr ""
+
+#: guia.py
+msgid "Ahora"
+msgstr ""
+
+#. js
 #: templates/esta_noche.html
 msgid "Ahora a {alt}° · máximo {max}° a las {hora}"
+msgstr ""
+
+#: guia.py
+msgid "Ahora mismo el equipo está con: {trabajo}"
 msgstr ""
 
 #. js
 #: templates/configuracion.html
 msgid "Ahora mismo la cámara está a {ganancia}."
+msgstr ""
+
+#: static/js/guia.js
+msgid "Ahora mismo no hay nada alto. Busca un objeto por su nombre."
 msgstr ""
 
 #: static/js/asistente.js
@@ -612,7 +649,17 @@ msgstr ""
 msgid "Alargamiento"
 msgstr ""
 
-#: templates/alineacion.html
+#. js
+#: guia.py
+msgid "Alinea la montura y pulsa «Hecho, siguiente»"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Alinea la montura, di que ya está alineada o salta este paso."
+msgstr ""
+
+#. js
+#: guia.py templates/alineacion.html
 msgid "Alineación"
 msgstr ""
 
@@ -651,6 +698,10 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "Alineando"
+msgstr ""
+
+#: guia.py
+msgid "Alineando: paso {n} de {total}"
 msgstr ""
 
 #. js
@@ -938,6 +989,11 @@ msgstr ""
 msgid "Apunta el telescopio a una pantalla blanca (móvil o tablet a brillo medio, pegada a la camiseta) o al cielo del crepúsculo, lejos del sol."
 msgstr ""
 
+#. js
+#: guia.py
+msgid "Apuntar y centrar"
+msgstr ""
+
 #: templates/goto.html
 msgid "Aquí aparecerá el estado del movimiento y la información del objeto."
 msgstr ""
@@ -1017,7 +1073,7 @@ msgstr ""
 msgid "Atención: las estrellas salen alargadas. La montura se mueve durante la exposición."
 msgstr ""
 
-#: templates/_asistente.html
+#: templates/_asistente.html templates/_guia.html
 msgid "Atrás"
 msgstr ""
 
@@ -1230,6 +1286,10 @@ msgstr ""
 msgid "Bucle detenido tras {n} errores seguidos: {error}"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Busca un objeto: M 31, Orión, NGC 7000..."
+msgstr ""
+
 #: static/js/seguimiento.js
 msgid "Buscando"
 msgstr ""
@@ -1251,6 +1311,10 @@ msgstr ""
 
 #: seguimiento.py
 msgid "Buscando un objeto brillante (o pulsa uno en la vista previa)"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Buscar"
 msgstr ""
 
 #: templates/planetario.html
@@ -1294,6 +1358,10 @@ msgstr ""
 
 #: templates/esta_noche.html
 msgid "Calculando qué se ve bien hoy..."
+msgstr ""
+
+#: templates/_guia.html
+msgid "Calculando qué se ve..."
 msgstr ""
 
 #: templates/configuracion.html
@@ -1394,10 +1462,11 @@ msgstr ""
 msgid "Campo {ra} {dec}"
 msgstr ""
 
-#: templates/_asistente.html templates/_puesta_estacion.html
-#: templates/alineacion.html templates/apagar.html templates/apilado.html
-#: templates/calibracion.html templates/dark.html templates/editar_dia.html
-#: templates/flats.html templates/imagen.html templates/visor_video.html
+#: templates/_asistente.html templates/_guia.html
+#: templates/_puesta_estacion.html templates/alineacion.html
+#: templates/apagar.html templates/apilado.html templates/calibracion.html
+#: templates/dark.html templates/editar_dia.html templates/flats.html
+#: templates/imagen.html templates/visor_video.html
 msgid "Cancelar"
 msgstr ""
 
@@ -1537,6 +1606,10 @@ msgstr ""
 msgid "Centrado: {detalle}"
 msgstr ""
 
+#: guia.py
+msgid "Centrando por plate solving..."
+msgstr ""
+
 #. js
 #: templates/planetario.html
 msgid "Centrando {objeto} (vuelta {n}/{total}): {mensaje}"
@@ -1603,7 +1676,7 @@ msgstr ""
 msgid "Cerca del borde (95 % del radio) brilla el {r} % en rojo, el {g} % en verde y el {b} % en azul de lo que brilla en el centro. En el borde se ven capas más altas y frías, y el azul es el color que más cae al bajar la temperatura."
 msgstr ""
 
-#: templates/_asistente.html templates/_modal_humor.html
+#: templates/_asistente.html templates/_guia.html templates/_modal_humor.html
 #: templates/_puesta_estacion.html templates/apilado.html
 #: templates/galeria.html templates/planetario.html
 #: templates/publico/index.html templates/publico/planetario.html
@@ -1624,6 +1697,10 @@ msgstr ""
 
 #: templates/apagar.html templates/home.html
 msgid "Cerrar o apagar"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Cerrar: la guía sigue en la banda de arriba"
 msgstr ""
 
 #: templates/planetario.html
@@ -1678,6 +1755,11 @@ msgstr ""
 #: static/js/fotometria_solar.js
 #, python-format
 msgid "Cielo junto al Sol: {c} % del brillo del centro."
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Cielo profundo"
 msgstr ""
 
 #: templates/configuracion.html
@@ -1840,6 +1922,10 @@ msgstr ""
 msgid "Con 0 los núcleos de las estrellas brillantes se cortan en su tope y salen planos; a más valor, menos se cortan y conservan el perfil y el color hasta el centro. La saturación propia de las estrellas está en la pestaña Color (⚡)."
 msgstr ""
 
+#: guia.py
+msgid "Con dark"
+msgstr ""
+
 #: templates/editar_foto.html
 msgid "Con el STF clásico (en «Más ajustes») el brillo del fondo y la compresión no se usan."
 msgstr ""
@@ -1891,6 +1977,10 @@ msgstr ""
 msgid "Con la focal y el sensor de la cámara, ScopePower calcula el campo que ves y la escala de cada foto (para el centrado, el apilado y el planetario)."
 msgstr ""
 
+#: guia.py
+msgid "Con la montura ecuatorial bien puesta en estación, entre 15 y 60 s por foto."
+msgstr ""
+
 #: templates/imagen.html
 msgid "Con la máscara de Bahtinov puesta, pulsa «En vivo» o haz fotos de 1 o 2 s."
 msgstr ""
@@ -1916,6 +2006,10 @@ msgstr ""
 msgid "Con {focal} mm de focal verás un campo de <b>{ancho}° × {alto}°</b> ({escala}″ por píxel)."
 msgstr ""
 
+#: static/js/guia.js
+msgid "Conecta la montura y la cámara para seguir."
+msgstr ""
+
 #: static/js/asistente.js
 msgid "Conectando con la cámara... (puede tardar hasta 30 s)"
 msgstr ""
@@ -1939,12 +2033,16 @@ msgstr ""
 msgid "Conectando montura y cámara..."
 msgstr ""
 
+#: guia.py
+msgid "Conectando..."
+msgstr ""
+
 #: templates/configuracion.html
 msgid "Conectar desde el móvil"
 msgstr ""
 
 #. js
-#: templates/home.html
+#: templates/_guia.html templates/home.html
 msgid "Conectar equipo"
 msgstr ""
 
@@ -2078,6 +2176,10 @@ msgstr ""
 msgid "Coordenadas del FITS: AR {ra} · Dec {dec}"
 msgstr ""
 
+#: guia.py
+msgid "Coordenadas fuera de rango"
+msgstr ""
+
 #: ScopePower.py
 msgid "Coordenadas no válidas."
 msgstr ""
@@ -2192,7 +2294,7 @@ msgid "Cámara"
 msgstr ""
 
 #. js
-#: ScopePower.py static/js/asistente.js templates/base.html
+#: ScopePower.py guia.py static/js/asistente.js templates/base.html
 msgid "Cámara conectada"
 msgstr ""
 
@@ -2258,6 +2360,14 @@ msgstr ""
 msgid "Dark de flat {i} de {n}"
 msgstr ""
 
+#: guia.py
+msgid "Dark de {exp} s listo"
+msgstr ""
+
+#: guia.py
+msgid "Dark de {exp} s listo ({cuando})"
+msgstr ""
+
 #: flats.py
 msgid "Dark flat {i}/{n}"
 msgstr ""
@@ -2285,14 +2395,23 @@ msgstr ""
 msgid "Darks de flat"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Darks hechos. Quita la tapa del telescopio antes de seguir."
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "Darks nuevos: {n} tomas (habrá que tapar el tubo)"
 msgstr ""
 
 #. js
-#: espacio_disco.py templates/home.html
+#: espacio_disco.py guia.py templates/home.html
 msgid "Darks y flats"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Darks y flats para limpiar las fotos"
 msgstr ""
 
 #: templates/apilado.html
@@ -2391,6 +2510,10 @@ msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Deja rectas las cuatro curvas"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Dejar la guía"
 msgstr ""
 
 #. js
@@ -2544,9 +2667,17 @@ msgstr ""
 msgid "Disco en su sitio (a {desvio}′; se corrige a partir de {umbral}′)"
 msgstr ""
 
+#: guia.py
+msgid "Disco lleno: quedan {gb} GB. Borra fotos antes de empezar."
+msgstr ""
+
 #. js
 #: esta_noche.py
 msgid "Disco pequeño y rojizo; mejor cerca de la oposición."
+msgstr ""
+
+#: guia.py
+msgid "Disco: {gb} GB libres"
 msgstr ""
 
 #: static/js/fotometria_solar.js
@@ -2735,6 +2866,10 @@ msgid "El apilado está capturando; páusalo o detenlo antes de alinear"
 msgstr ""
 
 #: ScopePower.py
+msgid "El apilado está capturando; páusalo o detenlo antes de cambiar la exposición"
+msgstr ""
+
+#: ScopePower.py
 msgid "El apilado está capturando; páusalo o detenlo antes de centrar"
 msgstr ""
 
@@ -2791,6 +2926,14 @@ msgstr ""
 msgid "El campo está casi al este u oeste: la medida del acimut es poco precisa"
 msgstr ""
 
+#: guia.py
+msgid "El centrado no llegó a la tolerancia"
+msgstr ""
+
+#: guia.py
+msgid "El centrado no pudo terminar"
+msgstr ""
+
 #: mosaico.py
 msgid "El centrado no resolvió ninguna foto; la rejilla va con el giro previsto"
 msgstr ""
@@ -2815,6 +2958,10 @@ msgstr ""
 #. js
 #: templates/constelacion.html
 msgid "El corazón del escorpión. Su nombre significa 'rival de Marte'."
+msgstr ""
+
+#: guia.py
+msgid "El dark más cercano está a {d} °C del sensor: conviene hacer darks nuevos"
 msgstr ""
 
 #: ScopePower.py
@@ -3023,8 +3170,16 @@ msgstr ""
 msgid "El número de fotos debe estar entre 1 y 5000"
 msgstr ""
 
+#: ScopePower.py
+msgid "El número de fotos tiene que ser al menos 1."
+msgstr ""
+
 #: static/js/plan.js
 msgid "El número de fotos y el zoom se aplican al momento; la exposición, al siguiente objeto."
+msgstr ""
+
+#: guia.py
+msgid "El objeto está muy alto ({alt}°): cerca del cénit una montura altacimutal alarga las estrellas. Mejor entre 5 y 10 s, o esperar a que baje."
 msgstr ""
 
 #: ScopePower.py
@@ -3226,6 +3381,10 @@ msgstr ""
 msgid "Elegir el centro del mapa (donde está el rectángulo de la cámara) para ir a ese punto aunque no haya ningún objeto"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Elegir en el planetario"
+msgstr ""
+
 #: cuerpos_menores.py
 msgid "Elementos orbitales al día"
 msgstr ""
@@ -3242,6 +3401,10 @@ msgstr ""
 msgid "Elige Sol o Luna en el modo día."
 msgstr ""
 
+#: guia.py
+msgid "Elige el objeto que quieres fotografiar"
+msgstr ""
+
 #: ScopePower.py
 msgid "Elige un driver de la lista"
 msgstr ""
@@ -3250,9 +3413,18 @@ msgstr ""
 msgid "Elige un driver de la lista."
 msgstr ""
 
+#: static/js/guia.js
+msgid "Elige un objeto para seguir."
+msgstr ""
+
 #. js
 #: templates/constelacion.html
 msgid "Elige un recorrido"
+msgstr ""
+
+#. js
+#: templates/home.html
+msgid "Elige y te llevo paso a paso hasta dejarlo listo para empezar"
 msgstr ""
 
 #: templates/galeria.html
@@ -3411,6 +3583,10 @@ msgstr ""
 msgid "En una montura altacimutal, entre 10 y 25 s para que las estrellas no se muevan."
 msgstr ""
 
+#: guia.py
+msgid "En una montura altacimutal, entre 10 y 25 s por foto para que las estrellas no se muevan."
+msgstr ""
+
 #: static/js/asistente.js templates/_asistente.html
 msgid "En unos minutos configuramos tu equipo y comprobamos que todo responde:"
 msgstr ""
@@ -3433,6 +3609,10 @@ msgstr ""
 msgid "Enciende la montura y conéctala al PC como indique su fabricante. Si es la primera vez que usas este driver en este PC, elige su puerto COM o su dirección IP con «Configurar el driver en el PC»."
 msgstr ""
 
+#: templates/_guia.html
+msgid "Enciende la montura, conéctala al PC y enchufa la cámara. Si tu montura usa un programa intermedio (SynScan Pro, EQMOD...), ábrelo antes."
+msgstr ""
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Encuadre"
 msgstr ""
@@ -3441,8 +3621,39 @@ msgstr ""
 msgid "Encuadre centrado donde has tocado"
 msgstr ""
 
+#. js
+#: guia.py
+msgid "Enfoca y pulsa «Hecho, siguiente»"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Enfoca, di que ya está enfocado o salta este paso."
+msgstr ""
+
 #: enfoque.py
 msgid "Enfocado"
+msgstr ""
+
+#: guia.py
+msgid "Enfocado a las {hora}"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Enfocar"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Enfocar donde apunta ahora"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Enfoque"
+msgstr ""
+
+#: guia.py
+msgid "Enfoque sin comprobar"
 msgstr ""
 
 #: templates/imagen.html
@@ -3500,6 +3711,11 @@ msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Equilibrado"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Equipo"
 msgstr ""
 
 #. js
@@ -3753,6 +3969,10 @@ msgstr ""
 msgid "Espera a que termine el trabajo de {otro}"
 msgstr ""
 
+#: static/js/guia.js
+msgid "Espera a que terminen los darks."
+msgstr ""
+
 #. js
 #: static/js/plan.js templates/flats.html
 msgid "Esperando"
@@ -3760,6 +3980,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Esperando a que el telescopio llegue a {nombre}"
+msgstr ""
+
+#: guia.py
+msgid "Esperando a que la montura se asiente..."
 msgstr ""
 
 #: plan_sesion.py
@@ -3911,6 +4135,10 @@ msgstr ""
 msgid "Este navegador no tiene reconocimiento de voz. En Android usa Chrome."
 msgstr ""
 
+#: guia.py
+msgid "Este paso no se puede saltar"
+msgstr ""
+
 #: ScopePower.py
 msgid "Este rastro se guardó sin FITS (había poco disco): solo queda la miniatura."
 msgstr ""
@@ -4044,7 +4272,7 @@ msgid "Exportar"
 msgstr ""
 
 #. js
-#: templates/apilado.html templates/editar_dia.html
+#: guia.py templates/apilado.html templates/editar_dia.html
 msgid "Exposición"
 msgstr ""
 
@@ -4068,7 +4296,7 @@ msgstr ""
 msgid "Exposición cancelada por el usuario"
 msgstr ""
 
-#: templates/_asistente.html
+#: templates/_asistente.html templates/_guia.html
 msgid "Exposición de cada foto (s)"
 msgstr ""
 
@@ -4126,12 +4354,20 @@ msgstr ""
 msgid "Falta actualizar_desde_github.bat en la carpeta de ScopePower"
 msgstr ""
 
+#: static/js/guia.js
+msgid "Falta algo en este paso."
+msgstr ""
+
 #: luna_anotada.py
 msgid "Falta el mapa de la Luna ({ruta})."
 msgstr ""
 
-#: ScopePower.py
+#: ScopePower.py guia.py
 msgid "Falta el nombre del objeto"
+msgstr ""
+
+#: guia.py
+msgid "Falta elegir el objeto"
 msgstr ""
 
 #: publicar.py
@@ -4201,6 +4437,14 @@ msgstr ""
 
 #: templates/configuracion.html
 msgid "Firmar las fotos"
+msgstr ""
+
+#: guia.py
+msgid "Flat listo"
+msgstr ""
+
+#: guia.py
+msgid "Flat listo ({cuando})"
 msgstr ""
 
 #: templates/calibracion.html templates/flats.html
@@ -4418,6 +4662,16 @@ msgstr ""
 msgid "Foto guardada en {s} s"
 msgstr ""
 
+#. js
+#: guia.py
+msgid "Foto o vídeo de la Luna, con la exposición automática"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Foto o vídeo del Sol, siempre con el filtro solar puesto"
+msgstr ""
+
 #: static/js/seguimiento.js
 msgid "Foto por ASCOM y por el SDK de la misma escena..."
 msgstr ""
@@ -4505,6 +4759,16 @@ msgstr ""
 msgid "Fotos apiladas"
 msgstr ""
 
+#. js
+#: guia.py
+msgid "Fotos de calibración"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Fotos de día de algo en tierra"
+msgstr ""
+
 #: templates/planetario.html
 msgid "Fotos de la galería sobre el cielo"
 msgstr ""
@@ -4566,9 +4830,14 @@ msgid "Galaxias y nebulosas NGC/IC hasta magnitud"
 msgstr ""
 
 #. js
-#: espacio_disco.py static/publico/galeria_publica.js templates/base.html
-#: templates/editar_dia.html templates/editar_foto.html templates/galeria.html
-#: templates/home.html templates/publico/index.html
+#: guia.py
+msgid "Galaxias, nebulosas y cúmulos: apilado en tiempo real"
+msgstr ""
+
+#. js
+#: espacio_disco.py guia.py static/publico/galeria_publica.js
+#: templates/base.html templates/editar_dia.html templates/editar_foto.html
+#: templates/galeria.html templates/home.html templates/publico/index.html
 #: templates/publico/planetario.html templates/rastros.html
 #: templates/visor_video.html
 msgid "Galería"
@@ -4586,7 +4855,7 @@ msgstr ""
 msgid "Gamma: la de siempre"
 msgstr ""
 
-#: templates/_asistente.html templates/seguimiento.html
+#: templates/_asistente.html templates/_guia.html templates/seguimiento.html
 msgid "Ganancia"
 msgstr ""
 
@@ -4726,7 +4995,7 @@ msgid "GoTo al centro del mosaico ({objeto}) para medir el giro de la cámara"
 msgstr ""
 
 #. js
-#: templates/goto.html templates/planetario.html
+#: static/js/guia.js templates/goto.html templates/planetario.html
 msgid "GoTo cancelado: filtro solar sin confirmar."
 msgstr ""
 
@@ -4931,6 +5200,14 @@ msgstr ""
 msgid "Hacen falta al menos dos fotos para montar un vídeo"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Hacer darks nuevos ahora"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Hacer flats"
+msgstr ""
+
 #. js
 #: templates/imagen.html
 msgid "Hacer foto"
@@ -4940,8 +5217,16 @@ msgstr ""
 msgid "Hacer también darks de flat ({n} tomas, te pedirá tapar el tubo). Recomendado."
 msgstr ""
 
+#: templates/_guia.html
+msgid "Hacerlo en mosaico"
+msgstr ""
+
 #: templates/editar_foto.html
 msgid "Hacia la izquierda más azul (frío), hacia la derecha más rojo (cálido). El fondo de cielo se mantiene neutro."
+msgstr ""
+
+#: guia.py
+msgid "Haciendo darks: {n} de {total}"
 msgstr ""
 
 #: templates/editar_foto.html
@@ -4974,6 +5259,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Haz antes una foto de día del Sol o de la Luna (o pon el continuo o el modo en vivo)."
+msgstr ""
+
+#: templates/_guia.html
+msgid "Hecho, siguiente"
 msgstr ""
 
 #: static/js/plan.js
@@ -5197,6 +5486,18 @@ msgstr ""
 msgid "Ir"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Ir a alinear"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Ir a {estrella} ({alt}° de altura) y enfocar"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Ir a {objeto} y centrar"
+msgstr ""
+
 #: templates/galeria.html templates/rastros.html
 msgid "Ir al apilado"
 msgstr ""
@@ -5246,6 +5547,10 @@ msgstr ""
 msgid "La actualización no llegó a terminar"
 msgstr ""
 
+#: templates/_guia.html
+msgid "La alineación enseña a la montura dónde está cada cosa en el cielo. Se hace una vez por noche; después el GoTo cae dentro del campo y el centrado es rápido."
+msgstr ""
+
 #: templates/imagen.html
 msgid "La app busca sola la exposición, de microsegundos a segundos, con la ganancia al mínimo y sin darks. Elige qué vas a fotografiar:"
 msgstr ""
@@ -5286,6 +5591,10 @@ msgstr ""
 
 #: foto_dia.py
 msgid "La cámara no es de color: no hay balance que calibrar."
+msgstr ""
+
+#: guia.py
+msgid "La cámara no está conectada"
 msgstr ""
 
 #: camara_nativa.py camara_qhy.py camara_toupcam.py camara_zwo.py
@@ -5346,6 +5655,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "La exposición tiene que estar entre 0,001 y 3600 s"
+msgstr ""
+
+#: ScopePower.py
+msgid "La exposición tiene que estar entre 0,001 y 3600 segundos."
 msgstr ""
 
 #: static/js/asistente.js
@@ -5430,6 +5743,10 @@ msgstr ""
 msgid "La montura está aparcada: desapárcala antes de empezar"
 msgstr ""
 
+#: guia.py
+msgid "La montura está en {objeto}, sin centrado por plate solving"
+msgstr ""
+
 #: templates/_puesta_estacion.html
 msgid "La montura mirando al norte (al sur en el hemisferio sur): vale con la brújula del móvil o la estrella Polar."
 msgstr ""
@@ -5442,7 +5759,7 @@ msgstr ""
 msgid "La montura no confirma la parada de los ejes {ejes}: comprobar a mano"
 msgstr ""
 
-#: ScopePower.py
+#: ScopePower.py guia.py
 msgid "La montura no está conectada"
 msgstr ""
 
@@ -5522,6 +5839,22 @@ msgstr ""
 
 #: static/js/asistente.js
 msgid "La montura responde."
+msgstr ""
+
+#: static/js/guia.js
+msgid "La montura se está moviendo..."
+msgstr ""
+
+#: guia.py
+msgid "La montura todavía no ha ido a {objeto}"
+msgstr ""
+
+#: templates/_guia.html
+msgid "La montura va al objeto y la app lo centra sola: hace una foto, reconoce las estrellas y corrige hasta dejarlo en el centro."
+msgstr ""
+
+#: guia.py static/js/guia.js
+msgid "La montura va hacia {objeto}..."
 msgstr ""
 
 #. js
@@ -5739,7 +6072,8 @@ msgstr ""
 msgid "Limbo {px} px"
 msgstr ""
 
-#: templates/seguimiento.html
+#. js
+#: guia.py templates/seguimiento.html
 msgid "Listo"
 msgstr ""
 
@@ -5749,6 +6083,10 @@ msgstr ""
 
 #: aparcado.py
 msgid "Llevando el tubo al cero de los motores (movimiento {n})..."
+msgstr ""
+
+#: templates/_guia.html
+msgid "Lo mejor de ahora"
 msgstr ""
 
 #: templates/visor_video.html
@@ -5805,10 +6143,15 @@ msgid "Los tonos que entran en el rango, con el color tocado en el centro"
 msgstr ""
 
 #. js
-#: catalogo_offline.py disco.py esta_noche.py foto_dia.py plan_sesion.py
-#: static/publico/galeria_publica.js static/publico/planetario_publico.js
-#: templates/imagen.html templates/planetario.html
+#: catalogo_offline.py disco.py esta_noche.py foto_dia.py guia.py
+#: plan_sesion.py static/publico/galeria_publica.js
+#: static/publico/planetario_publico.js templates/imagen.html
+#: templates/planetario.html
 msgid "Luna"
+msgstr ""
+
+#: guia.py
+msgid "Luna a {alt}°"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -5958,6 +6301,10 @@ msgstr ""
 msgid "Meteoro"
 msgstr ""
 
+#: guia.py
+msgid "Mide {t}′ y no cabe en el campo de la cámara: mejor en mosaico"
+msgstr ""
+
 #. js
 #: templates/galeria.html
 msgid "Midiendo el disco…"
@@ -5987,6 +6334,10 @@ msgstr ""
 
 #: templates/configuracion.html
 msgid "Minúsculas, números y guiones. Vacío: el autor de las fotos."
+msgstr ""
+
+#: templates/_guia.html
+msgid "Mirando el cielo..."
 msgstr ""
 
 #: templates/home.html
@@ -6064,12 +6415,16 @@ msgstr ""
 msgid "Montura <b>Alpaca</b> por red, dada de alta en el PC con el selector de ASCOM: tiene que estar encendida y en la misma red que el PC."
 msgstr ""
 
+#: guia.py
+msgid "Montura alineada a las {hora}"
+msgstr ""
+
 #: ScopePower.py
 msgid "Montura aparcada. Ya puedes apagarla"
 msgstr ""
 
 #. js
-#: static/js/asistente.js templates/base.html
+#: guia.py static/js/asistente.js templates/base.html
 msgid "Montura conectada"
 msgstr ""
 
@@ -6080,6 +6435,10 @@ msgstr ""
 
 #: templates/alineacion.html
 msgid "Montura ecuatorial"
+msgstr ""
+
+#: guia.py
+msgid "Montura ecuatorial: no consta la puesta en estación de esta noche"
 msgstr ""
 
 #. js
@@ -6429,6 +6788,14 @@ msgstr ""
 msgid "No cambies el enfoque ni la orientación de la cámara respecto a las fotos de la noche."
 msgstr ""
 
+#: guia.py
+msgid "No consta que hayas enfocado esta noche"
+msgstr ""
+
+#: guia.py
+msgid "No consta que la montura esté alineada esta noche"
+msgstr ""
+
 #: templates/editar_dia.html
 msgid "No corregir (ecuatorial)"
 msgstr ""
@@ -6444,6 +6811,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "No encuentro {objeto} en ningún catálogo"
+msgstr ""
+
+#: ScopePower.py
+msgid "No encuentro «{nombre}»"
 msgstr ""
 
 #: ScopePower.py
@@ -6492,6 +6863,10 @@ msgstr ""
 msgid "No hay dark para la exposición actual ({exp} s)."
 msgstr ""
 
+#: guia.py
+msgid "No hay dark para {exp} s con esta ganancia"
+msgstr ""
+
 #. js
 #: templates/goto.html
 msgid "No hay descripción de «{objeto}» (fuera del catálogo y sin Internet)."
@@ -6500,6 +6875,10 @@ msgstr ""
 #. js
 #: templates/calibracion.html
 msgid "No hay flat maestro."
+msgstr ""
+
+#: guia.py
+msgid "No hay flat: el viñeteo y las motas de polvo no se corregirán"
 msgstr ""
 
 #: templates/galeria.html templates/publico/index.html
@@ -6556,6 +6935,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "No hay ninguna foto; haz una foto primero."
+msgstr ""
+
+#: guia.py
+msgid "No hay ninguna guía en marcha"
 msgstr ""
 
 #: seguimiento.py
@@ -6633,6 +7016,10 @@ msgstr ""
 
 #: seguimiento.py
 msgid "No se graba el vídeo: el disco está casi lleno"
+msgstr ""
+
+#: guia.py
+msgid "No se ha centrado"
 msgstr ""
 
 #. js
@@ -6755,6 +7142,10 @@ msgstr ""
 #. js
 #: templates/planetario.html
 msgid "No se pudo calcular la rejilla"
+msgstr ""
+
+#: static/js/guia.js
+msgid "No se pudo calcular qué se ve ahora."
 msgstr ""
 
 #: static/js/seguimiento.js
@@ -6888,13 +7279,13 @@ msgstr ""
 msgid "No se pudo guardar: {e}"
 msgstr ""
 
-#: static/js/asistente.js
+#: static/js/asistente.js static/js/guia.js
 msgid "No se pudo hablar con el PC: {e}"
 msgstr ""
 
 #. js
-#: templates/alineacion.html templates/apilado.html templates/dark.html
-#: templates/flats.html
+#: static/js/guia.js templates/alineacion.html templates/apilado.html
+#: templates/dark.html templates/flats.html
 msgid "No se pudo iniciar"
 msgstr ""
 
@@ -7024,6 +7415,10 @@ msgstr ""
 
 #: apilado_video.py
 msgid "No se puede leer el vídeo: {e}"
+msgstr ""
+
+#: guia.py
+msgid "No se puede marcar: {clave}"
 msgstr ""
 
 #: disco.py
@@ -7197,7 +7592,7 @@ msgstr ""
 msgid "Número de flats"
 msgstr ""
 
-#: templates/imagen.html
+#: templates/_guia.html templates/imagen.html
 msgid "Número de fotos"
 msgstr ""
 
@@ -7235,8 +7630,8 @@ msgid "Objetivo: {objeto} · tolerancia {tolerancia}'"
 msgstr ""
 
 #. js
-#: templates/apilado.html templates/constelacion.html templates/galeria.html
-#: templates/goto.html templates/publico/index.html
+#: ScopePower.py guia.py templates/apilado.html templates/constelacion.html
+#: templates/galeria.html templates/goto.html templates/publico/index.html
 msgid "Objeto"
 msgstr ""
 
@@ -7327,6 +7722,10 @@ msgstr ""
 msgid "Oscurecimiento del limbo"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Otra actividad"
+msgstr ""
+
 #: static/js/plan.js
 msgid "Otra noche"
 msgstr ""
@@ -7352,7 +7751,7 @@ msgid "Pad táctil y flechas"
 msgstr ""
 
 #. js
-#: catalogo_offline.py static/publico/galeria_publica.js
+#: catalogo_offline.py guia.py static/publico/galeria_publica.js
 #: templates/planetario.html templates/publico/planetario.html
 msgid "Paisaje"
 msgstr ""
@@ -7451,6 +7850,19 @@ msgstr ""
 
 #: templates/imagen.html
 msgid "Pasar el pad a la otra esquina"
+msgstr ""
+
+#: guia.py
+msgid "Paso desconocido: {paso}"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Paso {n} de {total}"
+msgstr ""
+
+#. js
+#: templates/home.html
+msgid "Paso {n} de {total}: {paso}"
 msgstr ""
 
 #: ScopePower.py
@@ -7781,6 +8193,10 @@ msgstr ""
 msgid "Puesta en estación cancelada"
 msgstr ""
 
+#: guia.py
+msgid "Puesta en estación hecha a las {hora}"
+msgstr ""
+
 #: puesta_estacion.py
 msgid "Puesta en estación terminada"
 msgstr ""
@@ -7804,6 +8220,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Pulsa Iniciar para mover con la vista en directo"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Pulsa el botón para ir al objeto y espera a que termine el centrado."
 msgstr ""
 
 #: templates/editar_foto.html
@@ -7928,6 +8348,10 @@ msgstr ""
 msgid "Queda poco disco en el PC: {libre} GB libres de {total} GB ({pct} %)."
 msgstr ""
 
+#: guia.py
+msgid "Queda poco disco: {gb} GB libres"
+msgstr ""
+
 #: espacio_disco.py
 msgid "Queda poco espacio en el disco: {p} por ciento libre, {espacio}."
 msgstr ""
@@ -7950,7 +8374,7 @@ msgid "Quita la máscara sin tocar el enfoque y sin apagar este interruptor. Apr
 msgstr ""
 
 #. js
-#: templates/apilado.html templates/dark.html
+#: static/js/guia.js templates/apilado.html templates/dark.html
 msgid "Quita la tapa del telescopio antes de hacer fotos."
 msgstr ""
 
@@ -8236,6 +8660,10 @@ msgstr ""
 msgid "Repetir la medición"
 msgstr ""
 
+#: static/js/guia.js
+msgid "Repetir: ir a {objeto} y centrar"
+msgstr ""
+
 #: templates/bienvenida.html
 msgid "Repite la contraseña"
 msgstr ""
@@ -8427,6 +8855,10 @@ msgstr ""
 msgid "Revelar como el apilado"
 msgstr ""
 
+#: ScopePower.py
+msgid "Revisa los números: exposición en segundos, ganancia y fotos en números enteros"
+msgstr ""
+
 #: static/js/luna_anotada.js
 msgid "Rimas y valles"
 msgstr ""
@@ -8492,7 +8924,7 @@ msgstr ""
 msgid "Saltada {objeto}"
 msgstr ""
 
-#: templates/_asistente.html
+#: templates/_asistente.html templates/_guia.html
 msgid "Saltar este paso"
 msgstr ""
 
@@ -8589,6 +9021,10 @@ msgstr ""
 msgid "Se desconectarán la cámara y la montura, la app se cierra, se actualiza y vuelve a arrancar sola. Puede tardar varios minutos si cambian las dependencias."
 msgstr ""
 
+#: templates/_guia.html
+msgid "Se enfoca con una estrella brillante. Con la máscara de Bahtinov puesta, la pantalla Cámara dice hacia dónde girar el enfocador; sin máscara, busca la estrella más pequeña."
+msgstr ""
+
 #. js
 #: templates/configuracion.html
 msgid "Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM)."
@@ -8612,6 +9048,10 @@ msgstr ""
 
 #: templates/_modal_voz.html
 msgid "Se hace una sola vez por móvil. El reconocimiento de voz de Chrome se procesa en Internet, así que el móvil también necesita datos o una wifi con salida a Internet."
+msgstr ""
+
+#: guia.py
+msgid "Se hará en mosaico: varias teselas que luego se unen"
 msgstr ""
 
 #: templates/_asistente.html
@@ -8698,7 +9138,7 @@ msgstr ""
 msgid "Seguimiento terminado"
 msgstr ""
 
-#: templates/planetario.html
+#: templates/_guia.html templates/planetario.html
 msgid "Seguir"
 msgstr ""
 
@@ -8708,6 +9148,11 @@ msgstr ""
 
 #: templates/apagar.html
 msgid "Seguir observando sin apagar"
+msgstr ""
+
+#. js
+#: templates/home.html
+msgid "Seguir: {actividad}"
 msgstr ""
 
 #. js
@@ -8777,6 +9222,11 @@ msgid "Si ahí ya está permitida, mira en Android: Ajustes → Aplicaciones →
 msgstr ""
 
 #. js
+#: guia.py
+msgid "Si el enfoque no está fino, las estrellas saldrán gordas y se perderán las débiles."
+msgstr ""
+
+#. js
 #: templates/base.html
 msgid "Si se llena, las fotos dejarán de guardarse; con menos de {minimo} GB el apilado se pausa solo."
 msgstr ""
@@ -8801,7 +9251,7 @@ msgstr ""
 msgid "Sigue sumando fotos al apilado que ya hay"
 msgstr ""
 
-#: static/js/asistente.js templates/_asistente.html
+#: static/js/asistente.js templates/_asistente.html templates/_guia.html
 #: templates/publico/index.html
 msgid "Siguiente"
 msgstr ""
@@ -8850,6 +9300,11 @@ msgid "Sin Internet: se usan los elementos guardados"
 msgstr ""
 
 #. js
+#: guia.py
+msgid "Sin alinear, el GoTo puede dejar el objeto fuera del campo y el centrado tardará más."
+msgstr ""
+
+#. js
 #: templates/calibracion.html
 msgid "Sin calibrar: se usa un valor típico de estos sensores ({valores})."
 msgstr ""
@@ -8883,8 +9338,12 @@ msgstr ""
 msgid "Sin cámara no se pueden hacer fotos ni apilar. Podrás elegir el driver más tarde en Configuración."
 msgstr ""
 
+#: guia.py
+msgid "Sin dark"
+msgstr ""
+
 #. js
-#: templates/apilado.html
+#: templates/_guia.html templates/apilado.html
 msgid "Sin darks"
 msgstr ""
 
@@ -9009,9 +9468,9 @@ msgid "Sky-Watcher a través de la app <b>SynScan Pro</b>: ábrela en el PC y co
 msgstr ""
 
 #. js
-#: catalogo_offline.py disco.py foto_dia.py static/publico/galeria_publica.js
-#: static/publico/planetario_publico.js templates/imagen.html
-#: templates/planetario.html
+#: catalogo_offline.py disco.py foto_dia.py guia.py
+#: static/publico/galeria_publica.js static/publico/planetario_publico.js
+#: templates/imagen.html templates/planetario.html
 msgid "Sol"
 msgstr ""
 
@@ -9202,6 +9661,10 @@ msgstr ""
 msgid "Tapa el telescopio completamente y pulsa Generar."
 msgstr ""
 
+#: templates/_guia.html
+msgid "Tapa el telescopio completamente: un dark es una foto a oscuras con la misma exposición."
+msgstr ""
+
 #: flats.py
 msgid "Tapa el telescopio y pulsa Continuar para los darks de flat"
 msgstr ""
@@ -9334,6 +9797,10 @@ msgstr ""
 msgid "Tiempo real"
 msgstr ""
 
+#: static/js/guia.js
+msgid "Tienes a medias: {actividad}, paso {n} de {total}."
+msgstr ""
+
 #: templates/imagen.html
 msgid "Timelapse"
 msgstr ""
@@ -9448,6 +9915,18 @@ msgstr ""
 msgid "Todas"
 msgstr ""
 
+#: guia.py
+msgid "Todavía es de día: sin estrellas no hay centrado ni apilado hasta las {hora}."
+msgstr ""
+
+#: guia.py
+msgid "Todavía es de día: sin estrellas no hay centrado ni apilado."
+msgstr ""
+
+#: ScopePower.py
+msgid "Todavía no has ido a ningún objeto"
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "Todavía no hay fotos apiladas."
@@ -9507,6 +9986,11 @@ msgstr ""
 
 #: templates/visor_video.html
 msgid "Todo el vídeo"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Todo listo: pulsa «Empezar»"
 msgstr ""
 
 #: templates/rastros.html
@@ -9629,10 +10113,18 @@ msgstr ""
 msgid "Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día."
 msgstr ""
 
+#: templates/_guia.html
+msgid "Una sola foto, sin mosaico"
+msgstr ""
+
 #. js
 #: plan_sesion.py static/publico/planetario_publico.js
 #: templates/planetario.html
 msgid "Urano"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Usar el dark que hay"
 msgstr ""
 
 #: templates/apilado.html
@@ -9641,6 +10133,10 @@ msgstr ""
 
 #: templates/_asistente.html templates/configuracion.html
 msgid "Usar la ubicación de este móvil"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Usar {objeto}, donde apunta la montura"
 msgstr ""
 
 #. js
@@ -9685,8 +10181,13 @@ msgstr ""
 msgid "Vamos a dejar ScopePower listo"
 msgstr ""
 
-#: ScopePower.py static/js/filtro_solar.js
+#: ScopePower.py static/js/filtro_solar.js static/js/guia.js
 msgid "Vas a apuntar el telescopio al Sol."
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Ve a un objeto desde esta pantalla y pulsa «Hecho, siguiente»"
 msgstr ""
 
 #: templates/configuracion.html
@@ -9787,6 +10288,10 @@ msgstr ""
 msgid "Ver la selección"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Ver los pasos de la guía"
+msgstr ""
+
 #. js
 #: templates/imagen.html
 msgid "Ver los {n} vídeos en la galería"
@@ -9798,6 +10303,11 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "Ver y ajustar la rejilla de teselas sobre el cielo"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Ver, editar y compartir tus fotos"
 msgstr ""
 
 #: templates/_asistente.html
@@ -10002,8 +10512,20 @@ msgstr ""
 msgid "Ya estaba en la galería ({archivo})."
 msgstr ""
 
+#: templates/_guia.html
+msgid "Ya está alineada"
+msgstr ""
+
 #: templates/visor_video.html
 msgid "Ya está apilado:"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Ya está enfocado"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Ya está tapado: hacer los darks"
 msgstr ""
 
 #: puesta_estacion.py
@@ -10251,6 +10773,10 @@ msgstr ""
 msgid "baja {v} minutos"
 msgstr ""
 
+#: guia.py
+msgid "bajo el horizonte"
+msgstr ""
+
 #. js
 #: templates/planetario.html
 msgid "bajo la altura mínima ({altura}°)"
@@ -10484,12 +11010,16 @@ msgid "darks"
 msgstr ""
 
 #. js
-#: templates/imagen.html
+#: guia.py templates/imagen.html
 msgid "de día"
 msgstr ""
 
 #: ScopePower.py
 msgid "de día no hay centrado (sin estrellas que resolver)"
+msgstr ""
+
+#: guia.py
+msgid "de noche"
 msgstr ""
 
 #: alineacion.py
@@ -10518,7 +11048,7 @@ msgid "desde el inicio"
 msgstr ""
 
 #. js
-#: templates/apilado.html
+#: guia.py templates/apilado.html
 msgid "desde las {hora}"
 msgstr ""
 
@@ -11028,6 +11558,18 @@ msgid_plural "hace {n} días"
 msgstr[0] ""
 msgstr[1] ""
 
+#: guia.py
+msgid "hace {n} días"
+msgstr ""
+
+#: guia.py
+msgid "hace {n} h"
+msgstr ""
+
+#: guia.py
+msgid "hace {n} min"
+msgstr ""
+
 #: static/js/plan.js
 msgid "hasta las {hora}"
 msgstr ""
@@ -11153,7 +11695,7 @@ msgstr ""
 msgid "la de config ({s} s)"
 msgstr ""
 
-#: templates/_asistente.html templates/configuracion.html
+#: templates/_asistente.html templates/_guia.html templates/configuracion.html
 msgid "la del driver"
 msgstr ""
 
@@ -11295,6 +11837,10 @@ msgstr ""
 #: templates/constelacion.html templates/esta_noche.html
 #: templates/planetario.html
 msgid "mag {mag}"
+msgstr ""
+
+#: static/js/guia.js
+msgid "mag {m}"
 msgstr ""
 
 #. js
@@ -12151,7 +12697,7 @@ msgstr ""
 msgid "todos"
 msgstr ""
 
-#: templates/apilado.html
+#: templates/_guia.html templates/apilado.html
 msgid "tomas"
 msgstr ""
 
@@ -12242,6 +12788,14 @@ msgstr ""
 msgid "vídeo"
 msgstr ""
 
+#: static/js/guia.js
+msgid "{actividad} · paso {n} de {total}"
+msgstr ""
+
+#: static/js/guia.js
+msgid "{alt}° de altura"
+msgstr ""
+
 #: ScopePower.py
 msgid "{archivo} ha cambiado mientras se separaban las estrellas: se deja como estaba (las estrellas separadas quedan para el editor)"
 msgstr ""
@@ -12300,6 +12854,18 @@ msgstr ""
 
 #: darks.py
 msgid "{error}. Quita la tapa del telescopio antes de hacer fotos"
+msgstr ""
+
+#: guia.py
+msgid "{exp} s es mucha exposición para esta montura"
+msgstr ""
+
+#: guia.py
+msgid "{exp} s es poca exposición: harán falta muchas más fotos"
+msgstr ""
+
+#: guia.py
+msgid "{exp} s por foto, ganancia {gan}, hasta {n} fotos"
 msgstr ""
 
 #: ScopePower.py
@@ -12645,6 +13211,10 @@ msgstr[1] ""
 msgid "{n} fotogramas"
 msgstr ""
 
+#: static/js/guia.js
+msgid "{n} fotos de {exp} s son {min} min de exposición."
+msgstr ""
+
 #: puesta_estacion.py
 msgid "{n} fotos seguidas sin resolver: comprueba el enfoque y que la montura está quieta al disparar"
 msgstr ""
@@ -12818,12 +13388,16 @@ msgstr ""
 msgid "{n}/{total} teselas"
 msgstr ""
 
-#: editor_fotos.py
+#: editor_fotos.py guia.py
 msgid "{objeto} centrado"
 msgstr ""
 
 #: editor_fotos.py
 msgid "{objeto} centrado (lo más cercano a donde apuntaba la montura)"
+msgstr ""
+
+#: guia.py
+msgid "{objeto} centrado, a {e}′ del centro"
 msgstr ""
 
 #: static/js/filtro_solar.js
@@ -12854,6 +13428,14 @@ msgstr ""
 
 #: ScopePower.py
 msgid "{objeto} · núcleo"
+msgstr ""
+
+#: guia.py
+msgid "{objeto}: ahora a {alt}° de altura"
+msgstr ""
+
+#: guia.py
+msgid "{objeto}: ahora a {alt}° de altura, por debajo del mínimo de {minima}°"
 msgstr ""
 
 #: plan_sesion.py
@@ -13143,6 +13725,10 @@ msgstr ""
 msgid "¿Dar por terminada la tesela actual con las fotos que tenga y pasar a la siguiente?"
 msgstr ""
 
+#: static/js/guia.js
+msgid "¿Dejar la guía? Lo que ya has hecho (alineación, enfoque, darks) no se pierde."
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "¿Detener el apilado? Las capturas se paran; el resultado actual se conserva."
@@ -13187,6 +13773,11 @@ msgid "¿Quitar {nombre} del plan?"
 msgstr ""
 
 #. js
+#: templates/_guia.html templates/home.html
+msgid "¿Qué quieres hacer hoy?"
+msgstr ""
+
+#. js
 #: templates/apagar.html
 msgid "¿Reiniciar ScopePower? Se desconectarán la cámara y la montura y la app vuelve a arrancar en unos segundos."
 msgstr ""
@@ -13198,6 +13789,10 @@ msgstr ""
 
 #: static/js/plan.js
 msgid "¿Saltar el objeto actual? Si ya tiene fotos apiladas se guardan y el objeto queda pendiente para otra noche."
+msgstr ""
+
+#: static/js/guia.js
+msgid "¿Saltar este paso?"
 msgstr ""
 
 #. js

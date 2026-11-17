@@ -18,6 +18,17 @@
     <button type="button" class="btn btn-primary" id="btn-conectar"><svg><use href="#i-conectar"/></svg><span id="btn-conectar-texto">{{ _("Conectar equipo") }}</span></button>
 </div>
 
+<!-- El botón principal: la guía pregunta qué se quiere hacer y lleva paso a paso hasta «Empezar»
+     (templates/_guia.html, static/js/guia.js). Con una guía a medias, invita a seguirla. -->
+<button type="button" class="guia-franja" id="guia-franja" onclick="Guia.abrir()">
+    <span class="guia-franja-ico"><svg><use href="#i-telescopio"/></svg></span>
+    <span class="guia-franja-texto">
+        <span class="guia-franja-titulo" id="guia-franja-titulo">{{ _("¿Qué quieres hacer hoy?") }}</span>
+        <span class="guia-franja-desc" id="guia-franja-desc">{{ _("Elige y te llevo paso a paso hasta dejarlo listo para empezar") }}</span>
+    </span>
+    <svg class="ico flecha"><use href="#i-flecha"/></svg>
+</button>
+
 <!-- El menú sigue el orden de una noche: conectar, alinear, ir al objeto, apilar.
      Plate Solve, Sincronizar y Modo Automático siguen existiendo como rutas
      (/platesolve, /corregir-posicion, /modo-automatico) pero ya no hacen falta:
@@ -120,6 +131,15 @@
                 window.location.href = destino;
             });
         });
+    });
+
+    // ——— Guía: con una a medias, la franja invita a seguirla ———
+    document.addEventListener('guia-estado', ev => {
+        const s = ev.detail.sesion;
+        document.getElementById('guia-franja-titulo').textContent = s ? _("Seguir: {actividad}", { actividad: s.titulo }) : _("¿Qué quieres hacer hoy?");
+        document.getElementById('guia-franja-desc').textContent = s
+            ? _("Paso {n} de {total}: {paso}", { n: s.indice + 1, total: s.total, paso: s.pasos[s.indice].titulo })
+            : _("Elige y te llevo paso a paso hasta dejarlo listo para empezar");
     });
 
     // ——— Conexión del equipo ———
