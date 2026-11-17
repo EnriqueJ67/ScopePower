@@ -10,8 +10,40 @@ día de la release. El número de versión vive en `version.py`.
   con la anchura del rango a elegir y «Ver la selección» para ver qué entra. Hasta 4 colores por foto, al
   instante en el dispositivo y guardados con la foto. El rango cae suavemente y los colores mucho más apagados
   que el tocado no entran, así el fondo del cielo no se tiñe. Con las estrellas aparte solo cambia el objeto.
+- Cámara, Apilado y el editor de fotos: los paneles de controles dejan de ser tarjetas plegables una debajo
+  de otra y pasan a pestañas. Una fila de botones encima de la columna abre cada panel con un toque y se ve
+  uno solo, con la foto siempre a la vista; si el panel no cabe en el alto de la pantalla, el scroll es solo
+  el suyo y las pestañas no se mueven. La pestaña abierta se recuerda. Un punto en la pestaña avisa de que
+  su panel está haciendo algo (modo día, timelapse, plan de la noche, mosaico). Desaparecen las flechas de
+  reordenar. En la tablet en vertical, el final de la columna ya no queda debajo de la barra inferior.
+- Las explicaciones de los controles de Cámara, Apilado y el editor quedan plegadas: junto al nombre de cada
+  control hay un botón ⓘ que despliega la suya. Los paneles quedan mucho más cortos (el de procesado del
+  editor, de 1200 a 900 px). Lo que cuenta qué está pasando ahora (exposición, ganancia, estados) sigue a
+  la vista.
+- Editor de fotos agrupado por temas: cinco pestañas (Luz, Color, Detalle, Estrellas y Encuadre) en lugar de
+  siete paneles, con cada control en un único sitio. Todo el estirado está en Luz, también el de las estrellas
+  cuando están separadas, junto con el estilo, el preset y las curvas por puntos. Lo que casi nunca se toca
+  (STF clásico, curva del fondo, aplanar el fondo, verde y color único en las estrellas, recorte de bordes) va
+  plegado en el «Más ajustes» de su pestaña, que avisa («en uso») si algo de dentro no está en su valor de serie.
+  El estilo se elige con tres botones (Natural, Equilibrado, Intenso) y una flecha devuelve los deslizadores a
+  los valores del estilo. Con el STF clásico o con las estrellas separadas, lo que deja de actuar se apaga a la
+  vista en vez de desaparecer.
+- Apilado, «Procesado de la vista previa»: los controles van en los mismos grupos que el editor (Luz, Color,
+  Detalle, Encuadre), con el brillo, la temperatura y el verde a la vista en su grupo y un único «Más ajustes»
+  para lo que casi nunca se toca. El estilo se elige con los mismos tres botones. «Aplicar a la vista previa»
+  queda siempre visible al pie del panel, sin bajar hasta el final.
+- Cámara, Apilado y el editor: la fila de pestañas sube a la altura del título de la página, con su borde
+  inferior alineado con el de la cabecera, y el panel empieza a la misma altura que la foto: el panel gana
+  el alto de la cabecera. El título y sus botones (Galería en el editor; Pausar, Detener y Reiniciar en
+  Apilado) quedan encima de la foto.
 - Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
   (en inglés, a su versión `en/`).
+- Galería pública: al compartir una foto por WhatsApp o Telegram sale su vista previa, con la imagen, el
+  nombre del objeto, el tipo, la fecha, la integración y el autor. Cada foto tiene su página
+  (`f/<id>.html`), que escribe el endpoint (`hosting/publicar.php`, versión 4) a partir de la plantilla
+  `foto.html`, y que lleva enseguida a la galería con la foto abierta. «Compartir» y «Enlace público»
+  dan esa dirección; el enlace de la galería entera enseña la foto más reciente. Nueva clave
+  `url_galeria` en `publicar_config.php`.
 - Enfoque con la Bahtinov, afinado con las fotos reales de Altair del 5-nov (con nubes): con la máscara
   real las rayas finas salen de 36 px afuera y ahí se miden y se ven, con un blanco propio, así que ahora
   se ve la cruz afilada. Antes no se encontraba la cruz en esas fotos. Con nubes, un píxel caliente ya no
@@ -46,6 +78,21 @@ día de la release. El número de versión vive en `version.py`.
   aparta de la vertical el eje de acimut y hacia qué lado cae, medido con las mismas fotos resueltas. A partir
   de 1° se avisa, porque SynScan sigue el cielo como si estuviera nivelado y por encima de unos 70° de altura
   la montura deriva.
+- Arreglado: manchas oscuras de color alrededor de las estrellas al procesar (se veían en el cielo de la Nebulosa
+  de la Hélice del 13-nov). La reducción de ruido dejaba sin tocar el ruido de color hasta unos 20 px alrededor
+  de cada estrella y la saturación lo volvía manchas. Ahora junto a una estrella suelta el color sigue la forma y
+  el color de la propia estrella, y en las nebulosas se conserva como antes. Con los mismos ajustes, alguna
+  nebulosa puede salir un poco menos roja: antes el ruido de color, al pasar por el SCNR, la teñía algo de rojo.
+- Arreglado: zonas oscuras de 20-40 px por todo el cielo con la reducción de ruido baja (Hélice del 13-nov con
+  ruido 0,25 y una curva con el negro subido). El relleno de los huecos del cielo iba en proporción a la
+  reducción de ruido y solo existía con «estrellas aparte»: ahora el cielo se limpia del todo desde 0,25 (el
+  deslizador sigue graduando el grano fino) y también en la foto normal, a la escala del moteado. Los huecos
+  hondos no se rellenan, para no borrar nebulosas oscuras como las de la Trompa de Elefante.
+- Puesta en estación: si la primera medición pasa de 1°, al bajar de 30′ el asistente propone por pantalla y
+  por voz «Repetir la medición» (el botón pasa a ser el principal) y, hasta repetirla, no da la montura por
+  puesta en estación aunque la estimación entre en la tolerancia. Tras corregir grados la estimación del
+  ajuste se desvía ~1 % de lo corregido: la primera noche de campo (16-nov) bajó de 11° a 4,7′ estimados y la
+  nueva medición dio 7,8′.
 
 ## 1.3.0 · 2026-11-04
 

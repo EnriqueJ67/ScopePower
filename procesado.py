@@ -917,9 +917,16 @@ def calibrar_color(rgb, balance):
 #     de la Vía Láctea la dispersión a 4-16 px son estrellas débiles, no ruido.
 #     Se mide en los planos de color (canal - luminancia), donde las estrellas
 #     casi se cancelan; con canales independientes var(L) = suma var(C) / 6.
-#   - El color se limpia más fuerte que la luminancia, pero se conserva donde
-#     la luminancia tiene estructura (estrellas, bordes): ahí su ruido no se ve
-#     y sin ello las estrellas débiles perdían el color.
+#   - El color se limpia más fuerte que la luminancia. Donde la luminancia
+#     tiene estructura (estrellas, bordes) el color la sigue: se conserva la
+#     parte del color proporcional a la luminancia (beta * wL, con beta medido
+#     en el entorno), así las estrellas débiles no pierden el color. El resto
+#     del color pasa entero solo donde la estructura es extensa (nebulosa,
+#     cúmulo denso), no junto a una estrella suelta. Hasta nov-2026 pasaba
+#     entero junto a cualquier estrella, con su ruido: la huella de una
+#     estrella en las escalas de 4 a 16 px llega a 16-24 px de ella, y la
+#     saturación convertía ese disco de ruido en manchas oscuras de color
+#     alrededor de cada estrella (Hélice del 13-nov-2026).
 #   - En el cielo no hay detalles oscuros: un hueco de la luminancia solo se
 #     conserva si tiene algo brillante al lado (ver ganancia_huecos).
 
@@ -930,6 +937,10 @@ ANCHOS_ENERGIA = (3, 5)                 # entorno de la energía en las escalas 
 REDUCCION_ESCALA = (1, 1, 2, 4, 8)
 PESO_LUMINANCIA = (1.0, 1.0, 0.9, 0.7, 0.0)     # la escala de 16 px de la luminancia no se toca: ahí ya es cielo real
 RAZON_RUIDO_MAX = 0.7                   # el ruido de una escala no pasa de 0,7 veces el de la anterior: lo demás es señal
+# Vecindario (a la resolución de cada escala) donde se busca el entorno con menos energía
+# para la guía extensa del color: con 9 una estrella suelta deja de contar igual que sin
+# guía, y la Pacman y M 57 conservan el color de la nebulosa (con 3 y 5 volvían los huecos)
+NUCLEO_GUIA_EXTENSA = np.ones((9, 9), np.uint8)
 
 
 def _caja2(img, n):
@@ -979,16 +990,19 @@ def reducir_ruido(rgb, fuerza, progreso=None):
             return _caja2(cv2.resize(cuadrados, tam(f), interpolation=cv2.INTER_AREA), 5 if ancha else 3)
         return _caja2(cuadrados, 2 * ANCHOS_ENERGIA[j] + 1 if ancha else ANCHOS_ENERGIA[j])
 
-    def ganancia(wj, j, sig, umbral):
+    def ganancia_de(e, j, sig, umbral):
         """
         Wiener local, a la resolución de la escala: 1 donde la energía del entorno
-        supera de largo la del ruido (umbral² sigma² por el nivel local), 0 donde
-        es solo ruido.
+        `e` supera de largo la del ruido (umbral² sigma² por el nivel local), 0
+        donde es solo ruido.
         """
-        r = nivel[REDUCCION_ESCALA[j]] / np.maximum(energia(cv2.multiply(wj, wj), j), 1e-20)
+        r = nivel[REDUCCION_ESCALA[j]] / np.maximum(e, 1e-20)
         r *= -((umbral * sig) ** 2)
         r += 1.0
         return np.clip(r, 0.0, 1.0, out=r)
+
+    def ganancia(wj, j, sig, umbral):
+        return ganancia_de(energia(cv2.multiply(wj, wj), j), j, sig, umbral)
 
     def ganancia_huecos(wj, j, sig, umbral, g):
         """
@@ -1040,17 +1054,34 @@ def reducir_ruido(rgb, fuerza, progreso=None):
             sig_l, sig_r, sig_b = (min(s, RAZON_RUIDO_MAX * a) for s, a in zip((sig_l, sig_r, sig_b), anterior))
         anterior = (sig_l, sig_r, sig_b)
 
-        guia = ganancia(wL, j, sig_l, 1.5)                # dónde tiene estructura la luminancia
+        energia_L = energia(cv2.multiply(wL, wL), j)
+        guia = ganancia_de(energia_L, j, sig_l, 1.5)      # dónde tiene estructura la luminancia
         if PESO_LUMINANCIA[j] > 0:
             umbral = k * PESO_LUMINANCIA[j]
-            g = ganancia(wL, j, sig_l, umbral)
+            g = ganancia_de(energia_L, j, sig_l, umbral)
             sumar(oL, wL, g, cantidad, huecos=ganancia_huecos(wL, j, sig_l, umbral, g))
         else:
             oL += wL
+        # La guía con la energía más baja de los entornos vecinos: una estrella suelta no
+        # la sube (algún vecino ya no la ve) y una nebulosa o un cúmulo denso sí
+        guia_extensa = ganancia_de(cv2.erode(energia_L, NUCLEO_GUIA_EXTENSA), j, sig_l, 1.5)
         for wC, oC, sig in ((wR, oR, sig_r), (wB, oB, sig_b)):
             g = ganancia(wC, j, sig, k_color)
-            np.maximum(g, guia, out=g)
-            sumar(oC, wC, g, cantidad_color)
+            np.maximum(g, guia_extensa, out=g)
+            # Donde hay estructura de luminancia el color la sigue: beta = <wC wL> / <wL²>
+            # en el entorno es el color de esa estructura (el de una estrella rojiza es
+            # proporcional a su luz) y el ruido de color, que no se parece a la luminancia,
+            # no entra. El resto del color (wC - modelo) pasa según su propia ganancia o,
+            # dentro de una nebulosa, según la guía extensa, como antes de nov-2026.
+            modelo = energia(cv2.multiply(wC, wL), j)
+            modelo /= np.maximum(energia_L, 1e-20)
+            np.clip(modelo, -1.0, 2.0, out=modelo)
+            modelo *= guia
+            if modelo.shape != wL.shape:
+                modelo = cv2.resize(modelo, (w, h), interpolation=cv2.INTER_LINEAR)
+            modelo *= wL
+            sumar(oC, wC - modelo, g, cantidad_color)
+            oC += modelo
         log.debug("ruido escala %d: sigma L %.3f, R-L %.3f, B-L %.3f", j + 1, sig_l, sig_r, sig_b)
         if progreso:
             try:
@@ -1067,7 +1098,7 @@ def reducir_ruido(rgb, fuerza, progreso=None):
     return out
 
 
-def suavizar_fondo_sin_estrellas(rgb, fuerza, escala_imagen=1.0, sigma_px=128.0):
+def suavizar_fondo_sin_estrellas(rgb, fuerza, escala_imagen=1.0, sigma_px=128.0, con_estrellas=False):
     """
     rgb: (H, W, 3) float lineal (ADU), ya con el ruido reducido. Para la imagen SIN
     estrellas (estrellas_aparte.py): al quitarlas aparece un moteado de gran
@@ -1079,15 +1110,24 @@ def suavizar_fondo_sin_estrellas(rgb, fuerza, escala_imagen=1.0, sigma_px=128.0)
       - el COLOR (cada canal respecto a la luminancia) se suaviza con una
         gaussiana de `sigma_px` píxeles: el fondo queda de un tinte uniforme;
       - los HUECOS de la luminancia (lo que queda por debajo de su media a gran
-        escala) se rellenan: en el cielo no hay detalles oscuros, un hueco es
-        ruido o una sombra de polvo; lo que sobresale (nebulosidad débil) se deja.
-    fuerza 0..1 (la de la reducción de ruido).
+        escala) se rellenan: un hueco poco profundo es ruido o una sombra de
+        polvo; lo que sobresale (nebulosidad débil) se deja. Los huecos hondos
+        (más de PROFUNDIDAD_RUIDO sigmas de la propia escala) son nebulosas
+        oscuras y se respetan: sin ese límite se borraban las de la Trompa de
+        Elefante (IC 1396, 13-nov-2026).
+    fuerza 0..1 (la de la reducción de ruido): a partir de FUERZA_CIELO_PLENA
+    el cielo se limpia del todo; la fuerza solo gradúa el grano fino.
+    con_estrellas: para la foto normal. Solo los huecos (el color de cada
+    estrella no se puede promediar con el del cielo) y solo a la escala
+    intermedia, donde está el moteado: a la grande, que sin estrellas se lleva
+    las sombras de polvo, están también las nebulosas oscuras.
     """
     fuerza = float(np.clip(fuerza, 0, 1))
     rgb = np.asarray(rgb, dtype=np.float32)
     h, w = rgb.shape[:2]
     if fuerza <= 0 or min(h, w) < 64:
         return rgb
+    fuerza = min(1.0, fuerza / FUERZA_CIELO_PLENA)
     L = rgb.mean(axis=2)
     m, sigma = estadistica_fondo(L)
     if sigma <= 0:
@@ -1123,15 +1163,27 @@ def suavizar_fondo_sin_estrellas(rgb, fuerza, escala_imagen=1.0, sigma_px=128.0)
     peso = (fuerza * np.exp(-senal * senal)).astype(np.float32)
     # Color
     cociente = rgb / np.maximum(L, 1e-3)[..., None]
-    suave = gran_escala(cociente)
-    cociente += (suave - cociente) * peso[..., None]
+    if not con_estrellas:
+        suave = gran_escala(cociente)
+        cociente += (suave - cociente) * peso[..., None]
     # Huecos de la luminancia, a dos escalas: la grande (sombras de polvo, viñeteo) y
     # una intermedia (el moteado de 30-100 px que el contraste local, CLAHE, convierte
     # en celdas oscuras al guardar a resolución completa)
     L2 = L.astype(np.float32)
-    for s_hueco in (s / 4.0, s):
-        B = gran_escala(L2, s_hueco)
-        hueco = np.minimum(L2 - B, 0.0)
+    es_cielo = peso[::4, ::4] > 0.5 * fuerza
+    for s_hueco in ((s / 4.0,) if con_estrellas else (s / 4.0, s)):
+        d = L2 - gran_escala(L2, s_hueco)
+        hueco = np.minimum(d, 0.0)
+        # Profundidad de la zona (no del píxel suelto), en sigmas robustas de esta escala
+        # medidas en el cielo: hasta PROFUNDIDAD_RUIDO se rellena entero y desde
+        # PROFUNDIDAD_REAL nada
+        muestra = d[::4, ::4][es_cielo]
+        if muestra.size >= 100:
+            sig_h = float(np.median(np.abs(muestra - np.median(muestra)))) * 1.4826 + 1e-9
+            zona = cv2.GaussianBlur(cv2.resize(d, (pw, ph), interpolation=cv2.INTER_AREA), (0, 0), 1.0)
+            zona = cv2.resize(zona, (w, h), interpolation=cv2.INTER_LINEAR)
+            hondo = np.clip((-zona / sig_h - PROFUNDIDAD_RUIDO) / (PROFUNDIDAD_REAL - PROFUNDIDAD_RUIDO), 0.0, 1.0)
+            hueco *= 1.0 - hondo
         L2 = (L2 - hueco * peso).astype(np.float32)
     return (cociente * L2[..., None]).astype(np.float32)
 
@@ -2317,6 +2369,16 @@ def reducir_estrellas(capa, tamano, cat=None, halo=HALO_ESTRELLAS):
 REJILLA_SIN_ESTRELLAS = 32
 SIGMA_SUAVIZADO_SIN_ESTRELLAS = 128.0
 CIELO_SIGMAS = 3.0            # sigmas del fondo a partir de las que un píxel no cuenta para medir el cielo
+# Fuerza de la reducción de ruido desde la que el cielo se limpia del todo (color y huecos de
+# gran escala). Antes iba en proporción a la fuerza: con 0,25 los huecos se rellenaban al 25 %
+# y el apilado de la Hélice (17 min, 5 veces el ruido blanco a 16-32 px) quedaba moteado
+FUERZA_CIELO_PLENA = 0.25
+# Profundidad de un hueco del cielo, en sigmas robustas de su escala: hasta la primera es
+# moteado y se rellena entero; desde la segunda es una nebulosa oscura y no se toca. Medido
+# el 16-nov-2026 en zonas de 4 px: el moteado de la Hélice no pasa de 2,4 sigmas y las
+# nebulosas oscuras de la Trompa de Elefante llegan a 4,7 (y se borraban sin este límite)
+PROFUNDIDAD_RUIDO = 2.5
+PROFUNDIDAD_REAL = 4.5
 
 
 def pantalla(objeto, estrellas):
@@ -2507,9 +2569,11 @@ def _estirar_objeto(cubo_lineal, ajustes, escala, progreso, balance, sin_estrell
 
     avisar("ruido")
     rgb = reducir_ruido(rgb, ajustes.get("ruido", 0.5), progreso=lambda f: avisar("ruido", f))
-    if sin_estrellas:
-        rgb = suavizar_fondo_sin_estrellas(rgb, ajustes.get("ruido", 0.5), escala_imagen=escala,
-                                           sigma_px=SIGMA_SUAVIZADO_SIN_ESTRELLAS)
+    # Moteado de gran escala del cielo: sin estrellas, color y huecos; con ellas, solo los
+    # huecos (con una curva que suba el negro se veían como zonas oscuras de 20-40 px por
+    # todo el cielo: Hélice del 13-nov-2026, con y sin estrellas aparte)
+    rgb = suavizar_fondo_sin_estrellas(rgb, ajustes.get("ruido", 0.5), escala_imagen=escala,
+                                       sigma_px=SIGMA_SUAVIZADO_SIN_ESTRELLAS, con_estrellas=not sin_estrellas)
 
     # Nitidez (deconvolución) en lineal, con el ruido ya reducido y antes de
     # estirar; 0 (lo normal) no hace nada. Sin estrellas no hay con qué medir la PSF.

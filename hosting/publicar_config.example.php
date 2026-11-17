@@ -23,12 +23,16 @@
 //           hosting con registro abierto: el nombre del ScopePower de quien lo administra.
 // 'contacto': correo del dueño del hosting. Sale en el pie de cada galería («Informar de un problema»)
 //           para que quien vea algo que no debería estar pueda avisar. Vacío: no sale nada.
+// 'url_galeria': dirección pública de la carpeta galeria/ (https://tu-dominio/galeria). Con ella el
+//           endpoint escribe las direcciones completas de la vista previa de los enlaces (la foto que
+//           sale al compartir en WhatsApp). Vacío: se deduce de la propia petición.
 //
 // Quién escribe dónde: un nombre registrado desde la app solo escribe .jpg y .json en galeria/<nombre>/,
 // y cada fichero se comprueba al llegar. Lo común (galeria/_comun/<versión>/: motor del planetario,
 // traducciones, JS, CSS y las páginas del visor) y el .htaccess de galeria/ solo los sube el dueño (las
 // claves de 'claves' y los nombres de 'duenos'): su ScopePower lo sube al sincronizar. Las páginas de cada
-// galería (index.html, planetario.html y en/) las copia el endpoint desde _comun: nadie sube HTML.
+// galería (index.html, planetario.html y en/) las copia el endpoint desde _comun, y escribe f/<id>.html
+// para cada foto (su vista previa al compartirla): nadie sube HTML.
 
 return [
     'registro_abierto' => true,
@@ -46,4 +50,5 @@ return [
         // 'mi-nombre',
     ],
     'contacto' => '',
+    'url_galeria' => '',   // p. ej. 'https://tu-dominio/galeria'
 ];

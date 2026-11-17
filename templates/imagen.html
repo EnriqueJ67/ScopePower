@@ -4,15 +4,16 @@
 {% block title %}{{ _("Cámara") }}{% endblock %}
 
 {% block content %}
-<div class="pagina-cabecera">
-    <div>
-        <h1 class="pagina-titulo">{{ _("Cámara") }}</h1>
-        <p class="pagina-sub" id="sub-foto">{{ _("Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.") }}</p>
-    </div>
-</div>
-
 <!-- En pantalla ancha: foto a la izquierda, botones y ajustes a la derecha -->
-<div class="grid-2 ancha foto-layout">
+<div class="grid-2 ancha foto-layout con-cabecera">
+    <!-- Cabecera dentro de la rejilla: en dos columnas queda encima de la foto y las pestañas a su altura -->
+    <div class="pagina-cabecera">
+        <div>
+            <h1 class="pagina-titulo">{{ _("Cámara") }}</h1>
+            <p class="pagina-sub" id="sub-foto">{{ _("Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.") }}</p>
+        </div>
+    </div>
+
     <div class="foto-imagen">
         <div class="visor">
             <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" alt="{{ _('Última foto') }}">
@@ -26,7 +27,7 @@
                 <div id="puntero" class="puntero"><span></span></div>
             </div>
             <!-- Pad encima de la foto (opción del panel "Mover el telescopio"): el mismo pad del panel, movido
-                 aquí por JS, para mover el telescopio viendo la foto sin plegar los demás paneles -->
+                 aquí por JS, para mover el telescopio viendo la foto desde cualquier pestaña -->
             <div id="pad-flotante" class="pad-flotante" hidden>
                 <button type="button" class="pad-lado" onclick="cambiarLadoPad()" title="{{ _('Pasar el pad a la otra esquina') }}">⇆</button>
             </div>
@@ -39,17 +40,12 @@
         </div>
     </div>
 
-    <!-- Paneles plegables, en el orden que elija el usuario (se guarda en config.ini vía /preferencias, como en Apilado) -->
-    <div class="foto-controles" id="paneles-foto">
+    <!-- Paneles de controles: una pestaña por panel y uno solo a la vista (static/js/paneles.js), como en Apilado -->
+    <div class="foto-controles paneles" id="paneles-foto" data-paneles="foto_paneles" data-ayudas>
         <section class="card panel" data-panel="captura">
-            <div class="panel-header" onclick="alternarPanel(this)">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-foto"/></svg>{{ _("Captura") }}</h3>
                 <span id="captura-sub" class="panel-sub"></span>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
             <div class="acciones-grid">
@@ -143,16 +139,14 @@
         </section>
 
         <!-- ─── Modo día: exposición automática para Sol (con filtro), Luna y paisaje ─── -->
-        <section class="card panel" data-panel="dia" id="card-dia">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="dia" data-pestana="{{ _('Día') }}" id="card-dia">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>{{ _("Modo día") }}</h3>
-                <!-- El interruptor va en la cabecera para poder activarlo con el panel plegado -->
+                <!-- El interruptor va en la cabecera: con el modo apagado el cuerpo del panel no se ve -->
                 <label class="switch" style="flex: none;" onclick="event.stopPropagation()"><input type="checkbox" id="modo-dia" onchange="cambiarModoDia()"> {{ _("Activado") }}</label>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
+            </div>
+            <div id="dia-apagado" class="panel-cuerpo">
+                <p class="card-sub" style="margin: 0;">{{ _("Actívalo para fotografiar el Sol (con filtro), la Luna o un paisaje: la app busca sola la exposición.") }}</p>
             </div>
             <div id="dia-cuerpo" class="panel-cuerpo" hidden>
                 <p class="card-sub">{{ _("La app busca sola la exposición, de microsegundos a segundos, con la ganancia al mínimo y sin darks. Elige qué vas a fotografiar:") }}</p>
@@ -222,17 +216,12 @@
 
         <!-- ─── Timelapse (antes al final del panel Modo día, donde costaba encontrarlo). Solo de día. ─── -->
         <section class="card panel" data-panel="timelapse" id="card-timelapse" hidden>
-            <div class="panel-header" onclick="alternarPanel(this)">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-reloj"/></svg>{{ _("Timelapse") }}</h3>
                 <span class="panel-sub">{{ _("de día") }}</span>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
-                <p class="card-sub">{{ _("Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día.") }}</p>
+                <p class="ayuda" data-ayuda-panel>{{ _("Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día.") }}</p>
                 <div class="dos-campos">
                     <div class="form-group">
                         <label for="tl-fotos">{{ _("Número de fotos") }}</label>
@@ -266,17 +255,12 @@
 
         <!-- ─── Vídeo: grabaciones SER del modo en vivo y apilado de los mejores fotogramas (apilado_video.py). Solo de día. ─── -->
         <section class="card panel" data-panel="video" id="card-video" hidden>
-            <div class="panel-header" onclick="alternarPanel(this)">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-disco"/></svg>{{ _("Vídeo") }}</h3>
                 <span class="panel-sub" id="video-sub">{{ _("de día") }}</span>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
-                <p class="card-sub">{{ _("Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto.") }}</p>
+                <p class="ayuda" data-ayuda-panel>{{ _("Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto.") }}</p>
                 <div class="form-group">
                     <label for="video-duracion">{{ _("Duración de la grabación") }}</label>
                     <select id="video-duracion" class="form-control">
@@ -300,15 +284,10 @@
 
         <!-- ─── Giro de la foto: cómo se enseña y se guarda en JPG lo que da la cámara (giro_camara.py).
              Vale para todo lo de esta pantalla; el FITS queda sin girar ─── -->
-        <section class="card panel" data-panel="giro">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="giro" data-pestana="{{ _('Giro') }}">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-refrescar"/></svg>{{ _("Giro de la foto") }}</h3>
                 <span class="panel-sub" id="giro-v"></span>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
                 <div class="segmentado" id="giro-seg" style="width: 100%;">
@@ -332,15 +311,10 @@
 
         <!-- ─── Pad para mover la montura: centrar a mano el Sol o la Luna mirando la foto
              (el mismo de Control manual: templates/_pad.html y static/js/pad.js) ─── -->
-        <section class="card panel" data-panel="pad">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="pad" data-pestana="{{ _('Mover') }}">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-control"/></svg>{{ _("Mover el telescopio") }}</h3>
                 <span class="panel-sub">{{ _("Sol o Luna a mano") }}</span>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo pad-cuerpo">
                 <div class="pad-opcion">
@@ -351,14 +325,9 @@
             </div>
         </section>
 
-        <section class="card panel" data-panel="vista-previa">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="vista-previa" data-pestana="{{ _('Revelar') }}">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>{{ _("Revelado") }}</h3>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
                 <!-- Revelado "como el apilado": la misma foto por procesado.py con el preset de Apilado
@@ -379,7 +348,6 @@
 </div>
 
 <style>
-    .foto-controles { display: flex; flex-direction: column; gap: 12px; }
     .dos-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
     .dia-disco { padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
     .tl-lista { list-style: none; padding: 0; margin: 0; }
@@ -387,7 +355,6 @@
     .tl-lista img { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: #000; flex: none; }
     .tl-lista .nombre { flex: 1; min-width: 0; }
     .tl-lista .nombre small { display: block; color: var(--text-3); }
-    .foto-controles .card + .card { margin-top: 0; }
     /* Pad dentro del panel: más pequeño que en Control manual, del ancho de la columna como mucho */
     .pad-cuerpo { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 4px; }
     .pad-cuerpo .pad { width: min(100%, 300px); height: auto; aspect-ratio: 1 / 1; }
@@ -435,6 +402,7 @@
     }
 </style>
 
+<script src="{{ url_for('static', filename='js/paneles.js') }}?v={{ VERSION }}"></script>
 <script src="{{ url_for('static', filename='js/luna_anotada.js') }}?v=3"></script>
 <script src="{{ url_for('static', filename='js/darks.js') }}?v={{ VERSION }}"></script>
 <script>
@@ -559,67 +527,9 @@
         pintarBotonesFoto();
     }
 
-    // ——— Paneles de la columna de controles: orden y plegado, guardados en config.ini (foto_paneles) ———
-    //     Mismo esquema que la columna lateral de Apilado. El pad empieza plegado: se usa de tarde en tarde.
-    let prefPaneles = { orden: [], plegados: ["pad"] };
-    function aplicarPaneles() {
-        const cont = document.getElementById("paneles-foto");
-        const paneles = Array.from(cont.querySelectorAll(".panel"));
-        const orden = prefPaneles.orden || [];
-        // Un panel que no esté en el orden guardado (añadido después, como Timelapse) se queda detrás
-        // del que le precede en la página, para que no acabe delante de "Modo día"
-        const posiciones = new Map();
-        let anterior = -0.5;
-        paneles.forEach((p, k) => {
-            const i = orden.indexOf(p.dataset.panel);
-            const pos = i < 0 ? anterior + 0.001 * (k + 1) : i;
-            posiciones.set(p, pos);
-            if (i >= 0) anterior = i;
-        });
-        paneles.sort((a, b) => posiciones.get(a) - posiciones.get(b));
-        const enlace = cont.querySelector("a.btn-block");         // el enlace a Calibración se queda al final
-        paneles.forEach(p => {
-            cont.insertBefore(p, enlace);
-            p.classList.toggle("plegado", (prefPaneles.plegados || []).includes(p.dataset.panel));
-        });
-        paneles.forEach((p, i) => {
-            p.querySelector(".panel-subir").disabled = i === 0;
-            p.querySelector(".panel-bajar").disabled = i === paneles.length - 1;
-        });
-    }
-    // Se guarda con un pequeño retardo: varios toques seguidos hacen una sola escritura
-    let guardadoPaneles = null;
-    function guardarPaneles() {
-        const paneles = Array.from(document.querySelectorAll("#paneles-foto .panel"));
-        prefPaneles = {
-            orden: paneles.map(p => p.dataset.panel),
-            plegados: paneles.filter(p => p.classList.contains("plegado")).map(p => p.dataset.panel)
-        };
-        clearTimeout(guardadoPaneles);
-        guardadoPaneles = setTimeout(() => guardarPreferencias({ foto_paneles: prefPaneles }), 400);
-    }
-    function moverPanel(boton, delta) {
-        const panel = boton.closest(".panel");
-        const paneles = Array.from(document.querySelectorAll("#paneles-foto .panel"));
-        const i = paneles.indexOf(panel), j = i + delta;
-        if (j < 0 || j >= paneles.length) return;
-        [paneles[i], paneles[j]] = [paneles[j], paneles[i]];
-        prefPaneles.orden = paneles.map(p => p.dataset.panel);
-        aplicarPaneles();
-        guardarPaneles();
-    }
-    function alternarPanel(el) {
-        el.closest(".panel").classList.toggle("plegado");
-        guardarPaneles();
-    }
-    function desplegarPanel(nombre) {
-        const p = document.querySelector(`#paneles-foto .panel[data-panel="${nombre}"]`);
-        if (p && p.classList.contains("plegado")) { p.classList.remove("plegado"); guardarPaneles(); }
-    }
-
     // ——— Pad encima de la foto (preferencia foto_pad_flotante; por defecto sí) ———
     //     Se mueve el mismo elemento del pad (static/js/pad.js ya le ha puesto sus eventos): así se usa
-    //     viendo la foto y con el panel Captura a la vista, sin plegar ni desplegar paneles.
+    //     viendo la foto y con el panel Captura a la vista, sin cambiar de pestaña.
     let padSobreFoto = true;
     function aplicarPadSobreFoto() {
         const pad = document.querySelector(".control-pad");
@@ -634,7 +544,7 @@
         document.getElementById("pad-sobre-foto").checked = padSobreFoto;
         document.getElementById("pad-sobre-foto-ayuda").textContent = padSobreFoto
             ? _("El pad está en una esquina de la foto (⇆ lo cambia de esquina). Aquí quedan la velocidad y el sentido.")
-            : _("El pad está aquí abajo. Actívalo para tenerlo sobre la foto y no tener que plegar paneles.");
+            : _("El pad está aquí abajo. Actívalo para tenerlo sobre la foto y usarlo desde cualquier pestaña.");
     }
     function cambiarPadSobreFoto() {
         padSobreFoto = document.getElementById("pad-sobre-foto").checked;
@@ -693,7 +603,10 @@
         document.getElementById("continuo-panel").hidden = !modoContinuo;
         document.getElementById("continuo-ayuda").textContent = ayudaGuardar();
         document.getElementById("btn-sync").hidden = modoDia;     // de día no hay plate solving
-        document.getElementById("revelar-bloque").hidden = modoDia;  // ni revelado como el apilado
+        document.getElementById("revelar-bloque").hidden = modoDia;  // ni revelado como el apilado:
+        document.querySelector('#paneles-foto .panel[data-panel="vista-previa"]').hidden = modoDia;   // de día su pestaña sobra
+        document.getElementById("dia-apagado").hidden = modoDia;
+        Paneles.marcar("dia", modoDia ? "aviso" : "");   // se ve desde cualquier pestaña que el modo día está puesto
         // "Apunta aquí" cambia de método con el modo: el puntero se quita al cambiar
         if (punteroActivo && punteroModoDia !== modoDia) { punteroActivo = false; pintarModoPuntero(); }
         pintarBotonesFoto();
@@ -708,7 +621,7 @@
     function cambiarModoDia() {
         modoDia = document.getElementById("modo-dia").checked;
         pintarModoDia();
-        if (modoDia) desplegarPanel("dia");
+        if (modoDia) Paneles.activar("dia");
         guardarPreferencias({ modo_dia: modoDia ? "on" : "off" });
         if (!modoDia && seguimientoCambiado) {
             seguimientoCambiado = false;
@@ -885,6 +798,7 @@
     }
     function pintarTimelapse(e) {
         const activo = e.en_curso;
+        Paneles.marcar("timelapse", activo ? "activo" : "");
         document.getElementById("btn-tl").hidden = activo;
         document.getElementById("btn-tl-parar").hidden = !activo;
         document.getElementById("btn-foto").disabled = activo;
@@ -1004,8 +918,7 @@
 
     // Preferencias guardadas (modo día activado y objetivo) y últimas exposiciones
     fetch("/preferencias").then(r => r.json()).then(p => {
-        if (p.foto_paneles && Array.isArray(p.foto_paneles.orden)) prefPaneles = p.foto_paneles;
-        aplicarPaneles();
+        Paneles.preferencia(p.foto_paneles);      // pestaña abierta (static/js/paneles.js)
         padSobreFoto = p.foto_pad_flotante !== "off";
         aplicarPadSobreFoto();
         if (p.foto_dia_objetivo && NOMBRE_OBJETIVO[p.foto_dia_objetivo]) objetivoDia = p.foto_dia_objetivo;
@@ -1017,7 +930,7 @@
         modoDia = p.modo_dia === "on";
         pintarModoDia();
         pintarModoContinuo();
-    }).catch(() => { aplicarPaneles(); aplicarPadSobreFoto(); pintarModoDia(); pintarModoContinuo(); });
+    }).catch(() => { aplicarPadSobreFoto(); pintarModoDia(); pintarModoContinuo(); });
     fetch("/foto-dia/estado").then(r => r.json()).then(e => {
         ultimasDia = e.ultimas || {}; pintarUltimasDia();
         if (e.en_curso && !sondeoDia) { document.getElementById("btn-foto").disabled = true; sondeoDia = setInterval(sondearFotoDia, 700); }
@@ -1199,6 +1112,7 @@
         const btn = document.getElementById("btn-grabar");
         const g = e.grabacion || null;
         grabando = !!g;
+        Paneles.marcar("video", grabando ? "activo" : "");
         btn.hidden = !(vivoActivo && e.fase === "en vivo" && modoDia) && !grabando;   // el vídeo es de día (Sol, Luna)
         btn.className = "btn " + (grabando ? "btn-danger" : "btn-secondary");
         btn.innerHTML = grabando ? '<svg><use href="#i-stop"/></svg>' + _("Parar la grabación") : '<svg><use href="#i-disco"/></svg>' + _("Grabar vídeo");

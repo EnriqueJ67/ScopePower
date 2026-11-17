@@ -262,6 +262,9 @@ def caso_medicion_y_ajuste(lat=40.0, lon=-3.7, err_alt=15.0, err_az=-10.0, dec0=
                   f"{real[0]:+.2f}′/{real[1]:+.2f}′ · total {a['total_arcmin']:.2f}′ · fiable {a['fiable']} cond {a['cond']}")
         if not acierta:
             ok = False
+        if a.get("repetir_sugerido"):
+            print(f"  ❌ {nombre}: propone repetir la medición con un error inicial de solo {m['total_arcmin']:.1f}′")
+            ok = False
         if a["dentro_tolerancia"] and real[2] < TOLERANCIA_AJUSTE + TOLERANCIA_MEDICION:
             ciclos_hasta_tolerancia = ciclo + 1
             break
@@ -284,6 +287,64 @@ def caso_medicion_y_ajuste(lat=40.0, lon=-3.7, err_alt=15.0, err_az=-10.0, dec0=
     ok &= bien
     print(f"  {'✅' if bien else '❌'} {nombre}: resultado «{e['resultado']}», seguimiento {montura.Tracking}, ejes {montura._v}")
     return ok
+
+
+def caso_error_grande(verboso=False):
+    """
+    Error inicial de grados (como la primera noche de campo, 16-nov-2026): al bajar de
+    REPETIR_AL_BAJAR_DE_ARCMIN el asistente propone repetir la medición, una sola vez; tras repetirla
+    (error inicial ya pequeño) no lo vuelve a proponer.
+    """
+    montura = montar(err_alt=180.0, err_az=60.0)
+    trabajo = pe.TrabajoPuestaEstacion()
+    banco = Banco(montura, trabajo)
+    trabajo.iniciar(montura, montura, conf=conf_prueba(), resolver=banco.resolver, capturar=banco.capturar)
+    if not esperar(lambda: trabajo.estado()["medicion"] is not None or trabajo.estado()["terminado"], 90):
+        print("  ❌ error grande: la medición no terminó")
+        trabajo.cancelar()
+        return False
+    total0 = trabajo.estado()["medicion"]["total_arcmin"]
+    ultimo_n, sugerido_en, sugerencias, antes = 0, None, 0, None
+    for ciclo in range(12):
+        if not esperar(lambda: (trabajo.estado()["ajuste"] or {}).get("n", 0) > ultimo_n or trabajo.estado()["terminado"], 30):
+            break
+        e = trabajo.estado()
+        if e["terminado"]:
+            break
+        a = e["ajuste"]
+        ultimo_n = a["n"]
+        if verboso:
+            print(f"     ajuste {a['n']}: total {a['total_arcmin']:.1f}′ · repetir {a['repetir_sugerido']}")
+        if a["repetir_sugerido"]:
+            sugerencias += 1
+            if sugerido_en is None:
+                sugerido_en, antes = a["total_arcmin"], [x["codigo"] for x in e["avisos"]]
+            if sugerencias >= 2:
+                break
+        montura.corregir_segun(a["err_alt_arcmin"], a["err_az_arcmin"], 0.6)
+        banco.permiso.set()
+    bien = (total0 > pe.REPETIR_SI_INICIAL_ARCMIN and sugerido_en is not None
+            and sugerido_en <= pe.REPETIR_AL_BAJAR_DE_ARCMIN and "repetir" in (antes or []) and sugerencias >= 2)
+    print(f"  {'✅' if bien else '❌'} error grande ({total0:.0f}′): propone repetir la medición al bajar a "
+          f"{sugerido_en if sugerido_en is None else round(sugerido_en, 1)}′ y lo mantiene; aviso {antes}")
+    # Repetir: la nueva medición parte de un error pequeño y ya no lo propone
+    trabajo.repetir()
+    banco.permiso.set()
+    nueva = (esperar(lambda: trabajo.estado()["medicion"] is None, 30)
+             and esperar(lambda: trabajo.estado()["fase"] == "ajustando" and trabajo.estado()["medicion"] is not None, 90))
+    e = trabajo.estado()
+    total1 = (e["medicion"] or {}).get("total_arcmin")
+    banco.permiso.set()
+    llega = esperar(lambda: trabajo.estado()["ajuste"] is not None, 30)
+    e = trabajo.estado()
+    sin_propuesta = llega and not e["ajuste"]["repetir_sugerido"] and "repetir" not in [x["codigo"] for x in e["avisos"]]
+    real = montura.error_real()
+    bien2 = nueva and total1 is not None and abs(total1 - real[2]) < 1.0 and sin_propuesta
+    print(f"  {'✅' if bien2 else '❌'} error grande: la nueva medición da {total1}′ (real {real[2]:.2f}′) y ya no propone repetir")
+    trabajo.terminar()
+    banco.permiso.set()
+    esperar(lambda: trabajo.estado()["terminado"], 20)
+    return bien and bien2
 
 
 def caso_cancelacion():
@@ -346,6 +407,7 @@ def main():
         caso_medicion_y_ajuste(verboso=args.verboso),
         caso_cancelacion(),
         caso_inicio_en_el_polo(),
+        caso_error_grande(verboso=args.verboso),
         caso_medicion_y_ajuste(lat=-33.9, lon=151.2, err_alt=15.0, err_az=10.0, dec0=-60.0, nombre="sur", verboso=args.verboso),
     ]
     ok = all(resultados)

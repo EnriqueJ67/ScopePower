@@ -237,6 +237,26 @@ input[type="number"].corto { width: 84px; text-align: center; display: inline-bl
 input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; min-height: 0; margin: 0 8px 0 0; accent-color: var(--accent); vertical-align: -4px; cursor: pointer; }
 input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px; margin: 0; }
 .ayuda { color: var(--text-3); font-size: 13px; margin-top: 4px; display: block; }
+/* Explicaciones plegadas tras un botón ⓘ junto al nombre del control (static/js/ayudas.js) */
+.ayuda.plegada { display: none; }
+.ayuda-btn { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 6px; padding: 0; flex: none;
+             border: 0; border-radius: 50%; background: transparent; color: var(--text-3); cursor: pointer; vertical-align: -4px;
+             -webkit-tap-highlight-color: transparent; }
+.ayuda-btn svg { width: 18px; height: 18px; }
+/* Zona táctil de 44 px de ancho sin engordar el renglón (por arriba y por abajo, menos: debajo hay un deslizador) */
+.ayuda-btn::after { content: ""; position: absolute; inset: -8px -12px; }
+.ayuda-btn:hover { color: var(--text-2); }
+.ayuda-btn[aria-expanded="true"] { color: var(--accent-2); }
+.ayuda-suelta { display: flex; justify-content: flex-end; margin-top: 4px; }
+/* Dentro de un panel: «Más ajustes» (lo que casi nunca se toca, plegado), sus avisos y los controles que ahora no actúan */
+details.mas { margin-top: 10px; padding-top: 4px; border-top: 1px solid var(--border); }
+details.mas > summary { padding: 9px 0; }
+details.mas[open] > summary { margin-bottom: 4px; }
+.mas-marca { margin-left: 8px; font-size: 11.5px; padding: 1px 8px; }
+.inactivo { opacity: 0.4; }
+.nota-inactivo { font-size: 12.5px; color: var(--warn); margin: 0 0 8px; }
+.nota-inactivo.suave { color: var(--text-3); }
+.paneles .seccion-titulo { margin: 14px 0 8px; }
 .opcion { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-2); margin-bottom: 8px; cursor: pointer; color: var(--text); font-size: 15px; flex-wrap: wrap; }
 .opcion:has(input:checked) { border-color: var(--accent-2); background: var(--accent-soft); }
 .opcion:has(input:disabled) { opacity: 0.45; cursor: default; }
@@ -515,28 +535,78 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .pantalla-pill.activa { opacity: 0.55; font-size: 12px; padding: 3px 10px; }
 .pantalla-pill.discreta { opacity: 0.3; }
 
-/* ── Paneles plegables y ordenables (columna lateral de Apilado) ─────────── */
+/* ── Paneles de la columna de controles (Cámara, Apilado, editor de fotos) ───
+   Una fila de pestañas y un solo panel a la vista (static/js/paneles.js). Todo cuelga de
+   .paneles: el planetario tiene su propio .panel, que es otra cosa. */
 .panel { padding: 0; overflow: hidden; }
-.panel-header { display: flex; align-items: center; gap: 8px; padding: 12px 10px 12px 16px; cursor: pointer; user-select: none; }
-/* El título no se encoge; el subtítulo ocupa lo que sobra y se recorta con puntos suspensivos
-   (si el título pudiera encogerse, se partía en dos líneas y el subtítulo se le montaba encima) */
+.panel-header { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; padding: 12px 16px 10px; }
 .panel-header .card-title { flex: none; min-width: 0; margin-right: auto; }
-/* contain: inline-size → el subtítulo no cuenta como ancho mínimo de la columna (en móvil, un subtítulo largo ensanchaba la página) */
-.panel-sub { flex: 1 1 0; min-width: 0; contain: inline-size; font-size: 12.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
-.panel-botones { display: flex; gap: 2px; flex: none; }
-.panel-btn { width: 34px; height: 34px; border-radius: 9px; border: 0; background: transparent; color: var(--text-3); display: grid; place-items: center; cursor: pointer; padding: 0; }
-.panel-btn svg { width: 18px; height: 18px; }
-.panel-btn:hover { background: var(--surface-2); color: var(--text); }
-.panel-btn:disabled { opacity: 0.25; cursor: default; }
-/* Subir y bajar son flechas con palo (base.html); plegar es la «V», con fondo y separada por una
-   raya para no confundirla con ellas */
-.panel-btn.panel-plegar { background: var(--surface-2); color: var(--text-2); margin-left: 9px; position: relative; overflow: visible; }
-.panel-btn.panel-plegar::before { content: ""; position: absolute; left: -7px; top: 7px; bottom: 7px; width: 1px; background: var(--border); }
-.panel-btn.panel-plegar svg { transition: transform .2s; transform: rotate(90deg); }
-.panel.plegado .panel-btn.panel-plegar svg { transform: rotate(0deg); }
+/* El subtítulo (qué está haciendo el panel) va en su propio renglón bajo el título.
+   contain: inline-size → no cuenta como ancho mínimo de la columna (en móvil, uno largo ensanchaba la página) */
+.panel-sub { flex: 1 1 100%; min-width: 0; contain: inline-size; font-size: 12.5px; color: var(--text-3); }
+.panel-sub:empty { display: none; }
 .panel-cuerpo { padding: 0 16px 16px; }
-.panel.plegado .panel-cuerpo { display: none; }
-.panel.plegado .panel-sub { display: none; }
+/* Pie del panel: lo que debe quedar siempre a mano (Aplicar), fuera del cuerpo, que es lo que hace scroll */
+.panel-pie { padding: 10px 16px 12px; border-top: 1px solid var(--border); }
+.panel-pie .estado:empty { display: none; }
+
+/* (.columna.paneles: la columna lateral de Apilado y del editor trae su propio hueco entre tarjetas) */
+.paneles, .columna.paneles { display: flex; flex-direction: column; gap: 8px; min-width: 0; scroll-margin-top: calc(var(--header-h) + 8px); }
+.paneles .card + .card { margin-top: 0; }
+/* Antes de que arranque el script se ve el primer panel; después, el de la pestaña elegida */
+.paneles:not(.listo) > .panel ~ .panel { display: none; }
+.paneles.listo > .panel:not(.activo) { display: none; }
+
+.pestanas { display: grid; grid-template-columns: repeat(var(--pest-cols, 4), minmax(0, 1fr)); gap: 3px; padding: 3px; flex: none;
+            background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; }
+.pestana { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+           min-width: 0; min-height: 50px; padding: 5px 2px; border: 0; border-radius: 10px; background: transparent;
+           color: var(--text-2); font: inherit; font-size: 11.5px; font-weight: 600; line-height: 1.2; cursor: pointer;
+           -webkit-tap-highlight-color: transparent; user-select: none; }
+.pestana svg { width: 20px; height: 20px; flex: none; }
+.pestana span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pestana:hover { color: var(--text); }
+.pestana.activa { background: var(--surface-3); color: var(--text); box-shadow: var(--shadow-sm); }
+.pestana.activa svg { color: var(--accent-2); }
+/* Punto en la pestaña: su panel está haciendo algo aunque no se vea (plan en marcha, modo día…) */
+.pestana[data-marca]::after { content: ""; position: absolute; top: 5px; left: calc(50% + 9px); width: 8px; height: 8px; border-radius: 50%;
+                              background: var(--ok); box-shadow: 0 0 0 2px var(--surface-2); }
+.pestana[data-marca="aviso"]::after { background: var(--warn); }
+
+/* Lo que queda bajo la columna cuando la barra de navegación va abajo (en el lateral, nada) */
+:root { --hueco-barra: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+/* Dos columnas: la de controles se queda fija junto a la foto y, si el panel no cabe en el alto
+   de la pantalla, el scroll es solo de su cuerpo: las pestañas no se mueven de su sitio */
+@media (min-width: 760px) {
+    .paneles { position: sticky; top: calc(var(--header-h) + 12px); align-self: start;
+               /* --paneles-top: dónde empieza la columna ahora mismo (lo mide paneles.js al mover la página) */
+               max-height: max(320px, calc(100vh - var(--paneles-top, calc(var(--header-h) + 12px)) - 12px - var(--hueco-barra)));
+               max-height: max(320px, calc(100dvh - var(--paneles-top, calc(var(--header-h) + 12px)) - 12px - var(--hueco-barra))); }
+    .paneles > * { flex: none; }
+    .paneles.listo > .panel.activo { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; }
+    .paneles > .panel > .panel-header, .paneles > .panel > .panel-pie { flex: none; }
+    .paneles > .panel > .panel-cuerpo { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+}
+/* Cabecera de la página dentro de la rejilla (.con-cabecera): en dos columnas el título y sus botones
+   quedan encima de la foto y la columna de controles sube hasta arriba, con la fila de pestañas a la
+   altura del título (paneles.js la baja lo justo para que su borde inferior coincida con el de la
+   cabecera): el panel empieza a la altura de la foto */
+.con-cabecera > .pagina-cabecera { margin: 4px 0 0; }
+@media (min-width: 760px) {
+    .con-cabecera { grid-template-rows: auto 1fr; }
+    .con-cabecera > .pagina-cabecera { grid-column: 1; grid-row: 1; min-height: var(--alto-pestanas, 0px); margin: 0; }
+    .con-cabecera > .paneles { grid-column: 2; grid-row: 1 / span 2; gap: 14px; }
+}
+/* Una columna: la fila de pestañas va bajo la foto y se queda pegada bajo la cabecera al bajar */
+@media (max-width: 759.98px) {
+    .pestanas { position: sticky; top: calc(var(--header-h) + env(safe-area-inset-top) + 4px); z-index: 20; box-shadow: 0 0 0 5px var(--bg), var(--shadow-sm); }
+}
+/* Móvil apaisado: un solo renglón, sin letra */
+@media (max-height: 500px) and (orientation: landscape) {
+    .pestanas { grid-template-columns: repeat(var(--pest-n, 4), minmax(0, 1fr)); }
+    .pestana { min-height: 40px; }
+    .pestana span { display: none; }
+}
 
 /* ── Pad táctil para mover la montura (templates/_pad.html, static/js/pad.js) ──
    Lo usan el control manual y el panel "Mover el telescopio" de la Foto de prueba */
@@ -741,6 +811,7 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 }
 @media (min-width: 900px) and (min-height: 500px) and (orientation: landscape) {
     body { padding-bottom: 0; padding-left: 92px; }
+    :root { --hueco-barra: 0px; }
     nav.barra {
         top: 0; bottom: 0; right: auto; width: 92px; height: auto;
         flex-direction: column; justify-content: flex-start; gap: 4px;

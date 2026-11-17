@@ -185,7 +185,11 @@
     }, { passive: true });
     $("lb-compartir").onclick = async () => {
         const f = visibles[abierta];
-        const enlace = location.href.split("#")[0] + "#" + encodeURIComponent(f.id);
+        // La página de la foto (f/<id>.html, la pone el hosting) lleva su imagen en la vista previa de WhatsApp;
+        // si el hosting aún no las escribe, la galería con la foto abierta
+        let enlace = location.href.split("#")[0] + "#" + encodeURIComponent(f.id);
+        const pagina = new URL(P.raiz + "/f/" + encodeURIComponent(f.id) + ".html", location.href).href;
+        try { if ((await fetch(pagina, { method: "HEAD", cache: "no-store" })).ok) enlace = pagina; } catch (e) {}
         if (navigator.share) {
             try { await navigator.share({ title: f.objeto + " · ScopePower", url: enlace }); return; } catch (e) { if (e.name === "AbortError") return; }
         }
