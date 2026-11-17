@@ -31,6 +31,10 @@
             <div id="pad-flotante" class="pad-flotante" hidden>
                 <button type="button" class="pad-lado" onclick="cambiarLadoPad()" title="{{ _('Pasar el pad a la otra esquina') }}">⇆</button>
             </div>
+            <!-- Disparador encima de la foto: sale cuando el botón «Hacer foto» no está a la vista (en el móvil queda
+                 debajo de la foto, o hay abierta otra pestaña) y hace lo mismo que él; con una foto o el continuo en
+                 marcha, lo para. Así se dispara sin mover el scroll -->
+            <button type="button" id="disparador" class="disparador" onclick="pulsarDisparador()" hidden aria-label="{{ _('Hacer foto') }}"><svg><use id="disparador-icono" href="#i-foto"/></svg></button>
         </div>
         <!-- Progreso de la exposición DEBAJO de la foto, en un hueco de alto fijo que siempre está: si
              apareciera sobre la foto (o empujara algo) en el continuo, la foto o el pad se moverían bajo el dedo -->
@@ -363,6 +367,16 @@
     /* Pad encima de la foto: pequeño, en una esquina y semitransparente hasta que se toca */
     .pad-flotante { position: absolute; right: 10px; bottom: 10px; z-index: 4; width: clamp(112px, 30%, 220px); transition: bottom .2s; }
     .pad-flotante.izquierda { right: auto; left: 10px; }
+    /* Disparador: abajo y en el centro de la foto, entre las dos esquinas que puede ocupar el pad */
+    .disparador { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 4; width: 60px; height: 60px; padding: 0;
+                  display: grid; place-items: center; border-radius: 50%; border: 3px solid rgba(255,255,255,0.85); background: rgba(0,0,0,0.45);
+                  color: #fff; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+                  transition: transform .1s, background .15s, opacity .2s; -webkit-tap-highlight-color: transparent; }
+    .disparador[hidden] { display: none; }
+    .disparador svg { width: 26px; height: 26px; }
+    .disparador:active { transform: translateX(-50%) scale(0.92); }
+    .disparador.parar { background: color-mix(in srgb, var(--err) 70%, transparent); }
+    .disparador:disabled { opacity: 0.4; cursor: default; }
     .visor-estado { height: 34px; padding-top: 6px; font-size: 12.5px; color: var(--text-2); visibility: hidden; font-variant-numeric: tabular-nums; }
     .visor-estado.activo { visibility: visible; }
     .visor-estado .progress { margin-top: 4px; }
@@ -1751,6 +1765,39 @@
 
     // Si ya hay una exposición en marcha (p. ej. desde otra pestaña), mostrarla
     fetch("/estado-captura").then(r => r.json()).then(c => { if (c.en_curso && !sondeo) sondeo = setInterval(sondearCaptura, 1000); }).catch(() => {});
+
+    // ——— Disparador encima de la foto ———
+    // No tiene lógica propia: pulsa el botón de la pestaña Captura que toque ahora (parar el continuo, cancelar
+    // la foto en curso o «Hacer foto», que ya sabe si es de día, de noche o continuo) y copia su estado. Solo se
+    // enseña cuando ninguno de esos botones está a la vista: en el móvil, o con otra pestaña abierta.
+    (function () {
+        const disparador = document.getElementById("disparador");
+        const botones = ["btn-continuo-parar", "btn-cancelar", "btn-foto"].map(id => document.getElementById(id));
+        const aLaVista = new Set();
+        const usable = b => !b.hidden && b.style.display !== "none" && !b.disabled;
+        const elQueToca = () => botones.find(usable) || null;
+        function pintar() {
+            const b = elQueToca();
+            const parar = !!b && b.id !== "btn-foto";
+            disparador.disabled = !b;
+            disparador.classList.toggle("parar", parar);
+            document.getElementById("disparador-icono").setAttribute("href", parar ? "#i-stop" : "#i-foto");
+            const texto = (b || document.getElementById("btn-foto")).textContent.trim();
+            disparador.title = texto;
+            disparador.setAttribute("aria-label", texto);
+        }
+        window.pulsarDisparador = function () { const b = elQueToca(); if (b) b.click(); };
+        const cambios = new MutationObserver(pintar);
+        botones.forEach(b => cambios.observe(b, { attributes: true, attributeFilter: ["disabled", "hidden", "style"], childList: true }));
+        pintar();
+        if (!("IntersectionObserver" in window)) { disparador.hidden = false; return; }
+        // El margen de abajo descuenta la barra de navegación del móvil, que tapa lo que queda detrás
+        const vista = new IntersectionObserver(entradas => {
+            entradas.forEach(e => { if (e.isIntersecting) aLaVista.add(e.target); else aLaVista.delete(e.target); });
+            disparador.hidden = aLaVista.size > 0;
+        }, { rootMargin: "0px 0px -84px 0px", threshold: 0.6 });
+        botones.forEach(b => vista.observe(b));
+    })();
 
     // ——— Llegada desde la guía «¿Qué quieres hacer hoy?» (static/js/guia.js) ———
     // El modo día, el objetivo y el modo enfoque ya vienen puestos del PC (preferencias y /enfoque): aquí solo
