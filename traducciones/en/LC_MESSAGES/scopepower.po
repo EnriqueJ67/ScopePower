@@ -681,6 +681,7 @@ msgstr "Align the mount, say it is already aligned or skip this step."
 msgid "Alineación"
 msgstr "Alignment"
 
+#. js
 #: templates/alineacion.html templates/home.html
 msgid "Alineación automática"
 msgstr "Auto alignment"
@@ -700,6 +701,11 @@ msgstr "Alignment complete with {s} points"
 #: alineacion.py
 msgid "Alineación con {s} puntos; {f} posiciones no se pudieron resolver"
 msgstr "Alignment with {s} points; {f} positions could not be solved"
+
+#. js
+#: templates/home.html
+msgid "Alineación y puesta en estación"
+msgstr "Alignment and polar alignment"
 
 #: alineacion.py
 msgid "Alineación {i}/{total}"
@@ -2859,6 +2865,11 @@ msgstr "Edit: develop the daytime photo again (exposure, contrast, detail, sharp
 #: ScopePower.py
 msgid "Efemérides planetarias (Astropy)"
 msgstr "Planetary ephemeris (Astropy)"
+
+#. js
+#: templates/home.html
+msgid "Eje polar y modelo de apuntado, por plate solving"
+msgstr "Polar axis and pointing model, by plate solving"
 
 #. js
 #: templates/constelacion.html
@@ -6531,6 +6542,7 @@ msgstr "Lowercase letters, digits and hyphens. Empty: the author of the photos."
 msgid "Mirando el cielo..."
 msgstr "Looking at the sky..."
 
+#. js
 #: templates/home.html
 msgid "Modelo de apuntado por plate solving"
 msgstr "Pointing model by plate solving"

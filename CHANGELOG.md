@@ -5,6 +5,8 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Inicio: con la montura en modo ecuatorial, el botón «Alineación automática» pasa a llamarse «Alineación y puesta
+  en estación», porque esa pantalla lleva también el asistente del eje polar y desde el inicio no se adivinaba.
 - Cámara: disparador encima de la foto. En el móvil el botón «Hacer foto» quedaba debajo de la foto y había que
   mover el scroll; ahora, cuando ese botón no está a la vista (en el móvil, o con otra pestaña abierta), sale un
   botón redondo abajo y en el centro de la foto que hace lo mismo. Con una foto o el modo continuo en marcha, la
