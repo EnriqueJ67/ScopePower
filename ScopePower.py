@@ -228,14 +228,16 @@ def toggle_objetos_anotados():
 
 
 # ───────────────────────── Preferencias de la interfaz ─────────────────────────
-# Cosas que el usuario quiere escribir una sola vez (orden de los paneles de Apilado,
+# Cosas que el usuario quiere escribir una sola vez (pestaña abierta en Apilado,
 # opción de darks al empezar, número de darks...). Se guardan en config.ini para que
 # valgan desde cualquier móvil o tablet. Solo se aceptan las claves de esta lista.
 PREFERENCIAS = {
     # clave web: (sección, clave en config.ini, tipo)
+    # Pestaña abierta en la columna de controles de cada pantalla: {"activo": "<panel>"} (static/js/paneles.js).
+    # Lo que quedara del formato anterior (orden y plegado de los paneles) se ignora.
     "apilado_paneles": ("Interfaz", "apilado_paneles", "json"),
-    "foto_paneles": ("Interfaz", "foto_paneles", "json"),         # orden y plegado de los paneles de la Foto de prueba
-    "editor_paneles": ("Interfaz", "editor_paneles", "json"),     # orden y plegado de los paneles del editor de fotos
+    "foto_paneles": ("Interfaz", "foto_paneles", "json"),         # Cámara
+    "editor_paneles": ("Interfaz", "editor_paneles", "json"),     # editor de fotos
     "opcion_dark": ("Interfaz", "opcion_dark", "texto"),
     "numero_darks": ("Dispositivos", "numero_darks", "entero"),
     "numero_maximo_imagenes": ("Dispositivos", "numero_maximo_imagenes", "entero"),   # se puede cambiar con el apilado en marcha

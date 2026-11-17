@@ -256,7 +256,7 @@ window.I18N_CATALOGO = {
 "El navegador no reconoce español.":"The browser doesn't recognize English.",
 "El número de fotos y el zoom se aplican al momento; la exposición, al siguiente objeto.":"The number of shots and the zoom apply right away; the exposure, from the next object.",
 "El ojo del toro en la constelación de Tauro. Es una gigante roja prominente.":"The eye of the bull in the constellation Taurus. It is a prominent red giant.",
-"El pad está aquí abajo. Actívalo para tenerlo sobre la foto y no tener que plegar paneles.":"The pad is down here. Turn this on to have it over the shot so you don't have to collapse panels.",
+"El pad está aquí abajo. Actívalo para tenerlo sobre la foto y usarlo desde cualquier pestaña.":"The pad is down here. Turn this on to have it over the shot and use it from any tab.",
 "El pad está en una esquina de la foto (⇆ lo cambia de esquina). Aquí quedan la velocidad y el sentido.":"The pad is in a corner of the shot (⇆ moves it to the other corner). Speed and direction stay here.",
 "El plan de la noche está en marcha: detenlo antes de reiniciar el apilado.":"The night plan is running: stop it before resetting the stack.",
 "El plan fija las fotos de cada objeto: tócalo en la lista del plan para cambiarlas.":"The plan sets the shots for each object: tap it in the plan list to change them.",

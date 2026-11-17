@@ -86,6 +86,25 @@ def main():
             pedir(ruta)
     sp.idioma.cambiar("es")
 
+    print("Pestañas de la columna de controles (static/js/paneles.js):")
+    import re
+    pedir("/static/js/paneles.js")
+    for ruta, clave in (("/foto-prueba", "foto_paneles"), ("/apilado", "apilado_paneles")):
+        html = cliente.get(ruta).get_data(as_text=True)
+        n = len(re.findall(r'<section class="card panel" data-panel="', html))
+        # Del sistema anterior (paneles plegables y reordenables) no debe quedar nada en la página
+        bien = (f'data-paneles="{clave}"' in html and "js/paneles.js" in html and n >= 5
+                and "panel-botones" not in html and "alternarPanel(" not in html and "moverPanel(" not in html)
+        print(f"  {'✅' if bien else '❌'} {ruta}: {n} paneles con pestaña")
+        if not bien:
+            fallos.append("pestañas de " + ruta)
+    r = cliente.post("/preferencias", json={"foto_paneles": {"activo": "dia"}})
+    guardada = (cliente.get("/preferencias").get_json() or {}).get("foto_paneles")
+    bien = r.status_code == 200 and guardada == {"activo": "dia"}
+    print(f"  {'✅' if bien else '❌'} la pestaña abierta se guarda en /preferencias: {guardada}")
+    if not bien:
+        fallos.append("pestaña en /preferencias")
+
     print("Firma de una foto sintética (Pillow):")
     import numpy as np
     import firma
