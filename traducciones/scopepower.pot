@@ -2401,6 +2401,14 @@ msgstr ""
 msgid "Dentro de la tolerancia ({t}′): la montura está en estación"
 msgstr ""
 
+#: static/js/puesta_estacion.js
+msgid "Dentro de la tolerancia según la estimación ({t}′): repite la medición para confirmarlo"
+msgstr ""
+
+#: puesta_estacion.py
+msgid "Dentro de la tolerancia según la estimación: repite la medición para confirmarlo"
+msgstr ""
+
 #: puesta_estacion.py
 msgid "Dentro de la tolerancia: la montura está en estación"
 msgstr ""
@@ -9919,6 +9927,14 @@ msgstr ""
 
 #: templates/visor_video.html
 msgid "Ya está apilado:"
+msgstr ""
+
+#: puesta_estacion.py
+msgid "Ya estás cerca. Repite la medición para afinar: tras corregir {g}°, la estimación del ajuste pierde precisión"
+msgstr ""
+
+#: puesta_estacion.py
+msgid "Ya estás cerca: repite la medición para afinar"
 msgstr ""
 
 #: editor_fotos.py

@@ -213,10 +213,15 @@
         instruccion("az", az, haciaOeste ? _("Gira hacia el oeste") : _("Gira hacia el este"),
             (haciaOeste === E.norte) ? "←" : "→", _("Acimut"));
         const dentro = total <= tol;
-        $("pe-semaforo").className = "pe-semaforo " + (dentro ? "verde" : total <= 3 * tol ? "ambar" : "rojo");
-        $("pe-total").className = "pe-total" + (dentro ? " ok" : "");
+        // Tras corregir grados la estimación pierde precisión: hasta repetir la medición, «dentro» no es definitivo
+        const repetir = !!(e.ajuste && e.ajuste.repetir_sugerido);
+        $("pe-repetir").className = "btn " + (repetir ? "btn-primary" : "btn-secondary");
+        $("pe-terminar").className = "btn " + (repetir ? "btn-secondary" : "btn-primary");
+        $("pe-semaforo").className = "pe-semaforo " + (dentro && !repetir ? "verde" : total <= 3 * tol ? "ambar" : "rojo");
+        $("pe-total").className = "pe-total" + (dentro && !repetir ? " ok" : "");
         $("pe-total-texto").textContent = dentro
-            ? _("Dentro de la tolerancia ({t}′): la montura está en estación", { t: fmtNum(tol, 1) })
+            ? (repetir ? _("Dentro de la tolerancia según la estimación ({t}′): repite la medición para confirmarlo", { t: fmtNum(tol, 1) })
+                : _("Dentro de la tolerancia ({t}′): la montura está en estación", { t: fmtNum(tol, 1) }))
             : _("Error total {v}′ · objetivo {t}′", { v: fmtNum(total, 1), t: fmtNum(tol, 1) });
         let estado = e.ajuste ? _("Foto {n} · {hora}", { n: e.ajuste.n, hora: e.ajuste.hora }) : _("Esperando la primera foto del ajuste...");
         if (e.subfase === "exponiendo") estado += " · " + _("exponiendo") + (e.captura && e.captura.en_curso ? " " + _("(quedan {s} s)", { s: Math.ceil(e.captura.restante) }) : "");
