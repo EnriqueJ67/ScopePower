@@ -214,6 +214,7 @@ window.I18N_CATALOGO = {
 "Debe ingresar un objeto celeste.":"Enter a celestial object.",
 "Dejar los ficheros como en {nombre}":"Leave the files as in {nombre}",
 "Dentro de la tolerancia ({t}′): la montura está en estación":"Within tolerance ({t}′): the mount is polar aligned",
+"Dentro de la tolerancia según la estimación ({t}′): repite la medición para confirmarlo":"Within tolerance according to the estimate ({t}′): measure again to confirm it",
 "Deriva":"Drift",
 "Descartadas":"Rejected",
 "Descomprimiendo {texto}: {n} de {total} ficheros":"Unzipping {texto}: {n} of {total} files",

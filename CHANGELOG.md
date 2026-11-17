@@ -47,6 +47,11 @@ día de la release. El número de versión vive en `version.py`.
   aparta de la vertical el eje de acimut y hacia qué lado cae, medido con las mismas fotos resueltas. A partir
   de 1° se avisa, porque SynScan sigue el cielo como si estuviera nivelado y por encima de unos 70° de altura
   la montura deriva.
+- Puesta en estación: si la primera medición pasa de 1°, al bajar de 30′ el asistente propone por pantalla y
+  por voz «Repetir la medición» (el botón pasa a ser el principal) y, hasta repetirla, no da la montura por
+  puesta en estación aunque la estimación entre en la tolerancia. Tras corregir grados la estimación del
+  ajuste se desvía ~1 % de lo corregido: la primera noche de campo (16-nov) bajó de 11° a 4,7′ estimados y la
+  nueva medición dio 7,8′.
 
 ## 1.3.0 · 2026-11-04
 

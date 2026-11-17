@@ -2403,6 +2403,14 @@ msgstr "Too dark inside the disc: clouds, or the disc was measured wrongly?"
 msgid "Dentro de la tolerancia ({t}′): la montura está en estación"
 msgstr "Within tolerance ({t}′): the mount is polar aligned"
 
+#: static/js/puesta_estacion.js
+msgid "Dentro de la tolerancia según la estimación ({t}′): repite la medición para confirmarlo"
+msgstr "Within tolerance according to the estimate ({t}′): measure again to confirm it"
+
+#: puesta_estacion.py
+msgid "Dentro de la tolerancia según la estimación: repite la medición para confirmarlo"
+msgstr "Within tolerance according to the estimate: measure again to confirm it"
+
 #: puesta_estacion.py
 msgid "Dentro de la tolerancia: la montura está en estación"
 msgstr "Within tolerance: the mount is polar aligned"
@@ -9922,6 +9930,14 @@ msgstr "It was already in the gallery ({archivo})."
 #: templates/visor_video.html
 msgid "Ya está apilado:"
 msgstr "Already stacked:"
+
+#: puesta_estacion.py
+msgid "Ya estás cerca. Repite la medición para afinar: tras corregir {g}°, la estimación del ajuste pierde precisión"
+msgstr "You are close. Measure again to fine-tune: after correcting {g}°, the adjustment estimate loses accuracy"
+
+#: puesta_estacion.py
+msgid "Ya estás cerca: repite la medición para afinar"
+msgstr "You are close: measure again to fine-tune"
 
 #: editor_fotos.py
 msgid "Ya existe una foto llamada {nombre}"
