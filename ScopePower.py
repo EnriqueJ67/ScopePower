@@ -7856,9 +7856,58 @@ def _montura_moviendose():
         return False
 
 
+def _plan_guia(con_programa=False):
+    """El plan de la noche para la guía: cuántos objetos tiene y, al final, cuántos caben esta noche."""
+    plan = plan_sesion.leer()
+    # Lo elegido en la guía entra como prioritario; el resto es lo que el plan ya traía de otras noches
+    pendientes = [o for o in plan["objetos"] if o["estado"] != "hecho"]
+    prioritarios = {o["id"] for o in pendientes if o.get("prioritario")}
+    d = dict(plan_sesion.resumen(plan), en_curso=bool(plan_sesion.trabajo_plan.en_curso),
+             prioritarios=len(prioritarios), otros=len(pendientes) - len(prioritarios))
+    if con_programa:
+        try:
+            __, programa = plan_sesion.trabajo_plan.calcular(plan, deps=_deps_plan())
+            pj = plan_sesion.programa_json(programa)
+            dentro = {tr["id"] for tr in pj["tramos"]}
+            d.update(programados=len(pj["tramos"]), elegidos_fuera=len(prioritarios - dentro), fin_previsto=pj["fin_previsto"])
+        except Exception as e:
+            log.exception("Guía: error calculando el plan de la noche")
+            d["error"] = _("No se pudo calcular el plan de esta noche: {e}", e=e)
+    return d
+
+
+_mosaico_previsto_cache = {"clave": None, "hora": 0.0, "datos": None}
+
+
+def _mosaico_previsto_guia(ses):
+    """Lo que cubre y lo que tarda la rejilla elegida en la guía (misma previsión que la pestaña Mosaico)."""
+    obj, rejilla = ses.get("objeto"), ses.get("rejilla")
+    if not obj or not rejilla:
+        return {}
+    centro = {"nombre": obj["nombre"], "ra_h": obj["ra_h"], "dec_deg": obj["dec_deg"], "tipo": obj.get("tipo") or ""}
+    # La previsión tarda segundos con muchas teselas (el giro de la cámara a la hora de cada una): se guarda un
+    # par de minutos para la misma rejilla, que la web vuelve a preguntar cada vez que refresca el equipo
+    clave = (obj["ra_h"], obj["dec_deg"], rejilla["filas"], rejilla["columnas"], rejilla["solape_pct"], rejilla["fotos_por_tesela"])
+    if _mosaico_previsto_cache["clave"] == clave and time.time() - _mosaico_previsto_cache["hora"] < 120:
+        return _mosaico_previsto_cache["datos"]
+    try:
+        r = _previsualizar_mosaico(centro, rejilla["filas"], rejilla["columnas"], rejilla["solape_pct"], rejilla["fotos_por_tesela"])
+    except Exception as e:
+        log.warning("Guía: no se pudo prever el mosaico: %s", e)
+        return {"error": str(e)}
+    datos = {k: r.get(k) for k in ("tamano_deg", "duracion_min", "fin_hora", "solape_min_pct", "giro_total_deg")}
+    _mosaico_previsto_cache.update(clave=clave, hora=time.time(), datos=datos)
+    return datos
+
+
 def _datos_guia():
     """Lo que guia.py necesita saber del equipo. Solo se lee lo que pide el paso en curso."""
     ses = guia.sesion()
+    if ses and ses.get("mosaico") and not ses.get("rejilla"):
+        # Primera vez que se elige el mosaico: la rejilla más pequeña que cubre el objeto, con los ajustes de [Mosaico]
+        conf = mosaico.leer_config()
+        filas, columnas = guia.rejilla_recomendada((ses.get("objeto") or {}).get("tamano_arcmin"), mosaico.campo_camara(), conf["solape_pct"])
+        ses = guia.fijar_rejilla(filas, columnas, conf["solape_pct"], conf["fotos_por_tesela"])
     paso = ses["paso"] if ses else ""
     datos = dict(_cielo_guia())
     datos.update({
@@ -7882,8 +7931,15 @@ def _datos_guia():
         datos["orientacion_camara"] = orientacion_camara.ultima() is not None
     if paso in ("modo", "listo_camara"):
         datos["video_disponible"] = camara_sdk.es_sdk(_dispositivos()["driver_camara"])
-    if paso == "objeto":
+    if paso in ("objeto", "captura", "mosaico", "listo_mosaico"):
         datos["campo"] = mosaico.campo_camara()
+    if paso == "objeto" and ses.get("varios"):
+        datos["plan"] = _plan_guia()
+    if paso == "listo_plan":
+        datos["plan"] = _plan_guia(con_programa=True)
+    if paso in ("mosaico", "listo_mosaico"):
+        datos["mosaico_previsto"] = _mosaico_previsto_guia(ses)
+        datos["mosaico_en_curso"] = bool(mosaico.trabajo_mosaico.en_curso)
     if paso in ("objeto", "apuntar", "listo"):
         datos["ultimo_goto"] = ({"objeto": ULTIMO_GOTO.get("objeto", ""), "ra_h": ULTIMO_GOTO.get("ra"),
                                  "dec_deg": ULTIMO_GOTO.get("dec"), "hora": ULTIMO_GOTO.get("hora")} if ULTIMO_GOTO else None)
@@ -7891,7 +7947,7 @@ def _datos_guia():
         datos["centrado"] = centrado.trabajo_centrado.estado()
         datos["centrado_objetivo"] = centrado.trabajo_centrado.objetivo
         datos["moviendose"] = _montura_moviendose() if paso == "apuntar" else False
-    if paso in ("calibracion", "listo", "flats", "listo_calibracion"):
+    if paso in ("calibracion", "listo", "flats", "listo_calibracion", "listo_mosaico", "listo_plan"):
         cap = datos["captura"]
         lectura = _temperatura_camara() if paso == "calibracion" else darks.ultima_temperatura()
         datos["temperatura_sensor"] = lectura["valor"] if lectura else None
@@ -7915,7 +7971,7 @@ def _estado_guia():
         if ses["paso"] == "objeto":
             ses["ultimo_goto"] = datos.get("ultimo_goto")
         elif ses["paso"] == "captura":
-            ses["recomendacion"] = guia.exposicion_recomendada(datos.get("modo_montura"), guia.altura_objeto(guia.sesion(), datos))
+            ses["recomendacion"] = guia.recomendacion_captura(guia.sesion(), datos)
         elif ses["paso"] == "calibracion":
             ses["trabajo_darks"] = datos.get("trabajo_darks")
             ses["hay_dark"] = bool((datos.get("dark") or {}).get("existe"))
@@ -7934,6 +7990,9 @@ def _estado_guia():
             ses["luna_visible"] = (datos.get("altura_luna") or -90) > guia.ALTURA_MINIMA_DISCO
         elif ses["paso"] in ("modo", "listo_camara"):
             ses["video_disponible"] = bool(datos.get("video_disponible"))
+        elif ses["paso"] in ("mosaico", "listo_mosaico"):
+            ses["campo"] = {k: (datos.get("campo") or {}).get(k) for k in ("ancho_deg", "alto_deg")}
+            ses["previsto"] = datos.get("mosaico_previsto") or {}
     return salida
 
 
@@ -8100,6 +8159,32 @@ def guia_miniatura(nombre):
         log.warning("Guía: no se pudo hacer la miniatura de %s: %s", nombre, e)
         return send_file(ruta_absoluta(origen), mimetype="image/jpeg")
     return send_file(ruta_absoluta(destino), mimetype="image/jpeg", max_age=3600)
+
+
+@app.route('/guia/varios', methods=['POST'])
+def guia_varios():
+    """{"activado": true|false}: varios objetos en la noche. La lista es la del plan de la noche (rutas /plan/*)."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        guia.fijar_varios(bool(datos.get("activado")))
+    except ValueError as e:
+        return _error_guia(e)
+    return jsonify(dict(_estado_guia(), ok=True))
+
+
+@app.route('/guia/rejilla', methods=['POST'])
+def guia_rejilla():
+    """{"filas", "columnas", "solape_pct", "fotos_por_tesela"}: la rejilla del mosaico que arrancará la guía."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        filas, columnas, solape = _datos_rejilla(datos)
+        fotos = int(datos.get("fotos_por_tesela") or mosaico.leer_config()["fotos_por_tesela"])
+        if not 1 <= fotos <= 10000:
+            raise ValueError(_("El número de fotos tiene que ser al menos 1."))
+        guia.fijar_rejilla(filas, columnas, solape, fotos)
+    except (ValueError, TypeError) as e:
+        return _error_guia(e)
+    return jsonify(dict(_estado_guia(), ok=True))
 
 
 @app.route('/guia/modo', methods=['POST'])

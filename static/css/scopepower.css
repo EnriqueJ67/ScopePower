@@ -1128,6 +1128,22 @@ a.guia-tarjeta, a.guia-tarjeta:hover { text-decoration: none; color: #fff; }
 .guia-altura-texto { font-size: 12px; color: var(--text-2); }
 @media (max-width: 380px) { .guia-objetos { grid-template-columns: 1fr; } }
 
+.guia-variante { margin-bottom: 10px; }
+.guia-plan-lista { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; font-size: 13.5px; }
+.guia-plan-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 11px; border-radius: 999px; background: var(--ok-soft); color: var(--text); font-weight: 600; }
+.guia-plan-chip small { padding-right: 5px; font-weight: 400; color: var(--text-2); }
+.guia-plan-chip.fuera { background: var(--warn-soft); }
+.guia-plan-chip.otros { background: var(--surface-2); color: var(--text-2); font-weight: 400; padding-right: 11px; }
+.guia-plan-chip button { width: 24px; height: 24px; border: 0; border-radius: 50%; background: var(--surface-3); color: var(--text-2); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; }
+.guia-mosaico { display: grid; grid-template-columns: minmax(120px, 190px) 1fr; gap: 14px; align-items: center; margin-bottom: 8px; }
+.guia-rejilla { width: 100%; aspect-ratio: 1 / 1; border: 1px solid var(--border); border-radius: 14px; background: #05060a; }
+.guia-rejilla rect { fill: color-mix(in srgb, var(--accent) 16%, transparent); stroke: var(--accent-2); stroke-width: 1.2; }
+.guia-rejilla circle { fill: none; stroke: var(--warn); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.guia-contadores { display: flex; align-items: center; gap: 8px; }
+.guia-contador { display: inline-flex; align-items: center; gap: 6px; }
+.guia-contador b { min-width: 22px; text-align: center; font-size: 18px; }
+.guia-contador .btn { min-width: 38px; justify-content: center; font-size: 18px; }
+@media (max-width: 420px) { .guia-mosaico { grid-template-columns: 1fr; } .guia-rejilla { max-width: 200px; margin: 0 auto; } }
 .guia-modos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 12px; }
 .guia-modo { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-2); color: var(--text); font: inherit; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
 .guia-modo svg { width: 34px; height: 34px; color: var(--accent-2); }

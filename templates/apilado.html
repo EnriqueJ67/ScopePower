@@ -1775,9 +1775,9 @@
 
     // ——— Llegada desde la guía «¿Qué quieres hacer hoy?» (static/js/guia.js) ———
     // "listo": el panel de inicio desplegado y Empezar resaltado, que es lo único que queda por pulsar;
-    // "mosaico": la pestaña del mosaico, con el objeto de la guía como centro (el último GoTo)
+    // "mosaico" y "plan": su pestaña, con el mosaico o el plan de la noche que la guía acaba de arrancar
     window.guiaAlLlegar = function (paso) {
-        if (paso === "mosaico") { if (window.Paneles) Paneles.activar("mosaico"); return; }
+        if (paso === "mosaico" || paso === "plan") { if (window.Paneles) Paneles.activar(paso); return; }
         if (paso !== "listo") return;
         panelInicioAbierto = true;
         plegarPanelInicio(false);

@@ -12,7 +12,10 @@
 #     disco bajo el horizonte, centrar a mano, el paisaje sin montura y foto/vídeo/timelapse,
 #   - enfocar y fotos de calibración: a qué apuntar, los flats en su paso y la línea de la
 #     biblioteca de darks por temperatura,
-#   - los cálculos: altura de un objeto, estrella para enfocar y exposición recomendada.
+#   - cielo profundo en mosaico y con varios objetos: qué pasos lleva cada variante, la
+#     rejilla recomendada y los dos finales,
+#   - los cálculos: altura de un objeto, estrella para enfocar, exposición recomendada y el
+#     giro del campo de una montura altacimutal.
 #
 # Uso:
 #   python herramientas\probar_guia.py
@@ -61,6 +64,8 @@ def datos_base(**cambios):
         "filtro_solar": {"confirmado": False, "hora": None}, "altura_sol": 40.0,
         "foto_dia": {"en_curso": False}, "orientacion_camara": True, "video_disponible": True,
         "trabajo_flats": {"en_curso": False},
+        "plan": {"total": 0, "pendientes": 0, "hechos": 0, "en_curso": False, "prioritarios": 0, "otros": 0},
+        "mosaico_previsto": {}, "mosaico_en_curso": False,
     }
     d.update(cambios)
     return d
@@ -109,7 +114,8 @@ def probar_sesion():
     comprobar(ses["paso"] == "objeto" and "alineacion" in ses["saltados"], "la alineación se salta y queda apuntada")
     est = guia.estado(datos_base())
     comprobar(est["sesion"]["pasos"][1]["estado"] == "saltado", "el paso saltado sale como saltado")
-    comprobar(est["sesion"]["indice"] == 2 and est["sesion"]["total"] == 8, "la sesión cuenta 8 pasos")
+    comprobar(est["sesion"]["indice"] == 2 and est["sesion"]["total"] == 8 and est["sesion"]["variante"] == "uno",
+              "la sesión cuenta 8 pasos con un solo objeto")
     guia.olvidar_todo()
     comprobar((guia.sesion() or {}).get("paso") == "objeto", "la sesión sobrevive a un reinicio (datos/guia.json)")
     guia.marcar("enfoque")
@@ -347,6 +353,63 @@ def probar_enfocar_y_calibracion():
     comprobar("todavía no hay" in texto, "biblioteca: sin darks para esos valores lo dice")
 
 
+def probar_mosaico_y_varios():
+    print("Cielo profundo en mosaico y con varios objetos")
+    claves = lambda: [p["clave"] for p in guia._pasos("cielo_profundo", guia.sesion())]
+    guia.empezar("cielo_profundo")
+    guia.ir_a("objeto")
+    guia.fijar_objeto("M 31", 0.712, 41.27, "Galaxia", 190)
+    comprobar("apuntar" in claves() and "mosaico" not in claves(), "un objeto: con apuntar y sin paso de mosaico")
+    guia.fijar_mosaico(True)
+    comprobar(claves() == ["equipo", "alineacion", "objeto", "mosaico", "captura", "calibracion", "enfoque", "listo_mosaico"],
+              "mosaico: lleva su paso, no apunta antes y acaba en su propio final")
+    comprobar(guia.avanzar()["paso"] == "mosaico", "mosaico: tras el objeto viene la rejilla")
+    campo = {"ancho_deg": 2.5, "alto_deg": 2.5, "ancho_px": 3008, "alto_px": 3008}
+    comprobar(guia.rejilla_recomendada(190, campo) == (2, 2), "rejilla recomendada: Andrómeda en 2,5° cabe en 2 × 2")
+    comprobar(guia.rejilla_recomendada(400, campo) == (4, 4), "rejilla recomendada: un objeto de 400′ pide 4 × 4")
+    comprobar(guia.rejilla_recomendada(None, campo) == (2, 2), "rejilla recomendada: sin tamaño conocido, 2 × 2")
+    guia.fijar_rejilla(2, 2, 20, 15)
+    previsto = {"tamano_deg": (4.5, 4.5), "duracion_min": 48, "fin_hora": "23:10", "solape_min_pct": 14}
+    lista, puede = semaforos(datos_base(campo=campo, mosaico_previsto=previsto))
+    comprobar(puede and nivel(lista, "mosaico") == "ok" and nivel(lista, "duracion") == "ok" and nivel(lista, "tamano") is None,
+              "mosaico: rejilla que cubre el objeto, en verde con su duración")
+    lista, __ = semaforos(datos_base(campo=campo, mosaico_previsto=dict(previsto, tamano_deg=(2.5, 2.5), solape_min_pct=4)))
+    comprobar(nivel(lista, "tamano") == "warn" and nivel(lista, "solape") == "warn", "mosaico: rejilla corta y poco solape, dos avisos")
+    lista, puede = semaforos(datos_base(campo=campo, mosaico_previsto={"error": "sin WCS"}))
+    comprobar(not puede and lista[0]["nivel"] == "err", "mosaico: si la previsión falla, lo dice")
+    guia.ir_a("listo_mosaico")
+    lista, puede = semaforos(datos_base(campo=campo, mosaico_previsto=previsto))
+    comprobar(puede and nivel(lista, "mosaico") == "ok" and nivel(lista, "captura") == "ok", "mosaico: el final repasa rejilla y exposición")
+    lista, puede = semaforos(datos_base(campo=campo, mosaico_previsto=previsto, mosaico_en_curso=True))
+    comprobar(not puede and nivel(lista, "en_curso") == "warn", "mosaico: con otro en marcha no se empieza")
+
+    guia.ir_a("objeto")
+    ses = guia.fijar_varios(True)
+    comprobar(not ses["mosaico"] and claves()[-1] == "listo_plan" and "apuntar" not in claves() and "mosaico" not in claves(),
+              "varios: quita el mosaico, no apunta antes y acaba en el plan")
+    lista, puede = semaforos(datos_base())
+    comprobar(not puede and lista[0]["nivel"] == "falta", "varios: con el plan vacío no se sigue")
+    lista, puede = semaforos(datos_base(plan={"pendientes": 102, "en_curso": False, "prioritarios": 3, "otros": 99}))
+    comprobar(puede and "3" in lista[0]["texto"] and nivel(lista, "otros") == "ok" and "99" in lista[1]["texto"],
+              "varios: cuenta los elegidos para esta noche y, aparte, los que el plan ya traía")
+    lista, puede = semaforos(datos_base(plan={"pendientes": 99, "en_curso": False, "prioritarios": 0, "otros": 99}))
+    comprobar(puede and lista[0]["nivel"] == "warn", "varios: sin elegir ninguno se puede seguir con lo que el plan ya tenía")
+    comprobar(guia.recomendacion_captura(guia.sesion(), datos_base(campo=campo))["maximo"] == 25.0,
+              "varios: sin un objeto concreto, la exposición recomendada es la general")
+    guia.ir_a("listo_plan")
+    plan = {"pendientes": 102, "en_curso": False, "prioritarios": 3, "otros": 99, "programados": 14, "elegidos_fuera": 1, "fin_previsto": "02:40"}
+    lista, puede = semaforos(datos_base(plan=plan))
+    comprobar(puede and nivel(lista, "plan") == "ok" and "02:40" in lista[0]["texto"] and nivel(lista, "fuera") == "warn",
+              "varios: el programa de la noche, y un elegido que se queda para otra")
+    lista, __ = semaforos(datos_base(plan=dict(plan, elegidos_fuera=0)))
+    comprobar(nivel(lista, "fuera") is None, "varios: que no quepan los que no has elegido no es un aviso")
+    lista, puede = semaforos(datos_base(plan=dict(plan, en_curso=True)))
+    comprobar(not puede, "varios: con el plan ya en marcha no se vuelve a empezar")
+    ses = guia.fijar_mosaico(True)
+    comprobar(not ses["varios"], "mosaico y varios se excluyen")
+    guia.terminar()
+
+
 def probar_calculos():
     print("Cálculos")
     # La Polar está siempre a la altura de la latitud (± lo que dista del polo)
@@ -364,6 +427,19 @@ def probar_calculos():
     comprobar(guia.exposicion_recomendada("altacimutal", 80)["maximo"] == 10.0, "altacimutal cerca del cénit: hasta 10 s")
     comprobar(guia.exposicion_recomendada("ecuatorial", 80)["maximo"] == 60.0, "ecuatorial: hasta 60 s")
     comprobar(guia.cabe_en_el_campo(None, {"ancho_deg": 2, "alto_deg": 2}) is None, "sin tamaño conocido no se opina del campo")
+    # Giro del campo en una altacimutal: nulo al este, máximo en el meridiano, mayor cuanto más alto
+    radio = guia.radio_campo_px({"ancho_px": 3008, "alto_px": 3008})
+    comprobar(abs(radio - 2127) < 1, "del centro a la esquina de un sensor de 3008 px: %.0f px" % radio)
+    comprobar(guia.giro_campo_px_s(50, 90, 39.5, radio) < 1e-9, "giro del campo: nulo mirando al este")
+    sur50, sur65 = guia.giro_campo_px_s(50, 180, 39.5, radio), guia.giro_campo_px_s(65, 180, 39.5, radio)
+    comprobar(0.17 < sur50 < 0.20 and sur65 > sur50, "giro del campo al sur: %.3f px/s a 50° y más a 65° (%.3f)" % (sur50, sur65))
+    rec = guia.exposicion_recomendada("altacimutal", 50, 180, 39.5, radio)
+    comprobar(rec["maximo"] == 16.0 and rec["minimo"] == 10.0, "altacimutal al sur a 50°: hasta 16 s")
+    comprobar(guia.exposicion_recomendada("altacimutal", 50, 90, 39.5, radio)["maximo"] == 30.0, "altacimutal al este: hasta 30 s")
+    comprobar(guia.exposicion_recomendada("altacimutal", 80, 90, 39.5, radio)["maximo"] == 10.0, "cerca del cénit manda la deriva: hasta 10 s")
+    comprobar(guia.exposicion_recomendada("ecuatorial", 50, 180, 39.5, radio)["maximo"] == 60.0, "en ecuatorial el giro del campo no cuenta")
+    alt, az = guia.altaz(2.5303, 89.264, 39.47, -0.38, 1_800_000_000.0)
+    comprobar(abs(alt - 39.47) < 1.0 and (az < 2 or az > 358), "la Polar: a la altura de la latitud y al norte (%.1f°, %.1f°)" % (alt, az))
 
 
 def main():
@@ -375,6 +451,7 @@ def main():
         probar_pasos()
         probar_rutas_de_dia()
         probar_enfocar_y_calibracion()
+        probar_mosaico_y_varios()
         probar_calculos()
     if fallos:
         print("\n%d comprobaciones fallidas:" % len(fallos))

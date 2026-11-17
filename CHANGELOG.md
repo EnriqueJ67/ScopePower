@@ -5,6 +5,16 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Guía «¿Qué quieres hacer hoy?», cielo profundo: el mosaico y varios objetos en la noche se preparan y se
+  arrancan desde la propia guía. Con mosaico hay un paso nuevo con la rejilla dibujada a escala (cada tesela y,
+  encima, el tamaño del objeto), que propone la más pequeña que lo cubre y dice cuánto cubre y cuánto tarda; al
+  final, «Empezar mosaico». Con «Varios en la noche» se tocan los objetos y entran en el plan de la noche como
+  prioritarios; lo que el plan ya tenía pendiente de otras noches sigue detrás. El último paso enseña el programa
+  de la noche y arranca el plan. En los dos casos se salta el paso de apuntar, porque el mosaico y el plan van
+  ellos a cada sitio y lo centran.
+- Guía, exposición: en una montura altacimutal el máximo recomendado sale ahora del giro del campo donde está
+  el objeto en ese momento (latitud, altura, acimut y tamaño del sensor): unos 16 s al sur a 50° de altura,
+  30 s hacia el este o el oeste. Es una orientación; cerca del cénit sigue mandando el aviso de la deriva.
 - Guía «¿Qué quieres hacer hoy?»: enfocar y las fotos de calibración también van guiados, y la galería enseña
   las últimas fotos. Enfocar ofrece a qué apuntar según la hora (de noche una estrella brillante, a la que va y
   centra sola; de día el Sol con filtro, la Luna o un detalle lejano), abre Cámara con el modo enfoque y al

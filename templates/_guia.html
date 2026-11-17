@@ -73,6 +73,15 @@
 
             <!-- 3. Objeto -->
             <div class="guia-cuerpo" data-paso="objeto" hidden>
+                <!-- Un objeto (o su mosaico), o varios: la lista de varios es la del plan de la noche -->
+                <div class="segmentado guia-variante" id="guia-variante">
+                    <button type="button" data-v="uno" onclick="Guia.varios(false)">{{ _("Un objeto") }}</button>
+                    <button type="button" data-v="varios" onclick="Guia.varios(true)">{{ _("Varios en la noche") }}</button>
+                </div>
+                <div id="guia-plan" hidden>
+                    <p class="modal-texto">{{ _("Toca los objetos que quieres: se añaden al plan de la noche, que los fotografía solo, uno detrás de otro.") }}</p>
+                    <div id="guia-plan-lista" class="guia-plan-lista"></div>
+                </div>
                 <div class="guia-buscar">
                     <input type="search" id="guia-buscar" class="form-control" placeholder="{{ _('Busca un objeto: M 31, Orión, NGC 7000...') }}" autocomplete="off" enterkeyhint="search">
                     <button type="button" class="btn btn-secondary" onclick="Guia.buscar()"><svg><use href="#i-lupa"/></svg>{{ _("Buscar") }}</button>
@@ -82,7 +91,7 @@
                     <button type="button" class="btn btn-secondary" id="guia-mosaico" onclick="Guia.mosaico(true)" hidden><svg><use href="#i-mosaico"/></svg>{{ _("Hacerlo en mosaico") }}</button>
                     <button type="button" class="btn btn-secondary" id="guia-sin-mosaico" onclick="Guia.mosaico(false)" hidden>{{ _("Una sola foto, sin mosaico") }}</button>
                     <button type="button" class="btn btn-secondary" id="guia-ultimo-goto" onclick="Guia.usarUltimoGoto()" hidden></button>
-                    <button type="button" class="btn btn-secondary" onclick="Guia.irA('/planetario')"><svg><use href="#i-planetario"/></svg>{{ _("Elegir en el planetario") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-planetario" onclick="Guia.irA('/planetario')"><svg><use href="#i-planetario"/></svg>{{ _("Elegir en el planetario") }}</button>
                 </div>
                 <div class="seccion-titulo guia-subtitulo">{{ _("Lo mejor de ahora") }}</div>
                 <div id="guia-recomendados" class="guia-objetos"><div class="estado"><span class="spinner"></span>{{ _("Calculando qué se ve...") }}</div></div>
@@ -156,6 +165,45 @@
             <div class="guia-cuerpo" data-paso="listo" hidden>
                 <p class="modal-texto" id="guia-listo-texto"></p>
                 <button type="button" class="btn btn-primary guia-boton-ancho guia-boton-final" onclick="Guia.abrirApilado()"><svg><use href="#i-apilado"/></svg><span id="guia-abrir-apilado"></span></button>
+            </div>
+
+            <!-- Cielo profundo en mosaico: la rejilla, dibujada a escala con el tamaño del objeto -->
+            <div class="guia-cuerpo" data-paso="mosaico" hidden>
+                <div class="guia-mosaico">
+                    <svg id="guia-rejilla" class="guia-rejilla" viewBox="0 0 200 200" aria-hidden="true"></svg>
+                    <div class="guia-mosaico-campos">
+                        <div class="form-group">
+                            <label>{{ _("Filas × columnas") }}</label>
+                            <div class="guia-contadores">
+                                <span class="guia-contador"><button type="button" class="btn btn-sm btn-secondary" onclick="Guia.rejilla('filas', -1)">−</button><b id="guia-filas">2</b><button type="button" class="btn btn-sm btn-secondary" onclick="Guia.rejilla('filas', 1)">+</button></span>
+                                <span>×</span>
+                                <span class="guia-contador"><button type="button" class="btn btn-sm btn-secondary" onclick="Guia.rejilla('columnas', -1)">−</button><b id="guia-columnas">2</b><button type="button" class="btn btn-sm btn-secondary" onclick="Guia.rejilla('columnas', 1)">+</button></span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="guia-solape">{{ _("Solape entre teselas (%)") }}</label>
+                            <input type="number" id="guia-solape" class="form-control" min="5" max="60" step="5" inputmode="numeric" onchange="Guia.rejilla()">
+                        </div>
+                        <div class="form-group">
+                            <label for="guia-fotos-tesela">{{ _("Fotos por tesela") }}</label>
+                            <input type="number" id="guia-fotos-tesela" class="form-control" min="1" step="1" inputmode="numeric" onchange="Guia.rejilla()">
+                        </div>
+                    </div>
+                </div>
+                <small class="ayuda">{{ _("Cada recuadro es una foto y el círculo, el tamaño del objeto. Las teselas se solapan para poder unirlas.") }}</small>
+            </div>
+
+            <!-- Cielo profundo en mosaico: fin. El mosaico va él a cada tesela y la centra -->
+            <div class="guia-cuerpo" data-paso="listo_mosaico" hidden>
+                <p class="modal-texto">{{ _("La app irá a cada tesela, la centrará, apilará sus fotos y al final las unirá en una sola imagen. No hace falta apuntar antes.") }}</p>
+                <button type="button" class="btn btn-primary guia-boton-ancho guia-boton-final" id="guia-empezar-mosaico" onclick="Guia.empezarMosaico()"><svg><use href="#i-mosaico"/></svg>{{ _("Empezar mosaico") }}</button>
+            </div>
+
+            <!-- Varios objetos: fin. El plan de la noche va a cada uno, lo centra, apila y guarda -->
+            <div class="guia-cuerpo" data-paso="listo_plan" hidden>
+                <div id="guia-plan-programa" class="guia-plan-lista"></div>
+                <p class="modal-texto">{{ _("El plan irá a cada objeto, lo centrará, apilará sus fotos y lo guardará en la galería. Lo que no quepa esta noche se queda para otra.") }}</p>
+                <button type="button" class="btn btn-primary guia-boton-ancho guia-boton-final" id="guia-empezar-plan" onclick="Guia.empezarPlan()"><svg><use href="#i-play"/></svg>{{ _("Empezar plan") }}</button>
             </div>
 
             <!-- Enfocar: a qué apuntar. Lo que se ofrece depende de la hora (lo decide el PC) -->
