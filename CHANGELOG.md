@@ -5,6 +5,13 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Guía «¿Qué quieres hacer hoy?»: enfocar y las fotos de calibración también van guiados, y la galería enseña
+  las últimas fotos. Enfocar ofrece a qué apuntar según la hora (de noche una estrella brillante, a la que va y
+  centra sola; de día el Sol con filtro, la Luna o un detalle lejano), abre Cámara con el modo enfoque y al
+  volver deja apuntada la hora del enfoque. Fotos de calibración fija primero la exposición y la ganancia, dice
+  qué darks hay para ellas y a qué temperatura frente a la del sensor, los hace si faltan y lleva a la pantalla
+  de los flats. La galería enseña las cuatro últimas fotos en pequeño (unos 30 kB cada una, por la wifi de
+  campo); cada una lleva a su editor si se puede volver a revelar.
 - Inicio: con la montura en modo ecuatorial, el botón «Alineación automática» pasa a llamarse «Alineación y puesta
   en estación», porque esa pantalla lleva también el asistente del eje polar y desde el inicio no se adivinaba.
 - Cámara: disparador encima de la foto. En el móvil el botón «Hacer foto» quedaba debajo de la foto y había que

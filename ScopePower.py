@@ -7891,12 +7891,17 @@ def _datos_guia():
         datos["centrado"] = centrado.trabajo_centrado.estado()
         datos["centrado_objetivo"] = centrado.trabajo_centrado.objetivo
         datos["moviendose"] = _montura_moviendose() if paso == "apuntar" else False
-    if paso in ("calibracion", "listo"):
+    if paso in ("calibracion", "listo", "flats", "listo_calibracion"):
         cap = datos["captura"]
         lectura = _temperatura_camara() if paso == "calibracion" else darks.ultima_temperatura()
-        datos["dark"] = darks.info_dark(cap["exposicion"], cap["ganancia"], cap["binning"], lectura["valor"] if lectura else None)
+        datos["temperatura_sensor"] = lectura["valor"] if lectura else None
+        datos["dark"] = darks.info_dark(cap["exposicion"], cap["ganancia"], cap["binning"], datos["temperatura_sensor"])
         datos["flat"] = flats.info_flat(cap["binning"])
         datos["trabajo_darks"] = darks.trabajo_darks.estado()
+        datos["trabajo_flats"] = flats.trabajo_flats.estado()
+    if paso == "apuntar_enfoque":
+        datos["moviendose"] = _montura_moviendose()
+        datos["centrado"] = centrado.trabajo_centrado.estado()
     return datos
 
 
@@ -7916,10 +7921,17 @@ def _estado_guia():
             ses["hay_dark"] = bool((datos.get("dark") or {}).get("existe"))
             ses["hay_flat"] = bool((datos.get("flat") or {}).get("existe"))
             ses["opcion_dark"] = _leer_preferencias().get("opcion_dark", "ultimo")
+            ses["biblioteca"] = guia.texto_biblioteca(darks.listar_darks(), datos["captura"], datos.get("temperatura_sensor"))
         elif ses["paso"] == "enfoque" and ses["actividad"] == "cielo_profundo":
             ses["estrella"] = guia.estrella_para_enfocar(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO)
         elif ses["paso"] == "apuntar_disco":
             ses["orientacion_camara"] = bool(datos.get("orientacion_camara"))
+        elif ses["paso"] == "apuntar_enfoque":
+            # Con qué se puede enfocar ahora: de noche una estrella brillante; de día, el Sol; la Luna si está arriba
+            de_dia = bool(datos.get("de_dia"))
+            ses["estrella"] = None if de_dia else guia.estrella_para_enfocar(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO)
+            ses["sol_visible"] = de_dia and (datos.get("altura_sol") or -90) > guia.ALTURA_MINIMA_DISCO
+            ses["luna_visible"] = (datos.get("altura_luna") or -90) > guia.ALTURA_MINIMA_DISCO
         elif ses["paso"] in ("modo", "listo_camara"):
             ses["video_disponible"] = bool(datos.get("video_disponible"))
     return salida
@@ -7947,17 +7959,14 @@ def guia_empezar():
     except ValueError as e:
         return _error_guia(e)
     preferencias = dict(act.get("preferencias") or {})
+    if act["clave"] == "enfocar" and not _cielo_guia()["de_dia"]:
+        preferencias["modo_dia"] = "off"      # de noche se enfoca con una estrella, no en modo día
     if act.get("guiada"):
         # Las rutas de día dejan ya la pantalla Cámara en modo día con su objetivo (Sol, Luna o paisaje)
         for clave, valor in preferencias.items():
             seccion, clave_ini, __ = PREFERENCIAS[clave]
             _guardar_en_config(seccion, {clave_ini: valor})
         return jsonify(dict(_estado_guia(), ok=True))
-    if act["clave"] == "enfocar":
-        # De noche se enfoca con una estrella (solo verde, máscara de Bahtinov); de día, con el borde del Sol o de la Luna
-        de_dia = _cielo_guia()["de_dia"]
-        preferencias["modo_dia"] = "on" if de_dia else "off"
-        enfoque.poner(not de_dia)
     for clave, valor in preferencias.items():
         seccion, clave_ini, __ = PREFERENCIAS[clave]
         _guardar_en_config(seccion, {clave_ini: valor})
@@ -8029,6 +8038,68 @@ def guia_captura():
     _guardar_en_config("Dispositivos", {"exposicion_captura": f"{exposicion:g}", "ganancia_camara": ganancia,
                                         "numero_maximo_imagenes": fotos})
     return jsonify(dict(_estado_guia(), ok=True))
+
+
+# La galería en la guía: las últimas fotos, en pequeño (por la wifi de campo una foto de la galería pesa
+# cerca de 1 MB), y a dónde lleva cada una: a su editor si se puede volver a revelar, o a la galería.
+CARPETA_MINIATURAS_GUIA = os.path.join("datos", "miniaturas_guia")
+
+
+def _fotos_guia(cuantas=4):
+    carpeta = os.path.join("static", "fotos")
+    try:
+        nombres = [f for f in os.listdir(carpeta) if f.lower().endswith(".jpg")]
+    except OSError:
+        return [], 0
+    nombres.sort(key=lambda f: os.path.getmtime(os.path.join(carpeta, f)), reverse=True)
+    from urllib.parse import quote
+    fotos = []
+    for nombre in nombres[:cuantas]:
+        objeto, fecha, hora = _partes_galeria(nombre)
+        try:
+            cuando = datetime.strptime(fecha + hora, "%Y%m%d%H%M%S").strftime(idioma.formato_fecha(hora=False)) if fecha else ""
+        except ValueError:
+            cuando = ""
+        if os.path.isfile(os.path.join(carpeta, os.path.splitext(nombre)[0] + ".fits")):
+            editar = "/galeria/editar/" + quote(nombre)
+        elif editor_dia.es_foto_dia(nombre):
+            editar = "/galeria/editar-dia/" + quote(nombre)
+        else:
+            editar = None
+        fotos.append({"nombre": nombre, "objeto": objeto.replace("_", " "), "fecha": cuando, "editar": editar,
+                      "miniatura": "/guia/miniatura/" + quote(nombre)})
+    return fotos, len(nombres)
+
+
+@app.route('/guia/fotos')
+def guia_fotos():
+    """Las últimas fotos de la galería para la guía: {"fotos": [{nombre, objeto, fecha, editar, miniatura}], "total"}."""
+    fotos, total = _fotos_guia()
+    return jsonify({"fotos": fotos, "total": total})
+
+
+@app.route('/guia/miniatura/<nombre>')
+def guia_miniatura(nombre):
+    """Una foto de la galería reducida a 480 px (se hace la primera vez y se guarda en datos/miniaturas_guia)."""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    if os.path.basename(nombre) != nombre or not nombre.lower().endswith(".jpg"):
+        return _("Nombre de foto no válido"), 400
+    origen = os.path.join("static", "fotos", nombre)
+    if not os.path.isfile(origen):
+        return _("No existe esa foto"), 404
+    destino = os.path.join(CARPETA_MINIATURAS_GUIA, nombre)
+    try:
+        if not os.path.isfile(destino) or os.path.getmtime(destino) < os.path.getmtime(origen):
+            from PIL import Image
+            os.makedirs(CARPETA_MINIATURAS_GUIA, exist_ok=True)
+            with Image.open(origen) as imagen:
+                imagen.thumbnail((480, 480))
+                imagen.convert("RGB").save(destino, "JPEG", quality=78)
+    except Exception as e:
+        log.warning("Guía: no se pudo hacer la miniatura de %s: %s", nombre, e)
+        return send_file(ruta_absoluta(origen), mimetype="image/jpeg")
+    return send_file(ruta_absoluta(destino), mimetype="image/jpeg", max_age=3600)
 
 
 @app.route('/guia/modo', methods=['POST'])

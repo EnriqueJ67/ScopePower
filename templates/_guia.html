@@ -30,6 +30,19 @@
             <div class="guia-tarjetas" id="guia-tarjetas"><div class="estado"><span class="spinner"></span>{{ _("Mirando el cielo...") }}</div></div>
         </section>
 
+        <!-- Galería: las últimas fotos y a dónde lleva cada una. No es una ruta: no abre sesión ni deja banda -->
+        <section id="guia-galeria" hidden>
+            <div class="guia-menu-cabecera">
+                <div class="modal-titulo">{{ _("Tus fotos") }}</div>
+                <button type="button" class="btn btn-sm btn-ghost btn-icono" onclick="Guia.cerrar()" aria-label="{{ _('Cerrar') }}" title="{{ _('Cerrar') }}"><svg><use href="#i-cerrar"/></svg></button>
+            </div>
+            <div class="guia-tarjetas guia-fotos" id="guia-ultimas"><div class="estado"><span class="spinner"></span>{{ _("Buscando tus últimas fotos...") }}</div></div>
+            <div class="modal-acciones guia-acciones">
+                <button type="button" class="btn btn-secondary" onclick="Guia.verMenu()"><svg class="giro-180"><use href="#i-flecha"/></svg>{{ _("Otra actividad") }}</button>
+                <a class="btn btn-primary" href="/galeria"><svg><use href="#i-galeria"/></svg>{{ _("Ver toda la galería") }}</a>
+            </div>
+        </section>
+
         <!-- Ruta guiada -->
         <section id="guia-ruta" hidden>
             <div class="guia-foto" id="guia-foto">
@@ -91,11 +104,13 @@
                         <input type="number" id="guia-fotos" class="form-control" min="1" step="1" inputmode="numeric">
                     </div>
                 </div>
-                <div class="aviso aviso-info"><svg class="ico"><use href="#i-info"/></svg><div><span id="guia-recomendacion"></span> <span id="guia-duracion"></span></div></div>
+                <div class="aviso aviso-info"><svg class="ico"><use href="#i-info"/></svg><div><span id="guia-recomendacion"></span> <span id="guia-duracion"></span>
+                    <span id="guia-captura-calibracion" hidden>{{ _("Un dark vale para la exposición y la ganancia con que se hizo: pon las que vas a usar al apilar.") }}</span></div></div>
             </div>
 
             <!-- 5. Darks y flats -->
             <div class="guia-cuerpo" data-paso="calibracion" hidden>
+                <p class="modal-texto" id="guia-darks-biblioteca"></p>
                 <div id="guia-darks-opciones">
                     <label class="opcion"><input type="radio" name="guia-dark" value="ultimo" id="guia-dark-ultimo"> {{ _("Usar el dark que hay") }}</label>
                     <label class="opcion"><input type="radio" name="guia-dark" value="nuevo" id="guia-dark-nuevo"> {{ _("Hacer darks nuevos ahora") }}
@@ -141,6 +156,31 @@
             <div class="guia-cuerpo" data-paso="listo" hidden>
                 <p class="modal-texto" id="guia-listo-texto"></p>
                 <button type="button" class="btn btn-primary guia-boton-ancho guia-boton-final" onclick="Guia.abrirApilado()"><svg><use href="#i-apilado"/></svg><span id="guia-abrir-apilado"></span></button>
+            </div>
+
+            <!-- Enfocar: a qué apuntar. Lo que se ofrece depende de la hora (lo decide el PC) -->
+            <div class="guia-cuerpo" data-paso="apuntar_enfoque" hidden>
+                <p class="modal-texto">{{ _("Para enfocar hace falta algo nítido y lejano en la foto: de noche, una estrella brillante; de día, el borde del Sol o de la Luna, o un detalle del paisaje.") }}</p>
+                <div class="guia-botones">
+                    <button type="button" class="btn btn-primary" id="guia-enf-estrella" onclick="Guia.apuntarEnfoque('estrella')" hidden></button>
+                    <button type="button" class="btn btn-secondary" id="guia-enf-luna" onclick="Guia.apuntarEnfoque('luna')" hidden><svg><use href="#i-tema"/></svg>{{ _("La Luna") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-enf-sol" onclick="Guia.apuntarEnfoque('sol')" hidden><svg><use href="#i-sol"/></svg>{{ _("El Sol, con el filtro puesto") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-enf-paisaje" onclick="Guia.apuntarEnfoque('paisaje')" hidden><svg><use href="#i-foto"/></svg>{{ _("Un detalle lejano en tierra") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-enf-aqui" onclick="Guia.apuntarEnfoque('aqui')"><svg><use href="#i-ok"/></svg>{{ _("Ya apunta a algo que sirve") }}</button>
+                </div>
+                <div id="guia-enf-estado" class="estado mt-2"></div>
+            </div>
+
+            <!-- Fotos de calibración: los flats se hacen en su pantalla, con la banda -->
+            <div class="guia-cuerpo" data-paso="flats" hidden>
+                <p class="modal-texto">{{ _("El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fotografiando una superficie uniformemente iluminada. La exposición se ajusta sola.") }}</p>
+                <button type="button" class="btn btn-primary guia-boton-ancho" onclick="Guia.irA('/flats')"><svg><use href="#i-calibracion"/></svg>{{ _("Hacer flats") }}</button>
+            </div>
+
+            <!-- Enfocar y fotos de calibración: fin de la ruta -->
+            <div class="guia-cuerpo" data-paso="listo_enfoque listo_calibracion" hidden>
+                <p class="modal-texto" id="guia-fin-texto"></p>
+                <button type="button" class="btn btn-primary guia-boton-ancho guia-boton-final" onclick="Guia.terminarAlMenu()"><svg><use href="#i-ok"/></svg>{{ _("Terminar") }}</button>
             </div>
 
             <!-- Sol: lo primero, el filtro solar. La app no puede comprobarlo: lo confirma una persona -->

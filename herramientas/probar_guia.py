@@ -10,6 +10,8 @@
 #     dark lejos de la temperatura, sin flat, objeto que no cabe, centrado...),
 #   - las rutas de día: el Sol no pasa del primer paso sin el filtro solar confirmado, el
 #     disco bajo el horizonte, centrar a mano, el paisaje sin montura y foto/vídeo/timelapse,
+#   - enfocar y fotos de calibración: a qué apuntar, los flats en su paso y la línea de la
+#     biblioteca de darks por temperatura,
 #   - los cálculos: altura de un objeto, estrella para enfocar y exposición recomendada.
 #
 # Uso:
@@ -58,6 +60,7 @@ def datos_base(**cambios):
         "bucle_activo": False, "trabajo": None,
         "filtro_solar": {"confirmado": False, "hora": None}, "altura_sol": 40.0,
         "foto_dia": {"en_curso": False}, "orientacion_camara": True, "video_disponible": True,
+        "trabajo_flats": {"en_curso": False},
     }
     d.update(cambios)
     return d
@@ -287,6 +290,63 @@ def probar_rutas_de_dia():
     guia.terminar()
 
 
+def probar_enfocar_y_calibracion():
+    print("Enfocar y fotos de calibración")
+    guia.marcar("enfoque", False)
+    ses = guia.empezar("enfocar")
+    lista, puede = semaforos(datos_base(montura=False))
+    comprobar(ses["paso"] == "equipo" and puede and nivel(lista, "montura") == "warn", "enfocar: sin montura se puede seguir")
+    guia.avanzar()
+    lista, puede = semaforos(datos_base())
+    comprobar(not puede and lista[0]["nivel"] == "falta", "enfocar: falta apuntar a algo")
+    lista, puede = semaforos(datos_base(moviendose=True))
+    comprobar(not puede and lista[0]["nivel"] == "pendiente", "enfocar: con la montura en marcha, espera")
+    lista, __ = semaforos(datos_base(centrado={"en_curso": True, "mensaje": "Vuelta 2/3"}))
+    comprobar(lista[0]["texto"] == "Vuelta 2/3", "enfocar: durante el centrado de la estrella enseña su mensaje")
+    guia.paso_hecho("apuntar_enfoque", "El telescopio apunta a Vega")
+    lista, puede = semaforos(datos_base())
+    comprobar(puede and "Vega" in lista[0]["texto"], "enfocar: apuntado, en verde con el nombre")
+    guia.avanzar()
+    try:
+        guia.avanzar(saltar=True)
+        comprobar(False, "enfocar: el enfoque no se salta (es a lo que se viene)")
+    except ValueError:
+        comprobar(True, "enfocar: el enfoque no se salta (es a lo que se viene)")
+    guia.marcar("enfoque")
+    guia.avanzar()
+    est = guia.estado(datos_base())
+    comprobar(est["sesion"]["paso"] == "listo_enfoque" and est["sesion"]["total"] == 4
+              and est["sesion"]["comprobaciones"][0]["nivel"] == "ok", "enfocar: cuatro pasos y al final, enfocado")
+
+    ses = guia.empezar("calibracion")
+    comprobar([p["clave"] for p in guia.PASOS["calibracion"]] == ["equipo", "captura", "calibracion", "flats", "listo_calibracion"],
+              "calibración: equipo, exposición, darks, flats y listo")
+    guia.avanzar()
+    guia.avanzar()
+    lista, __ = semaforos(datos_base(dark={"existe": False}, flat={"existe": False}))
+    comprobar(nivel(lista, "dark") == "warn" and nivel(lista, "flat") is None, "calibración: en el paso de los darks no se habla del flat")
+    guia.avanzar()
+    lista, puede = semaforos(datos_base(flat={"existe": False}))
+    comprobar(not puede and nivel(lista, "flat") == "falta", "calibración: sin flat, falta hacerlo")
+    lista, puede = semaforos(datos_base(flat={"existe": False}, trabajo_flats={"en_curso": True, "mensaje": "Flat 3 de 10"}))
+    comprobar(not puede and lista[0]["texto"] == "Flat 3 de 10", "calibración: mientras se hacen los flats enseña su avance")
+    lista, puede = semaforos(datos_base())
+    comprobar(puede and nivel(lista, "flat") == "ok", "calibración: con flat, en verde")
+    guia.avanzar()
+    lista, puede = semaforos(datos_base(dark={"existe": True, "lejos": True, "diferencia": 8.0}))
+    comprobar(puede and nivel(lista, "dark") == "warn" and nivel(lista, "flat") == "ok", "calibración: el resumen avisa del dark lejos")
+    guia.terminar()
+
+    biblioteca = [{"exposicion": 20.0, "gain": 130, "binning": 1, "temperatura": t} for t in (19.2, 20.4, 21.0)] \
+        + [{"exposicion": 10.0, "gain": 130, "binning": 1, "temperatura": 5.0},
+           {"exposicion": 20.0, "gain": 300, "binning": 1, "temperatura": 12.0}]
+    texto = guia.texto_biblioteca(biblioteca, {"exposicion": 20.0, "ganancia": 130, "binning": 1}, 18.5)
+    comprobar("3 darks" in texto and "19, 20, 21" in texto and "18,5" in texto and "12" not in texto.replace("18,5", ""),
+              "biblioteca: cuenta solo los darks de esa exposición y ganancia, por temperatura (%s)" % texto)
+    texto = guia.texto_biblioteca(biblioteca, {"exposicion": 30.0, "ganancia": 130, "binning": 1}, None)
+    comprobar("todavía no hay" in texto, "biblioteca: sin darks para esos valores lo dice")
+
+
 def probar_calculos():
     print("Cálculos")
     # La Polar está siempre a la altura de la latitud (± lo que dista del polo)
@@ -314,6 +374,7 @@ def main():
         probar_sesion()
         probar_pasos()
         probar_rutas_de_dia()
+        probar_enfocar_y_calibracion()
         probar_calculos()
     if fallos:
         print("\n%d comprobaciones fallidas:" % len(fallos))
