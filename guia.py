@@ -7,9 +7,9 @@
 #
 # Tres partes, sin Flask ni COM (se prueba en seco con herramientas/probar_guia.py):
 #
-#   1. ACTIVIDADES y PASOS: lo que ofrece el menú y los pasos de cada ruta guiada. De
-#      momento solo cielo profundo va guiado; las demás actividades son accesos directos
-#      que dejan su pantalla preparada.
+#   1. ACTIVIDADES y PASOS: lo que ofrece el menú y los pasos de cada ruta guiada. Van
+#      guiados cielo profundo, el Sol, la Luna y el paisaje; las demás actividades son
+#      accesos directos que dejan su pantalla preparada.
 #   2. La sesión, en datos/guia.json: actividad, paso, objeto elegido y lo que ya se ha
 #      hecho esta noche (alineación, enfoque). La app no puede saber si la montura está
 #      alineada (eso vive en el programa de la montura) ni si el enfoque es bueno sin
@@ -37,20 +37,25 @@ ALTURA_CENIT = 75.0              # por encima, una altacimutal alarga las estrel
 ALTURA_ENFOQUE = (35.0, 72.0)    # altura cómoda de la estrella para enfocar
 MARGEN_CAMPO = 0.8               # el objeto «cabe» si ocupa menos de esta fracción del lado corto del campo
 SEPARACION_MISMO_OBJETO = 0.5    # grados: el último GoTo es «el del objeto» si cae a menos de esto
-MARCABLES = ("alineacion", "puesta_estacion", "enfoque")
+MARCABLES = ("alineacion", "puesta_estacion", "enfoque")      # lo hecho en la noche: vale para cualquier ruta
+PASOS_MARCABLES = ("apuntar_disco", "encuadre")                 # lo hecho en esta sesión de la guía
+MODOS = ("foto", "video", "timelapse")
+ALTURA_MINIMA_DISCO = 3.0        # grados: por debajo, el Sol o la Luna se dan por puestos
 MODOS_ECUATORIALES = ("ecuatorial", "ecuatorial_alemana")
 
-# El fondo de cada tarjeta es static/guia/<clave>.jpg (ver herramientas/imagenes_guia.py)
+# El fondo de cada tarjeta es static/guia/<clave>.jpg (ver herramientas/imagenes_guia.py); «imagen_ancha»
+# es el recorte apaisado para cuando la tarjeta va la primera, a todo lo ancho. «preferencias»: cómo se
+# deja la pantalla Cámara al empezar. «astro»: el disco con el que se sincroniza y se centra de día.
 ACTIVIDADES = [
     {"clave": "cielo_profundo", "titulo": N_("Cielo profundo"), "cuando": "noche", "guiada": True,
-     "desc": N_("Galaxias, nebulosas y cúmulos: apilado en tiempo real")},
-    {"clave": "luna", "titulo": N_("Luna"), "cuando": "luna", "destino": "/foto-prueba", "al_llegar": "dia",
+     "imagen_ancha": "inicio.jpg", "desc": N_("Galaxias, nebulosas y cúmulos: apilado en tiempo real")},
+    {"clave": "luna", "titulo": N_("Luna"), "cuando": "luna", "guiada": True, "astro": "luna",
      "preferencias": {"modo_dia": "on", "foto_dia_objetivo": "luna"},
      "desc": N_("Foto o vídeo de la Luna, con la exposición automática")},
-    {"clave": "sol", "titulo": N_("Sol"), "cuando": "dia", "destino": "/foto-prueba", "al_llegar": "dia",
-     "filtro_solar": True, "preferencias": {"modo_dia": "on", "foto_dia_objetivo": "sol"},
+    {"clave": "sol", "titulo": N_("Sol"), "cuando": "dia", "guiada": True, "astro": "sol", "imagen_ancha": "sol_ancho.jpg",
+     "preferencias": {"modo_dia": "on", "foto_dia_objetivo": "sol"},
      "desc": N_("Foto o vídeo del Sol, siempre con el filtro solar puesto")},
-    {"clave": "paisaje", "titulo": N_("Paisaje"), "cuando": "dia", "destino": "/foto-prueba", "al_llegar": "dia",
+    {"clave": "paisaje", "titulo": N_("Paisaje"), "cuando": "dia", "guiada": True, "sin_montura": True,
      "preferencias": {"modo_dia": "on", "foto_dia_objetivo": "paisaje"},
      "desc": N_("Fotos de día de algo en tierra")},
     {"clave": "enfocar", "titulo": N_("Enfocar"), "cuando": "siempre", "destino": "/foto-prueba", "al_llegar": "enfoque",
@@ -80,10 +85,40 @@ PASOS = {
         {"clave": "listo", "titulo": N_("Listo"), "pantalla": "/apilado",
          "banda": N_("Todo listo: pulsa «Empezar»")},
     ],
+    # De día no hay estrellas: la montura se sincroniza con el disco del Sol o de la Luna (disco.py)
+    "sol": [
+        {"clave": "filtro", "titulo": N_("Filtro solar")},
+        {"clave": "equipo", "titulo": N_("Equipo")},
+        {"clave": "apuntar_disco", "titulo": N_("Apuntar al Sol"), "pantalla": "/foto-prueba",
+         "banda": N_("Lleva el Sol al centro de la foto con el pad y pulsa «Hecho, siguiente»")},
+        {"clave": "enfoque", "titulo": N_("Enfoque"), "saltable": True, "pantalla": "/foto-prueba",
+         "banda": N_("Enfoca y pulsa «Hecho, siguiente»")},
+        {"clave": "modo", "titulo": N_("Foto o vídeo")},
+        {"clave": "listo_camara", "titulo": N_("Listo")},
+    ],
+    "luna": [
+        {"clave": "equipo", "titulo": N_("Equipo")},
+        {"clave": "apuntar_disco", "titulo": N_("Apuntar a la Luna"), "pantalla": "/foto-prueba",
+         "banda": N_("Lleva la Luna al centro de la foto con el pad y pulsa «Hecho, siguiente»")},
+        {"clave": "enfoque", "titulo": N_("Enfoque"), "saltable": True, "pantalla": "/foto-prueba",
+         "banda": N_("Enfoca y pulsa «Hecho, siguiente»")},
+        {"clave": "modo", "titulo": N_("Foto o vídeo")},
+        {"clave": "listo_camara", "titulo": N_("Listo")},
+    ],
+    "paisaje": [
+        {"clave": "equipo", "titulo": N_("Equipo")},
+        {"clave": "encuadre", "titulo": N_("Encuadre"), "saltable": True, "pantalla": "/foto-prueba",
+         "banda": N_("Encuadra con el pad y pulsa «Hecho, siguiente»")},
+        {"clave": "enfoque", "titulo": N_("Enfoque"), "saltable": True, "pantalla": "/foto-prueba",
+         "banda": N_("Enfoca y pulsa «Hecho, siguiente»")},
+        {"clave": "modo", "titulo": N_("Foto o vídeo")},
+        {"clave": "listo_camara", "titulo": N_("Listo")},
+    ],
 }
 AVISO_SALTAR = {
     "alineacion": N_("Sin alinear, el GoTo puede dejar el objeto fuera del campo y el centrado tardará más."),
-    "enfoque": N_("Si el enfoque no está fino, las estrellas saldrán gordas y se perderán las débiles."),
+    "enfoque": N_("Con el enfoque sin afinar se pierde el detalle: las estrellas salen gordas y el borde del Sol o de la Luna, blando."),
+    "encuadre": N_("Sin encuadrar, la foto saldrá de donde apunte ahora el telescopio."),
 }
 
 # Estrellas brillantes para enfocar: (nombre, AR en horas, declinación en grados, magnitud), J2000
@@ -208,6 +243,7 @@ def empezar(clave):
             return None
         ahora = _ahora()
         m["sesion"] = {"actividad": clave, "paso": _pasos(clave)[0]["clave"], "objeto": None, "mosaico": False,
+                       "modo": "foto", "hechos_paso": {},
                        "saltados": [], "inicio": ahora, "actualizado": ahora, "paso_desde": ahora}
         _guardar()
         return sesion()
@@ -284,6 +320,34 @@ def fijar_mosaico(activado):
         if not ses:
             raise ValueError(_("No hay ninguna guía en marcha"))
         ses["mosaico"] = bool(activado)
+        ses["actualizado"] = _ahora()
+        _guardar()
+        return sesion()
+
+
+def fijar_modo(modo):
+    """Qué se va a hacer al final de una ruta de día: fotos sueltas, vídeo o timelapse."""
+    if modo not in MODOS:
+        raise ValueError(_("Modo desconocido: {modo}", modo=modo))
+    with _lock:
+        ses = _leer()["sesion"]
+        if not ses:
+            raise ValueError(_("No hay ninguna guía en marcha"))
+        ses["modo"] = modo
+        ses["actualizado"] = _ahora()
+        _guardar()
+        return sesion()
+
+
+def paso_hecho(clave, nota=""):
+    """Da por hecho un paso de esta sesión que se hace a mano o desde la web (centrar el disco, encuadrar)."""
+    if clave not in PASOS_MARCABLES:
+        raise ValueError(_("No se puede marcar: {clave}", clave=clave))
+    with _lock:
+        ses = _leer()["sesion"]
+        if not ses:
+            raise ValueError(_("No hay ninguna guía en marcha"))
+        ses.setdefault("hechos_paso", {})[clave] = {"hora": _ahora(), "nota": " ".join(str(nota or "").split())[:300]}
         ses["actualizado"] = _ahora()
         _guardar()
         return sesion()
@@ -413,7 +477,7 @@ def menu(datos):
             else:
                 chip = {"nivel": "neutro", "texto": _("bajo el horizonte")}
         salida.append({"clave": clave, "titulo": _tr(a, "titulo"), "desc": _tr(a, "desc"), "imagen": clave + ".jpg",
-                       "guiada": bool(a.get("guiada")), "filtro_solar": bool(a.get("filtro_solar")),
+                       "imagen_ancha": a.get("imagen_ancha") or clave + ".jpg", "guiada": bool(a.get("guiada")),
                        "chip": chip, "apagada": apagada})
     return salida
 
@@ -450,12 +514,15 @@ def _antiguedad(minutos):
 
 def _comprobar_equipo(ses, hechos_, datos):
     lista = []
+    sin_montura = bool(actividad(ses["actividad"]).get("sin_montura"))
     for clave, nombre_ok, nombre_no in (("montura", _("Montura conectada"), _("La montura no está conectada")),
                                         ("camara", _("Cámara conectada"), _("La cámara no está conectada"))):
         if datos.get(clave):
             lista.append(_c(clave, "ok", nombre_ok))
         elif datos.get("conectando"):
             lista.append(_c(clave, "pendiente", _("Conectando...")))
+        elif clave == "montura" and sin_montura:
+            lista.append(_c(clave, "warn", _("Sin montura: podrás hacer las fotos, pero no mover el telescopio desde aquí"), "conectar"))
         else:
             lista.append(_c(clave, "err", nombre_no, "conectar"))
     disco = datos.get("disco") or {}
@@ -467,11 +534,11 @@ def _comprobar_equipo(ses, hechos_, datos):
             lista.append(_c("disco", "warn", _("Queda poco disco: {gb} GB libres", gb=libre)))
         else:
             lista.append(_c("disco", "ok", _("Disco: {gb} GB libres", gb=libre)))
-    if datos.get("de_dia"):
+    if datos.get("de_dia") and ses["actividad"] == "cielo_profundo":
         desde = datos.get("noche_desde")
         lista.append(_c("noche", "warn", _("Todavía es de día: sin estrellas no hay centrado ni apilado hasta las {hora}.", hora=desde)
                         if desde else _("Todavía es de día: sin estrellas no hay centrado ni apilado.")))
-    return lista, bool(datos.get("montura") and datos.get("camara") and not disco.get("sin_espacio"))
+    return lista, bool((datos.get("montura") or sin_montura) and datos.get("camara") and not disco.get("sin_espacio"))
 
 
 def _comprobar_alineacion(ses, hechos_, datos):
@@ -617,9 +684,77 @@ def _comprobar_listo(ses, hechos_, datos):
     return lista, True
 
 
+# ── Rutas de día: Sol, Luna y paisaje ──
+
+def _comprobar_filtro(ses, hechos_, datos):
+    f = datos.get("filtro_solar") or {}
+    if f.get("confirmado"):
+        return [_c("filtro", "ok", _("Filtro solar confirmado a las {hora}", hora=f.get("hora") or "--:--"))], True
+    return [_c("filtro", "err", _("Falta confirmar que el filtro solar está puesto"), "filtro")], False
+
+
+def _comprobar_apuntar_disco(ses, hechos_, datos):
+    es_sol = actividad(ses["actividad"]).get("astro") == "sol"
+    alt = datos.get("altura_sol" if es_sol else "altura_luna")
+    if alt is not None and alt < ALTURA_MINIMA_DISCO:
+        return [_c("apuntar_disco", "err", _("El Sol está bajo el horizonte") if es_sol else _("La Luna está bajo el horizonte"))], False
+    if es_sol and not (datos.get("filtro_solar") or {}).get("confirmado"):
+        return [_c("apuntar_disco", "err", _("El filtro solar no está confirmado: vuelve al primer paso"))], False
+    hecho = (ses.get("hechos_paso") or {}).get("apuntar_disco")
+    if hecho:
+        return [_c("apuntar_disco", "ok", hecho.get("nota") or (_("El Sol está centrado") if es_sol else _("La Luna está centrada")))], True
+    if datos.get("moviendose"):
+        lista = [_c("apuntar_disco", "pendiente", _("La montura va hacia el Sol...") if es_sol else _("La montura va hacia la Luna..."))]
+    elif (datos.get("foto_dia") or {}).get("en_curso"):
+        lista = [_c("apuntar_disco", "pendiente", _("Haciendo una foto para encontrar el disco..."))]
+    else:
+        lista = [_c("apuntar_disco", "falta", _("Lleva el telescopio al Sol y céntralo") if es_sol
+                    else _("Lleva el telescopio a la Luna y céntrala"), "goto_disco")]
+    if not datos.get("orientacion_camara"):
+        lista.append(_c("orientacion", "warn", _("Aún no se conoce la orientación de la cámara (se aprende con un plate solving "
+                                                 "de noche): el disco habrá que centrarlo a mano")))
+    return lista, False
+
+
+def _comprobar_encuadre(ses, hechos_, datos):
+    if (ses.get("hechos_paso") or {}).get("encuadre"):
+        return [_c("encuadre", "ok", _("Encuadre hecho"))], True
+    return [_c("encuadre", "falta", _("Apunta el telescopio a lo que quieres fotografiar"), "encuadre")], False
+
+
+def _comprobar_modo(ses, hechos_, datos):
+    textos = {"foto": _("Vas a hacer fotos sueltas"), "video": _("Vas a grabar vídeo"), "timelapse": _("Vas a hacer un timelapse")}
+    modo = ses.get("modo") if ses.get("modo") in MODOS else "foto"
+    lista = [_c("modo", "ok", textos[modo])]
+    if modo == "video" and not datos.get("video_disponible"):
+        lista.append(_c("video", "warn", _("El vídeo necesita la cámara conectada por su SDK; con esta, usa las fotos o el timelapse")))
+    return lista, True
+
+
+def _comprobar_listo_camara(ses, hechos_, datos):
+    astro = actividad(ses["actividad"]).get("astro")
+    lista = []
+    if astro == "sol":
+        lista.extend(_comprobar_filtro(ses, hechos_, datos)[0])
+    hecho = (ses.get("hechos_paso") or {}).get("apuntar_disco" if astro else "encuadre")
+    if hecho:
+        lista.append(_c("apuntado", "ok", hecho.get("nota") or (_("El Sol está centrado") if astro == "sol" else
+                                                                _("La Luna está centrada") if astro == "luna" else _("Encuadre hecho"))))
+    else:
+        lista.append(_c("apuntado", "warn", _("Sin comprobar que el disco esté centrado") if astro else _("Encuadre sin comprobar")))
+    if "enfoque" in hechos_:
+        lista.append(_c("enfoque", "ok", _("Enfocado a las {hora}", hora=_hora(hechos_["enfoque"]))))
+    else:
+        lista.append(_c("enfoque", "warn", _("Enfoque sin comprobar")))
+    lista.extend(_comprobar_modo(ses, hechos_, datos)[0])
+    return lista, True
+
+
 _COMPROBADORES = {"equipo": _comprobar_equipo, "alineacion": _comprobar_alineacion, "objeto": _comprobar_objeto,
                   "captura": _comprobar_captura, "calibracion": _comprobar_calibracion, "enfoque": _comprobar_enfoque,
-                  "apuntar": _comprobar_apuntar, "listo": _comprobar_listo}
+                  "apuntar": _comprobar_apuntar, "listo": _comprobar_listo,
+                  "filtro": _comprobar_filtro, "apuntar_disco": _comprobar_apuntar_disco, "encuadre": _comprobar_encuadre,
+                  "modo": _comprobar_modo, "listo_camara": _comprobar_listo_camara}
 
 
 def comprobaciones(ses, hechos_, datos):
@@ -651,6 +786,7 @@ def estado(datos):
         "saltable": bool(paso.get("saltable")), "aviso_saltar": _tr(AVISO_SALTAR, paso["clave"]),
         "pantalla": paso.get("pantalla"), "banda": _tr(paso, "banda"),
         "objeto": ses.get("objeto"), "mosaico": bool(ses.get("mosaico")),
+        "astro": act.get("astro"), "modo": ses.get("modo") if ses.get("modo") in MODOS else "foto",
         "comprobaciones": lista, "puede_seguir": puede,
     }
     return salida

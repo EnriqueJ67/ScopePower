@@ -5,6 +5,17 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Guía «¿Qué quieres hacer hoy?»: el Sol, la Luna y el paisaje también van guiados paso a paso. El Sol empieza
+  por confirmar el filtro solar y no deja seguir sin ello. Para el Sol y la Luna la app hace lo que de noche hace
+  el plate solving: va al astro, hace una foto, busca el disco, sincroniza la montura con él y lo centra; si no
+  lo encuentra, manda a centrarlo a mano en Cámara con la banda de la guía. Después, el enfoque con el borde del
+  disco, elegir entre fotos, vídeo o timelapse, y Cámara abierta en la pestaña de lo elegido. El paisaje se
+  encuadra con el pad y no necesita la montura conectada.
+- Filtro solar: el PC recuerda la confirmación cuatro horas y, sin ella, no hace fotos, vídeo en vivo, continuo ni
+  timelapse del Sol (antes solo lo comprobaba el navegador). Confirmado una vez, en el aviso del GoTo, en la
+  guía o en Cámara, no se vuelve a preguntar en las otras pantallas.
+- Guía: la primera tarjeta del menú, la de lo que toca a esa hora, usa un recorte apaisado propio y el Sol se ve
+  entero.
 - Inicio: cada botón del menú lleva de fondo una foto (galaxias, nebulosas, cúmulos, la Luna, el Sol), con un
   velo del color del tema para que el texto se lea. La franja «¿Qué quieres hacer hoy?» es más alta y enseña
   la galaxia de Andrómeda entera, tumbada a lo largo y con el núcleo a la vista.

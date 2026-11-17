@@ -121,7 +121,8 @@
 
             <!-- 6. Enfoque -->
             <div class="guia-cuerpo" data-paso="enfoque" hidden>
-                <p class="modal-texto">{{ _("Se enfoca con una estrella brillante. Con la máscara de Bahtinov puesta, la pantalla Cámara dice hacia dónde girar el enfocador; sin máscara, busca la estrella más pequeña.") }}</p>
+                <p class="modal-texto" id="guia-enfoque-noche">{{ _("Se enfoca con una estrella brillante. Con la máscara de Bahtinov puesta, la pantalla Cámara dice hacia dónde girar el enfocador; sin máscara, busca la estrella más pequeña.") }}</p>
+                <p class="modal-texto" id="guia-enfoque-dia" hidden>{{ _("De día se enfoca con el borde del disco del Sol o de la Luna, o con un detalle lejano del paisaje. Con el modo enfoque puesto, la pantalla Cámara mide lo fino que sale el borde: gira el enfocador hasta que deje de mejorar.") }}</p>
                 <div class="guia-botones">
                     <button type="button" class="btn btn-primary" id="guia-ir-estrella" onclick="Guia.irAEstrella()" hidden></button>
                     <button type="button" class="btn btn-secondary" onclick="Guia.enfocarAqui()"><svg><use href="#i-foto"/></svg>{{ _("Enfocar donde apunta ahora") }}</button>
@@ -140,6 +141,47 @@
             <div class="guia-cuerpo" data-paso="listo" hidden>
                 <p class="modal-texto" id="guia-listo-texto"></p>
                 <button type="button" class="btn btn-primary guia-boton-ancho guia-boton-final" onclick="Guia.abrirApilado()"><svg><use href="#i-apilado"/></svg><span id="guia-abrir-apilado"></span></button>
+            </div>
+
+            <!-- Sol: lo primero, el filtro solar. La app no puede comprobarlo: lo confirma una persona -->
+            <div class="guia-cuerpo" data-paso="filtro" hidden>
+                <div class="aviso aviso-err"><svg class="ico"><use href="#i-sol"/></svg><div>{{ _("<b>Filtro solar obligatorio</b>, delante del objetivo y bien sujeto, y tapa el buscador. Sin filtro, el Sol destroza el sensor en segundos y ciega a quien mire por el telescopio. La app no puede comprobar que el filtro está puesto.")|safe }}</div></div>
+                <button type="button" class="btn btn-primary guia-boton-ancho" id="guia-filtro" onclick="Guia.confirmarFiltro()"><svg><use href="#i-ok"/></svg>{{ _("Confirmar que el filtro solar está puesto") }}</button>
+            </div>
+
+            <!-- Sol y Luna: ir al disco y centrarlo (de día no hay plate solving) -->
+            <div class="guia-cuerpo" data-paso="apuntar_disco" hidden>
+                <p class="modal-texto">{{ _("Sin estrellas no hay plate solving: la app hace una foto, busca el disco y lo lleva al centro. De paso, la montura queda sincronizada con él.") }}</p>
+                <div class="guia-botones">
+                    <button type="button" class="btn btn-primary" id="guia-ir-disco" onclick="Guia.irAlDisco()"></button>
+                    <button type="button" class="btn btn-secondary" id="guia-disco-mano" onclick="Guia.irA('/foto-prueba', 'pad')"><svg><use href="#i-control"/></svg>{{ _("Centrarlo a mano en Cámara") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-disco-hecho" onclick="Guia.hecho('apuntar_disco')"><svg><use href="#i-ok"/></svg>{{ _("Ya está centrado") }}</button>
+                </div>
+                <div id="guia-disco-estado" class="estado mt-2"></div>
+            </div>
+
+            <!-- Paisaje: encuadre a mano -->
+            <div class="guia-cuerpo" data-paso="encuadre" hidden>
+                <p class="modal-texto">{{ _("Apunta el telescopio a lo que quieres fotografiar con el pad de la pantalla Cámara, mirando la foto. Si ya lo tienes apuntado a mano, dilo y sigue.") }}</p>
+                <div class="guia-botones">
+                    <button type="button" class="btn btn-primary" onclick="Guia.irA('/foto-prueba', 'pad')"><svg><use href="#i-control"/></svg>{{ _("Encuadrar en Cámara") }}</button>
+                    <button type="button" class="btn btn-secondary" id="guia-encuadrado" onclick="Guia.hecho('encuadre')"><svg><use href="#i-ok"/></svg>{{ _("Ya está encuadrado") }}</button>
+                </div>
+            </div>
+
+            <!-- Rutas de día: fotos, vídeo o timelapse -->
+            <div class="guia-cuerpo" data-paso="modo" hidden>
+                <div class="guia-modos" id="guia-modos">
+                    <button type="button" class="guia-modo" data-modo="foto"><svg><use href="#i-foto"/></svg><b>{{ _("Fotos") }}</b><span>{{ _("Una a una, con la exposición automática") }}</span></button>
+                    <button type="button" class="guia-modo" data-modo="video"><svg><use href="#i-play"/></svg><b>{{ _("Vídeo") }}</b><span>{{ _("Para apilar después los mejores fotogramas") }}</span></button>
+                    <button type="button" class="guia-modo" data-modo="timelapse"><svg><use href="#i-reloj"/></svg><b>{{ _("Timelapse") }}</b><span>{{ _("Una foto cada cierto tiempo y, al final, el vídeo") }}</span></button>
+                </div>
+            </div>
+
+            <!-- Rutas de día: listo -->
+            <div class="guia-cuerpo" data-paso="listo_camara" hidden>
+                <p class="modal-texto" id="guia-listo-camara-texto"></p>
+                <button type="button" class="btn btn-primary guia-boton-ancho guia-boton-final" onclick="Guia.abrirCamara()"><svg><use href="#i-foto"/></svg>{{ _("Abrir Cámara") }}</button>
             </div>
 
             <div id="guia-error" class="aviso aviso-err mt-2" hidden></div>

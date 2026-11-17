@@ -1356,6 +1356,48 @@ def aviso_solar(nombre_objeto, ra, dec):
             "altura_sol_deg": None if altura_sol is None else round(altura_sol, 1)}
 
 
+# Confirmación del filtro solar. Quien la da es siempre una persona (el aviso a pantalla completa del
+# GoTo, la pregunta de Cámara o el primer paso de la guía); el PC la recuerda unas horas para no preguntar
+# en cada foto, y sin ella no hace fotos del Sol: antes solo lo comprobaba el navegador.
+FILTRO_SOLAR_VALE_S = 4 * 3600
+_filtro_solar = {"hora": 0.0}
+
+
+def filtro_solar_confirmado():
+    return time.time() - _filtro_solar["hora"] < FILTRO_SOLAR_VALE_S
+
+
+def confirmar_filtro_solar(confirmado=True):
+    if confirmado and not filtro_solar_confirmado():
+        log.info("Filtro solar confirmado por el usuario (vale %d h)", FILTRO_SOLAR_VALE_S // 3600)
+    _filtro_solar["hora"] = time.time() if confirmado else 0.0
+
+
+def _falta_filtro_solar(datos, objetivo):
+    """
+    Para las rutas que fotografían en modo día: None si se puede seguir, o la respuesta 409 que pide
+    confirmar el filtro solar. Con "filtro_solar": true en la petición, la confirmación viene con ella.
+    """
+    if objetivo != "sol":
+        return None
+    if datos.get("filtro_solar"):
+        confirmar_filtro_solar()
+    if filtro_solar_confirmado():
+        return None
+    return jsonify({"ok": False, "error": _("Confirma antes que el filtro solar está puesto."),
+                    "confirmar_filtro_solar": {"es_sol": True, "objeto": _("Sol"), "texto": _("Vas a fotografiar el Sol.")}}), 409
+
+
+@app.route('/filtro-solar', methods=['GET', 'POST'])
+def filtro_solar_ruta():
+    """GET: {confirmado, hora}. POST {"confirmado": true|false}: lo que ha contestado el usuario al aviso."""
+    if request.method == 'POST':
+        datos = request.get_json(silent=True) or {}
+        confirmar_filtro_solar(bool(datos.get("confirmado", True)))
+    return jsonify({"confirmado": filtro_solar_confirmado(),
+                    "hora": datetime.fromtimestamp(_filtro_solar["hora"]).strftime("%H:%M") if filtro_solar_confirmado() else None})
+
+
 def generar_fits_monocromo_para_platesolve(ruta_rgb, ruta_monocromo):
     from astropy.io import fits
     with fits.open(ruta_rgb) as hdul:
@@ -3990,6 +4032,8 @@ def goto_objeto():
                 voz.decir(_("Atención. {texto} ¿Has puesto el filtro solar?", texto=texto))
                 print(f"☀️ GoTo a {nombre_rotulo} pendiente de confirmar el filtro solar ({aviso})")
                 return jsonify({"confirmar_filtro_solar": dict(aviso, objeto=nombre_rotulo, texto=texto)})
+            if aviso:
+                confirmar_filtro_solar()      # ha llegado con filtro_solar=si: lo ha confirmado en el aviso
             ULTIMO_GOTO.clear()
             ULTIMO_GOTO.update({"ra": float(ra), "dec": float(dec), "objeto": nombre_rotulo,
                                 "fuente": fuente_coords, "hora": datetime.now().isoformat(timespec="seconds")})
@@ -4044,8 +4088,10 @@ def goto_objeto():
             # montura): avisar por voz y, como un Seestar, centrar automáticamente
             # con plate solving si [Centrado] centrar_tras_goto = true.
             de_dia = es_de_dia()
+            # sin_centrado=si: quien pide el GoTo centrará de otra forma (la guía, con el disco del Sol o de la Luna)
+            sin_centrado = request.form.get("sin_centrado") == "si"
 
-            def _al_llegar(nombre=nombre_rotulo, ra_obj=float(ra), dec_obj=float(dec), de_dia=de_dia):
+            def _al_llegar(nombre=nombre_rotulo, ra_obj=float(ra), dec_obj=float(dec), de_dia=de_dia, sin_centrado=sin_centrado):
                 inicio = time.time()
                 # La pantalla GoTo enseña esta fase previa hasta que arranque el centrado
                 centrado.trabajo_centrado.anunciar_previo(_("Esperando a que el telescopio llegue a {nombre}", nombre=nombre))
@@ -4074,6 +4120,9 @@ def goto_objeto():
                     return
                 voz.decir(_("Telescopio apuntando a {nombre}", nombre=nombre))
                 humor.decir("goto_llegada")
+                if sin_centrado:
+                    centrado.trabajo_centrado.anunciar_omitido(_("Sin centrado por estrellas: se centra con el disco"))
+                    return
                 if not centrado.leer_config().get("centrar_tras_goto", True):
                     centrado.trabajo_centrado.anunciar_omitido(_("El centrado tras el GoTo está desactivado en la configuración"))
                     return
@@ -4505,6 +4554,9 @@ def foto_dia_iniciar():
     objetivo = str(datos.get("objetivo", "paisaje"))
     if objetivo not in foto_dia.OBJETIVOS:
         return jsonify({"ok": False, "error": _("Objetivo desconocido")}), 400
+    falta = _falta_filtro_solar(datos, objetivo)
+    if falta:
+        return falta
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("flats"), flats.trabajo_flats), (N_("centrado"), centrado.trabajo_centrado),
@@ -4592,6 +4644,9 @@ def vivo_iniciar():
     noche = bool(datos.get("noche"))
     if objetivo not in foto_dia.OBJETIVOS or (noche and objetivo != "paisaje"):
         return jsonify({"ok": False, "error": _("Objetivo desconocido")}), 400
+    falta = _falta_filtro_solar(datos, objetivo)
+    if falta:
+        return falta
     if noche and not enfoque.activo():
         return jsonify({"ok": False, "error": _("De noche el modo en vivo es para enfocar: enciende «Enfoque: solo verde»")}), 409
     if bucle.activo and not bucle.pausado:
@@ -5096,6 +5151,9 @@ def timelapse_iniciar():
     objetivo = str(datos.get("objetivo", "paisaje"))
     if objetivo not in foto_dia.OBJETIVOS:
         return jsonify({"ok": False, "error": _("Objetivo desconocido")}), 400
+    falta = _falta_filtro_solar(datos, objetivo)
+    if falta:
+        return falta
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes")}), 409
     for nombre, trabajo in ((N_("darks"), darks.trabajo_darks), (N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("flats"), flats.trabajo_flats),
@@ -5238,6 +5296,9 @@ def continuo_iniciar():
     objetivo = str(datos.get("objetivo", "paisaje"))
     if modo == "dia" and objetivo not in foto_dia.OBJETIVOS:
         return jsonify({"ok": False, "error": _("Objetivo desconocido")}), 400
+    falta = _falta_filtro_solar(datos, objetivo) if modo == "dia" else None
+    if falta:
+        return falta
     try:
         ganancia = int(datos["ganancia"]) if str(datos.get("ganancia", "")).strip() != "" else None
     except (TypeError, ValueError):
@@ -7808,10 +7869,19 @@ def _datos_guia():
         "alineacion": alineacion.trabajo_alineacion.estado(),
         "puesta_estacion": puesta_estacion.trabajo_puesta_estacion.estado(),
         "bucle_activo": bool(bucle.activo), "trabajo": _trabajos_en_curso(),
+        "filtro_solar": {"confirmado": filtro_solar_confirmado(),
+                         "hora": datetime.fromtimestamp(_filtro_solar["hora"]).strftime("%H:%M") if filtro_solar_confirmado() else None},
     })
     if not ses:
         return datos
     datos["captura"] = _captura_guia()
+    if paso == "apuntar_disco":
+        import orientacion_camara
+        datos["moviendose"] = _montura_moviendose()
+        datos["foto_dia"] = foto_dia.trabajo_foto_dia.estado()
+        datos["orientacion_camara"] = orientacion_camara.ultima() is not None
+    if paso in ("modo", "listo_camara"):
+        datos["video_disponible"] = camara_sdk.es_sdk(_dispositivos()["driver_camara"])
     if paso == "objeto":
         datos["campo"] = mosaico.campo_camara()
     if paso in ("objeto", "apuntar", "listo"):
@@ -7846,8 +7916,12 @@ def _estado_guia():
             ses["hay_dark"] = bool((datos.get("dark") or {}).get("existe"))
             ses["hay_flat"] = bool((datos.get("flat") or {}).get("existe"))
             ses["opcion_dark"] = _leer_preferencias().get("opcion_dark", "ultimo")
-        elif ses["paso"] == "enfoque":
+        elif ses["paso"] == "enfoque" and ses["actividad"] == "cielo_profundo":
             ses["estrella"] = guia.estrella_para_enfocar(LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO)
+        elif ses["paso"] == "apuntar_disco":
+            ses["orientacion_camara"] = bool(datos.get("orientacion_camara"))
+        elif ses["paso"] in ("modo", "listo_camara"):
+            ses["video_disponible"] = bool(datos.get("video_disponible"))
     return salida
 
 
@@ -7872,9 +7946,13 @@ def guia_empezar():
         guia.empezar(act["clave"])
     except ValueError as e:
         return _error_guia(e)
-    if act.get("guiada"):
-        return jsonify(dict(_estado_guia(), ok=True))
     preferencias = dict(act.get("preferencias") or {})
+    if act.get("guiada"):
+        # Las rutas de día dejan ya la pantalla Cámara en modo día con su objetivo (Sol, Luna o paisaje)
+        for clave, valor in preferencias.items():
+            seccion, clave_ini, __ = PREFERENCIAS[clave]
+            _guardar_en_config(seccion, {clave_ini: valor})
+        return jsonify(dict(_estado_guia(), ok=True))
     if act["clave"] == "enfocar":
         # De noche se enfoca con una estrella (solo verde, máscara de Bahtinov); de día, con el borde del Sol o de la Luna
         de_dia = _cielo_guia()["de_dia"]
@@ -7950,6 +8028,28 @@ def guia_captura():
         return _error_guia(_("El número de fotos tiene que ser al menos 1."))
     _guardar_en_config("Dispositivos", {"exposicion_captura": f"{exposicion:g}", "ganancia_camara": ganancia,
                                         "numero_maximo_imagenes": fotos})
+    return jsonify(dict(_estado_guia(), ok=True))
+
+
+@app.route('/guia/modo', methods=['POST'])
+def guia_modo():
+    """{"modo": "foto" | "video" | "timelapse"}: qué se va a hacer al final de una ruta de día."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        guia.fijar_modo(str(datos.get("modo", "")))
+    except ValueError as e:
+        return _error_guia(e)
+    return jsonify(dict(_estado_guia(), ok=True))
+
+
+@app.route('/guia/hecho', methods=['POST'])
+def guia_hecho():
+    """{"paso": "apuntar_disco" | "encuadre", "nota": texto}: ese paso de la sesión ya está (centrar el disco, encuadrar)."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        guia.paso_hecho(str(datos.get("paso", "")), datos.get("nota") or "")
+    except ValueError as e:
+        return _error_guia(e)
     return jsonify(dict(_estado_guia(), ok=True))
 
 

@@ -292,7 +292,7 @@ msgstr ""
 msgid "<b>Esp32Go</b>: por wifi. La dirección IP se pone con «Configurar el driver en el PC»."
 msgstr ""
 
-#: templates/imagen.html
+#: templates/_guia.html templates/imagen.html
 msgid "<b>Filtro solar obligatorio</b>, delante del objetivo y bien sujeto, y tapa el buscador. Sin filtro, el Sol destroza el sensor en segundos y ciega a quien mire por el telescopio. La app no puede comprobar que el filtro está puesto."
 msgstr ""
 
@@ -441,12 +441,28 @@ msgstr ""
 msgid "Abre Apilado y pulsa «Empezar»: el objeto está en su sitio y todo lo demás, preparado."
 msgstr ""
 
+#: static/js/guia.js
+msgid "Abre Cámara en la pestaña del timelapse: elige cuántas fotos y cada cuánto, y empieza."
+msgstr ""
+
+#: static/js/guia.js
+msgid "Abre Cámara en la pestaña del vídeo: pon el modo en vivo y pulsa grabar."
+msgstr ""
+
+#: static/js/guia.js
+msgid "Abre Cámara y pulsa «Hacer foto»: la exposición la busca sola."
+msgstr ""
+
 #: templates/_modal_voz.html
 msgid "Abre una pestaña nueva en Chrome y entra en esta dirección:"
 msgstr ""
 
 #: static/js/guia.js
 msgid "Abrir Apilado"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Abrir Cámara"
 msgstr ""
 
 #: static/centrado.js
@@ -985,8 +1001,26 @@ msgstr ""
 msgid "Apunta aquí"
 msgstr ""
 
+#: guia.py
+msgid "Apunta el telescopio a lo que quieres fotografiar"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Apunta el telescopio a lo que quieres fotografiar con el pad de la pantalla Cámara, mirando la foto. Si ya lo tienes apuntado a mano, dilo y sigue."
+msgstr ""
+
 #: templates/flats.html
 msgid "Apunta el telescopio a una pantalla blanca (móvil o tablet a brillo medio, pegada a la camiseta) o al cielo del crepúsculo, lejos del sol."
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Apuntar a la Luna"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Apuntar al Sol"
 msgstr ""
 
 #. js
@@ -1161,6 +1195,10 @@ msgstr ""
 msgid "Aún no hay recorrido preparado."
 msgstr ""
 
+#: guia.py
+msgid "Aún no se conoce la orientación de la cámara (se aprende con un plate solving de noche): el disco habrá que centrarlo a mano"
+msgstr ""
+
 #: ScopePower.py
 msgid "Aún no se está ajustando"
 msgstr ""
@@ -1302,6 +1340,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Buscando el disco en la foto y sincronizando..."
+msgstr ""
+
+#: static/js/guia.js
+msgid "Buscando el disco y centrándolo..."
 msgstr ""
 
 #. js
@@ -1580,6 +1622,10 @@ msgstr ""
 msgid "Catálogo: sin respuesta"
 msgstr ""
 
+#: static/js/guia.js
+msgid "Centra el disco, o di que ya está centrado, para seguir."
+msgstr ""
+
 #: centrado.py
 msgid "Centrado a {error}' del objetivo en {n} vuelta"
 msgid_plural "Centrado a {error}' del objetivo en {n} vueltas"
@@ -1642,6 +1688,10 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "Centrar por plate solving tras cada GoTo"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Centrarlo a mano en Cámara"
 msgstr ""
 
 #: templates/apilado.html templates/planetario.html
@@ -1934,6 +1984,11 @@ msgstr ""
 msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes. Mientras se graba un vídeo, la corrección espera a que termine."
 msgstr ""
 
+#. js
+#: guia.py
+msgid "Con el enfoque sin afinar se pierde el detalle: las estrellas salen gordas y el borde del Sol o de la Luna, blando."
+msgstr ""
+
 #: templates/imagen.html
 #, python-format
 msgid "Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto."
@@ -2072,6 +2127,18 @@ msgstr ""
 
 #: templates/_asistente.html
 msgid "Configurar el driver en el PC"
+msgstr ""
+
+#: ScopePower.py
+msgid "Confirma antes que el filtro solar está puesto."
+msgstr ""
+
+#: static/js/guia.js
+msgid "Confirma que el filtro solar está puesto para seguir."
+msgstr ""
+
+#: templates/_guia.html
+msgid "Confirmar que el filtro solar está puesto"
 msgstr ""
 
 #. js
@@ -2443,6 +2510,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "De día no hay plate solving: el movimiento se calcula con la orientación y la escala de la cámara del último que salió bien…"
+msgstr ""
+
+#: templates/_guia.html
+msgid "De día se enfoca con el borde del disco del Sol o de la Luna, o con un detalle lejano del paisaje. Con el modo enfoque puesto, la pantalla Cámara mide lo fino que sale el borde: gira el enfocador hasta que deje de mejorar."
 msgstr ""
 
 #: templates/galeria.html templates/publico/index.html
@@ -2824,8 +2895,16 @@ msgstr ""
 msgid "El SCNR solo baja el verde hasta la media de rojo y azul: las estrellas azules y naranjas no cambian; las de halo verdoso (el foco de la noche no es igual en los tres colores) quedan neutras."
 msgstr ""
 
+#: guia.py
+msgid "El Sol está bajo el horizonte"
+msgstr ""
+
 #: ScopePower.py
 msgid "El Sol está bajo el horizonte según las efemérides: revisa la hora del PC y la ubicación."
+msgstr ""
+
+#: guia.py
+msgid "El Sol está centrado"
 msgstr ""
 
 #: camara_toupcam.py
@@ -3038,6 +3117,10 @@ msgstr ""
 #. js
 #: templates/apagar.html
 msgid "El equipo se reinicia en {s} s"
+msgstr ""
+
+#: guia.py
+msgid "El filtro solar no está confirmado: vuelve al primer paso"
 msgstr ""
 
 #: templates/flats.html
@@ -3365,6 +3448,10 @@ msgstr ""
 msgid "El vídeo está vacío"
 msgstr ""
 
+#: guia.py
+msgid "El vídeo necesita la cámara conectada por su SDK; con esta, usa las fotos o el timelapse"
+msgstr ""
+
 #: visor_video.py
 msgid "El vídeo no tiene el fotograma {i}"
 msgstr ""
@@ -3613,12 +3700,34 @@ msgstr ""
 msgid "Enciende la montura, conéctala al PC y enchufa la cámara. Si tu montura usa un programa intermedio (SynScan Pro, EQMOD...), ábrelo antes."
 msgstr ""
 
-#: templates/apilado.html templates/editar_foto.html
+#. js
+#: guia.py
+msgid "Encuadra con el pad y pulsa «Hecho, siguiente»"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Encuadra, di que ya está encuadrado o salta este paso."
+msgstr ""
+
+#: templates/_guia.html
+msgid "Encuadrar en Cámara"
+msgstr ""
+
+#. js
+#: guia.py templates/apilado.html templates/editar_foto.html
 msgid "Encuadre"
 msgstr ""
 
 #: ScopePower.py
 msgid "Encuadre centrado donde has tocado"
+msgstr ""
+
+#: guia.py
+msgid "Encuadre hecho"
+msgstr ""
+
+#: guia.py
+msgid "Encuadre sin comprobar"
 msgstr ""
 
 #. js
@@ -4358,6 +4467,10 @@ msgstr ""
 msgid "Falta algo en este paso."
 msgstr ""
 
+#: guia.py
+msgid "Falta confirmar que el filtro solar está puesto"
+msgstr ""
+
 #: luna_anotada.py
 msgid "Falta el mapa de la Luna ({ruta})."
 msgstr ""
@@ -4421,6 +4534,15 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Filas, columnas y solape tienen que ser números"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Filtro solar"
+msgstr ""
+
+#: guia.py
+msgid "Filtro solar confirmado a las {hora}"
 msgstr ""
 
 #: templates/editar_dia.html
@@ -4664,6 +4786,11 @@ msgstr ""
 
 #. js
 #: guia.py
+msgid "Foto o vídeo"
+msgstr ""
+
+#. js
+#: guia.py
 msgid "Foto o vídeo de la Luna, con la exposición automática"
 msgstr ""
 
@@ -4750,7 +4877,7 @@ msgid "Fotogramas que se apilan"
 msgstr ""
 
 #. js
-#: templates/apilado.html templates/planetario.html
+#: templates/_guia.html templates/apilado.html templates/planetario.html
 #: templates/publico/index.html templates/publico/planetario.html
 msgid "Fotos"
 msgstr ""
@@ -5229,6 +5356,10 @@ msgstr ""
 msgid "Haciendo darks: {n} de {total}"
 msgstr ""
 
+#: guia.py static/js/guia.js
+msgid "Haciendo una foto para encontrar el disco..."
+msgstr ""
+
 #: templates/editar_foto.html
 msgid "Halo de las estrellas"
 msgstr ""
@@ -5491,11 +5622,27 @@ msgid "Ir a alinear"
 msgstr ""
 
 #: static/js/guia.js
+msgid "Ir a la Luna"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Ir a la Luna y centrarla"
+msgstr ""
+
+#: static/js/guia.js
 msgid "Ir a {estrella} ({alt}° de altura) y enfocar"
 msgstr ""
 
 #: static/js/guia.js
 msgid "Ir a {objeto} y centrar"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Ir al Sol"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Ir al Sol y centrarlo"
 msgstr ""
 
 #: templates/galeria.html templates/rastros.html
@@ -5535,8 +5682,16 @@ msgstr ""
 msgid "La 'guerrera femenina' en latín. Representa el hombro derecho de Orión."
 msgstr ""
 
+#: guia.py
+msgid "La Luna está bajo el horizonte"
+msgstr ""
+
 #: ScopePower.py
 msgid "La Luna está bajo el horizonte según las efemérides: revisa la hora del PC y la ubicación."
+msgstr ""
+
+#: guia.py
+msgid "La Luna está centrada"
 msgstr ""
 
 #: actualizar.py
@@ -5854,7 +6009,23 @@ msgid "La montura va al objeto y la app lo centra sola: hace una foto, reconoce 
 msgstr ""
 
 #: guia.py static/js/guia.js
+msgid "La montura va hacia el Sol..."
+msgstr ""
+
+#: guia.py static/js/guia.js
+msgid "La montura va hacia la Luna..."
+msgstr ""
+
+#: guia.py static/js/guia.js
 msgid "La montura va hacia {objeto}..."
+msgstr ""
+
+#: static/js/guia.js
+msgid "La montura ya apunta hacia el Sol. Céntralo a mano en Cámara y pulsa «Hecho, siguiente»."
+msgstr ""
+
+#: static/js/guia.js
+msgid "La montura ya apunta hacia la Luna. Céntrala a mano en Cámara y pulsa «Hecho, siguiente»."
 msgstr ""
 
 #. js
@@ -6075,6 +6246,24 @@ msgstr ""
 #. js
 #: guia.py templates/seguimiento.html
 msgid "Listo"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Lleva el Sol al centro de la foto con el pad y pulsa «Hecho, siguiente»"
+msgstr ""
+
+#: guia.py
+msgid "Lleva el telescopio a la Luna y céntrala"
+msgstr ""
+
+#: guia.py
+msgid "Lleva el telescopio al Sol y céntralo"
+msgstr ""
+
+#. js
+#: guia.py
+msgid "Lleva la Luna al centro de la foto con el pad y pulsa «Hecho, siguiente»"
 msgstr ""
 
 #: ScopePower.py
@@ -6366,6 +6555,10 @@ msgstr[1] ""
 
 #: templates/configuracion.html
 msgid "Modo de apilado"
+msgstr ""
+
+#: guia.py
+msgid "Modo desconocido: {modo}"
 msgstr ""
 
 #: templates/imagen.html
@@ -7242,7 +7435,7 @@ msgid "No se pudo ejecutar git: {e}"
 msgstr ""
 
 #. js
-#: static/js/seguimiento.js templates/calibracion.html
+#: static/js/guia.js static/js/seguimiento.js templates/calibracion.html
 #: templates/editar_dia.html templates/imagen.html templates/planetario.html
 #: templates/visor_video.html
 msgid "No se pudo empezar"
@@ -7770,6 +7963,10 @@ msgstr ""
 msgid "Par de galaxias"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Para apilar después los mejores fotogramas"
+msgstr ""
+
 #: templates/configuracion.html
 msgid "Para comparar los dos modos con el mismo objeto: cambia aquí, guarda y reinicia el apilado."
 msgstr ""
@@ -8183,6 +8380,10 @@ msgstr ""
 #. js
 #: templates/galeria.html
 msgid "Publicar en la galería pública"
+msgstr ""
+
+#: static/js/guia.js
+msgid "Puedes centrarlo a mano en Cámara."
 msgstr ""
 
 #: templates/_puesta_estacion.html
@@ -9222,11 +9423,6 @@ msgid "Si ahí ya está permitida, mira en Android: Ajustes → Aplicaciones →
 msgstr ""
 
 #. js
-#: guia.py
-msgid "Si el enfoque no está fino, las estrellas saldrán gordas y se perderán las débiles."
-msgstr ""
-
-#. js
 #: templates/base.html
 msgid "Si se llena, las fotos dejarán de guardarse; con menos de {minimo} GB el apilado se pausa solo."
 msgstr ""
@@ -9309,6 +9505,10 @@ msgstr ""
 msgid "Sin calibrar: se usa un valor típico de estos sensores ({valores})."
 msgstr ""
 
+#: ScopePower.py
+msgid "Sin centrado por estrellas: se centra con el disco"
+msgstr ""
+
 #. js
 #: templates/goto.html
 msgid "Sin coincidencias en los catálogos locales. GoTo lo intentará con Stellarium (si está abierto) o por Internet."
@@ -9316,6 +9516,10 @@ msgstr ""
 
 #: static/js/plan.js
 msgid "Sin coincidencias en los catálogos locales. Pulsa Intro para intentarlo por nombre."
+msgstr ""
+
+#: guia.py
+msgid "Sin comprobar que el disco esté centrado"
 msgstr ""
 
 #: static/js/plan.js
@@ -9360,6 +9564,15 @@ msgstr ""
 msgid "Sin driver elegido"
 msgstr ""
 
+#. js
+#: guia.py
+msgid "Sin encuadrar, la foto saldrá de donde apunte ahora el telescopio."
+msgstr ""
+
+#: templates/_guia.html
+msgid "Sin estrellas no hay plate solving: la app hace una foto, busca el disco y lo lleva al centro. De paso, la montura queda sincronizada con él."
+msgstr ""
+
 #: static/js/filtro_solar.js
 msgid "Sin filtro solar delante del telescopio, el Sol <b>quema el sensor de la cámara en segundos</b> (y los ojos si mirases por el ocular). Comprueba que el filtro está puesto y bien sujeto <b>antes</b> de continuar."
 msgstr ""
@@ -9390,6 +9603,10 @@ msgstr ""
 
 #: static/js/asistente.js
 msgid "Sin montura no funcionarán el GoTo, el pad ni el centrado. Podrás elegir el driver más tarde en Configuración."
+msgstr ""
+
+#: guia.py
+msgid "Sin montura: podrás hacer las fotos, pero no mover el telescopio desde aquí"
 msgstr ""
 
 #. js
@@ -9468,9 +9685,10 @@ msgid "Sky-Watcher a través de la app <b>SynScan Pro</b>: ábrela en el PC y co
 msgstr ""
 
 #. js
-#: catalogo_offline.py disco.py foto_dia.py guia.py
-#: static/publico/galeria_publica.js static/publico/planetario_publico.js
-#: templates/imagen.html templates/planetario.html
+#: ScopePower.py catalogo_offline.py disco.py foto_dia.py guia.py
+#: static/js/guia.js static/publico/galeria_publica.js
+#: static/publico/planetario_publico.js templates/imagen.html
+#: templates/planetario.html
 msgid "Sol"
 msgstr ""
 
@@ -9801,7 +10019,7 @@ msgstr ""
 msgid "Tienes a medias: {actividad}, paso {n} de {total}."
 msgstr ""
 
-#: templates/imagen.html
+#: templates/_guia.html templates/imagen.html
 msgid "Timelapse"
 msgstr ""
 
@@ -10091,6 +10309,10 @@ msgstr ""
 msgid "Un solo color por estrella"
 msgstr ""
 
+#: templates/_guia.html
+msgid "Una a una, con la exposición automática"
+msgstr ""
+
 #: templates/constelacion.html
 msgid "Una constelación suelta"
 msgstr ""
@@ -10107,6 +10329,10 @@ msgstr ""
 
 #: templates/seguimiento.html
 msgid "Una foto ASCOM y otra del SDK de la misma escena (vale una habitación iluminada o el paisaje de día); con el seguimiento parado. Tarda unos segundos"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Una foto cada cierto tiempo y, al final, el vídeo"
 msgstr ""
 
 #: templates/imagen.html
@@ -10183,6 +10409,22 @@ msgstr ""
 
 #: ScopePower.py static/js/filtro_solar.js static/js/guia.js
 msgid "Vas a apuntar el telescopio al Sol."
+msgstr ""
+
+#: ScopePower.py
+msgid "Vas a fotografiar el Sol."
+msgstr ""
+
+#: guia.py
+msgid "Vas a grabar vídeo"
+msgstr ""
+
+#: guia.py
+msgid "Vas a hacer fotos sueltas"
+msgstr ""
+
+#: guia.py
+msgid "Vas a hacer un timelapse"
 msgstr ""
 
 #. js
@@ -10440,7 +10682,8 @@ msgid "Vuelve al recorte central de siempre"
 msgstr ""
 
 #. js
-#: templates/galeria.html templates/imagen.html templates/seguimiento.html
+#: templates/_guia.html templates/galeria.html templates/imagen.html
+#: templates/seguimiento.html
 msgid "Vídeo"
 msgstr ""
 
@@ -10518,6 +10761,14 @@ msgstr ""
 
 #: templates/visor_video.html
 msgid "Ya está apilado:"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Ya está centrado"
+msgstr ""
+
+#: templates/_guia.html
+msgid "Ya está encuadrado"
 msgstr ""
 
 #: templates/_guia.html
