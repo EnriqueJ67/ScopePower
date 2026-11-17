@@ -4002,6 +4002,10 @@ msgstr ""
 msgid "Experimental: aviones, satélites e ISS con la cámara como guía"
 msgstr ""
 
+#: static/js/ayudas.js
+msgid "Explicación"
+msgstr ""
+
 #. js
 #: templates/apilado.html
 msgid "Exponiendo"

@@ -89,11 +89,13 @@ def main():
     print("Pestañas de la columna de controles (static/js/paneles.js):")
     import re
     pedir("/static/js/paneles.js")
+    pedir("/static/js/ayudas.js")       # explicaciones plegadas tras un botón, en las mismas columnas
     for ruta, clave in (("/foto-prueba", "foto_paneles"), ("/apilado", "apilado_paneles")):
         html = cliente.get(ruta).get_data(as_text=True)
         n = len(re.findall(r'<section class="card panel" data-panel="', html))
         # Del sistema anterior (paneles plegables y reordenables) no debe quedar nada en la página
         bien = (f'data-paneles="{clave}"' in html and "js/paneles.js" in html and n >= 5
+                and " data-ayudas>" in html and "js/ayudas.js" in html
                 and "panel-botones" not in html and "alternarPanel(" not in html and "moverPanel(" not in html)
         print(f"  {'✅' if bien else '❌'} {ruta}: {n} paneles con pestaña")
         if not bien:

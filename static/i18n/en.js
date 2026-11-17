@@ -346,6 +346,7 @@ window.I18N_CATALOGO = {
 "Estás en la app instalada, que no tiene barra de direcciones: abre {direccion} en una pestaña de Chrome, toca el icono de la izquierda de la dirección (ⓘ o candado) → Permisos → Ubicación → Permitir, y vuelve a la app.":"You're in the installed app, which has no address bar: open {direccion} in a Chrome tab, tap the icon to the left of the address (ⓘ or padlock) → Permissions → Location → Allow, and go back to the app.",
 "Evolución del apilado":"Stacking progress",
 "Excentricidad de la órbita medida: {e} (la real, 0,0167) · perihelio hacia el {fecha} (el real, hacia el 3 de enero), con {n} fotos de {dias} días.":"Measured orbital eccentricity: {e} (the real one, 0.0167) · perihelion around {fecha} (the real one, around 3 January), from {n} photos over {dias} days.",
+"Explicación":"Explanation",
 "Exponiendo":"Exposing",
 "Exponiendo {s} s...":"Exposing {s} s...",
 "Exponiendo · {exp}":"Exposing · {exp}",
