@@ -783,7 +783,7 @@
         const fotos = parseInt(document.getElementById("tl-fotos").value) || 100;
         const intervalo = parseFloat(document.getElementById("tl-intervalo").value) || 10;
         est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Empezando el timelapse...");
-        fetch("/timelapse/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, fotos, intervalo, campo: campoDia() }) })
+        fetch("/timelapse/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, fotos, intervalo, campo: campoDia(), filtro_solar: solConfirmado }) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); return; }
@@ -877,7 +877,7 @@
         document.getElementById("btn-cancelar").style.display = "inline-flex";
         est.className = "estado mt-2"; est.innerHTML = '<span class="spinner"></span>' + _("Preparando la cámara...");
         document.getElementById("dia-intentos").textContent = "";
-        fetch("/foto-dia/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, campo: campoDia() }) })
+        fetch("/foto-dia/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ objetivo: objetivoDia, campo: campoDia(), filtro_solar: solConfirmado }) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { est.className = "estado err mt-2"; est.textContent = "❌ " + (d.error || _("No se pudo empezar")); terminarFotoDia(); return; }
@@ -960,7 +960,7 @@
         document.getElementById("btn-vivo").disabled = true;
         // De noche: la estrella más brillante con la ganancia de noche (vivo_dia con el modo enfoque); sin
         // seguimiento solar ni lunar, como un paisaje
-        const cuerpo = modoDia ? { objetivo: objetivoDia, campo: campoDia() } : { objetivo: "paisaje", campo: campoDia(), noche: true };
+        const cuerpo = modoDia ? { objetivo: objetivoDia, campo: campoDia(), filtro_solar: solConfirmado } : { objetivo: "paisaje", campo: campoDia(), noche: true };
         fetch("/vivo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
             .then(r => r.json())
             .then(d => {
@@ -1280,6 +1280,9 @@
             }).catch(() => {});
     }
     fetch("/enfoque").then(r => r.json()).then(d => pintarModoEnfoque(d.activo)).catch(() => {});
+    // El filtro solar ya confirmado en el aviso del GoTo o en la guía vale aquí: no se pregunta dos veces.
+    // La confirmación de esta página viaja con cada petición (filtro_solar) y el PC no hace fotos del Sol sin ella.
+    fetch("/filtro-solar").then(r => r.json()).then(d => { if (d.confirmado) solConfirmado = true; }).catch(() => {});
 
     // ——— Modo continuo ———
     let modoContinuo = false, guardarContinuo = "no", sondeoContinuo = null, ultimaVersionContinuo = -1, continuoActivo = false, vivoTrasContinuo = false;
@@ -1336,7 +1339,7 @@
         document.getElementById("estado-sync").textContent = "";
         document.getElementById("dia-intentos").textContent = "";
         const g = document.getElementById("ganancia-prueba").value.trim();
-        const cuerpo = modoDia ? { guardar: guardarContinuo, modo: "dia", objetivo: objetivoDia, campo: campoDia() }
+        const cuerpo = modoDia ? { guardar: guardarContinuo, modo: "dia", objetivo: objetivoDia, campo: campoDia(), filtro_solar: solConfirmado }
                                : { guardar: guardarContinuo, modo: "noche", ganancia: g, exposicion: exposicionPrueba() };
         fetch("/continuo/iniciar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
             .then(r => r.json())
@@ -1750,10 +1753,18 @@
     fetch("/estado-captura").then(r => r.json()).then(c => { if (c.en_curso && !sondeo) sondeo = setInterval(sondearCaptura, 1000); }).catch(() => {});
 
     // ——— Llegada desde la guía «¿Qué quieres hacer hoy?» (static/js/guia.js) ———
-    // El modo día, el objetivo y el modo enfoque ya vienen puestos del PC (preferencias y /enfoque):
-    // aquí solo se abre la pestaña que toca. paso: "enfoque" | "dia"
+    // El modo día, el objetivo y el modo enfoque ya vienen puestos del PC (preferencias y /enfoque): aquí solo
+    // se abre la pestaña que toca. paso: "enfoque" | "dia" | "pad" (centrar o encuadrar a mano) | "foto" |
+    // "video" | "timelapse" (lo elegido al final de una ruta de día; el botón de la foto sale resaltado)
     window.guiaAlLlegar = function (paso) {
-        if (window.Paneles) Paneles.activar(paso === "dia" ? "dia" : "captura");
+        if (!window.Paneles) return;
+        const panel = { dia: "dia", pad: "pad", video: "video", timelapse: "timelapse" }[paso] || "captura";
+        // Las pestañas del vídeo y del timelapse aparecen cuando la página ha leído el modo día: un momento después
+        setTimeout(() => {
+            const visible = document.querySelector('#paneles-foto .panel[data-panel="' + panel + '"]:not([hidden])');
+            Paneles.activar(visible ? panel : "captura");
+            if (paso === "foto" || !visible) document.getElementById("btn-foto").classList.add("guia-resaltado");
+        }, 700);
     };
 </script>
 {% endblock %}

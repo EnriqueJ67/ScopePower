@@ -133,15 +133,41 @@ def main():
     sp.idioma.cambiar("en")
     en_ingles = "Deep sky" in [a["titulo"] for a in (cliente.get("/guia/estado").get_json() or {}).get("menu", [])]
     sp.idioma.cambiar("es")
-    directo = cliente.post("/guia/empezar", json={"actividad": "luna"}).get_json() or {}
-    prefs = cliente.get("/preferencias").get_json() or {}
-    acceso = directo.get("destino") == "/foto-prueba" and prefs.get("modo_dia") == "on" and prefs.get("foto_dia_objetivo") == "luna"
+    directo = cliente.post("/guia/empezar", json={"actividad": "calibracion"}).get_json() or {}
+    acceso = directo.get("destino") == "/calibracion"
     cerrada = (cliente.post("/guia/terminar", json={}).get_json() or {}).get("activa") is False
     bien = sin_equipo and objeto and captura and rechazo and en_ingles and acceso and cerrada
     print(f"  {'✅' if bien else '❌'} cielo profundo: sin equipo no pasa del primer paso ({sin_equipo}), objeto ({objeto}), "
-          f"exposición ({captura}, rechaza la mala: {rechazo}), menú en inglés ({en_ingles}), acceso directo a la Luna ({acceso}), cierre ({cerrada})")
+          f"exposición ({captura}, rechaza la mala: {rechazo}), menú en inglés ({en_ingles}), acceso directo a Calibración ({acceso}), cierre ({cerrada})")
     if not bien:
         fallos.append("rutas de la guía")
+
+    print("Guía del Sol y filtro solar comprobado en el PC:")
+    cliente.post("/filtro-solar", json={"confirmado": False})
+    sin_filtro = [cliente.post(ruta, json=dict(cuerpo, objetivo="sol")) for ruta, cuerpo in (
+        ("/foto-dia/iniciar", {}), ("/vivo/iniciar", {}), ("/timelapse/iniciar", {"fotos": 2, "intervalo": 5}),
+        ("/continuo/iniciar", {"modo": "dia", "guardar": "no"}))]
+    rechazadas = all(r.status_code == 409 and (r.get_json() or {}).get("confirmar_filtro_solar") for r in sin_filtro)
+    luna_pasa = sp._falta_filtro_solar({}, "luna") is None and sp._falta_filtro_solar({}, "paisaje") is None
+    ses = (cliente.post("/guia/empezar", json={"actividad": "sol"}).get_json() or {}).get("sesion") or {}
+    prefs = cliente.get("/preferencias").get_json() or {}
+    empieza = (ses.get("paso") == "filtro" and not ses.get("puede_seguir") and prefs.get("modo_dia") == "on"
+               and prefs.get("foto_dia_objetivo") == "sol")
+    confirmado = (cliente.post("/filtro-solar", json={"confirmado": True}).get_json() or {}).get("confirmado") is True
+    ses = (cliente.get("/guia/estado").get_json() or {}).get("sesion") or {}
+    sigue = bool(ses.get("puede_seguir"))
+    cliente.post("/guia/paso", json={"accion": "ir", "paso": "modo"})
+    ses = (cliente.post("/guia/modo", json={"modo": "timelapse"}).get_json() or {}).get("sesion") or {}
+    modo = ses.get("modo") == "timelapse" and cliente.post("/guia/modo", json={"modo": "otro"}).status_code == 400
+    hecho = cliente.post("/guia/hecho", json={"paso": "apuntar_disco", "nota": "prueba"}).status_code == 200 \
+        and cliente.post("/guia/hecho", json={"paso": "equipo"}).status_code == 400
+    cliente.post("/guia/terminar", json={})
+    cliente.post("/filtro-solar", json={"confirmado": False})
+    bien = rechazadas and luna_pasa and empieza and confirmado and sigue and modo and hecho
+    print(f"  {'✅' if bien else '❌'} sin confirmar el filtro el PC no fotografía el Sol ({rechazadas}) y la Luna no lo pide ({luna_pasa}); "
+          f"la guía del Sol empieza por el filtro ({empieza}), sigue al confirmarlo ({confirmado}, {sigue}), modo ({modo}), paso hecho ({hecho})")
+    if not bien:
+        fallos.append("guía del Sol y filtro solar")
 
     print("Firma de una foto sintética (Pillow):")
     import numpy as np

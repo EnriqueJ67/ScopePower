@@ -294,7 +294,7 @@ msgstr "<b>EQMOD</b>: Sky-Watcher or Orion mount with an EQDirect cable to the P
 msgid "<b>Esp32Go</b>: por wifi. La dirección IP se pone con «Configurar el driver en el PC»."
 msgstr "<b>Esp32Go</b>: over Wi-Fi. The IP address is set with “Set up the driver on the PC”."
 
-#: templates/imagen.html
+#: templates/_guia.html templates/imagen.html
 msgid "<b>Filtro solar obligatorio</b>, delante del objetivo y bien sujeto, y tapa el buscador. Sin filtro, el Sol destroza el sensor en segundos y ciega a quien mire por el telescopio. La app no puede comprobar que el filtro está puesto."
 msgstr "<b>Solar filter required</b>, in front of the lens and firmly attached, and cover the finder. Without a filter, the Sun destroys the sensor in seconds and blinds anyone looking through the telescope. The app can't check that the filter is in place."
 
@@ -443,6 +443,18 @@ msgstr "Open Stacking on the Mosaic tab: the center is already your object. Choo
 msgid "Abre Apilado y pulsa «Empezar»: el objeto está en su sitio y todo lo demás, preparado."
 msgstr "Open Stacking and press “Start”: the object is in place and everything else is ready."
 
+#: static/js/guia.js
+msgid "Abre Cámara en la pestaña del timelapse: elige cuántas fotos y cada cuánto, y empieza."
+msgstr "Open Camera on the timelapse tab: choose how many shots and how often, and start."
+
+#: static/js/guia.js
+msgid "Abre Cámara en la pestaña del vídeo: pon el modo en vivo y pulsa grabar."
+msgstr "Open Camera on the video tab: turn on live mode and press record."
+
+#: static/js/guia.js
+msgid "Abre Cámara y pulsa «Hacer foto»: la exposición la busca sola."
+msgstr "Open Camera and press “Take shot”: it finds the exposure by itself."
+
 #: templates/_modal_voz.html
 msgid "Abre una pestaña nueva en Chrome y entra en esta dirección:"
 msgstr "Open a new tab in Chrome and go to this address:"
@@ -450,6 +462,10 @@ msgstr "Open a new tab in Chrome and go to this address:"
 #: static/js/guia.js
 msgid "Abrir Apilado"
 msgstr "Open Stacking"
+
+#: templates/_guia.html
+msgid "Abrir Cámara"
+msgstr "Open Camera"
 
 #: static/centrado.js
 msgid "Abrir a tamaño completo"
@@ -987,9 +1003,27 @@ msgstr "Point at the Sun or the Moon and press “Live”. The inset enlarges th
 msgid "Apunta aquí"
 msgstr "Point here"
 
+#: guia.py
+msgid "Apunta el telescopio a lo que quieres fotografiar"
+msgstr "Point the telescope at what you want to photograph"
+
+#: templates/_guia.html
+msgid "Apunta el telescopio a lo que quieres fotografiar con el pad de la pantalla Cámara, mirando la foto. Si ya lo tienes apuntado a mano, dilo y sigue."
+msgstr "Point the telescope at what you want to photograph with the pad on the Camera screen, watching the shot. If you have already pointed it by hand, say so and continue."
+
 #: templates/flats.html
 msgid "Apunta el telescopio a una pantalla blanca (móvil o tablet a brillo medio, pegada a la camiseta) o al cielo del crepúsculo, lejos del sol."
 msgstr "Point the telescope at a white screen (phone or tablet at medium brightness, pressed against the T-shirt) or at the twilight sky, away from the sun."
+
+#. js
+#: guia.py
+msgid "Apuntar a la Luna"
+msgstr "Point at the Moon"
+
+#. js
+#: guia.py
+msgid "Apuntar al Sol"
+msgstr "Point at the Sun"
 
 #. js
 #: guia.py
@@ -1163,6 +1197,10 @@ msgstr "There's no plate solving with this camera yet: do one at night (centerin
 msgid "Aún no hay recorrido preparado."
 msgstr "No tour ready yet."
 
+#: guia.py
+msgid "Aún no se conoce la orientación de la cámara (se aprende con un plate solving de noche): el disco habrá que centrarlo a mano"
+msgstr "The camera orientation is not known yet (it is learned from a plate solve at night): the disc will have to be centered by hand"
+
 #: ScopePower.py
 msgid "Aún no se está ajustando"
 msgstr "Not adjusting yet"
@@ -1305,6 +1343,10 @@ msgstr "Looking up the constellation description..."
 #: templates/imagen.html
 msgid "Buscando el disco en la foto y sincronizando..."
 msgstr "Finding the disk in the shot and syncing..."
+
+#: static/js/guia.js
+msgid "Buscando el disco y centrándolo..."
+msgstr "Finding the disc and centering it..."
 
 #. js
 #: templates/goto.html
@@ -1582,6 +1624,10 @@ msgstr "Catalog {catalogos} · {ruta}"
 msgid "Catálogo: sin respuesta"
 msgstr "Catalog: no response"
 
+#: static/js/guia.js
+msgid "Centra el disco, o di que ya está centrado, para seguir."
+msgstr "Center the disc, or say it is already centered, to continue."
+
 #: centrado.py
 msgid "Centrado a {error}' del objetivo en {n} vuelta"
 msgid_plural "Centrado a {error}' del objetivo en {n} vueltas"
@@ -1645,6 +1691,10 @@ msgstr "Center by plate solving on each tile"
 #: templates/apilado.html
 msgid "Centrar por plate solving tras cada GoTo"
 msgstr "Center by plate solving after each GoTo"
+
+#: templates/_guia.html
+msgid "Centrarlo a mano en Cámara"
+msgstr "Center it by hand in Camera"
 
 #: templates/apilado.html templates/planetario.html
 msgid "Centro"
@@ -1936,6 +1986,11 @@ msgstr "With the classic STF (under “More settings”) the background brightne
 msgid "Con el continuo, el modo en vivo o el timelapse en marcha, corrige la montura si el disco se aparta de donde está ahora. Si lo mueves con el pad o con «Apunta aquí», se queda donde lo dejes. Mientras se graba un vídeo, la corrección espera a que termine."
 msgstr "While continuous mode, live mode or the timelapse is running, it corrects the mount if the disk drifts from where it is now. If you move it with the pad or with “Point here”, it stays where you leave it. While a video is being recorded, the correction waits until it ends."
 
+#. js
+#: guia.py
+msgid "Con el enfoque sin afinar se pierde el detalle: las estrellas salen gordas y el borde del Sol o de la Luna, blando."
+msgstr "Without fine focus, detail is lost: stars come out bloated and the edge of the Sun or the Moon looks soft."
+
 #: templates/imagen.html
 #, python-format
 msgid "Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto."
@@ -2075,6 +2130,18 @@ msgstr "Settings saved. ScopePower is ready"
 #: templates/_asistente.html
 msgid "Configurar el driver en el PC"
 msgstr "Set up the driver on the PC"
+
+#: ScopePower.py
+msgid "Confirma antes que el filtro solar está puesto."
+msgstr "First confirm that the solar filter is on."
+
+#: static/js/guia.js
+msgid "Confirma que el filtro solar está puesto para seguir."
+msgstr "Confirm that the solar filter is on to continue."
+
+#: templates/_guia.html
+msgid "Confirmar que el filtro solar está puesto"
+msgstr "Confirm that the solar filter is on"
 
 #. js
 #: templates/constelacion.html
@@ -2446,6 +2513,10 @@ msgstr "There are no stars during the day: with {nombre} in the shot (whole or n
 #: templates/imagen.html
 msgid "De día no hay plate solving: el movimiento se calcula con la orientación y la escala de la cámara del último que salió bien…"
 msgstr "No plate solving during the day: the move is computed with the camera orientation and scale from the last successful one…"
+
+#: templates/_guia.html
+msgid "De día se enfoca con el borde del disco del Sol o de la Luna, o con un detalle lejano del paisaje. Con el modo enfoque puesto, la pantalla Cámara mide lo fino que sale el borde: gira el enfocador hasta que deje de mejorar."
+msgstr "In daytime, focusing is done on the edge of the Sun's or the Moon's disc, or on a distant detail of the landscape. With focus mode on, the Camera screen measures how sharp the edge is: turn the focuser until it stops improving."
 
 #: templates/galeria.html templates/publico/index.html
 msgid "De la mejor nota a la peor"
@@ -2826,9 +2897,17 @@ msgstr "The PC announces through its speaker what it's doing: telescope and came
 msgid "El SCNR solo baja el verde hasta la media de rojo y azul: las estrellas azules y naranjas no cambian; las de halo verdoso (el foco de la noche no es igual en los tres colores) quedan neutras."
 msgstr "SCNR only lowers green down to the average of red and blue: blue and orange stars don't change; those with a greenish halo (the night's focus isn't the same in all three colors) become neutral."
 
+#: guia.py
+msgid "El Sol está bajo el horizonte"
+msgstr "The Sun is below the horizon"
+
 #: ScopePower.py
 msgid "El Sol está bajo el horizonte según las efemérides: revisa la hora del PC y la ubicación."
 msgstr "According to the ephemeris the Sun is below the horizon: check the PC's time and the location."
+
+#: guia.py
+msgid "El Sol está centrado"
+msgstr "The Sun is centered"
 
 #: camara_toupcam.py
 msgid "El ajuste {nombre} es de solo lectura"
@@ -3041,6 +3120,10 @@ msgstr "The computer shuts down in {s} s"
 #: templates/apagar.html
 msgid "El equipo se reinicia en {s} s"
 msgstr "The computer restarts in {s} s"
+
+#: guia.py
+msgid "El filtro solar no está confirmado: vuelve al primer paso"
+msgstr "The solar filter is not confirmed: go back to the first step"
 
 #: templates/flats.html
 msgid "El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fotografiando una superficie uniformemente iluminada. La exposición se ajusta sola."
@@ -3367,6 +3450,10 @@ msgstr "This photo's video is no longer on the mini PC; it cannot be stacked aga
 msgid "El vídeo está vacío"
 msgstr "The video is empty"
 
+#: guia.py
+msgid "El vídeo necesita la cámara conectada por su SDK; con esta, usa las fotos o el timelapse"
+msgstr "Video needs the camera connected through its SDK; with this one, use shots or the timelapse"
+
 #: visor_video.py
 msgid "El vídeo no tiene el fotograma {i}"
 msgstr "The video has no frame {i}"
@@ -3615,13 +3702,35 @@ msgstr "Turn on the mount and connect it to the PC as its manufacturer says. If 
 msgid "Enciende la montura, conéctala al PC y enchufa la cámara. Si tu montura usa un programa intermedio (SynScan Pro, EQMOD...), ábrelo antes."
 msgstr "Switch on the mount, connect it to the PC and plug in the camera. If your mount uses an intermediate program (SynScan Pro, EQMOD...), open it first."
 
-#: templates/apilado.html templates/editar_foto.html
+#. js
+#: guia.py
+msgid "Encuadra con el pad y pulsa «Hecho, siguiente»"
+msgstr "Frame it with the pad and press “Done, next”"
+
+#: static/js/guia.js
+msgid "Encuadra, di que ya está encuadrado o salta este paso."
+msgstr "Frame it, say it is already framed or skip this step."
+
+#: templates/_guia.html
+msgid "Encuadrar en Cámara"
+msgstr "Frame it in Camera"
+
+#. js
+#: guia.py templates/apilado.html templates/editar_foto.html
 msgid "Encuadre"
 msgstr "Framing"
 
 #: ScopePower.py
 msgid "Encuadre centrado donde has tocado"
 msgstr "Framing centered where you tapped"
+
+#: guia.py
+msgid "Encuadre hecho"
+msgstr "Framing done"
+
+#: guia.py
+msgid "Encuadre sin comprobar"
+msgstr "Framing not checked"
 
 #. js
 #: guia.py
@@ -4360,6 +4469,10 @@ msgstr "actualizar_desde_github.bat is missing from the ScopePower folder"
 msgid "Falta algo en este paso."
 msgstr "Something is missing in this step."
 
+#: guia.py
+msgid "Falta confirmar que el filtro solar está puesto"
+msgstr "The solar filter has not been confirmed yet"
+
 #: luna_anotada.py
 msgid "Falta el mapa de la Luna ({ruta})."
 msgstr "The Moon map is missing ({ruta})."
@@ -4424,6 +4537,15 @@ msgstr "Rows × columns"
 #: ScopePower.py
 msgid "Filas, columnas y solape tienen que ser números"
 msgstr "Rows, columns and overlap must be numbers"
+
+#. js
+#: guia.py
+msgid "Filtro solar"
+msgstr "Solar filter"
+
+#: guia.py
+msgid "Filtro solar confirmado a las {hora}"
+msgstr "Solar filter confirmed at {hora}"
 
 #: templates/editar_dia.html
 msgid "Firma en la foto"
@@ -4666,6 +4788,11 @@ msgstr "Photo saved in {s} s"
 
 #. js
 #: guia.py
+msgid "Foto o vídeo"
+msgstr "Photo or video"
+
+#. js
+#: guia.py
 msgid "Foto o vídeo de la Luna, con la exposición automática"
 msgstr "Photo or video of the Moon, with automatic exposure"
 
@@ -4752,7 +4879,7 @@ msgid "Fotogramas que se apilan"
 msgstr "Frames to stack"
 
 #. js
-#: templates/apilado.html templates/planetario.html
+#: templates/_guia.html templates/apilado.html templates/planetario.html
 #: templates/publico/index.html templates/publico/planetario.html
 msgid "Fotos"
 msgstr "Shots"
@@ -5231,6 +5358,10 @@ msgstr "To the left bluer (cool), to the right redder (warm). The sky background
 msgid "Haciendo darks: {n} de {total}"
 msgstr "Taking darks: {n} of {total}"
 
+#: guia.py static/js/guia.js
+msgid "Haciendo una foto para encontrar el disco..."
+msgstr "Taking a shot to find the disc..."
+
 #: templates/editar_foto.html
 msgid "Halo de las estrellas"
 msgstr "Star halo"
@@ -5493,12 +5624,28 @@ msgid "Ir a alinear"
 msgstr "Go to alignment"
 
 #: static/js/guia.js
+msgid "Ir a la Luna"
+msgstr "Go to the Moon"
+
+#: static/js/guia.js
+msgid "Ir a la Luna y centrarla"
+msgstr "Go to the Moon and center it"
+
+#: static/js/guia.js
 msgid "Ir a {estrella} ({alt}° de altura) y enfocar"
 msgstr "Go to {estrella} ({alt}° altitude) and focus"
 
 #: static/js/guia.js
 msgid "Ir a {objeto} y centrar"
 msgstr "Go to {objeto} and center"
+
+#: static/js/guia.js
+msgid "Ir al Sol"
+msgstr "Go to the Sun"
+
+#: static/js/guia.js
+msgid "Ir al Sol y centrarlo"
+msgstr "Go to the Sun and center it"
 
 #: templates/galeria.html templates/rastros.html
 msgid "Ir al apilado"
@@ -5537,9 +5684,17 @@ msgstr "Jupiter"
 msgid "La 'guerrera femenina' en latín. Representa el hombro derecho de Orión."
 msgstr "The 'female warrior' in Latin. It marks Orion's right shoulder."
 
+#: guia.py
+msgid "La Luna está bajo el horizonte"
+msgstr "The Moon is below the horizon"
+
 #: ScopePower.py
 msgid "La Luna está bajo el horizonte según las efemérides: revisa la hora del PC y la ubicación."
 msgstr "According to the ephemeris the Moon is below the horizon: check the PC's time and the location."
+
+#: guia.py
+msgid "La Luna está centrada"
+msgstr "The Moon is centered"
 
 #: actualizar.py
 msgid "La actualización falló"
@@ -5856,8 +6011,24 @@ msgid "La montura va al objeto y la app lo centra sola: hace una foto, reconoce 
 msgstr "The mount goes to the object and the app centers it by itself: it takes a shot, recognizes the stars and corrects until it is in the center."
 
 #: guia.py static/js/guia.js
+msgid "La montura va hacia el Sol..."
+msgstr "The mount is slewing to the Sun..."
+
+#: guia.py static/js/guia.js
+msgid "La montura va hacia la Luna..."
+msgstr "The mount is slewing to the Moon..."
+
+#: guia.py static/js/guia.js
 msgid "La montura va hacia {objeto}..."
 msgstr "The mount is slewing to {objeto}..."
+
+#: static/js/guia.js
+msgid "La montura ya apunta hacia el Sol. Céntralo a mano en Cámara y pulsa «Hecho, siguiente»."
+msgstr "The mount is now pointing towards the Sun. Center it by hand in Camera and press “Done, next”."
+
+#: static/js/guia.js
+msgid "La montura ya apunta hacia la Luna. Céntrala a mano en Cámara y pulsa «Hecho, siguiente»."
+msgstr "The mount is now pointing towards the Moon. Center it by hand in Camera and press “Done, next”."
 
 #. js
 #: templates/constelacion.html
@@ -6078,6 +6249,24 @@ msgstr "Limb {px} px"
 #: guia.py templates/seguimiento.html
 msgid "Listo"
 msgstr "Ready"
+
+#. js
+#: guia.py
+msgid "Lleva el Sol al centro de la foto con el pad y pulsa «Hecho, siguiente»"
+msgstr "Bring the Sun to the center of the shot with the pad and press “Done, next”"
+
+#: guia.py
+msgid "Lleva el telescopio a la Luna y céntrala"
+msgstr "Take the telescope to the Moon and center it"
+
+#: guia.py
+msgid "Lleva el telescopio al Sol y céntralo"
+msgstr "Take the telescope to the Sun and center it"
+
+#. js
+#: guia.py
+msgid "Lleva la Luna al centro de la foto con el pad y pulsa «Hecho, siguiente»"
+msgstr "Bring the Moon to the center of the shot with the pad and press “Done, next”"
 
 #: ScopePower.py
 msgid "Llevando el tubo a altura 0°, acimut 0°..."
@@ -6369,6 +6558,10 @@ msgstr[1] "Continuous mode stopped: {n} shots saved in {carpeta}"
 #: templates/configuracion.html
 msgid "Modo de apilado"
 msgstr "Stacking mode"
+
+#: guia.py
+msgid "Modo desconocido: {modo}"
+msgstr "Unknown mode: {modo}"
 
 #: templates/imagen.html
 msgid "Modo día"
@@ -7244,7 +7437,7 @@ msgid "No se pudo ejecutar git: {e}"
 msgstr "Couldn't run git: {e}"
 
 #. js
-#: static/js/seguimiento.js templates/calibracion.html
+#: static/js/guia.js static/js/seguimiento.js templates/calibracion.html
 #: templates/editar_dia.html templates/imagen.html templates/planetario.html
 #: templates/visor_video.html
 msgid "No se pudo empezar"
@@ -7772,6 +7965,10 @@ msgstr "Full screen"
 msgid "Par de galaxias"
 msgstr "Galaxy pair"
 
+#: templates/_guia.html
+msgid "Para apilar después los mejores fotogramas"
+msgstr "To stack the best frames afterwards"
+
 #: templates/configuracion.html
 msgid "Para comparar los dos modos con el mismo objeto: cambia aquí, guarda y reinicia el apilado."
 msgstr "To compare both modes on the same object: change it here, save and restart stacking."
@@ -8186,6 +8383,10 @@ msgstr "Publish on the hosting"
 #: templates/galeria.html
 msgid "Publicar en la galería pública"
 msgstr "Publish in the public gallery"
+
+#: static/js/guia.js
+msgid "Puedes centrarlo a mano en Cámara."
+msgstr "You can center it by hand in Camera."
 
 #: templates/_puesta_estacion.html
 msgid "Puesta en estación"
@@ -9224,11 +9425,6 @@ msgid "Si ahí ya está permitida, mira en Android: Ajustes → Aplicaciones →
 msgstr "If it's already allowed there, check in Android: Settings → Apps → Chrome → Permissions → Location → Allow."
 
 #. js
-#: guia.py
-msgid "Si el enfoque no está fino, las estrellas saldrán gordas y se perderán las débiles."
-msgstr "If the focus is not sharp, the stars will come out bloated and the faint ones will be lost."
-
-#. js
 #: templates/base.html
 msgid "Si se llena, las fotos dejarán de guardarse; con menos de {minimo} GB el apilado se pausa solo."
 msgstr "If it fills up, shots will stop being saved; below {minimo} GB stacking pauses by itself."
@@ -9311,6 +9507,10 @@ msgstr "Without alignment, the GoTo may leave the object outside the field and c
 msgid "Sin calibrar: se usa un valor típico de estos sensores ({valores})."
 msgstr "Not calibrated: using a typical value for these sensors ({valores})."
 
+#: ScopePower.py
+msgid "Sin centrado por estrellas: se centra con el disco"
+msgstr "No star-based centering: it is centered using the disc"
+
 #. js
 #: templates/goto.html
 msgid "Sin coincidencias en los catálogos locales. GoTo lo intentará con Stellarium (si está abierto) o por Internet."
@@ -9319,6 +9519,10 @@ msgstr "No matches in the local catalogs. GoTo will try Stellarium (if it is ope
 #: static/js/plan.js
 msgid "Sin coincidencias en los catálogos locales. Pulsa Intro para intentarlo por nombre."
 msgstr "No matches in the local catalogs. Press Enter to try by name."
+
+#: guia.py
+msgid "Sin comprobar que el disco esté centrado"
+msgstr "Disc centering not checked"
 
 #: static/js/plan.js
 msgid "Sin conexión"
@@ -9362,6 +9566,15 @@ msgstr "No diameter: the disc is cut off or the photo date is missing."
 msgid "Sin driver elegido"
 msgstr "No driver chosen"
 
+#. js
+#: guia.py
+msgid "Sin encuadrar, la foto saldrá de donde apunte ahora el telescopio."
+msgstr "Without framing, the shot will show wherever the telescope is pointing now."
+
+#: templates/_guia.html
+msgid "Sin estrellas no hay plate solving: la app hace una foto, busca el disco y lo lleva al centro. De paso, la montura queda sincronizada con él."
+msgstr "With no stars there is no plate solving: the app takes a shot, finds the disc and brings it to the center. In the process, the mount is synced to it."
+
 #: static/js/filtro_solar.js
 msgid "Sin filtro solar delante del telescopio, el Sol <b>quema el sensor de la cámara en segundos</b> (y los ojos si mirases por el ocular). Comprueba que el filtro está puesto y bien sujeto <b>antes</b> de continuar."
 msgstr "Without a solar filter in front of the telescope, the Sun <b>burns the camera sensor in seconds</b> (and your eyes if you looked through the eyepiece). Check that the filter is on and securely fastened <b>before</b> continuing."
@@ -9393,6 +9606,10 @@ msgstr "No improvement: {detalle}"
 #: static/js/asistente.js
 msgid "Sin montura no funcionarán el GoTo, el pad ni el centrado. Podrás elegir el driver más tarde en Configuración."
 msgstr "Without a mount, GoTo, the pad and centering won't work. You can choose the driver later in Settings."
+
+#: guia.py
+msgid "Sin montura: podrás hacer las fotos, pero no mover el telescopio desde aquí"
+msgstr "No mount: you can take the shots, but not move the telescope from here"
 
 #. js
 #: templates/imagen.html
@@ -9470,9 +9687,10 @@ msgid "Sky-Watcher a través de la app <b>SynScan Pro</b>: ábrela en el PC y co
 msgstr "Sky-Watcher through the <b>SynScan Pro</b> app: open it on the PC and connect it to the mount (over its Wi-Fi or by cable) before testing."
 
 #. js
-#: catalogo_offline.py disco.py foto_dia.py guia.py
-#: static/publico/galeria_publica.js static/publico/planetario_publico.js
-#: templates/imagen.html templates/planetario.html
+#: ScopePower.py catalogo_offline.py disco.py foto_dia.py guia.py
+#: static/js/guia.js static/publico/galeria_publica.js
+#: static/publico/planetario_publico.js templates/imagen.html
+#: templates/planetario.html
 msgid "Sol"
 msgstr "Sun"
 
@@ -9803,7 +10021,7 @@ msgstr "Real time"
 msgid "Tienes a medias: {actividad}, paso {n} de {total}."
 msgstr "You have this in progress: {actividad}, step {n} of {total}."
 
-#: templates/imagen.html
+#: templates/_guia.html templates/imagen.html
 msgid "Timelapse"
 msgstr "Timelapse"
 
@@ -10093,6 +10311,10 @@ msgstr "A preset stores the light, colour and detail settings (not the framing o
 msgid "Un solo color por estrella"
 msgstr "One color per star"
 
+#: templates/_guia.html
+msgid "Una a una, con la exposición automática"
+msgstr "One at a time, with automatic exposure"
+
 #: templates/constelacion.html
 msgid "Una constelación suelta"
 msgstr "A single constellation"
@@ -10110,6 +10332,10 @@ msgstr "One of the twins of Gemini. An orange giant with a confirmed planet."
 #: templates/seguimiento.html
 msgid "Una foto ASCOM y otra del SDK de la misma escena (vale una habitación iluminada o el paisaje de día); con el seguimiento parado. Tarda unos segundos"
 msgstr "One ASCOM shot and one SDK shot of the same scene (a lit room or the daytime landscape will do); with tracking stopped. Takes a few seconds"
+
+#: templates/_guia.html
+msgid "Una foto cada cierto tiempo y, al final, el vídeo"
+msgstr "A shot every so often and, at the end, the video"
 
 #: templates/imagen.html
 msgid "Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día."
@@ -10186,6 +10412,22 @@ msgstr "Let's get ScopePower ready"
 #: ScopePower.py static/js/filtro_solar.js static/js/guia.js
 msgid "Vas a apuntar el telescopio al Sol."
 msgstr "You're about to point the telescope at the Sun."
+
+#: ScopePower.py
+msgid "Vas a fotografiar el Sol."
+msgstr "You are about to photograph the Sun."
+
+#: guia.py
+msgid "Vas a grabar vídeo"
+msgstr "You are going to record video"
+
+#: guia.py
+msgid "Vas a hacer fotos sueltas"
+msgstr "You are going to take single shots"
+
+#: guia.py
+msgid "Vas a hacer un timelapse"
+msgstr "You are going to make a timelapse"
 
 #. js
 #: guia.py
@@ -10442,7 +10684,8 @@ msgid "Vuelve al recorte central de siempre"
 msgstr "Goes back to the usual central crop"
 
 #. js
-#: templates/galeria.html templates/imagen.html templates/seguimiento.html
+#: templates/_guia.html templates/galeria.html templates/imagen.html
+#: templates/seguimiento.html
 msgid "Vídeo"
 msgstr "Video"
 
@@ -10521,6 +10764,14 @@ msgstr "Already aligned"
 #: templates/visor_video.html
 msgid "Ya está apilado:"
 msgstr "Already stacked:"
+
+#: templates/_guia.html
+msgid "Ya está centrado"
+msgstr "Already centered"
+
+#: templates/_guia.html
+msgid "Ya está encuadrado"
+msgstr "Already framed"
 
 #: templates/_guia.html
 msgid "Ya está enfocado"

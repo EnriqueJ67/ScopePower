@@ -8,6 +8,8 @@
 #     y caducar a las 12 h,
 #   - los semáforos de cada paso de cielo profundo (sin montura, disco lleno, sin dark,
 #     dark lejos de la temperatura, sin flat, objeto que no cabe, centrado...),
+#   - las rutas de día: el Sol no pasa del primer paso sin el filtro solar confirmado, el
+#     disco bajo el horizonte, centrar a mano, el paisaje sin montura y foto/vídeo/timelapse,
 #   - los cálculos: altura de un objeto, estrella para enfocar y exposición recomendada.
 #
 # Uso:
@@ -54,6 +56,8 @@ def datos_base(**cambios):
         "campo": {"ancho_deg": 2.5, "alto_deg": 2.5},
         "ultimo_goto": None, "moviendose": False, "centrado": {}, "centrado_objetivo": None,
         "bucle_activo": False, "trabajo": None,
+        "filtro_solar": {"confirmado": False, "hora": None}, "altura_sol": 40.0,
+        "foto_dia": {"en_curso": False}, "orientacion_camara": True, "video_disponible": True,
     }
     d.update(cambios)
     return d
@@ -74,8 +78,10 @@ def probar_menu():
     comprobar(sol_noche["apagada"], "de noche el Sol sale apagado")
     cp_dia = next(a for a in dia if a["clave"] == "cielo_profundo")
     comprobar(cp_dia["chip"]["nivel"] == "warn" and "21:40" in cp_dia["chip"]["texto"], "de día, cielo profundo dice desde qué hora")
-    comprobar(all(os.path.exists(os.path.join(RAIZ, "static", "guia", a["imagen"])) for a in noche),
-              "cada tarjeta tiene su fondo en static/guia")
+    comprobar(all(os.path.exists(os.path.join(RAIZ, "static", "guia", a[k])) for a in noche for k in ("imagen", "imagen_ancha")),
+              "cada tarjeta tiene su fondo en static/guia, también el apaisado de la primera")
+    comprobar(dia[0]["imagen_ancha"] == "sol_ancho.jpg" and noche[0]["imagen_ancha"] == "inicio.jpg",
+              "la primera tarjeta (Sol de día, cielo profundo de noche) lleva un recorte apaisado propio")
 
 
 def probar_sesion():
@@ -201,6 +207,86 @@ def probar_pasos():
     comprobar(est["terminada"] and not est["activa"], "listo: al arrancar el apilado la guía se cierra sola")
 
 
+def probar_rutas_de_dia():
+    print("Rutas de día: Sol, Luna y paisaje")
+    confirmado = {"confirmado": True, "hora": "12:30"}
+    guia.marcar("enfoque", False)      # lo que quedara apuntado de la ruta de cielo profundo
+    ses = guia.empezar("sol")
+    comprobar(ses["paso"] == "filtro" and ses["modo"] == "foto", "el Sol empieza por el filtro solar")
+    lista, puede = semaforos(datos_base(de_dia=True))
+    comprobar(not puede and nivel(lista, "filtro") == "err", "Sol: sin confirmar el filtro no se sigue")
+    try:
+        guia.avanzar(saltar=True)
+        comprobar(False, "Sol: el filtro solar no se puede saltar")
+    except ValueError:
+        comprobar(True, "Sol: el filtro solar no se puede saltar")
+    lista, puede = semaforos(datos_base(de_dia=True, filtro_solar=confirmado))
+    comprobar(puede and nivel(lista, "filtro") == "ok" and "12:30" in lista[0]["texto"], "Sol: con el filtro confirmado, en verde con su hora")
+    guia.avanzar()
+    lista, puede = semaforos(datos_base(de_dia=True, filtro_solar=confirmado))
+    comprobar(puede and nivel(lista, "noche") is None, "Sol: en el equipo no avisa de que es de día")
+    guia.avanzar()
+    lista, puede = semaforos(datos_base(de_dia=True, filtro_solar=confirmado))
+    comprobar(not puede and lista[0]["nivel"] == "falta" and lista[0]["accion"] == "goto_disco", "Sol: ofrece ir al disco y centrarlo")
+    lista, puede = semaforos(datos_base(de_dia=True))
+    comprobar(not puede and lista[0]["nivel"] == "err", "Sol: si el filtro deja de estar confirmado, no se apunta")
+    lista, puede = semaforos(datos_base(de_dia=True, filtro_solar=confirmado, altura_sol=-5.0))
+    comprobar(not puede and lista[0]["nivel"] == "err", "Sol: bajo el horizonte no se apunta")
+    lista, __ = semaforos(datos_base(de_dia=True, filtro_solar=confirmado, moviendose=True))
+    comprobar(lista[0]["nivel"] == "pendiente", "Sol: con la montura en marcha, espera")
+    lista, __ = semaforos(datos_base(de_dia=True, filtro_solar=confirmado, orientacion_camara=False))
+    comprobar(nivel(lista, "orientacion") == "warn", "Sol: sin orientación de la cámara avisa de que habrá que centrar a mano")
+    guia.paso_hecho("apuntar_disco", "Montura sincronizada con el Sol: se equivocaba 12,3′.")
+    lista, puede = semaforos(datos_base(de_dia=True, filtro_solar=confirmado))
+    comprobar(puede and lista[0]["nivel"] == "ok" and "12,3" in lista[0]["texto"], "Sol: centrado, en verde con el resultado")
+    try:
+        guia.paso_hecho("equipo")
+        comprobar(False, "solo se dan por hechos los pasos que se hacen a mano")
+    except ValueError:
+        comprobar(True, "solo se dan por hechos los pasos que se hacen a mano")
+    guia.avanzar()
+    guia.avanzar(saltar=True)
+    ses = guia.sesion()
+    comprobar(ses["paso"] == "modo" and "enfoque" in ses["saltados"], "Sol: el enfoque se puede saltar")
+    guia.fijar_modo("video")
+    lista, puede = semaforos(datos_base(de_dia=True, filtro_solar=confirmado, video_disponible=False))
+    comprobar(puede and nivel(lista, "video") == "warn", "Sol: vídeo sin cámara por SDK, aviso")
+    try:
+        guia.fijar_modo("pelicula")
+        comprobar(False, "un modo desconocido se rechaza")
+    except ValueError:
+        comprobar(True, "un modo desconocido se rechaza")
+    guia.fijar_modo("timelapse")
+    guia.avanzar()
+    est = guia.estado(datos_base(de_dia=True, filtro_solar=confirmado))
+    comprobar(est["sesion"]["paso"] == "listo_camara" and est["sesion"]["modo"] == "timelapse" and est["sesion"]["astro"] == "sol"
+              and est["sesion"]["total"] == 6, "Sol: seis pasos y al final sabe qué se va a hacer")
+    lista = est["sesion"]["comprobaciones"]
+    comprobar(nivel(lista, "filtro") == "ok" and nivel(lista, "apuntado") == "ok" and nivel(lista, "enfoque") == "warn",
+              "Sol: el resumen final repasa filtro, disco y enfoque")
+
+    ses = guia.empezar("luna")
+    comprobar(ses["paso"] == "equipo", "la Luna empieza por el equipo, sin filtro")
+    guia.avanzar()
+    lista, puede = semaforos(datos_base(altura_luna=-10.0))
+    comprobar(not puede and lista[0]["nivel"] == "err", "Luna: bajo el horizonte no se apunta")
+    lista, puede = semaforos(datos_base(altura_luna=35.0))
+    comprobar(not puede and lista[0]["nivel"] == "falta", "Luna: sobre el horizonte, ofrece ir a ella sin pedir filtro")
+
+    ses = guia.empezar("paisaje")
+    lista, puede = semaforos(datos_base(de_dia=True, montura=False))
+    comprobar(puede and nivel(lista, "montura") == "warn", "paisaje: sin montura se puede seguir")
+    lista, puede = semaforos(datos_base(de_dia=True, camara=False))
+    comprobar(not puede, "paisaje: sin cámara no")
+    guia.avanzar()
+    lista, puede = semaforos(datos_base(de_dia=True))
+    comprobar(not puede and lista[0]["nivel"] == "falta", "paisaje: falta encuadrar")
+    guia.paso_hecho("encuadre")
+    lista, puede = semaforos(datos_base(de_dia=True))
+    comprobar(puede and lista[0]["nivel"] == "ok", "paisaje: encuadrado, en verde")
+    guia.terminar()
+
+
 def probar_calculos():
     print("Cálculos")
     # La Polar está siempre a la altura de la latitud (± lo que dista del polo)
@@ -227,6 +313,7 @@ def main():
         probar_menu()
         probar_sesion()
         probar_pasos()
+        probar_rutas_de_dia()
         probar_calculos()
     if fallos:
         print("\n%d comprobaciones fallidas:" % len(fallos))
