@@ -100,6 +100,11 @@ def main():
         print(f"  {'✅' if bien else '❌'} {ruta}: {n} paneles con pestaña")
         if not bien:
             fallos.append("pestañas de " + ruta)
+    html = cliente.get("/foto-prueba").get_data(as_text=True)
+    bien = 'id="disparador"' in html and "pulsarDisparador()" in html
+    print(f"  {'✅' if bien else '❌'} /foto-prueba: disparador encima de la foto, para el móvil")
+    if not bien:
+        fallos.append("disparador de Cámara")
     r = cliente.post("/preferencias", json={"foto_paneles": {"activo": "dia"}})
     guardada = (cliente.get("/preferencias").get_json() or {}).get("foto_paneles")
     bien = r.status_code == 200 and guardada == {"activo": "dia"}

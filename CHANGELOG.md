@@ -5,6 +5,10 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Cámara: disparador encima de la foto. En el móvil el botón «Hacer foto» quedaba debajo de la foto y había que
+  mover el scroll; ahora, cuando ese botón no está a la vista (en el móvil, o con otra pestaña abierta), sale un
+  botón redondo abajo y en el centro de la foto que hace lo mismo. Con una foto o el modo continuo en marcha, la
+  para.
 - Guía «¿Qué quieres hacer hoy?»: el Sol, la Luna y el paisaje también van guiados paso a paso. El Sol empieza
   por confirmar el filtro solar y no deja seguir sin ello. Para el Sol y la Luna la app hace lo que de noche hace
   el plate solving: va al astro, hace una foto, busca el disco, sincroniza la montura con él y lo centra; si no
