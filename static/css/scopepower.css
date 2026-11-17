@@ -1003,10 +1003,26 @@ html:not([data-tema="oscuro"]) .ma-leyenda .ley-noche { display: block; }
     background: #000 url("../guia/inicio.jpg") center / cover no-repeat; color: #fff; font: inherit; text-align: left; cursor: pointer;
     box-shadow: var(--shadow-sm); transition: transform .12s, border-color .15s;
 }
-.guia-franja::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.5) 55%, rgba(0, 0, 0, 0.15) 100%); }
+.guia-franja::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.4) 38%, rgba(0, 0, 0, 0) 62%); }
 .guia-franja > * { position: relative; }
 .guia-franja:hover { transform: translateY(-1px); border-color: var(--accent-2); }
 .guia-franja:active { transform: scale(0.99); }
+@media (min-width: 700px) { .guia-franja { min-height: 172px; } }
+/* Baldosas del inicio con foto de fondo (.tile-foto, la foto en --foto): un velo del color del tema
+   la deja en segundo plano para que el texto se lea; al pasar por encima se aclara */
+.tile.tile-foto { position: relative; overflow: hidden; isolation: isolate; background: var(--bg-2) var(--foto) center / cover no-repeat; border-color: var(--border-2); }
+.tile.tile-foto::before { content: ""; position: absolute; inset: 0; z-index: -1; transition: opacity .15s;
+    background: linear-gradient(to top, color-mix(in srgb, var(--bg) 92%, transparent) 0%, color-mix(in srgb, var(--bg) 58%, transparent) 45%, color-mix(in srgb, var(--bg) 8%, transparent) 100%); }
+.tile.tile-grande.tile-foto::before { background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 90%, transparent) 0%, color-mix(in srgb, var(--bg) 55%, transparent) 42%, color-mix(in srgb, var(--bg) 0%, transparent) 100%); }
+.tile.tile-foto:hover { background: var(--bg-2) var(--foto) center / cover no-repeat; border-color: var(--accent-2); }
+.tile.tile-foto:hover::before { opacity: 0.75; }
+.tile-foto .tile-titulo { text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9); }
+.tile-foto .tile-desc { color: var(--text-2); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95); }
+.tile-foto .tile-ico { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px); }
+/* Sin el equipo conectado: la foto en blanco y negro y el texto apagado, en vez de toda la baldosa transparente */
+.tile.tile-foto.requiere-conexion.apagada { opacity: 1; filter: grayscale(0.9) brightness(0.8); }
+.tile.tile-foto.requiere-conexion.apagada .tile-texto, .tile.tile-foto.requiere-conexion.apagada .tile-ico,
+.tile.tile-foto.requiere-conexion.apagada .flecha { opacity: 0.55; }
 .guia-franja-ico { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; flex: none; background: linear-gradient(145deg, var(--accent-2), var(--accent)); box-shadow: 0 6px 16px var(--accent-glow); }
 .guia-franja-ico svg { width: 30px; height: 30px; }
 .guia-franja-texto { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
