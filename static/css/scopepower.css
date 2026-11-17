@@ -587,6 +587,16 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
     .paneles > .panel > .panel-header, .paneles > .panel > .panel-pie { flex: none; }
     .paneles > .panel > .panel-cuerpo { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 }
+/* Cabecera de la página dentro de la rejilla (.con-cabecera): en dos columnas el título y sus botones
+   quedan encima de la foto y la columna de controles sube hasta arriba, con la fila de pestañas a la
+   altura del título (paneles.js la baja lo justo para que su borde inferior coincida con el de la
+   cabecera): el panel empieza a la altura de la foto */
+.con-cabecera > .pagina-cabecera { margin: 4px 0 0; }
+@media (min-width: 760px) {
+    .con-cabecera { grid-template-rows: auto 1fr; }
+    .con-cabecera > .pagina-cabecera { grid-column: 1; grid-row: 1; min-height: var(--alto-pestanas, 0px); margin: 0; }
+    .con-cabecera > .paneles { grid-column: 2; grid-row: 1 / span 2; gap: 14px; }
+}
 /* Una columna: la fila de pestañas va bajo la foto y se queda pegada bajo la cabecera al bajar */
 @media (max-width: 759.98px) {
     .pestanas { position: sticky; top: calc(var(--header-h) + env(safe-area-inset-top) + 4px); z-index: 20; box-shadow: 0 0 0 5px var(--bg), var(--shadow-sm); }

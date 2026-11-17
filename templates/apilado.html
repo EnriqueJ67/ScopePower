@@ -3,22 +3,23 @@
 {% block title %}{{ _("Apilado") }}{% endblock %}
 
 {% block content %}
-<div class="pagina-cabecera">
-    <div>
-        <h1 class="pagina-titulo">{{ _("Apilado en tiempo real") }}</h1>
-        <p class="pagina-sub" id="estado-carga">{{ _("Actualizando...") }}</p>
+<div class="grid-2 ancha apilado-layout con-cabecera">
+    <!-- Cabecera dentro de la rejilla: en dos columnas queda encima de la foto y las pestañas a su altura -->
+    <div class="pagina-cabecera">
+        <div>
+            <h1 class="pagina-titulo">{{ _("Apilado en tiempo real") }}</h1>
+            <p class="pagina-sub" id="estado-carga">{{ _("Actualizando...") }}</p>
+        </div>
+        <div class="pagina-acciones">
+            <button id="boton-pausa" class="btn btn-warning" onclick="pausarApilado()" style="display: none;">{{ _("⏸ Pausar") }}</button>
+            <button id="boton-reanudar" class="btn btn-success" onclick="reanudarApilado()" style="display: none;">{{ _("▶ Reanudar") }}</button>
+            <button id="boton-detener" class="btn btn-secondary" onclick="detenerApilado()" style="display: none;">{{ _("⏹ Detener") }}</button>
+            <form method="POST" action="{{ url_for('reiniciar_apilado') }}" onsubmit="return confirmarReinicio()" style="display: inline;">
+                <button class="btn btn-ghost" title="{{ _('Borra las fotos apiladas y empieza de cero') }}"><svg><use href="#i-papelera"/></svg><span class="oculto-movil">{{ _("Reiniciar") }}</span></button>
+            </form>
+        </div>
     </div>
-    <div class="pagina-acciones">
-        <button id="boton-pausa" class="btn btn-warning" onclick="pausarApilado()" style="display: none;">{{ _("⏸ Pausar") }}</button>
-        <button id="boton-reanudar" class="btn btn-success" onclick="reanudarApilado()" style="display: none;">{{ _("▶ Reanudar") }}</button>
-        <button id="boton-detener" class="btn btn-secondary" onclick="detenerApilado()" style="display: none;">{{ _("⏹ Detener") }}</button>
-        <form method="POST" action="{{ url_for('reiniciar_apilado') }}" onsubmit="return confirmarReinicio()" style="display: inline;">
-            <button class="btn btn-ghost" title="{{ _('Borra las fotos apiladas y empieza de cero') }}"><svg><use href="#i-papelera"/></svg><span class="oculto-movil">{{ _("Reiniciar") }}</span></button>
-        </form>
-    </div>
-</div>
 
-<div class="grid-2 ancha apilado-layout">
     <!-- ─── Columna principal: imagen apilada, progreso y cifras ─────────── -->
     <div class="columna">
         <!-- Panel de inicio: darks y arranque del apilado. Plegado por defecto para que

@@ -3,6 +3,7 @@
 {% block title %}{{ _("Editar · {objeto}", objeto=info.objeto) }}{% endblock %}
 
 {% block content %}
+{% macro cabecera() %}
 <div class="pagina-cabecera">
     <div>
         <h1 class="pagina-titulo">{{ _("Editar foto") }}</h1>
@@ -16,8 +17,10 @@
         <a href="/galeria" class="btn btn-secondary"><svg><use href="#i-galeria"/></svg>{{ _("Galería") }}</a>
     </div>
 </div>
+{% endmacro %}
 
 {% if not info.hay_fits %}
+{{ cabecera() }}
 <div class="card centro">
     <svg class="ico" style="width: 40px; height: 40px; color: var(--text-3);"><use href="#i-info"/></svg>
     <p class="card-sub mt-2">{{ _("Esta foto no tiene el FITS apilado guardado a su lado, así que no se puede reprocesar. Solo las fotos guardadas desde el apilado con su FITS se pueden editar.") }}</p>
@@ -25,7 +28,9 @@
 </div>
 {% else %}
 
-<div class="grid-2 ancha apilado-layout">
+<div class="grid-2 ancha apilado-layout con-cabecera">
+    <!-- Cabecera dentro de la rejilla: en dos columnas queda encima de la foto y las pestañas a su altura -->
+    {{ cabecera() }}
     <!-- ─── Columna principal: la imagen, con el conmutador original / reprocesada ─── -->
     <div class="columna">
         <div class="visor">
