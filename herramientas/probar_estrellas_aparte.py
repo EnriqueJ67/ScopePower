@@ -25,7 +25,8 @@
 #  10. el catálogo no convierte en estrellas grandes las débiles sobre el halo de una brillante;
 #  11. al reducir, las brillantes conservan la cima blanca (sobreexposición y recorte), y
 #      una cima con huecos sigue siendo una sola estrella;
-#  12. el suavizado del fondo sin estrellas no deja un resplandor ni una sombra alrededor del objeto;
+#  12. el suavizado del fondo sin estrellas no deja un resplandor ni una sombra alrededor del objeto,
+#      y rellena los huecos del moteado del cielo sin borrar una nebulosa oscura (con y sin estrellas);
 #  13. el halo de las estrellas reducidas (perfil de Moffat): misma media altura, alas más largas;
 #  14. la comprobación de la instalación de StarNet2 de la tarjeta de Configuración;
 #  15. la cola de después de guardar (cola_estrellas.py) y un solo StarNet2 a la vez.
@@ -399,10 +400,42 @@ def prueba_sombra_objeto():
     def anillo(img, r0, r1):
         return float(np.median(img[(r >= r0) & (r < r1)]))
     lejos = anillo(L0, 330, 380)
-    subida = [(anillo(L, a, a + 20) - anillo(L0, a, a + 20)) / lejos * 100 for a in (120, 160, 200, 240)]
-    comprobar(max(subida) < 0.5, f"el cielo alrededor no se levanta: {[round(v, 2) for v in subida]} %")
+    # Rellenar los huecos de un cielo con ruido lo sube un poco en TODAS partes (aquí un 0,6 %,
+    # con el ruido sin reducir); el resplandor sería que subiera más cerca del objeto que lejos
+    subida_lejos = (anillo(L, 330, 380) - lejos) / lejos * 100
+    subida = [(anillo(L, a, a + 20) - anillo(L0, a, a + 20)) / lejos * 100 - subida_lejos for a in (120, 160, 200, 240)]
+    comprobar(max(abs(v) for v in subida) < 0.1,
+              f"el cielo alrededor no se levanta más que lejos: {[round(v, 2) for v in subida]} % (lejos {subida_lejos:.2f} %)")
     color = out[(r >= 120) & (r < 200)].mean(axis=0)
     comprobar(abs(color[2] / color[0] - 1.0) < 0.01, f"ni se tiñe del color de la nebulosa (B/R {color[2] / color[0]:.3f})")
+
+
+def prueba_huecos_cielo():
+    print("12b. Huecos del cielo: se rellena el moteado, no las nebulosas oscuras")
+    import cv2
+    rng = np.random.default_rng(11)
+    n = 800
+    yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
+    # Cielo ya sin grano fino (como tras reducir el ruido), con moteado de ~30 px y una
+    # nebulosa oscura alargada diez veces más honda
+    moteado = cv2.GaussianBlur(rng.normal(0, 1, (n, n)).astype(np.float32), (0, 0), 12)
+    moteado *= 3.0 / moteado.std()
+    elipse = ((xx - 200) / 60.0) ** 2 + ((yy - 600) / 18.0) ** 2
+    L0 = (1000.0 + moteado - 40.0 * np.exp(-elipse) + rng.normal(0, 1.0, (n, n))).astype(np.float32)
+    rgb = np.stack([L0, L0, L0], axis=2)
+    lejos = np.hypot(xx - 200, yy - 600) > 200
+    hueco0 = float(np.percentile(L0[lejos], 1) - np.median(L0[lejos]))
+    oscura0 = float(np.median(L0[elipse < 0.3]) - np.median(L0[lejos]))
+    for con_estrellas, queda_max in ((False, 0.25), (True, 0.5)):
+        # Con fuerza 0,3, por encima de FUERZA_CIELO_PLENA: el cielo se limpia del todo
+        L = procesado.suavizar_fondo_sin_estrellas(rgb, 0.3, sigma_px=128.0, con_estrellas=con_estrellas).mean(axis=2)
+        hueco = float(np.percentile(L[lejos], 1) - np.median(L[lejos]))
+        oscura = float(np.median(L[elipse < 0.3]) - np.median(L[lejos]))
+        donde = "con estrellas" if con_estrellas else "sin estrellas"
+        comprobar(hueco / hueco0 < queda_max, f"{donde}: los huecos del moteado se rellenan ({hueco0:.1f} -> {hueco:.1f} ADU)")
+        comprobar(oscura / oscura0 > 0.9, f"{donde}: la nebulosa oscura se conserva ({oscura0:.1f} -> {oscura:.1f} ADU)")
+    # Con fuerza 0 no se toca nada
+    comprobar(procesado.suavizar_fondo_sin_estrellas(rgb, 0.0) is rgb, "con la reducción de ruido a 0 no se toca")
 
 
 
@@ -519,6 +552,7 @@ if __name__ == "__main__":
     prueba_halo_brillante()
     prueba_cima_blanca()
     prueba_sombra_objeto()
+    prueba_huecos_cielo()
     prueba_halo_moffat()
     prueba_capas_guardadas()
     prueba_progreso()

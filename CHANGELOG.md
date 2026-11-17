@@ -47,6 +47,16 @@ día de la release. El número de versión vive en `version.py`.
   aparta de la vertical el eje de acimut y hacia qué lado cae, medido con las mismas fotos resueltas. A partir
   de 1° se avisa, porque SynScan sigue el cielo como si estuviera nivelado y por encima de unos 70° de altura
   la montura deriva.
+- Arreglado: manchas oscuras de color alrededor de las estrellas al procesar (se veían en el cielo de la Nebulosa
+  de la Hélice del 13-nov). La reducción de ruido dejaba sin tocar el ruido de color hasta unos 20 px alrededor
+  de cada estrella y la saturación lo volvía manchas. Ahora junto a una estrella suelta el color sigue la forma y
+  el color de la propia estrella, y en las nebulosas se conserva como antes. Con los mismos ajustes, alguna
+  nebulosa puede salir un poco menos roja: antes el ruido de color, al pasar por el SCNR, la teñía algo de rojo.
+- Arreglado: zonas oscuras de 20-40 px por todo el cielo con la reducción de ruido baja (Hélice del 13-nov con
+  ruido 0,25 y una curva con el negro subido). El relleno de los huecos del cielo iba en proporción a la
+  reducción de ruido y solo existía con «estrellas aparte»: ahora el cielo se limpia del todo desde 0,25 (el
+  deslizador sigue graduando el grano fino) y también en la foto normal, a la escala del moteado. Los huecos
+  hondos no se rellenan, para no borrar nebulosas oscuras como las de la Trompa de Elefante.
 - Puesta en estación: si la primera medición pasa de 1°, al bajar de 30′ el asistente propone por pantalla y
   por voz «Repetir la medición» (el botón pasa a ser el principal) y, hasta repetirla, no da la montura por
   puesta en estación aunque la estimación entre en la tolerancia. Tras corregir grados la estimación del
