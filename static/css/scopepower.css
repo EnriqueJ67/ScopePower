@@ -237,6 +237,17 @@ input[type="number"].corto { width: 84px; text-align: center; display: inline-bl
 input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; min-height: 0; margin: 0 8px 0 0; accent-color: var(--accent); vertical-align: -4px; cursor: pointer; }
 input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px; margin: 0; }
 .ayuda { color: var(--text-3); font-size: 13px; margin-top: 4px; display: block; }
+/* Explicaciones plegadas tras un botón ⓘ junto al nombre del control (static/js/ayudas.js) */
+.ayuda.plegada { display: none; }
+.ayuda-btn { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 6px; padding: 0; flex: none;
+             border: 0; border-radius: 50%; background: transparent; color: var(--text-3); cursor: pointer; vertical-align: -4px;
+             -webkit-tap-highlight-color: transparent; }
+.ayuda-btn svg { width: 18px; height: 18px; }
+/* Zona táctil de 44 px de ancho sin engordar el renglón (por arriba y por abajo, menos: debajo hay un deslizador) */
+.ayuda-btn::after { content: ""; position: absolute; inset: -8px -12px; }
+.ayuda-btn:hover { color: var(--text-2); }
+.ayuda-btn[aria-expanded="true"] { color: var(--accent-2); }
+.ayuda-suelta { display: flex; justify-content: flex-end; margin-top: 4px; }
 .opcion { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-2); margin-bottom: 8px; cursor: pointer; color: var(--text); font-size: 15px; flex-wrap: wrap; }
 .opcion:has(input:checked) { border-color: var(--accent-2); background: var(--accent-soft); }
 .opcion:has(input:disabled) { opacity: 0.45; cursor: default; }

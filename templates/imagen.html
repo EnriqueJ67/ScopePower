@@ -40,7 +40,7 @@
     </div>
 
     <!-- Paneles de controles: una pestaña por panel y uno solo a la vista (static/js/paneles.js), como en Apilado -->
-    <div class="foto-controles paneles" id="paneles-foto" data-paneles="foto_paneles">
+    <div class="foto-controles paneles" id="paneles-foto" data-paneles="foto_paneles" data-ayudas>
         <section class="card panel" data-panel="captura">
             <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-foto"/></svg>{{ _("Captura") }}</h3>
@@ -220,7 +220,7 @@
                 <span class="panel-sub">{{ _("de día") }}</span>
             </div>
             <div class="panel-cuerpo">
-                <p class="card-sub">{{ _("Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día.") }}</p>
+                <p class="ayuda" data-ayuda-panel>{{ _("Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día.") }}</p>
                 <div class="dos-campos">
                     <div class="form-group">
                         <label for="tl-fotos">{{ _("Número de fotos") }}</label>
@@ -259,7 +259,7 @@
                 <span class="panel-sub" id="video-sub">{{ _("de día") }}</span>
             </div>
             <div class="panel-cuerpo">
-                <p class="card-sub">{{ _("Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto.") }}</p>
+                <p class="ayuda" data-ayuda-panel>{{ _("Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto.") }}</p>
                 <div class="form-group">
                     <label for="video-duracion">{{ _("Duración de la grabación") }}</label>
                     <select id="video-duracion" class="form-control">

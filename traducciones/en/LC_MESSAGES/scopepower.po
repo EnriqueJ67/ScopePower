@@ -4004,6 +4004,10 @@ msgstr "Measured orbital eccentricity: {e} (the real one, 0.0167) · perihelion 
 msgid "Experimental: aviones, satélites e ISS con la cámara como guía"
 msgstr "Experimental: planes, satellites and the ISS with the camera as a guide"
 
+#: static/js/ayudas.js
+msgid "Explicación"
+msgstr "Explanation"
+
 #. js
 #: templates/apilado.html
 msgid "Exponiendo"

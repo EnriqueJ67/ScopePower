@@ -11,6 +11,10 @@ día de la release. El número de versión vive en `version.py`.
   el suyo y las pestañas no se mueven. La pestaña abierta se recuerda. Un punto en la pestaña avisa de que
   su panel está haciendo algo (modo día, timelapse, plan de la noche, mosaico). Desaparecen las flechas de
   reordenar. En la tablet en vertical, el final de la columna ya no queda debajo de la barra inferior.
+- Las explicaciones de los controles de Cámara, Apilado y el editor quedan plegadas: junto al nombre de cada
+  control hay un botón ⓘ que despliega la suya. Los paneles quedan mucho más cortos (el de procesado del
+  editor, de 1200 a 900 px). Lo que cuenta qué está pasando ahora (exposición, ganancia, estados) sigue a
+  la vista.
 - Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
   (en inglés, a su versión `en/`).
 - Galería pública: al compartir una foto por WhatsApp o Telegram sale su vista previa, con la imagen, el

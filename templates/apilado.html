@@ -117,7 +117,7 @@
 
     <!-- ─── Columna lateral: una pestaña por panel y uno solo a la vista (static/js/paneles.js);
          la pestaña abierta se guarda en config.ini vía /preferencias ─────────── -->
-    <div class="columna lateral paneles" id="paneles-apilado" data-paneles="apilado_paneles" data-inicial="estadisticas">
+    <div class="columna lateral paneles" id="paneles-apilado" data-paneles="apilado_paneles" data-inicial="estadisticas" data-ayudas>
         <section class="card panel" data-panel="ultima-toma" data-pestana="{{ _('Última') }}" data-icono="i-foto">
             <div class="panel-header">
                 <h3 class="card-title">{{ _("Última toma") }}</h3>
@@ -178,14 +178,14 @@
                     <span class="texto-2" style="font-size: 14px;">{{ _("Galaxias y nebulosas NGC/IC hasta magnitud") }}</span>
                     <input type="number" id="ngc-hasta-mag" class="corto" min="0" max="18" step="0.5" style="width: 72px;" onchange="cambiarMagNgc()">
                 </div>
-                <div class="texto-3 mt-1" style="font-size: 13px;">{{ _("En azul claro, además de los objetos populares (en amarillo). 0 = no anotarlos. Se aplica en la siguiente vista previa y en la galería.") }}</div>
+                <small class="ayuda">{{ _("En azul claro, además de los objetos populares (en amarillo). 0 = no anotarlos. Se aplica en la siguiente vista previa y en la galería.") }}</small>
                 <div class="fila mt-2">
                     <label class="switch"><input type="checkbox" id="dither-activo" onchange="cambiarDithering()"> {{ _("Dithering cada") }}</label>
                     <input type="number" id="dither-cada" class="corto" min="1" max="20" value="3" style="width: 64px;" onchange="cambiarDithering()"> <span class="texto-2" style="font-size: 14px;">{{ _("fotos") }}</span>
                 </div>
                 <div id="dither-estado" class="texto-3 mt-1" style="font-size: 13px;"></div>
                 <label class="switch mt-2"><input type="checkbox" id="voz-bucle-silencio" onchange="cambiarVozBucle()"> {{ _("Voz: callar los avisos de cada foto") }}</label>
-                <div class="texto-3 mt-1" style="font-size: 13px;">{{ _("Sin «empieza exposición», «exposición terminada» ni «foto añadida» en cada vuelta. Se sigue oyendo la mejor y la peor foto, las descartadas, la referencia y los errores.") }}</div>
+                <small class="ayuda">{{ _("Sin «empieza exposición», «exposición terminada» ni «foto añadida» en cada vuelta. Se sigue oyendo la mejor y la peor foto, las descartadas, la referencia y los errores.") }}</small>
             </div>
         </section>
 
