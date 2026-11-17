@@ -679,6 +679,7 @@ msgstr ""
 msgid "Alineación"
 msgstr ""
 
+#. js
 #: templates/alineacion.html templates/home.html
 msgid "Alineación automática"
 msgstr ""
@@ -697,6 +698,11 @@ msgstr ""
 
 #: alineacion.py
 msgid "Alineación con {s} puntos; {f} posiciones no se pudieron resolver"
+msgstr ""
+
+#. js
+#: templates/home.html
+msgid "Alineación y puesta en estación"
 msgstr ""
 
 #: alineacion.py
@@ -2856,6 +2862,11 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Efemérides planetarias (Astropy)"
+msgstr ""
+
+#. js
+#: templates/home.html
+msgid "Eje polar y modelo de apuntado, por plate solving"
 msgstr ""
 
 #. js
@@ -6529,6 +6540,7 @@ msgstr ""
 msgid "Mirando el cielo..."
 msgstr ""
 
+#. js
 #: templates/home.html
 msgid "Modelo de apuntado por plate solving"
 msgstr ""

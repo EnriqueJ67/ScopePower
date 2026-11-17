@@ -50,7 +50,8 @@
 
     <a href="/alineacion" class="tile clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/menu_alineacion.jpg') }}')">
         <span class="tile-ico ok"><svg><use href="#i-brujula"/></svg></span>
-        <span class="tile-texto"><span class="tile-titulo">{{ _("Alineación automática") }}</span><span class="tile-desc">{{ _("Modelo de apuntado por plate solving") }}</span></span>
+        <!-- Con la montura en ecuatorial, esa pantalla lleva también la puesta en estación: el botón lo dice (pintarConexion) -->
+        <span class="tile-texto"><span class="tile-titulo" id="tile-alineacion-titulo">{{ _("Alineación automática") }}</span><span class="tile-desc" id="tile-alineacion-desc">{{ _("Modelo de apuntado por plate solving") }}</span></span>
     </a>
     <a href="/esta-noche" class="tile clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/menu_esta_noche.jpg') }}')">
         <span class="tile-ico warn"><svg><use href="#i-noche"/></svg></span>
@@ -154,6 +155,11 @@
         const modo = window.modoMontura ? modoMontura(d) : null;
         chipM.innerHTML = '<svg><use href="#i-telescopio"/></svg>' + [_("Montura"), d.montura && d.sistema, modo && modo[0]].filter(Boolean).join(" · ");
         chipM.title = modo ? modo[1] : "";
+        // En ecuatorial, la pantalla de alineación incluye el asistente de puesta en estación
+        const ecuatorial = ok && (d.modo_montura === "ecuatorial" || d.modo_montura === "ecuatorial_alemana");
+        document.getElementById('tile-alineacion-titulo').textContent = ecuatorial ? _("Alineación y puesta en estación") : _("Alineación automática");
+        document.getElementById('tile-alineacion-desc').textContent = ecuatorial
+            ? _("Eje polar y modelo de apuntado, por plate solving") : _("Modelo de apuntado por plate solving");
         chipC.innerHTML = '<svg><use href="#i-foto"/></svg>' + _("Cámara");
 
         let txt;

@@ -121,6 +121,7 @@ def main():
     fondos = [a["imagen"] for a in menu] + ["inicio.jpg"] + baldosas
     sin_fondo = [f for f in fondos if cliente.get("/static/guia/" + f).status_code != 200]
     bien = ('id="guia-franja"' in html and 'id="guia"' in html and 'id="guia-banda"' in html and "js/guia.js" in html
+            and 'id="tile-alineacion-titulo"' in html      # en ecuatorial el botón dice también «puesta en estación»
             and len(menu) == 7 and len(baldosas) == 12 and not e.get("activa") and not sin_fondo)
     print(f"  {'✅' if bien else '❌'} franja, ventana y banda en el inicio; {len(menu)} actividades y {len(baldosas)} baldosas con su foto"
           + (f" (faltan {sin_fondo})" if sin_fondo else ""))
