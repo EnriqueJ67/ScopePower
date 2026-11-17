@@ -34,56 +34,57 @@
      (/platesolve, /corregir-posicion, /modo-automatico) pero ya no hacen falta:
      el alineado y el centrado automático tras el GOTO los sustituyen.
      El recorrido guiado por constelaciones (/constelacion) también sigue como ruta,
-     sin entrada en el menú: es para observación visual y la app va de fotografía. -->
+     sin entrada en el menú: es para observación visual y la app va de fotografía.
+     Cada baldosa lleva de fondo una foto del autor (static/guia, clase tile-foto). -->
 <div class="tiles mt-3">
-    <a href="/goto" class="tile tile-grande destacada clic-audio requiere-conexion">
+    <a href="/goto" class="tile tile-grande destacada clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/menu_goto.jpg') }}')">
         <span class="tile-ico"><svg><use href="#i-goto"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("GoTo a un objeto") }}</span><span class="tile-desc">{{ _("Por nombre o por voz, con centrado automático por plate solving") }}</span></span>
         <svg class="ico flecha"><use href="#i-flecha"/></svg>
     </a>
-    <a href="/apilado" class="tile tile-grande destacada clic-audio requiere-conexion">
+    <a href="/apilado" class="tile tile-grande destacada clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/menu_apilado.jpg') }}')">
         <span class="tile-ico"><svg><use href="#i-apilado"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Apilado en tiempo real") }}</span><span class="tile-desc">{{ _("La imagen mejora foto a foto; guarda el resultado en la galería") }}</span></span>
         <svg class="ico flecha"><use href="#i-flecha"/></svg>
     </a>
 
-    <a href="/alineacion" class="tile clic-audio requiere-conexion">
+    <a href="/alineacion" class="tile clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/menu_alineacion.jpg') }}')">
         <span class="tile-ico ok"><svg><use href="#i-brujula"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Alineación automática") }}</span><span class="tile-desc">{{ _("Modelo de apuntado por plate solving") }}</span></span>
     </a>
-    <a href="/esta-noche" class="tile clic-audio requiere-conexion">
+    <a href="/esta-noche" class="tile clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/menu_esta_noche.jpg') }}')">
         <span class="tile-ico warn"><svg><use href="#i-noche"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Esta noche") }}</span><span class="tile-desc">{{ _("Objetos recomendados ahora") }}</span></span>
     </a>
-    <a href="/planetario" class="tile clic-audio">
+    <a href="/planetario" class="tile clic-audio tile-foto" style="--foto: url('{{ url_for('static', filename='guia/menu_planetario.jpg') }}')">
         <span class="tile-ico info"><svg><use href="#i-planetario"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Planetario") }}</span><span class="tile-desc">{{ _("Mapa del cielo sin Internet: toca un objeto y ve a él") }}</span></span>
     </a>
-    <a href="{{ url_for('galeria') }}" class="tile clic-audio">
+    <a href="{{ url_for('galeria') }}" class="tile clic-audio tile-foto" style="--foto: url('{{ url_for('static', filename='guia/galeria.jpg') }}')">
         <span class="tile-ico"><svg><use href="#i-galeria"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Galería") }}</span><span class="tile-desc">{{ _("Imágenes guardadas") }}</span></span>
     </a>
-    <a href="/control" class="tile clic-audio requiere-conexion">
+    <a href="/control" class="tile clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/paisaje.jpg') }}')">
         <span class="tile-ico neutro"><svg><use href="#i-control"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Control manual") }}</span><span class="tile-desc">{{ _("Pad táctil y flechas") }}</span></span>
     </a>
-    <a href="/foto-prueba" class="tile clic-audio requiere-conexion">
+    <a href="/foto-prueba" class="tile clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/luna.jpg') }}')">
         <span class="tile-ico neutro"><svg><use href="#i-foto"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Cámara") }}</span><span class="tile-desc">{{ _("Foto suelta o continua, de día y de noche") }}</span></span>
     </a>
-    <a href="/seguimiento" class="tile clic-audio requiere-conexion">
+    <a href="/seguimiento" class="tile clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/sol.jpg') }}')">
         <span class="tile-ico warn"><svg><use href="#i-goto"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Seguimiento de objetos") }}</span><span class="tile-desc">{{ _("Experimental: aviones, satélites e ISS con la cámara como guía") }}</span></span>
     </a>
-    <a href="/calibracion" class="tile clic-audio requiere-conexion">
+    <a href="/calibracion" class="tile clic-audio requiere-conexion tile-foto" style="--foto: url('{{ url_for('static', filename='guia/calibracion.jpg') }}')">
         <span class="tile-ico neutro"><svg><use href="#i-calibracion"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Calibración") }}</span><span class="tile-desc">{{ _("Darks y flats") }}</span></span>
     </a>
-    <a href="/configuracion" class="tile clic-audio">
+    <a href="/configuracion" class="tile clic-audio tile-foto" style="--foto: url('{{ url_for('static', filename='guia/enfocar.jpg') }}')">
         <span class="tile-ico neutro"><svg><use href="#i-ajustes"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Configuración") }}</span><span class="tile-desc">{{ _("Drivers, exposición, voz, red") }}</span></span>
     </a>
-    <a href="/apagar" class="tile clic-audio">
+    <a href="/apagar" class="tile clic-audio tile-foto" style="--foto: url('{{ url_for('static', filename='guia/menu_apagar.jpg') }}')">
         <span class="tile-ico" style="background: var(--err-soft); color: var(--err);"><svg><use href="#i-power"/></svg></span>
         <span class="tile-texto"><span class="tile-titulo">{{ _("Cerrar o apagar") }}</span><span class="tile-desc">{{ _("Reiniciar la app o apagar el equipo") }}</span></span>
     </a>

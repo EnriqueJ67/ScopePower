@@ -15,8 +15,10 @@
 #
 #   --centro x,y   centro del recorte, en fracciones de la foto (0,0 arriba a la izquierda); «auto» busca lo más brillante
 #   --zoom n       cuánto se acerca: 1 = todo el ancho de la foto
-#   --giro grados  gira la foto alrededor del centro del recorte, en sentido antihorario (para tumbar una galaxia
-#                  a lo largo de la tarjeta); las esquinas que quedan sin foto se rellenan reflejando el cielo
+#   --giro grados  gira la foto alrededor del centro, en sentido antihorario (para tumbar una galaxia a lo largo
+#                  de la tarjeta); las esquinas que quedan sin foto se rellenan reflejando el cielo
+#   --mueve dx,dy  desplaza el recorte respecto al centro, en fracciones de la foto: con --mueve=-0.05,0 lo que
+#                  está en el centro (el núcleo de la galaxia) queda un poco a la derecha, fuera del texto
 #   --tamano AxB   tamaño de salida (640x400 las tarjetas; 960x360 la franja del inicio)
 #   --peso kB      peso máximo; baja la calidad del JPG hasta cumplirlo
 
@@ -106,6 +108,7 @@ def main():
     p.add_argument("--centro", default="0.5,0.5")
     p.add_argument("--zoom", type=float, default=1.0)
     p.add_argument("--giro", type=float, default=0.0)
+    p.add_argument("--mueve", default="0,0")
     p.add_argument("--tamano", default="640x400")
     p.add_argument("--peso", type=float, default=40.0)
     a = p.parse_args()
@@ -117,6 +120,8 @@ def main():
         centro = centro_auto(origen) if a.centro == "auto" else tuple(float(v) for v in a.centro.split(","))
         if a.giro:
             origen = girar(origen, centro, a.giro)
+        dx, dy = (float(v) for v in a.mueve.split(","))
+        centro = (centro[0] + dx, centro[1] + dy)
         img = recortar(origen, centro, a.zoom, ancho, alto)
     destino = os.path.join(CARPETA, a.clave + ".jpg")
     kb, calidad = guardar(img, destino, a.peso)

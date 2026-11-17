@@ -5,6 +5,9 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Inicio: cada botón del menú lleva de fondo una foto (galaxias, nebulosas, cúmulos, la Luna, el Sol), con un
+  velo del color del tema para que el texto se lea. La franja «¿Qué quieres hacer hoy?» es más alta y enseña
+  la galaxia de Andrómeda entera, tumbada a lo largo y con el núcleo a la vista.
 - Inicio: botón principal «¿Qué quieres hacer hoy?». Abre un menú de tarjetas con foto (cielo profundo, Luna,
   Sol, paisaje, enfocar, fotos de calibración y galería), ordenadas según sea de día o de noche, y lleva de la
   mano hasta dejarlo todo a un toque de «Empezar». Cielo profundo va guiado paso a paso, con un semáforo por
