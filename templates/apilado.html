@@ -330,11 +330,26 @@
                 </div>
                 <div class="campo">
                     <label>{{ _("Estilo") }}</label>
-                    <select id="proc-estilo" class="form-control" onchange="aplicarEstilo()">
-                        <option value="natural">{{ _("Natural: gradiente y ruido suave") }}</option>
-                        <option value="seestar">{{ _("Seestar: todo activado, valores medios") }}</option>
-                        <option value="agresivo">{{ _("Agresivo: máximo ruido y contraste") }}</option>
+                    <div class="segmentado" id="proc-estilo-seg" style="width: 100%;">
+                        <button type="button" data-estilo="natural" onclick="elegirEstilo('natural')" style="flex: 1;">{{ _("Natural") }}</button>
+                        <button type="button" data-estilo="seestar" onclick="elegirEstilo('seestar')" style="flex: 1;">{{ _("Equilibrado") }}</button>
+                        <button type="button" data-estilo="agresivo" onclick="elegirEstilo('agresivo')" style="flex: 1;">{{ _("Intenso") }}</button>
+                    </div>
+                    <!-- El estilo se guarda con sus nombres de siempre (procesado.ESTILOS): natural, seestar, agresivo -->
+                    <select id="proc-estilo" hidden>
+                        <option value="natural">natural</option>
+                        <option value="seestar">seestar</option>
+                        <option value="agresivo">agresivo</option>
                     </select>
+                    <small class="ayuda">{{ _("Punto de partida del procesado. Natural: poca reducción de ruido y color suave. Equilibrado: valores medios. Intenso: máxima reducción de ruido, contraste y color. Al elegir uno se recolocan los deslizadores.") }}</small>
+                </div>
+                <!-- Los mismos grupos que las pestañas del editor de la galería (Luz, Color, Detalle, Encuadre).
+                     Todo se guarda en config.ini al pulsar «Aplicar a la vista previa». -->
+                <div class="seccion-titulo">{{ _("Luz") }}</div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Brillo general") }}</span><span id="proc-brillo-v"></span></div>
+                    <input type="range" id="proc-brillo" min="-1" max="1" step="0.05" oninput="document.getElementById('proc-brillo-v').textContent = this.value">
+                    <small class="ayuda">{{ _("0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro.") }}</small>
                 </div>
                 <div class="campo">
                     <div class="rango-titulo"><span>{{ _("Brillo del fondo de cielo") }}</span><span id="proc-fondo_objetivo-v"></span></div>
@@ -346,59 +361,10 @@
                     <input type="range" id="proc-compresion" min="0" max="1" step="0.05" oninput="document.getElementById('proc-compresion-v').textContent = this.value">
                     <small class="ayuda">{{ _("0 = igual que el STF clásico (estrellas y núcleos saturan a blanco); a más valor, más se protegen y más color conservan. 0,1-0,3 nebulosas, 0,3-0,6 galaxias y cúmulos.") }}</small>
                 </div>
-                <div class="campo">
-                    <label>{{ _("Curva del fondo") }}</label>
-                    <select id="proc-curva" class="form-control">
-                        <option value="gamma">{{ _("Gamma: la de siempre") }}</option>
-                        <option value="asinh">{{ _("Asinh: levanta más lo tenue") }}</option>
-                        <option value="mtf">{{ _("MTF (PixInsight): aún más pegada") }}</option>
-                    </select>
-                    <small class="ayuda">{{ _("Asinh y MTF dan más ganancia justo por encima del fondo: las nebulosas débiles suben el doble con el mismo cielo, y con ellas el ruido a media escala (bajar el contraste local y subir la reducción de ruido).") }}</small>
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Reducción de ruido") }}</span><span id="proc-ruido-v"></span></div>
-                    <input type="range" id="proc-ruido" min="0" max="1" step="0.05" oninput="document.getElementById('proc-ruido-v').textContent = this.value">
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Contraste local") }}</span><span id="proc-contraste-v"></span></div>
-                    <input type="range" id="proc-contraste" min="0" max="1" step="0.05" oninput="document.getElementById('proc-contraste-v').textContent = this.value">
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Saturación") }}</span><span id="proc-saturacion-v"></span></div>
-                    <input type="range" id="proc-saturacion" min="0.5" max="3" step="0.1" oninput="document.getElementById('proc-saturacion-v').textContent = this.value">
-                </div>
-                <div class="campo">
-                    <div class="rango-titulo"><span>{{ _("Saturación de las estrellas") }}</span><span id="proc-saturacion_estrellas-v"></span></div>
-                    <input type="range" id="proc-saturacion_estrellas" min="0" max="2" step="0.1" oninput="document.getElementById('proc-saturacion_estrellas-v').textContent = this.value">
-                    <small class="ayuda">{{ _("Solo sobre las estrellas y sus halos. Con mucha saturación general las estrellas azules salen violeta (halo rojo + azul del refractor): 0,5-0,8 las deja con su color real.") }}</small>
-                </div>
-                <label class="fila-check"><input type="checkbox" id="proc-scnr_estrellas"> {{ _("Quitar el verde también en las estrellas") }}</label>
-                <label class="fila-check"><input type="checkbox" id="proc-color_estrellas_uniforme"> {{ _("Un solo color por estrella") }}</label>
-                <label class="fila-check"><input type="checkbox" id="proc-gradiente"> {{ _("Quitar gradiente de contaminación lumínica") }}</label>
-                <label class="fila-check"><input type="checkbox" id="proc-aplanar"> {{ _("Aplanar fondo a gran escala (no usar con nebulosas extensas)") }}</label>
-                <!-- Acabado: los mismos controles que el editor de la galería, plegados
-                     para no alargar el panel. Se guardan en config.ini con el resto. -->
-                <details id="proc-mas" class="mt-2">
-                    <summary class="proc-mas-titulo">{{ _("Más… (brillo, temperatura de color, verde)") }}</summary>
-                    <div class="campo mt-1">
-                        <div class="rango-titulo"><span>{{ _("Brillo general") }}</span><span id="proc-brillo-v"></span></div>
-                        <input type="range" id="proc-brillo" min="-1" max="1" step="0.05" oninput="document.getElementById('proc-brillo-v').textContent = this.value">
-                        <small class="ayuda">{{ _("0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro.") }}</small>
-                    </div>
-                    <div class="campo">
-                        <div class="rango-titulo"><span>{{ _("Temperatura de color") }}</span><span id="proc-temperatura-v"></span></div>
-                        <input type="range" id="proc-temperatura" min="-1" max="1" step="0.05" oninput="document.getElementById('proc-temperatura-v').textContent = this.value">
-                        <small class="ayuda">{{ _("Izquierda más azul, derecha más rojo. El fondo de cielo se mantiene neutro.") }}</small>
-                    </div>
-                    <div class="campo">
-                        <div class="rango-titulo"><span>{{ _("Quitar dominante verde (SCNR)") }}</span><span id="proc-scnr-v"></span></div>
-                        <input type="range" id="proc-scnr" min="0" max="1" step="0.05" oninput="document.getElementById('proc-scnr-v').textContent = this.value">
-                    </div>
-                </details>
                 <!-- Curvas por puntos de control (static/js/curvas.js), las mismas que en el editor de la
                      galería; se guardan en config.ini ([Procesado] curvas) y en los presets, y el apilado en
                      vivo las aplica al final del color (procesado.aplicar_curvas) -->
-                <details id="proc-curvas-det" class="mt-2">
+                <details id="proc-curvas-det" class="mas">
                     <summary class="proc-mas-titulo">{{ _("Curvas por puntos (RGB y por canal)") }}<span id="proc-curvas-marca" class="chip" style="display: none; margin-left: 8px;">{{ _("activas") }}</span></summary>
                     <div class="segmentado mt-1" id="proc-curvas-seg" style="width: 100%;">
                         <button type="button" class="activo" data-canal="rgb" onclick="elegirCanalCurvaApilado('rgb')" style="flex: 1;"><span class="punto-canal" style="background: linear-gradient(135deg, #ff5a5a, #5ad26b 50%, #5a9bff);"></span>RGB</button>
@@ -414,7 +380,37 @@
                     </div>
                     <small class="ayuda">{{ _("Toca la curva para añadir un punto y arrástralo; de fondo, el histograma de la vista previa. Se aplican al apilado en vivo y al guardar en la galería tras pulsar «Aplicar a la vista previa», y se guardan en los presets.") }}</small>
                 </details>
-                <div class="campo mt-2">
+                <div class="seccion-titulo">{{ _("Color") }}</div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Saturación") }}</span><span id="proc-saturacion-v"></span></div>
+                    <input type="range" id="proc-saturacion" min="0.5" max="3" step="0.1" oninput="document.getElementById('proc-saturacion-v').textContent = this.value">
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Temperatura de color") }}</span><span id="proc-temperatura-v"></span></div>
+                    <input type="range" id="proc-temperatura" min="-1" max="1" step="0.05" oninput="document.getElementById('proc-temperatura-v').textContent = this.value">
+                    <small class="ayuda">{{ _("Izquierda más azul, derecha más rojo. El fondo de cielo se mantiene neutro.") }}</small>
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Saturación de las estrellas") }}</span><span id="proc-saturacion_estrellas-v"></span></div>
+                    <input type="range" id="proc-saturacion_estrellas" min="0" max="2" step="0.1" oninput="document.getElementById('proc-saturacion_estrellas-v').textContent = this.value">
+                    <small class="ayuda">{{ _("Solo sobre las estrellas y sus halos. Con mucha saturación general las estrellas azules salen violeta (halo rojo + azul del refractor): 0,5-0,8 las deja con su color real.") }}</small>
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Quitar dominante verde (SCNR)") }}</span><span id="proc-scnr-v"></span></div>
+                    <input type="range" id="proc-scnr" min="0" max="1" step="0.05" oninput="document.getElementById('proc-scnr-v').textContent = this.value">
+                </div>
+                <div class="seccion-titulo">{{ _("Detalle") }}</div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Reducción de ruido") }}</span><span id="proc-ruido-v"></span></div>
+                    <input type="range" id="proc-ruido" min="0" max="1" step="0.05" oninput="document.getElementById('proc-ruido-v').textContent = this.value">
+                </div>
+                <div class="campo">
+                    <div class="rango-titulo"><span>{{ _("Contraste local") }}</span><span id="proc-contraste-v"></span></div>
+                    <input type="range" id="proc-contraste" min="0" max="1" step="0.05" oninput="document.getElementById('proc-contraste-v').textContent = this.value">
+                </div>
+                <label class="fila-check"><input type="checkbox" id="proc-gradiente"> {{ _("Quitar gradiente de contaminación lumínica") }}</label>
+                <div class="seccion-titulo">{{ _("Encuadre") }}</div>
+                <div class="campo">
                     <label>{{ _("Campo visible (zoom)") }}</label>
                     <select id="input-zoom" class="form-control">
                         <option value="0">{{ _("100 % (campo completo)") }}</option>
@@ -439,6 +435,25 @@
                     </div>
                     <small class="ayuda">{{ _("Gira en sentido horario la vista previa y el JPG de la galería; el FITS se guarda sin girar. Los cuartos de vuelta no pierden nada; con el ajuste fino se recorta lo justo para que no asomen las esquinas (nada con el zoom al 50 % o menos). «Norte arriba automático» usa el plate solving de la referencia de cada apilado y deja cada objeto como en los atlas.") }}</small>
                 </div>
+                <!-- Lo que casi nunca se toca: plegado, y avisa («en uso») si algo no está en su valor de serie -->
+                <details id="proc-mas" class="mas">
+                    <summary class="proc-mas-titulo">{{ _("Más ajustes") }}<span class="chip mas-marca" id="proc-mas-marca" hidden>{{ _("en uso") }}</span></summary>
+                    <div class="campo">
+                        <label>{{ _("Curva del fondo") }}</label>
+                        <select id="proc-curva" class="form-control">
+                            <option value="gamma">{{ _("Gamma: la de siempre") }}</option>
+                            <option value="asinh">{{ _("Asinh: levanta más lo tenue") }}</option>
+                            <option value="mtf">{{ _("MTF (PixInsight): aún más pegada") }}</option>
+                        </select>
+                        <small class="ayuda">{{ _("Asinh y MTF dan más ganancia justo por encima del fondo: las nebulosas débiles suben el doble con el mismo cielo, y con ellas el ruido a media escala (bajar el contraste local y subir la reducción de ruido).") }}</small>
+                    </div>
+                    <label class="fila-check"><input type="checkbox" id="proc-scnr_estrellas"> {{ _("Quitar el verde también en las estrellas") }}</label>
+                    <label class="fila-check"><input type="checkbox" id="proc-color_estrellas_uniforme"> {{ _("Un solo color por estrella") }}</label>
+                    <label class="fila-check"><input type="checkbox" id="proc-aplanar"> {{ _("Aplanar fondo a gran escala (no usar con nebulosas extensas)") }}</label>
+                </details>
+            </div>
+            <!-- Fuera del cuerpo, que es lo que hace scroll: el botón queda siempre a la vista -->
+            <div class="panel-pie">
                 <button class="btn btn-primary btn-block" onclick="guardarParametrosMTF()">{{ _("Aplicar a la vista previa") }}</button>
                 <div id="estado-mtf" class="estado mt-1"></div>
             </div>
@@ -849,6 +864,7 @@
 
     function pintarAjustes(a) {
         document.getElementById("proc-estilo").value = a.estilo;
+        pintarEstiloSeg();
         for (const k of ["fondo_objetivo", "compresion", "ruido", "contraste", "saturacion", "saturacion_estrellas", "brillo", "temperatura", "scnr"]) {
             const c = document.getElementById("proc-" + k);
             if (a[k] !== undefined && a[k] !== null) c.value = a[k];
@@ -862,6 +878,7 @@
         document.getElementById("proc-color_estrellas_uniforme").checked = a.color_estrellas_uniforme !== false;
         if (a.curva !== undefined) document.getElementById("proc-curva").value = a.curva || "gamma";
         if (a.curvas !== undefined) { editorCurvasApilado.poner(a.curvas || {}); pintarCanalesCurvasApilado(); }
+        pintarMasAjustes();
     }
 
     // ——— Curvas por puntos (static/js/curvas.js), las mismas del editor de la galería ———
@@ -1007,6 +1024,28 @@
         pintarPresets(r.presets, nombre.trim());
     }
     fetch("/presets-procesado").then(r => r.json()).then(d => pintarPresets(d.presets, "")).catch(() => {});
+
+    // Estilo: tres botones que escriben en el <select> oculto de siempre
+    function elegirEstilo(v) {
+        document.getElementById("proc-estilo").value = v;
+        pintarEstiloSeg();
+        aplicarEstilo();
+    }
+    function pintarEstiloSeg() {
+        const v = document.getElementById("proc-estilo").value;
+        document.querySelectorAll("#proc-estilo-seg button").forEach(b => b.classList.toggle("activo", b.dataset.estilo === v));
+    }
+    // «Más ajustes»: si algo de dentro no está en su valor de serie lo dice («en uso») y, la primera
+    // vez que se pintan los ajustes, sale desplegado: nada actúa a escondidas
+    let masPintado = false;
+    function pintarMasAjustes() {
+        const enUso = document.getElementById("proc-curva").value !== "gamma" || !document.getElementById("proc-scnr_estrellas").checked
+            || !document.getElementById("proc-color_estrellas_uniforme").checked || document.getElementById("proc-aplanar").checked;
+        document.getElementById("proc-mas-marca").hidden = !enUso;
+        if (!masPintado && enUso) document.getElementById("proc-mas").open = true;
+        masPintado = true;
+    }
+    document.getElementById("proc-mas").addEventListener("change", pintarMasAjustes);
 
     // Al cambiar de estilo, los deslizadores toman los valores del estilo
     function aplicarEstilo() {

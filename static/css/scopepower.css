@@ -546,6 +546,9 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
 .panel-sub { flex: 1 1 100%; min-width: 0; contain: inline-size; font-size: 12.5px; color: var(--text-3); }
 .panel-sub:empty { display: none; }
 .panel-cuerpo { padding: 0 16px 16px; }
+/* Pie del panel: lo que debe quedar siempre a mano (Aplicar), fuera del cuerpo, que es lo que hace scroll */
+.panel-pie { padding: 10px 16px 12px; border-top: 1px solid var(--border); }
+.panel-pie .estado:empty { display: none; }
 
 /* (.columna.paneles: la columna lateral de Apilado y del editor trae su propio hueco entre tarjetas) */
 .paneles, .columna.paneles { display: flex; flex-direction: column; gap: 8px; min-width: 0; scroll-margin-top: calc(var(--header-h) + 8px); }
@@ -581,7 +584,7 @@ a.yendo:not(nav.barra a) { animation: pulso 0.9s ease-in-out infinite; }
                max-height: max(320px, calc(100dvh - var(--paneles-top, calc(var(--header-h) + 12px)) - 12px - var(--hueco-barra))); }
     .paneles > * { flex: none; }
     .paneles.listo > .panel.activo { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; }
-    .paneles > .panel > .panel-header { flex: none; }
+    .paneles > .panel > .panel-header, .paneles > .panel > .panel-pie { flex: none; }
     .paneles > .panel > .panel-cuerpo { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 }
 /* Una columna: la fila de pestañas va bajo la foto y se queda pegada bajo la cabecera al bajar */

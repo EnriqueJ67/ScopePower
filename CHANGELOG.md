@@ -23,6 +23,10 @@ día de la release. El número de versión vive en `version.py`.
   El estilo se elige con tres botones (Natural, Equilibrado, Intenso) y una flecha devuelve los deslizadores a
   los valores del estilo. Con el STF clásico o con las estrellas separadas, lo que deja de actuar se apaga a la
   vista en vez de desaparecer.
+- Apilado, «Procesado de la vista previa»: los controles van en los mismos grupos que el editor (Luz, Color,
+  Detalle, Encuadre), con el brillo, la temperatura y el verde a la vista en su grupo y un único «Más ajustes»
+  para lo que casi nunca se toca. El estilo se elige con los mismos tres botones. «Aplicar a la vista previa»
+  queda siempre visible al pie del panel, sin bajar hasta el final.
 - Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
   (en inglés, a su versión `en/`).
 - Galería pública: al compartir una foto por WhatsApp o Telegram sale su vista previa, con la imagen, el
