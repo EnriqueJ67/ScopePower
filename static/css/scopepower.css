@@ -1054,6 +1054,9 @@ html:not([data-tema="oscuro"]) .ma-leyenda .ley-noche { display: block; }
 .guia-tarjeta-chip.ok { color: var(--ok); }
 .guia-tarjeta-chip.warn { color: var(--warn); }
 .guia-tarjeta.apagada { filter: grayscale(0.9) brightness(0.5); cursor: default; }
+a.guia-tarjeta, a.guia-tarjeta:hover { text-decoration: none; color: #fff; }
+.guia-tarjetas.guia-fotos { grid-template-columns: 1fr 1fr; margin-bottom: 4px; }
+.guia-fotos > .estado { grid-column: 1 / -1; }
 .guia-tarjeta.apagada:hover { transform: none; border-color: var(--border); }
 @media (max-width: 699px) { .guia-tarjeta:not(.principal) { aspect-ratio: 4 / 3; } }
 @media (min-width: 700px) {

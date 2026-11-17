@@ -996,6 +996,10 @@ msgstr "Eddington-Barbier approximation: assumes {t1} K at depth 1 and approxima
 msgid "Apunta a algo <b>blanco iluminado por el Sol directo</b>: una pared o fachada soleada, o un folio o una tela blanca al Sol justo delante del objetivo. Da igual que salga desenfocado; solo cuenta que llene el centro de la foto. A la sombra saldría azulado y con luz artificial, naranja. Se usa en las fotos de paisaje y en el Sol «Del filtro»."
 msgstr "Point at something <b>white lit by direct sunlight</b>: a sunny wall or building, or a sheet of paper or white cloth in the sun right in front of the lens. It doesn't matter if it's out of focus; it only has to fill the center of the frame. In the shade it would come out bluish, and under artificial light, orange. It is used for landscape shots and for the Sun in “From filter” mode."
 
+#: static/js/guia.js
+msgid "Apunta a algo con que enfocar, o salta este paso."
+msgstr "Point at something to focus on, or skip this step."
+
 #: static/js/asistente.js
 msgid "Apunta ahora a AR {h} h {m} min, Dec {dec}."
 msgstr "It's now pointing at RA {h} h {m} min, Dec {dec}."
@@ -1008,6 +1012,10 @@ msgstr "Point at the Sun or the Moon and press “Live”. The inset enlarges th
 #: templates/imagen.html
 msgid "Apunta aquí"
 msgstr "Point here"
+
+#: guia.py
+msgid "Apunta el telescopio a algo con que enfocar"
+msgstr "Point the telescope at something to focus on"
 
 #: guia.py
 msgid "Apunta el telescopio a lo que quieres fotografiar"
@@ -1358,6 +1366,10 @@ msgstr "Finding the disc and centering it..."
 #: templates/goto.html
 msgid "Buscando la descripción del objeto..."
 msgstr "Looking up the object description..."
+
+#: templates/_guia.html
+msgid "Buscando tus últimas fotos..."
+msgstr "Looking for your latest photos..."
 
 #: seguimiento.py
 msgid "Buscando un objeto brillante (o pulsa uno en la vista previa)"
@@ -2466,6 +2478,11 @@ msgid "Dark {i}/{n}"
 msgstr "Dark {i}/{n}"
 
 #. js
+#: guia.py
+msgid "Darks"
+msgstr "Darks"
+
+#. js
 #: templates/flats.html
 msgid "Darks de flat"
 msgstr "Flat darks"
@@ -2826,6 +2843,11 @@ msgid "Día"
 msgstr "Day"
 
 #. js
+#: guia.py
+msgid "Dónde enfocar"
+msgstr "Where to focus"
+
+#. js
 #: templates/planetario.html
 msgid "E"
 msgstr "E"
@@ -2838,7 +2860,7 @@ msgstr "IN FOCUS"
 msgid "EXPERIMENTAL"
 msgstr "EXPERIMENTAL"
 
-#: static/js/mosaico.js templates/galeria.html
+#: static/js/guia.js static/js/mosaico.js templates/galeria.html
 msgid "Editar"
 msgstr "Edit"
 
@@ -2919,6 +2941,10 @@ msgstr "According to the ephemeris the Sun is below the horizon: check the PC's 
 #: guia.py
 msgid "El Sol está centrado"
 msgstr "The Sun is centered"
+
+#: templates/_guia.html
+msgid "El Sol, con el filtro puesto"
+msgstr "The Sun, with the filter on"
 
 #: camara_toupcam.py
 msgid "El ajuste {nombre} es de solo lectura"
@@ -3122,6 +3148,10 @@ msgstr "Axis {eje} has not moved ({g}°): mount stopped or no position?"
 msgid "El encuadre, el estirado, el ruido y la nitidez se calculan a media resolución en el mini PC (unos segundos). Los controles con ⚡ (color, firma y curvas) se aplican al instante en este dispositivo, sin esperar al mini PC. Al guardar se procesa todo el FITS con todos los ajustes y, si cambias el nombre del objeto, se renombran el JPG, el FITS y sus datos."
 msgstr "Framing, stretch, noise and sharpness are computed at half resolution on the mini PC (a few seconds). Controls marked ⚡ (colour, signature and curves) apply instantly on this device, without waiting for the mini PC. Saving processes the whole FITS with every adjustment and, if you change the object name, renames the JPG, the FITS and its data."
 
+#: static/js/guia.js
+msgid "El enfoque vale mientras no toques el enfocador. Si la temperatura baja mucho a lo largo de la noche, conviene repasarlo."
+msgstr "The focus holds as long as you do not touch the focuser. If the temperature drops a lot during the night, it is worth checking it again."
+
 #. js
 #: templates/apagar.html
 msgid "El equipo se apaga en {s} s"
@@ -3136,7 +3166,7 @@ msgstr "The computer restarts in {s} s"
 msgid "El filtro solar no está confirmado: vuelve al primer paso"
 msgstr "The solar filter is not confirmed: go back to the first step"
 
-#: templates/flats.html
+#: templates/_guia.html templates/flats.html
 msgid "El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fotografiando una superficie uniformemente iluminada. La exposición se ajusta sola."
 msgstr "The flat corrects vignetting and dust shadows on the sensor. It is made by photographing an evenly lit surface. The exposure adjusts itself."
 
@@ -3420,6 +3450,26 @@ msgstr "Object tracking is already running"
 #: ScopePower.py
 msgid "El sensor está a {sensor} grados y el dark más cercano a {dark}: conviene hacer darks a esta temperatura"
 msgstr "The sensor is at {sensor} degrees and the closest dark at {dark}: it's worth making darks at this temperature"
+
+#: guia.py
+msgid "El sensor está ahora a {t} °C."
+msgstr "The sensor is now at {t} °C."
+
+#: guia.py
+msgid "El telescopio apunta a algo con que enfocar"
+msgstr "The telescope is pointing at something to focus on"
+
+#: static/js/guia.js
+msgid "El telescopio apunta a la Luna"
+msgstr "The telescope is pointing at the Moon"
+
+#: static/js/guia.js
+msgid "El telescopio apunta a {objeto}"
+msgstr "The telescope is pointing at {objeto}"
+
+#: static/js/guia.js
+msgid "El telescopio apunta al Sol"
+msgstr "The telescope is pointing at the Sun"
 
 #: puesta_estacion.py
 msgid "El telescopio apunta al polo (Dec {dec}°): apártalo unos 20° con el pad"
@@ -4606,6 +4656,11 @@ msgstr "Flat {i} of {n} ({s} s)"
 msgid "Flat {i}/{n}"
 msgstr "Flat {i}/{n}"
 
+#. js
+#: guia.py
+msgid "Flats"
+msgstr "Flats"
+
 #: flats.py
 msgid "Flats capturados. Tapa el telescopio y pulsa continuar"
 msgstr "Flats captured. Cover the telescope and press continue"
@@ -5369,6 +5424,10 @@ msgstr "To the left bluer (cool), to the right redder (warm). The sky background
 msgid "Haciendo darks: {n} de {total}"
 msgstr "Taking darks: {n} of {total}"
 
+#: guia.py
+msgid "Haciendo los flats..."
+msgstr "Taking the flats..."
+
 #: guia.py static/js/guia.js
 msgid "Haciendo una foto para encontrar el disco..."
 msgstr "Taking a shot to find the disc..."
@@ -5404,6 +5463,15 @@ msgstr "A {nombre} job is running; stop it before parking"
 #: ScopePower.py
 msgid "Haz antes una foto de día del Sol o de la Luna (o pon el continuo o el modo en vivo)."
 msgstr "First take a daytime shot of the Sun or the Moon (or start continuous or live mode)."
+
+#. js
+#: guia.py
+msgid "Haz los flats y pulsa «Hecho, siguiente»"
+msgstr "Take the flats and press “Done, next”"
+
+#: static/js/guia.js
+msgid "Haz los flats, o salta este paso."
+msgstr "Take the flats, or skip this step."
 
 #: templates/_guia.html
 msgid "Hecho, siguiente"
@@ -5643,6 +5711,10 @@ msgid "Ir a la Luna y centrarla"
 msgstr "Go to the Moon and center it"
 
 #: static/js/guia.js
+msgid "Ir a {estrella} ({alt}° de altura)"
+msgstr "Go to {estrella} ({alt}° altitude)"
+
+#: static/js/guia.js
 msgid "Ir a {estrella} ({alt}° de altura) y enfocar"
 msgstr "Go to {estrella} ({alt}° altitude) and focus"
 
@@ -5694,6 +5766,10 @@ msgstr "Jupiter"
 #: templates/constelacion.html
 msgid "La 'guerrera femenina' en latín. Representa el hombro derecho de Orión."
 msgstr "The 'female warrior' in Latin. It marks Orion's right shoulder."
+
+#: templates/_guia.html
+msgid "La Luna"
+msgstr "The Moon"
 
 #: guia.py
 msgid "La Luna está bajo el horizonte"
@@ -6009,7 +6085,7 @@ msgstr "The mount responds ({nombre})."
 msgid "La montura responde."
 msgstr "The mount responds."
 
-#: static/js/guia.js
+#: guia.py static/js/guia.js
 msgid "La montura se está moviendo..."
 msgstr "The mount is slewing..."
 
@@ -6294,6 +6370,10 @@ msgstr "Best right now"
 #: templates/visor_video.html
 msgid "Lo que cruza por delante"
 msgstr "What crosses in front"
+
+#: static/js/guia.js
+msgid "Lo que has hecho queda guardado: el apilado y la cámara usan solos los darks y el flat mientras no cambies la exposición, la ganancia ni nada del tren óptico."
+msgstr "What you have done is saved: stacking and the camera use the darks and the flat by themselves as long as you do not change the exposure, the gain or anything in the optical train."
 
 #: templates/configuracion.html
 msgid "Lo que más crece son las fotos de la sesión (FITS) y la galería. Para liberar espacio copia la galería a otro equipo por la red y borra lo que ya no necesites desde la Galería."
@@ -7040,6 +7120,10 @@ msgstr "Not a SER file"
 msgid "No existe el endpoint en el hosting (código 404): falta subir publicar.php (ver hosting/LEEME.md)."
 msgstr "The endpoint does not exist on the hosting (code 404): publicar.php has not been uploaded (see hosting/LEEME.md)."
 
+#: ScopePower.py
+msgid "No existe esa foto"
+msgstr "That photo does not exist"
+
 #. js
 #: templates/visor_video.html
 msgid "No ha cruzado nada por delante."
@@ -7685,6 +7769,10 @@ msgstr "Night"
 msgid "Noche de {desde} a {hasta} · altura mínima {altura}° · {objetos} · calculado a las {hora}"
 msgstr "Night from {desde} to {hasta} · minimum altitude {altura}° · {objetos} · calculated at {hora}"
 
+#: ScopePower.py
+msgid "Nombre de foto no válido"
+msgstr "Invalid photo name"
+
 #: ScopePower.py editor_fotos.py
 msgid "Nombre de imagen no válido"
 msgstr "Invalid image name"
@@ -7989,10 +8077,24 @@ msgstr "To compare both modes on the same object: change it here, save and resta
 msgid "Para el seguimiento antes"
 msgstr "Stop tracking first"
 
+#: templates/_guia.html
+msgid "Para enfocar hace falta algo nítido y lejano en la foto: de noche, una estrella brillante; de día, el borde del Sol o de la Luna, o un detalle del paisaje."
+msgstr "Focusing needs something sharp and distant in the shot: at night, a bright star; in daytime, the edge of the Sun or the Moon, or a detail of the landscape."
+
 #. js
 #: templates/imagen.html
 msgid "Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay."
 msgstr "For focusing and checking the framing. Uses the exposure from Settings, or the one you set below, and subtracts the dark if there is one."
+
+#: guia.py
+msgid "Para esa exposición y esa ganancia hay un dark, a {lista} °C."
+msgid_plural "Para esa exposición y esa ganancia hay {n} darks, a {lista} °C."
+msgstr[0] "For that exposure and gain there is one dark, at {lista} °C."
+msgstr[1] "For that exposure and gain there are {n} darks, at {lista} °C."
+
+#: guia.py
+msgid "Para esa exposición y esa ganancia todavía no hay ningún dark con su temperatura apuntada."
+msgstr "For that exposure and gain there is no dark with a recorded temperature yet."
 
 #: templates/editar_foto.html
 msgid "Para estirarlas aparte, sepáralas en la pestaña Estrellas."
@@ -9241,6 +9343,11 @@ msgid "Se enfoca con una estrella brillante. Con la máscara de Bahtinov puesta,
 msgstr "Focusing is done on a bright star. With the Bahtinov mask on, the Camera screen tells you which way to turn the focuser; without a mask, look for the smallest star."
 
 #. js
+#: guia.py
+msgid "Se enfocará con lo que haya ahora en la foto, sea lo que sea."
+msgstr "Focusing will use whatever is in the shot now, whatever it is."
+
+#. js
 #: templates/configuracion.html
 msgid "Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM)."
 msgstr "Set before every shot, dark, flat and centering. Empty = leave it alone (keeps whatever the ASCOM driver has)."
@@ -9590,6 +9697,11 @@ msgstr "With no stars there is no plate solving: the app takes a shot, finds the
 #: static/js/filtro_solar.js
 msgid "Sin filtro solar delante del telescopio, el Sol <b>quema el sensor de la cámara en segundos</b> (y los ojos si mirases por el ocular). Comprueba que el filtro está puesto y bien sujeto <b>antes</b> de continuar."
 msgstr "Without a solar filter in front of the telescope, the Sun <b>burns the camera sensor in seconds</b> (and your eyes if you looked through the eyepiece). Check that the filter is on and securely fastened <b>before</b> continuing."
+
+#. js
+#: guia.py
+msgid "Sin flat, el viñeteo y las motas de polvo se quedarán en las fotos."
+msgstr "Without a flat, vignetting and dust spots will stay in the shots."
 
 #: static/js/humor.js
 msgid "Sin frase"
@@ -9965,7 +10077,7 @@ msgstr "Color temperature"
 msgid "Temperatura según la profundidad"
 msgstr "Temperature by depth"
 
-#: templates/_puesta_estacion.html
+#: templates/_guia.html templates/_puesta_estacion.html
 msgid "Terminar"
 msgstr "Finish"
 
@@ -10169,6 +10281,10 @@ msgstr "No shots stacked yet."
 msgid "Todavía no hay fotos del Sol medidas."
 msgstr "No Sun photos measured yet."
 
+#: static/js/guia.js
+msgid "Todavía no hay fotos en la galería."
+msgstr "There are no photos in the gallery yet."
+
 #: ScopePower.py
 msgid "Todavía no hay imagen del modo en vivo."
 msgstr "There is no live mode image yet."
@@ -10271,6 +10387,10 @@ msgstr "Tripod level (tilt of {g}° ± {s}°)"
 msgid "Tu nombre"
 msgstr "Your name"
 
+#: templates/_guia.html
+msgid "Tus fotos"
+msgstr "Your photos"
+
 #: templates/seguimiento.html
 msgid "UDP directo al módulo wifi"
 msgstr "Direct UDP to the Wi-Fi module"
@@ -10310,6 +10430,18 @@ msgstr "Between Taurus and Auriga. One of the few stars shared by two constellat
 #: templates/apilado.html
 msgid "Umbral de descarte: {u} (por debajo, la foto no se apila)"
 msgstr "Rejection threshold: {u} (below it, the shot isn't stacked)"
+
+#: templates/_guia.html
+msgid "Un dark vale para la exposición y la ganancia con que se hizo: pon las que vas a usar al apilar."
+msgstr "A dark is valid for the exposure and gain it was taken with: set the ones you are going to use when stacking."
+
+#: static/js/guia.js
+msgid "Un detalle lejano del paisaje"
+msgstr "A distant detail of the landscape"
+
+#: templates/_guia.html
+msgid "Un detalle lejano en tierra"
+msgstr "A distant detail on the ground"
 
 #: templates/apilado.html
 msgid "Un plan exportado o un texto con un nombre por línea"
@@ -10480,6 +10612,10 @@ msgstr "Invalid speeds"
 msgid "Venus"
 msgstr "Venus"
 
+#: static/js/guia.js
+msgid "Ver"
+msgstr "View"
+
 #: static/js/mosaico.js
 msgid "Ver el mosaico en el visor"
 msgstr "Show the mosaic in the viewer"
@@ -10556,6 +10692,10 @@ msgstr "See all {n} videos in the gallery"
 #: templates/base.html
 msgid "Ver qué ocupa"
 msgstr "See what takes up space"
+
+#: templates/_guia.html
+msgid "Ver toda la galería"
+msgstr "See the whole gallery"
 
 #: templates/apilado.html
 msgid "Ver y ajustar la rejilla de teselas sobre el cielo"
@@ -10760,6 +10900,10 @@ msgstr "Windows restarts and ScopePower starts again if it's in startup"
 #: templates/constelacion.html
 msgid "Y con esta última constelación hemos terminado el recorrido astronómico, gracias por su atención."
 msgstr "And with this last constellation our sky tour is over. Thank you for your attention."
+
+#: templates/_guia.html
+msgid "Ya apunta a algo que sirve"
+msgstr "It is already pointing at something suitable"
 
 #: static/js/plan.js
 msgid "Ya estaba en el plan"

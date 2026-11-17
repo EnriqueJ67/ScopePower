@@ -119,6 +119,12 @@ def main():
     menu = e.get("menu") or []
     baldosas = re.findall(r"""class="tile[^"]* tile-foto" style="--foto: url\('/static/guia/(\w+\.jpg)'\)\"""", html)
     fondos = [a["imagen"] for a in menu] + ["inicio.jpg"] + baldosas
+    # Dos elementos de la guía con el mismo id: el JavaScript coge el primero y el otro deja de funcionar
+    ids = re.findall(r'\bid="(guia-[\w-]+)"', html)
+    repetidos = sorted({i for i in ids if ids.count(i) > 1})
+    if repetidos:
+        print(f"  ❌ ids repetidos en la ventana de la guía: {repetidos}")
+        fallos.append("ids repetidos en la guía")
     sin_fondo = [f for f in fondos if cliente.get("/static/guia/" + f).status_code != 200]
     bien = ('id="guia-franja"' in html and 'id="guia"' in html and 'id="guia-banda"' in html and "js/guia.js" in html
             and 'id="tile-alineacion-titulo"' in html      # en ecuatorial el botón dice también «puesta en estación»
@@ -139,14 +145,39 @@ def main():
     sp.idioma.cambiar("en")
     en_ingles = "Deep sky" in [a["titulo"] for a in (cliente.get("/guia/estado").get_json() or {}).get("menu", [])]
     sp.idioma.cambiar("es")
-    directo = cliente.post("/guia/empezar", json={"actividad": "calibracion"}).get_json() or {}
-    acceso = directo.get("destino") == "/calibracion"
     cerrada = (cliente.post("/guia/terminar", json={}).get_json() or {}).get("activa") is False
-    bien = sin_equipo and objeto and captura and rechazo and en_ingles and acceso and cerrada
+    bien = sin_equipo and objeto and captura and rechazo and en_ingles and cerrada
     print(f"  {'✅' if bien else '❌'} cielo profundo: sin equipo no pasa del primer paso ({sin_equipo}), objeto ({objeto}), "
-          f"exposición ({captura}, rechaza la mala: {rechazo}), menú en inglés ({en_ingles}), acceso directo a Calibración ({acceso}), cierre ({cerrada})")
+          f"exposición ({captura}, rechaza la mala: {rechazo}), menú en inglés ({en_ingles}), cierre ({cerrada})")
     if not bien:
         fallos.append("rutas de la guía")
+
+    print("Guía: enfocar, fotos de calibración y galería:")
+    ses = (cliente.post("/guia/empezar", json={"actividad": "enfocar"}).get_json() or {}).get("sesion") or {}
+    enfocar = ses.get("paso") == "equipo" and ses.get("total") == 4
+    cliente.post("/guia/paso", json={"accion": "ir", "paso": "apuntar_enfoque"})
+    ses = (cliente.post("/guia/hecho", json={"paso": "apuntar_enfoque", "nota": "Vega"}).get_json() or {}).get("sesion") or {}
+    apuntado = bool(ses.get("puede_seguir")) and "estrella" in ses
+    ses = (cliente.post("/guia/empezar", json={"actividad": "calibracion"}).get_json() or {}).get("sesion") or {}
+    cliente.post("/guia/paso", json={"accion": "ir", "paso": "calibracion"})
+    ses = (cliente.get("/guia/estado").get_json() or {}).get("sesion") or {}
+    calibracion = ses.get("total") == 5 and bool(ses.get("biblioteca")) and "hay_dark" in ses
+    cliente.post("/guia/terminar", json={})
+    galeria = cliente.post("/guia/empezar", json={"actividad": "galeria"}).get_json() or {}
+    sin_sesion = galeria.get("destino") == "/galeria" and not (cliente.get("/guia/estado").get_json() or {}).get("activa")
+    lista = cliente.get("/guia/fotos").get_json() or {}
+    fotos = isinstance(lista.get("fotos"), list) and "total" in lista
+    mini = True
+    if lista.get("fotos"):
+        primera = lista["fotos"][0]
+        r = cliente.get(primera["miniatura"])
+        mini = r.status_code == 200 and r.mimetype == "image/jpeg" and 500 < len(r.get_data()) < 200_000
+    malas = cliente.get("/guia/miniatura/no_existe.jpg").status_code == 404 and cliente.get("/guia/miniatura/config.ini").status_code == 400
+    bien = enfocar and apuntado and calibracion and sin_sesion and fotos and mini and malas
+    print(f"  {'✅' if bien else '❌'} enfocar en 4 pasos ({enfocar}, apuntado: {apuntado}), calibración en 5 con su biblioteca ({calibracion}), "
+          f"la galería no abre sesión ({sin_sesion}), últimas fotos ({fotos}, {len(lista.get('fotos') or [])}), miniatura ({mini}), nombres malos ({malas})")
+    if not bien:
+        fallos.append("guía: enfocar, calibración y galería")
 
     print("Guía del Sol y filtro solar comprobado en el PC:")
     cliente.post("/filtro-solar", json={"confirmado": False})

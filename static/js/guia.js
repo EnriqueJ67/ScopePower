@@ -26,10 +26,12 @@
         filtro: N_("Confirma que el filtro solar está puesto para seguir."),
         apuntar_disco: N_("Centra el disco, o di que ya está centrado, para seguir."),
         encuadre: N_("Encuadra, di que ya está encuadrado o salta este paso."),
+        apuntar_enfoque: N_("Apunta a algo con que enfocar, o salta este paso."),
+        flats: N_("Haz los flats, o salta este paso."),
     };
 
     let E = null;               // última respuesta de /guia/estado
-    let vista = "menu";         // qué enseña la ventana: menu | ruta
+    let vista = "menu";         // qué enseña la ventana: menu | ruta | galeria
     let pasoPintado = "";       // para rellenar los campos de un paso solo al entrar en él
     let sondeo = null;
     let recomendados = null;    // respuesta de /esta-noche/objetos
@@ -77,7 +79,8 @@
         if (abierta()) {
             $("guia-menu").hidden = vista !== "menu";
             $("guia-ruta").hidden = vista !== "ruta";
-            if (vista === "ruta") pintarRuta(); else pintarMenu();
+            $("guia-galeria").hidden = vista !== "galeria";
+            if (vista === "ruta") pintarRuta(); else if (vista === "menu") pintarMenu();
         }
         programar();
     }
@@ -120,13 +123,13 @@
         $("guia-semaforos").innerHTML = s.comprobaciones.map(c =>
             `<li class="${esc(c.nivel)}">` + (c.nivel === "pendiente" ? '<span class="spinner"></span>' : `<svg class="ico"><use href="#${ICONO[c.nivel] || "i-info"}"/></svg>`) +
             `<span>${esc(c.texto)}</span></li>`).join("");
-        document.querySelectorAll("#guia .guia-cuerpo").forEach(c => c.hidden = c.dataset.paso !== s.paso);
+        document.querySelectorAll("#guia .guia-cuerpo").forEach(c => c.hidden = !c.dataset.paso.split(" ").includes(s.paso));
         (PASOS[s.paso] || (() => {}))(s, entrando);
         pasoPintado = s.paso;
         $("guia-atras").hidden = s.indice === 0;
         $("guia-otra").hidden = s.indice !== 0;
         $("guia-saltar").hidden = !s.saltable || s.puede_seguir;
-        $("guia-siguiente").hidden = s.paso === "listo" || s.paso === "listo_camara";
+        $("guia-siguiente").hidden = s.paso.startsWith("listo");
         if (entrando) { const caja = document.querySelector("#guia .modal-caja"); if (caja) caja.scrollTop = 0; }
     }
 
@@ -160,6 +163,9 @@
                 $("guia-ganancia").value = s.captura.ganancia == null ? "" : s.captura.ganancia;
                 $("guia-fotos").value = s.captura.fotos;
             }
+            const calibracion = s.actividad === "calibracion";
+            $("guia-fotos").closest(".form-group").hidden = calibracion;
+            $("guia-captura-calibracion").hidden = !calibracion;
             $("guia-recomendacion").textContent = (s.recomendacion || {}).texto || "";
             pintarDuracion();
         },
@@ -168,7 +174,9 @@
             if (entrando) {
                 darksLanzados = false;
                 $("guia-darks-n").value = s.captura.numero_darks || 10;
-                const opcion = !s.hay_dark && s.opcion_dark === "ultimo" ? "nuevo" : (s.opcion_dark || "ultimo");
+                // En la ruta de calibración se viene a hacer darks: «nuevos» salvo que ya haya uno bueno para estos valores
+                const opcion = s.actividad === "calibracion" ? ((semaforo("dark") || {}).nivel === "ok" ? "ultimo" : "nuevo")
+                    : (!s.hay_dark && s.opcion_dark === "ultimo" ? "nuevo" : (s.opcion_dark || "ultimo"));
                 (document.querySelector(`input[name="guia-dark"][value="${opcion}"]`) || $("guia-dark-ultimo")).checked = true;
                 $("guia-darks-tapar").hidden = true;
             }
@@ -187,10 +195,11 @@
                 }
             }
             $("guia-darks-hechos").hidden = !(darksLanzados && !trabajo.en_curso && !trabajo.error);
-            $("guia-flats").hidden = !!s.hay_flat;
+            $("guia-flats").hidden = !!s.hay_flat || s.actividad === "calibracion";      // allí los flats tienen su paso
+            $("guia-darks-biblioteca").textContent = s.biblioteca || "";
         },
         enfoque(s) {
-            const deDia = s.actividad !== "cielo_profundo";
+            const deDia = s.actividad === "enfocar" ? !!E.de_dia : s.actividad !== "cielo_profundo";
             $("guia-enfoque-noche").hidden = deDia;
             $("guia-enfoque-dia").hidden = !deDia;
             const boton = $("guia-ir-estrella");
@@ -214,6 +223,24 @@
                 $("guia-semaforos").innerHTML = '<li class="pendiente"><span class="spinner"></span><span>' +
                     esc(_("La montura va hacia {objeto}...", { objeto: s.objeto.nombre })) + "</span></li>";
             }
+        },
+        apuntar_enfoque(s) {
+            const hecho = (semaforo("apuntar_enfoque") || {}).nivel === "ok", estrella = $("guia-enf-estrella");
+            estrella.hidden = hecho || !s.estrella;
+            if (s.estrella) {
+                estrella.innerHTML = '<svg><use href="#i-goto"/></svg>' +
+                    esc(_("Ir a {estrella} ({alt}° de altura)", { estrella: s.estrella.nombre, alt: fmtNum(s.estrella.altura, 0) }));
+            }
+            $("guia-enf-luna").hidden = hecho || !s.luna_visible;
+            $("guia-enf-sol").hidden = hecho || !s.sol_visible;
+            $("guia-enf-paisaje").hidden = hecho || !E.de_dia;
+            $("guia-enf-aqui").hidden = hecho;
+        },
+        listo_enfoque() {
+            $("guia-fin-texto").textContent = _("El enfoque vale mientras no toques el enfocador. Si la temperatura baja mucho a lo largo de la noche, conviene repasarlo.");
+        },
+        listo_calibracion() {
+            $("guia-fin-texto").textContent = _("Lo que has hecho queda guardado: el apilado y la cámara usan solos los darks y el flat mientras no cambies la exposición, la ganancia ni nada del tren óptico.");
         },
         filtro(s) {
             $("guia-filtro").hidden = (semaforo("filtro") || {}).nivel === "ok";
@@ -264,6 +291,7 @@
             else if (s.paso === "equipo" && !s.puede_seguir) cada = 3000;
             else if (s.paso === "alineacion" && !s.puede_seguir) cada = 6000;
             else if (s.paso === "apuntar_disco" && !s.puede_seguir) cada = 3000;
+            else if (s.paso === "apuntar_enfoque" && !s.puede_seguir) cada = 3000;
         } else if (!abierta() && s.paso === "listo" && location.pathname.startsWith("/apilado")) {
             cada = 4000;      // al arrancar el apilado la guía se cierra sola y la banda desaparece
         }
@@ -287,6 +315,26 @@
     }
 
     function verMenu() { vista = "menu"; pintar(); }
+
+    // Galería: las últimas fotos en pequeño; cada una lleva a su editor si se puede volver a revelar, o a la galería
+    async function verGaleria() {
+        vista = "galeria";
+        pintar();
+        const d = await pedir("/guia/fotos");
+        const fotos = d.fotos || [];
+        const editar = _("Editar"), ver = _("Ver"), vacio = _("Todavía no hay fotos en la galería.");
+        $("guia-ultimas").innerHTML = fotos.length ? fotos.map(f =>
+            `<a class="guia-tarjeta" href="${esc(f.editar || "/galeria")}" style="background-image: url('${esc(f.miniatura)}')">` +
+            `<span class="guia-tarjeta-chip ${f.editar ? "ok" : ""}">${esc(f.editar ? editar : ver)}</span>` +
+            `<span class="guia-tarjeta-titulo">${esc(f.objeto)}</span><span class="guia-tarjeta-desc">${esc(f.fecha)}</span></a>`).join("")
+            : `<div class="estado">${esc(vacio)}</div>`;
+    }
+
+    // Fin de una ruta que no acaba en otra pantalla (enfocar, calibración): se cierra y vuelve el menú
+    async function terminarAlMenu() {
+        vista = "menu";
+        aplicar(await pedir("/guia/terminar", {}));
+    }
     function verRuta() { vista = "ruta"; pasoPintado = ""; pintar(); }
 
     async function dejar() {
@@ -306,6 +354,7 @@
     async function empezar(clave) {
         const a = E.menu.find(x => x.clave === clave);
         if (!a || a.apagada) return;
+        if (a.vista === "galeria") { verGaleria(); return; }
         const d = await pedir("/guia/empezar", { actividad: clave });
         if (d.ok && d.destino) { irA(d.destino, d.al_llegar || ""); return; }
         vista = "ruta";
@@ -440,6 +489,7 @@
 
     // ——— Exposición ———
     function pintarDuracion() {
+        if (sesion() && sesion().actividad === "calibracion") { $("guia-duracion").textContent = ""; return; }
         const exp = parseFloat($("guia-exposicion").value), n = parseInt($("guia-fotos").value);
         $("guia-duracion").textContent = exp > 0 && n > 0
             ? _("{n} fotos de {exp} s son {min} min de exposición.", { n: n, exp: fmtNum(exp), min: fmtNum(exp * n / 60, 0) }) : "";
@@ -491,13 +541,13 @@
     }
 
     // Espera a que la montura llegue y el centrado termine (o se omita); devuelve el resultado del centrado
-    async function esperarGoto(alCambiar) {
+    async function esperarGoto(pasoEsperado, alCambiar) {
         const inicio = Date.now();
         for (;;) {
             await new Promise(r => setTimeout(r, 2000));
             const tel = await pedir("/estado_telescopio"), cen = await pedir("/centrado/estado");
             const s = sesion();
-            if (!abierta() || !s || s.paso !== "enfoque") return null;      // el usuario se ha ido a otra cosa
+            if (!abierta() || !s || s.paso !== pasoEsperado) return null;      // el usuario se ha ido a otra cosa
             const ocupado = tel.slewing || cen.en_curso || cen.previo;
             alCambiar(tel.slewing ? _("La montura se está moviendo...") : (cen.mensaje || (cen.previo || {}).mensaje || ""));
             if (!ocupado && Date.now() - inicio > 8000) return cen;
@@ -513,7 +563,7 @@
         boton.disabled = true;
         if (await irPorGoto(s.estrella.nombre, s.estrella.ra_h, s.estrella.dec_deg)) {
             estado.innerHTML = '<span class="spinner"></span>' + esc(_("La montura va hacia {objeto}...", { objeto: s.estrella.nombre }));
-            const fin = await esperarGoto(t => { if (t) estado.innerHTML = '<span class="spinner"></span>' + esc(t); });
+            const fin = await esperarGoto("enfoque", t => { if (t) estado.innerHTML = '<span class="spinner"></span>' + esc(t); });
             estado.textContent = "";
             boton.disabled = false;
             if (fin) enfocarAqui();
@@ -522,9 +572,63 @@
         boton.disabled = false;
     }
 
+    // Espera a que la montura deje de moverse (sin centrado por estrellas); false si el usuario se ha ido del paso
+    async function esperarLlegada(sigue) {
+        const inicio = Date.now();
+        for (;;) {
+            await espera(2000);
+            if (!sigue()) return false;
+            const tel = await pedir("/estado_telescopio");
+            if ((!tel.slewing && Date.now() - inicio > 6000) || Date.now() - inicio > 240000) return true;
+        }
+    }
+
+    // Ruta «Enfocar»: llevar el telescopio a algo con que enfocar y dejar Cámara en el modo que le toca
+    async function apuntarEnfoque(que) {
+        const s = sesion();
+        if (!s) return;
+        const estado = $("guia-enf-estado");
+        const decir = t => { estado.innerHTML = t ? '<span class="spinner"></span>' + esc(t) : ""; };
+        const sigue = () => abierta() && sesion() && sesion().paso === "apuntar_enfoque";
+        let nota = "";
+        mostrarError("");
+        try {
+            if (que === "estrella") {
+                const e = s.estrella;
+                if (!e) return;
+                await pedir("/preferencias", { modo_dia: "off" });
+                decir(_("La montura va hacia {objeto}...", { objeto: e.nombre }));
+                if (!(await irPorGoto(e.nombre, e.ra_h, e.dec_deg))) return;
+                if (!(await esperarGoto("apuntar_enfoque", t => { if (t) decir(t); }))) return;
+                nota = _("El telescopio apunta a {objeto}", { objeto: e.nombre });
+            } else if (que === "sol" || que === "luna") {
+                const esSol = que === "sol";
+                if (esSol) {
+                    if (!(await confirmarFiltroSolar({ es_sol: true, objeto: _("Sol"), texto: _("Vas a apuntar el telescopio al Sol.") }))) return;
+                    await pedir("/filtro-solar", { confirmado: true });
+                }
+                await pedir("/preferencias", { modo_dia: "on", foto_dia_objetivo: que });
+                decir(esSol ? _("La montura va hacia el Sol...") : _("La montura va hacia la Luna..."));
+                if (!(await irPorGoto(esSol ? "Sol" : "Luna", null, null, esSol, true))) return;
+                if (!(await esperarLlegada(sigue))) return;
+                nota = esSol ? _("El telescopio apunta al Sol") : _("El telescopio apunta a la Luna");
+            } else if (que === "paisaje") {
+                await pedir("/preferencias", { modo_dia: "on", foto_dia_objetivo: "paisaje" });
+                nota = _("Un detalle lejano del paisaje");
+            }
+            if (await hecho("apuntar_enfoque", nota)) await paso("siguiente");
+        } finally {
+            decir("");
+        }
+    }
+
     async function enfocarAqui() {
         const s = sesion();
-        if (s && s.actividad !== "cielo_profundo") {
+        if (s && s.actividad === "enfocar") {
+            // El modo enfoque mide una estrella o el borde de un disco; con un paisaje no pinta nada
+            const p = await pedir("/preferencias");
+            await pedir("/enfoque", { activo: !(p.modo_dia === "on" && p.foto_dia_objetivo === "paisaje") });
+        } else if (s && s.actividad !== "cielo_profundo") {
             // Rutas de día: Cámara ya está en modo día con su objetivo; el modo enfoque mide el borde del disco
             await pedir("/enfoque", { activo: !!s.astro });
         } else if (!E.de_dia) {
@@ -560,13 +664,7 @@
         try {
             decir(esSol ? _("La montura va hacia el Sol...") : _("La montura va hacia la Luna..."));
             if (!(await irPorGoto(esSol ? "Sol" : "Luna", null, null, esSol, true))) return;
-            const inicio = Date.now();
-            for (;;) {
-                await espera(2000);
-                if (!sigue()) return;
-                const tel = await pedir("/estado_telescopio");
-                if ((!tel.slewing && Date.now() - inicio > 6000) || Date.now() - inicio > 240000) break;
-            }
+            if (!(await esperarLlegada(sigue))) return;
             if (!s.orientacion_camara) {
                 decir("");
                 mostrarError(esSol ? _("La montura ya apunta hacia el Sol. Céntralo a mano en Cámara y pulsa «Hecho, siguiente».")
@@ -654,7 +752,7 @@
 
     window.Guia = { abrir, cerrar, verMenu, verRuta, dejar, irA, paso, siguiente, saltar, marcar, conectar, buscar, usarUltimoGoto,
                     mosaico, cancelarTapar, hacerDarks, irAlObjeto, irAEstrella, enfocarAqui, abrirApilado, hechoSiguiente,
-                    confirmarFiltro, hecho, irAlDisco, abrirCamara };
+                    confirmarFiltro, hecho, irAlDisco, abrirCamara, apuntarEnfoque, terminarAlMenu, verGaleria };
 
     // Al cargar: una consulta para la banda y la franja del inicio, y lo que la pantalla prepare al llegar
     refrescar().then(() => {

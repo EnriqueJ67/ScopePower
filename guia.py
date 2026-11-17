@@ -8,8 +8,8 @@
 # Tres partes, sin Flask ni COM (se prueba en seco con herramientas/probar_guia.py):
 #
 #   1. ACTIVIDADES y PASOS: lo que ofrece el menú y los pasos de cada ruta guiada. Van
-#      guiados cielo profundo, el Sol, la Luna y el paisaje; las demás actividades son
-#      accesos directos que dejan su pantalla preparada.
+#      guiados cielo profundo, el Sol, la Luna, el paisaje, enfocar y las fotos de
+#      calibración; la galería no es una ruta: enseña las últimas fotos y lleva a ellas.
 #   2. La sesión, en datos/guia.json: actividad, paso, objeto elegido y lo que ya se ha
 #      hecho esta noche (alineación, enfoque). La app no puede saber si la montura está
 #      alineada (eso vive en el programa de la montura) ni si el enfoque es bueno sin
@@ -27,7 +27,7 @@ import logging
 import threading
 from datetime import datetime
 
-from idioma import _, N_, fmt_num
+from idioma import _, N_, fmt_num, ngettext
 
 log = logging.getLogger("scopepower.guia")
 
@@ -38,7 +38,7 @@ ALTURA_ENFOQUE = (35.0, 72.0)    # altura cómoda de la estrella para enfocar
 MARGEN_CAMPO = 0.8               # el objeto «cabe» si ocupa menos de esta fracción del lado corto del campo
 SEPARACION_MISMO_OBJETO = 0.5    # grados: el último GoTo es «el del objeto» si cae a menos de esto
 MARCABLES = ("alineacion", "puesta_estacion", "enfoque")      # lo hecho en la noche: vale para cualquier ruta
-PASOS_MARCABLES = ("apuntar_disco", "encuadre")                 # lo hecho en esta sesión de la guía
+PASOS_MARCABLES = ("apuntar_disco", "encuadre", "apuntar_enfoque")      # lo hecho en esta sesión de la guía
 MODOS = ("foto", "video", "timelapse")
 ALTURA_MINIMA_DISCO = 3.0        # grados: por debajo, el Sol o la Luna se dan por puestos
 MODOS_ECUATORIALES = ("ecuatorial", "ecuatorial_alemana")
@@ -58,11 +58,12 @@ ACTIVIDADES = [
     {"clave": "paisaje", "titulo": N_("Paisaje"), "cuando": "dia", "guiada": True, "sin_montura": True,
      "preferencias": {"modo_dia": "on", "foto_dia_objetivo": "paisaje"},
      "desc": N_("Fotos de día de algo en tierra")},
-    {"clave": "enfocar", "titulo": N_("Enfocar"), "cuando": "siempre", "destino": "/foto-prueba", "al_llegar": "enfoque",
+    {"clave": "enfocar", "titulo": N_("Enfocar"), "cuando": "siempre", "guiada": True, "sin_montura": True,
      "desc": N_("Afina el enfoque antes de hacer fotos")},
-    {"clave": "calibracion", "titulo": N_("Fotos de calibración"), "cuando": "siempre", "destino": "/calibracion",
+    {"clave": "calibracion", "titulo": N_("Fotos de calibración"), "cuando": "siempre", "guiada": True, "sin_montura": True,
      "desc": N_("Darks y flats para limpiar las fotos")},
-    {"clave": "galeria", "titulo": N_("Galería"), "cuando": "siempre", "destino": "/galeria",
+    # La galería no abre sesión: la web enseña las últimas fotos (GET /guia/fotos) y lleva a su editor
+    {"clave": "galeria", "titulo": N_("Galería"), "cuando": "siempre", "destino": "/galeria", "vista": "galeria",
      "desc": N_("Ver, editar y compartir tus fotos")},
 ]
 _ORDEN_DIA = ("sol", "luna", "paisaje", "enfocar", "cielo_profundo", "calibracion", "galeria")
@@ -114,11 +115,29 @@ PASOS = {
         {"clave": "modo", "titulo": N_("Foto o vídeo")},
         {"clave": "listo_camara", "titulo": N_("Listo")},
     ],
+    "enfocar": [
+        {"clave": "equipo", "titulo": N_("Equipo")},
+        {"clave": "apuntar_enfoque", "titulo": N_("Dónde enfocar"), "saltable": True},
+        {"clave": "enfoque", "titulo": N_("Enfoque"), "pantalla": "/foto-prueba",
+         "banda": N_("Enfoca y pulsa «Hecho, siguiente»")},
+        {"clave": "listo_enfoque", "titulo": N_("Listo")},
+    ],
+    # Los darks valen para la exposición y la ganancia con que se hicieron: primero se fijan
+    "calibracion": [
+        {"clave": "equipo", "titulo": N_("Equipo")},
+        {"clave": "captura", "titulo": N_("Exposición")},
+        {"clave": "calibracion", "titulo": N_("Darks")},
+        {"clave": "flats", "titulo": N_("Flats"), "saltable": True, "pantalla": "/flats",
+         "banda": N_("Haz los flats y pulsa «Hecho, siguiente»")},
+        {"clave": "listo_calibracion", "titulo": N_("Listo")},
+    ],
 }
 AVISO_SALTAR = {
     "alineacion": N_("Sin alinear, el GoTo puede dejar el objeto fuera del campo y el centrado tardará más."),
     "enfoque": N_("Con el enfoque sin afinar se pierde el detalle: las estrellas salen gordas y el borde del Sol o de la Luna, blando."),
     "encuadre": N_("Sin encuadrar, la foto saldrá de donde apunte ahora el telescopio."),
+    "apuntar_enfoque": N_("Se enfocará con lo que haya ahora en la foto, sea lo que sea."),
+    "flats": N_("Sin flat, el viñeteo y las motas de polvo se quedarán en las fotos."),
 }
 
 # Estrellas brillantes para enfocar: (nombre, AR en horas, declinación en grados, magnitud), J2000
@@ -478,6 +497,7 @@ def menu(datos):
                 chip = {"nivel": "neutro", "texto": _("bajo el horizonte")}
         salida.append({"clave": clave, "titulo": _tr(a, "titulo"), "desc": _tr(a, "desc"), "imagen": clave + ".jpg",
                        "imagen_ancha": a.get("imagen_ancha") or clave + ".jpg", "guiada": bool(a.get("guiada")),
+                       "vista": a.get("vista") or "",
                        "chip": chip, "apagada": apagada})
     return salida
 
@@ -613,13 +633,17 @@ def _comprobar_calibracion(ses, hechos_, datos):
                             if cuando else _("Dark de {exp} s listo", exp=fmt_num(cap.get("exposicion") or 0, 1)), "darks"))
     else:
         lista.append(_c("dark", "warn", _("No hay dark para {exp} s con esta ganancia", exp=fmt_num(cap.get("exposicion") or 0, 1)), "darks"))
+    if ses["actividad"] != "calibracion":
+        lista.append(_semaforo_flat(datos, "warn"))
+    return lista, not trabajo.get("en_curso")
+
+
+def _semaforo_flat(datos, nivel_si_falta):
     flat = datos.get("flat") or {}
     if flat.get("existe"):
         cuando = _antiguedad(flat.get("antiguedad_min"))
-        lista.append(_c("flat", "ok", _("Flat listo ({cuando})", cuando=cuando) if cuando else _("Flat listo"), "flats"))
-    else:
-        lista.append(_c("flat", "warn", _("No hay flat: el viñeteo y las motas de polvo no se corregirán"), "flats"))
-    return lista, not trabajo.get("en_curso")
+        return _c("flat", "ok", _("Flat listo ({cuando})", cuando=cuando) if cuando else _("Flat listo"), "flats")
+    return _c("flat", nivel_si_falta, _("No hay flat: el viñeteo y las motas de polvo no se corregirán"), "flats")
 
 
 def _comprobar_enfoque(ses, hechos_, datos):
@@ -750,11 +774,77 @@ def _comprobar_listo_camara(ses, hechos_, datos):
     return lista, True
 
 
+# ── Enfocar y fotos de calibración ──
+
+def _comprobar_apuntar_enfoque(ses, hechos_, datos):
+    hecho = (ses.get("hechos_paso") or {}).get("apuntar_enfoque")
+    if hecho:
+        return [_c("apuntar_enfoque", "ok", hecho.get("nota") or _("El telescopio apunta a algo con que enfocar"))], True
+    cen = datos.get("centrado") or {}
+    if datos.get("moviendose"):
+        return [_c("apuntar_enfoque", "pendiente", _("La montura se está moviendo..."))], False
+    if cen.get("en_curso") or cen.get("previo"):
+        return [_c("apuntar_enfoque", "pendiente", cen.get("mensaje") or (cen.get("previo") or {}).get("mensaje")
+                   or _("Centrando por plate solving..."))], False
+    return [_c("apuntar_enfoque", "falta", _("Apunta el telescopio a algo con que enfocar"), "apuntar_enfoque")], False
+
+
+def _comprobar_listo_enfoque(ses, hechos_, datos):
+    if "enfoque" in hechos_:
+        return [_c("enfoque", "ok", _("Enfocado a las {hora}", hora=_hora(hechos_["enfoque"])))], True
+    return [_c("enfoque", "warn", _("Enfoque sin comprobar"))], True
+
+
+def _comprobar_flats(ses, hechos_, datos):
+    trabajo = datos.get("trabajo_flats") or {}
+    if trabajo.get("en_curso"):
+        return [_c("flat", "pendiente", trabajo.get("mensaje") or _("Haciendo los flats..."))], False
+    semaforo = _semaforo_flat(datos, "falta")
+    return [semaforo], semaforo["nivel"] == "ok"
+
+
+def _comprobar_listo_calibracion(ses, hechos_, datos):
+    cap = datos.get("captura") or {}
+    dark = datos.get("dark") or {}
+    exp = fmt_num(cap.get("exposicion") or 0, 1)
+    if not dark.get("existe"):
+        lista = [_c("dark", "warn", _("No hay dark para {exp} s con esta ganancia", exp=exp))]
+    elif dark.get("lejos") and dark.get("diferencia") is not None:
+        lista = [_c("dark", "warn", _("El dark más cercano está a {d} °C del sensor: conviene hacer darks nuevos",
+                                      d=fmt_num(abs(dark["diferencia"]), 0)))]
+    else:
+        lista = [_c("dark", "ok", _("Dark de {exp} s listo", exp=exp))]
+    lista.append(_semaforo_flat(datos, "warn"))
+    return lista, True
+
+
+def texto_biblioteca(biblioteca, captura, temperatura):
+    """
+    Una línea con los darks que hay para la exposición, la ganancia y el binning elegidos, por temperatura,
+    y la del sensor ahora: «Para 20 s y ganancia 130 hay darks a 19, 20 y 21 °C. El sensor está a 18,5 °C.»
+    """
+    exp, gan, binning = captura.get("exposicion"), captura.get("ganancia"), captura.get("binning") or 1
+    temps = sorted({round(d["temperatura"]) for d in biblioteca
+                    if abs(float(d["exposicion"]) - float(exp or 0)) < 0.005 and (d.get("binning") or 1) == binning
+                    and (gan is None or d.get("gain") is None or int(d["gain"]) == int(gan)) and d.get("temperatura") is not None})
+    if temps:
+        lista = ", ".join(fmt_num(t, 0) for t in temps)
+        texto = ngettext("Para esa exposición y esa ganancia hay un dark, a {lista} °C.",
+                         "Para esa exposición y esa ganancia hay {n} darks, a {lista} °C.", len(temps), lista=lista)
+    else:
+        texto = _("Para esa exposición y esa ganancia todavía no hay ningún dark con su temperatura apuntada.")
+    if temperatura is not None:
+        texto += " " + _("El sensor está ahora a {t} °C.", t=fmt_num(temperatura, 1))
+    return texto
+
+
 _COMPROBADORES = {"equipo": _comprobar_equipo, "alineacion": _comprobar_alineacion, "objeto": _comprobar_objeto,
                   "captura": _comprobar_captura, "calibracion": _comprobar_calibracion, "enfoque": _comprobar_enfoque,
                   "apuntar": _comprobar_apuntar, "listo": _comprobar_listo,
                   "filtro": _comprobar_filtro, "apuntar_disco": _comprobar_apuntar_disco, "encuadre": _comprobar_encuadre,
-                  "modo": _comprobar_modo, "listo_camara": _comprobar_listo_camara}
+                  "modo": _comprobar_modo, "listo_camara": _comprobar_listo_camara,
+                  "apuntar_enfoque": _comprobar_apuntar_enfoque, "listo_enfoque": _comprobar_listo_enfoque,
+                  "flats": _comprobar_flats, "listo_calibracion": _comprobar_listo_calibracion}
 
 
 def comprobaciones(ses, hechos_, datos):
