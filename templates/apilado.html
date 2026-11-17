@@ -115,18 +115,13 @@
         </div>
     </div>
 
-    <!-- ─── Columna lateral: paneles plegables, en el orden que elija el usuario ──
-         (orden y plegado se guardan en config.ini vía /preferencias) ─────────── -->
-    <div class="columna lateral" id="paneles-apilado">
-        <section class="card panel" data-panel="ultima-toma">
-            <div class="panel-header" onclick="alternarPanel(this)">
+    <!-- ─── Columna lateral: una pestaña por panel y uno solo a la vista (static/js/paneles.js);
+         la pestaña abierta se guarda en config.ini vía /preferencias ─────────── -->
+    <div class="columna lateral paneles" id="paneles-apilado" data-paneles="apilado_paneles" data-inicial="estadisticas">
+        <section class="card panel" data-panel="ultima-toma" data-pestana="{{ _('Última') }}" data-icono="i-foto">
+            <div class="panel-header">
                 <h3 class="card-title">{{ _("Última toma") }}</h3>
                 <span id="ultima-toma-texto" class="panel-sub"></span>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
                 <img id="ultima-toma" src="" alt="{{ _('Última toma') }}" style="width: 100%; border-radius: 10px; background: #000; display: block;">
@@ -137,15 +132,10 @@
              (media, mediana, mejor, peor) y de la última medida (aunque se haya
              descartado), más los datos de la sesión y de esa última foto. La última se
              colorea según quede por encima de la media, por debajo, o bajo el umbral. -->
-        <section class="card panel" data-panel="estadisticas">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="estadisticas" data-pestana="{{ _('Datos') }}">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-info"/></svg>{{ _("Estadísticas") }}</h3>
                 <span id="estadisticas-sub" class="panel-sub"></span>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo estadisticas">
                 <div class="stats stats-calidad">
@@ -168,14 +158,9 @@
             </div>
         </section>
 
-        <section class="card panel" data-panel="opciones">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="opciones" data-icono="i-ajustes">
+            <div class="panel-header">
                 <h3 class="card-title">{{ _("Opciones") }}</h3>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
                 <div class="fila" style="justify-content: space-between;">
@@ -204,15 +189,10 @@
             </div>
         </section>
 
-        <section class="card panel" data-panel="plan" id="panel-plan">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="plan" data-pestana="{{ _('Plan') }}" id="panel-plan">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-noche"/></svg>{{ _("Plan de la noche") }}</h3>
                 <span id="plan-sub" class="panel-sub"></span>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
                 <!-- Lista de objetos que se fotografían solos, uno tras otro (plan_sesion.py, static/js/plan.js) -->
@@ -259,15 +239,10 @@
             </div>
         </section>
 
-        <section class="card panel" data-panel="mosaico" id="panel-mosaico">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="mosaico" data-pestana="{{ _('Mosaico') }}" data-icono="i-mosaico" id="panel-mosaico">
+            <div class="panel-header">
                 <h3 class="card-title">{{ _("🧩 Mosaico") }}</h3>
                 <span id="mosaico-sub" class="panel-sub"></span>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
                 <!-- Una región mayor que el campo, por teselas que se apilan una a una y se funden
@@ -319,14 +294,9 @@
             </div>
         </section>
 
-        <section class="card panel" data-panel="info-goto">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="info-goto" data-pestana="{{ _('Objeto') }}">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-goto"/></svg>{{ _("Objeto del último GoTo") }}</h3>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
                 <pre id="info-goto"></pre>
@@ -343,14 +313,9 @@
             </div>
         </section>
 
-        <section class="card panel" data-panel="procesado">
-            <div class="panel-header" onclick="alternarPanel(this)">
+        <section class="card panel" data-panel="procesado" data-pestana="{{ _('Imagen') }}" data-icono="i-deslizadores">
+            <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>{{ _("Procesado de la vista previa") }}</h3>
-                <div class="panel-botones" onclick="event.stopPropagation()">
-                    <button type="button" class="panel-btn panel-subir" onclick="moverPanel(this, -1)" title="{{ _('Subir') }}"><svg><use href="#i-arriba"/></svg></button>
-                    <button type="button" class="panel-btn panel-bajar" onclick="moverPanel(this, 1)" title="{{ _('Bajar') }}"><svg><use href="#i-abajo"/></svg></button>
-                    <button type="button" class="panel-btn panel-plegar" onclick="alternarPanel(this)" title="{{ _('Plegar o desplegar') }}"><svg><use href="#i-flecha"/></svg></button>
-                </div>
             </div>
             <div class="panel-cuerpo">
                 <div class="campo">
@@ -561,7 +526,6 @@
     .panel-inicio.abierto .panel-inicio-toggle .flecha { transform: rotate(90deg); }
     .panel-inicio .acciones { flex: 0 0 auto; margin-left: auto; }
     .panel-inicio-cuerpo { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
-    .lateral .card + .card { margin-top: 0; }
     .stats-calidad { grid-template-columns: 1fr 1fr; }
     .stats-calidad.tres { grid-template-columns: repeat(3, 1fr); margin-top: 8px; }
     .stats-calidad .valor { font-size: 18px; }
@@ -577,11 +541,6 @@
     .estadisticas .kv dd.ok { color: var(--ok); }
     .estadisticas .kv dd.warn { color: var(--warn); }
     .estadisticas .kv dd.err { color: var(--err); }
-    /* Pantalla ancha: la columna lateral se queda fija y hace su propio scroll, así la
-       imagen apilada no se pierde de vista al tocar los ajustes de procesado */
-    @media (min-width: 760px) {
-        .lateral { position: sticky; top: calc(var(--header-h) + 12px); max-height: calc(100vh - var(--header-h) - 24px); overflow-y: auto; scrollbar-width: thin; padding-right: 2px; }
-    }
     #info-goto { min-height: 2.6em; font-size: 13px; }
     #estado-guardar:empty { display: none; }
     #info-goto:empty::before { content: "{{ _('Todavía no se ha hecho ningún GoTo.') }}"; color: var(--text-3); font-family: var(--font); }
@@ -592,6 +551,7 @@
 
 <!-- La pantalla se mantiene encendida desde base.html (static/js/pantalla.js) -->
 
+<script src="{{ url_for('static', filename='js/paneles.js') }}?v={{ VERSION }}"></script>
 <script src="{{ url_for('static', filename='js/curvas.js') }}?v={{ VERSION }}"></script>
 <script src="{{ url_for('static', filename='js/darks.js') }}?v={{ VERSION }}"></script>
 <script>
@@ -606,63 +566,17 @@
     let sondeoDarks = null;
 
     // ——— Preferencias guardadas en el servidor (config.ini, sección [Interfaz]) ———
-    //     orden y plegado de los paneles laterales, y la opción de darks al empezar
+    //     la pestaña abierta de la columna lateral (static/js/paneles.js) y la opción de darks al empezar
     let PREFS = {};
-    let prefPaneles = { orden: [], plegados: ["procesado"] };
     const prefsCargadas = fetch("/preferencias").then(r => r.json()).then(d => {
         PREFS = d || {};
-        if (PREFS.apilado_paneles && Array.isArray(PREFS.apilado_paneles.orden)) prefPaneles = PREFS.apilado_paneles;
-        aplicarPaneles();
+        Paneles.preferencia(PREFS.apilado_paneles);
         return PREFS;
-    }).catch(() => { aplicarPaneles(); return {}; });
+    }).catch(() => ({}));
 
     function guardarPreferencias(datos) {
         return fetch("/preferencias", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) })
             .catch(err => console.warn("No se pudieron guardar las preferencias:", err));
-    }
-
-    function aplicarPaneles() {
-        const cont = document.getElementById("paneles-apilado");
-        const paneles = Array.from(cont.querySelectorAll(".panel"));
-        const orden = prefPaneles.orden || [];
-        // Un panel que no esté en el orden guardado (añadido después) se coloca justo tras "Última toma"
-        const pos = p => { const i = orden.indexOf(p.dataset.panel); return i < 0 ? orden.indexOf("ultima-toma") + 0.5 : i; };
-        paneles.sort((a, b) => pos(a) - pos(b));
-        paneles.forEach(p => {
-            cont.appendChild(p);
-            p.classList.toggle("plegado", (prefPaneles.plegados || []).includes(p.dataset.panel));
-        });
-        paneles.forEach((p, i) => {
-            p.querySelector(".panel-subir").disabled = i === 0;
-            p.querySelector(".panel-bajar").disabled = i === paneles.length - 1;
-        });
-    }
-    // Se guarda con un pequeño retardo: varios toques seguidos hacen una sola escritura
-    // (dos peticiones a la vez podrían pisarse al escribir config.ini)
-    let guardadoPaneles = null;
-    function guardarPaneles() {
-        const paneles = Array.from(document.querySelectorAll("#paneles-apilado .panel"));
-        prefPaneles = {
-            orden: paneles.map(p => p.dataset.panel),
-            plegados: paneles.filter(p => p.classList.contains("plegado")).map(p => p.dataset.panel)
-        };
-        clearTimeout(guardadoPaneles);
-        guardadoPaneles = setTimeout(() => guardarPreferencias({ apilado_paneles: prefPaneles }), 400);
-    }
-    function moverPanel(boton, delta) {
-        const panel = boton.closest(".panel");
-        const paneles = Array.from(document.querySelectorAll("#paneles-apilado .panel"));
-        const i = paneles.indexOf(panel), j = i + delta;
-        if (j < 0 || j >= paneles.length) return;
-        [paneles[i], paneles[j]] = [paneles[j], paneles[i]];
-        prefPaneles.orden = paneles.map(p => p.dataset.panel);
-        aplicarPaneles();
-        guardarPaneles();
-    }
-    function alternarPanel(el) {
-        const panel = el.closest(".panel");
-        panel.classList.toggle("plegado");
-        guardarPaneles();
     }
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -1643,6 +1557,8 @@
                 // El plan arranca y para el bucle entre objetos: la cabecera sigue al plan, no al bucle
                 if (!modoPlan) { modoPlan = true; document.getElementById("panel-inicio").style.display = "none"; }
                 trabajoEnCurso = mosaicoEnCurso ? "mosaico" : "plan";
+                Paneles.marcar("plan", mosaicoEnCurso ? "" : "activo");      // punto en la pestaña de lo que está en marcha
+                Paneles.marcar("mosaico", mosaicoEnCurso ? "activo" : "");
                 const pausado = mosaicoEnCurso ? !!estado.mosaico.pausado : !!estado.plan.pausado;
                 document.getElementById("boton-pausa").style.display = pausado ? "none" : "inline-flex";
                 document.getElementById("boton-reanudar").style.display = pausado ? "inline-flex" : "none";
@@ -1656,6 +1572,7 @@
                 if (trabajoEnCurso === "mosaico" && estado.mosaico && estado.mosaico.mensaje) carga.textContent = "🧩 " + estado.mosaico.mensaje;
                 else if (estado.plan && estado.plan.mensaje) carga.textContent = "🗓️ " + estado.plan.mensaje;
                 trabajoEnCurso = "";
+                Paneles.marcar("plan", ""); Paneles.marcar("mosaico", "");
                 prepararInicio();
             } else if (b.activo) {
                 if (!bucleActivo) mostrarComoActivo(b);

@@ -5,6 +5,12 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Cámara, Apilado y el editor de fotos: los paneles de controles dejan de ser tarjetas plegables una debajo
+  de otra y pasan a pestañas. Una fila de botones encima de la columna abre cada panel con un toque y se ve
+  uno solo, con la foto siempre a la vista; si el panel no cabe en el alto de la pantalla, el scroll es solo
+  el suyo y las pestañas no se mueven. La pestaña abierta se recuerda. Un punto en la pestaña avisa de que
+  su panel está haciendo algo (modo día, timelapse, plan de la noche, mosaico). Desaparecen las flechas de
+  reordenar. En la tablet en vertical, el final de la columna ya no queda debajo de la barra inferior.
 - Galería y planetario públicos: botón arriba a la derecha que lleva a la página principal del hosting
   (en inglés, a su versión `en/`).
 - Galería pública: al compartir una foto por WhatsApp o Telegram sale su vista previa, con la imagen, el

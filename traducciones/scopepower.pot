@@ -506,6 +506,10 @@ msgstr ""
 msgid "Actualizar desde GitHub"
 msgstr ""
 
+#: templates/imagen.html
+msgid "Actívalo para fotografiar el Sol (con filtro), la Luna o un paisaje: la app busca sola la exposición."
+msgstr ""
+
 #. js
 #: ScopePower.py
 msgid "Afilando (deconvolución)"
@@ -1130,10 +1134,6 @@ msgstr ""
 
 #: static/js/puesta_estacion.js
 msgid "Baja la montura"
-msgstr ""
-
-#: templates/apilado.html templates/editar_foto.html templates/imagen.html
-msgid "Bajar"
 msgstr ""
 
 #: foto_dia.py
@@ -2290,6 +2290,10 @@ msgstr ""
 msgid "Darlo por hecho sin fotografiarlo"
 msgstr ""
 
+#: templates/apilado.html
+msgid "Datos"
+msgstr ""
+
 #: ScopePower.py
 msgid "Datos no válidos: {e}"
 msgstr ""
@@ -2596,6 +2600,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Durará unos {dur}; a 25 fotos por segundo, el vídeo tendrá {s} s."
+msgstr ""
+
+#: templates/imagen.html
+msgid "Día"
 msgstr ""
 
 #. js
@@ -3021,7 +3029,7 @@ msgstr ""
 
 #. js
 #: templates/imagen.html
-msgid "El pad está aquí abajo. Actívalo para tenerlo sobre la foto y no tener que plegar paneles."
+msgid "El pad está aquí abajo. Actívalo para tenerlo sobre la foto y usarlo desde cualquier pestaña."
 msgstr ""
 
 #. js
@@ -4162,6 +4170,10 @@ msgstr ""
 msgid "Filas, columnas y solape tienen que ser números"
 msgstr ""
 
+#: templates/editar_foto.html
+msgid "Firma"
+msgstr ""
+
 #: templates/editar_dia.html
 msgid "Firma en la foto"
 msgstr ""
@@ -4644,7 +4656,7 @@ msgid "Girar el eje de AR hacia el este"
 msgstr ""
 
 #. js
-#: templates/apilado.html
+#: templates/apilado.html templates/imagen.html
 msgid "Giro"
 msgstr ""
 
@@ -4992,6 +5004,10 @@ msgstr ""
 #. js
 #: templates/goto.html
 msgid "Iluminación:"
+msgstr ""
+
+#: templates/apilado.html
+msgid "Imagen"
 msgstr ""
 
 #: ScopePower.py
@@ -6094,7 +6110,7 @@ msgstr ""
 msgid "Montura: {e}"
 msgstr ""
 
-#: static/js/mosaico.js templates/planetario.html
+#: static/js/mosaico.js templates/apilado.html templates/planetario.html
 msgid "Mosaico"
 msgstr ""
 
@@ -6156,6 +6172,10 @@ msgstr ""
 
 #: templates/planetario.html
 msgid "Motor <a href=\"https://github.com/acocalypso/celestia_atlas\" target=\"_blank\" rel=\"noopener\">Celestia Atlas</a> (MIT) · estrellas HYG v4.1 y objetos OpenNGC (CC-BY-SA 4.0) · paisaje Guéreins de Stellarium (GPL) · <a href=\"/static/atlas/THIRD_PARTY_NOTICES.md\" target=\"_blank\">créditos</a>"
+msgstr ""
+
+#: templates/imagen.html
+msgid "Mover"
 msgstr ""
 
 #: templates/imagen.html
@@ -7186,8 +7206,8 @@ msgid "Objetivo: {objeto} · tolerancia {tolerancia}'"
 msgstr ""
 
 #. js
-#: templates/constelacion.html templates/galeria.html templates/goto.html
-#: templates/publico/index.html
+#: templates/apilado.html templates/constelacion.html templates/galeria.html
+#: templates/goto.html templates/publico/index.html
 msgid "Objeto"
 msgstr ""
 
@@ -7430,7 +7450,7 @@ msgstr ""
 msgid "Pidiendo la posición al móvil (puede tardar unos segundos al aire libre)..."
 msgstr ""
 
-#: static/js/plan.js
+#: static/js/plan.js templates/apilado.html
 msgid "Plan"
 msgstr ""
 
@@ -7505,10 +7525,6 @@ msgstr ""
 
 #: templates/platesolve.html
 msgid "Plate solve"
-msgstr ""
-
-#: templates/apilado.html templates/editar_foto.html templates/imagen.html
-msgid "Plegar o desplegar"
 msgstr ""
 
 #. js
@@ -8357,6 +8373,10 @@ msgstr ""
 msgid "Revelando..."
 msgstr ""
 
+#: templates/imagen.html
+msgid "Revelar"
+msgstr ""
+
 #. js
 #: templates/imagen.html
 msgid "Revelar como el apilado"
@@ -9089,10 +9109,6 @@ msgstr ""
 
 #: static/js/puesta_estacion.js
 msgid "Sube la montura"
-msgstr ""
-
-#: templates/apilado.html templates/editar_foto.html templates/imagen.html
-msgid "Subir"
 msgstr ""
 
 #: templates/control.html
@@ -13109,6 +13125,10 @@ msgstr ""
 
 #: templates/seguimiento.html
 msgid "Órdenes/s"
+msgstr ""
+
+#: templates/apilado.html
+msgid "Última"
 msgstr ""
 
 #. js
