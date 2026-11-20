@@ -29,6 +29,9 @@ The screenshots show the Spanish interface. More in [docs/capturas](docs/captura
 
 ## What it does
 
+- **“What do you want to do today?” guide**: the main button on the home screen walks you step by step,
+  with a traffic light for each check, through deep sky (also mosaics and several objects in one night), the
+  Sun, the Moon, landscapes, focusing and calibration frames, until everything is one tap away from “Start”.
 - **GoTo by name or by voice** (“go to M31”), with a local catalog (OpenNGC, HYG, own aliases) and
   automatic plate-solving centering with ASTAP after every GoTo.
 - **Live stacking**: each frame is aligned and added while capturing, rejecting bad frames, with
