@@ -80,7 +80,7 @@ def es_foto_dia(nombre):
 
 
 def carpeta_videos(ruta_config="config.ini"):
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read(ruta_config)
     import grabador_video
     return cfg.get("Video", "carpeta", fallback=grabador_video.CARPETA_VIDEOS).strip() or grabador_video.CARPETA_VIDEOS

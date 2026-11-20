@@ -104,7 +104,7 @@ _dll_lock = threading.Lock()
 
 
 def _config(clave, defecto=""):
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     try:
         cfg.read("config.ini", encoding="utf-8")
     except configparser.Error:

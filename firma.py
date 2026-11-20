@@ -36,7 +36,7 @@ _logo = None
 def datos_observatorio(cfg=None):
     """Autor, lugar y si la firma está activa, leídos de config.ini (o del ConfigParser dado)."""
     if cfg is None:
-        cfg = configparser.ConfigParser()
+        cfg = configparser.ConfigParser(strict=False)
         cfg.read("config.ini")
     obs = cfg["Observatorio"] if "Observatorio" in cfg else {}
     api = cfg["Apilado"] if "Apilado" in cfg else {}

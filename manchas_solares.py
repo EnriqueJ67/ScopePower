@@ -103,7 +103,7 @@ def sensibilidad_valida(valor):
 
 def factor_k(ruta_config="config.ini"):
     """[Sol] factor_k de config.ini (1,0 si no está): el factor personal del observador."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read(ruta_config)
     try:
         k = float(cfg.get("Sol", "factor_k", fallback="1.0").replace(",", "."))

@@ -502,7 +502,7 @@ class TrabajoBalanceBlanco:
 def color_sol(ruta_config="config.ini"):
     """Color con que se revela el Sol ([Interfaz] foto_dia_color_sol; por defecto amarillo)."""
     import configparser
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     try:
         cfg.read(ruta_config, encoding="utf-8")
         valor = cfg.get("Interfaz", "foto_dia_color_sol", fallback="amarillo").strip().lower()

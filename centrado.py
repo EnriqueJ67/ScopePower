@@ -49,7 +49,7 @@ class CentradoCancelado(Exception):
 
 
 def leer_config():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     c = cfg["Centrado"] if "Centrado" in cfg else {}
     d = cfg["Dispositivos"] if "Dispositivos" in cfg else {}

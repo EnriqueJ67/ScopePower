@@ -553,7 +553,7 @@ class TrabajoVivo:
 def _ganancia_noche(defecto, ruta_config="config.ini"):
     """Ganancia de las fotos de noche (ganancia_camara del config), para enfocar estrellas en vivo; `defecto` si no hay."""
     import configparser
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read(ruta_config)
     for seccion in cfg.sections():
         v = cfg[seccion].get("ganancia_camara", "")
@@ -568,7 +568,7 @@ def _ganancia_noche(defecto, ruta_config="config.ini"):
 def _ultima_exposicion(objetivo, ruta_config="config.ini"):
     """Última exposición buena de la foto de día para este objetivo ([FotoDia] en config.ini)."""
     import configparser
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     try:
         cfg.read(ruta_config, encoding="utf-8")
         return float(cfg.get("FotoDia", f"exposicion_{objetivo}", fallback="0")) or None

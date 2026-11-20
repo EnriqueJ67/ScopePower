@@ -63,7 +63,7 @@ RUTA_PREVIEW = os.path.join("static", "resultado_cometa_preview.jpg")
 # ═════════════════════════════════════════════════════════════════════════════
 def leer_config(cfg=None):
     if cfg is None:
-        cfg = configparser.ConfigParser()
+        cfg = configparser.ConfigParser(strict=False)
         cfg.read("config.ini", encoding="utf-8")
     c = cfg["Cometa"] if "Cometa" in cfg else {}
 
@@ -137,7 +137,7 @@ class Efemeride:
         self.disponible = False
         self.lat = self.lon = self.alt = 0.0
         try:
-            cfg = configparser.ConfigParser()
+            cfg = configparser.ConfigParser(strict=False)
             cfg.read(ruta_config, encoding="utf-8")
             o = cfg["Observatorio"]
             self.lat, self.lon = float(o.get("latitud_observatorio")), float(o.get("longitud_observatorio"))

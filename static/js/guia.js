@@ -870,6 +870,10 @@
             if (!d.ok) { await abrir(); mostrarError(d.error || ""); return; }
         } else if (s.paso === "enfoque") {
             await pedir("/enfoque", { activo: false });      // el apilado no debe quedarse en solo verde
+            // Enfocado: el modo en vivo devuelve la cámara, que la necesitan el centrado y las fotos
+            // (el 19-nov el centrado tras «Hecho, siguiente» falló con el vivo aún en marcha)
+            const vivo = await pedir("/vivo/estado");
+            if (vivo && vivo.en_curso) await pedir("/vivo/parar", { esperar: true });
             d = await pedir("/guia/marcar", { clave: "enfoque" });
         } else if (s.paso === "alineacion") {
             d = await pedir("/guia/marcar", { clave: "alineacion" });

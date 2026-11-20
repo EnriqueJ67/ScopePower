@@ -32,6 +32,7 @@
 import logging
 import math
 import configparser
+import config_ini
 import json
 import threading
 
@@ -76,7 +77,7 @@ ESTILOS = {
 
 def leer_config():
     """Estilo y ajustes. Un valor explícito en [Procesado] manda sobre el del estilo."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     p = cfg["Procesado"] if "Procesado" in cfg else {}
     estilo = str(p.get("estilo", "seestar")).lower()
@@ -207,7 +208,7 @@ def preset_para_tipo(tipo, presets=None):
 
 
 def preset_automatico_activo():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     try:
         return str(cfg.get("Procesado", "preset_automatico", fallback="true")).strip().lower() not in ("false", "0", "no", "off")
@@ -246,8 +247,11 @@ def borrar_preset(nombre):
 
 
 def guardar_config(cambios):
-    cfg = configparser.ConfigParser()
-    cfg.read("config.ini")
+    with config_ini.editar() as cfg:
+        _poner_procesado(cfg, cambios)
+
+
+def _poner_procesado(cfg, cambios):
     if "Procesado" not in cfg:
         cfg["Procesado"] = {}
     for k, v in cambios.items():
@@ -265,8 +269,6 @@ def guardar_config(cambios):
                     v = {}
             curvas = normalizar_curvas(v)
             cfg["Procesado"]["curvas"] = json.dumps(curvas, separators=(",", ":")) if curvas else ""
-    with open("config.ini", "w") as f:
-        cfg.write(f)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -283,7 +285,7 @@ def fraccion_campo(config=None):
     """Fracción del lado del campo que se muestra (1.0 = todo), según zoom_preview."""
     try:
         if config is None:
-            config = configparser.ConfigParser()
+            config = configparser.ConfigParser(strict=False)
             config.read("config.ini")
         zoom = int(float(config["Dispositivos"].get("zoom_preview", 0)))
     except Exception:
@@ -549,7 +551,7 @@ def encuadre_vista(config=None, header=None):
     "pendiente" si está pedido pero el FITS aún no lo lleva, "" si es a mano).
     """
     if config is None:
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(strict=False)
         config.read("config.ini")
     d = config["Dispositivos"] if "Dispositivos" in config else {}
     try:

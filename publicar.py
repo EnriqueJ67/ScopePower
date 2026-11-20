@@ -165,7 +165,7 @@ def clave():
 
 def leer_config(ruta="config.ini"):
     """[Publicar] de config.ini con los valores por defecto, el slug ya resuelto y si está todo para publicar."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read(ruta)          # misma codificación que el resto de la app
     s = cfg[SECCION] if SECCION in cfg else {}
     obs = cfg["Observatorio"] if "Observatorio" in cfg else {}

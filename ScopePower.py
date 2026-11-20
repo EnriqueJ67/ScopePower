@@ -29,6 +29,7 @@ import sys
 import bcrypt
 # Antes que nada que lea config.ini: en un PC recién instalado se crea desde la plantilla
 import config_inicial
+import config_ini
 config_inicial.asegurar_config()
 # Idioma de la app ([Interfaz] idioma de config.ini) antes de que nadie diga o pinte nada
 import idioma
@@ -51,6 +52,7 @@ import cv2
 import logging
 from registro import configurar_logging
 log = configurar_logging()   # fichero rotativo logs/scopepower.log + consola; print() también va al log
+config_ini.reparar()          # claves repetidas de un guardado a medias de una versión anterior: se limpian
 import datos_iers
 datos_iers.configurar()      # tabla IERS sin Internet: antes de cualquier cálculo de altura/acimut
 from hardware import (TrabajadorCOM, ErrorHardware, CapturaCancelada,
@@ -130,8 +132,20 @@ app.jinja_env.globals["idioma"] = idioma            # {{ idioma.idioma_actual() 
 
 
 # Cargar configuración
-config = configparser.ConfigParser()
+config = config_ini.nuevo()
 config.read("config.ini")
+
+
+def _config_al_dia():
+    """
+    config.ini recién leído, en un ConfigParser propio de quien llama. También pone al día el
+    `config` global, de una vez y con el cerrojo: releerlo en el sitio (config.read) desde dos
+    peticiones a la vez dejaba a una leyendo valores a medias (error 500 en /config-datos).
+    """
+    cfg = config_ini.leer()
+    with config_ini.CERROJO:
+        config.read_dict(cfg)
+    return cfg
 
 # Acceder a valores
 USUARIOS_HASH = dict(config["Usuarios"])
@@ -158,7 +172,7 @@ def _dispositivos():
     Drivers, binning y focal leídos de config.ini EN EL MOMENTO (no al arrancar),
     para que un cambio en Configuración se aplique sin reiniciar la app.
     """
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     d = cfg["Dispositivos"]
     return {
@@ -252,25 +266,14 @@ PREFERENCIAS = {
 }
 
 
-_CONFIG_LOCK = threading.Lock()   # dos peticiones a la vez no deben pisarse al reescribir config.ini
-
-
 def _guardar_en_config(seccion, valores):
-    """Escribe (o sobreescribe) varias claves de una sección de config.ini."""
-    with _CONFIG_LOCK:
-        cfg = configparser.ConfigParser()
-        cfg.read("config.ini")
-        if seccion not in cfg:
-            cfg[seccion] = {}
-        for clave, valor in valores.items():
-            cfg[seccion][clave] = str(valor)
-        with open("config.ini", "w") as f:
-            cfg.write(f)
+    """Escribe (o sobreescribe) varias claves de una sección de config.ini (guardado atómico, ver config_ini.py)."""
+    config_ini.guardar_valores(seccion, valores)
 
 
 def _leer_preferencias():
     import json
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     salida = {}
     for clave, (seccion, clave_ini, tipo) in PREFERENCIAS.items():
@@ -410,16 +413,13 @@ def apilado_dithering():
     activado = datos.get("activado")
     cada = datos.get("cada")
     bucle.configurar_dithering(activado, cada)
-    cfg = configparser.ConfigParser()
-    cfg.read("config.ini")
-    if "Dithering" not in cfg:
-        cfg["Dithering"] = {}
-    if activado is not None:
-        cfg["Dithering"]["activado"] = "true" if bucle.dithering else "false"
-    if cada is not None:
-        cfg["Dithering"]["cada_n_fotos"] = str(bucle.dither_cada)
-    with open("config.ini", "w") as f:
-        cfg.write(f)
+    with config_ini.editar() as cfg:
+        if "Dithering" not in cfg:
+            cfg["Dithering"] = {}
+        if activado is not None:
+            cfg["Dithering"]["activado"] = "true" if bucle.dithering else "false"
+        if cada is not None:
+            cfg["Dithering"]["cada_n_fotos"] = str(bucle.dither_cada)
     voz.decir(_("Dithering activado") if bucle.dithering else _("Dithering desactivado"))
     return jsonify({"ok": True, "bucle": bucle.estado()})
 
@@ -479,7 +479,8 @@ def _desaparcar_si_hace_falta(tel):
         return          # driver sin aparcado
     try:
         tel.Unpark()
-        log.warning("Montura aparcada al conectar: desaparcada")
+        _aparcado["resultado"] = None      # Apagar ya no debe decir «aparcada»
+        log.warning("Montura aparcada (al conectar o antes de moverla): desaparcada")
         print("🅿️ La montura estaba aparcada: desaparcada")
     except Exception as e:
         from hardware import _mensaje_com
@@ -593,7 +594,7 @@ RUTA_ULTIMA_CAPTURA = ruta_absoluta("static/ultima_captura.jpg")
 ULTIMA_CAPTURA = {"version": 0, "hora": "", "exposicion": 0.0, "dark": False}
 
 def _config_dithering():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     d = cfg["Dithering"] if "Dithering" in cfg else {}
     return {
@@ -975,15 +976,19 @@ def actualizar_aplicar():
 # ─── Aparcar la montura antes de apagarla (cambio de batería) ─────────────
 # Para el seguimiento y lleva la montura al cero de sus motores (ver aparcado.py): al
 # encenderla de nuevo los codificadores vuelven a 0x800000 en esa misma posición y SynScan
-# Pro, que al reconectar carga solo su último modelo de apuntado, sigue alineado. No se usa
-# Park (la «Hibernación» de SynScan Pro pregunta en la ventana del mini PC al reconectar).
-# Sin acceso UDP a la montura (otro driver, simulador) se queda en altura 0 / acimut 0.
+# Pro, que al reconectar carga solo su último modelo de apuntado, sigue alineado. En una
+# altacimutal no se usa Park (la «Hibernación» de SynScan Pro pregunta en la ventana del mini
+# PC al reconectar). Sin acceso UDP a la montura (otro driver, simulador) se queda en altura 0 /
+# acimut 0.
+# Una ecuatorial (AlignmentMode, también la AZ-GTi en modo EQ) se aparca con el Park del driver,
+# que la lleva a su posición de inicio (contrapesos abajo, mirando al polo): el cero de los
+# motores en altura/acimut no tiene sentido en ella (el 19-nov la llevó al horizonte norte).
 APARCAR_TIMEOUT_S = 600
 _aparcado = {"en_curso": False, "fase": "", "resultado": None, "lector": None, "sin_udp_hasta": 0.0}
 
 
 def _conf_udp():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     return (cfg.get("Seguimiento", "udp_host", fallback="192.168.4.1") or "192.168.4.1",
             cfg.getint("Seguimiento", "udp_puerto", fallback=11880))
@@ -1049,9 +1054,55 @@ def _mover_altaz(tel, az, alt, esperar_quieta):
         tel.Tracking = False
 
 
+def _es_ecuatorial(tel):
+    """True si el driver dice que la montura trabaja en ecuatorial (AlignmentMode 1 o 2)."""
+    try:
+        return MODOS_MONTURA.get(int(tel.AlignmentMode)) in ("ecuatorial", "ecuatorial_alemana")
+    except Exception:
+        return False
+
+
+def _aparcar_ecuatorial(tel):
+    """
+    Ecuatorial: Park del driver, que la deja en su posición de inicio y para el seguimiento.
+    Sin Park, solo se para el seguimiento: llevarla a casa a mano. Hilo de la montura.
+    """
+    if not getattr(tel, "CanPark", False):
+        try:
+            tel.Tracking = False
+        except Exception:
+            pass
+        return {"ok": True, "ecuatorial": True, "park": False, "en_cero": False, "sin_udp": True, "desfase": None,
+                "avisos": [_("el driver de la montura no sabe aparcar: el seguimiento está parado, "
+                             "pero lleva el tubo a la posición de inicio a mano antes de apagar")],
+                "alt": float(tel.Altitude), "az": float(tel.Azimuth)}
+    _aparcado["fase"] = _("Aparcando la montura ecuatorial en su posición de inicio...")
+    try:
+        if getattr(tel, "AtPark", False):
+            tel.Unpark()        # aparcada de antes: se repite el Park para dejarla donde toca
+    except Exception:
+        pass
+    tel.Park()
+    # Park es síncrono en ASCOM, pero algunos drivers vuelven antes de llegar
+    inicio = time.time()
+    while time.time() - inicio < 180:
+        try:
+            if tel.AtPark and not tel.Slewing:
+                break
+        except Exception:
+            break
+        time.sleep(0.5)
+    en_casa = bool(getattr(tel, "AtPark", False))
+    avisos = [] if en_casa else [_("el driver no confirma que la montura haya llegado a la posición de aparcado")]
+    return {"ok": True, "ecuatorial": True, "park": True, "en_cero": en_casa, "sin_udp": True, "desfase": None,
+            "avisos": avisos, "alt": float(tel.Altitude), "az": float(tel.Azimuth)}
+
+
 def _aparcar(tel):
     """Se ejecuta en el hilo de la montura. Devuelve un dict con lo que se ha hecho."""
     from hardware import _mensaje_com
+    if _es_ecuatorial(tel):
+        return _aparcar_ecuatorial(tel)
     avisos = []
     try:
         if tel.AtPark:      # aparcada desde SynScan Pro: hay que desaparcar para poder moverla
@@ -1108,6 +1159,8 @@ def _trabajo_aparcar():
         log.warning("Montura aparcada: %s", r)
         if r["en_cero"]:
             voz.decir(_("Montura aparcada. Ya puedes apagarla"))
+        elif r.get("ecuatorial"):
+            voz.decir(_("Seguimiento parado, pero la montura no está aparcada"))
         else:
             voz.decir(_("Seguimiento parado, pero la montura no ha llegado al cero de los motores"))
     except Exception as e:
@@ -1143,23 +1196,35 @@ def montura_aparcar_estado():
     avisar antes de apagar el equipo con la montura fuera del cero.
     """
     en_cero = desfase = None
+    # El modo leído al conectar: preguntar al driver aquí esperaría detrás del Park en curso
+    ecuatorial = montura.esta_conectado() and _montura_info["modo"] in ("ecuatorial", "ecuatorial_alemana")
     if montura.esta_conectado() and not _aparcado["en_curso"]:
-        try:
-            d = _lector_codificadores().desfase()
-            desfase = [round(d[0], 3), round(d[1], 3)]
-            en_cero = max(abs(d[0]), abs(d[1])) <= aparcado.TOLERANCIA_GRADOS * 2
-        except Exception:
-            _soltar_lector()
+        if ecuatorial:
+            # Ecuatorial: aparcada = AtPark del driver (el cero de los motores no cuenta)
+            try:
+                en_cero = bool(montura.ejecutar(lambda tel: tel.AtPark, timeout=3, conectar=False))
+            except Exception:
+                en_cero = None
+        else:
+            try:
+                d = _lector_codificadores().desfase()
+                desfase = [round(d[0], 3), round(d[1], 3)]
+                en_cero = max(abs(d[0]), abs(d[1])) <= aparcado.TOLERANCIA_GRADOS * 2
+            except Exception:
+                _soltar_lector()
     return jsonify({"en_curso": _aparcado["en_curso"], "fase": _aparcado["fase"],
                     "resultado": _aparcado["resultado"], "conectada": montura.esta_conectado(),
-                    "en_cero": en_cero, "desfase": desfase})
+                    "en_cero": en_cero, "desfase": desfase, "ecuatorial": ecuatorial})
 
 
 @app.route('/montura/reanudar', methods=['POST'])
 def montura_reanudar():
-    """Seguir observando sin apagar después de aparcar: vuelve a poner el seguimiento."""
+    """Seguir observando sin apagar después de aparcar: desaparca (si hizo Park) y vuelve a poner el seguimiento."""
+    def _reanudar(tel):
+        _desaparcar_si_hace_falta(tel)
+        tel.Tracking = True
     try:
-        montura.ejecutar(lambda tel: setattr(tel, "Tracking", True), timeout=15)
+        montura.ejecutar(_reanudar, timeout=30)
     except ErrorHardware as e:
         return jsonify({"ok": False, "mensaje": str(e)}), 503
     _aparcado["resultado"] = None
@@ -1877,18 +1942,15 @@ def montura_asentamiento():
             return jsonify({"ok": False, "mensaje": _("Indica un número de segundos")}), 400
         if not 0 <= segundos <= 60:
             return jsonify({"ok": False, "mensaje": _("El asentamiento debe estar entre 0 y 60 s")}), 400
-        cfg = configparser.ConfigParser()
-        cfg.read("config.ini")
-        if "Montura" not in cfg:
-            cfg["Montura"] = {}
-        cfg["Montura"]["asentamiento_s"] = f"{segundos:g}"
-        # Las secciones con su propio valor mandarían sobre este: se vacían para que
-        # el ajuste de la web sea el que se aplica en todos los movimientos.
-        for sec in ("Centrado", "Alineacion", "PuestaEnEstacion", "Dithering"):
-            if sec in cfg and cfg[sec].get("asentamiento_s", "").strip():
-                cfg[sec]["asentamiento_s"] = ""
-        with open("config.ini", "w") as f:
-            cfg.write(f)
+        with config_ini.editar() as cfg:
+            if "Montura" not in cfg:
+                cfg["Montura"] = {}
+            cfg["Montura"]["asentamiento_s"] = f"{segundos:g}"
+            # Las secciones con su propio valor mandarían sobre este: se vacían para que
+            # el ajuste de la web sea el que se aplica en todos los movimientos.
+            for sec in ("Centrado", "Alineacion", "PuestaEnEstacion", "Dithering"):
+                if sec in cfg and cfg[sec].get("asentamiento_s", "").strip():
+                    cfg[sec]["asentamiento_s"] = ""
         log.info("Asentamiento de la montura: %.1f s", segundos)
         return jsonify({"ok": True, "segundos": asentamiento_montura(), "mensaje": _("Asentamiento guardado: {s} s", s=fmt_num(segundos))})
     return jsonify({"ok": True, "segundos": asentamiento_montura()})
@@ -2052,7 +2114,7 @@ def revelar_foto_noche(imagen_fits, patron_bayer):
         # Sensor mono (o patrón no Bayer): mostrar en escala de grises
         rgb = imagen_fits
     imagen_mtf = apply_stf_color(rgb)
-    nuevo_config = configparser.ConfigParser()
+    nuevo_config = configparser.ConfigParser(strict=False)
     nuevo_config.read("config.ini")
     intensidad_color = float(nuevo_config["Dispositivos"].get("color_intensity", 1.0))
     imagen_mtf = aumentar_saturacion(imagen_mtf, factor=intensidad_color)
@@ -2122,7 +2184,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     # Antes de exponer: que la montura siga el cielo (si algo apagó el seguimiento, se reactiva y queda en el log)
     _asegurar_seguimiento(descripcion.lower() if descripcion else "la foto")
 
-    nuevo_config = configparser.ConfigParser()
+    nuevo_config = configparser.ConfigParser(strict=False)
     nuevo_config.read("config.ini")
     EXPOSICION = float(nuevo_config["Dispositivos"].get("exposicion_captura", 10)) if exposicion is None else float(exposicion)
     disp = _dispositivos()
@@ -2999,7 +3061,7 @@ def _pad_en_uso():
 
 def _umbral_guiado_disco():
     """Minutos de arco que puede apartarse el disco antes de corregir ([FotoDia] guiado_umbral_arcmin; 2′ si no está)."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     try:
         umbral = float(cfg.get("FotoDia", "guiado_umbral_arcmin", fallback=disco.UMBRAL_DEFECTO_ARCMIN))
@@ -3010,7 +3072,7 @@ def _umbral_guiado_disco():
 
 def _velocidad_guiado_disco():
     """°/s máximos por eje para corregir con MoveAxis ([FotoDia] guiado_velocidad_deg_s); 0 = corregir con GoTo."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     try:
         v = float(cfg.get("FotoDia", "guiado_velocidad_deg_s", fallback=correccion_ejes.VELOCIDAD_DEFECTO))
@@ -3511,7 +3573,7 @@ def recorrido_constelacion():
 
 
 def _config_recorrido():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     r = cfg["Recorrido"] if "Recorrido" in cfg else {}
     return {"centrar": str(r.get("centrar", "false")).lower() == "true",
@@ -4040,6 +4102,9 @@ def goto_objeto():
             guardar_info_goto((info or {}).get("name") or nombre_rotulo, info, ra, dec, fuente_coords)
 
             def _activar_tracking(tel):
+                # Aparcada (Park de una ecuatorial, o desde SynScan Pro) sin haber reconectado:
+                # aparcada no acepta el GoTo ni el seguimiento
+                _desaparcar_si_hace_falta(tel)
                 if not tel.Tracking:
                     tel.Tracking = True
                     time.sleep(1)
@@ -4126,6 +4191,11 @@ def goto_objeto():
                 if not centrado.leer_config().get("centrar_tras_goto", True):
                     centrado.trabajo_centrado.anunciar_omitido(_("El centrado tras el GoTo está desactivado en la configuración"))
                     return
+                # El modo en vivo (de noche solo sirve para enfocar) suelta la cámara: tras un GoTo
+                # lo que toca es centrar, y con el vivo en marcha el centrado fallaba
+                if not _soltar_camara_del_vivo(_("centrar tras el GoTo")):
+                    centrado.trabajo_centrado.anunciar_omitido(_("Centrado omitido: el modo en vivo está grabando un vídeo"))
+                    return
                 if (bucle.activo and not bucle.pausado) or camara.ocupado or centrado.trabajo_centrado.en_curso:
                     centrado.trabajo_centrado.anunciar_omitido(_("Centrado omitido: la cámara está ocupada o el apilado en marcha"))
                     print("ℹ️ Centrado tras GOTO omitido: cámara ocupada o apilado en marcha")
@@ -4169,7 +4239,7 @@ def _palabra_clave_goto():
     palabra_clave_goto_en («go to»)."""
     if idioma.idioma_actual() == "es":
         return PALABRA_CLAVE_GOTO
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     return cfg.get("General", "palabra_clave_goto_" + idioma.idioma_actual(), fallback="go to").lower().strip()
 
@@ -4535,7 +4605,7 @@ def _compensacion_foto_dia():
 
 def _config_foto_dia():
     """Última exposición que funcionó para cada objetivo ([FotoDia] en config.ini)."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     f = cfg["FotoDia"] if "FotoDia" in cfg else {}
     salida = {}
@@ -4675,8 +4745,33 @@ def vivo_iniciar():
     return jsonify({"ok": True, "seguimiento": seguimiento_montura})
 
 
+def _soltar_camara_del_vivo(para, espera_s=20):
+    """
+    Si el modo en vivo tiene la cámara, lo para y espera a que la devuelva a la app (cierra
+    el SDK y reconecta el driver). Si está grabando un vídeo no lo toca. Devuelve True si la
+    cámara queda libre. El 19-nov el centrado tras el GoTo de la guía falló dos veces con «la
+    cámara está en uso por el modo en vivo»: el vivo del enfoque seguía en marcha.
+    """
+    trabajo = vivo_dia.trabajo_vivo
+    if not trabajo.en_curso:
+        return True
+    if trabajo.estado().get("grabacion"):
+        log.info("El modo en vivo está grabando: no se para para %s", para)
+        return False
+    log.info("Parando el modo en vivo para %s", para)
+    trabajo.parar()
+    trabajo.esperar(espera_s)
+    return not trabajo.en_curso
+
+
 @app.route('/vivo/parar', methods=["POST"])
 def vivo_parar():
+    """Para el modo en vivo. Con {esperar: true} responde cuando la cámara ha vuelto a la app."""
+    datos = request.get_json(silent=True) or {}
+    if datos.get("esperar"):
+        vivo_dia.trabajo_vivo.parar()
+        vivo_dia.trabajo_vivo.esperar(20)
+        return jsonify({"ok": not vivo_dia.trabajo_vivo.en_curso})
     vivo_dia.trabajo_vivo.parar()
     return jsonify({"ok": True})
 
@@ -4750,7 +4845,7 @@ def camara_luna_anotada():
 # ───────────────────────── Vídeo desde el modo en vivo y apilado de los mejores fotogramas ─────────────────────────
 def _config_video():
     """[Video] de config.ini: cadencia al grabar, % de fotogramas que se apilan, afinado, duración y carpeta."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
 
     def _num(clave, defecto, tipo=float):
@@ -5351,7 +5446,7 @@ _sim_seguimiento = {"servidor": None}
 
 
 def _conf_seguimiento():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini", encoding="utf-8")
     return seguimiento.leer_conf(cfg, focal_mm=_dispositivos()["focal"])
 
@@ -5630,7 +5725,7 @@ def generar_dark():
 
 def _config_darks():
     """Exposición, binning y número de darks según config.ini (valores en vivo)."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     disp = cfg["Dispositivos"]
     return {
@@ -5760,10 +5855,10 @@ def procesar_dark():
 @app.route("/config-zoom")
 def obtener_config_zoom():
     import procesado
-    config.read("config.ini")
-    d = config["Dispositivos"]
+    cfg = _config_al_dia()
+    d = cfg["Dispositivos"]
     zoom = int(d.get("zoom_preview", 0))
-    manual = procesado.encuadre_vista(config)       # sin cabecera: el giro y el espejo puestos a mano
+    manual = procesado.encuadre_vista(cfg)       # sin cabecera: el giro y el espejo puestos a mano
     return jsonify({"zoom": zoom, "giro": manual["giro"], "espejo": manual["espejo"],
                     "norte": str(d.get("norte_arriba", "false")).strip().lower() == "true"})
 
@@ -5772,18 +5867,17 @@ def guardar_config_zoom():
     try:
         data = request.get_json()
         zoom = min(90, max(0, int(float(data["zoom"]))))
-        config.read("config.ini")
-        config["Dispositivos"]["zoom_preview"] = str(zoom)
-        # Giro del encuadre (grados en horario), espejo y norte arriba automático: opcionales
-        if "giro" in data:
-            giro = float(data["giro"])
-            config["Dispositivos"]["giro_preview"] = f"{(giro if np.isfinite(giro) else 0.0) % 360.0:g}"
-        if "espejo" in data:
-            config["Dispositivos"]["espejo_preview"] = "true" if data["espejo"] else "false"
-        if "norte" in data:
-            config["Dispositivos"]["norte_arriba"] = "true" if data["norte"] else "false"
-        with open("config.ini", "w") as configfile:
-            config.write(configfile)
+        with config_ini.editar() as cfg:
+            cfg["Dispositivos"]["zoom_preview"] = str(zoom)
+            # Giro del encuadre (grados en horario), espejo y norte arriba automático: opcionales
+            if "giro" in data:
+                giro = float(data["giro"])
+                cfg["Dispositivos"]["giro_preview"] = f"{(giro if np.isfinite(giro) else 0.0) % 360.0:g}"
+            if "espejo" in data:
+                cfg["Dispositivos"]["espejo_preview"] = "true" if data["espejo"] else "false"
+            if "norte" in data:
+                cfg["Dispositivos"]["norte_arriba"] = "true" if data["norte"] else "false"
+        _config_al_dia()               # el config global de la app, al día
         return _("✅ Zoom guardado correctamente")
     except Exception as e:
         return _("❌ Error al guardar zoom: {e}", e=e), 500
@@ -5805,7 +5899,7 @@ GUARDADO = {"en_curso": False, "mensaje": "", "archivo": "", "ok": None}
 
 def _estrellas_aparte_al_guardar():
     """[Procesado] estrellas_aparte = true y StarNet2 instalado (estrellas_aparte.py)."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     if cfg.get("Procesado", "estrellas_aparte", fallback="false").strip().lower() != "true":
         return False
@@ -5824,7 +5918,7 @@ def estrellas_aparte_estado():
     casilla de separar al guardar ([Procesado] estrellas_aparte) y [General] ruta_starnet.
     """
     import estrellas_aparte
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     info = estrellas_aparte.comprobar_instalacion()
     info["al_guardar"] = cfg.get("Procesado", "estrellas_aparte", fallback="false").strip().lower() == "true"
@@ -6895,17 +6989,17 @@ def vista_configuracion():
 
 @app.route("/config-datos")
 def obtener_config_datos():
-    config.read("config.ini")
+    cfg = _config_al_dia()
     return jsonify({
-        "driver_telescopio": config["Dispositivos"]["driver_telescopio"],
-        "driver_camara": config["Dispositivos"]["driver_camara"],
-        "binning": config["Dispositivos"].getint("binning_camara"),
-        "exposicion": config["Dispositivos"].getfloat("exposicion_captura"),
-        "numero_maximo_imagenes": config["Dispositivos"].getint("numero_maximo_imagenes"),
-        "ganancia_camara": config["Dispositivos"].get("ganancia_camara", "").strip(),   # "" = la del driver
-        "focal_len": config["Dispositivos"].getfloat("focal_len"),
-        "color_intensity": config["Dispositivos"].getfloat("color_intensity"),
-        "zoom_preview": config["Dispositivos"].getint("zoom_preview"),
+        "driver_telescopio": cfg["Dispositivos"]["driver_telescopio"],
+        "driver_camara": cfg["Dispositivos"]["driver_camara"],
+        "binning": cfg["Dispositivos"].getint("binning_camara"),
+        "exposicion": cfg["Dispositivos"].getfloat("exposicion_captura"),
+        "numero_maximo_imagenes": cfg["Dispositivos"].getint("numero_maximo_imagenes"),
+        "ganancia_camara": cfg["Dispositivos"].get("ganancia_camara", "").strip(),   # "" = la del driver
+        "focal_len": cfg["Dispositivos"].getfloat("focal_len"),
+        "color_intensity": cfg["Dispositivos"].getfloat("color_intensity"),
+        "zoom_preview": cfg["Dispositivos"].getint("zoom_preview"),
         "modo_apilado": apilado.leer_config_calidad()["modo"],    # mejores | incremental ([Apilado])
     })
 
@@ -6927,19 +7021,20 @@ def camara_ganancia():
 @app.route("/guardar-config-datos", methods=["POST"])
 def guardar_config_datos():
     data = request.get_json()
-    config.read("config.ini")
     antes = _dispositivos()
-    for clave, valor in data.items():
-        if clave in config["Dispositivos"] or clave in ("ganancia_camara",):
-            config["Dispositivos"][clave] = str(valor).strip()
-    # El modo de apilado va en [Apilado]; el apilador lo relee con cada foto
-    if "modo_apilado" in data:
-        if "Apilado" not in config:
-            config["Apilado"] = {}
-        modo = str(data["modo_apilado"]).strip().lower()
-        config["Apilado"]["modo_apilado"] = modo if modo in ("mejores", "incremental") else "mejores"
-    with open("config.ini", "w") as f:
-        config.write(f)
+    # Leer, cambiar y guardar de una vez y con el cerrojo común: el 19-nov este guardado y el
+    # del asentamiento llegaron en el mismo segundo y mezclaron config.ini (ver config_ini.py)
+    with config_ini.editar() as cfg:
+        for clave, valor in data.items():
+            if clave in cfg["Dispositivos"] or clave in ("ganancia_camara",):
+                cfg["Dispositivos"][clave] = str(valor).strip()
+        # El modo de apilado va en [Apilado]; el apilador lo relee con cada foto
+        if "modo_apilado" in data:
+            if "Apilado" not in cfg:
+                cfg["Apilado"] = {}
+            modo = str(data["modo_apilado"]).strip().lower()
+            cfg["Apilado"]["modo_apilado"] = modo if modo in ("mejores", "incremental") else "mejores"
+    _config_al_dia()               # el config global de la app, al día
     # Si cambia un driver, desconectar ese dispositivo: la siguiente conexión usa el nuevo
     despues = _dispositivos()
     avisos = []
@@ -6979,7 +7074,7 @@ def _contexto_asistente():
 @app.route("/asistente/datos")
 def asistente_datos():
     """Lo que ya está guardado, para rellenar el asistente."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     d = cfg["Dispositivos"] if "Dispositivos" in cfg else {}
     return jsonify({
@@ -7166,7 +7261,7 @@ def _deps_plan():
                 "duracion_ultima_foto": e.get("duracion_ultima_foto")}
 
     def leer_dispositivos():
-        cfg = configparser.ConfigParser()
+        cfg = configparser.ConfigParser(strict=False)
         cfg.read("config.ini")
         d = cfg["Dispositivos"] if "Dispositivos" in cfg else {}
         return {"numero_maximo_imagenes": d.get("numero_maximo_imagenes", "20"),
@@ -7463,7 +7558,7 @@ PUERTO_WEB = 5000
 
 
 def _config_anuncio_ip():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     v = cfg["Voz"] if "Voz" in cfg else {}
     return {
@@ -7575,7 +7670,7 @@ def _previsualizar_mosaico(centro, filas, columnas, solape_pct, fotos=None):
 
 
 def _dispositivos_captura():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini", encoding="utf-8")
     return cfg["Dispositivos"] if "Dispositivos" in cfg else {}
 
@@ -7841,7 +7936,7 @@ def _cielo_guia():
 def _captura_guia():
     """Exposición, ganancia, binning y número de fotos que usará el apilado (config.ini, en vivo)."""
     conf = _config_darks()
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     return {"exposicion": conf["exposicion"], "ganancia": conf["ganancia"], "binning": conf["binning"],
             "fotos": cfg["Dispositivos"].getint("numero_maximo_imagenes", fallback=0), "numero_darks": conf["numero_darks"]}

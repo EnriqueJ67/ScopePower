@@ -814,8 +814,14 @@ msgstr ""
 msgid "Anterior"
 msgstr ""
 
+#. js
 #: templates/apagar.html
 msgid "Antes de apagar para cambiar la batería: para el seguimiento y deja el tubo donde estaba al encender la montura (el cero de los motores), horizontal y hacia el norte"
+msgstr ""
+
+#. js
+#: templates/apagar.html
+msgid "Antes de apagar para cambiar la batería: para el seguimiento y lleva la montura ecuatorial a su posición de aparcado (Park), contrapesos abajo y mirando al polo"
 msgstr ""
 
 #: templates/_asistente.html
@@ -853,6 +859,10 @@ msgstr ""
 
 #: templates/apagar.html
 msgid "Apagar el equipo"
+msgstr ""
+
+#: ScopePower.py
+msgid "Aparcando la montura ecuatorial en su posición de inicio..."
 msgstr ""
 
 #. js
@@ -1660,6 +1670,10 @@ msgstr ""
 
 #: centrado.py
 msgid "Centrado cancelado por el usuario"
+msgstr ""
+
+#: ScopePower.py
+msgid "Centrado omitido: el modo en vivo está grabando un vídeo"
 msgstr ""
 
 #: ScopePower.py
@@ -6016,6 +6030,11 @@ msgstr ""
 msgid "La montura NO está aparcada en el cero de los motores: si la apagas, al encenderla apuntará desviada."
 msgstr ""
 
+#. js
+#: templates/apagar.html
+msgid "La montura NO está aparcada: si la apagas, al encenderla apuntará desviada."
+msgstr ""
+
 #: puesta_estacion.py
 msgid "La montura está aparcada: desapárcala antes de empezar"
 msgstr ""
@@ -9496,6 +9515,10 @@ msgid "Seguimiento lunar"
 msgstr ""
 
 #: ScopePower.py
+msgid "Seguimiento parado, pero la montura no está aparcada"
+msgstr ""
+
+#: ScopePower.py
 msgid "Seguimiento parado, pero la montura no ha llegado al cero de los motores"
 msgstr ""
 
@@ -11369,6 +11392,10 @@ msgstr ""
 msgid "centrando por plate solving, espera a que termine"
 msgstr ""
 
+#: ScopePower.py
+msgid "centrar tras el GoTo"
+msgstr ""
+
 #. js
 #: templates/editar_foto.html
 msgid "centro del campo"
@@ -11684,8 +11711,16 @@ msgstr ""
 msgid "el dispositivo no responde"
 msgstr ""
 
+#: ScopePower.py
+msgid "el driver de la montura no sabe aparcar: el seguimiento está parado, pero lleva el tubo a la posición de inicio a mano antes de apagar"
+msgstr ""
+
 #: foto_dia.py
 msgid "el driver no admite la velocidad {velocidad}"
+msgstr ""
+
+#: ScopePower.py
+msgid "el driver no confirma que la montura haya llegado a la posición de aparcado"
 msgstr ""
 
 #: hardware.py
@@ -14219,6 +14254,11 @@ msgid "¿Aparcar la montura? Se detiene lo que esté en marcha (apilado, pad), s
 msgstr ""
 
 #. js
+#: templates/apagar.html
+msgid "¿Aparcar la montura? Se detiene lo que esté en marcha (apilado, pad), se para el seguimiento y la montura va a su posición de aparcado (contrapesos abajo, mirando al polo)."
+msgstr ""
+
+#. js
 #: templates/editar_foto.html
 msgid "¿Borrar el preset «{nombre}»?"
 msgstr ""
@@ -14829,6 +14869,11 @@ msgstr[1] ""
 msgid "⚠️ Seguimiento parado y tubo en altura {alt}, acimut {az}, pero <b>no en el cero de los motores</b>: si apagas la montura, al encenderla apuntará desviada (el centrado con plate solving lo corrige en el primer GoTo)."
 msgstr ""
 
+#. js
+#: templates/apagar.html
+msgid "⚠️ Seguimiento parado, pero la montura <b>no está aparcada</b>."
+msgstr ""
+
 #: templates/seguimiento.html
 msgid "⚠️ Sin calibrar: no hay ninguna foto resuelta todavía. Haz un GoTo con centrado (o cualquier plate solving) y se calibra solo."
 msgstr ""
@@ -15274,6 +15319,16 @@ msgstr ""
 #. js
 #: templates/apagar.html
 msgid "🅿️ <b>Montura aparcada en el cero de los motores</b> (desfase {d1} / {d2}) y seguimiento parado. Ya puedes apagar la montura y cambiar la batería <b>sin moverla</b>. Al encenderla, conecta el equipo desde Inicio: SynScan Pro carga solo la alineación de antes."
+msgstr ""
+
+#. js
+#: templates/apagar.html
+msgid "🅿️ <b>Montura aparcada</b> en su posición de inicio y seguimiento parado. Ya puedes apagarla y cambiar la batería <b>sin moverla</b>. Al encenderla, conecta el equipo desde Inicio: la app la desaparca sola."
+msgstr ""
+
+#. js
+#: templates/apagar.html
+msgid "🅿️ La montura está aparcada."
 msgstr ""
 
 #. js

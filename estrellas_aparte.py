@@ -99,7 +99,7 @@ def ruta_starnet():
     Ruta del ejecutable: [General] ruta_starnet de config.ini si está rellena y
     existe; si no, el PATH y las rutas típicas de su instalador. "" si no se encuentra.
     """
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     ruta = cfg.get("General", "ruta_starnet", fallback="").strip().replace("\\\\", "\\")
     if ruta and os.path.isfile(ruta):

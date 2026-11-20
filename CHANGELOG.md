@@ -5,6 +5,19 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Arreglado: config.ini se rompía si dos ajustes se guardaban a la vez (el 19-nov, la exposición desde
+  Configuración y el asentamiento de la montura en el mismo segundo): quedó una clave `voz` repetida en
+  [PuestaEnEstacion] y casi todas las pantallas daban error hasta arreglarlo a mano. Ahora todo lo que guarda
+  config.ini (y secretos.ini) pasa por `config_ini.py`: un solo cerrojo para toda la app y guardado atómico (un
+  temporal que sustituye al bueno de una vez), así que el fichero siempre está entero. Si llega uno ya roto de
+  antes, la app lo lee igual y al arrancar lo limpia, dejando una copia `config.ini.roto-<fecha>` al lado.
+- Arreglado: tras enfocar con el modo en vivo en la guía, el centrado del GoTo fallaba con «la cámara está en
+  uso por el modo en vivo». «Hecho, siguiente» para ahora el vivo y espera a que la cámara vuelva a la app, y el
+  centrado tras un GoTo también lo para si sigue en marcha (salvo si está grabando un vídeo).
+- Aparcar una montura ecuatorial (también la AZ-GTi en modo EQ) usa el Park del driver, que la deja en su
+  posición de inicio (contrapesos abajo, mirando al polo); antes la llevaba al horizonte norte como a una
+  altacimutal. Sin Park en el driver, para el seguimiento y avisa de llevarla a casa a mano. Si está aparcada,
+  se desaparca al conectar, al pulsar «Seguir observando» y antes de un GoTo.
 - Arreglado: ScopePower no arrancaba si el nombre del usuario de Windows tiene un espacio
   («C:\Users\Nombre Apellido»). El lanzador cortaba la ruta de Python en el espacio y salía con el
   código 9009 («no se reconoce como un comando interno o externo»). Lo mismo en `simular_carga.bat`.

@@ -14,6 +14,8 @@ import secrets as _secrets
 import configparser
 import logging
 
+import config_ini
+
 log = logging.getLogger("scopepower.secretos")
 
 SECCION = "Secretos"
@@ -42,7 +44,7 @@ def ruta_secretos():
 
 
 def _leer():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read(ruta_secretos(), encoding="utf-8")
     if SECCION not in cfg:
         cfg[SECCION] = {}
@@ -50,11 +52,9 @@ def _leer():
 
 
 def _escribir(cfg):
-    ruta = ruta_secretos()
-    os.makedirs(os.path.dirname(os.path.abspath(ruta)), exist_ok=True)
-    with open(ruta, "w", encoding="utf-8") as f:
-        f.write("; Secretos de ScopePower. NO compartir ni subir a git.\n")
-        cfg.write(f)
+    # Guardado atómico (ver config_ini.py): un corte a medias no deja el fichero roto
+    config_ini.escribir(cfg, ruta_secretos(), encoding="utf-8",
+                        cabecera="; Secretos de ScopePower. NO compartir ni subir a git.\n")
 
 
 def obtener(clave, defecto=None):
@@ -72,7 +72,7 @@ def obtener(clave, defecto=None):
     if clave in _EN_CONFIG_INI:
         seccion, clave_ini = _EN_CONFIG_INI[clave]
         # config.ini está en la codificación del sistema (cp1252), como lo lee el resto de la app
-        ini = configparser.ConfigParser()
+        ini = configparser.ConfigParser(strict=False)
         ini.read(_ruta_base("config.ini"))
         heredado = ini.get(seccion, clave_ini, fallback="")
         if heredado:
