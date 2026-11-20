@@ -13,11 +13,13 @@ REM ============================================================================
 
 cd /d "%~dp0"
 set "PYTHONIOENCODING=utf-8"
+REM PY es solo el ejecutable (siempre entre comillas: la ruta puede tener espacios) y PY_ARGS sus opciones
 set "PY="
+set "PY_ARGS="
 
 if exist "%LOCALAPPDATA%\ScopePower\venv\Scripts\python.exe" set "PY=%LOCALAPPDATA%\ScopePower\venv\Scripts\python.exe"
 if not defined PY (
-    py -3.11 -c "import cv2, astropy" >nul 2>&1 && set "PY=py -3.11"
+    py -3.11 -c "import cv2, astropy" >nul 2>&1 && set "PY=py" && set "PY_ARGS=-3.11"
 )
 if not defined PY (
     if exist "%USERPROFILE%\anaconda3\python.exe" (
@@ -31,6 +33,6 @@ if not defined PY (
     exit /b 1
 )
 
-%PY% herramientas\simular_carga.py %*
+"%PY%" %PY_ARGS% herramientas\simular_carga.py %*
 echo.
 pause
