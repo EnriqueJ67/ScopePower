@@ -5,6 +5,13 @@ día de la release. El número de versión vive en `version.py`.
 
 ## 1.3.1 · sin fecha (en preparación)
 
+- Arreglado: las estrellas brillantes salían dentro de un marco cuadrado más claro, y en la vista previa (que va
+  a media resolución) casi todas las estrellas con color llevaban un cuadro naranja, azul o gris alrededor
+  (mosaico del 19-nov). Eran dos cosas del procesado. La reducción de ruido quitaba como «hueco de ruido» el
+  final del anillo oscuro que rodea a una estrella muy brillante, y lo que quedaba era el borde cuadrado de sus
+  filtros: ahora un hueco hondo se conserva entero. Y la máscara de las estrellas se ensanchaba con un cuadrado,
+  así que el color único de cada estrella y su saturación se pintaban en un cuadro: ahora se ensancha con un
+  disco y queda un halo redondo.
 - Arreglado: config.ini se rompía si dos ajustes se guardaban a la vez (el 19-nov, la exposición desde
   Configuración y el asentamiento de la montura en el mismo segundo): quedó una clave `voz` repetida en
   [PuestaEnEstacion] y casi todas las pantallas daban error hasta arreglarlo a mano. Ahora todo lo que guarda

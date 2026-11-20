@@ -943,6 +943,8 @@ RAZON_RUIDO_MAX = 0.7                   # el ruido de una escala no pasa de 0,7 
 # para la guía extensa del color: con 9 una estrella suelta deja de contar igual que sin
 # guía, y la Pacman y M 57 conservan el color de la nebulosa (con 3 y 5 volvían los huecos)
 NUCLEO_GUIA_EXTENSA = np.ones((9, 9), np.uint8)
+# Un hueco de la luminancia cuya energía pasa de estas veces el umbral del ruido no es ruido
+HUECO_HONDO = 3.0
 
 
 def _caja2(img, n):
@@ -1016,12 +1018,23 @@ def reducir_ruido(rgb, fuerza, progreso=None):
         entorno más ancho (x2: la mitad de la de un ruido simétrico). Sobre un
         objeto (nivel por encima del cielo) los huecos son bandas de polvo y vale
         la ganancia normal.
+
+        Un hueco HONDO (su propia energía, HUECO_HONDO veces el umbral) se conserva
+        aunque no tenga nada brillante en ese entorno: es el final del anillo
+        negativo de una estrella muy brillante, que llega más lejos que el entorno
+        donde se busca su luz (el ancho de la caja de la escala: 18 px en la de
+        8 px, frente a 16). El anillo y el entorno son cuadrados, como las cajas, y
+        al quitar solo ese final la estrella quedaba dentro de un marco cuadrado más
+        claro que el estirado sacaba a la vista (mosaico del 19-nov-2026: estrella
+        de 68 000 ADU, marco a 24 px del centro). Un hueco de ruido no llega a esa
+        energía en todo un entorno, así que el cielo queda igual de liso.
         """
         f = REDUCCION_ESCALA[j]
         r = nivel[f] / np.maximum(energia(np.square(np.maximum(wj, 0)), j, ancha=True) * 2.0, 1e-20)
         r *= -((umbral * sig) ** 2)
         r += 1.0
         np.clip(r, 0.0, 1.0, out=r)
+        np.maximum(r, ganancia_de(energia(np.square(np.minimum(wj, 0)), j), j, sig, HUECO_HONDO * umbral), out=r)
         np.minimum(r, g, out=r)
         sobre_objeto = np.clip((nivel[f] - 1.05) * 4.0, 0.0, 1.0)
         r += sobre_objeto * (g - r)
@@ -1580,6 +1593,12 @@ def estirar_multiescala(rgb, ajustes=None, escala_imagen=1.0, progreso=None, sig
 #  4. Contraste local + curva
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _disco(radio):
+    """Elemento estructurante redondo de ese radio (px) para dilatar una máscara."""
+    y, x = np.ogrid[-radio:radio + 1, -radio:radio + 1]
+    return (x * x + y * y <= (radio + 0.5) ** 2).astype(np.uint8)
+
+
 def mascara_estrellas(lum8, dilatar=2, solo_pequenas=False):
     """
     Máscara 0..1 de las estrellas: lo que está 6 sigmas por encima del cielo.
@@ -1588,6 +1607,11 @@ def mascara_estrellas(lum8, dilatar=2, solo_pequenas=False):
     la máscara (la Pacman, 10-oct-2026: su centro se desaturaba con la
     saturación de las estrellas y salía una mancha gris); lo extenso no sobresale
     de su propio fondo local y queda fuera, las estrellas y sus halos sí.
+
+    Se dilata con un disco: con un cuadrado, una estrella de 2 o 3 px (casi todas
+    en la vista previa, que va a media resolución) dejaba una máscara cuadrada, y
+    el color único de la estrella y su saturación propia pintaban dentro un
+    cuadro naranja, azul o gris de borde recto (mosaico del 19-nov-2026).
     """
     lum = lum8.astype(np.float32)
     med = float(np.median(lum8))
@@ -1595,7 +1619,7 @@ def mascara_estrellas(lum8, dilatar=2, solo_pequenas=False):
     base = cv2.medianBlur(lum8, 15).astype(np.float32) if solo_pequenas else med
     m = (lum > base + 6 * mad).astype(np.uint8)
     if dilatar > 0:
-        m = cv2.dilate(m, np.ones((2 * dilatar + 1, 2 * dilatar + 1), np.uint8))
+        m = cv2.dilate(m, _disco(dilatar))
     return cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.0)   # borde suave 0..1
 
 
