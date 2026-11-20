@@ -3,7 +3,13 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
-## 1.3.1 · sin fecha (en preparación)
+## 1.4.0 · 2026-11-20
+
+Lo principal: la guía «¿Qué quieres hacer hoy?», que lleva de la mano en el cielo profundo, el Sol, la Luna,
+el paisaje, el enfoque, las fotos de calibración y la galería; Cámara, Apilado y el editor con pestañas y el
+editor agrupado por temas; cuentagotas de color selectivo; darks por temperatura con aviso cuando el sensor se
+aleja; avisos de estrellas alargadas y de trípode desnivelado; y arreglos del procesado (manchas y cuadros
+junto a las estrellas), de config.ini, del lanzador con espacios en la ruta y del aparcado en ecuatorial.
 
 - Arreglado: las estrellas brillantes salían dentro de un marco cuadrado más claro, y en la vista previa (que va
   a media resolución) casi todas las estrellas con color llevaban un cuadro naranja, azul o gris alrededor

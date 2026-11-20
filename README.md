@@ -9,7 +9,7 @@ apila y se revela sin tocar el PC.
 
 > **English summary.** The app speaks English too (setup wizard, Settings > Language): see
 > [README_en.md](README_en.md). ScopePower turns a small Windows PC next to the mount into a web server
-> you control from your phone: voice GoTo with automatic plate-solve centring (ASTAP), live
+> you control from your phone: a step-by-step guide for each kind of session, voice GoTo with automatic plate-solve centring (ASTAP), live
 > stacking with darks and flats, an offline planetarium, a night planner, mosaics, comet stacking,
 > solar/lunar video, guiding and annotation, focus aids, a public gallery and object tracking. It targets Sky-Watcher SynScan mounts (ASCOM or direct
 > UDP) and Player One, ZWO, QHY, ToupTek-family and webcam cameras (ASCOM or native SDK). Windows
@@ -37,6 +37,9 @@ Más capturas en [docs/capturas](docs/capturas).
 
 ## Qué hace
 
+- **Guía «¿Qué quieres hacer hoy?»**: el botón principal del inicio lleva de la mano, paso a paso y con un
+  semáforo por comprobación, en el cielo profundo (también mosaicos y varios objetos en la noche), el Sol, la
+  Luna, el paisaje, el enfoque y las fotos de calibración, hasta dejarlo todo a un toque de «Empezar».
 - **GoTo por nombre o por voz** («ir a M31»), con catálogo local (OpenNGC, HYG, alias propios) y
   centrado automático por plate solving con ASTAP al terminar cada GoTo.
 - **Apilado en vivo**: cada foto se alinea y se suma mientras se captura, con rechazo de las malas,
