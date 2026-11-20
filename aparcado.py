@@ -11,6 +11,8 @@
 #
 # No se usa la «Hibernación» de SynScan Pro (Park): al reconectar pregunta «Restore
 # state to mount?» en la ventana de la app del mini PC, que no se ve desde la tablet.
+# Esto vale para la altacimutal: una ecuatorial (también la AZ-GTi en modo EQ) se aparca
+# con el Park del driver (ScopePower._aparcar_ecuatorial) y se desaparca al conectar.
 #
 # Ojo: el cero de los motores NO es la altura 0 / acimut 0 del cielo: es donde estaba
 # el tubo al encender la montura (horizontal y hacia el norte «a ojo»). Tras alinear,

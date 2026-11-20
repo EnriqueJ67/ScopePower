@@ -290,7 +290,7 @@ ASENTAMIENTO_POR_DEFECTO_S = 5.0
 
 def asentamiento_montura(seccion=None):
     """Segundos de asentamiento: el de `seccion` si lo define, si no el de [Montura]."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     for sec in ([seccion] if seccion else []) + ["Montura"]:
         v = cfg.get(sec, "asentamiento_s", fallback="").strip() if sec else ""
@@ -310,7 +310,7 @@ def asentamiento_montura(seccion=None):
 def ganancia_configurada():
     """Ganancia de config.ini como entero, o None si está vacía o no es válida."""
     try:
-        cfg = configparser.ConfigParser()
+        cfg = configparser.ConfigParser(strict=False)
         cfg.read("config.ini")
         v = cfg["Dispositivos"].get("ganancia_camara", "").strip()
         return int(float(v)) if v else None

@@ -140,6 +140,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_voz.py
 
+      - name: Prueba de config.ini con guardados a la vez, del modo en vivo que suelta la cámara y del aparcado de una ecuatorial
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_config_ini.py
+
       - name: Prueba de la galería pública (hosting falso en Python con el contrato de publicar.php; sin PHP en GitHub)
         env:
           PYTHONIOENCODING: utf-8

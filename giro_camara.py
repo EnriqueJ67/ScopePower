@@ -17,6 +17,7 @@
 
 import os
 import configparser
+import config_ini
 import threading
 
 import numpy as np
@@ -38,7 +39,7 @@ def leer():
         return dict(SIN_GIRO)
     with _lock:
         if _cache["mtime"] != mtime:
-            cfg = configparser.ConfigParser()
+            cfg = configparser.ConfigParser(strict=False)
             cfg.read(RUTA_CONFIG)
             d = cfg["Dispositivos"] if "Dispositivos" in cfg else {}
             try:
@@ -54,14 +55,8 @@ def guardar(giro, espejo):
     """Escribe el giro (grados en horario) y el espejo en config.ini; devuelve lo guardado."""
     giro = float(giro)
     giro = (giro if np.isfinite(giro) else 0.0) % 360.0
-    cfg = configparser.ConfigParser()
-    cfg.read(RUTA_CONFIG)
-    if "Dispositivos" not in cfg:
-        cfg["Dispositivos"] = {}
-    cfg["Dispositivos"]["giro_camara"] = f"{giro:g}"
-    cfg["Dispositivos"]["espejo_camara"] = "true" if espejo else "false"
-    with open(RUTA_CONFIG, "w") as f:
-        cfg.write(f)
+    config_ini.guardar_valores("Dispositivos", {"giro_camara": f"{giro:g}",
+                                                "espejo_camara": "true" if espejo else "false"}, ruta=RUTA_CONFIG)
     return leer()
 
 

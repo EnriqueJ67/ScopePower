@@ -14,7 +14,7 @@ import subprocess
 from astropy.utils.masked import Masked
 
 
-config = configparser.ConfigParser()
+config = configparser.ConfigParser(strict=False)
 config.read("config.ini")
 import config_inicial   # ruta de ASTAP leída en cada uso (puede instalarse con la app en marcha)
 

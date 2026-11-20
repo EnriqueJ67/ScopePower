@@ -312,7 +312,7 @@ def escala_de_placa(hdr, ruta_config="config.ini"):
         o = None
     if o and o.get("escala_arcsec"):
         return float(o["escala_arcsec"]) / float(o.get("binning_foto") or 1) * binning, "plate_solving"
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read(ruta_config)
     try:
         focal = float(cfg.get("Dispositivos", "focal_len", fallback="0"))

@@ -55,7 +55,7 @@ _lock_simbad = threading.Lock()
 
 
 def _ruta_astap():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     return cfg.get("General", "ruta_astap", fallback="")
 
@@ -249,7 +249,7 @@ _lock_ngc = threading.Lock()
 
 def magnitud_maxima_ngc():
     """[Apilado] anotar_ngc_hasta_mag de config.ini; 0 o menos = sin NGC/IC."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     try:
         return float(cfg.get("Apilado", "anotar_ngc_hasta_mag", fallback=str(MAG_NGC_POR_DEFECTO)))

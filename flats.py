@@ -65,7 +65,7 @@ class FlatsCancelado(Exception):
 
 
 def leer_config():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     f = cfg["Flats"] if "Flats" in cfg else {}
     d = cfg["Dispositivos"] if "Dispositivos" in cfg else {}

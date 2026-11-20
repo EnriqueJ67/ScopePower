@@ -816,9 +816,15 @@ msgstr "Annotating objects"
 msgid "Anterior"
 msgstr "Previous"
 
+#. js
 #: templates/apagar.html
 msgid "Antes de apagar para cambiar la batería: para el seguimiento y deja el tubo donde estaba al encender la montura (el cero de los motores), horizontal y hacia el norte"
 msgstr "Before turning off to change the battery: stops tracking and leaves the tube where it was when the mount was turned on (the motors' zero), level and facing north"
+
+#. js
+#: templates/apagar.html
+msgid "Antes de apagar para cambiar la batería: para el seguimiento y lleva la montura ecuatorial a su posición de aparcado (Park), contrapesos abajo y mirando al polo"
+msgstr "Before switching off to change the battery: stops tracking and takes the equatorial mount to its park position (Park), counterweights down and pointing at the pole"
 
 #: templates/_asistente.html
 msgid "Antes de seguir: enciende la montura y conéctala al PC (por cable o por red, según tu modelo) y enchufa la cámara al USB. Si el driver de tu montura trabaja con un programa intermedio (SynScan Pro, EQMOD, GSServer...), ábrelo y conéctalo primero."
@@ -856,6 +862,10 @@ msgstr "Shutting down the PC"
 #: templates/apagar.html
 msgid "Apagar el equipo"
 msgstr "Shut down the computer"
+
+#: ScopePower.py
+msgid "Aparcando la montura ecuatorial en su posición de inicio..."
+msgstr "Parking the equatorial mount in its home position..."
 
 #. js
 #: templates/apagar.html
@@ -1663,6 +1673,10 @@ msgstr "Auto centering"
 #: centrado.py
 msgid "Centrado cancelado por el usuario"
 msgstr "Centering canceled by the user"
+
+#: ScopePower.py
+msgid "Centrado omitido: el modo en vivo está grabando un vídeo"
+msgstr "Centring skipped: live mode is recording a video"
 
 #: ScopePower.py
 msgid "Centrado omitido: la cámara está ocupada o el apilado en marcha"
@@ -6018,6 +6032,11 @@ msgstr "Half"
 msgid "La montura NO está aparcada en el cero de los motores: si la apagas, al encenderla apuntará desviada."
 msgstr "The mount is NOT parked at the motors' zero: if you turn it off, it will point off when turned on again."
 
+#. js
+#: templates/apagar.html
+msgid "La montura NO está aparcada: si la apagas, al encenderla apuntará desviada."
+msgstr "The mount is NOT parked: if you switch it off, it will point off target when switched back on."
+
 #: puesta_estacion.py
 msgid "La montura está aparcada: desapárcala antes de empezar"
 msgstr "The mount is parked: unpark it before starting"
@@ -9498,6 +9517,10 @@ msgid "Seguimiento lunar"
 msgstr "Lunar tracking"
 
 #: ScopePower.py
+msgid "Seguimiento parado, pero la montura no está aparcada"
+msgstr "Tracking stopped, but the mount is not parked"
+
+#: ScopePower.py
 msgid "Seguimiento parado, pero la montura no ha llegado al cero de los motores"
 msgstr "Tracking stopped, but the mount didn't reach the motors' zero"
 
@@ -11371,6 +11394,10 @@ msgstr "centering"
 msgid "centrando por plate solving, espera a que termine"
 msgstr "centering by plate solving, wait for it to finish"
 
+#: ScopePower.py
+msgid "centrar tras el GoTo"
+msgstr "centring after the GoTo"
+
 #. js
 #: templates/editar_foto.html
 msgid "centro del campo"
@@ -11686,9 +11713,17 @@ msgstr "the disk is not the one seen before (cut off by the edge?)"
 msgid "el dispositivo no responde"
 msgstr "the device is not responding"
 
+#: ScopePower.py
+msgid "el driver de la montura no sabe aparcar: el seguimiento está parado, pero lleva el tubo a la posición de inicio a mano antes de apagar"
+msgstr "the mount driver cannot park: tracking is stopped, but move the tube to the home position by hand before switching off"
+
 #: foto_dia.py
 msgid "el driver no admite la velocidad {velocidad}"
 msgstr "the driver does not support the {velocidad} rate"
+
+#: ScopePower.py
+msgid "el driver no confirma que la montura haya llegado a la posición de aparcado"
+msgstr "the driver does not confirm that the mount reached the park position"
 
 #: hardware.py
 msgid "el driver «{driver}» no está instalado en este PC: elige otro o instala el de tu equipo"
@@ -14221,6 +14256,11 @@ msgid "¿Aparcar la montura? Se detiene lo que esté en marcha (apilado, pad), s
 msgstr "Park the mount? Whatever is running (stacking, pad) stops, tracking stops and the tube goes back to where it was when the mount was turned on (level, facing north)."
 
 #. js
+#: templates/apagar.html
+msgid "¿Aparcar la montura? Se detiene lo que esté en marcha (apilado, pad), se para el seguimiento y la montura va a su posición de aparcado (contrapesos abajo, mirando al polo)."
+msgstr "Park the mount? Whatever is running (stacking, pad) is stopped, tracking is stopped and the mount goes to its park position (counterweights down, pointing at the pole)."
+
+#. js
 #: templates/editar_foto.html
 msgid "¿Borrar el preset «{nombre}»?"
 msgstr "Delete the preset “{nombre}”?"
@@ -14834,6 +14874,11 @@ msgstr[1] "⚠️ ScopePower hasn't come back in {n} minutes. Reload in a while;
 msgid "⚠️ Seguimiento parado y tubo en altura {alt}, acimut {az}, pero <b>no en el cero de los motores</b>: si apagas la montura, al encenderla apuntará desviada (el centrado con plate solving lo corrige en el primer GoTo)."
 msgstr "⚠️ Tracking stopped and tube at altitude {alt}, azimuth {az}, but <b>not at the motors' zero</b>: if you turn off the mount, it will point off when turned on again (plate solving centering fixes it on the first GoTo)."
 
+#. js
+#: templates/apagar.html
+msgid "⚠️ Seguimiento parado, pero la montura <b>no está aparcada</b>."
+msgstr "⚠️ Tracking stopped, but the mount <b>is not parked</b>."
+
 #: templates/seguimiento.html
 msgid "⚠️ Sin calibrar: no hay ninguna foto resuelta todavía. Haz un GoTo con centrado (o cualquier plate solving) y se calibra solo."
 msgstr "⚠️ Not calibrated: there is no solved shot yet. Do a GoTo with centering (or any plate solving) and it calibrates itself."
@@ -15280,6 +15325,16 @@ msgstr "⭐ priority"
 #: templates/apagar.html
 msgid "🅿️ <b>Montura aparcada en el cero de los motores</b> (desfase {d1} / {d2}) y seguimiento parado. Ya puedes apagar la montura y cambiar la batería <b>sin moverla</b>. Al encenderla, conecta el equipo desde Inicio: SynScan Pro carga solo la alineación de antes."
 msgstr "🅿️ <b>Mount parked at the motors' zero</b> (offset {d1} / {d2}) and tracking stopped. You can now turn off the mount and change the battery <b>without moving it</b>. When you turn it on, connect the equipment from Home: SynScan Pro loads the previous alignment by itself."
+
+#. js
+#: templates/apagar.html
+msgid "🅿️ <b>Montura aparcada</b> en su posición de inicio y seguimiento parado. Ya puedes apagarla y cambiar la batería <b>sin moverla</b>. Al encenderla, conecta el equipo desde Inicio: la app la desaparca sola."
+msgstr "🅿️ <b>Mount parked</b> in its home position and tracking stopped. You can now switch it off and change the battery <b>without moving it</b>. When you switch it on, connect the equipment from Home: the app unparks it by itself."
+
+#. js
+#: templates/apagar.html
+msgid "🅿️ La montura está aparcada."
+msgstr "🅿️ The mount is parked."
 
 #. js
 #: templates/apagar.html

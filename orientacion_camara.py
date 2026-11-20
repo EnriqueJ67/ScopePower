@@ -48,7 +48,7 @@ INIS_CONOCIDOS = ("static/captura_mono.ini", "static/alineacion_mono.ini", "stat
 # Orientación respecto a los ejes, desde una resolución de ASTAP
 # ═════════════════════════════════════════════════════════════════════════════
 def _observatorio(ruta_config="config.ini"):
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read(ruta_config, encoding="utf-8")
     o = cfg["Observatorio"]
     return (float(o.get("latitud_observatorio")), float(o.get("longitud_observatorio")),

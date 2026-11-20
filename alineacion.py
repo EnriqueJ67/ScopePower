@@ -52,7 +52,7 @@ NOMBRE_RUMBO = {"N": N_("norte"), "NE": N_("noreste"), "E": N_("este"), "SE": N_
 
 
 def leer_config():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     a = cfg["Alineacion"] if "Alineacion" in cfg else {}
     c = cfg["Centrado"] if "Centrado" in cfg else {}

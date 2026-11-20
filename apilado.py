@@ -37,7 +37,7 @@ import os
 import config_inicial
 from idioma import _, ngettext, fmt_num
 
-cfg = configparser.ConfigParser()
+cfg = configparser.ConfigParser(strict=False)
 cfg.read("config.ini")
 # Ruta de ASTAP: se lee en cada uso (config_inicial.ruta_astap) para que una instalación
 # hecha desde el asistente de configuración valga sin reiniciar
@@ -264,7 +264,7 @@ def calcular_puntuacion_photutils(plano, fwhm_px=2.5, umbral_sigma=4.0):
 def leer_num_max():
     """[Dispositivos] numero_maximo_imagenes: se relee en cada foto, así se puede
     cambiar desde la pantalla de apilado sin parar el bucle."""
-    c = configparser.ConfigParser()
+    c = configparser.ConfigParser(strict=False)
     c.read("config.ini")
     try:
         return max(1, int(c["Dispositivos"].get("numero_maximo_imagenes", 20)))
@@ -275,7 +275,7 @@ def leer_num_max():
 def leer_config_calidad():
     """[Apilado]: métrica de calidad y umbral relativo (portado de FiltroApilado.py)."""
     c = cfg["Apilado"] if "Apilado" in cfg else {}
-    cfg2 = configparser.ConfigParser()
+    cfg2 = configparser.ConfigParser(strict=False)
     cfg2.read("config.ini")
     c = cfg2["Apilado"] if "Apilado" in cfg2 else c
     return {
@@ -936,7 +936,7 @@ class ApiladorEnTiempoReal:
         coordenadas para la firma.
         """
         self._fase("estirando")
-        nuevo_config = configparser.ConfigParser()
+        nuevo_config = configparser.ConfigParser(strict=False)
         nuevo_config.read("config.ini")
         # Recorte de zoom (zoom_preview en config.ini) sobre el cubo lineal, ANTES
         # de procesar. El apilado y el FITS siguen a campo completo. Con el campo
@@ -1255,7 +1255,7 @@ class ApiladorEnTiempoReal:
             # Vista previa: mismo encuadre y estilo que la del apilado normal; el color
             # con el balance de las estrellas de aquella (aquí están arrastradas). En el
             # mini PC cuesta varios segundos: [Cometa] vista_previa_cada la espacia
-            nuevo_config = configparser.ConfigParser()
+            nuevo_config = configparser.ConfigParser(strict=False)
             nuevo_config.read("config.ini")
             cada = cometa.leer_config(nuevo_config)["vista_previa_cada"]
             if cada > 1 and n > 1 and n % cada != 0:
@@ -1300,7 +1300,7 @@ class ApiladorEnTiempoReal:
         try:
 
             # Leer valores actualizados de config.ini
-            nuevo_config = configparser.ConfigParser()
+            nuevo_config = configparser.ConfigParser(strict=False)
             nuevo_config.read("config.ini")
             EXPOSICION = float(nuevo_config["Dispositivos"].get("exposicion_captura", 20))
             NUM_MAX = leer_num_max()

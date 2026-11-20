@@ -128,7 +128,7 @@ def cambiar(codigo, depurar=None):
 
 def cargar_desde_config(ruta="config.ini"):
     """Lee [Interfaz] idioma e idioma_depurar. Sin la clave (config.ini antiguo) queda en español."""
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read(ruta)          # misma codificación que el resto de la app al escribir config.ini
     codigo = cfg.get(SECCION, "idioma", fallback=POR_DEFECTO)
     depurar = cfg.get(SECCION, "idioma_depurar", fallback="false").strip().lower() == "true"

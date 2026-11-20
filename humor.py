@@ -121,7 +121,7 @@ class Humorista:
         """Lee [Humor] activado y nivel de config.ini (o del ConfigParser dado)."""
         cfg = config
         if cfg is None:
-            cfg = configparser.ConfigParser()
+            cfg = configparser.ConfigParser(strict=False)
             cfg.read("config.ini")
         try:
             nivel = int(cfg.get(SECCION, "nivel", fallback=NIVEL_POR_DEFECTO))

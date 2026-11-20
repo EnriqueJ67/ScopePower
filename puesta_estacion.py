@@ -251,7 +251,7 @@ def hora_siderea_deg(t_unix, longitud_deg):
 # Configuración
 # ═════════════════════════════════════════════════════════════════════════════
 def leer_config():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     p = cfg["PuestaEnEstacion"] if "PuestaEnEstacion" in cfg else {}
     c = cfg["Centrado"] if "Centrado" in cfg else {}

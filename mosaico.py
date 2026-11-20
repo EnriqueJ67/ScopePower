@@ -55,6 +55,7 @@ import logging
 import warnings
 import threading
 import configparser
+import config_ini
 from collections import deque
 from datetime import datetime
 
@@ -81,7 +82,7 @@ CLAVES_WCS = ("CRPIX1", "CRPIX2", "CRVAL1", "CRVAL2", "CD1_1", "CD1_2", "CD2_1",
 # ═════════════════════════════════════════════════════════════════════════════
 def leer_config(cfg=None):
     if cfg is None:
-        cfg = configparser.ConfigParser()
+        cfg = configparser.ConfigParser(strict=False)
         cfg.read("config.ini", encoding="utf-8")
     m = cfg["Mosaico"] if "Mosaico" in cfg else {}
     d = cfg["Dispositivos"] if "Dispositivos" in cfg else {}
@@ -121,15 +122,13 @@ def guardar_config(cambios):
     """Guarda en [Mosaico] de config.ini los valores que vienen (solo claves conocidas)."""
     permitidas = {"filas", "columnas", "solape_pct", "fotos_por_tesela", "lado_maximo", "centrar",
                   "minutos_sin_fotos", "guardar_galeria", "pluma_pct"}
-    cfg = configparser.ConfigParser()
-    cfg.read("config.ini", encoding="utf-8")
-    if "Mosaico" not in cfg:
-        cfg["Mosaico"] = {}
-    for k, v in cambios.items():
-        if k in permitidas and v is not None:
-            cfg["Mosaico"][k] = ("true" if v else "false") if isinstance(v, bool) else str(v)
-    with open("config.ini", "w", encoding="utf-8") as f:
-        cfg.write(f)
+    # Con el cerrojo y el guardado atómico del resto de la app, y su misma codificación
+    with config_ini.editar() as cfg:
+        if "Mosaico" not in cfg:
+            cfg["Mosaico"] = {}
+        for k, v in cambios.items():
+            if k in permitidas and v is not None:
+                cfg["Mosaico"][k] = ("true" if v else "false") if isinstance(v, bool) else str(v)
     return leer_config(cfg)
 
 
@@ -175,7 +174,7 @@ def campo_camara(focal_mm=None):
         log.debug("campo_camara: sin orientación guardada (%s)", e)
     if not focal_mm:
         try:
-            cfg = configparser.ConfigParser()
+            cfg = configparser.ConfigParser(strict=False)
             cfg.read("config.ini", encoding="utf-8")
             focal_mm = float(cfg["Dispositivos"].get("focal_len", 260))
         except Exception:
@@ -838,7 +837,7 @@ def publicar(cubo, hdr, nombre, filas, columnas, progreso=None, cfg=None):
     os.makedirs(os.path.dirname(RUTA_FITS), exist_ok=True)
     PrimaryHDU(data=cubo, header=hdr).writeto(RUTA_FITS, overwrite=True)
     if cfg is None:
-        cfg = configparser.ConfigParser()
+        cfg = configparser.ConfigParser(strict=False)
         cfg.read("config.ini", encoding="utf-8")
     avisar(_("procesando la vista previa"))
     n = int(hdr.get("NSTACK", 1) or 1)

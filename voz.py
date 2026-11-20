@@ -37,6 +37,7 @@ import threading
 import time
 import logging
 import configparser
+import config_ini
 
 import idioma
 from idioma import _
@@ -85,7 +86,7 @@ def diagnosticar(e, salidas):
 
 
 def _leer_config():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read("config.ini")
     v = cfg[SECCION] if SECCION in cfg else {}
     return {
@@ -102,14 +103,8 @@ def _leer_config():
 
 
 def _guardar_config(cambios):
-    cfg = configparser.ConfigParser()
-    cfg.read("config.ini")
-    if SECCION not in cfg:
-        cfg[SECCION] = {}
-    for k, val in cambios.items():
-        cfg[SECCION][k] = str(val).lower() if isinstance(val, bool) else str(val)
-    with open("config.ini", "w") as f:
-        cfg.write(f)
+    config_ini.guardar_valores(SECCION, {k: str(val).lower() if isinstance(val, bool) else str(val)
+                                         for k, val in cambios.items()})
 
 
 class Locutor:

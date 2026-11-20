@@ -29,7 +29,7 @@ def asegurar_config():
 
 
 def _leer():
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     cfg.read(CONFIG)
     return cfg
 

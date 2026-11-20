@@ -145,7 +145,7 @@ _ultimas = {}
 
 
 def _config(ruta="config.ini"):
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(strict=False)
     try:
         cfg.read(ruta, encoding="utf-8")
     except configparser.Error:
