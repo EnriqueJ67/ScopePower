@@ -18,6 +18,9 @@ día de la release. El número de versión vive en `version.py`.
   posición de inicio (contrapesos abajo, mirando al polo); antes la llevaba al horizonte norte como a una
   altacimutal. Sin Park en el driver, para el seguimiento y avisa de llevarla a casa a mano. Si está aparcada,
   se desaparca al conectar, al pulsar «Seguir observando» y antes de un GoTo.
+- Arreglado: ScopePower no arrancaba si el nombre del usuario de Windows tiene un espacio
+  («C:\Users\Nombre Apellido»). El lanzador cortaba la ruta de Python en el espacio y salía con el
+  código 9009 («no se reconoce como un comando interno o externo»). Lo mismo en `simular_carga.bat`.
 - Guía «¿Qué quieres hacer hoy?», cielo profundo: el mosaico y varios objetos en la noche se preparan y se
   arrancan desde la propia guía. Con mosaico hay un paso nuevo con la rejilla dibujada a escala (cada tesela y,
   encima, el tamaño del objeto), que propone la más pequeña que lo cubre y dice cuánto cubre y cuánto tarda; al

@@ -22,11 +22,15 @@ REM ============================================================================
 
 cd /d "%~dp0"
 set "PYTHONIOENCODING=utf-8"
+REM PY es solo el ejecutable y PY_ARGS sus opciones: PY siempre se usa entre comillas,
+REM porque la ruta lleva el nombre del usuario de Windows y puede tener espacios
+REM ("C:\Users\Nombre Apellido\..."). Sin comillas cmd cortaba en el espacio (codigo 9009).
 set "PY="
+set "PY_ARGS="
 
 if exist "%LOCALAPPDATA%\ScopePower\venv\Scripts\python.exe" set "PY=%LOCALAPPDATA%\ScopePower\venv\Scripts\python.exe"
 if not defined PY (
-    py -3.11 -c "import cv2, astropy, flask" >nul 2>&1 && set "PY=py -3.11"
+    py -3.11 -c "import cv2, astropy, flask" >nul 2>&1 && set "PY=py" && set "PY_ARGS=-3.11"
 )
 if not defined PY (
     if exist "%USERPROFILE%\anaconda3\python.exe" (
@@ -41,7 +45,7 @@ if not defined PY (
 )
 
 if /I "%~1"=="/test" (
-    echo Python que se usaria: %PY%
+    echo Python que se usaria: "%PY%" %PY_ARGS%
     exit /b 0
 )
 
@@ -56,7 +60,7 @@ set "SCOPEPOWER_LANZADOR=1"
 :arrancar
 echo Arrancando ScopePower... (esta ventana es la consola del servidor)
 echo.
-%PY% ScopePower.py
+"%PY%" %PY_ARGS% ScopePower.py
 set "CODIGO=%ERRORLEVEL%"
 if "%CODIGO%"=="3" (
     echo.
