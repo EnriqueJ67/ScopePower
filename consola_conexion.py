@@ -3,8 +3,9 @@
 # Quien arranca ScopePower por primera vez ve una ventana negra llena de mensajes y no sabe
 # cómo entrar en la app. Este módulo deja en esa consola, al terminar el arranque:
 #
-#   - un recuadro con las direcciones para el móvil o la tablet y un código QR de la primera
-#     (se repite de vez en cuando hasta que alguien se conecta desde otro dispositivo),
+#   - un recuadro con las direcciones para el móvil o la tablet y un código QR de cada red
+#     (dos como mucho, uno al lado del otro: el móvil solo llega a la dirección de la Wi-Fi en
+#     la que está; se repite de vez en cuando hasta que alguien se conecta desde otro dispositivo),
 #   - la dirección en el título de la ventana, que se ve en la barra de tareas,
 #   - avisos si el cortafuegos de Windows no va a dejar entrar al móvil,
 #   - una cuenta atrás que ofrece abrir la app en el navegador de este PC (por defecto no),
@@ -39,7 +40,9 @@ REGLA_CORTAFUEGOS = "ScopePower {puerto}"
 NOMBRE_ACCESO_LNK = "ScopePower.lnk"           # el que crea instalar_scopepower.bat
 MARCADOR_ACCESO = os.path.join("datos", "acceso_navegador_creado.txt")
 
-ANCHO = 62
+ANCHO = 68
+# Códigos QR del recuadro: uno por red, como mucho dos (caben uno al lado del otro)
+MAX_QR = 2
 
 
 # ─── Código QR en texto ──────────────────────────────────────────────────────
@@ -297,9 +300,60 @@ def _partir(texto, ancho):
     return lineas
 
 
+def urls_para_qr(urls, maximo=MAX_QR):
+    """
+    [(url, etiqueta)] con las direcciones que llevan QR: una por red, en el orden de `urls`
+    y sin la del nombre .local (Chrome en Android no la resuelve). Con el punto de acceso
+    del PC y la Wi-Fi de casa salen las dos: con un solo QR, el del punto de acceso, el móvil
+    que está en la Wi-Fi de casa se queda con la pantalla en blanco.
+    """
+    elegidas = []
+    for url, desc in urls:
+        if ".local:" in url or any(url == u for u, __ in elegidas):
+            continue
+        elegidas.append((url, desc))
+    return elegidas[:maximo]
+
+
+# Prefijos que pone ipconfig al nombre del adaptador (español e inglés): debajo del QR basta «Wi-Fi»
+_PREFIJOS_ADAPTADOR = ("adaptador de lan inalámbrica ", "adaptador de ethernet ", "wireless lan adapter ",
+                       "ethernet adapter ")
+
+
+def nombre_corto_red(desc):
+    for prefijo in _PREFIJOS_ADAPTADOR:
+        if desc.lower().startswith(prefijo):
+            return desc[len(prefijo):]
+    return desc
+
+
+def _qr_lado_a_lado(qrs, con_color):
+    """Líneas con los QR [(url, etiqueta)] uno al lado del otro y su dirección y red debajo."""
+    dibujos = [(qr_en_texto(url), url, desc) for url, desc in qrs]
+    dibujos = [d for d in dibujos if d[0]]
+    if not dibujos:
+        return []
+    ini, fin = ("\x1b[97;40m", "\x1b[0m") if con_color else ("", "")
+    anchos = [len(d[0][0]) for d in dibujos]
+    alto = max(len(d[0]) for d in dibujos)
+    hueco = " " * 4
+    lineas = []
+    for i in range(alto):
+        trozos = []
+        for (dibujo, __, __), ancho in zip(dibujos, anchos):
+            trozos.append(f"{ini}{dibujo[i]}{fin}" if i < len(dibujo) else " " * ancho)
+        lineas.append("   " + hueco.join(trozos))
+    # Debajo de cada código, la dirección (sin http://) y el nombre de la red
+    for pie in (lambda url, desc: url.replace("http://", ""), lambda url, desc: nombre_corto_red(desc or "")):
+        trozos = [pie(url, desc)[:ancho].center(ancho) for (__, url, desc), ancho in zip(dibujos, anchos)]
+        if any(t.strip() for t in trozos):
+            lineas.append(("   " + hueco.join(trozos)).rstrip())
+    return lineas
+
+
 def texto_recuadro(urls, url_local, version, avisos=(), con_color=False):
     """
-    El recuadro completo (str) con direcciones, QR de la primera y avisos.
+    El recuadro completo (str) con direcciones, QR de cada red y avisos.
     urls: [(url, descripción)] de la red, la más probable primero.
     """
     dentro = []
@@ -307,15 +361,20 @@ def texto_recuadro(urls, url_local, version, avisos=(), con_color=False):
         dentro.append(_("Desde el móvil o la tablet, en la misma Wi-Fi, abre:"))
         for url, desc in urls:
             dentro.append(f"   {url}" + (f"   ({desc})" if desc else ""))
-        qr = qr_en_texto(urls[0][0])
-        if qr:
+        qrs = urls_para_qr(urls)
+        dibujo = _qr_lado_a_lado(qrs, con_color)
+        if dibujo:
             dentro.append("")
-            dentro.append(_("O apunta la cámara del móvil a este código:"))
+            if len(qrs) > 1:
+                dentro.extend(_partir(_("O apunta la cámara del móvil al código de la Wi-Fi en la que esté:"),
+                                      ANCHO - 4))
+            else:
+                dentro.append(_("O apunta la cámara del móvil a este código:"))
             dentro.append("")
-            ini, fin = ("\x1b[97;40m", "\x1b[0m") if con_color else ("", "")
-            dentro.extend(f"   {ini}{linea}{fin}" for linea in qr)
+            dentro.extend(dibujo)
         dentro.append("")
-        dentro.extend(_partir(_("Si no carga: el móvil en la misma Wi-Fi que este PC y sin datos móviles."), ANCHO - 4))
+        dentro.extend(_partir(_("Si no carga: el móvil en la misma Wi-Fi que este PC y sin datos móviles. Si escribes la dirección a mano, pon también el http:// del principio."),
+                              ANCHO - 4))
     else:
         dentro.extend(_partir(_("No encuentro ninguna red: conecta este PC a la Wi-Fi para entrar desde el móvil."),
                               ANCHO - 4))

@@ -3,6 +3,16 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## En preparación
+
+- Arreglado: el QR de la consola se quedaba en blanco en el móvil cuando el PC tiene su propio punto de acceso
+  (`[Red] punto_acceso`) y el móvil está en otra Wi-Fi, por ejemplo la de casa: el código era solo el de la
+  primera dirección, la del punto de acceso, a la que el móvil no llega. Ahora, con dos redes, la consola pinta
+  un QR de cada una, uno al lado del otro y con su dirección y su red debajo; el móvil abre el de la Wi-Fi en
+  la que está. En Configuración > Conectar desde el móvil igual desde el propio PC, y desde un móvil sale el
+  QR de la dirección por la que ha entrado, que es la que sirve a otro móvil de la misma Wi-Fi. El recuadro
+  recuerda además que, al escribir la dirección a mano, hay que poner el `http://` del principio.
+
 ## 1.5.0 · 2026-11-21
 
 Lo principal: entrar por primera vez es más fácil. La ventana de ScopePower enseña las direcciones para el

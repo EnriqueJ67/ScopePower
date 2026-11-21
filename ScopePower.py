@@ -8325,8 +8325,13 @@ def guia_terminar():
 @app.route("/red/estado")
 def red_estado():
     """Direcciones de este PC para conectar desde el móvil (y estado del anuncio por voz)."""
+    direcciones = anuncio_ip.direcciones_ip()
+    ip_punto_acceso = punto_acceso.IP if punto_acceso.activado(config) else None
+    # Un QR por red, como en la consola: el móvil solo llega a la de su Wi-Fi
+    qr = consola_conexion.urls_para_qr(consola_conexion.urls_de_red(direcciones, PUERTO_WEB, None, ip_punto_acceso))
     return jsonify({
-        "direcciones": [{"ip": ip, "adaptador": ad, "url": f"http://{ip}:{PUERTO_WEB}"} for ip, ad in anuncio_ip.direcciones_ip()],
+        "direcciones": [{"ip": ip, "adaptador": ad, "url": f"http://{ip}:{PUERTO_WEB}"} for ip, ad in direcciones],
+        "qr": [{"url": u, "red": consola_conexion.nombre_corto_red(d or "")} for u, d in qr],
         "nombre": anuncio_ip.nombre_equipo(),
         "url_nombre": f"http://{anuncio_ip.nombre_equipo()}.local:{PUERTO_WEB}",
         "puerto": PUERTO_WEB,
@@ -8334,7 +8339,7 @@ def red_estado():
         "conectado": anunciador.esta_conectado(),
         "anunciar_ip": _config_anuncio_ip()["anunciar_ip"],
         "avisos_cortafuegos": consola_conexion.avisos_cortafuegos(PUERTO_WEB),
-        "punto_acceso": punto_acceso.IP if punto_acceso.activado(config) else None,
+        "punto_acceso": ip_punto_acceso,
     })
 
 
