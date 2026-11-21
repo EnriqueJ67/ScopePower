@@ -1,43 +1,50 @@
 @echo off
 setlocal EnableDelayedExpansion
 chcp 65001 >nul
-title Actualizar ScopePower desde GitHub
+title Actualizar ScopePower
 
 REM ============================================================================
 REM  actualizar_desde_github.bat  -  pone al dia ScopePower desde GitHub
 REM
-REM  Pensado para el mini PC de campo, en casa y con Internet. Hace falta tener
-REM  instalado Git para Windows (https://git-scm.com/download/win).
+REM  No hace falta Git ni tener cuenta en GitHub: solo Internet. Baja el ZIP de la
+REM  ultima version publicada (release) y copia sus ficheros encima de esta carpeta.
+REM  Sirve igual si la carpeta es una copia, un ZIP descomprimido o un clon de git.
 REM
-REM  Uso:  actualizar_desde_github.bat           -> a la ultima release (etiqueta v* mas alta)
-REM        actualizar_desde_github.bat /volver   -> a la version que habia antes de actualizar
+REM  Uso:  actualizar_desde_github.bat           -> a la ultima version publicada
+REM        actualizar_desde_github.bat /volver   -> deshace la ultima actualizacion
 REM        actualizar_desde_github.bat /si       -> sin pedir confirmacion
+REM        actualizar_desde_github.bat X.zip     -> con un ZIP ya descargado (sin Internet);
+REM                                                 vale arrastrar el ZIP encima de este .bat
 REM
-REM  - Si la carpeta todavia no es un clon de git (copia hecha a mano o con
-REM    copiar_a_campo.bat), ofrece convertirla: git init + origin + reset a la release.
 REM  - No toca lo que es propio de este PC: config.ini, secretos.ini, calibraciones\,
-REM    capturas\, logs\, static\fotos\ ni datos\. Estan ignorados por git; aqui se
-REM    comprueba y se avisa si alguno estuviera seguido.
-REM  - Antes de aplicar ensena los commits que van a entrar y pide confirmacion.
-REM  - Si requirements.txt cambia, reinstala las dependencias con el pip del entorno
-REM    de instalar_scopepower.bat (%LOCALAPPDATA%\ScopePower\venv).
-REM  - Guarda la version anterior en datos\version_anterior.txt para poder volver.
-REM  - Si ScopePower esta en marcha, ofrece cerrarlo y volver a arrancarlo al terminar.
+REM    capturas\, logs\, la galeria (static\fotos\), datos\, videos\... La lista completa
+REM    esta en aplicar_actualizacion.py (EXCLUIDOS_*).
+REM  - Antes de cambiar nada comprueba que lo descargado es un ScopePower entero y guarda
+REM    lo que va a sobrescribir en _backup\<version anterior>\ (solo la ultima copia).
+REM    Si algo falla a mitad, restaura esa copia: la version anterior queda como estaba.
+REM  - Si requirements.txt cambia, instala las dependencias con el mismo Python que usa
+REM    lanzar_scopepower.bat.
+REM  - Si ScopePower esta en marcha, pide cerrarlo y lo vuelve a arrancar al terminar.
 REM
-REM  Modos internos (los usa la propia app, boton "Actualizar desde GitHub" de la web):
-REM        /lanzador  -> sin preguntas ni pausas; lee el destino de datos\actualizar_pendiente.txt
-REM                      y deja todo lo que escribe en logs\actualizacion.log. Lo llama
-REM                      lanzar_scopepower.bat cuando la app sale con codigo 5.
-REM        /relanzar  -> al terminar arranca lanzar_scopepower.bat (app lanzada a mano con python)
+REM  El trabajo lo hace aplicar_actualizacion.py, desde una copia en %TEMP% para que nada
+REM  cambie bajo sus pies. En una instalacion anterior a este actualizador (sin ese
+REM  fichero) se baja de la ultima release: basta con poner este .bat en la carpeta.
 REM
-REM  Para pruebas: la variable de entorno SCOPEPOWER_REMOTO sustituye la URL de GitHub.
+REM  Modo interno (lo usa la propia app, boton "Actualizar" de Configuracion):
+REM        /lanzador  -> sin preguntas ni pausas; hace lo pedido en datos\actualizar_pendiente.txt,
+REM                      deja lo que escribe en logs\actualizacion.log y vuelve a arrancar
+REM                      ScopePower. Lo llama lanzar_scopepower.bat cuando la app sale con codigo 5.
+REM
+REM  Para pruebas: SCOPEPOWER_API_GITHUB y SCOPEPOWER_RAW_GITHUB sustituyen las direcciones
+REM  de GitHub (ver herramientas\probar_actualizar.py).
 REM ============================================================================
 
 REM La carpeta de ScopePower es la del .bat; en la copia temporal (ver abajo) llega por variable
 if not defined SCOPEPOWER_RAIZ set "SCOPEPOWER_RAIZ=%~dp0"
 cd /d "%SCOPEPOWER_RAIZ%"
 set "RAIZ=%CD%"
-REM git reset --hard sobrescribe este mismo .bat mientras se ejecuta, y cmd lee los .bat
+if "%RAIZ:~-1%"=="\" set "RAIZ=%RAIZ:~0,-1%"
+REM La actualizacion sobrescribe este mismo .bat mientras se ejecuta, y cmd lee los .bat
 REM por trozos: se sigue desde una copia en %TEMP%. La llamada y el exit van en la misma
 REM linea para que cmd no vuelva a leer este fichero despues de la copia.
 if not defined ACT_COPIA_TEMP (
@@ -45,339 +52,98 @@ if not defined ACT_COPIA_TEMP (
     copy /Y "%~f0" "%TEMP%\scopepower_actualizar.bat" >nul 2>&1
     if exist "%TEMP%\scopepower_actualizar.bat" call "%TEMP%\scopepower_actualizar.bat" %* & if errorlevel 2 (exit /b 2) else if errorlevel 1 (exit /b 1) else exit /b 0
 )
-set "REMOTO=https://github.com/EnriqueJ67/ScopePower.git"
-if defined SCOPEPOWER_REMOTO set "REMOTO=%SCOPEPOWER_REMOTO%"
-set "VENV=%LOCALAPPDATA%\ScopePower\venv"
-set "VENV_PY=%VENV%\Scripts\python.exe"
-set "FICHERO_ANTERIOR=datos\version_anterior.txt"
-set "FICHERO_PENDIENTE=datos\actualizar_pendiente.txt"
-set "LOG=logs\actualizacion.log"
-set "PROTEGIDOS=config.ini secretos.ini calibraciones capturas logs static/fotos datos"
 
 REM ---- Opciones ----
-set "SIN_PREGUNTAR=" & set "VOLVER=" & set "LANZADOR=" & set "RELANZAR="
+set "LANZADOR=" & set "SIN_PREGUNTAR=" & set "OPCIONES="
 for %%A in (%*) do (
-    if /I "%%~A"=="/si"       set "SIN_PREGUNTAR=1"
-    if /I "%%~A"=="/volver"   set "VOLVER=1"
+    if /I "%%~A"=="/si"       set "OPCIONES=!OPCIONES! --si" & set "SIN_PREGUNTAR=1"
+    if /I "%%~A"=="/volver"   set "OPCIONES=!OPCIONES! --volver"
     if /I "%%~A"=="/lanzador" set "LANZADOR=1"
-    if /I "%%~A"=="/relanzar" set "RELANZAR=1"
+    if /I "%%~xA"==".zip" if exist "%%~fA" set "OPCIONES=!OPCIONES! --zip "%%~fA""
 )
 
-REM ---- Modo lanzador: todo a logs\actualizacion.log (la web lo ensena despues) ----
-if defined LANZADOR (
-    set "SIN_PREGUNTAR=1"
-    REM Sin ventanas de contrasena: en el mini PC no hay nadie delante
-    set "GIT_TERMINAL_PROMPT=0"
-    set "GCM_INTERACTIVE=never"
-    if not defined ACT_REDIRIGIDO (
-        if not exist logs mkdir logs
-        set "ACT_REDIRIGIDO=1"
-        call "%~f0" %* > "%LOG%" 2>&1
-        set "CODIGO=!ERRORLEVEL!"
-        type "%LOG%"
-        exit /b !CODIGO!
-    )
-    echo [%DATE% %TIME%] Actualizacion pedida desde la web
-    if exist "%FICHERO_PENDIENTE%" (
-        set /p DESTINO_PEDIDO=<"%FICHERO_PENDIENTE%"
-        del "%FICHERO_PENDIENTE%" >nul 2>&1
-        echo Destino pedido: !DESTINO_PEDIDO!
-        if /I "!DESTINO_PEDIDO!"=="volver" set "VOLVER=1"
+REM ---- El Python de ScopePower: el mismo que elige lanzar_scopepower.bat ----
+set "PYTHONIOENCODING=utf-8"
+set "PY="
+set "PY_ARGS="
+if exist "%LOCALAPPDATA%\ScopePower\venv\Scripts\python.exe" set "PY=%LOCALAPPDATA%\ScopePower\venv\Scripts\python.exe"
+if not defined PY (
+    py -3.11 -c "import cv2, astropy, flask" >nul 2>&1 && set "PY=py" && set "PY_ARGS=-3.11"
+)
+if not defined PY (
+    if exist "%USERPROFILE%\anaconda3\python.exe" (
+        "%USERPROFILE%\anaconda3\python.exe" -c "import cv2, astropy, flask" >nul 2>&1 && set "PY=%USERPROFILE%\anaconda3\python.exe"
     )
 )
-
-echo.
-echo  ScopePower - actualizar desde GitHub
-echo  Carpeta: %RAIZ%
-echo.
-
-REM ---- 1) Git instalado ----
-where git >nul 2>&1
-if errorlevel 1 (
-    echo  [ERROR] No se encuentra git. Instala "Git para Windows" desde
-    echo          https://git-scm.com/download/win ^(sirven todas las opciones por defecto^)
-    echo          y vuelve a ejecutar este script en una ventana nueva.
+if not defined PY (
+    set "MOTIVO=No se encuentra el Python de ScopePower. Ejecuta primero instalar_scopepower.bat"
     goto :fin_error
 )
 
-REM ---- 2) Internet y acceso a GitHub ----
-echo  Comprobando el acceso a GitHub...
-set "TMP_LS=%TEMP%\scopepower_lsremote.txt"
-git ls-remote --exit-code --heads "%REMOTO%" master >nul 2>"%TMP_LS%"
-if errorlevel 1 (
-    findstr /I /C:"Could not resolve" /C:"unable to access" /C:"Failed to connect" /C:"Timed out" /C:"Connection was reset" "%TMP_LS%" >nul
-    if not errorlevel 1 (
-        echo  [ERROR] No hay Internet o no se llega a github.com. Conecta el PC a una red con
-        echo          salida a Internet ^(en el campo no la hay^) y vuelve a intentarlo.
-    ) else (
-        echo  [ERROR] GitHub no ha dejado leer el repositorio:
-        type "%TMP_LS%"
-        echo          Mientras el repositorio sea privado hay que identificarse una vez en este PC:
-        echo          ejecuta este script a mano ^(con pantalla^) y Git abrira el navegador para
-        echo          entrar en GitHub; la identificacion queda guardada para las siguientes veces.
-    )
-    del "%TMP_LS%" >nul 2>&1
-    goto :fin_error
-)
-del "%TMP_LS%" >nul 2>&1
-echo  [OK] GitHub responde.
-
-REM ---- 3) Es ya un clon de git? Si no, convertir la carpeta ----
-set "ES_CLON="
-set "TMP_TOP=%TEMP%\scopepower_toplevel.txt"
-git rev-parse --show-toplevel >"%TMP_TOP%" 2>nul
-if not errorlevel 1 (
-    set /p TOPLEVEL=<"%TMP_TOP%"
-    set "TOPLEVEL=!TOPLEVEL:/=\!"
-    if /I "!TOPLEVEL!"=="%RAIZ%" set "ES_CLON=1"
-)
-del "%TMP_TOP%" >nul 2>&1
-
-if defined ES_CLON goto :rama
-
-echo.
-echo  Esta carpeta es una copia de ScopePower, no un clon de git ^(no tiene historial^).
-echo  Para poder actualizarla desde GitHub hay que convertirla en un clon: se anade la
-echo  carpeta oculta .git, se baja el historial y los ficheros del programa se dejan
-echo  exactamente como estan en la version elegida. Lo tuyo ^(config.ini, secretos.ini,
-echo  calibraciones, capturas, logs, galeria y datos^) no se toca.
-if not defined SIN_PREGUNTAR (
-    choice /C SN /M "Convertir esta carpeta en un clon de GitHub"
-    if errorlevel 2 goto :fin_cancelado
-)
-if exist ".git\" (
-    echo  [ERROR] Ya hay una carpeta .git aqui pero git no la reconoce. Revisa a mano.
-    goto :fin_error
-)
-git init -q -b master . || goto :fin_error_git
-git remote add origin "%REMOTO%" || goto :fin_error_git
-set "RECIEN_CONVERTIDA=1"
-goto :fetch
-
-:rama
-REM Este script es para el PC de campo, que vive en master. En una carpeta de desarrollo
-REM con otra rama activa no se hace nada: un reset --hard moveria esa rama.
-set "RAMA="
-for /f "delims=" %%B in ('git symbolic-ref -q --short HEAD 2^>nul') do set "RAMA=%%B"
-if defined RAMA if /I not "!RAMA!"=="master" (
-    echo  [ERROR] Esta carpeta esta en la rama "!RAMA!", no en master: parece una carpeta de
-    echo          desarrollo. Cambia a master ^(git switch master^) o actualiza con git a mano.
-    goto :fin_error
-)
-
-:fetch
-REM ---- 4) Bajar lo nuevo (ramas y etiquetas) ----
-git remote set-url origin "%REMOTO%" >nul 2>&1
-echo  Descargando de GitHub...
-git fetch --quiet --force --tags --prune origin
-if errorlevel 1 goto :fin_error_git
-
-REM ---- 5) Elegir el destino ----
-set "DESTINO=" & set "NOMBRE_DESTINO="
-if defined VOLVER (
-    if not exist "%FICHERO_ANTERIOR%" (
-        echo  [ERROR] No hay version anterior guardada ^(%FICHERO_ANTERIOR%^): todavia no se ha
-        echo          actualizado con este script.
-        goto :fin_error
-    )
-    set /p LINEA_ANTERIOR=<"%FICHERO_ANTERIOR%"
-    for /f "tokens=1,* delims= " %%A in ("!LINEA_ANTERIOR!") do (set "DESTINO=%%A" & set "NOMBRE_DESTINO=%%B")
-    if "!NOMBRE_DESTINO!"=="" set "NOMBRE_DESTINO=!DESTINO!"
-    set "NOMBRE_DESTINO=version anterior !NOMBRE_DESTINO!"
-    git rev-parse --verify -q "!DESTINO!" >nul 2>&1 || (
-        echo  [ERROR] La version anterior guardada ^(!DESTINO!^) no esta en el historial.
-        goto :fin_error
-    )
+REM ---- El actualizador, en una copia fuera de la carpeta ----
+set "TRABAJO=%TEMP%\scopepower_actualizar"
+if not exist "%TRABAJO%\" mkdir "%TRABAJO%"
+set "SCRIPT=%TRABAJO%\aplicar_actualizacion.py"
+del "%SCRIPT%" >nul 2>&1
+if exist "%RAIZ%\aplicar_actualizacion.py" (
+    copy /Y "%RAIZ%\aplicar_actualizacion.py" "%SCRIPT%" >nul
 ) else (
-    for /f "delims=" %%T in ('git tag --list "v*" --sort=-v:refname') do (
-        if not defined DESTINO (set "DESTINO=%%T" & set "NOMBRE_DESTINO=release %%T")
-    )
-    if not defined DESTINO (
-        echo  [ERROR] En GitHub no hay ninguna release ^(etiqueta v1.2.3^) todavia.
-        goto :fin_error
-    )
+    call :bajar_actualizador
 )
-for /f "delims=" %%H in ('git rev-parse --short "!DESTINO!"') do set "SHA_DESTINO=%%H"
-
-REM ---- 6) Comprobar que lo propio del PC no esta seguido en la version destino ----
-set "AVISO_SEGUIDOS="
-for %%P in (%PROTEGIDOS%) do (
-    git ls-tree -r --name-only "!DESTINO!" -- "%%P" 2>nul | findstr /R "." >nul
-    if not errorlevel 1 (
-        echo  [AVISO] %%P esta seguido por git en !NOMBRE_DESTINO!: la actualizacion lo sobrescribiria.
-        set "AVISO_SEGUIDOS=1"
-    )
-)
-if defined AVISO_SEGUIDOS (
-    echo  [ERROR] Se para aqui para no perder nada. Revisa .gitignore en GitHub.
+if not exist "%SCRIPT%" (
+    set "MOTIVO=No se pudo bajar el actualizador: no hay conexion a Internet, o la ultima version publicada todavia no lo trae."
     goto :fin_error
 )
 
-REM ---- 7) Que va a cambiar? ----
-set "HAY_HEAD=" & set "HAY_CAMBIOS="
-git rev-parse --verify -q HEAD >nul 2>&1 && set "HAY_HEAD=1"
-if defined HAY_HEAD (
-    for /f "delims=" %%H in ('git rev-parse --short HEAD') do set "SHA_ACTUAL=%%H"
-    for /f "delims=" %%D in ('git describe --tags --always HEAD') do set "NOMBRE_ACTUAL=%%D"
-    echo.
-    echo  Instalado ahora: !NOMBRE_ACTUAL! ^(!SHA_ACTUAL!^)
-    echo  Destino:         !NOMBRE_DESTINO! ^(!SHA_DESTINO!^)
-    git diff --quiet HEAD "!DESTINO!" 2>nul || set "HAY_CAMBIOS=1"
-    set "TMP_ST=%TEMP%\scopepower_status.txt"
-    git status --porcelain --untracked-files=no >"!TMP_ST!" 2>nul
-    for %%Z in ("!TMP_ST!") do if %%~zZ GTR 0 (
-        echo.
-        echo  [AVISO] Hay ficheros del programa modificados en este PC; la actualizacion los
-        echo          devuelve a como estan en GitHub:
-        type "!TMP_ST!"
-        set "HAY_CAMBIOS=1"
-    )
-    del "!TMP_ST!" >nul 2>&1
-    if not defined HAY_CAMBIOS (
-        echo.
-        echo  [OK] Ya esta en !NOMBRE_DESTINO!: no hay nada que actualizar.
-        goto :fin_ok
-    )
-    echo.
-    echo  Cambios que van a entrar ^(los mas nuevos arriba^):
-    git log --oneline --no-decorate "HEAD..!DESTINO!"
-    set "ATRAS="
-    for /f "delims=" %%N in ('git rev-list --count "!DESTINO!..HEAD"') do set "ATRAS=%%N"
-    if defined ATRAS if not "!ATRAS!"=="0" echo  ^(y se deshacen !ATRAS! commits que estan aqui pero no en el destino^)
-) else (
-    echo.
-    echo  Se van a dejar los ficheros del programa como en !NOMBRE_DESTINO! ^(!SHA_DESTINO!^).
-    set "HAY_CAMBIOS=1"
-)
+if defined LANZADOR goto :lanzador
 
-REM ---- 8) Cambia requirements.txt? ----
-set "REQ_CAMBIA="
-if defined HAY_HEAD (
-    git diff --quiet HEAD "!DESTINO!" -- requirements.txt 2>nul || set "REQ_CAMBIA=1"
-) else (
-    set "REQ_CAMBIA=1"
-)
-if defined REQ_CAMBIA echo  requirements.txt cambia: se reinstalaran las dependencias ^(pip^).
-
-REM ---- 9) Esta ScopePower en marcha? ----
-set "PID_APP=" & set "PID_LANZADOR=" & set "REINICIAR="
-if not defined LANZADOR call :buscar_app
-if defined PID_APP (
-    echo.
-    echo  ScopePower esta en marcha en este PC ^(proceso !PID_APP!^).
-    if defined SIN_PREGUNTAR (
-        set "REINICIAR=1"
-    ) else (
-        choice /C SN /M "Cerrarlo ahora y volver a arrancarlo al terminar (si no, el cambio entra en el proximo arranque)"
-        if not errorlevel 2 set "REINICIAR=1"
-    )
-)
-
+REM ---- A mano: pregunta, actualiza y ensena el resultado ----
+"%PY%" %PY_ARGS% "%SCRIPT%" interactivo --raiz "%RAIZ%" %OPCIONES%
+set "CODIGO=%ERRORLEVEL%"
 echo.
-if not defined SIN_PREGUNTAR (
-    choice /C SN /M "Aplicar la actualizacion"
-    if errorlevel 2 goto :fin_cancelado
-)
+if not defined SIN_PREGUNTAR pause
+exit /b %CODIGO%
 
-REM ---- 10) Guardar la version actual para poder volver ----
-if defined HAY_HEAD (
-    if not exist datos mkdir datos
-    >"%FICHERO_ANTERIOR%" echo !SHA_ACTUAL! !NOMBRE_ACTUAL!
-    echo  Version anterior apuntada en %FICHERO_ANTERIOR% ^(para volver: /volver^).
-)
-
-REM ---- 11) Cerrar la app si asi se ha pedido ----
-if defined REINICIAR (
-    echo  Cerrando ScopePower...
-    if defined PID_LANZADOR taskkill /PID !PID_LANZADOR! /F >nul 2>&1
-    taskkill /PID !PID_APP! /T /F >nul 2>&1
-    ping -n 3 127.0.0.1 >nul
-)
-
-REM ---- 12) Aplicar: los ficheros del programa quedan como en el destino ----
-echo  Aplicando !NOMBRE_DESTINO!...
-git reset -q --hard "!DESTINO!"
-if errorlevel 1 goto :fin_error_git
-REM Lo propio del PC tiene que seguir ignorado: si no, un git status lo listaria
-for %%P in (%PROTEGIDOS%) do (
-    if exist "%%P" (
-        git status --porcelain --untracked-files=all -- "%%P" 2>nul | findstr /B "??" >nul
-        if not errorlevel 1 echo  [AVISO] En %%P hay ficheros que git no ignora ^(no se han tocado; conviene anadirlos a .gitignore^).
-    )
-)
-echo  [OK] Ficheros del programa actualizados a !NOMBRE_DESTINO! ^(!SHA_DESTINO!^).
-
-REM ---- 13) Dependencias ----
-if defined REQ_CAMBIA (
-    if exist "%VENV_PY%" (
-        echo  Instalando dependencias ^(pip^), puede tardar unos minutos...
-        "%VENV_PY%" -m pip install -q -r requirements.txt
-        if errorlevel 1 (
-            echo  [AVISO] pip ha fallado. Ejecuta instalar_scopepower.bat o repite la actualizacion.
-        ) else (
-            "%VENV_PY%" "%VENV%\Scripts\pywin32_postinstall.py" -install >nul 2>&1
-            echo  [OK] Dependencias instaladas.
-        )
-    ) else (
-        echo  [AVISO] No existe el entorno %VENV_PY%: ejecuta instalar_scopepower.bat.
-    )
-)
-
-REM ---- 14) Reiniciar ScopePower ----
-if defined LANZADOR (
-    echo [RESULTADO] ok !NOMBRE_DESTINO! ^(!SHA_DESTINO!^)
-    if defined RELANZAR start "ScopePower" /D "%RAIZ%" "%RAIZ%\lanzar_scopepower.bat"
-    exit /b 0
-)
-if defined REINICIAR (
-    echo  Arrancando ScopePower de nuevo...
-    start "ScopePower" /D "%RAIZ%" "%RAIZ%\lanzar_scopepower.bat"
-) else if defined PID_APP (
-    echo  ScopePower sigue con la version antigua hasta que se reinicie ^(Cerrar o apagar ^> Reiniciar ScopePower^).
-) else if defined RECIEN_CONVERTIDA (
-    echo.
-    echo  Carpeta convertida en clon. Arranca ScopePower con el acceso directo del escritorio.
-)
-goto :fin_ok
+REM ---- Pedido desde la web: todo a logs\actualizacion.log (la web lo ensena despues) ----
+:lanzador
+if not exist "%RAIZ%\logs\" mkdir "%RAIZ%\logs"
+"%PY%" %PY_ARGS% "%SCRIPT%" lanzador --raiz "%RAIZ%" > "%RAIZ%\logs\actualizacion.log" 2>&1
+type "%RAIZ%\logs\actualizacion.log"
+goto :relanzar
 
 REM ============================================================================
-:buscar_app
-REM Busca el python que ejecuta ScopePower.py desde esta carpeta y la ventana de
-REM lanzar_scopepower.bat que lo arranco (para que no se quede abierta en su "pause").
-set "PS_BUSCAR=$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'python*' -and $_.CommandLine -match 'ScopePower\.py' -and $_.CommandLine -match [regex]::Escape('%RAIZ%') } | Select-Object -First 1; if ($p) { $pl = ''; $padre = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $p.ParentProcessId); if ($padre -and $padre.Name -eq 'cmd.exe' -and $padre.CommandLine -match 'lanzar_scopepower') { $pl = $padre.ProcessId }; Write-Output ([string]$p.ProcessId + ' ' + $pl) }"
-for /f "tokens=1,2" %%A in ('powershell -NoProfile -Command "!PS_BUSCAR!" 2^>nul') do (
-    set "PID_APP=%%A"
-    set "PID_LANZADOR=%%B"
-)
+:bajar_actualizador
+REM Instalacion anterior a este actualizador: aplicar_actualizacion.py se baja de la ultima
+REM release publicada. Las direcciones van por variables de entorno para no pelear con las comillas.
+echo  Bajando el actualizador de la ultima version publicada en GitHub...
+set "ACT_API=https://api.github.com"
+if defined SCOPEPOWER_API_GITHUB set "ACT_API=%SCOPEPOWER_API_GITHUB%"
+set "ACT_RAW=https://raw.githubusercontent.com"
+if defined SCOPEPOWER_RAW_GITHUB set "ACT_RAW=%SCOPEPOWER_RAW_GITHUB%"
+set "ACT_REPO=EnriqueJ67/ScopePower"
+set "ACT_SCRIPT=%SCRIPT%"
+set "PS_BAJAR=$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 'Tls12'; $c = @{ 'User-Agent' = 'ScopePower-actualizador' }; $r = Invoke-RestMethod -Uri ($env:ACT_API + '/repos/' + $env:ACT_REPO + '/releases/latest') -Headers $c -TimeoutSec 15; Invoke-WebRequest -Uri ($env:ACT_RAW + '/' + $env:ACT_REPO + '/' + $r.tag_name + '/aplicar_actualizacion.py') -OutFile $env:ACT_SCRIPT -UseBasicParsing -Headers $c -TimeoutSec 60"
+powershell -NoProfile -Command "%PS_BAJAR%" >nul 2>&1
 exit /b 0
 
-:fin_error_git
-echo.
-echo  [ERROR] git ha fallado. Revisa los mensajes de arriba.
-echo          Si dice "dubious ownership": git config --global --add safe.directory "%RAIZ:\=/%"
-echo          Si pide usuario y contrasena: ejecuta este script a mano para identificarte en GitHub.
 :fin_error
+echo.
+echo  [ERROR] %MOTIVO%
 if defined LANZADOR (
-    echo [RESULTADO] error
-    if defined RELANZAR start "ScopePower" /D "%RAIZ%" "%RAIZ%\lanzar_scopepower.bat"
-    exit /b 1
+    if not exist "%RAIZ%\logs\" mkdir "%RAIZ%\logs"
+    >"%RAIZ%\logs\actualizacion.log" echo  [ERROR] %MOTIVO%
+    >>"%RAIZ%\logs\actualizacion.log" echo [RESULTADO] error mantenida
+    goto :relanzar
 )
 echo.
-pause
+if not defined SIN_PREGUNTAR pause
 exit /b 1
 
-:fin_cancelado
+:relanzar
+REM Este cmd puede ser el de lanzar_scopepower.bat, que estaba esperando a este script y cuyo
+REM fichero acaba de cambiar: no se vuelve a el. Se arranca un lanzador nuevo en su propia
+REM ventana y "exit" (sin /b) cierra este cmd entero.
 echo.
-echo  No se ha cambiado nada.
-pause
-exit /b 2
-
-:fin_ok
-if defined LANZADOR (
-    echo [RESULTADO] ok sin cambios
-    if defined RELANZAR start "ScopePower" /D "%RAIZ%" "%RAIZ%\lanzar_scopepower.bat"
-    exit /b 0
-)
-echo.
-pause
-exit /b 0
+echo  Arrancando ScopePower de nuevo...
+start "ScopePower" /D "%RAIZ%" "%RAIZ%\lanzar_scopepower.bat"
+exit

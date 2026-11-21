@@ -79,11 +79,6 @@ msgid "(la general de config.ini es {alt}°)"
 msgstr "(the general one in config.ini is {alt}°)"
 
 #. js
-#: templates/configuracion.html
-msgid "(la versión instalada no coincide con ningún commit de GitHub: se dejará como la release)"
-msgstr "(the installed version doesn't match any GitHub commit: it will be left as the release)"
-
-#. js
 #: templates/apilado.html
 msgid "(mejor de la sesión {fwhm})"
 msgstr "(session best {fwhm})"
@@ -278,6 +273,11 @@ msgstr "<b>ASTAP isn't installed on this PC.</b>"
 msgid "<b>ASTAP</b>: el programa que reconoce las estrellas de cada foto. Si falta, se instala solo."
 msgstr "<b>ASTAP</b>: the program that recognizes the stars in each shot. If it's missing, it installs itself."
 
+#. js
+#: templates/configuracion.html
+msgid "<b>Actualizando, ScopePower se reiniciará.</b> La página se recargará sola cuando vuelva (puede tardar unos minutos)..."
+msgstr "<b>Updating, ScopePower will restart.</b> The page will reload by itself when it is back (it may take a few minutes)..."
+
 #: templates/_asistente.html
 msgid "<b>Captura</b>: exposición y ganancia de partida."
 msgstr "<b>Capture</b>: starting exposure and gain."
@@ -329,11 +329,6 @@ msgstr "<b>OnStep</b>: over USB or Wi-Fi. The port or IP address is set with “
 #: templates/_asistente.html
 msgid "<b>ScopePower está listo.</b> Puedes cambiar cualquiera de estos datos en Configuración o volver a pasar el asistente desde allí."
 msgstr "<b>ScopePower is ready.</b> You can change any of these settings in Settings or run the wizard again from there."
-
-#. js
-#: templates/configuracion.html
-msgid "<b>ScopePower se está actualizando.</b> La página se recargará sola cuando vuelva (puede tardar unos minutos)..."
-msgstr "<b>ScopePower is updating.</b> The page will reload by itself when it's back (it may take a few minutes)..."
 
 #. js
 #: templates/apagar.html
@@ -524,12 +519,12 @@ msgid "Actualización de ScopePower"
 msgstr "ScopePower update"
 
 #: actualizar.py
-msgid "Actualizado a {version}"
-msgstr "Updated to {version}"
+msgid "Actualizado a la versión {version}"
+msgstr "Updated to version {version}"
 
 #: ScopePower.py
-msgid "Actualizando ScopePower desde GitHub. Vuelvo en un par de minutos."
-msgstr "Updating ScopePower from GitHub. I'll be back in a couple of minutes."
+msgid "Actualizando ScopePower. Vuelvo en un par de minutos."
+msgstr "Updating ScopePower. Back in a couple of minutes."
 
 #: templates/apilado.html
 msgid "Actualizando..."
@@ -541,7 +536,7 @@ msgstr "Update"
 
 #. js
 #: templates/configuracion.html
-msgid "Actualizar a {version}"
+msgid "Actualizar a la {version}"
 msgstr "Update to {version}"
 
 #: templates/configuracion.html
@@ -1978,6 +1973,11 @@ msgstr "Checking StarNet2..."
 msgid "Comprobando el equipo..."
 msgstr "Checking the equipment..."
 
+#. js
+#: templates/configuracion.html
+msgid "Comprobando la descarga…"
+msgstr "Checking the download…"
+
 #: puesta_estacion.py
 msgid "Comprobando la montura"
 msgstr "Checking the mount"
@@ -2644,11 +2644,6 @@ msgstr "Straighten all four curves"
 msgid "Dejar la guía"
 msgstr "Leave the guide"
 
-#. js
-#: templates/configuracion.html
-msgid "Dejar los ficheros como en {nombre}"
-msgstr "Leave the files as in {nombre}"
-
 #: templates/imagen.html
 msgid "Del filtro"
 msgstr "From filter"
@@ -2685,6 +2680,25 @@ msgstr "Drift"
 #: hardware.py
 msgid "Descargando la foto de la cámara"
 msgstr "Downloading the shot from the camera"
+
+#: actualizar.py
+msgid "Descargando la versión nueva"
+msgstr "Downloading the new version"
+
+#. js
+#: templates/configuracion.html
+msgid "Descargando…"
+msgstr "Downloading…"
+
+#. js
+#: templates/configuracion.html
+msgid "Descargando… {mb} MB"
+msgstr "Downloading… {mb} MB"
+
+#. js
+#: templates/configuracion.html
+msgid "Descargando… {mb} de {total} MB"
+msgstr "Downloading… {mb} of {total} MB"
 
 #: templates/publico/index.html
 msgid "Descargar"
@@ -3778,10 +3792,6 @@ msgstr "On the PC where ScopePower runs (not on the phone), download StarNet2 fr
 msgid "En el modo noche todo se pinta en rojo."
 msgstr "In night mode everything is drawn in red."
 
-#: actualizar.py
-msgid "En este PC no está instalado Git. Instálalo desde https://git-scm.com/download/win (todas las opciones por defecto) y vuelve a comprobar."
-msgstr "Git isn't installed on this PC. Install it from https://git-scm.com/download/win (all default options) and check again."
-
 #: ScopePower.py
 msgid "En este PC no existe {ruta}"
 msgstr "{ruta} does not exist on this PC"
@@ -4267,14 +4277,6 @@ msgstr "Waiting for the first adjustment photo..."
 msgid "Esperando una foto nueva..."
 msgstr "Waiting for a new shot..."
 
-#: actualizar.py
-msgid "Esta carpeta no es un clon de GitHub (es una copia). Ejecuta una vez actualizar_desde_github.bat en el mini PC para convertirla; después ya se podrá actualizar desde aquí."
-msgstr "This folder isn't a GitHub clone (it's a copy). Run actualizar_desde_github.bat once on the mini PC to convert it; after that you'll be able to update from here."
-
-#: actualizar.py
-msgid "Esta carpeta no es un clon de GitHub: conviértela primero con actualizar_desde_github.bat"
-msgstr "This folder isn't a GitHub clone: convert it first with actualizar_desde_github.bat"
-
 #: static/js/asistente.js
 msgid "Esta cámara (o su driver) no deja ajustar la ganancia: déjala vacía."
 msgstr "This camera (or its driver) doesn't allow setting the gain: leave it empty."
@@ -4419,6 +4421,11 @@ msgstr "The stars' own stretch, without touching the nebula or the background: t
 #: ScopePower.py
 msgid "Estirando"
 msgstr "Stretching"
+
+#. js
+#: templates/configuracion.html
+msgid "Esto es lo que trae:"
+msgstr "This is what it brings:"
 
 #: templates/seguimiento.html
 msgid "Estrecho (0,85°)"
@@ -5258,16 +5265,8 @@ msgid "Giro no válido."
 msgstr "Invalid rotation."
 
 #: actualizar.py
-msgid "Git no está instalado en este PC"
-msgstr "Git isn't installed on this PC"
-
-#: actualizar.py
-msgid "GitHub no deja leer el repositorio desde este PC. Mientras sea privado hay que identificarse una vez ejecutando actualizar_desde_github.bat en el mini PC, con pantalla: Git abre el navegador para entrar en GitHub."
-msgstr "GitHub won't let this PC read the repository. While it's private, you need to sign in once by running actualizar_desde_github.bat on the mini PC, with a screen attached: Git opens the browser to sign in to GitHub."
-
-#: actualizar.py
-msgid "GitHub no ha respondido a tiempo. Comprueba la conexión a Internet del mini PC."
-msgstr "GitHub didn't respond in time. Check the mini PC's Internet connection."
+msgid "GitHub no admite más consultas desde esta conexión por ahora. Prueba dentro de una hora."
+msgstr "GitHub is not accepting more requests from this connection for now. Try again in an hour."
 
 #: templates/goto.html templates/home.html
 msgid "GoTo a un objeto"
@@ -5872,8 +5871,8 @@ msgid "La Luna está centrada"
 msgstr "The Moon is centered"
 
 #: actualizar.py
-msgid "La actualización falló"
-msgstr "The update failed"
+msgid "La actualización falló y no se pudo dejar todo como estaba. Ejecuta actualizar_desde_github.bat en el PC."
+msgstr "The update failed and things could not be left as they were. Run actualizar_desde_github.bat on the PC."
 
 #: actualizar.py
 msgid "La actualización no llegó a terminar"
@@ -5948,6 +5947,14 @@ msgstr "The camera responds ({nombre})."
 #: static/js/asistente.js
 msgid "La cámara responde."
 msgstr "The camera responds."
+
+#: actualizar.py
+msgid "La descarga ha llegado dañada. Vuelve a intentarlo."
+msgstr "The download arrived damaged. Try again."
+
+#: actualizar.py
+msgid "La descarga se ha cortado. Vuelve a intentarlo."
+msgstr "The download was cut off. Try again."
 
 #: static/js/asistente.js
 msgid "La descarga sigue en el PC aunque cierres el asistente; la ruta se guardará sola al terminar."
@@ -6324,6 +6331,10 @@ msgstr "The brightest area will go to {pct} % of white instead of {normal} %, an
 msgid "La zona más brillante irá al {pct} % del blanco en vez del {normal} %, y la foto se revela más oscura en la misma medida. Vale desde la siguiente foto, también con el continuo, el vivo o el timelapse en marcha."
 msgstr "The brightest area will go to {pct} % of white instead of {normal} %, and the shot is developed darker by the same amount. It applies from the next shot, also while continuous, live or timelapse is running."
 
+#: actualizar.py
+msgid "La última actualización terminó bien"
+msgstr "The last update finished fine"
+
 #: templates/configuracion.html
 msgid "Las N mejores"
 msgstr "Best N frames"
@@ -6459,6 +6470,10 @@ msgstr "Moving the tube to altitude 0°, azimuth 0°..."
 #: aparcado.py
 msgid "Llevando el tubo al cero de los motores (movimiento {n})..."
 msgstr "Bringing the tube to the motors' zero position (move {n})..."
+
+#: actualizar.py
+msgid "Lo descargado no es un ScopePower completo. No se ha tocado nada."
+msgstr "The download is not a complete ScopePower. Nothing has been touched."
 
 #: templates/_guia.html
 msgid "Lo mejor de ahora"
@@ -7107,8 +7122,8 @@ msgid "Nebulosas planetarias"
 msgstr "Planetary nebulae"
 
 #: templates/configuracion.html
-msgid "Necesita Internet (en casa, no en el campo) y Git instalado en el mini PC. Solo consulta GitHub al pulsar «Comprobar». Al actualizar, ScopePower se cierra, baja la versión elegida, reinstala las dependencias si han cambiado y vuelve a arrancar solo: unos segundos, o varios minutos si cambian las dependencias. No toca config.ini, secretos.ini, las calibraciones, las capturas ni la galería. Lo mismo a mano: <code>actualizar_desde_github.bat</code> en la carpeta de ScopePower."
-msgstr "Needs Internet (at home, not in the field) and Git installed on the mini PC. It only contacts GitHub when you press “Check”. When updating, ScopePower closes, downloads the chosen version, reinstalls the dependencies if they changed and starts again by itself: a few seconds, or several minutes if the dependencies change. It doesn't touch config.ini, secretos.ini, calibrations, captures or the gallery. The same by hand: <code>actualizar_desde_github.bat</code> in the ScopePower folder."
+msgid "Necesita Internet (en casa, no en el campo); no hace falta instalar nada más ni tener cuenta en GitHub. Solo consulta GitHub al pulsar «Comprobar». Al actualizar, ScopePower descarga la versión nueva, se cierra, la instala (con sus dependencias, si han cambiado) y vuelve a arrancar solo: alrededor de un minuto, o varios si cambian las dependencias. Antes guarda la versión que había en la carpeta <code>_backup</code>: si algo falla la deja como estaba, y «Volver a la anterior» deshace la actualización. No toca config.ini, secretos.ini, las calibraciones, las capturas ni la galería. Lo mismo a mano: <code>actualizar_desde_github.bat</code> en la carpeta de ScopePower."
+msgstr "It needs Internet (at home, not in the field); there is nothing else to install and no GitHub account is needed. It only contacts GitHub when you press “Check”. When updating, ScopePower downloads the new version, closes, installs it (with its dependencies, if they have changed) and starts again by itself: about a minute, or several if the dependencies change. First it saves the previous version in the <code>_backup</code> folder: if anything fails it leaves it as it was, and “Go back to the previous one” undoes the update. It does not touch config.ini, secretos.ini, the calibrations, the captures or the gallery. The same by hand: <code>actualizar_desde_github.bat</code> in the ScopePower folder."
 
 #. js
 #: plan_sesion.py static/publico/planetario_publico.js
@@ -7251,10 +7266,6 @@ msgstr "You have not chosen any: the plan will carry on with what it already had
 #: ScopePower.py
 msgid "No hay GOTO previo y no se pudo leer la montura: {e}"
 msgstr "There's no previous GoTo and the mount couldn't be read: {e}"
-
-#: actualizar.py
-msgid "No hay Internet o no se llega a GitHub. En el campo es lo normal: actualiza en casa, con el mini PC en una red con salida a Internet."
-msgstr "No Internet or GitHub can't be reached. That's normal in the field: update at home, with the mini PC on a network with Internet access."
 
 #: ScopePower.py
 msgid "No hay centro para el mosaico: apunta a un objeto, escribe un nombre o conecta la montura"
@@ -7520,6 +7531,14 @@ msgstr "Couldn't open {ruta} to write MP4"
 msgid "No se pudo activar el seguimiento: {e}"
 msgstr "Couldn't turn on tracking: {e}"
 
+#: actualizar.py
+msgid "No se pudo actualizar, se ha mantenido la versión anterior"
+msgstr "The update could not be done; the previous version has been kept"
+
+#: actualizar.py
+msgid "No se pudo actualizar: {detalle}"
+msgstr "The update could not be done: {detalle}"
+
 #: ScopePower.py
 msgid "No se pudo anotar: {e}"
 msgstr "Couldn't annotate: {e}"
@@ -7646,10 +7665,6 @@ msgstr "Couldn't turn off tracking in SynScan Pro: {e}"
 #: editor_fotos.py
 msgid "No se pudo deshacer el encuadre"
 msgstr "Could not undo the framing"
-
-#: actualizar.py
-msgid "No se pudo ejecutar git: {e}"
-msgstr "Couldn't run git: {e}"
 
 #. js
 #: static/js/guia.js static/js/seguimiento.js templates/calibracion.html
@@ -9118,6 +9133,10 @@ msgstr "Computer clock set"
 msgid "Remanente de supernova"
 msgstr "Supernova remnant"
 
+#: templates/configuracion.html
+msgid "Reparar"
+msgstr "Repair"
+
 #: static/js/asistente.js
 msgid "Repasamos la configuración guardada paso a paso; cambia lo que quieras y comprueba que todo responde:"
 msgstr "Let's go through the saved settings step by step; change whatever you like and check that everything responds:"
@@ -9455,8 +9474,8 @@ msgid "ScopePower reconoce las estrellas de cada foto con ASTAP (<i>plate solvin
 msgstr "ScopePower recognizes the stars in each shot with ASTAP (<i>plate solving</i>) to know exactly where it's pointing: it uses it to center the object after GoTo, sync the mount and align the stacking frames."
 
 #: actualizar.py
-msgid "ScopePower se cierra para actualizarse y vuelve a arrancar solo"
-msgstr "ScopePower is closing to update and will restart on its own"
+msgid "ScopePower se cierra y vuelve a arrancar solo"
+msgstr "ScopePower closes and starts again by itself"
 
 #: ScopePower.py
 msgid "ScopePower ya estaba en marcha. Esta segunda copia se cierra."
@@ -9524,6 +9543,14 @@ msgstr "It is saved at full resolution as another daytime photo, signed and with
 #: static/js/asistente.js
 msgid "Se ha abierto el selector de ASCOM en la pantalla del PC: elige el driver, pulsa <b>Properties</b> para configurarlo y cierra con <b>OK</b>."
 msgstr "The ASCOM chooser has opened on the PC screen: choose the driver, press <b>Properties</b> to set it up and close with <b>OK</b>."
+
+#: actualizar.py
+msgid "Se ha recuperado la versión {version}"
+msgstr "Version {version} has been recovered"
+
+#: actualizar.py
+msgid "Se ha vuelto a la versión {version}"
+msgstr "Back on version {version}"
 
 #: templates/_modal_voz.html
 msgid "Se hace una sola vez por móvil. El reconocimiento de voz de Chrome se procesa en Internet, así que el móvil también necesita datos o una wifi con salida a Internet."
@@ -9811,6 +9838,10 @@ msgstr "Disc centering not checked"
 #: static/js/plan.js
 msgid "Sin conexión"
 msgstr "No connection"
+
+#: actualizar.py
+msgid "Sin conexión a internet. En el campo es lo normal: actualiza en casa, con el PC en una red con salida a Internet."
+msgstr "No internet connection. In the field that is normal: update at home, with the PC on a network with Internet access."
 
 #: static/js/mosaico.js
 msgid "Sin conexión: {e}"
@@ -10474,6 +10505,10 @@ msgstr "There is no live mode image yet."
 msgid "Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí."
 msgstr "No images yet. In Stacking, press <b>Save image</b> to add them here."
 
+#: actualizar.py
+msgid "Todavía no hay ninguna versión publicada en GitHub."
+msgstr "There is no version published on GitHub yet."
+
 #. js
 #: templates/imagen.html
 msgid "Todavía no hay ningún vídeo grabado."
@@ -10972,6 +11007,11 @@ msgstr "Go back to the previous one"
 msgid "Volver a la galería"
 msgstr "Back to the gallery"
 
+#. js
+#: templates/configuracion.html
+msgid "Volver a la {nombre}"
+msgstr "Back to {nombre}"
+
 #: templates/apilado.html
 msgid "Volver a pendiente"
 msgstr "Back to pending"
@@ -11184,6 +11224,10 @@ msgstr "A mosaic is already running: stop it before starting another"
 msgid "Ya hay un timelapse en marcha"
 msgstr "A timelapse is already running"
 
+#: actualizar.py
+msgid "Ya hay una actualización en marcha"
+msgstr "An update is already in progress"
+
 #: alineacion.py
 msgid "Ya hay una alineación en curso"
 msgstr "An alignment is already running"
@@ -11263,6 +11307,10 @@ msgstr "Photos are already being scored"
 #: estrellas_aparte.py
 msgid "Ya se están separando las estrellas de {archivo}; espera a que termine"
 msgstr "The stars of {archivo} are already being separated; wait for it to finish"
+
+#: actualizar.py
+msgid "Ya tienes la última versión"
+msgstr "You already have the latest version"
 
 #: templates/apilado.html
 msgid "Zoom (recorte)"
@@ -12159,10 +12207,6 @@ msgstr "turn west {v} minutes"
 msgid "giro de campo no previsible: aún no hay ningún plate solving que calibre la cámara"
 msgstr "field rotation not predictable yet: no plate solve has calibrated the camera"
 
-#: actualizar.py
-msgid "git ha fallado: {salida}"
-msgstr "git failed: {salida}"
-
 #: apilado.py
 msgid "guardada en Rastros"
 msgstr "saved in Trails"
@@ -12650,11 +12694,6 @@ msgstr "no valid path"
 #: mosaico.py
 msgid "ninguna tesela utilizable"
 msgstr "no usable tile"
-
-#. js
-#: templates/configuracion.html
-msgid "ninguna todavía"
-msgstr "none yet"
 
 #. js
 #: templates/galeria.html
@@ -14339,8 +14378,8 @@ msgstr "Open ScopePower in this PC's browser? Press Y within {s} s (otherwise it
 
 #. js
 #: templates/configuracion.html
-msgid "¿Actualizar ScopePower a la release {version}?"
-msgstr "Update ScopePower to release {version}?"
+msgid "¿Actualizar ScopePower a la versión {version}?"
+msgstr "Update ScopePower to version {version}?"
 
 #. js
 #: templates/apagar.html
@@ -14389,6 +14428,11 @@ msgstr "Cancel polar alignment?"
 #: static/js/mosaico.js
 msgid "¿Dar por terminada la tesela actual con las fotos que tenga y pasar a la siguiente?"
 msgstr "Finish the current tile with the shots it has and move on to the next one?"
+
+#. js
+#: templates/configuracion.html
+msgid "¿Dejar ScopePower como estaba antes de la actualización que se quedó a medias?"
+msgstr "Leave ScopePower as it was before the update that was left half done?"
 
 #: static/js/guia.js
 msgid "¿Dejar la guía? Lo que ya has hecho (alineación, enfoque, darks) no se pierde."
@@ -14522,10 +14566,6 @@ msgstr "Latest shot"
 msgid "Última foto medida"
 msgstr "Latest measured shot"
 
-#: templates/configuracion.html
-msgid "Última release en GitHub"
-msgstr "Latest release on GitHub"
-
 #. js
 #: templates/configuracion.html templates/galeria.html
 msgid "Última subida: {t}"
@@ -14539,6 +14579,10 @@ msgstr "Latest frame"
 #: templates/apilado.html
 msgid "Última toma {hora} · {exp} s"
 msgstr "Latest frame {hora} · {exp} s"
+
+#: templates/configuracion.html
+msgid "Última versión publicada"
+msgstr "Latest published version"
 
 #: static/js/seguimiento.js
 msgid "Última vista previa"
@@ -14628,8 +14672,8 @@ msgstr "ℹ️ Nothing has been spoken since startup; press Test voice to check 
 
 #. js
 #: templates/configuracion.html
-msgid "ℹ️ En GitHub no hay ninguna release publicada todavía."
-msgstr "ℹ️ There is no release published on GitHub yet."
+msgid "ℹ️ Esta carpeta es de desarrollo (rama {rama} de git): se actualiza con git, no desde aquí."
+msgstr "ℹ️ This is a development folder (git branch {rama}): it is updated with git, not from here."
 
 #. js
 #: templates/apilado.html
@@ -14894,11 +14938,6 @@ msgstr "⚠️ Warning: The object is below the minimum altitude. Process cancel
 msgid "⚠️ El mini PC no contesta; mira en la galería si se ha guardado"
 msgstr "⚠️ The mini PC is not answering; check the gallery to see whether it was saved"
 
-#. js
-#: templates/configuracion.html
-msgid "⚠️ En este PC no está instalado Git. Instálalo desde git-scm.com (opciones por defecto) para poder actualizar."
-msgstr "⚠️ Git isn't installed on this PC. Install it from git-scm.com (default options) to be able to update."
-
 #: ScopePower.py
 msgid "⚠️ Error: No se encontró la imagen <b>{ruta}</b>."
 msgstr "⚠️ Error: Image <b>{ruta}</b> not found."
@@ -14914,13 +14953,8 @@ msgstr "⚠️ Type a name."
 
 #. js
 #: templates/configuracion.html
-msgid "⚠️ Esta carpeta es una copia, no un clon de GitHub. Ejecuta una vez actualizar_desde_github.bat en el mini PC para convertirla (no toca tu configuración ni tus fotos); después se podrá actualizar desde aquí."
-msgstr "⚠️ This folder is a copy, not a GitHub clone. Run actualizar_desde_github.bat once on the mini PC to convert it (it doesn't touch your settings or your photos); after that you can update from here."
-
-#. js
-#: templates/configuracion.html
-msgid "⚠️ Hay una actualización pedida que no llegó a ejecutarse (la app no la arrancó lanzar_scopepower.bat). Ejecuta actualizar_desde_github.bat en el mini PC."
-msgstr "⚠️ An update was requested but never ran (the app wasn't started by lanzar_scopepower.bat). Run actualizar_desde_github.bat on the mini PC."
+msgid "⚠️ Hay una actualización pedida que no llegó a ejecutarse. Vuelve a pulsar «Comprobar» y «Actualizar», o ejecuta actualizar_desde_github.bat en el PC."
+msgstr "⚠️ An update was requested but never ran. Press “Check” and “Update” again, or run actualizar_desde_github.bat on the PC."
 
 #. js
 #: templates/apilado.html
@@ -14936,6 +14970,11 @@ msgstr "⚠️ The shot is having trouble arriving over Wi-Fi: retrying…"
 #: templates/configuracion.html
 msgid "⚠️ La voz no suena desde las {hora}: {motivo}. Se vuelve a intentar con cada aviso ({n} perdidos hasta ahora)."
 msgstr "⚠️ The voice hasn't been heard since {hora}: {motivo}. It tries again with every announcement ({n} lost so far)."
+
+#. js
+#: templates/configuracion.html
+msgid "⚠️ La última actualización se quedó a medias. Pulsa «Reparar» para dejar la versión anterior como estaba."
+msgstr "⚠️ The last update was left half done. Press “Repair” to leave the previous version as it was."
 
 #: static/js/plan.js
 msgid "⚠️ MODO PRUEBA: la noche empieza ahora y dura 6 h. Desactívalo antes de una sesión real."
@@ -14961,10 +15000,10 @@ msgstr "⚠️ ScopePower hasn't come back in 90 s. Try reloading in a while; if
 
 #. js
 #: templates/configuracion.html
-msgid "⚠️ ScopePower no ha vuelto en {n} minuto. Recarga dentro de un rato; si no vuelve, en el mini PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log."
-msgid_plural "⚠️ ScopePower no ha vuelto en {n} minutos. Recarga dentro de un rato; si no vuelve, en el mini PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log."
-msgstr[0] "⚠️ ScopePower hasn't come back in {n} minute. Reload in a while; if it doesn't come back, run lanzar_scopepower.bat on the mini PC and check logs\\actualizacion.log."
-msgstr[1] "⚠️ ScopePower hasn't come back in {n} minutes. Reload in a while; if it doesn't come back, run lanzar_scopepower.bat on the mini PC and check logs\\actualizacion.log."
+msgid "⚠️ ScopePower no ha vuelto en {n} minuto. Recarga dentro de un rato; si no vuelve, en el PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log."
+msgid_plural "⚠️ ScopePower no ha vuelto en {n} minutos. Recarga dentro de un rato; si no vuelve, en el PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log."
+msgstr[0] "⚠️ ScopePower has not come back in {n} minute. Reload in a while; if it does not come back, run lanzar_scopepower.bat on the PC and look at logs\\actualizacion.log."
+msgstr[1] "⚠️ ScopePower has not come back in {n} minutes. Reload in a while; if it does not come back, run lanzar_scopepower.bat on the PC and look at logs\\actualizacion.log."
 
 #. js
 #: templates/apagar.html
@@ -15247,8 +15286,8 @@ msgstr "✅ Voice in use: {voz}"
 
 #. js
 #: templates/configuracion.html
-msgid "✅ Ya está instalada la última release ({version})."
-msgstr "✅ The latest release is already installed ({version})."
+msgid "✅ Ya tienes la última versión ({version})."
+msgstr "✅ You already have the latest version ({version})."
 
 #: ScopePower.py
 msgid "✅ Zoom guardado correctamente"
@@ -15415,8 +15454,8 @@ msgstr "❓ I heard “{texto}”, but not a level. Say a number from 0 to 100."
 
 #. js
 #: templates/configuracion.html
-msgid "⬇️ Hay una versión nueva: <b>{version}</b>. Esto es lo que entra (lo más nuevo arriba):"
-msgstr "⬇️ There's a new version: <b>{version}</b>. This is what comes in (newest first):"
+msgid "⬇️ Hay una versión nueva: <b>{version}</b>."
+msgstr "⬇️ There is a new version: <b>{version}</b>."
 
 #: static/js/plan.js
 msgid "⭐ prioritario"

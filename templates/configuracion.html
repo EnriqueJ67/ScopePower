@@ -154,16 +154,17 @@
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-refrescar"/></svg>{{ _("Actualizar desde GitHub") }}</h3></div>
             <div class="direcciones mb-2">
                 <div><span>{{ _("Instalada") }}</span><b id="act-instalada">ScopePower {{ VERSION }}</b></div>
-                <div><span>{{ _("Última release en GitHub") }}</span><b id="act-ultima">{{ _("— pulsa «Comprobar»") }}</b></div>
+                <div><span>{{ _("Última versión publicada") }}</span><b id="act-ultima">{{ _("— pulsa «Comprobar»") }}</b></div>
             </div>
             <div class="act-botones mb-2">
                 <button type="button" class="btn btn-secondary" id="act-btn-comprobar" onclick="comprobarActualizacion()"><svg><use href="#i-refrescar"/></svg>{{ _("Comprobar") }}</button>
                 <button type="button" class="btn btn-primary" id="act-btn-release" onclick="aplicarActualizacion('release')" hidden><svg><use href="#i-guardar"/></svg>{{ _("Actualizar") }}</button>
+                <button type="button" class="btn btn-primary" id="act-btn-reparar" onclick="aplicarActualizacion('reparar')" hidden>{{ _("Reparar") }}</button>
                 <button type="button" class="btn btn-secondary" id="act-btn-volver" onclick="aplicarActualizacion('volver')" hidden>{{ _("Volver a la anterior") }}</button>
             </div>
             <div id="estado-actualizar" class="estado mb-2"></div>
-            <pre id="act-commits" class="act-commits" hidden></pre>
-            <small class="ayuda">{{ _("Necesita Internet (en casa, no en el campo) y Git instalado en el mini PC. Solo consulta GitHub al pulsar «Comprobar». Al actualizar, ScopePower se cierra, baja la versión elegida, reinstala las dependencias si han cambiado y vuelve a arrancar solo: unos segundos, o varios minutos si cambian las dependencias. No toca config.ini, secretos.ini, las calibraciones, las capturas ni la galería. Lo mismo a mano: <code>actualizar_desde_github.bat</code> en la carpeta de ScopePower.")|safe }}</small>
+            <pre id="act-notas" class="act-notas" hidden></pre>
+            <small class="ayuda">{{ _("Necesita Internet (en casa, no en el campo); no hace falta instalar nada más ni tener cuenta en GitHub. Solo consulta GitHub al pulsar «Comprobar». Al actualizar, ScopePower descarga la versión nueva, se cierra, la instala (con sus dependencias, si han cambiado) y vuelve a arrancar solo: alrededor de un minuto, o varios si cambian las dependencias. Antes guarda la versión que había en la carpeta <code>_backup</code>: si algo falla la deja como estaba, y «Volver a la anterior» deshace la actualización. No toca config.ini, secretos.ini, las calibraciones, las capturas ni la galería. Lo mismo a mano: <code>actualizar_desde_github.bat</code> en la carpeta de ScopePower.")|safe }}</small>
         </div>
     </div>
 
@@ -360,7 +361,7 @@
     .direcciones b { font-family: var(--mono); font-weight: 600; color: var(--text); }
     .direcciones span { color: var(--text-3); font-size: 13px; }
     .act-botones { display: flex; flex-wrap: wrap; gap: 8px; }
-    .act-commits { font-family: var(--mono); font-size: 12.5px; line-height: 1.45; color: var(--text-2); background: var(--bg-2); border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; }
+    .act-notas { font-family: var(--mono); font-size: 12.5px; line-height: 1.45; color: var(--text-2); background: var(--bg-2); border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; }
 </style>
 
 <script>
@@ -397,28 +398,32 @@
     }
 
     // ——— Actualizar desde GitHub ———
-    // Solo se habla con GitHub al pulsar «Comprobar» (en el campo no hay Internet). Al aplicar,
-    // la app se cierra, lanzar_scopepower.bat ejecuta actualizar_desde_github.bat y la rearranca;
-    // aquí se sondea /estado-conexion hasta que vuelve y se recarga la página con el resultado.
+    // Solo se habla con GitHub al pulsar «Comprobar» (en el campo no hay Internet). Al actualizar,
+    // la app baja y comprueba la versión nueva sin cerrarse (aquí se sigue el avance con
+    // /actualizar/estado); después se cierra, lanzar_scopepower.bat ejecuta
+    // actualizar_desde_github.bat y la rearranca: se sondea hasta que vuelve y se recarga la página.
     let actEstado = null, actComprobado = null;
     const actEst = document.getElementById("estado-actualizar");
+    const ACT_EN_MARCHA = ["consultando", "descargando", "comprobando", "aplicando"];
     function actMensaje(texto, clase) { actEst.className = "estado " + (clase || "") + " mb-2"; actEst.innerHTML = texto; }
     function actBotones(activos) { document.querySelectorAll("#actualizar button").forEach(b => b.disabled = !activos); }
     function pintarEstadoActualizar(d) {
         actEstado = d;
-        let inst = "ScopePower " + d.version;
-        if (d.descripcion && d.descripcion !== "v" + d.version) inst += " · " + d.descripcion;
-        else if (d.commit) inst += " · " + d.commit;
-        document.getElementById("act-instalada").textContent = inst;
+        document.getElementById("act-instalada").textContent = "ScopePower " + d.version;
         const volver = document.getElementById("act-btn-volver");
-        volver.hidden = !(d.anterior && d.es_clon);
-        if (d.anterior) volver.title = _("Dejar los ficheros como en {nombre}", { nombre: d.anterior.nombre });
-        if (d.pendiente) {
-            actMensaje(_("⚠️ Hay una actualización pedida que no llegó a ejecutarse (la app no la arrancó lanzar_scopepower.bat). Ejecuta actualizar_desde_github.bat en el mini PC."), "warn");
-        } else if (!d.hay_git) {
-            actMensaje(_("⚠️ En este PC no está instalado Git. Instálalo desde git-scm.com (opciones por defecto) para poder actualizar."), "warn");
-        } else if (!d.es_clon) {
-            actMensaje(_("⚠️ Esta carpeta es una copia, no un clon de GitHub. Ejecuta una vez actualizar_desde_github.bat en el mini PC para convertirla (no toca tu configuración ni tus fotos); después se podrá actualizar desde aquí."), "warn");
+        volver.hidden = !d.anterior;
+        if (d.anterior) volver.textContent = _("Volver a la {nombre}", { nombre: d.anterior.nombre });
+        document.getElementById("act-btn-reparar").hidden = !d.interrumpida;
+        if (d.descarga && ACT_EN_MARCHA.includes(d.descarga.fase)) {
+            // Página abierta (o recargada) con una actualización ya en marcha
+            actBotones(false);
+            seguirDescarga(600);
+        } else if (d.interrumpida) {
+            actMensaje(_("⚠️ La última actualización se quedó a medias. Pulsa «Reparar» para dejar la versión anterior como estaba."), "warn");
+        } else if (d.desarrollo) {
+            actMensaje(_("ℹ️ Esta carpeta es de desarrollo (rama {rama} de git): se actualiza con git, no desde aquí.", { rama: d.desarrollo }));
+        } else if (d.pendiente) {
+            actMensaje(_("⚠️ Hay una actualización pedida que no llegó a ejecutarse. Vuelve a pulsar «Comprobar» y «Actualizar», o ejecuta actualizar_desde_github.bat en el PC."), "warn");
         } else if (d.ultimo_resultado && d.ultimo_resultado.fecha) {
             const u = d.ultimo_resultado;
             const detalle = !u.ok && u.detalle ? "<br><small>" + u.detalle.replace(/</g, "&lt;").replace(/\n/g, "<br>") + "</small>" : "";
@@ -442,7 +447,7 @@
         const btn = document.getElementById("act-btn-comprobar");
         btn.disabled = true;
         document.getElementById("act-btn-release").hidden = true;
-        document.getElementById("act-commits").hidden = true;
+        document.getElementById("act-notas").hidden = true;
         actMensaje('<span class="spinner"></span>' + _("Consultando GitHub..."));
         fetch("/actualizar/comprobar", { method: "POST" }).then(r => r.json()).then(d => {
             btn.disabled = false;
@@ -453,56 +458,80 @@
                 actMensaje((d.motivo === "sin_red" ? "📵 " : "❌ ") + d.mensaje, d.motivo === "sin_red" ? "warn" : "err");
                 return;
             }
-            const pre = document.getElementById("act-commits");
-            if (d.ultima_release) {
-                ult.textContent = d.ultima_release + (d.fecha_release ? " (" + d.fecha_release + ")" : "");
-                if (d.al_dia_release) {
-                    actMensaje(_("✅ Ya está instalada la última release ({version}).", { version: d.ultima_release }), "ok");
-                } else {
-                    actMensaje(_("⬇️ Hay una versión nueva: <b>{version}</b>. Esto es lo que entra (lo más nuevo arriba):", { version: d.ultima_release }));
-                    pre.textContent = d.commits_release.join("\n") || _("(la versión instalada no coincide con ningún commit de GitHub: se dejará como la release)");
-                    pre.hidden = false;
-                    const b = document.getElementById("act-btn-release");
-                    b.hidden = false;
-                    b.innerHTML = '<svg><use href="#i-guardar"/></svg>' + _("Actualizar a {version}", { version: d.ultima_release });
-                }
-            } else {
-                ult.textContent = _("ninguna todavía");
-                actMensaje(_("ℹ️ En GitHub no hay ninguna release publicada todavía."));
+            ult.textContent = d.ultima_release + (d.fecha_release ? " (" + d.fecha_release + ")" : "");
+            if (d.al_dia_release) {
+                actMensaje(_("✅ Ya tienes la última versión ({version}).", { version: d.ultima_release }), "ok");
+                return;
             }
+            actMensaje(_("⬇️ Hay una versión nueva: <b>{version}</b>.", { version: d.ultima_release })
+                       + (d.notas ? " " + _("Esto es lo que trae:") : ""));
+            const notas = document.getElementById("act-notas");
+            notas.textContent = d.notas || "";
+            notas.hidden = !d.notas;
+            const b = document.getElementById("act-btn-release");
+            b.hidden = false;
+            b.innerHTML = '<svg><use href="#i-guardar"/></svg>' + _("Actualizar a la {version}", { version: d.ultima_release });
         }).catch(err => { btn.disabled = false; actMensaje("❌ " + err, "err"); });
     }
     function aplicarActualizacion(destino) {
-        const pregunta = destino === "volver"
-            ? _("¿Volver ScopePower a la versión anterior ({nombre})?", { nombre: actEstado && actEstado.anterior ? actEstado.anterior.nombre : "?" })
-            : _("¿Actualizar ScopePower a la release {version}?", { version: (actComprobado && actComprobado.ultima_release) || "" });
+        let pregunta = _("¿Actualizar ScopePower a la versión {version}?", { version: (actComprobado && actComprobado.ultima_release) || "" });
+        if (destino === "volver") pregunta = _("¿Volver ScopePower a la versión anterior ({nombre})?", { nombre: actEstado && actEstado.anterior ? actEstado.anterior.nombre : "?" });
+        if (destino === "reparar") pregunta = _("¿Dejar ScopePower como estaba antes de la actualización que se quedó a medias?");
         if (!confirm(pregunta + "\n\n" + _("Se desconectarán la cámara y la montura, la app se cierra, se actualiza y vuelve a arrancar sola. Puede tardar varios minutos si cambian las dependencias."))) return;
         actBotones(false);
-        actMensaje('<span class="spinner"></span>' + _("Desconectando el equipo..."));
+        actMensaje('<span class="spinner"></span>' + (destino === "release" ? _("Descargando…") : _("Desconectando el equipo...")));
         fetch("/actualizar/aplicar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ destino }) })
             .then(r => r.json())
             .then(d => {
                 if (!d.ok) { actBotones(true); actMensaje("❌ " + (d.mensaje || _("Error")), "err"); return; }
-                esperarVueltaActualizacion(d.espera || 300);
+                if (destino === "release") seguirDescarga(d.espera || 600);
+                else esperarVueltaActualizacion(d.espera || 600, false);
             })
             .catch(err => { actBotones(true); actMensaje("❌ " + err, "err"); });
     }
-    function esperarVueltaActualizacion(maximo) {
-        let segundos = 0, caido = false;
-        actMensaje('<span class="spinner"></span>' + _("<b>ScopePower se está actualizando.</b> La página se recargará sola cuando vuelva (puede tardar unos minutos)..."));
+    // La versión nueva se baja con la app en marcha: si falla aquí, no se ha tocado nada
+    function seguirDescarga(maximo) {
+        const t = setInterval(() => {
+            fetch("/actualizar/estado", { cache: "no-store" }).then(r => r.json()).then(d => {
+                const f = d.descarga || {};
+                if (f.fase === "error") {
+                    clearInterval(t); actBotones(true); actMensaje("❌ " + f.mensaje, "err");
+                } else if (f.fase === "al_dia") {
+                    clearInterval(t); actBotones(true); actMensaje("✅ " + f.mensaje, "ok");
+                } else if (f.fase === "aplicando") {
+                    clearInterval(t); esperarVueltaActualizacion(maximo, false);
+                } else if (f.fase === "comprobando") {
+                    actMensaje('<span class="spinner"></span>' + _("Comprobando la descarga…"));
+                } else if (f.fase === "descargando" && f.bytes) {
+                    const mb = n => fmtNum(n / 1048576, 1);
+                    actMensaje('<span class="spinner"></span>' + (f.total
+                        ? _("Descargando… {mb} de {total} MB", { mb: mb(f.bytes), total: mb(f.total) })
+                        : _("Descargando… {mb} MB", { mb: mb(f.bytes) })));
+                } else if (!f.fase) {
+                    // La app ya ha vuelto a arrancar (o no había nada en marcha): enseñar el resultado
+                    clearInterval(t); window.location.href = "/configuracion#actualizar"; window.location.reload();
+                }
+            }).catch(() => { clearInterval(t); esperarVueltaActualizacion(maximo, true); });   // la app ya se ha cerrado
+        }, 1000);
+    }
+    function esperarVueltaActualizacion(maximo, caido) {
+        let segundos = 0;
+        actMensaje('<span class="spinner"></span>' + _("<b>Actualizando, ScopePower se reiniciará.</b> La página se recargará sola cuando vuelva (puede tardar unos minutos)..."));
         const t = setInterval(() => {
             segundos += 3;
-            fetch("/estado-conexion", { cache: "no-store" })
-                .then(r => {
-                    // Hasta que la app se cierra sigue respondiendo la versión vieja: esperar a verla caer
-                    if (r.ok && caido) { clearInterval(t); window.location.href = "/configuracion#actualizar"; window.location.reload(); }
+            fetch("/actualizar/estado", { cache: "no-store" })
+                .then(r => r.ok ? r.json().catch(() => ({})) : Promise.reject(new Error("sin respuesta")))
+                .then(d => {
+                    // Hasta que la app se cierra sigue respondiendo la de antes: esperar a verla caer,
+                    // o a que responda una recién arrancada (sin ninguna actualización en marcha)
+                    if (caido || !(d.descarga && d.descarga.fase)) { clearInterval(t); window.location.href = "/configuracion#actualizar"; window.location.reload(); }
                 })
                 .catch(() => {
                     caido = true;
                     if (segundos >= maximo) {
                         clearInterval(t);
-                        actMensaje(ngettext("⚠️ ScopePower no ha vuelto en {n} minuto. Recarga dentro de un rato; si no vuelve, en el mini PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log.",
-                                            "⚠️ ScopePower no ha vuelto en {n} minutos. Recarga dentro de un rato; si no vuelve, en el mini PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log.",
+                        actMensaje(ngettext("⚠️ ScopePower no ha vuelto en {n} minuto. Recarga dentro de un rato; si no vuelve, en el PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log.",
+                                            "⚠️ ScopePower no ha vuelto en {n} minutos. Recarga dentro de un rato; si no vuelve, en el PC ejecuta lanzar_scopepower.bat y mira logs\\actualizacion.log.",
                                             Math.round(maximo / 60)), "warn");
                     }
                 });

@@ -3,6 +3,29 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## En preparación
+
+- Cambiado: «Actualizar desde GitHub» ya no necesita Git ni que la carpeta sea un clon. Baja el ZIP de la
+  última release y lo copia encima, así que funciona igual con una carpeta copiada a mano, descomprimida de
+  un ZIP, traída en un pendrive o clonada. Desaparecen los avisos «no está instalado Git» y «esta carpeta no
+  es un clon de GitHub».
+- Nuevo: la versión nueva se descarga y se comprueba con ScopePower todavía en marcha (ZIP íntegro, ficheros
+  clave, número de versión y código que compila). Si no hay Internet o la descarga llega mal, se dice en la
+  página y la app ni se cierra.
+- Nuevo: antes de cambiar nada se guarda en `_backup\<versión anterior>\` lo que se va a sobrescribir o
+  borrar (solo la última copia). Si algo falla a mitad, se restaura y la versión anterior queda como estaba;
+  si el PC se apaga en plena actualización, Configuración ofrece «Reparar». «Volver a la anterior» deshace la
+  última actualización con esa copia.
+- Nuevo: en lugar de la lista de cambios de git, Configuración enseña las notas de la versión nueva y el
+  avance de la descarga.
+- Cambiado: `actualizar_desde_github.bat` hace lo mismo sin Git (`/si`, `/volver`), instala las dependencias
+  con el mismo Python que usa `lanzar_scopepower.bat` y acepta un ZIP ya descargado, arrastrándolo encima,
+  para un PC sin Internet. La opción `/master` ya no existía; `datos\version_anterior.txt` deja de usarse.
+- Para quien tenga la 1.5.1 o anterior: si la carpeta es un clon, la última actualización con Git trae ya el
+  actualizador nuevo; si es una copia, basta descargar `actualizar_desde_github.bat` de la página de la
+  release, ponerlo en la carpeta de ScopePower y hacer doble clic (ver INSTALACION.md).
+- Los `.bat` salen siempre con finales de línea de Windows, también en el ZIP de GitHub.
+
 ## 1.5.1 · 2026-11-21
 
 Lo principal: el QR de la consola ya abre la app aunque el móvil esté en otra Wi-Fi que el punto de acceso del PC.

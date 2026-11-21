@@ -1,108 +1,76 @@
 # actualizar.py
 #
-# Actualizar ScopePower desde GitHub desde la página Configuración («Actualizar desde
-# GitHub»). Aquí solo se consulta y se pide; el trabajo lo hace actualizar_desde_github.bat
-# con la app parada, para que pip pueda reinstalar dependencias y nada cambie bajo los
-# pies de la app en marcha:
+# Actualizar ScopePower desde la página Configuración («Actualizar ScopePower»), sin Git: se
+# baja el ZIP de la última release de GitHub y se copia encima de la instalación, sea la
+# carpeta una copia, un ZIP descomprimido o un clon. El trabajo de verdad está en
+# aplicar_actualizacion.py (solo biblioteca estándar); aquí está lo que ve la web:
 #
-#   1. estado():    versión instalada, si la carpeta es un clon de git, si hay git, la
-#                   versión anterior guardada y el resultado de la última actualización.
-#   2. comprobar(): consulta GitHub (git fetch con timeout corto) y dice cuál es la última
-#                   release (etiqueta v* más alta) y qué commits entrarían. Solo se llama al
-#                   pulsar «Comprobar»: en el campo no hay Internet y no tiene sentido mirar solo.
-#   3. pedir():     deja el destino en datos/actualizar_pendiente.txt. Después ScopePower
-#                   sale con código 5 y lanzar_scopepower.bat ejecuta
-#                   actualizar_desde_github.bat /lanzador y vuelve a arrancar la app.
+#   1. estado():    versión instalada, la anterior guardada (para volver), el resultado de la
+#                   última actualización y cómo va la descarga en curso. No toca la red.
+#   2. comprobar(): pregunta a GitHub cuál es la última release. Solo se llama al pulsar
+#                   «Comprobar»: en el campo no hay Internet y no tiene sentido mirar solo.
+#   3. empezar():   descarga y comprueba la versión nueva en segundo plano, CON LA APP EN
+#                   MARCHA; si falla (sin red, ZIP dañado...) la app sigue como estaba. Si va
+#                   bien, deja el pedido en datos/actualizar_pendiente.txt y cierra la app.
+#   4. pedir():     lo mismo sin descarga, para volver a la versión anterior.
 #
-# Los nombres de fichero y el código de salida tienen que coincidir con los del .bat.
+# Después ScopePower sale con código 5 y lanzar_scopepower.bat ejecuta
+# actualizar_desde_github.bat /lanzador, que copia los ficheros con la app parada (guardando
+# antes lo que había en _backup\ y restaurándolo si algo falla) y vuelve a arrancarla.
+#
+# Los nombres de fichero y el código de salida tienen que coincidir con los del .bat y con
+# aplicar_actualizacion.py.
 
+import json
 import logging
 import os
 import re
-import subprocess
+import threading
 import time
 
+import aplicar_actualizacion as act
 import version
 from idioma import _
 
 log = logging.getLogger("scopepower.actualizar")
 
 RAIZ = os.path.dirname(os.path.abspath(__file__))
-# Para pruebas, la misma variable que entiende el .bat sustituye la URL de GitHub
-REMOTO = os.environ.get("SCOPEPOWER_REMOTO") or "https://github.com/EnriqueJ67/ScopePower.git"
 BAT = os.path.join(RAIZ, "actualizar_desde_github.bat")
-FICHERO_PENDIENTE = os.path.join(RAIZ, "datos", "actualizar_pendiente.txt")
-FICHERO_ANTERIOR = os.path.join(RAIZ, "datos", "version_anterior.txt")
+FICHERO_PENDIENTE = os.path.join(RAIZ, act.FICHERO_PENDIENTE)
 LOG_ACTUALIZACION = os.path.join(RAIZ, "logs", "actualizacion.log")
 CODIGO_SALIDA_ACTUALIZAR = 5          # lo entiende lanzar_scopepower.bat
-# Solo hay una versión para instalar: la última release. «volver» deshace la última actualización.
-DESTINOS = ("release", "volver")
+# «release» baja la última versión, «volver» deshace la última actualización y «reparar»
+# recupera la versión anterior si una actualización se quedó a medias.
+DESTINOS = ("release", "volver", "reparar")
 
-TIMEOUT_CONSULTA_S = 10               # ls-remote: con Internet responde en 1-2 s
-TIMEOUT_FETCH_S = 90                  # bajar los objetos nuevos puede tardar algo más
-
-_SIN_RED = ("could not resolve", "unable to access", "failed to connect", "timed out",
-            "connection was reset", "network is unreachable")
-_SIN_PERMISO = ("authentication failed", "could not read username", "repository not found",
-                "terminal prompts disabled", "logon failed", "permission denied")
-
-
-def _git(*args, timeout=TIMEOUT_CONSULTA_S):
-    """Ejecuta git en la carpeta de ScopePower sin ventanas ni preguntas de contraseña."""
-    entorno = dict(os.environ, GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never", LC_ALL="C")
-    return subprocess.run(["git", "-C", RAIZ] + list(args), capture_output=True, text=True,
-                          encoding="utf-8", errors="replace", timeout=timeout, env=entorno,
-                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+# Cómo va la descarga pedida desde la web: fase = None | consultando | descargando |
+# comprobando | aplicando (la app se cierra) | al_dia | error
+_cerrojo = threading.Lock()
+_descarga = {"fase": None, "mensaje": "", "bytes": 0, "total": None, "version": None}
+_EN_MARCHA = ("consultando", "descargando", "comprobando", "aplicando")
 
 
-def hay_git():
-    try:
-        return _git("--version").returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
+def _poner(**valores):
+    with _cerrojo:
+        _descarga.update(valores)
 
 
-def es_clon():
-    """True si la carpeta de ScopePower es la raíz de un repositorio git."""
-    try:
-        r = _git("rev-parse", "--show-toplevel")
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-    if r.returncode != 0:
-        return False
-    return os.path.normcase(os.path.normpath(r.stdout.strip())) == os.path.normcase(os.path.normpath(RAIZ))
-
-
-def _describir_head():
-    """'v1.1.0' o 'v1.0.0-3-gabc1234' (3 commits después de la etiqueta), y el sha corto."""
-    try:
-        d = _git("describe", "--tags", "--always", "HEAD")
-        s = _git("rev-parse", "--short", "HEAD")
-    except (OSError, subprocess.TimeoutExpired):
-        return None, None
-    return (d.stdout.strip() or None) if d.returncode == 0 else None, \
-           (s.stdout.strip() or None) if s.returncode == 0 else None
-
-
-def _rama_actual():
-    try:
-        r = _git("symbolic-ref", "-q", "--short", "HEAD")
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    return r.stdout.strip() or None if r.returncode == 0 else None
-
-
-def version_anterior():
-    """Lo que guardó el .bat antes de la última actualización: {'sha':..., 'nombre':...} o None."""
-    try:
-        with open(FICHERO_ANTERIOR, encoding="utf-8") as f:
-            linea = f.readline().strip()
-    except OSError:
-        return None
-    if not linea:
-        return None
-    partes = linea.split(None, 1)
-    return {"sha": partes[0], "nombre": partes[1] if len(partes) > 1 else partes[0]}
+def mensaje_error(e):
+    """Un ErrorActualizacion contado para quien no sabe de ordenadores, en el idioma de la app."""
+    if e.motivo == "sin_red":
+        return _("Sin conexión a internet. En el campo es lo normal: actualiza en casa, con el PC "
+                 "en una red con salida a Internet.")
+    if e.motivo == "limite":
+        return _("GitHub no admite más consultas desde esta conexión por ahora. Prueba dentro de una hora.")
+    if e.motivo == "sin_release":
+        return _("Todavía no hay ninguna versión publicada en GitHub.")
+    if e.motivo == "descarga":
+        return _("La descarga se ha cortado. Vuelve a intentarlo.")
+    if e.motivo == "zip_corrupto":
+        return _("La descarga ha llegado dañada. Vuelve a intentarlo.")
+    if e.motivo == "contenido":
+        return _("Lo descargado no es un ScopePower completo. No se ha tocado nada.")
+    return _("No se pudo actualizar: {detalle}", detalle=e.detalle)
 
 
 def ultimo_resultado():
@@ -113,147 +81,150 @@ def ultimo_resultado():
         fecha = time.strftime("%Y-%m-%d %H:%M", time.localtime(os.path.getmtime(LOG_ACTUALIZACION)))
     except OSError:
         return None
-    m = re.search(r"^\[RESULTADO\] (ok|error)(.*)$", texto, re.MULTILINE)
-    if not m:
+    lineas = re.findall(r"^\[RESULTADO\] (ok|error)[ \t]*(\S*)[ \t]*(.*)$", texto, re.MULTILINE)
+    if not lineas:
         return {"ok": False, "fecha": fecha, "mensaje": _("La actualización no llegó a terminar"),
                 "detalle": texto[-3000:]}
-    ok = m.group(1) == "ok"
-    mensaje = _("Actualizado a {version}", version=m.group(2).strip()) \
-        if ok and m.group(2).strip() and "sin cambios" not in m.group(2) \
-        else (_("No había nada que actualizar") if ok else _("La actualización falló"))
+    resultado, clave, resto = lineas[-1]
+    ok = resultado == "ok"
+    resto = resto.strip()
+    if not ok:
+        mensaje = _("La actualización falló y no se pudo dejar todo como estaba. Ejecuta "
+                    "actualizar_desde_github.bat en el PC.") if clave == "sin_restaurar" \
+            else _("No se pudo actualizar, se ha mantenido la versión anterior")
+    elif clave == "actualizado":
+        mensaje = _("Actualizado a la versión {version}", version=resto)
+    elif clave == "vuelta":
+        mensaje = _("Se ha vuelto a la versión {version}", version=resto)
+    elif clave == "reparada":
+        mensaje = _("Se ha recuperado la versión {version}", version=resto)
+    elif clave == "sin_cambios" or "sin cambios" in resto:
+        mensaje = _("No había nada que actualizar")
+    else:                                                  # log de un actualizador anterior
+        mensaje = _("La última actualización terminó bien")
     # Para el fallo, las líneas de [ERROR]/[AVISO] son lo que interesa
-    errores = [l.strip() for l in texto.splitlines() if "[ERROR]" in l or "[AVISO]" in l]
+    errores = [l.strip() for l in texto.splitlines() if ("[ERROR]" in l or "[AVISO]" in l) and mensaje not in l]
     return {"ok": ok, "fecha": fecha, "mensaje": mensaje, "detalle": "\n".join(errores) if errores else texto[-3000:]}
 
 
 def estado():
-    """Lo que enseña la tarjeta al abrir Configuración (sin tocar la red)."""
-    git_ok = hay_git()
-    clon = es_clon() if git_ok else False
-    nombre, sha = _describir_head() if clon else (None, None)
-    pendiente = os.path.exists(FICHERO_PENDIENTE)
+    """Lo que enseña la tarjeta al abrir Configuración y mientras descarga (sin tocar la red)."""
+    copia = act.copia_anterior(RAIZ)
+    with _cerrojo:
+        descarga = dict(_descarga)
     return {
         "version": version.VERSION,
-        "hay_git": git_ok,
-        "es_clon": clon,
-        "commit": sha,
-        "descripcion": nombre,
-        "rama": _rama_actual() if clon else None,
-        "anterior": version_anterior() if clon else None,
+        "anterior": {"nombre": copia["version"]} if copia else None,
         "ultimo_resultado": ultimo_resultado(),
-        "pendiente": pendiente,
+        "pendiente": os.path.exists(FICHERO_PENDIENTE) and descarga["fase"] != "aplicando",
+        "interrumpida": act.interrumpida(RAIZ),
+        "desarrollo": act.carpeta_desarrollo(RAIZ),
         "lanzador": os.environ.get("SCOPEPOWER_LANZADOR") == "1",
         "bat": os.path.exists(BAT),
+        "descarga": descarga,
     }
-
-
-def _clave_version(etiqueta):
-    """v1.10.2 > v1.9.0: ordena por números, no por texto."""
-    return tuple(int(x) for x in re.findall(r"\d+", etiqueta))
-
-
-def ultima_release(etiquetas):
-    """La etiqueta v* más alta de una lista, o None."""
-    validas = [t for t in etiquetas if re.fullmatch(r"v\d+(\.\d+)*", t)]
-    return max(validas, key=_clave_version) if validas else None
-
-
-def _motivo_fallo(salida):
-    s = (salida or "").lower()
-    if any(p in s for p in _SIN_RED):
-        return ("sin_red", _("No hay Internet o no se llega a GitHub. En el campo es lo normal: "
-                             "actualiza en casa, con el mini PC en una red con salida a Internet."))
-    if any(p in s for p in _SIN_PERMISO):
-        return ("sin_permiso", _("GitHub no deja leer el repositorio desde este PC. Mientras sea privado hay que "
-                                 "identificarse una vez ejecutando actualizar_desde_github.bat en el mini PC, "
-                                 "con pantalla: Git abre el navegador para entrar en GitHub."))
-    return ("error", _("git ha fallado: {salida}", salida=(salida or "").strip()[-400:]))
 
 
 def comprobar():
     """
-    Consulta GitHub. Devuelve un dict con 'ok' y, si todo va bien: 'ultima_release',
-    'commits_release' (lo que entraría, más nuevo arriba), 'al_dia_release' y 'fecha_release'.
-    Si no, 'motivo' (sin_red | sin_permiso | sin_git | no_clon | error) y un 'mensaje' para enseñar.
+    Consulta GitHub. Devuelve un dict con 'ok' y, si todo va bien: 'ultima_release' (número de
+    versión), 'al_dia_release', 'fecha_release' y 'notas' (lo que trae la versión nueva).
+    Si no, 'motivo' (sin_red | limite | sin_release | error) y un 'mensaje' para enseñar.
     """
-    if not hay_git():
-        return {"ok": False, "motivo": "sin_git",
-                "mensaje": _("En este PC no está instalado Git. Instálalo desde https://git-scm.com/download/win "
-                             "(todas las opciones por defecto) y vuelve a comprobar.")}
-    if not es_clon():
-        return {"ok": False, "motivo": "no_clon",
-                "mensaje": _("Esta carpeta no es un clon de GitHub (es una copia). Ejecuta una vez "
-                             "actualizar_desde_github.bat en el mini PC para convertirla; después ya se "
-                             "podrá actualizar desde aquí.")}
     try:
-        _git("remote", "set-url", "origin", REMOTO)
-        r = _git("ls-remote", "--tags", "--refs", "origin", "v*", timeout=TIMEOUT_CONSULTA_S)
-        if r.returncode != 0:
-            motivo, mensaje = _motivo_fallo(r.stderr)
-            log.warning("Comprobar actualización: %s", (r.stderr or "").strip()[-300:])
-            return {"ok": False, "motivo": motivo, "mensaje": mensaje}
-        etiquetas = [l.split("refs/tags/")[-1] for l in r.stdout.splitlines() if "refs/tags/" in l]
-        # --force: una etiqueta movida en GitHub (como al rehacer el repositorio el 16-oct-2026) no debe
-        # bloquear la actualización con «would clobber existing tag»
-        f = _git("fetch", "--quiet", "--force", "--tags", "--prune", "origin", timeout=TIMEOUT_FETCH_S)
-        if f.returncode != 0:
-            motivo, mensaje = _motivo_fallo(f.stderr)
-            return {"ok": False, "motivo": motivo, "mensaje": mensaje}
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "motivo": "sin_red",
-                "mensaje": _("GitHub no ha respondido a tiempo. Comprueba la conexión a Internet del mini PC.")}
-    except OSError as e:
-        return {"ok": False, "motivo": "error", "mensaje": _("No se pudo ejecutar git: {e}", e=e)}
+        release = act.consultar_release()
+    except act.ErrorActualizacion as e:
+        log.warning("Comprobar actualización: %s (%s)", e.motivo, e.detalle)
+        return {"ok": False, "motivo": e.motivo, "mensaje": mensaje_error(e)}
+    al_dia = act.clave_version(version.VERSION) >= act.clave_version(release["version"])
+    log.info("Comprobada la actualización: instalada %s, última release %s", version.VERSION, release["version"])
+    return {"ok": True, "ultima_release": release["version"], "al_dia_release": al_dia,
+            "fecha_release": release["fecha"], "notas": "" if al_dia else release["notas"].strip()}
 
-    ultima = ultima_release(etiquetas)
-    resultado = {"ok": True, "ultima_release": ultima, "commits_release": [],
-                 "al_dia_release": None, "fecha_release": None}
 
-    def _entrarian(destino):
-        """Commits de destino que aquí no están (más nuevo arriba) y si HEAD ya es destino."""
-        r = _git("log", "--oneline", "--no-decorate", f"HEAD..{destino}")
-        commits = r.stdout.splitlines() if r.returncode == 0 else []
-        d = _git("diff", "--quiet", "HEAD", destino)
-        return commits, d.returncode == 0
+def _impedimento():
+    """Por qué no se puede actualizar esta carpeta desde la web, o None."""
+    if not os.path.exists(BAT):
+        return _("Falta actualizar_desde_github.bat en la carpeta de ScopePower")
+    rama = act.carpeta_desarrollo(RAIZ)
+    if rama:
+        return _("La carpeta está en la rama {rama}: es una carpeta de desarrollo, actualízala con git", rama=rama)
+    return None
 
-    if ultima:
-        resultado["commits_release"], resultado["al_dia_release"] = _entrarian(ultima)
-        fecha = _git("log", "-1", "--format=%cs", ultima)
-        resultado["fecha_release"] = fecha.stdout.strip() or None
-    log.info("Comprobada la actualización: instalado %s, última release %s",
-             version.VERSION, ultima or "ninguna")
-    return resultado
+
+def _dejar_pedido(destino, **datos):
+    os.makedirs(os.path.dirname(FICHERO_PENDIENTE), exist_ok=True)
+    with open(FICHERO_PENDIENTE, "w", encoding="utf-8") as f:
+        json.dump(dict(datos, destino=destino), f, ensure_ascii=False)
+
+
+def _descargar_y_cerrar(al_terminar):
+    def progreso(recibido, total):
+        _poner(bytes=recibido, total=total)
+
+    try:
+        release = act.consultar_release()
+        if act.clave_version(version.VERSION) >= act.clave_version(release["version"]):
+            _poner(fase="al_dia", mensaje=_("Ya tienes la última versión"))
+            return
+        _poner(version=release["version"])
+        origen = act.preparar(RAIZ, release, progreso=progreso, fase=lambda f: _poner(fase=f))
+        _dejar_pedido("release", origen=origen, version=release["version"])
+        _poner(fase="aplicando")
+        log.warning("Versión %s descargada y comprobada: ScopePower se cierra para actualizarse", release["version"])
+        al_terminar()
+    except act.ErrorActualizacion as e:
+        log.warning("La actualización no ha pasado de la descarga: %s (%s)", e.motivo, e.detalle)
+        _poner(fase="error", mensaje=mensaje_error(e))
+    except Exception as e:
+        log.exception("Fallo inesperado al preparar la actualización")
+        _poner(fase="error", mensaje=_("No se pudo actualizar: {detalle}", detalle=repr(e)))
+
+
+def empezar(al_terminar):
+    """
+    Descarga y comprueba la última release en segundo plano; la web sigue el avance con
+    estado()['descarga']. Si todo va bien llama a al_terminar(), que suelta el equipo y cierra
+    la app para que el .bat copie los ficheros. Devuelve (ok, mensaje).
+    """
+    problema = _impedimento()
+    if problema:
+        return False, problema
+    with _cerrojo:
+        if _descarga["fase"] in _EN_MARCHA:
+            return False, _("Ya hay una actualización en marcha")
+        _descarga.update(fase="consultando", mensaje="", bytes=0, total=None, version=None)
+    threading.Thread(target=_descargar_y_cerrar, args=(al_terminar,), daemon=True, name="actualizar").start()
+    return True, _("Descargando la versión nueva")
 
 
 def pedir(destino):
     """
-    Deja apuntado el destino para actualizar_desde_github.bat /lanzador. Devuelve (ok, mensaje).
-    El que llama (ScopePower.py) para después la app con CODIGO_SALIDA_ACTUALIZAR.
+    Deja apuntado un pedido sin descarga («volver» o «reparar») para
+    actualizar_desde_github.bat /lanzador. Devuelve (ok, mensaje). El que llama (ScopePower.py)
+    para después la app con CODIGO_SALIDA_ACTUALIZAR.
     """
-    if destino not in DESTINOS:
+    if destino not in ("volver", "reparar"):
         return False, _("Destino no válido")
-    if not os.path.exists(BAT):
-        return False, _("Falta actualizar_desde_github.bat en la carpeta de ScopePower")
-    if not hay_git():
-        return False, _("Git no está instalado en este PC")
-    if not es_clon():
-        return False, _("Esta carpeta no es un clon de GitHub: conviértela primero con actualizar_desde_github.bat")
-    if destino == "volver" and not version_anterior():
+    problema = _impedimento()
+    if problema:
+        return False, problema
+    if destino == "volver" and not act.copia_anterior(RAIZ):
         return False, _("No hay ninguna versión anterior guardada")
-    rama = _rama_actual()
-    if rama and rama != "master":
-        return False, _("La carpeta está en la rama {rama}: es una carpeta de desarrollo, actualízala con git", rama=rama)
-    os.makedirs(os.path.dirname(FICHERO_PENDIENTE), exist_ok=True)
-    with open(FICHERO_PENDIENTE, "w", encoding="utf-8") as f:
-        f.write(destino + "\n")
-    log.warning("Actualización desde GitHub pedida desde la web (destino: %s)", destino)
-    return True, _("ScopePower se cierra para actualizarse y vuelve a arrancar solo")
+    with _cerrojo:
+        if _descarga["fase"] in _EN_MARCHA:
+            return False, _("Ya hay una actualización en marcha")
+        _descarga.update(fase="aplicando", mensaje="", bytes=0, total=None, version=None)
+    _dejar_pedido(destino)
+    log.warning("Pedido desde la web: %s", "volver a la versión anterior" if destino == "volver"
+                else "recuperar la versión anterior tras una actualización a medias")
+    return True, _("ScopePower se cierra y vuelve a arrancar solo")
 
 
 def orden_actualizar_a_mano():
     """
-    Cuando la app no la arrancó lanzar_scopepower.bat: la orden para cmd que actualiza
+    Cuando la app no la arrancó lanzar_scopepower.bat: la orden para cmd que hace lo pedido
     con la app ya cerrada y vuelve a arrancarla (equivalente a lo que hace el lanzador
     con el código de salida 5).
     """
-    return f'ping -n 3 127.0.0.1 >nul & "{BAT}" /lanzador /relanzar'
+    return f'ping -n 3 127.0.0.1 >nul & "{BAT}" /lanzador'

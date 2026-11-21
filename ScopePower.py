@@ -924,11 +924,12 @@ def apagar_estado():
     return jsonify({"accion": _apagado["accion"] if restante > 0 else None, "restante": round(restante)})
 
 
-# ─── Actualizar desde GitHub (Configuración) ───────────────────────────────
-# La consulta y la petición están en actualizar.py. La actualización en sí la hace
-# actualizar_desde_github.bat con la app parada: aquí se cierra ScopePower con el código
-# de salida 5 y lanzar_scopepower.bat ejecuta el .bat y la vuelve a arrancar. Si la app
-# se lanzó a mano con python, se deja un cmd aparte que hace lo mismo y arranca el lanzador.
+# ─── Actualizar ScopePower (Configuración) ─────────────────────────────────
+# La consulta, la descarga y el pedido están en actualizar.py. La versión nueva se baja y se
+# comprueba con la app en marcha; la copia de ficheros la hace actualizar_desde_github.bat con
+# la app parada: aquí se cierra ScopePower con el código de salida 5 y lanzar_scopepower.bat
+# ejecuta el .bat, que la vuelve a arrancar. Si la app se lanzó a mano con python, se deja un
+# cmd aparte que hace lo mismo.
 @app.route('/actualizar/estado')
 def actualizar_estado():
     return jsonify(actualizar.estado())
@@ -954,24 +955,37 @@ def _terminar_para_actualizar():
     os._exit(0)
 
 
-@app.route('/actualizar/aplicar', methods=['POST'])
-def actualizar_aplicar():
-    d = request.get_json(silent=True) or {}
-    destino = d.get("destino", "release")
-    ok, mensaje = actualizar.pedir(destino)
-    if not ok:
-        return jsonify({"ok": False, "mensaje": mensaje}), 409
+def _cerrar_para_actualizar():
+    """Con la versión nueva ya descargada (o para volver a la anterior): suelta el equipo y cierra la app."""
     try:
         if bucle.activo:
             bucle.detener(_("Actualización de ScopePower"))
     except Exception:
         pass
-    desconectar_telescopio()
-    desconectar_camara()
-    voz.decir(_("Actualizando ScopePower desde GitHub. Vuelvo en un par de minutos."))
+    try:
+        desconectar_telescopio()
+        desconectar_camara()
+    except Exception as e:
+        log.warning("Al soltar el equipo antes de actualizar: %s", e)
+    voz.decir(_("Actualizando ScopePower. Vuelvo en un par de minutos."))
     threading.Timer(0.8, _terminar_para_actualizar).start()
-    # La web sondea /estado-conexion hasta que la app vuelve: git + pip pueden tardar varios minutos
-    return jsonify({"ok": True, "mensaje": mensaje, "espera": 300})
+
+
+@app.route('/actualizar/aplicar', methods=['POST'])
+def actualizar_aplicar():
+    d = request.get_json(silent=True) or {}
+    destino = d.get("destino", "release")
+    if destino == "release":
+        # Descarga en segundo plano: la web sigue el avance en /actualizar/estado y la app solo
+        # se cierra (con _cerrar_para_actualizar) cuando la versión nueva está bajada y comprobada
+        ok, mensaje = actualizar.empezar(_cerrar_para_actualizar)
+        return jsonify({"ok": ok, "mensaje": mensaje, "espera": 600}), (200 if ok else 409)
+    ok, mensaje = actualizar.pedir(destino)
+    if not ok:
+        return jsonify({"ok": False, "mensaje": mensaje}), 409
+    _cerrar_para_actualizar()
+    # La web sondea /estado-conexion hasta que la app vuelve: pip puede tardar varios minutos
+    return jsonify({"ok": True, "mensaje": mensaje, "espera": 600})
 
 
 # ─── Aparcar la montura antes de apagarla (cambio de batería) ─────────────

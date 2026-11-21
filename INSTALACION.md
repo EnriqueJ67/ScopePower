@@ -71,43 +71,50 @@ se quiera con el botón **Asistente de configuración** de la página Configurac
 
 ## Actualizar desde GitHub
 
-El mini PC puede ponerse al día él solo desde GitHub, en casa y con Internet (en el campo no la
-hay). Hace falta tener instalado **Git para Windows** (https://git-scm.com/download/win, todas las
-opciones por defecto; Git es el programa que baja y lleva el historial del código).
+ScopePower se pone al día él solo con la última versión publicada en GitHub (la última *release*), en casa
+y con Internet (en el campo no la hay). **No hace falta Git** ni cuenta de GitHub, y da igual cómo llegó la
+carpeta al PC: copiada a mano, descomprimida de un ZIP, traída en un pendrive o clonada.
 
-**Primera vez.** Si la carpeta del mini PC es una copia (hecha a mano o con `copiar_a_campo.bat`)
-y no un clon de GitHub, ejecutar en el mini PC `actualizar_desde_github.bat` (doble clic). Comprueba
-Git e Internet, ofrece convertir la carpeta en un clon (añade la carpeta oculta `.git` y baja el
-historial) y deja los ficheros del programa como en la última release publicada. No toca lo que es
-propio del mini PC: `config.ini`, `secretos.ini`, `calibraciones\`, `capturas\`, `logs\`, la galería
-(`static\fotos\`) ni `datos\`; lo comprueba y se para si alguno estuviera seguido por git. El
-repositorio es público: no hace falta cuenta de GitHub para actualizar.
-
-**Las siguientes veces**, de dos maneras:
+De dos maneras:
 
 - Desde la web, en **Configuración → Actualizar desde GitHub**: enseña la versión instalada; al pulsar
-  **Comprobar** consulta GitHub (y dice claramente si no hay Internet), muestra la última release y los
-  cambios que entrarían. Al confirmar, ScopePower se cierra, se actualiza y vuelve a arrancar solo
-  (unos segundos, o varios minutos si han cambiado las dependencias). Hace falta que la app la haya
-  arrancado `lanzar_scopepower.bat` o el acceso directo del escritorio, como en el mini PC.
-- En el mini PC, `actualizar_desde_github.bat`: enseña los commits que van a entrar y pide
-  confirmación. Opciones: `/si` no pregunta, `/volver` deja la versión que había antes de la última
-  actualización (queda apuntada en `datos\version_anterior.txt`). Si `requirements.txt` ha cambiado,
-  reinstala las dependencias con el entorno de `instalar_scopepower.bat`. Si ScopePower está en marcha,
-  ofrece cerrarlo y volver a arrancarlo al terminar.
+  **Comprobar** consulta GitHub (y dice claramente si no hay Internet) y, si hay una versión nueva, muestra lo
+  que trae. Al confirmar, ScopePower la descarga y la comprueba sin cerrarse; después se cierra, la instala y
+  vuelve a arrancar solo (alrededor de un minuto, o varios si han cambiado las dependencias).
+- En el PC, doble clic en `actualizar_desde_github.bat`: hace lo mismo preguntando antes. Opciones: `/si` no
+  pregunta y `/volver` deshace la última actualización. Si ScopePower está en marcha, pide cerrarlo y lo vuelve
+  a arrancar al terminar. En un PC sin Internet acepta un ZIP de la versión bajado en otro equipo (de la página
+  de releases de GitHub): basta arrastrarlo encima del `.bat`.
 
-Lo que hace cada actualización queda en `logs\actualizacion.log` (la pedida desde la web) y en la
-ventana del script.
+Qué hace por dentro:
 
-**Si el mini PC ya era un clon antes del 16-oct-2026.** Ese día se rehízo el repositorio de GitHub y
-las etiquetas de versión (`v1.1.0`, `v1.2.0`) cambiaron. Las versiones del actualizador anteriores a
-la 1.2.1 se paran con «would clobber existing tag». Una sola vez, en una consola abierta en la
-carpeta ScopePower del mini PC:
+1. Baja el ZIP de la release a una carpeta de trabajo fuera de la instalación
+   (`%LOCALAPPDATA%\ScopePower\actualizacion`) y comprueba que es un ScopePower entero (ficheros clave, número
+   de versión y que el código compila) antes de tocar nada.
+2. Si `requirements.txt` ha cambiado, instala las dependencias con el mismo Python que usa
+   `lanzar_scopepower.bat`.
+3. Guarda en `_backup\<versión anterior>\` los ficheros que va a sobrescribir o borrar. Solo se conserva la
+   última copia.
+4. Copia los ficheros que cambian y quita los del programa que ya no existen en la versión nueva.
+5. Si algo falla a mitad, restaura la copia: la versión anterior queda como estaba. Si el PC se apaga en plena
+   actualización, al abrir Configuración aparece el botón **Reparar** (o basta ejecutar el `.bat`).
 
-    git fetch --force --tags origin
+No toca lo que es propio del PC: `config.ini`, `secretos.ini`, `calibraciones\`, `capturas\`, `logs\`, la
+galería (`static\fotos\`), `datos\`, `videos\`, los presets de procesado... La lista completa está al
+principio de `aplicar_actualizacion.py`. Tampoco borra nada que no viniera con el programa: solo quita ficheros
+que estaban en la versión anterior y ya no están en la nueva.
 
-y después `actualizar_desde_github.bat` como siempre. Desde la 1.2.1 el actualizador ya acepta
-etiquetas movidas.
+Si la carpeta es un clon de git se actualiza igual y la carpeta `.git` se deja como está; como los ficheros
+cambian sin pasar por git, `git status` los verá modificados. Una carpeta de desarrollo (un clon en una rama que
+no es `master`) no se actualiza así: se niega para no pisar trabajo a medias.
+
+Lo que hace cada actualización pedida desde la web queda en `logs\actualizacion.log`.
+
+**Si tienes la versión 1.5.1 o una anterior.** Aquel actualizador necesitaba Git. Si la carpeta es un clon,
+actualiza una última vez como siempre: la versión nueva ya trae este. Si es una copia, descarga
+`actualizar_desde_github.bat` de la página de la última release
+(https://github.com/EnriqueJ67/ScopePower/releases/latest), ponlo en la carpeta de ScopePower en lugar del que
+hay y haz doble clic: él baja lo demás.
 
 ## Actualizar copiando por la red (sin Internet)
 
