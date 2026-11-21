@@ -3,7 +3,10 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
-## En preparación
+## 1.6.0 · 2026-11-21
+
+Lo principal: «Actualizar desde GitHub» ya no necesita Git. Baja la última versión publicada y la instala sola en
+cualquier carpeta de ScopePower, con copia de seguridad y vuelta atrás, sin tocar la configuración ni las fotos.
 
 - Cambiado: «Actualizar desde GitHub» ya no necesita Git ni que la carpeta sea un clon. Baja el ZIP de la
   última release y lo copia encima, así que funciona igual con una carpeta copiada a mano, descomprimida de
