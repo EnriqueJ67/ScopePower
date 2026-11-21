@@ -84,6 +84,24 @@ def prueba_recuadro():
     comprobar("Aviso de prueba del cortafuegos" in texto, "el recuadro lleva los avisos")
     comprobar("\x1b[" not in texto, "sin colores ANSI cuando la consola no los admite")
     comprobar(max(len(x) for x in texto.splitlines()) <= cc.ANCHO + 2, "ninguna línea se sale del recuadro")
+    # Punto de acceso + Wi-Fi de casa: un QR de cada una, uno al lado del otro. Con uno solo, el
+    # del punto de acceso, el móvil en la Wi-Fi de casa se quedaba con la pantalla en blanco.
+    qrs = cc.urls_para_qr(urls)
+    comprobar([u for u, __ in qrs] == ["http://192.168.137.1:5000", "http://192.168.1.26:5000"],
+              "QR del punto de acceso y de la primera Wi-Fi, sin el .local")
+    comprobar(len(cc.urls_para_qr(cc.urls_de_red([("192.168.1.26", "Wi-Fi")], 5000, "MIPC"))) == 1,
+              "con una sola red, un solo QR")
+    filas = [x for x in texto.splitlines() if "█" in x]
+    ancho = len(cc.qr_en_texto(qrs[0][0])[0])
+    ini = filas[0].index("█")
+    for i, (u, __) in enumerate(qrs):
+        col = ini + i * (ancho + 4)
+        comprobar(leer_qr_de_texto([f[col:col + ancho].ljust(ancho) for f in filas]) == u,
+                  f"OpenCV lee {u} en el QR {i + 1} del recuadro")
+    comprobar("192.168.137.1:5000" in texto and "192.168.1.26:5000" in texto, "cada QR lleva su dirección debajo")
+    comprobar(cc.nombre_corto_red("Adaptador de LAN inalámbrica Wi-Fi") == "Wi-Fi"
+              and cc.nombre_corto_red("Wireless LAN adapter Wi-Fi 2") == "Wi-Fi 2", "debajo del QR, «Wi-Fi» sin el prefijo")
+    comprobar("http:// del principio" in " ".join(x.strip() for x in texto.splitlines()),"el recuadro recuerda escribir el http://")
     color = cc.texto_recuadro(urls, "http://127.0.0.1:5000", "1.4.0", [], con_color=True)
     comprobar("\x1b[97;40m" in color, "con color, el QR fuerza blanco sobre negro (también en consolas claras)")
 

@@ -2431,6 +2431,7 @@ msgstr ""
 msgid "Cénit arriba"
 msgstr ""
 
+#. js
 #: templates/configuracion.html
 msgid "Código QR de la dirección"
 msgstr ""
@@ -3934,6 +3935,7 @@ msgstr ""
 msgid "Enseña en color lo que entra en el rango y en gris lo demás; solo en pantalla, no se guarda"
 msgstr ""
 
+#. js
 #: templates/configuracion.html
 msgid "Enséñaselo a otro móvil: con la cámara abre la app"
 msgstr ""
@@ -8015,6 +8017,10 @@ msgstr ""
 msgid "O apunta la cámara del móvil a este código:"
 msgstr ""
 
+#: consola_conexion.py
+msgid "O apunta la cámara del móvil al código de la Wi-Fi en la que esté:"
+msgstr ""
+
 #: ScopePower.py
 msgid "Objetivo desconocido"
 msgstr ""
@@ -9697,7 +9703,7 @@ msgid "Si ahí ya está permitida, mira en Android: Ajustes → Aplicaciones →
 msgstr ""
 
 #: consola_conexion.py
-msgid "Si no carga: el móvil en la misma Wi-Fi que este PC y sin datos móviles."
+msgid "Si no carga: el móvil en la misma Wi-Fi que este PC y sin datos móviles. Si escribes la dirección a mano, pon también el http:// del principio."
 msgstr ""
 
 #. js
