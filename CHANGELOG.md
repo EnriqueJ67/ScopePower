@@ -3,6 +3,25 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## En preparación
+
+- Nuevo: al arrancar, la consola de ScopePower ya no es solo una lista de mensajes. Cuando el servidor está
+  listo enseña un recuadro con las direcciones para el móvil o la tablet y un código QR de la primera: basta
+  apuntar la cámara del móvil para abrir la app. El recuadro se repite al minuto y luego cada 5 minutos hasta
+  que se conecta alguien, y entonces dice desde qué dispositivo. La dirección queda también en el título de la
+  ventana, que se ve en la barra de tareas.
+- Nuevo: la consola pregunta durante 15 s si se abre ScopePower en el navegador de ese PC; solo se abre si se
+  pulsa S (opción `[Red] preguntar_navegador`). No pregunta cuando ya se abre solo el asistente de la primera vez.
+- Nuevo: aviso del cortafuegos de Windows, en la consola y en Configuración > Conectar desde el móvil, cuando
+  el móvil no va a poder entrar: Python bloqueado (se pulsó «Cancelar» cuando Windows preguntó), sin permiso
+  para el puerto 5000 o con la red como «Pública». Se arregla con un doble clic en
+  `herramientas\abrir_cortafuegos.bat`, que crea la regla del instalador y quita los bloqueos de Python.
+- Nuevo: el QR de la dirección también en Configuración > Conectar desde el móvil, para enseñárselo a otro móvil.
+- Nuevo: en los PC instalados con `instalar_scopepower.bat`, la app crea una vez en el escritorio el acceso
+  directo «ScopePower en el navegador» (si se borra, no vuelve a aparecer).
+- Dependencia nueva: `segno` (dibuja el QR, Python puro). «Actualizar desde GitHub» la instala sola; si falta,
+  todo sale igual sin el código.
+
 ## 1.4.0 · 2026-11-20
 
 Lo principal: la guía «¿Qué quieres hacer hoy?», que lleva de la mano en el cielo profundo, el Sol, la Luna,

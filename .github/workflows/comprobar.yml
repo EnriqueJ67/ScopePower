@@ -145,6 +145,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_config_ini.py
 
+      - name: Prueba de la consola al arrancar (QR legible, recuadro, cortafuegos, acceso directo)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_consola_conexion.py
+
       - name: Prueba de la galería pública (hosting falso en Python con el contrato de publicar.php; sin PHP en GitHub)
         env:
           PYTHONIOENCODING: utf-8
