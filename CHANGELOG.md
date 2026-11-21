@@ -3,7 +3,11 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
-## En preparación
+## 1.5.0 · 2026-11-21
+
+Lo principal: entrar por primera vez es más fácil. La ventana de ScopePower enseña las direcciones para el
+móvil con un código QR que se escanea con la cámara, ofrece abrir la app en el navegador del PC y avisa si el
+cortafuegos de Windows no va a dejar entrar al móvil.
 
 - Nuevo: al arrancar, la consola de ScopePower ya no es solo una lista de mensajes. Cuando el servidor está
   listo enseña un recuadro con las direcciones para el móvil o la tablet y un código QR de la primera: basta

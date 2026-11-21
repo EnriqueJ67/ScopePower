@@ -104,7 +104,7 @@ supported but untested with real hardware. If you have one and try it, please op
 3. Start ScopePower from the shortcut. The first time it opens the PC's browser to create the user
    (choose English at the top right) and launches the setup wizard (language, focal length, mount,
    camera, ASTAP, location). Then, from your phone, open the address the PC reads out over its
-   speaker.
+   speaker, or scan the QR code shown in the ScopePower window.
 
 The details (drivers, voices, automatic start when the mini PC boots, updating the field PC) are
 in [INSTALACION.md](INSTALACION.md), in Spanish.
