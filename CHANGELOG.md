@@ -21,10 +21,22 @@ día de la release. El número de versión vive en `version.py`.
 - Cambiado: `actualizar_desde_github.bat` hace lo mismo sin Git (`/si`, `/volver`), instala las dependencias
   con el mismo Python que usa `lanzar_scopepower.bat` y acepta un ZIP ya descargado, arrastrándolo encima,
   para un PC sin Internet. La opción `/master` ya no existía; `datos\version_anterior.txt` deja de usarse.
-- Para quien tenga la 1.5.0 o anterior: si la carpeta es un clon, la última actualización con Git trae ya el
+- Para quien tenga la 1.5.1 o anterior: si la carpeta es un clon, la última actualización con Git trae ya el
   actualizador nuevo; si es una copia, basta descargar `actualizar_desde_github.bat` de la página de la
   release, ponerlo en la carpeta de ScopePower y hacer doble clic (ver INSTALACION.md).
 - Los `.bat` salen siempre con finales de línea de Windows, también en el ZIP de GitHub.
+
+## 1.5.1 · 2026-11-21
+
+Lo principal: el QR de la consola ya abre la app aunque el móvil esté en otra Wi-Fi que el punto de acceso del PC.
+
+- Arreglado: el QR de la consola se quedaba en blanco en el móvil cuando el PC tiene su propio punto de acceso
+  (`[Red] punto_acceso`) y el móvil está en otra Wi-Fi, por ejemplo la de casa: el código era solo el de la
+  primera dirección, la del punto de acceso, a la que el móvil no llega. Ahora, con dos redes, la consola pinta
+  un QR de cada una, uno al lado del otro y con su dirección y su red debajo; el móvil abre el de la Wi-Fi en
+  la que está. En Configuración > Conectar desde el móvil igual desde el propio PC, y desde un móvil sale el
+  QR de la dirección por la que ha entrado, que es la que sirve a otro móvil de la misma Wi-Fi. El recuadro
+  recuerda además que, al escribir la dirección a mano, hay que poner el `http://` del principio.
 
 ## 1.5.0 · 2026-11-21
 

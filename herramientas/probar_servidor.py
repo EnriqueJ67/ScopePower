@@ -88,8 +88,11 @@ def main():
 
     print("Conectar desde el móvil (Configuración): direcciones, QR y aviso del cortafuegos:")
     red = pedir("/red/estado").get_json() or {}
-    bien = isinstance(red.get("avisos_cortafuegos"), list) and "punto_acceso" in red
-    print(f"  {'✅' if bien else '❌'} /red/estado con avisos del cortafuegos ({len(red.get('avisos_cortafuegos') or [])})")
+    bien = (isinstance(red.get("avisos_cortafuegos"), list) and "punto_acceso" in red
+            and isinstance(red.get("qr"), list) and len(red["qr"]) <= 2
+            and all(".local:" not in x["url"] for x in red["qr"]))
+    print(f"  {'✅' if bien else '❌'} /red/estado con avisos del cortafuegos ({len(red.get('avisos_cortafuegos') or [])})"
+          f" y {len(red.get('qr') or [])} QR, uno por red")
     if not bien:
         fallos.append("/red/estado")
     url_qr = red["direcciones"][0]["url"] if red.get("direcciones") else red.get("url_nombre", "")

@@ -287,12 +287,8 @@
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-red"/></svg>{{ _("Conectar desde el móvil") }}</h3></div>
             <div class="fila" style="align-items:flex-start;flex-wrap:wrap;gap:1rem">
                 <div id="red-direcciones" class="direcciones mb-2" style="flex:1 1 16rem">{{ _("Consultando...") }}</div>
-                <figure id="red-qr" class="mb-2" style="margin:0;text-align:center" hidden>
-                    <img id="red-qr-img" alt="{{ _('Código QR de la dirección') }}" width="150" height="150"
-                         style="background:#fff;border-radius:6px;padding:4px;display:block"
-                         onerror="document.getElementById('red-qr').hidden = true">
-                    <figcaption class="texto-3" style="font-size:.8rem;max-width:160px">{{ _("Enséñaselo a otro móvil: con la cámara abre la app") }}</figcaption>
-                </figure>
+                <!-- Un QR por red (lo rellena cargarRed): el móvil solo llega a la dirección de su Wi-Fi -->
+                <div id="red-qr" class="mb-2" style="display:flex;gap:1rem;flex-wrap:wrap" hidden></div>
             </div>
             <div id="red-avisos"></div>
             <p class="card-sub">
@@ -798,15 +794,30 @@
             html += `<div><b>${d.url_nombre}</b> <span>` + _("nombre del equipo") + "</span></div>";
             if (!d.direcciones.length) html = _("❌ No se encuentra ninguna dirección de red");
             document.getElementById("red-direcciones").innerHTML = html;
-            // QR de la dirección más probable (la del punto de acceso si está activo)
-            const urlQR = d.punto_acceso ? `http://${d.punto_acceso}:${d.puerto}` : (d.direcciones.length ? d.direcciones[0].url : "");
+            // Si esta página llega por una dirección de red, ese es el QR que sirve al otro móvil
+            // (estará en la misma Wi-Fi). Desde el propio PC, uno por red con su dirección debajo.
+            const delPC = (d.qr || []).concat(d.direcciones.map(x => ({ url: x.url, red: x.adaptador })));
+            const esta = delPC.find(x => x.url === location.origin);
+            const codigos = esta ? [{ url: esta.url, pie: _("Enséñaselo a otro móvil: con la cámara abre la app") }]
+                : (d.qr || []).map(x => ({ url: x.url, pie: `${x.url.replace("http://", "")} · ${x.red}` }));
             const qr = document.getElementById("red-qr");
-            if (urlQR) {
-                document.getElementById("red-qr-img").src = "/red/qr.svg?url=" + encodeURIComponent(urlQR);
-                qr.hidden = false;
-            } else {
-                qr.hidden = true;
-            }
+            qr.replaceChildren(...codigos.map(c => {
+                const fig = document.createElement("figure");
+                fig.style.cssText = "margin:0;text-align:center";
+                const img = document.createElement("img");
+                img.alt = _("Código QR de la dirección");
+                img.width = img.height = 150;
+                img.style.cssText = "background:#fff;border-radius:6px;padding:4px;display:block";
+                img.onerror = () => fig.remove();
+                img.src = "/red/qr.svg?url=" + encodeURIComponent(c.url);
+                const pie = document.createElement("figcaption");
+                pie.className = "texto-3";
+                pie.style.cssText = "font-size:.8rem;max-width:160px";
+                pie.textContent = c.pie;
+                fig.append(img, pie);
+                return fig;
+            }));
+            qr.hidden = !codigos.length;
             const avisos = document.getElementById("red-avisos");
             avisos.replaceChildren(...(d.avisos_cortafuegos || []).map(t => {
                 const div = document.createElement("div");

@@ -110,7 +110,7 @@ no es `master`) no se actualiza así: se niega para no pisar trabajo a medias.
 
 Lo que hace cada actualización pedida desde la web queda en `logs\actualizacion.log`.
 
-**Si tienes la versión 1.5.0 o una anterior.** Aquel actualizador necesitaba Git. Si la carpeta es un clon,
+**Si tienes la versión 1.5.1 o una anterior.** Aquel actualizador necesitaba Git. Si la carpeta es un clon,
 actualiza una última vez como siempre: la versión nueva ya trae este. Si es una copia, descarga
 `actualizar_desde_github.bat` de la página de la última release
 (https://github.com/EnriqueJ67/ScopePower/releases/latest), ponlo en la carpeta de ScopePower en lugar del que
