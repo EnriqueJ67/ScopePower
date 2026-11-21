@@ -507,7 +507,7 @@
                 } else if (f.fase === "comprobando") {
                     actMensaje('<span class="spinner"></span>' + _("Comprobando la descarga…"));
                 } else if (f.fase === "descargando" && f.bytes) {
-                    const mb = n => (n / 1048576).toFixed(1);
+                    const mb = n => fmtNum(n / 1048576, 1);
                     actMensaje('<span class="spinner"></span>' + (f.total
                         ? _("Descargando… {mb} de {total} MB", { mb: mb(f.bytes), total: mb(f.total) })
                         : _("Descargando… {mb} MB", { mb: mb(f.bytes) })));

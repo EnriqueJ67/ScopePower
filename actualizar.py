@@ -103,7 +103,7 @@ def ultimo_resultado():
     else:                                                  # log de un actualizador anterior
         mensaje = _("La última actualización terminó bien")
     # Para el fallo, las líneas de [ERROR]/[AVISO] son lo que interesa
-    errores = [l.strip() for l in texto.splitlines() if "[ERROR]" in l or "[AVISO]" in l]
+    errores = [l.strip() for l in texto.splitlines() if ("[ERROR]" in l or "[AVISO]" in l) and mensaje not in l]
     return {"ok": ok, "fecha": fecha, "mensaje": mensaje, "detalle": "\n".join(errores) if errores else texto[-3000:]}
 
 
