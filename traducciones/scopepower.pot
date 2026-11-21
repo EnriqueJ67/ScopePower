@@ -457,6 +457,10 @@ msgstr ""
 msgid "Abre una pestaña nueva en Chrome y entra en esta dirección:"
 msgstr ""
 
+#: consola_conexion.py
+msgid "Abriendo {url} en el navegador..."
+msgstr ""
+
 #: static/js/guia.js
 msgid "Abrir Apilado"
 msgstr ""
@@ -2428,6 +2432,10 @@ msgid "Cénit arriba"
 msgstr ""
 
 #: templates/configuracion.html
+msgid "Código QR de la dirección"
+msgstr ""
+
+#: templates/configuracion.html
 msgid "Cómo instalar StarNet2"
 msgstr ""
 
@@ -2706,6 +2714,10 @@ msgstr ""
 msgid "Descripción no disponible."
 msgstr ""
 
+#: consola_conexion.py
+msgid "Desde el móvil o la tablet, en la misma Wi-Fi, abre:"
+msgstr ""
+
 #: alineacion.py
 msgid "Desnivel del trípode: {g}°, bajo por el {rumbo}"
 msgstr ""
@@ -2758,6 +2770,10 @@ msgstr ""
 
 #: templates/configuracion.html
 msgid "Dirección del hosting (https://)"
+msgstr ""
+
+#: ScopePower.py
+msgid "Dirección desconocida"
 msgstr ""
 
 #: disco.py
@@ -2828,6 +2844,11 @@ msgstr ""
 
 #: templates/galeria.html templates/publico/index.html
 msgid "Diámetro del Sol y órbita de la Tierra"
+msgstr ""
+
+#. js
+#: consola_conexion.py
+msgid "Dominio"
 msgstr ""
 
 #: guia.py
@@ -3105,6 +3126,14 @@ msgstr ""
 #. js
 #: templates/constelacion.html
 msgid "El corazón del escorpión. Su nombre significa 'rival de Marte'."
+msgstr ""
+
+#: consola_conexion.py
+msgid "El cortafuegos de Windows BLOQUEA ScopePower en la red {perfil}: el móvil no podrá entrar."
+msgstr ""
+
+#: consola_conexion.py
+msgid "El cortafuegos de Windows no tiene permiso para el puerto {puerto} en la red {perfil}: si Windows pregunta, pulsa «Permitir acceso»."
 msgstr ""
 
 #: guia.py
@@ -3754,6 +3783,10 @@ msgstr ""
 msgid "En este PC no existe {ruta}"
 msgstr ""
 
+#: consola_conexion.py
+msgid "En este mismo PC: {url}"
+msgstr ""
+
 #. js
 #: templates/constelacion.html
 msgid "En la Osa Menor. Formó parte de la guía polar con Pherkad en la antigüedad."
@@ -3899,6 +3932,10 @@ msgstr ""
 
 #: templates/editar_foto.html
 msgid "Enseña en color lo que entra en el rango y en gris lo demás; solo en pantalla, no se guarda"
+msgstr ""
+
+#: templates/configuracion.html
+msgid "Enséñaselo a otro móvil: con la cámara abre la app"
 msgstr ""
 
 #: templates/_modal_voz.html
@@ -4599,6 +4636,10 @@ msgstr ""
 
 #: static/js/asistente.js
 msgid "Falta la latitud o la longitud. Pulsa «Usar la ubicación de este móvil» o escríbelas (las da Google Maps al tocar un punto del mapa)."
+msgstr ""
+
+#: ScopePower.py
+msgid "Falta la librería segno para dibujar el QR"
 msgstr ""
 
 #: ScopePower.py
@@ -7154,6 +7195,10 @@ msgstr ""
 msgid "No encuentro el cometa {objeto}"
 msgstr ""
 
+#: consola_conexion.py
+msgid "No encuentro ninguna red: conecta este PC a la Wi-Fi para entrar desde el móvil."
+msgstr ""
+
 #: ScopePower.py
 msgid "No encuentro {objeto} en ningún catálogo"
 msgstr ""
@@ -7328,6 +7373,10 @@ msgstr ""
 
 #: ScopePower.py mosaico.py
 msgid "No hay teselas apiladas"
+msgstr ""
+
+#: consola_conexion.py
+msgid "No se abre el navegador. Puedes entrar cuando quieras en {url}"
 msgstr ""
 
 #: recorridos.py
@@ -7962,6 +8011,10 @@ msgstr ""
 msgid "O"
 msgstr ""
 
+#: consola_conexion.py
+msgid "O apunta la cámara del móvil a este código:"
+msgstr ""
+
 #: ScopePower.py
 msgid "Objetivo desconocido"
 msgstr ""
@@ -8133,6 +8186,10 @@ msgstr ""
 
 #: templates/_guia.html
 msgid "Para apilar después los mejores fotogramas"
+msgstr ""
+
+#: consola_conexion.py
+msgid "Para arreglarlo, haz doble clic en herramientas\\abrir_cortafuegos.bat (pide permiso de administrador)."
 msgstr ""
 
 #: templates/configuracion.html
@@ -8479,6 +8536,11 @@ msgstr ""
 msgid "Prioritario: fotografiarlo cuando esté más alto"
 msgstr ""
 
+#. js
+#: consola_conexion.py
+msgid "Privada"
+msgstr ""
+
 #: templates/_modal_humor.html
 msgid "Probar"
 msgstr ""
@@ -8720,6 +8782,11 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "Píxeles rechazados"
+msgstr ""
+
+#. js
+#: consola_conexion.py
+msgid "Pública"
 msgstr ""
 
 #: templates/galeria.html
@@ -9355,6 +9422,10 @@ msgstr ""
 msgid "Satélite artificial"
 msgstr ""
 
+#: consola_conexion.py
+msgid "ScopePower en el navegador"
+msgstr ""
+
 #: ScopePower.py
 msgid "ScopePower iniciado. Servidor listo."
 msgstr ""
@@ -9381,6 +9452,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "ScopePower ya estaba en marcha. Esta segunda copia se cierra."
+msgstr ""
+
+#: consola_conexion.py
+msgid "ScopePower {version} listo"
 msgstr ""
 
 #: ScopePower.py
@@ -9619,6 +9694,10 @@ msgstr ""
 
 #: static/js/ubicacion_movil.js
 msgid "Si ahí ya está permitida, mira en Android: Ajustes → Aplicaciones → Chrome → Permisos → Ubicación → Permitir."
+msgstr ""
+
+#: consola_conexion.py
+msgid "Si no carga: el móvil en la misma Wi-Fi que este PC y sin datos móviles."
 msgstr ""
 
 #. js
@@ -11018,6 +11097,10 @@ msgstr ""
 
 #: templates/apagar.html
 msgid "Windows se reinicia y ScopePower vuelve a arrancar si está en el inicio"
+msgstr ""
+
+#: consola_conexion.py
+msgid "Windows tiene esta red como «Pública» y el cortafuegos no deja entrar al puerto {puerto}: el móvil puede no cargar la página."
 msgstr ""
 
 #. js
@@ -12676,7 +12759,7 @@ msgid "nombre"
 msgstr ""
 
 #. js
-#: templates/configuracion.html
+#: consola_conexion.py templates/configuracion.html
 msgid "nombre del equipo"
 msgstr ""
 
@@ -12895,6 +12978,10 @@ msgstr ""
 #. js
 #: camara_toupcam.py
 msgid "puntero no válido"
+msgstr ""
+
+#: consola_conexion.py
+msgid "punto de acceso del PC"
 msgstr ""
 
 #. js
@@ -14238,6 +14325,10 @@ msgstr ""
 msgid "· por debajo del aviso"
 msgstr ""
 
+#: consola_conexion.py
+msgid "¿Abrir ScopePower en el navegador de este PC? Pulsa S en los próximos {s} s (si no, no se abre)"
+msgstr ""
+
 #. js
 #: templates/configuracion.html
 msgid "¿Actualizar ScopePower a la release {version}?"
@@ -15164,6 +15255,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "✓ Foto nueva · {hora}"
+msgstr ""
+
+#: consola_conexion.py
+msgid "✔ Conectado desde {origen}. Las direcciones siguen en Configuración > Conectar desde el móvil."
 msgstr ""
 
 #: templates/apilado.html

@@ -115,6 +115,7 @@ class AnunciadorIP:
         self._conectado = threading.Event()
         self._parar = threading.Event()
         self.anuncios = 0
+        self.origen = ""
         self.ultimo_texto = ""
         self._hilo = None
 
@@ -127,10 +128,15 @@ class AnunciadorIP:
     def marcar_conectado(self, origen=""):
         if not self._conectado.is_set():
             log.info("Primera conexión remota desde %s: se dejan de anunciar las direcciones", origen)
+            self.origen = origen
             self._conectado.set()
 
     def esta_conectado(self):
         return self._conectado.is_set()
+
+    def esperar_conexion(self, timeout=None):
+        """True en cuanto se conecta alguien desde otro dispositivo (o si ya se conectó)."""
+        return self._conectado.wait(timeout)
 
     def anunciar_ahora(self):
         texto = texto_anuncio(self.puerto)

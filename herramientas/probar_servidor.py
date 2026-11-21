@@ -86,6 +86,20 @@ def main():
             pedir(ruta)
     sp.idioma.cambiar("es")
 
+    print("Conectar desde el móvil (Configuración): direcciones, QR y aviso del cortafuegos:")
+    red = pedir("/red/estado").get_json() or {}
+    bien = isinstance(red.get("avisos_cortafuegos"), list) and "punto_acceso" in red
+    print(f"  {'✅' if bien else '❌'} /red/estado con avisos del cortafuegos ({len(red.get('avisos_cortafuegos') or [])})")
+    if not bien:
+        fallos.append("/red/estado")
+    url_qr = red["direcciones"][0]["url"] if red.get("direcciones") else red.get("url_nombre", "")
+    r = pedir("/red/qr.svg?url=" + url_qr)
+    bien = r.mimetype == "image/svg+xml" and b"<svg" in r.get_data()
+    print(f"  {'✅' if bien else '❌'} QR en SVG de {url_qr}")
+    if not bien:
+        fallos.append("/red/qr.svg")
+    pedir("/red/qr.svg?url=http://ejemplo.com/", 404)      # solo direcciones de este PC
+
     print("Pestañas de la columna de controles (static/js/paneles.js):")
     import re
     pedir("/static/js/paneles.js")

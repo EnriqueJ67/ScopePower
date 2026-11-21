@@ -96,6 +96,7 @@ import manchas_solares
 import fotometria_solar
 import nota_apilado
 import anuncio_ip
+import consola_conexion
 import punto_acceso
 import coordenadas
 import recorridos
@@ -8332,7 +8333,25 @@ def red_estado():
         "anuncios": anunciador.anuncios,
         "conectado": anunciador.esta_conectado(),
         "anunciar_ip": _config_anuncio_ip()["anunciar_ip"],
+        "avisos_cortafuegos": consola_conexion.avisos_cortafuegos(PUERTO_WEB),
+        "punto_acceso": punto_acceso.IP if punto_acceso.activado(config) else None,
     })
+
+
+@app.route("/red/qr.svg")
+def red_qr():
+    """QR de una de las direcciones de /red/estado (?url=...), para enseñárselo a otro móvil."""
+    url = request.args.get("url", "")
+    validas = {f"http://{ip}:{PUERTO_WEB}" for ip, __ in anuncio_ip.direcciones_ip()}
+    validas.add(f"http://{anuncio_ip.nombre_equipo()}.local:{PUERTO_WEB}")
+    if punto_acceso.activado(config):
+        validas.add(f"http://{punto_acceso.IP}:{PUERTO_WEB}")
+    if url not in validas:
+        return jsonify({"error": _("Dirección desconocida")}), 404
+    svg = consola_conexion.qr_svg(url)
+    if svg is None:
+        return jsonify({"error": _("Falta la librería segno para dibujar el QR")}), 404
+    return Response(svg, mimetype="image/svg+xml", headers={"Cache-Control": "no-store"})
 
 
 @app.route("/voz/anunciar-ip", methods=["POST"])
@@ -8531,7 +8550,15 @@ if __name__ == '__main__':
     # PC recién instalado (sin contraseña o con el asistente pendiente): se abre el navegador del
     # propio PC en la bienvenida / el asistente de configuración. Con la configuración hecha no se
     # abre nada (el mini PC de campo arranca solo y se maneja desde el móvil).
-    if not config_inicial.hay_usuarios() or config_inicial.asistente_pendiente():
+    abre_asistente = not config_inicial.hay_usuarios() or config_inicial.asistente_pendiente()
+    # Consola: recuadro con las direcciones y su QR, título de la ventana, aviso del cortafuegos y
+    # cuenta atrás para abrir el navegador de este PC (no si ya se abre solo el asistente)
+    consola_conexion.iniciar(
+        PUERTO_WEB, version.VERSION, anunciador, anuncio_ip.direcciones_ip, anuncio_ip.nombre_equipo(),
+        os.path.dirname(os.path.abspath(__file__)),
+        ip_punto_acceso=punto_acceso.IP if punto_acceso.activado(config) else None,
+        preguntar=consola_conexion.leer_opciones()["preguntar_navegador"] and not abre_asistente)
+    if abre_asistente:
         def _abrir_navegador():
             import webbrowser
             url = f"http://127.0.0.1:{PUERTO_WEB}/"

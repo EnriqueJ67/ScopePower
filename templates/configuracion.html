@@ -284,7 +284,16 @@
         <!-- ─── Direcciones para conectar ───────────────────────────── -->
         <div class="card">
             <div class="card-header"><h3 class="card-title"><svg class="ico"><use href="#i-red"/></svg>{{ _("Conectar desde el móvil") }}</h3></div>
-            <div id="red-direcciones" class="direcciones mb-2">{{ _("Consultando...") }}</div>
+            <div class="fila" style="align-items:flex-start;flex-wrap:wrap;gap:1rem">
+                <div id="red-direcciones" class="direcciones mb-2" style="flex:1 1 16rem">{{ _("Consultando...") }}</div>
+                <figure id="red-qr" class="mb-2" style="margin:0;text-align:center" hidden>
+                    <img id="red-qr-img" alt="{{ _('Código QR de la dirección') }}" width="150" height="150"
+                         style="background:#fff;border-radius:6px;padding:4px;display:block"
+                         onerror="document.getElementById('red-qr').hidden = true">
+                    <figcaption class="texto-3" style="font-size:.8rem;max-width:160px">{{ _("Enséñaselo a otro móvil: con la cámara abre la app") }}</figcaption>
+                </figure>
+            </div>
+            <div id="red-avisos"></div>
             <p class="card-sub">
                 {{ _("Al arrancar, el PC dicta estas direcciones por el altavoz cada 30 segundos hasta que te conectas (opción <code>anunciar_ip</code> en config.ini).")|safe }}
             </p>
@@ -760,6 +769,22 @@
             html += `<div><b>${d.url_nombre}</b> <span>` + _("nombre del equipo") + "</span></div>";
             if (!d.direcciones.length) html = _("❌ No se encuentra ninguna dirección de red");
             document.getElementById("red-direcciones").innerHTML = html;
+            // QR de la dirección más probable (la del punto de acceso si está activo)
+            const urlQR = d.punto_acceso ? `http://${d.punto_acceso}:${d.puerto}` : (d.direcciones.length ? d.direcciones[0].url : "");
+            const qr = document.getElementById("red-qr");
+            if (urlQR) {
+                document.getElementById("red-qr-img").src = "/red/qr.svg?url=" + encodeURIComponent(urlQR);
+                qr.hidden = false;
+            } else {
+                qr.hidden = true;
+            }
+            const avisos = document.getElementById("red-avisos");
+            avisos.replaceChildren(...(d.avisos_cortafuegos || []).map(t => {
+                const div = document.createElement("div");
+                div.className = "aviso aviso-warn mb-2";
+                div.textContent = "⚠ " + t;
+                return div;
+            }));
         }).catch(err => document.getElementById("red-direcciones").textContent = "❌ " + err);
     }
     function anunciarIP() {

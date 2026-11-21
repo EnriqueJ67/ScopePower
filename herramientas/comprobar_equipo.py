@@ -34,12 +34,13 @@ for modulo, paquete in [("numpy", "numpy"), ("cv2", "opencv-python"), ("astropy"
                         ("astroquery", "astroquery"), ("flask", "flask"), ("unidecode", "Unidecode"),
                         ("win32com.client", "pywin32"), ("matplotlib", "matplotlib"), ("wikipedia", "wikipedia"),
                         ("bcrypt", "bcrypt"), ("requests", "requests"), ("watchdog", "watchdog"),
-                        ("PIL", "Pillow"), ("photutils", "photutils")]:
+                        ("PIL", "Pillow"), ("photutils", "photutils"), ("segno", "segno")]:
     try:
         m = importlib.import_module(modulo)
         linea(OK, f"{paquete} {getattr(m, '__version__', '')}".strip())
     except Exception as e:
-        falta(paquete, f"pip install {paquete}", imprescindible=(paquete != "photutils"))
+        # segno solo dibuja el QR de la dirección en la consola y en Configuración
+        falta(paquete, f"pip install {paquete}", imprescindible=(paquete not in ("photutils", "segno")))
 
 print("\n=== Configuración ===")
 if os.path.exists("config.ini"):
