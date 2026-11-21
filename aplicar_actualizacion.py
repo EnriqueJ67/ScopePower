@@ -790,8 +790,8 @@ def cerrar_app(procesos):
 def arrancar_app(raiz):
     lanzador = os.path.join(raiz, "lanzar_scopepower.bat")
     if os.path.isfile(lanzador):
-        # En una sola cadena: start necesita el título entre comillas, y subprocess no se las pone
-        subprocess.Popen(f'start "ScopePower" /D "{raiz}" "{lanzador}"', shell=True, close_fds=True)
+        # Como un doble clic: ventana propia, sin heredar la consola ni las tuberías de este proceso
+        os.startfile(lanzador)
 
 
 # ── Órdenes para actualizar_desde_github.bat ──────────────────────────────
