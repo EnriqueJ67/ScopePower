@@ -207,6 +207,16 @@ def carpeta_trabajo(raiz):
     return os.path.join(base, huella)
 
 
+def limpiar_trabajo(raiz):
+    """Borra la carpeta de trabajo de esta instalación (y la que la contiene, si queda vacía)."""
+    trabajo = carpeta_trabajo(raiz)
+    shutil.rmtree(trabajo, ignore_errors=True)
+    try:
+        os.rmdir(os.path.dirname(trabajo))
+    except OSError:
+        pass
+
+
 # ── GitHub ────────────────────────────────────────────────────────────────
 def _error_de_red(e):
     if isinstance(e, urllib.error.HTTPError):
@@ -894,7 +904,7 @@ def modo_interactivo(raiz, sin_preguntar=False, deshacer=False, zip_local=None):
             else:
                 aplicar(raiz, origen)
         finally:
-            shutil.rmtree(carpeta_trabajo(raiz), ignore_errors=True)
+            limpiar_trabajo(raiz)
             if reiniciar:
                 _decir(" Arrancando ScopePower de nuevo...")
                 arrancar_app(raiz)
@@ -941,7 +951,7 @@ def modo_lanzador(raiz):
         _decir(f" [ERROR] Fallo inesperado: {e!r}")
         _decir("[RESULTADO] error " + ("sin_restaurar" if interrumpida(raiz) else "mantenida"))
         codigo = 1
-    shutil.rmtree(carpeta_trabajo(raiz), ignore_errors=True)
+    limpiar_trabajo(raiz)
     return codigo
 
 
