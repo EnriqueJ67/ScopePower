@@ -82,9 +82,14 @@ datos/firma_enfoque.json.tmp
 # Destino del PC de campo de copiar_a_campo.bat (propio de cada usuario)
 copiar_a_campo.destino.txt
 
-# Actualizar desde GitHub: version anterior para poder volver y destino pedido desde la web
-datos/version_anterior.txt
+# Actualizar desde GitHub: copia de la versión anterior (para volver o restaurar si falla),
+# lista de ficheros que instaló la última actualización y lo pedido desde la web
+_backup/
+datos/ficheros_instalados.json
+datos/ficheros_instalados.json.tmp
 datos/actualizar_pendiente.txt
+# (de versiones anteriores, cuando se actualizaba con git; ya no se usa)
+datos/version_anterior.txt
 
 # Traducciones a medias antes de importarlas al .po (herramientas/traducciones.py importar)
 traducciones/parciales/

@@ -150,6 +150,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_consola_conexion.py
 
+      - name: Prueba de la actualización sin Git (GitHub falso en 127.0.0.1, instalación de mentira, cortes a mitad y vuelta atrás)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_actualizar.py
+
       - name: Prueba de la galería pública (hosting falso en Python con el contrato de publicar.php; sin PHP en GitHub)
         env:
           PYTHONIOENCODING: utf-8
