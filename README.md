@@ -106,7 +106,8 @@ un *issue*.
    ASTAP si falta y crea el acceso directo del escritorio.
 3. Arranca ScopePower desde el acceso directo. La primera vez abre el navegador del PC para crear
    el usuario y lanza el asistente de configuración (focal, montura, cámara, ASTAP, ubicación).
-   Después, desde el móvil, entra en la dirección que el PC dicta por el altavoz.
+   Después, desde el móvil, entra en la dirección que el PC dicta por el altavoz o escanea el código
+   QR que aparece en la ventana de ScopePower.
 
 Los detalles (drivers, voz en español, arranque automático al encender el mini PC, actualización
 del PC de campo) están en [INSTALACION.md](INSTALACION.md).
