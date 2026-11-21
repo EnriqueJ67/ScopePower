@@ -3,7 +3,9 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
-## En preparación
+## 1.5.1 · 2026-11-21
+
+Lo principal: el QR de la consola ya abre la app aunque el móvil esté en otra Wi-Fi que el punto de acceso del PC.
 
 - Arreglado: el QR de la consola se quedaba en blanco en el móvil cuando el PC tiene su propio punto de acceso
   (`[Red] punto_acceso`) y el móvil está en otra Wi-Fi, por ejemplo la de casa: el código era solo el de la
