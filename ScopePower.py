@@ -72,6 +72,7 @@ import apilado_video
 import visor_video
 import enfoque
 import camara_sdk
+import perfil_ascom
 import disco
 import correccion_ejes
 import dither
@@ -1907,27 +1908,26 @@ def ascom_drivers():
     """Drivers ASCOM registrados (Telescope o Camera) sin abrir el diálogo Chooser en el PC."""
     tipo = request.args.get("tipo", "Telescope")
     drivers = []
-    try:
-        pythoncom.CoInitialize()
-        profile = win32com.client.Dispatch("ASCOM.Utilities.Profile")
-        for kv in profile.RegisteredDevices(tipo):
-            drivers.append({"progid": str(kv.Key), "name": str(kv.Value)})
-    except Exception as e:
-        log.warning("No se pudo leer el perfil ASCOM (%s): %s", tipo, e)
-    drivers.sort(key=lambda d: d["name"].lower())
-    if tipo == "Camera":
-        # Las cámaras que se pueden usar sin ASCOM, por el SDK de su marca (camara_sdk.py), primero.
-        # La marca de la cámara abierta ahora (conectada o en el modo en vivo) no se vuelve a sondear.
-        no_tocar = ()
-        if camara.esta_conectado() or camara.reservado_por:
-            try:
-                no_tocar = (camara_sdk.leer_driver(_dispositivos()["driver_camara"])[0],)
-            except ValueError:
-                pass
+    # De una en una: el asistente pide las dos listas a la vez y dos hilos leyendo el perfil de
+    # ASCOM al mismo tiempo cierran la app con una violación de acceso (ver perfil_ascom.py)
+    with perfil_ascom.CANDADO:
         try:
-            drivers = camara_sdk.detectar_camaras(no_tocar=no_tocar) + drivers
+            drivers = perfil_ascom.drivers_registrados(tipo)
         except Exception as e:
-            log.warning("No se pudieron buscar cámaras por SDK: %s", e)
+            log.warning("No se pudo leer el perfil ASCOM (%s): %s", tipo, e)
+        if tipo == "Camera":
+            # Las cámaras que se pueden usar sin ASCOM, por el SDK de su marca (camara_sdk.py), primero.
+            # La marca de la cámara abierta ahora (conectada o en el modo en vivo) no se vuelve a sondear.
+            no_tocar = ()
+            if camara.esta_conectado() or camara.reservado_por:
+                try:
+                    no_tocar = (camara_sdk.leer_driver(_dispositivos()["driver_camara"])[0],)
+                except ValueError:
+                    pass
+            try:
+                drivers = camara_sdk.detectar_camaras(no_tocar=no_tocar) + drivers
+            except Exception as e:
+                log.warning("No se pudieron buscar cámaras por SDK: %s", e)
     return jsonify({"drivers": drivers})
 
 
@@ -8496,8 +8496,6 @@ def error_no_capturado(e):
 
 @app.route("/ascom-selector")
 def ascom_selector():
-    import pythoncom
-    import win32com.client
     # Abre el selector de ASCOM EN LA PANTALLA DEL PC (con su botón Properties para el puerto
     # COM, la IP...) y espera a que se cierre. ?actual= deja marcado ese driver.
     tipo = request.args.get("tipo", "Telescope")
@@ -8505,10 +8503,7 @@ def ascom_selector():
     trabajador = montura if tipo == "Telescope" else camara
     if trabajador.esta_conectado():
         trabajador.desconectar()
-    pythoncom.CoInitialize()
-    chooser = win32com.client.Dispatch("ASCOM.Utilities.Chooser")
-    chooser.DeviceType = tipo
-    driver = chooser.Choose(request.args.get("actual", ""))
+    driver = perfil_ascom.elegir_driver(tipo, request.args.get("actual", ""))
     return jsonify({"driver": driver})
 
 

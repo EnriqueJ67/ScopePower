@@ -16,6 +16,10 @@ día de la release. El número de versión vive en `version.py`.
 - El montaje no es una fotografía y lo dice: se guarda como «Luna (montaje)», que es el nombre que llevan la
   firma y la galería pública, y en vez del tiempo de exposición pone cuántas fotos entran. Sus anotaciones
   (mares, cráteres, alunizajes) salen en su sitio.
+- Arreglado: en un PC recién instalado, ScopePower podía cerrarse solo, sin ningún mensaje, al abrir el
+  asistente de configuración. El asistente pide a la vez la lista de monturas y la de cámaras, y leer la
+  lista de drivers de ASCOM desde dos sitios a la vez hacía fallar a Windows (pasaba pocas veces). Ahora las
+  listas se leen una detrás de otra.
 
 ## 1.6.0 · 2026-11-21
 

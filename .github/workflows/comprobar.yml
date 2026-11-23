@@ -150,6 +150,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_config_ini.py
 
+      - name: Prueba de la lista de drivers pedida a la vez, como hace el asistente (ASCOM de mentira y las rutas en otro proceso, sin cámaras)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_lista_drivers.py
+
       - name: Prueba de la consola al arrancar (QR legible, recuadro, cortafuegos, acceso directo)
         env:
           PYTHONIOENCODING: utf-8
