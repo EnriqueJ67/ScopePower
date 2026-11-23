@@ -160,6 +160,8 @@
     <div id="wolf-lista" class="wolf-lista" style="display: none;" onclick="event.stopPropagation()"></div>
     <!-- Fotos del Sol con crudo: el limbo por colores, la temperatura según la profundidad y el diámetro -->
     <button type="button" id="lightbox-sol" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); alternarPanelSol()" style="display: none;">{{ _("Limbo y diámetro") }}</button>
+    <!-- Fotos de la Luna con crudo: el montaje «Luna 3D» (sombra rellena, halo y estrellas), en su pantalla -->
+    <a id="lightbox-luna3d" class="btn btn-secondary btn-sm" href="#" onclick="event.stopPropagation()" style="display: none;" title="{{ _('Montaje con esta foto: la zona en sombra rellena con otra foto de la Luna, halo y estrellas') }}">{{ _("Luna 3D") }}</a>
     <div id="panel-sol" class="panel-sol" style="display: none;" onclick="event.stopPropagation()">
         <div class="panel-sol-cab"><b>{{ _("El disco del Sol") }}</b><button type="button" class="panel-sol-cerrar" onclick="alternarPanelSol(false)" aria-label="{{ _('Cerrar') }}">×</button></div>
         <div id="panel-sol-cuerpo"></div>
@@ -188,6 +190,7 @@
     const CON_FITS = {{ con_fits|list|tojson }};
     const CON_DIA = {{ con_dia|list|tojson }};
     const CON_LUNA = {{ con_luna|list|tojson }};
+    const CON_LUNA3D = {{ con_luna3d|list|tojson }};
     const CON_SOL = {{ con_sol|list|tojson }};
     const SERIE_WOLF = {{ serie_wolf|tojson }};
     const SOL_CRUDO = {{ sol_crudo|tojson }};
@@ -260,6 +263,9 @@
         anotar.title = CON_SOL.includes(nombre_archivo) ? TITULO_ANOTAR_SOL : CON_LUNA.includes(nombre_archivo) ? TITULO_ANOTAR_LUNA : TITULO_ANOTAR;
         wolfBarra(false);
         document.getElementById('lightbox-sol').style.display = SOL_CRUDO.includes(nombre_archivo) ? "" : "none";
+        const luna3d = document.getElementById('lightbox-luna3d');
+        luna3d.style.display = CON_LUNA3D.includes(nombre_archivo) ? "" : "none";
+        luna3d.href = "/galeria/luna-3d/" + encodeURIComponent(nombre_archivo);
         cargarPanelSol();
         document.getElementById('lightbox').classList.add("abierto");
         // Las anotaciones se colocan sobre la foto ya cargada (hace falta su tamaño)

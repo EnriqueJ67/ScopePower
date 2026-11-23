@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ScopePower 1.5.1\n"
+"Project-Id-Version: ScopePower 1.6.0\n"
 "Report-Msgid-Bugs-To: https://github.com/EnriqueJ67/ScopePower/issues\n"
 "POT-Creation-Date: 2026-10-15 00:00+0009\n"
 "PO-Revision-Date: 2026-10-15 00:00+0009\n"
@@ -1148,6 +1148,10 @@ msgstr ""
 msgid "Automática (según la montura)"
 msgstr ""
 
+#: templates/luna_3d.html
+msgid "Automático: {objeto}"
+msgstr ""
+
 #: templates/_asistente.html
 msgid "Autor de las fotos"
 msgstr ""
@@ -1333,6 +1337,10 @@ msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Borrar punto"
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "Brillo de las estrellas"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
@@ -1951,6 +1959,10 @@ msgstr ""
 msgid "Compensación de la exposición automática"
 msgstr ""
 
+#: templates/luna_3d.html
+msgid "Compone el montaje a su tamaño y lo deja en la galería como una foto nueva; la foto original no se toca"
+msgstr ""
+
 #: templates/editar_foto.html
 msgid "Composición"
 msgstr ""
@@ -2058,6 +2070,10 @@ msgstr ""
 
 #: templates/_asistente.html
 msgid "Con ella se calculan las alturas de los objetos, el GoTo, la noche astronómica y las efemérides."
+msgstr ""
+
+#: luna_3d.py
+msgid "Con esta foto no se puede hacer el montaje: tiene que ser de la Luna y tener su imagen en crudo guardada."
 msgstr ""
 
 #: templates/configuracion.html
@@ -3276,6 +3292,10 @@ msgstr ""
 msgid "El intervalo debe estar entre 1 y 3600 segundos"
 msgstr ""
 
+#: templates/luna_3d.html
+msgid "El mapa lunar de la app"
+msgstr ""
+
 #: templates/planetario.html
 msgid "El mapa sigue a la montura"
 msgstr ""
@@ -3515,6 +3535,10 @@ msgstr ""
 #. js
 #: templates/base.html
 msgid "El reloj del PC va atrasado {t} respecto a este móvil. Toca para ver cómo corregirlo."
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "El resplandor alrededor del disco sale de la propia foto, desenfocada."
 msgstr ""
 
 #. js
@@ -4136,7 +4160,7 @@ msgid "Error total: {t}′"
 msgstr ""
 
 #. js
-#: templates/editar_dia.html templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html templates/luna_3d.html
 msgid "Error {codigo}"
 msgstr ""
 
@@ -4160,9 +4184,21 @@ msgstr ""
 msgid "Es un <b>concentrador</b> que reparte la montura entre varios programas: antes elige en el PC qué montura real usa, con «Configurar el driver en el PC»."
 msgstr ""
 
+#: templates/luna_3d.html
+msgid "Es un montaje, no una fotografía: la zona en sombra sale de otra foto de la Luna (o del mapa lunar) y las estrellas, de otro campo. Se guarda como «Luna (montaje)» y no sustituye a la foto original."
+msgstr ""
+
 #. js
 #: templates/constelacion.html
 msgid "Es una de las cuatro estrellas reales mesopotámicas, junto a Aldebarán, Antares y Fomalhaut. El nombre más común de la estrella, Regulus, procede del latín y significa pequeño rey."
+msgstr ""
+
+#: luna_3d.py
+msgid "Esa foto no sirve para las estrellas: tiene que ser un apilado de noche de la galería."
+msgstr ""
+
+#: luna_3d.py
+msgid "Esa foto no sirve para rellenar la sombra: tiene que ser de la Luna, con su crudo, y estar más iluminada."
 msgstr ""
 
 #: static/js/fotometria_solar.js
@@ -4319,6 +4355,10 @@ msgstr ""
 msgid "Esta foto ya estaba en la galería ({archivo})."
 msgstr ""
 
+#: templates/luna_3d.html
+msgid "Esta foto ya tiene un montaje guardado: al guardar se sustituye."
+msgstr ""
+
 #: static/js/plan.js templates/esta_noche.html templates/home.html
 #: templates/planetario.html
 msgid "Esta noche"
@@ -4471,6 +4511,10 @@ msgstr ""
 
 #: cola_estrellas.py
 msgid "Estrellas aparte de {archivo} en {s} s"
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "Estrellas de"
 msgstr ""
 
 #. js
@@ -4701,7 +4745,7 @@ msgstr ""
 msgid "Filtro solar confirmado a las {hora}"
 msgstr ""
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/luna_3d.html
 msgid "Firma en la foto"
 msgstr ""
 
@@ -5125,9 +5169,9 @@ msgstr ""
 #. js
 #: espacio_disco.py guia.py static/publico/galeria_publica.js
 #: templates/base.html templates/editar_dia.html templates/editar_foto.html
-#: templates/galeria.html templates/home.html templates/publico/index.html
-#: templates/publico/planetario.html templates/rastros.html
-#: templates/visor_video.html
+#: templates/galeria.html templates/home.html templates/luna_3d.html
+#: templates/publico/index.html templates/publico/planetario.html
+#: templates/rastros.html templates/visor_video.html
 msgid "Galería"
 msgstr ""
 
@@ -5426,7 +5470,7 @@ msgid "Guardar el mosaico en la galería al terminar"
 msgstr ""
 
 #: templates/apilado.html templates/editar_dia.html templates/editar_foto.html
-#: templates/imagen.html templates/visor_video.html
+#: templates/imagen.html templates/luna_3d.html templates/visor_video.html
 msgid "Guardar en la galería"
 msgstr ""
 
@@ -5517,8 +5561,16 @@ msgstr ""
 msgid "Haciendo una foto para encontrar el disco..."
 msgstr ""
 
+#: templates/luna_3d.html
+msgid "Halo"
+msgstr ""
+
 #: templates/editar_foto.html
 msgid "Halo de las estrellas"
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "Halo y estrellas"
 msgstr ""
 
 #: templates/imagen.html
@@ -5527,6 +5579,10 @@ msgstr ""
 
 #: editor_dia.py editor_fotos.py
 msgid "Hay otra vista previa en marcha; espera a que termine"
+msgstr ""
+
+#: luna_3d.py
+msgid "Hay otro montaje en marcha; espera a que termine"
 msgstr ""
 
 #: ScopePower.py
@@ -5866,6 +5922,14 @@ msgstr ""
 
 #: guia.py
 msgid "La Luna está centrada"
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "La Luna más llena de la galería"
+msgstr ""
+
+#: luna_3d.py
+msgid "La Luna tiene que salir entera en la foto para hacer el montaje."
 msgstr ""
 
 #: actualizar.py
@@ -6232,6 +6296,10 @@ msgstr ""
 msgid "La noche"
 msgstr ""
 
+#: templates/luna_3d.html
+msgid "La otra foto se coloca sola sobre esta (tamaño, giro y libración). Donde no llega su parte iluminada se usa el mapa lunar, con menos detalle."
+msgstr ""
+
 #. js
 #: templates/constelacion.html
 msgid "La otra gema de Géminis. Es en realidad un sistema sextuple."
@@ -6542,12 +6610,29 @@ msgstr ""
 msgid "Luna"
 msgstr ""
 
+#: templates/galeria.html templates/luna_3d.html
+msgid "Luna 3D"
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "Luna 3D · {objeto}"
+msgstr ""
+
 #: guia.py
 msgid "Luna a {alt}°"
 msgstr ""
 
+#: templates/luna_3d.html
+#, python-format
+msgid "Luna del {fecha} ({p} % iluminada)"
+msgstr ""
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Luz"
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "Luz en la sombra"
 msgstr ""
 
 #: flats.py
@@ -6781,6 +6866,15 @@ msgstr ""
 
 #: templates/seguimiento.html
 msgid "Modo simulador activado en config.ini: cámara y montura falsas."
+msgstr ""
+
+#. js
+#: templates/luna_3d.html
+msgid "Montaje"
+msgstr ""
+
+#: templates/galeria.html
+msgid "Montaje con esta foto: la zona en sombra rellena con otra foto de la Luna, halo y estrellas"
 msgstr ""
 
 #. js
@@ -7265,6 +7359,10 @@ msgstr ""
 msgid "No hay GOTO previo y no se pudo leer la montura: {e}"
 msgstr ""
 
+#: templates/luna_3d.html
+msgid "No hay apilados de noche en la galería de los que sacar las estrellas."
+msgstr ""
+
 #: ScopePower.py
 msgid "No hay centro para el mosaico: apunta a un objeto, escribe un nombre o conecta la montura"
 msgstr ""
@@ -7281,6 +7379,10 @@ msgstr ""
 #. js
 #: templates/goto.html
 msgid "No hay descripción de «{objeto}» (fuera del catálogo y sin Internet)."
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "No hay en la galería otra foto de la Luna más iluminada que esta (con su imagen en crudo): la sombra sale del mapa lunar, con menos detalle. Con una foto de la Luna llena saldría de tu propia foto."
 msgstr ""
 
 #. js
@@ -7623,8 +7725,12 @@ msgstr ""
 msgid "No se pudo codificar la imagen"
 msgstr ""
 
-#: editor_dia.py editor_fotos.py
+#: editor_dia.py editor_fotos.py luna_3d.py
 msgid "No se pudo codificar la vista previa"
+msgstr ""
+
+#: ScopePower.py
+msgid "No se pudo componer: {e}"
 msgstr ""
 
 #: static/js/seguimiento.js
@@ -7686,7 +7792,7 @@ msgstr ""
 
 #. js
 #: static/js/asistente.js templates/configuracion.html
-#: templates/editar_dia.html templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html templates/luna_3d.html
 msgid "No se pudo guardar"
 msgstr ""
 
@@ -7696,6 +7802,10 @@ msgstr ""
 
 #: mosaico.py
 msgid "No se pudo guardar el mosaico en la galería: {e}"
+msgstr ""
+
+#: luna_3d.py
+msgid "No se pudo guardar la foto en la galería"
 msgstr ""
 
 #: ScopePower.py static/js/asistente.js
@@ -7745,6 +7855,10 @@ msgstr ""
 
 #: static/js/mosaico.js
 msgid "No se pudo leer el mosaico: {e}"
+msgstr ""
+
+#: luna_3d.py
+msgid "No se pudo leer la foto de las estrellas"
 msgstr ""
 
 #: ScopePower.py luna_anotada.py manchas_solares.py
@@ -7852,11 +7966,15 @@ msgstr ""
 msgid "No se reconoce qué parte de la Luna es."
 msgstr ""
 
-#: luna_anotada.py
+#: luna_3d.py
+msgid "No se sabe cuándo o desde dónde se hizo la foto: hace falta para saber cómo se veía la Luna."
+msgstr ""
+
+#: luna_3d.py luna_anotada.py
 msgid "No se sabe cuándo se hizo la foto: hace falta para saber cómo se veía la Luna."
 msgstr ""
 
-#: luna_anotada.py
+#: luna_3d.py luna_anotada.py
 msgid "No se sabe desde dónde se hizo la foto: falta el observatorio en Configuración."
 msgstr ""
 
@@ -8145,7 +8263,7 @@ msgid "Orientación de la imagen del SDK: {t} (correlación {c})"
 msgstr ""
 
 #. js
-#: templates/editar_dia.html templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html templates/luna_3d.html
 msgid "Original"
 msgstr ""
 
@@ -9587,9 +9705,17 @@ msgstr ""
 msgid "Se queda a {error}' tras {vuelta} vueltas (tolerancia {tol}')"
 msgstr ""
 
+#: templates/luna_3d.html
+msgid "Se rellena con"
+msgstr ""
+
 #. js
 #: templates/constelacion.html
 msgid "Se sitúa en el pie izquierdo de Orión. Es una supergigante azul, una de las más brillantes del cielo."
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "Se toman solo las estrellas de ese apilado de noche (sin su fondo ni su nebulosa). Los cúmulos abiertos son los que mejor quedan."
 msgstr ""
 
 #: templates/apilado.html
@@ -9882,6 +10008,10 @@ msgstr ""
 #. js
 #: guia.py
 msgid "Sin encuadrar, la foto saldrá de donde apunte ahora el telescopio."
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "Sin estrellas"
 msgstr ""
 
 #: templates/_guia.html
@@ -10969,7 +11099,7 @@ msgstr ""
 msgid "Visible de {desde} a {hasta} · máximo {max}° a las {hora}"
 msgstr ""
 
-#: templates/editar_dia.html templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html templates/luna_3d.html
 msgid "Vista previa"
 msgstr ""
 
@@ -11308,6 +11438,10 @@ msgstr ""
 
 #: actualizar.py
 msgid "Ya tienes la última versión"
+msgstr ""
+
+#: templates/luna_3d.html
+msgid "Zona en sombra"
 msgstr ""
 
 #: templates/apilado.html
@@ -12405,6 +12539,12 @@ msgstr ""
 msgid "la montura no terminó {que} en {s} s"
 msgstr ""
 
+#. js
+#: templates/luna_3d.html
+#, python-format
+msgid "la otra foto rellena el {p} % del disco"
+msgstr ""
+
 #: mosaico.py
 msgid "la tesela cae fuera del plano del mosaico"
 msgstr ""
@@ -13262,6 +13402,11 @@ msgstr ""
 #. js
 #: static/js/mosaico.js templates/planetario.html
 msgid "solape mínimo entre vecinas {pct} %"
+msgstr ""
+
+#. js
+#: templates/luna_3d.html
+msgid "sombra del mapa lunar"
 msgstr ""
 
 #: static/js/plan.js
@@ -14229,7 +14374,7 @@ msgstr ""
 msgid "{p} % del campo"
 msgstr ""
 
-#: static/js/luna_anotada.js
+#: static/js/luna_anotada.js templates/luna_3d.html
 #, python-format
 msgid "{p} % iluminada"
 msgstr ""
@@ -14722,6 +14867,11 @@ msgid "⏳ Centrando..."
 msgstr ""
 
 #. js
+#: templates/luna_3d.html
+msgid "⏳ Colocando las fotos: la primera vez tarda unos segundos..."
+msgstr ""
+
+#. js
 #: templates/configuracion.html
 msgid "⏳ Comparando con el hosting..."
 msgstr ""
@@ -14762,7 +14912,7 @@ msgstr ""
 
 #. js
 #: templates/apilado.html templates/configuracion.html
-#: templates/editar_dia.html templates/editar_foto.html
+#: templates/editar_dia.html templates/editar_foto.html templates/luna_3d.html
 msgid "⏳ Guardando..."
 msgstr ""
 
@@ -15262,6 +15412,11 @@ msgstr ""
 #. js
 #: templates/configuracion.html
 msgid "✅ Ubicación guardada y en Stellarium"
+msgstr ""
+
+#. js
+#: templates/luna_3d.html
+msgid "✅ Vista previa en {s} s"
 msgstr ""
 
 #. js

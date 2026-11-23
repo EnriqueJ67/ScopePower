@@ -3,6 +3,20 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## En preparación
+
+- Nuevo: «Luna 3D», un montaje con una foto de la Luna de la galería para que se vea la esfera entera y no
+  solo la parte iluminada. En el visor de la galería, las fotos de la Luna que tienen su imagen en crudo llevan
+  el botón «Luna 3D», que abre su pantalla: la zona en sombra se rellena con otra foto de la Luna más
+  iluminada (la más llena de la galería, que se coloca sola sobre la fase corrigiendo tamaño, giro y
+  libración) y, donde esa no llega o si no hay ninguna, con el mapa lunar de la app; alrededor va un halo
+  sacado de la propia foto y, de fondo, las estrellas de un apilado de noche de la galería. Tres controles
+  (luz en la sombra, halo y brillo de las estrellas) con vista previa, y «Guardar en la galería» deja una foto
+  nueva con el norte arriba, sin tocar la original.
+- El montaje no es una fotografía y lo dice: se guarda como «Luna (montaje)», que es el nombre que llevan la
+  firma y la galería pública, y en vez del tiempo de exposición pone cuántas fotos entran. Sus anotaciones
+  (mares, cráteres, alunizajes) salen en su sitio.
+
 ## 1.6.0 · 2026-11-21
 
 Lo principal: «Actualizar desde GitHub» ya no necesita Git. Baja la última versión publicada y la instala sola en
