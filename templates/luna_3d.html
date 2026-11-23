@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _("Luna 3D · {objeto}", objeto=info.objeto) }}{% endblock %}
+
+{% block content %}
+<!-- Luna 3D (luna_3d.py): un montaje con una foto de la Luna de la galería. La zona en sombra se
+     rellena con otra foto más iluminada (o con el mapa lunar), y se añaden el halo y las estrellas
+     de una foto de noche. La vista previa la calcula el mini PC; al guardar queda como una foto más. -->
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">{{ _("Luna 3D") }}</h1>
+        <p class="pagina-sub">
+            {{ info.objeto }}{% if info.fecha %} · {{ info.fecha }}{% endif %} · {{ _("{p} % iluminada", p=(info.iluminada * 100)|round|int) }}
+        </p>
+    </div>
+    <div class="pagina-acciones">
+        <a href="/galeria" class="btn btn-secondary"><svg><use href="#i-galeria"/></svg>{{ _("Galería") }}</a>
+    </div>
+</div>
+
+<div class="grid-2 ancha apilado-layout">
+    <!-- ─── El montaje ─── -->
+    <div class="columna">
+        <div class="visor">
+            <img id="imagen" src="{{ url_for('static', filename='fotos/' ~ info.nombre) }}" alt="{{ info.objeto }}">
+            <div class="visor-overlay">
+                <span class="chip" id="chip-vista">{{ _("Original") }}</span>
+                <span class="chip" id="chip-tiempo" style="display: none;"></span>
+            </div>
+        </div>
+        <div class="fila entre" style="gap: 8px; flex-wrap: wrap;">
+            <div class="segmentado" id="vista-seg">
+                <button type="button" class="activo" data-vista="original" onclick="mostrarVista('original')">{{ _("Original") }}</button>
+                <button type="button" data-vista="nueva" onclick="mostrarVista('nueva')" id="btn-vista-nueva" disabled>{{ _("Montaje") }}</button>
+            </div>
+            <button class="btn btn-primary" id="btn-preview" onclick="pedirVistaPrevia()"><svg><use href="#i-refrescar"/></svg>{{ _("Vista previa") }}</button>
+        </div>
+        <div id="estado-preview" class="estado"></div>
+        <button class="btn btn-success btn-lg btn-block" id="btn-guardar" onclick="guardarMontaje()" title="{{ _('Compone el montaje a su tamaño y lo deja en la galería como una foto nueva; la foto original no se toca') }}"><svg><use href="#i-guardar"/></svg>{{ _("Guardar en la galería") }}</button>
+        <div id="estado-guardar" class="estado centro" style="margin-top: -4px;"></div>
+        <small class="ayuda">{{ _("Es un montaje, no una fotografía: la zona en sombra sale de otra foto de la Luna (o del mapa lunar) y las estrellas, de otro campo. Se guarda como «Luna (montaje)» y no sustituye a la foto original.") }}{% if info.hay_montaje %} {{ _("Esta foto ya tiene un montaje guardado: al guardar se sustituye.") }}{% endif %}</small>
+    </div>
+
+    <!-- ─── De dónde sale cada capa y cuánto se nota ─── -->
+    <div class="columna lateral">
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-disco"/></svg>{{ _("Zona en sombra") }}</h3>
+            <div class="form-group">
+                <label for="c-relleno">{{ _("Se rellena con") }}</label>
+                <select id="c-relleno" class="form-control">
+                    {% if info.rellenos %}
+                    <option value="auto">{{ _("La Luna más llena de la galería") }}</option>
+                    {% for r in info.rellenos %}
+                    <option value="{{ r.nombre }}">{{ _("Luna del {fecha} ({p} % iluminada)", fecha=r.fecha or r.nombre, p=(r.iluminada * 100)|round|int) }}</option>
+                    {% endfor %}
+                    {% endif %}
+                    <option value="mapa">{{ _("El mapa lunar de la app") }}</option>
+                </select>
+                <small class="ayuda">{% if info.rellenos %}{{ _("La otra foto se coloca sola sobre esta (tamaño, giro y libración). Donde no llega su parte iluminada se usa el mapa lunar, con menos detalle.") }}{% else %}{{ _("No hay en la galería otra foto de la Luna más iluminada que esta (con su imagen en crudo): la sombra sale del mapa lunar, con menos detalle. Con una foto de la Luna llena saldría de tu propia foto.") }}{% endif %}</small>
+            </div>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Luz en la sombra") }}</span><span id="v-sombra"></span></div>
+                <input type="range" id="c-sombra" data-clave="sombra" min="0" max="2.5" step="0.1">
+            </div>
+        </section>
+
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-sol"/></svg>{{ _("Halo y estrellas") }}</h3>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Halo") }}</span><span id="v-halo"></span></div>
+                <input type="range" id="c-halo" data-clave="halo" min="0" max="2" step="0.1">
+                <small class="ayuda">{{ _("El resplandor alrededor del disco sale de la propia foto, desenfocada.") }}</small>
+            </div>
+            <div class="form-group">
+                <label for="c-campo">{{ _("Estrellas de") }}</label>
+                <select id="c-campo" class="form-control">
+                    {% if info.campos %}
+                    <option value="auto">{{ _("Automático: {objeto}", objeto=info.campos[0].objeto) }}</option>
+                    {% for c in info.campos %}
+                    <option value="{{ c.nombre }}">{{ c.objeto }}{% if c.tipo %} · {{ _(c.tipo) }}{% endif %}</option>
+                    {% endfor %}
+                    {% endif %}
+                    <option value="ninguno">{{ _("Sin estrellas") }}</option>
+                </select>
+                <small class="ayuda">{% if info.campos %}{{ _("Se toman solo las estrellas de ese apilado de noche (sin su fondo ni su nebulosa). Los cúmulos abiertos son los que mejor quedan.") }}{% else %}{{ _("No hay apilados de noche en la galería de los que sacar las estrellas.") }}{% endif %}</small>
+            </div>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Brillo de las estrellas") }}</span><span id="v-estrellas"></span></div>
+                <input type="range" id="c-estrellas" data-clave="estrellas" min="0" max="2" step="0.1">
+            </div>
+            <label class="interruptor-linea"><input type="checkbox" id="c-firma" checked> {{ _("Firma en la foto") }}</label>
+        </section>
+    </div>
+</div>
+
+<script>
+    const NOMBRE = {{ info.nombre|tojson }};
+    const OPCIONES = {{ info.opciones|tojson }};
+    const CLAVES = ["sombra", "halo", "estrellas"];
+    const URL_ORIGINAL = {{ url_for('static', filename='fotos/' ~ info.nombre)|tojson }};
+    let preparando = false, pendiente = false, temporizador = null, urlNueva = null, ultimaDuracion = null;
+
+    function pintarOpciones(o) {
+        for (const k of CLAVES) {
+            const c = document.getElementById("c-" + k);
+            c.value = o[k];
+            document.getElementById("v-" + k).textContent = fmtNum(parseFloat(c.value), 1);
+        }
+        document.getElementById("c-firma").checked = o.firma !== false;
+    }
+    function leerOpciones() {
+        const o = { relleno: document.getElementById("c-relleno").value, campo: document.getElementById("c-campo").value,
+                    firma: document.getElementById("c-firma").checked };
+        for (const k of CLAVES) o[k] = parseFloat(document.getElementById("c-" + k).value);
+        return o;
+    }
+    function mostrarVista(cual) {
+        if (cual === "nueva" && !urlNueva) cual = "original";
+        document.getElementById("imagen").src = cual === "nueva" ? urlNueva : URL_ORIGINAL;
+        document.getElementById("chip-vista").textContent = cual === "nueva" ? _("Montaje") : _("Original");
+        document.querySelectorAll("#vista-seg button").forEach(b => b.classList.toggle("activo", b.dataset.vista === cual));
+    }
+    function programarVistaPrevia() {
+        clearTimeout(temporizador);
+        temporizador = setTimeout(pedirVistaPrevia, 350);
+    }
+    // Con qué se ha hecho la vista previa (cabecera X-Montaje): la foto de la sombra y cuánto disco cubre
+    function resumen(datos, segundos) {
+        const partes = [_("✅ Vista previa en {s} s", { s: fmtNum(segundos, 1) })];
+        if (datos && datos.relleno) partes.push(_("la otra foto rellena el {p} % del disco", { p: Math.round(100 * (datos.cubierto || 0)) }));
+        else if (datos) partes.push(_("sombra del mapa lunar"));
+        return partes.join(" · ");
+    }
+    async function pedirVistaPrevia() {
+        if (preparando) { pendiente = true; return; }
+        preparando = true; pendiente = false;
+        const estado = document.getElementById("estado-preview"), chip = document.getElementById("chip-tiempo");
+        const boton = document.getElementById("btn-preview");
+        boton.disabled = true;
+        if (!urlNueva) estado.textContent = _("⏳ Colocando las fotos: la primera vez tarda unos segundos...");
+        const inicio = Date.now();
+        const cuenta = setInterval(() => {
+            const t = (Date.now() - inicio) / 1000;
+            chip.textContent = ultimaDuracion ? "≈ " + Math.ceil(Math.max(0, ultimaDuracion - t)) + " s" : Math.floor(t) + " s";
+            chip.style.display = "";
+        }, 250);
+        try {
+            const r = await fetch("/galeria/luna-3d/" + encodeURIComponent(NOMBRE) + "/vista", {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(leerOpciones())
+            });
+            if (!r.ok) {
+                const d = await r.json().catch(() => ({}));
+                throw new Error(d.error || _("Error {codigo}", { codigo: r.status }));
+            }
+            let datos = null;
+            try { datos = JSON.parse(r.headers.get("X-Montaje") || "null"); } catch (e) {}
+            const b = await r.blob();
+            if (urlNueva) URL.revokeObjectURL(urlNueva);
+            urlNueva = URL.createObjectURL(b);
+            ultimaDuracion = (Date.now() - inicio) / 1000;
+            document.getElementById("btn-vista-nueva").disabled = false;
+            mostrarVista("nueva");
+            estado.textContent = resumen(datos, ultimaDuracion);
+        } catch (e) {
+            estado.textContent = "❌ " + e.message;
+        } finally {
+            clearInterval(cuenta);
+            chip.style.display = "none";
+            boton.disabled = false;
+            preparando = false;
+            if (pendiente) pedirVistaPrevia();
+        }
+    }
+    async function guardarMontaje() {
+        const estado = document.getElementById("estado-guardar"), boton = document.getElementById("btn-guardar");
+        boton.disabled = true;
+        estado.textContent = _("⏳ Guardando...");
+        try {
+            const r = await fetch("/galeria/luna-3d/" + encodeURIComponent(NOMBRE) + "/guardar", {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(leerOpciones())
+            });
+            const d = await r.json();
+            estado.textContent = (r.ok && d.ok ? "✅ " : "⚠️ ") + (d.mensaje || _("No se pudo guardar"));
+        } catch (e) {
+            estado.textContent = "❌ " + e;
+        } finally {
+            boton.disabled = false;
+        }
+    }
+
+    pintarOpciones(OPCIONES);
+    for (const k of CLAVES) {
+        const c = document.getElementById("c-" + k);
+        c.addEventListener("input", () => document.getElementById("v-" + k).textContent = fmtNum(parseFloat(c.value), 1));
+        c.addEventListener("change", programarVistaPrevia);
+    }
+    for (const id of ["c-relleno", "c-campo"]) document.getElementById(id).addEventListener("change", programarVistaPrevia);
+    pedirVistaPrevia();
+</script>
+{% endblock %}

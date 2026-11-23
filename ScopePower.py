@@ -88,6 +88,7 @@ import cuerpos_menores
 import catalogo_offline
 import editor_fotos
 import editor_dia
+import luna_3d
 import galeria_anotada
 import fondo_planetario
 import publicar
@@ -6291,6 +6292,8 @@ def galeria():
     con_dia = {f for f in imagenes if f not in con_fits and editor_dia.es_foto_dia(f)}
     # Las de la Luna se anotan sin FITS: con sus accidentes (luna_anotada.py)
     con_luna = {f for f in imagenes if luna_anotada.es_luna(f, luna_anotada.meta_de(os.path.join(carpeta, f)))}
+    # Con las de la Luna que tienen su crudo se hace el montaje «Luna 3D» (luna_3d.py); con un montaje, no
+    con_luna3d = {f for f in con_luna if f in con_dia and not luna_3d.es_montaje(f)}
     # Las del Sol llevan sus manchas y el Número de Wolf (manchas_solares.py); la serie de los guardados va en una tarjeta
     con_sol = {f for f in imagenes if manchas_solares.es_sol(f, luna_anotada.meta_de(os.path.join(carpeta, f)))}
     serie_wolf = manchas_solares.serie_diaria() if con_sol else []
@@ -6328,6 +6331,7 @@ def galeria():
     lista_rastros = rastros.listar()
     n_meteoros = sum(1 for d in lista_rastros if d.get("tipo") == "meteoro")
     return render_template("galeria.html", imagenes=imagenes, con_fits=con_fits, con_dia=con_dia, con_luna=con_luna, con_sol=con_sol,
+                           con_luna3d=con_luna3d,
                            serie_wolf=serie_wolf, factor_k=manchas_solares.factor_k(), sol_crudo=sol_crudo, serie_sol=serie_sol,
                            curva_sol=curva_sol, orbita_sol=orbita_sol, n_sol_pendientes=n_sol_pendientes, tipos=tipos, filtros=filtros,
                            n_rastros=len(lista_rastros), n_meteoros=n_meteoros, videos=videos, de_video=de_video,
@@ -6996,6 +7000,53 @@ def galeria_editar_dia_restaurar(nombre):
         return jsonify({"ok": False, "mensaje": str(e)}), 409
     editor_dia.olvidar_cache()
     return jsonify({"ok": True, "mensaje": _("Foto restaurada a su original")})
+
+
+# ───────────────────────── Luna 3D: montaje con una foto de la Luna (luna_3d.py) ─────────────────────────
+def _lugar_observatorio():
+    obs = firma.datos_observatorio()
+    return obs["latitud"], obs["longitud"]
+
+
+@app.route("/galeria/luna-3d/<nombre>")
+def galeria_luna_3d(nombre):
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    try:
+        info = luna_3d.info(nombre, _lugar_observatorio())
+    except (luna_3d.ErrorLuna3D, editor_fotos.ErrorEditor) as e:
+        return str(e), 404
+    return render_template("luna_3d.html", info=info, mostrar_volver=True)
+
+
+@app.route("/galeria/luna-3d/<nombre>/vista", methods=["POST"])
+def galeria_luna_3d_vista(nombre):
+    """JPEG del montaje con las opciones que manda la web, a unos 800 px; en X-Montaje, con qué fotos se hizo."""
+    try:
+        jpg, datos = luna_3d.vista_previa(nombre, request.get_json(silent=True) or {}, _lugar_observatorio())
+    except (luna_3d.ErrorLuna3D, editor_fotos.ErrorEditor) as e:
+        return jsonify({"error": str(e)}), 409
+    except Exception as e:
+        log.exception("Error en la vista previa de Luna 3D")
+        return jsonify({"error": _("No se pudo componer: {e}", e=e)}), 500
+    r = Response(jpg, mimetype="image/jpeg")
+    r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    r.headers["X-Montaje"] = json.dumps({k: datos[k] for k in ("relleno", "campo", "cubierto")})
+    return r
+
+
+@app.route("/galeria/luna-3d/<nombre>/guardar", methods=["POST"])
+def galeria_luna_3d_guardar(nombre):
+    """Compone el montaje a su tamaño y lo deja en la galería como una foto nueva."""
+    try:
+        datos = luna_3d.guardar(nombre, request.get_json(silent=True) or {}, _lugar_observatorio())
+    except (luna_3d.ErrorLuna3D, editor_fotos.ErrorEditor) as e:
+        return jsonify({"ok": False, "mensaje": str(e)}), 409
+    except Exception as e:
+        log.exception("Error guardando el montaje de Luna 3D")
+        return jsonify({"ok": False, "mensaje": _("Error al guardar: {e}", e=e)}), 500
+    voz.decir(_("Foto guardada en la galería"))
+    return jsonify({"ok": True, "archivo": datos["archivo"], "mensaje": _("Guardada en la galería como {archivo}", archivo=datos["archivo"])})
 
 
 @app.route("/configuracion")

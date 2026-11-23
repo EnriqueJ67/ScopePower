@@ -1142,6 +1142,37 @@ def anotar(lum_o_bgr, instante, lat, lon, alt_m=0.0, previo=None):
             "pa_eje": round(geo["pa_eje"], 2), "metodo": metodo}
 
 
+def anotar_conocida(ancho, alto, disco, orient, instante, lat, lon, alt_m=0.0):
+    """
+    Lo mismo que anotar() cuando ya se sabe dónde está el disco y cómo está girado, sin mirar
+    la imagen: los montajes de luna_3d.py, que pintan la Luna con el norte arriba en un sitio
+    fijo y la rodean de un halo que engaña al ajuste del limbo.
+    """
+    geo = geometria(instante, lat, lon, alt_m)
+    disco = {c: float(disco[c]) for c in ("cx", "cy", "r")}
+    orient = {"giro": float(orient.get("giro", 0.0)), "espejo": bool(orient.get("espejo", False)), "correlacion": 1.0, "margen": 1.0}
+    return {"_interno": {"metodo": "conocido"}, "seguido": False, "ancho": int(ancho), "alto": int(alto),
+            "disco": {c: round(v, 1) for c, v in disco.items()}, "orientacion": orient,
+            "accidentes": accidentes(geo, disco, orient, ancho, alto), "terminador": terminador(geo, disco, orient),
+            "mares": contornos(geo, disco, orient, ancho, alto), "iluminada": round(geo["iluminada"], 3),
+            "libracion": [round(geo["libracion_lat"], 2), round(geo["libracion_lon"], 2)],
+            "pa_eje": round(geo["pa_eje"], 2), "metodo": "conocido"}
+
+
+def _disco_guardado(meta, ancho, alto):
+    """(disco, orientación) que un montaje dejó en su JSON, si valen para una imagen de ese tamaño; si no, None."""
+    montaje = meta.get("montaje")
+    if not isinstance(montaje, dict) or not isinstance(montaje.get("disco"), dict):
+        return None
+    try:
+        disco = {c: float(montaje["disco"][c]) for c in ("cx", "cy", "r")}
+        if int(montaje.get("ancho") or 0) != ancho or int(montaje.get("alto") or 0) != alto or disco["r"] <= 0:
+            return None
+    except (KeyError, TypeError, ValueError):
+        return None
+    return disco, {"giro": 0.0, "espejo": False}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Fotos de la galería
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1243,7 +1274,12 @@ def objetos_foto(nombre, observatorio=None):
         raise ErrorEditor(_("No se pudo leer la imagen"))
     t0 = time.time()
     try:
-        salida = _para_el_visor(anotar(img, instante, float(lat), float(lon)), nombre, t0)
+        guardado = _disco_guardado(meta, img.shape[1], img.shape[0])
+        if guardado:
+            resultado = anotar_conocida(img.shape[1], img.shape[0], guardado[0], guardado[1], instante, float(lat), float(lon))
+        else:
+            resultado = anotar(img, instante, float(lat), float(lon))
+        salida = _para_el_visor(resultado, nombre, t0)
     except ErrorLuna as e:
         _log_fallo(nombre, e, t0)
         raise ErrorEditor(str(e))

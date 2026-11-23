@@ -59,7 +59,8 @@ Más capturas en [docs/capturas](docs/capturas).
 - **Avisos por voz** en el PC, anuncio de la IP al arrancar,
   aviso de espacio en disco y punto de acceso wifi propio para el campo.
 - **La Luna y el Sol**: vídeo con apilado de los mejores fotogramas y revelado propio; la Luna anotada con
-  mares, cráteres, montes y alunizajes, también en directo; manchas del Sol con su tamaño y una estimación del
+  mares, cráteres, montes y alunizajes, también en directo; «Luna 3D», un montaje que rellena la zona en sombra
+  con otra foto tuya de la Luna y añade halo y estrellas; manchas del Sol con su tamaño y una estimación del
   Número de Wolf; oscurecimiento del limbo, temperatura y diámetro del disco.
 - **Ayudas al enfoque**: máscara de Bahtinov con cruceta virtual y desvío en píxeles, enfoque sin máscara por
   los colores de la estrella y enfoque del Sol y la Luna por la anchura del limbo, con avisos por voz.

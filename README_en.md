@@ -51,7 +51,8 @@ The screenshots show the Spanish interface. More in [docs/capturas](docs/captura
 - **Voice announcements** on the PC, IP announcement at startup,
   low disk space warning and its own Wi-Fi hotspot for the field.
 - **The Moon and the Sun**: video with best-frame stacking and its own processing; the annotated Moon with
-  seas, craters, mountains and landing sites, also live; sunspots with their size and an estimate of the
+  seas, craters, mountains and landing sites, also live; “3D Moon”, a composite that fills the shadowed side with
+  another of your Moon photos and adds a halo and stars; sunspots with their size and an estimate of the
   Wolf number; limb darkening, temperature and diameter of the disk.
 - **Focus aids**: Bahtinov mask with a virtual crosshair and the offset in pixels, mask-free focusing from
   the colours of the star, and focusing on the Sun and the Moon from the limb width, with voice prompts.
