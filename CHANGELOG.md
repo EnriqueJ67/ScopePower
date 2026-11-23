@@ -3,7 +3,11 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
-## En preparación
+## 1.7.0 · 2026-11-23
+
+Lo principal: «Luna 3D», un montaje hecho con tus propias fotos de la Luna en el que se ve la esfera entera, con
+la zona en sombra rellena, halo y estrellas. Y un arreglo para los PC recién instalados, donde la app podía
+cerrarse sola al abrir el asistente de configuración.
 
 - Nuevo: «Luna 3D», un montaje con una foto de la Luna de la galería para que se vea la esfera entera y no
   solo la parte iluminada. En el visor de la galería, las fotos de la Luna que tienen su imagen en crudo llevan
