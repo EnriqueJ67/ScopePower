@@ -135,6 +135,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_rastros.py
 
+      - name: Prueba de la corrección cosmética y del borde del apilado (mosaico sintético con píxeles calientes, saturados y fríos)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_cosmetica.py
+
       - name: Prueba de la biblioteca de darks por temperatura (cámara falsa, carpeta temporal)
         env:
           PYTHONIOENCODING: utf-8

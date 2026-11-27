@@ -3,6 +3,21 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## 1.7.3 · 2026-11-27
+
+Revisión de la 1.7.2: sin las manchas de colores ni la tira del borde en los apilados.
+
+- Arreglado: en algunos apilados salían bolitas rojas, azules o verdes repartidas por la foto. Eran unos
+  pocos píxeles calientes que el dark no puede corregir: los que se saturan, los que se encienden y se apagan
+  solos, y los que el dark resta de más cuando el sensor se enfría durante la sesión. Con el dither caían
+  varias fotos seguidas en el mismo sitio del cielo, el apilado no los quitaba y el revelado los convertía en
+  bolas de color. Ahora, antes de pasar cada foto a color, los píxeles sueltos que se salen muchísimo de los
+  de su color se cambian por la mediana de esos (la «corrección cosmética»). Las estrellas no se tocan: suben
+  también los píxeles de al lado. Se puede apagar con `correccion_cosmetica = false` en `[Apilado]`.
+- Arreglado: en el apilado incremental, la primera y la última columna y fila de la foto solo recibían la
+  foto de referencia y salía una tira con cinco veces el ruido, que el revelado volvía de colores. Ahora
+  reciben todas las fotos que las cubren.
+
 ## 1.7.2 · 2026-11-27
 
 Revisión de la 1.7.1: la Luna de noche sin pasar por un «Modo día», y sus vídeos en Cámara.
