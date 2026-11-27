@@ -2124,6 +2124,11 @@ msgstr "With your {campo}° field the recommended one is enough. The bigger the 
 msgid "Con {focal} mm de focal verás un campo de <b>{ancho}° × {alto}°</b> ({escala}″ por píxel)."
 msgstr "With {focal} mm focal length you'll see a field of <b>{ancho}° × {alto}°</b> ({escala}″ per pixel)."
 
+#. js
+#: templates/imagen.html
+msgid "Con «Sol, Luna y paisaje» la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado."
+msgstr "With «Sun, Moon & landscape» the exposure readjusts itself on every photo (minimum gain, no darks); each one takes a few seconds to download and develop."
+
 #: static/js/guia.js
 msgid "Conecta la montura y la cámara para seguir."
 msgstr "Connect the mount and the camera to continue."
@@ -2262,11 +2267,6 @@ msgstr "Continue, it's covered"
 msgid "Continuo"
 msgstr "Continuous"
 
-#. js
-#: templates/imagen.html
-msgid "Continuo de día: {objetivo}"
-msgstr "Daytime continuous: {objetivo}"
-
 #: ScopePower.py
 msgid "Continuo {n}"
 msgstr "Continuous {n}"
@@ -2275,6 +2275,11 @@ msgstr "Continuous {n}"
 #: templates/imagen.html
 msgid "Continuo · foto {n} a las {hora}"
 msgstr "Continuous · shot {n} at {hora}"
+
+#. js
+#: templates/imagen.html
+msgid "Continuo: {objetivo}"
+msgstr "Continuous: {objetivo}"
 
 #: templates/bienvenida.html templates/login.html
 msgid "Contraseña"
@@ -2565,11 +2570,6 @@ msgstr "Stats"
 #: ScopePower.py
 msgid "Datos no válidos: {e}"
 msgstr "Invalid data: {e}"
-
-#. js
-#: templates/imagen.html
-msgid "De día la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado."
-msgstr "During the day the exposure readjusts itself for each shot (minimum gain, no darks); each one takes a few seconds to download and develop."
 
 #: ScopePower.py
 msgid "De día no hay centrado automático: sin estrellas no hay plate solving"
@@ -2921,10 +2921,6 @@ msgstr "Recording length"
 msgid "Durará unos {dur}; a 25 fotos por segundo, el vídeo tendrá {s} s."
 msgstr "It will take about {dur}; at 25 frames per second, the video will be {s} s long."
 
-#: templates/imagen.html
-msgid "Día"
-msgstr "Day"
-
 #. js
 #: guia.py
 msgid "Dónde enfocar"
@@ -3262,8 +3258,8 @@ msgid "El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fo
 msgstr "The flat corrects vignetting and dust shadows on the sensor. It is made by photographing an evenly lit surface. The exposure adjusts itself."
 
 #: ScopePower.py
-msgid "El guiado es para el Sol o la Luna en modo día."
-msgstr "Guiding is for the Sun or the Moon in day mode."
+msgid "El guiado es para el Sol o la Luna, con «Sol, Luna y paisaje» en Cámara."
+msgstr "Guiding is for the Sun or the Moon, with «Sun, Moon & landscape» on in Camera."
 
 #: disco.py
 msgid "El guiado por el disco ya está activo"
@@ -3661,8 +3657,8 @@ msgid "Elementos orbitales del MPC (cometa, sin Internet)"
 msgstr "MPC orbital elements (comet, offline)"
 
 #: disco.py
-msgid "Elige Sol o Luna en el modo día."
-msgstr "Choose Sun or Moon in day mode."
+msgid "Elige Sol o Luna en «Sol, Luna y paisaje»."
+msgstr "Choose Sun or Moon in «Sun, Moon & landscape»."
 
 #: guia.py
 msgid "Elige el objeto que quieres fotografiar"
@@ -4927,11 +4923,6 @@ msgstr "Daytime shot: {exp}, level {n}% (saturated)"
 
 #. js
 #: templates/imagen.html
-msgid "Foto de día: {objetivo}"
-msgstr "Daytime shot: {objetivo}"
-
-#. js
-#: templates/imagen.html
 msgid "Foto de las {hora}"
 msgstr "Shot from {hora}"
 
@@ -5054,6 +5045,11 @@ msgstr "Shot {n}/{total}: {exposicion}, level {nivel} % (saturated)"
 #: templates/apilado.html
 msgid "Foto {n}: exponiendo"
 msgstr "Shot {n}: exposing"
+
+#. js
+#: templates/imagen.html
+msgid "Foto: {objetivo}"
+msgstr "Photo: {objetivo}"
 
 #: templates/visor_video.html
 msgid "Fotograma"
@@ -6852,15 +6848,6 @@ msgstr "Stacking mode"
 msgid "Modo desconocido: {modo}"
 msgstr "Unknown mode: {modo}"
 
-#: templates/imagen.html
-msgid "Modo día"
-msgstr "Day mode"
-
-#. js
-#: templates/imagen.html
-msgid "Modo día: la exposición se ajusta sola. Apunta con GoTo (Sol, Luna) y afina con el control manual."
-msgstr "Day mode: the exposure adjusts itself. Point with GoTo (Sun, Moon) and fine-tune with manual control."
-
 #. js
 #: templates/imagen.html vivo_dia.py
 msgid "Modo en vivo terminado"
@@ -8563,6 +8550,10 @@ msgstr "Pluto"
 msgid "Pon una camiseta blanca bien estirada (dos capas) sobre la boca del tubo, sin arrugas."
 msgstr "Stretch a white T-shirt tight (two layers) over the front of the tube, with no wrinkles."
 
+#: disco.py
+msgid "Pon «Sol, Luna y paisaje» en Cámara y haz una foto del Sol o de la Luna."
+msgstr "Turn on «Sun, Moon & landscape» in Camera and take a photo of the Sun or the Moon."
+
 #: templates/seguimiento.html
 msgid "Pone la cámara a binning 1: el mismo campo, con fotogramas cuatro veces mayores (el recorte grabado es de {lado} px del fotograma)"
 msgstr "Sets the camera to binning 1: the same field, with frames four times larger (the recorded crop is {lado} px of the frame)"
@@ -10158,6 +10149,20 @@ msgstr "Sun with the filter's color"
 msgid "Sol o Luna a mano"
 msgstr "Sun or Moon by hand"
 
+#: templates/imagen.html
+msgid "Sol y Luna"
+msgstr "Sun & Moon"
+
+#. js
+#: templates/imagen.html
+msgid "Sol, Luna y paisaje"
+msgstr "Sun, Moon & landscape"
+
+#. js
+#: templates/imagen.html
+msgid "Sol, Luna y paisaje: la exposición se ajusta sola. Un GoTo a la Luna o al Sol lo pone solo; afina el encuadre con el control manual."
+msgstr "Sun, Moon & landscape: the exposure adjusts itself. A GoTo to the Moon or the Sun turns it on; fine-tune the framing with manual control."
+
 #: templates/planetario.html
 msgid "Solape (%)"
 msgstr "Overlap (%)"
@@ -10178,10 +10183,6 @@ msgstr "Only while tracking is running: it moves through the same path as tracki
 #: templates/seguimiento.html
 msgid "Solo con el seguimiento iniciado: mueve por el mismo camino que el seguimiento y la vista se refresca mientras tanto. Sin límite de altura: vale para luces lejanas."
 msgstr "Only while tracking is running: it moves through the same path as tracking and the view keeps refreshing meanwhile. No altitude limit: fine for distant lights."
-
-#: disco.py
-msgid "Solo de día: pon el modo día y haz una foto del Sol o de la Luna."
-msgstr "Daytime only: switch to day mode and take a shot of the Sun or the Moon."
 
 #: templates/configuracion.html
 msgid "Solo fotos propias del cielo hechas con ScopePower (cielo profundo, Sol, Luna, planetas, cometas): cada foto lleva las coordenadas del objeto, salvo las del Sol y la Luna; las de tipo Paisaje no se publican. El dueño del hosting puede retirar una galería que no lo cumpla."
@@ -10844,8 +10845,8 @@ msgid "Una foto cada cierto tiempo y, al final, el vídeo"
 msgstr "A shot every so often and, at the end, the video"
 
 #: templates/imagen.html
-msgid "Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día."
-msgstr "A daytime shot every so many seconds, with the exposure readjusted for each one (an eclipse darkens the disk little by little), and then the video. Uses the target, field and compensation from day mode."
+msgid "Una foto cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación de «Sol, Luna y paisaje»."
+msgstr "One photo every few seconds, with the exposure readjusted on each (an eclipse darkens the disc little by little), and then the video. It uses the target, field and compensation of «Sun, Moon & landscape»."
 
 #: templates/_guia.html
 msgid "Una sola foto, sin mosaico"
@@ -11823,8 +11824,7 @@ msgstr "dark {d} °C"
 msgid "darks"
 msgstr "darks"
 
-#. js
-#: guia.py templates/imagen.html
+#: guia.py
 msgid "de día"
 msgstr "daytime"
 
@@ -11905,11 +11905,6 @@ msgstr "dithering (moving the mount)"
 #: anuncio_ip.py
 msgid "dos"
 msgstr "two"
-
-#. js
-#: templates/imagen.html
-msgid "día · {objetivo}"
-msgstr "day · {objetivo}"
 
 #. js
 #: templates/base.html
@@ -12190,6 +12185,11 @@ msgstr "exposing"
 #: templates/imagen.html
 msgid "exponiendo…"
 msgstr "exposing…"
+
+#. js
+#: templates/imagen.html
+msgid "exposición automática · {objetivo}"
+msgstr "automatic exposure · {objetivo}"
 
 #: static/js/mosaico.js templates/apilado.html templates/planetario.html
 msgid "fallida"

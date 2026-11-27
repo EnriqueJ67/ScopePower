@@ -17,7 +17,7 @@
     <div class="foto-imagen">
         <div class="visor">
             <img id="foto" src="{{ url_for('imagen_capturada') }}?{{ range(1, 100000) | random }}" alt="{{ _('Última foto') }}">
-            <!-- Luna anotada (panel Modo día, con la Luna elegida): mares, cráteres y montes encima de la foto -->
+            <!-- Luna anotada (panel «Sol, Luna y paisaje», con la Luna elegida): mares, cráteres y montes encima de la foto -->
             <svg id="luna-capa" class="lightbox-anotaciones capa-camara" aria-hidden="true" style="display: none;"></svg>
             <!-- Sello: la foto que va bajando por la wifi (con su progreso) y, cuando llega, de qué hora es:
                  al enfocar se sabe si lo que se ve es la foto nueva o todavía la anterior -->
@@ -142,10 +142,11 @@
             </div>
         </section>
 
-        <!-- ─── Modo día: exposición automática para Sol (con filtro), Luna y paisaje ─── -->
-        <section class="card panel" data-panel="dia" data-pestana="{{ _('Día') }}" id="card-dia">
+        <!-- ─── «Sol, Luna y paisaje» (antes «Modo día»; preferencia modo_dia): exposición automática para Sol (con filtro),
+             Luna y paisaje, de día o de noche. Un GoTo a la Luna o al Sol lo pone solo (_modo_camara_por_objeto) ─── -->
+        <section class="card panel" data-panel="dia" data-pestana="{{ _('Sol y Luna') }}" id="card-dia">
             <div class="panel-header">
-                <h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>{{ _("Modo día") }}</h3>
+                <h3 class="card-title"><svg class="ico" style="color: var(--warn);"><use href="#i-sol"/></svg>{{ _("Sol, Luna y paisaje") }}</h3>
                 <!-- El interruptor va en la cabecera: con el modo apagado el cuerpo del panel no se ve -->
                 <label class="switch" style="flex: none;" onclick="event.stopPropagation()"><input type="checkbox" id="modo-dia" onchange="cambiarModoDia()"> {{ _("Activado") }}</label>
             </div>
@@ -222,10 +223,10 @@
         <section class="card panel" data-panel="timelapse" id="card-timelapse" hidden>
             <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-reloj"/></svg>{{ _("Timelapse") }}</h3>
-                <span class="panel-sub">{{ _("de día") }}</span>
+                <span class="panel-sub">{{ _("Sol, Luna y paisaje") }}</span>
             </div>
             <div class="panel-cuerpo">
-                <p class="ayuda" data-ayuda-panel>{{ _("Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día.") }}</p>
+                <p class="ayuda" data-ayuda-panel>{{ _("Una foto cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación de «Sol, Luna y paisaje».") }}</p>
                 <div class="dos-campos">
                     <div class="form-group">
                         <label for="tl-fotos">{{ _("Número de fotos") }}</label>
@@ -261,7 +262,7 @@
         <section class="card panel" data-panel="video" id="card-video" hidden>
             <div class="panel-header">
                 <h3 class="card-title"><svg class="ico"><use href="#i-disco"/></svg>{{ _("Vídeo") }}</h3>
-                <span class="panel-sub" id="video-sub">{{ _("de día") }}</span>
+                <span class="panel-sub" id="video-sub">{{ _("Sol, Luna y paisaje") }}</span>
             </div>
             <div class="panel-cuerpo">
                 <p class="ayuda" data-ayuda-panel>{{ _("Con el modo en vivo en marcha, «Grabar vídeo» guarda el vídeo en crudo (RAW16, binning 1, el recorte que se ve) en el disco del mini PC. «Apilar» se queda con los fotogramas más nítidos, los alinea y deja el resultado en la galería como una foto de día más; allí, con «Editar», se ajusta el revelado o se vuelve a apilar con más o menos fotogramas. Con el recorte del 35 % son unos 2,7 GB por minuto.") }}</p>
@@ -597,7 +598,7 @@
         fetch("/estado-captura").then(r => r.json()).then(pintarProgreso).catch(() => {});
     }
 
-    // ——— Modo día ———
+    // ——— «Sol, Luna y paisaje» (antes «Modo día»; en el código sigue siendo modoDia) ———
     let modoDia = false, objetivoDia = "paisaje", solConfirmado = false, sondeoDia = null;
     let seguimientoCambiado = false;      // se puso solar/lunar: al salir del modo día se vuelve a sidéreo
     const NOMBRE_OBJETIVO = { sol: N_("Sol"), luna: N_("Luna"), paisaje: N_("paisaje") };
@@ -629,7 +630,7 @@
         document.getElementById("fila-exposicion").hidden = modoDia; // y la exposición la busca la app
         document.getElementById("exposicion-ayuda").hidden = modoDia;
         document.getElementById("sub-foto").textContent = modoDia
-            ? _("Modo día: la exposición se ajusta sola. Apunta con GoTo (Sol, Luna) y afina con el control manual.")
+            ? _("Sol, Luna y paisaje: la exposición se ajusta sola. Un GoTo a la Luna o al Sol lo pone solo; afina el encuadre con el control manual.")
             : _("Para enfocar y comprobar el encuadre. Usa la exposición de Configuración, o la que pongas abajo, y resta el dark si lo hay.");
     }
     function cambiarModoDia() {
@@ -945,6 +946,23 @@
         pintarModoDia();
         pintarModoContinuo();
     }).catch(() => { aplicarPadSobreFoto(); pintarModoDia(); pintarModoContinuo(); });
+    // Un GoTo a la Luna o al Sol pone el modo «Sol, Luna y paisaje» con ese objetivo, y uno a otra cosa
+    // lo quita (ScopePower._modo_camara_por_objeto): al volver a esta página se recoge, salvo con la cámara en marcha
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden || vivoActivo || continuoActivo || sondeoDia) return;
+        fetch("/preferencias").then(r => r.json()).then(p => {
+            const nuevoModo = p.modo_dia === "on";
+            const nuevoObjetivo = NOMBRE_OBJETIVO[p.foto_dia_objetivo] ? p.foto_dia_objetivo : objetivoDia;
+            if (nuevoModo === modoDia && nuevoObjetivo === objetivoDia) return;
+            modoDia = nuevoModo;
+            objetivoDia = nuevoObjetivo;
+            if (!modoDia) seguimientoCambiado = false;      // el servidor ya devuelve la montura a sidéreo
+            pintarModoDia();
+            pintarUltimasDia();
+            pintarCompensacionDia();
+            if (modoDia) Paneles.activar("dia");
+        }).catch(() => {});
+    });
     fetch("/foto-dia/estado").then(r => r.json()).then(e => {
         ultimasDia = e.ultimas || {}; pintarUltimasDia();
         if (e.en_curso && !sondeoDia) { document.getElementById("btn-foto").disabled = true; sondeoDia = setInterval(sondearFotoDia, 700); }
@@ -1148,7 +1166,7 @@
     function listarVideos() {
         fetch("/videos").then(r => r.json()).then(d => {
             const cont = document.getElementById("video-lista");
-            document.getElementById("video-sub").textContent = d.libre_gb !== null && d.libre_gb !== undefined ? _("{gb} GB libres", { gb: fmtNum(d.libre_gb, 1) }) : _("de día");
+            document.getElementById("video-sub").textContent = d.libre_gb !== null && d.libre_gb !== undefined ? _("{gb} GB libres", { gb: fmtNum(d.libre_gb, 1) }) : _("Sol, Luna y paisaje");
             if (d.config) {
                 const sel = document.getElementById("video-duracion");
                 if ([...sel.options].some(o => o.value === String(d.config.duracion_s))) sel.value = String(d.config.duracion_s);
@@ -1307,16 +1325,16 @@
     };
     function ayudaGuardar() {
         const ritmo = modoDia
-            ? " " + _("De día la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado.")
+            ? " " + _("Con «Sol, Luna y paisaje» la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado.")
             : " " + _("Cada foto tarda la exposición elegida arriba (o la de Configuración) más unos segundos de descarga y revelado.");
         return (AYUDA_GUARDAR[guardarContinuo] ? _(AYUDA_GUARDAR[guardarContinuo]) : "") + ritmo;
     }
     function pintarBotonFoto() {
         document.getElementById("captura-sub").textContent =
-            (modoDia ? _("día · {objetivo}", { objetivo: _(NOMBRE_OBJETIVO[objetivoDia]) }) : _("noche")) + (modoContinuo ? " · " + _("continuo") : "");
+            (modoDia ? _("exposición automática · {objetivo}", { objetivo: _(NOMBRE_OBJETIVO[objetivoDia]) }) : _("noche")) + (modoContinuo ? " · " + _("continuo") : "");
         const btn = document.getElementById("btn-foto");
-        if (modoDia && modoContinuo) btn.innerHTML = '<svg><use href="#i-play"/></svg>' + _("Continuo de día: {objetivo}", { objetivo: _(NOMBRE_OBJETIVO[objetivoDia]) });
-        else if (modoDia) btn.innerHTML = '<svg><use href="#i-sol"/></svg>' + _("Foto de día: {objetivo}", { objetivo: _(NOMBRE_OBJETIVO[objetivoDia]) });
+        if (modoDia && modoContinuo) btn.innerHTML = '<svg><use href="#i-play"/></svg>' + _("Continuo: {objetivo}", { objetivo: _(NOMBRE_OBJETIVO[objetivoDia]) });
+        else if (modoDia) btn.innerHTML = '<svg><use href="#i-sol"/></svg>' + _("Foto: {objetivo}", { objetivo: _(NOMBRE_OBJETIVO[objetivoDia]) });
         else if (modoContinuo) btn.innerHTML = '<svg><use href="#i-play"/></svg>' + _("Empezar modo continuo");
         else btn.innerHTML = '<svg><use href="#i-foto"/></svg>' + _("Hacer foto");
     }

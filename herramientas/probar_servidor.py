@@ -128,6 +128,27 @@ def main():
     print(f"  {'✅' if bien else '❌'} la pestaña abierta se guarda en /preferencias: {guardada}")
     if not bien:
         fallos.append("pestaña en /preferencias")
+    # Un GoTo a la Luna pone «Sol, Luna y paisaje» con la Luna; uno a otra cosa lo quita (26-nov: había que
+    # activar a mano el «Modo día» para grabar la Luna de noche). Sin montura conectada no se toca el seguimiento
+    cliente.post("/preferencias", json={"modo_dia": "off", "foto_dia_objetivo": "paisaje"})
+    sp.guardar_info_goto("Luna")
+    p1 = cliente.get("/preferencias").get_json() or {}
+    sp.guardar_info_goto("M57")
+    p2 = cliente.get("/preferencias").get_json() or {}
+    cliente.post("/preferencias", json={"modo_dia": "on", "foto_dia_objetivo": "paisaje"})
+    sp.guardar_info_goto("M57")
+    p3 = cliente.get("/preferencias").get_json() or {}
+    cliente.post("/preferencias", json={"modo_dia": "off"})
+    bien = (p1.get("modo_dia"), p1.get("foto_dia_objetivo"), p2.get("modo_dia"), p3.get("modo_dia")) == ("on", "luna", "off", "on")
+    print(f"  {'✅' if bien else '❌'} GoTo a la Luna: «Sol, Luna y paisaje» con la Luna ({p1.get('modo_dia')}, {p1.get('foto_dia_objetivo')}); "
+          f"a M57: se quita ({p2.get('modo_dia')}); un paisaje puesto a mano no lo toca ({p3.get('modo_dia')})")
+    if not bien:
+        fallos.append("modo de Cámara por el objeto del GoTo")
+    html = cliente.get("/foto-prueba").get_data(as_text=True)
+    bien = "</svg>Sol, Luna y paisaje</h3>" in html and "</svg>Modo día</h3>" not in html and "data-pestana=\"Sol y Luna\"" in html
+    print(f"  {'✅' if bien else '❌'} Cámara llama al modo «Sol, Luna y paisaje»")
+    if not bien:
+        fallos.append("nombre del modo en Cámara")
 
     print("Guía «¿Qué quieres hacer hoy?» (guia.py, static/js/guia.js):")
     pedir("/static/js/guia.js")

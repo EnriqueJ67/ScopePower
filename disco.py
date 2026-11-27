@@ -71,7 +71,7 @@ def luminancia_de_vista(f, leer_fits=None):
         lum = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
         return lum.astype(np.float32)
     if modo != "dia":
-        raise SinDisco(_("Solo de día: pon el modo día y haz una foto del Sol o de la Luna."))
+        raise SinDisco(_("Pon «Sol, Luna y paisaje» en Cámara y haz una foto del Sol o de la Luna."))
     frame, patron = f.get("frame"), None
     if f.get("prep"):
         patron = foto_dia._patron(f["prep"].get("sensor_type"))
@@ -197,7 +197,7 @@ def localizar(f, orientacion, objetivo, observatorio, leer_fits=None):
     """
     import apuntado_teorico
     if objetivo not in RADIO_KM:
-        raise SinDisco(_("Elige Sol o Luna en el modo día."))
+        raise SinDisco(_("Elige Sol o Luna en «Sol, Luna y paisaje»."))
     lum = luminancia_de_vista(f, leer_fits)
     instante = float(f.get("instante") or time.time())
     try:

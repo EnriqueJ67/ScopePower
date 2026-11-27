@@ -1295,6 +1295,7 @@ def guardar_info_goto(nombre, info=None, ra=None, dec=None, fuente=""):
         f.write(f"\n📅 Fecha y hora UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\n")
     # El apilado en tiempo real carga el preset de procesado de la familia del
     # objeto (Galaxias, Nebulosas, Cúmulos...) si existe uno con ese nombre
+    tipo = ""
     try:
         import procesado
         tipo = apilado.tipo_objeto_goto(nombre)
@@ -1303,6 +1304,44 @@ def guardar_info_goto(nombre, info=None, ra=None, dec=None, fuente=""):
             print(f"🎨 Preset «{cargado}» cargado para {nombre} ({tipo})")
     except Exception as e:
         print(f"⚠️ No se pudo cargar el preset del tipo de objeto: {e}")
+    try:
+        _modo_camara_por_objeto(tipo)
+    except Exception as e:
+        log.warning("No se pudo ajustar el modo de Cámara al objeto del GoTo: %s", e)
+
+
+def _modo_camara_por_objeto(tipo):
+    """
+    Cámara se pone sola en «Sol, Luna y paisaje» (preferencia modo_dia) al hacer GoTo a la Luna o al
+    Sol, con ese objetivo: grabar la Luna de noche pedía activar a mano un modo que se llamaba «Modo
+    día» (26-nov). Con un GoTo a otra cosa, si el modo estaba puesto para el Sol o la Luna se quita y
+    la montura vuelve a seguimiento sidéreo (el vivo la deja en lunar o solar), como al apagarlo a mano.
+    El Sol sigue pidiendo en Cámara la confirmación del filtro solar antes de exponer.
+    """
+    pref = _leer_preferencias()
+    if tipo in ("Luna", "Sol"):
+        objetivo = "luna" if tipo == "Luna" else "sol"
+        if pref.get("modo_dia") != "on" or pref.get("foto_dia_objetivo") != objetivo:
+            _guardar_en_config("Interfaz", {"modo_dia": "on", "foto_dia_objetivo": objetivo})
+            log.info("Cámara en «Sol, Luna y paisaje» con %s por el GoTo", objetivo)
+    elif pref.get("modo_dia") == "on" and pref.get("foto_dia_objetivo") in ("sol", "luna"):
+        _guardar_en_config("Interfaz", {"modo_dia": "off"})
+        log.info("Cámara sale de «Sol, Luna y paisaje» por el GoTo a otro objeto")
+        if montura.esta_conectado():
+            threading.Thread(target=_sidereo_tras_goto, daemon=True, name="sidereo-tras-goto").start()
+
+
+def _sidereo_tras_goto(espera_max=180.0):
+    """Seguimiento sidéreo cuando la montura termina el GoTo (no se cambia la velocidad en pleno movimiento)."""
+    limite = time.time() + espera_max
+    while time.time() < limite:
+        try:
+            if not montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=10):
+                break
+        except Exception:
+            break
+        time.sleep(2)
+    foto_dia.poner_seguimiento(montura, "sidereo")
 
 
 def cambiar_nombre_objeto_goto(nombre):
@@ -3137,7 +3176,7 @@ def disco_guiado():
     f = _foto_en_pantalla()
     objetivo = (f or {}).get("objetivo") or str(datos.get("objetivo") or "")
     if objetivo not in disco.RADIO_KM:
-        return jsonify({"ok": False, "mensaje": _("El guiado es para el Sol o la Luna en modo día.")}), 409
+        return jsonify({"ok": False, "mensaje": _("El guiado es para el Sol o la Luna, con «Sol, Luna y paisaje» en Cámara.")}), 409
     import apuntado_teorico, orientacion_camara
     orientacion = orientacion_camara.ultima()
     if orientacion is None:
