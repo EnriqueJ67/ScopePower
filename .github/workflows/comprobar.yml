@@ -130,6 +130,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_bahtinov.py
 
+      - name: Prueba del detector de rastros en un campo denso (satélite que cruza estrellas brillantes, sin falsos positivos)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_rastros.py
+
       - name: Prueba de la biblioteca de darks por temperatura (cámara falsa, carpeta temporal)
         env:
           PYTHONIOENCODING: utf-8

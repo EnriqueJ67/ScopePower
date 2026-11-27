@@ -318,7 +318,15 @@ def probar_enfocar_y_calibracion():
         comprobar(False, "enfocar: el enfoque no se salta (es a lo que se viene)")
     except ValueError:
         comprobar(True, "enfocar: el enfoque no se salta (es a lo que se viene)")
-    guia.marcar("enfoque")
+    # Enfocar con la Bahtinov apunta solo el enfoque de la noche (26-nov: se enfocó desde Cámara y la guía
+    # decía luego «No consta que hayas enfocado esta noche»); «mejora» o «Foco aprendido» no cuentan
+    comprobar(not guia.enfoque_detectado("mejora") and not guia.enfoque_detectado("aprendida")
+              and "enfoque" not in guia.hechos(), "enfocar: «mejora» o «foco aprendido» no dan el enfoque por hecho")
+    comprobar(guia.enfoque_detectado("centrada") and "enfoque" in guia.hechos(),
+              "enfocar: «Bahtinov centrada» en el vivo o en la foto de prueba lo apunta solo")
+    guia.marcar("enfoque", False)
+    comprobar(guia.enfoque_detectado("zona") and "enfoque" in guia.hechos(),
+              "enfocar: el limbo del Sol o la Luna en la zona buena también")
     guia.avanzar()
     est = guia.estado(datos_base())
     comprobar(est["sesion"]["paso"] == "listo_enfoque" and est["sesion"]["total"] == 4

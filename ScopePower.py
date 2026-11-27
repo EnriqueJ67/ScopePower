@@ -2377,6 +2377,7 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
                 print(f"🔍 Enfoque: {enfoque.texto_info(info_enfoque)}")
                 if info_enfoque.get("aviso"):
                     voz.decir(enfoque.texto_aviso(info_enfoque["aviso"]))
+                    guia.enfoque_detectado(info_enfoque["aviso"])     # la guía sabrá que ya se ha enfocado
             except Exception as e:
                 log.warning("Modo enfoque: %s", e)
         guardar_jpg_web(RUTA_IMAGEN_WEB, imagen_web)

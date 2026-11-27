@@ -3,6 +3,24 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## 1.7.1 · 2026-11-27
+
+Revisión de la 1.7.0 con tres arreglos vistos en la noche del 26-nov.
+
+- Arreglado: enfocando en vivo con la máscara de Bahtinov sobre una estrella no muy brillante (Deneb), la app
+  no decía nunca «Bahtinov centrada» aunque la cruz estuviera perfecta. Para darla por centrada mira los
+  fotogramas de los últimos 2 segundos y pide al menos tres; con estrellas así cada fotograma tarda más de un
+  segundo y nunca cabían tres. Ahora usa siempre los tres últimos, tarden lo que tarden.
+- Arreglado: después de enfocar desde Cámara, la guía «¿Qué quieres hacer hoy?» decía «No consta que hayas
+  enfocado esta noche». Solo lo apuntaba al pulsar «Hecho, siguiente» dentro de la propia guía. Ahora queda
+  apuntado solo en cuanto la Bahtinov sale centrada, la relación de colores dice «Enfocado» o el borde del
+  Sol o de la Luna está en la zona buena, se enfoque desde donde se enfoque.
+- Arreglado: en campos con muchas estrellas (la Vía Láctea) se colaban en el apilado fotos con rastros de
+  satélite o de avión. Al cruzar tantas estrellas el rastro quedaba a trozos y no se reconocía. Ahora se unen
+  los trozos, comprobando que entre las estrellas el rastro tiene luz de verdad para no confundir una fila de
+  estrellas con un rastro. En las fotos de esa noche aparecen dos rastros que antes pasaban, y uno más en las
+  de abril de 2025, sin ningún falso aviso.
+
 ## 1.7.0 · 2026-11-23
 
 Lo principal: «Luna 3D», un montaje hecho con tus propias fotos de la Luna en el que se ve la esfera entera, con
