@@ -1311,15 +1311,29 @@ def servidor_php(carpeta):
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         puerto = s.getsockname()[1]
-    proc = subprocess.Popen([php, "-S", f"127.0.0.1:{puerto}", "-t", carpeta], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Su registro a un fichero, no a una tubería: php -S escribe una línea por petición y, si nadie la lee,
+    # la tubería se llena y PHP se queda parado a mitad de la prueba
+    registro = open(os.path.join(carpeta, "php_s.log"), "wb")
+    proc = subprocess.Popen([php, "-S", f"127.0.0.1:{puerto}", "-t", carpeta], stdout=subprocess.DEVNULL, stderr=registro)
     endpoint = f"http://127.0.0.1:{puerto}/scopepower/publicar.php"
-    for __ in range(50):
+    # La imagen windows-latest de GitHub trae PHP desde finales de noviembre de 2026 y `php -S` puede tardar
+    # en arrancar o no arrancar: se espera hasta 20 s y, si no contesta, se sigue como sin PHP
+    limite = time.time() + 20
+    while time.time() < limite and proc.poll() is None:
         try:
             with socket.create_connection(("127.0.0.1", puerto), timeout=0.5):
-                break
+                return proc, endpoint
         except OSError:
-            time.sleep(0.1)
-    return proc, endpoint
+            time.sleep(0.2)
+    motivo = "se cerró" if proc.poll() is not None else "no contesta en 20 s"
+    if proc.poll() is None:
+        proc.kill()
+    proc.wait(timeout=5)
+    registro.close()
+    with open(registro.name, "rb") as f:
+        error = f.read().decode("utf-8", "replace").strip()[:500]
+    print(f"⚠️ php -S ({php}) {motivo}{': ' + error if error else ''}")
+    return None, None
 
 
 # ───────────────────────── Ejecución ─────────────────────────
@@ -1355,7 +1369,7 @@ try:
 
     proc_php, endpoint_php = servidor_php(os.path.join(RAIZ, "php"))
     if proc_php is None:
-        print("⚠️ php no está en el PATH: no se prueba hosting/publicar.php de verdad")
+        print("⚠️ sin un php que arranque: no se prueba hosting/publicar.php de verdad")
     else:
         casos(endpoint_php, os.path.join(RAIZ, "php", "galeria"), None, "PHP real")
         casos_vista_previa(endpoint_php, os.path.join(RAIZ, "php", "galeria"))
