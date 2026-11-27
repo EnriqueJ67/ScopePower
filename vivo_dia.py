@@ -45,6 +45,7 @@ import foto_actual
 import giro_camara
 import orientacion_camara
 import enfoque
+import guia
 from idioma import _, fmt_num
 
 log = logging.getLogger("scopepower.vivo")
@@ -523,6 +524,7 @@ class TrabajoVivo:
                     log.info("Enfoque de día: %s (%s)", enfoque.texto_veredicto(info_enfoque["veredicto"]), enfoque.texto_info(info_enfoque))
                     if self._voz:
                         self._voz.decir(enfoque.texto_veredicto(info_enfoque["veredicto"]))
+                    guia.enfoque_detectado(info_enfoque["veredicto"])     # la guía sabrá que ya se ha enfocado
             elif modo_enfoque:
                 # Solo el verde, con la estrella más brillante ampliada (enfoque.py); foto_actual sigue con la de color
                 girada, encuadre, info_enfoque = enfoque.imagen_vivo(cfa, patron, paso, lambda im: a_orientacion_ascom(im, orientacion),
@@ -532,6 +534,7 @@ class TrabajoVivo:
                     log.info("Enfoque: %s (%s)", enfoque.texto_aviso(info_enfoque["aviso"]), enfoque.texto_info(info_enfoque))
                     if self._voz:
                         self._voz.decir(enfoque.texto_aviso(info_enfoque["aviso"]))
+                    guia.enfoque_detectado(info_enfoque["aviso"])
             else:
                 girada, encuadre = giro_camara.girar(imagen)      # el giro de Cámara; se anota sin girar (disco.py la mide así)
             jpg = jpg_web(girada)

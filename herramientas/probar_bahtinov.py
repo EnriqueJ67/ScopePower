@@ -221,6 +221,21 @@ def info_estrella(g, r, b):
     return {"x": 100, "y": 100, "pico": 30000, "fwhm_g": g, "fwhm_r": r, "fwhm_b": b, "saturada": False}
 
 
+def probar_fotogramas_lentos():
+    """26-nov, Deneb: con fotogramas de más de 1 s no cabían 3 en la ventana de 2 s y nunca salía «centrada»."""
+    with tempfile.TemporaryDirectory() as carpeta:
+        reloj = Reloj()
+        ayuda = enfoque.AyudaBahtinov(ruta=os.path.join(carpeta, "firma.json"), reloj=reloj)
+        avisos = []
+        for k, d in enumerate((1.5, 0.9, 0.12, -0.05, 0.08, 0.1)):
+            reloj.t += 1.6
+            i = ayuda.anotar(info_estrella(3.0, 3.0, 3.0), medida_falsa(d), "vivo")
+            if i.get("aviso"):
+                avisos.append((k, i["aviso"]))
+        assert avisos == [(3, "centrada")] and i["bahtinov"]["centrada"] and i["bahtinov"]["n"] == 3, (avisos, i)
+        print(f"  fotogramas cada 1,6 s: centrada con los {enfoque.FOTOGRAMAS_CENTRADA} últimos (desvío {i['bahtinov']['desvio']:+.2f} px)")
+
+
 def probar_ayuda():
     with tempfile.TemporaryDirectory() as carpeta:
         ruta = os.path.join(carpeta, "datos", "firma_enfoque.json")
@@ -466,6 +481,7 @@ def main():
     probar_repetibilidad()
     print("5. Centrada, firma del foco y enfocado")
     probar_ayuda()
+    probar_fotogramas_lentos()
     print("6. Estrella movida")
     probar_movida()
     print("7. Altair con la máscara real")

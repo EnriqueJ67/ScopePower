@@ -430,6 +430,26 @@ def marcar(clave, hecho=True):
         _guardar()
 
 
+AVISOS_ENFOCADO = ("centrada", "enfocado", "zona")    # Bahtinov centrada, firma de colores, limbo en la zona buena
+
+
+def enfoque_detectado(aviso):
+    """
+    Lo llaman el vivo y la foto de prueba con cada aviso del enfoque (enfoque.py): con una Bahtinov
+    centrada, la firma de colores o el limbo del Sol o la Luna en la zona buena, apunta que esta noche
+    ya se ha enfocado. Antes solo lo apuntaba «Hecho, siguiente» dentro de la guía, y quien enfocaba
+    desde Cámara (26-nov) veía luego «No consta que hayas enfocado esta noche». Devuelve True si lo apuntó.
+    """
+    if aviso not in AVISOS_ENFOCADO:
+        return False
+    try:
+        marcar("enfoque")
+    except Exception as e:          # la guía no debe tumbar el vivo
+        log.warning("Guía: no se pudo apuntar el enfoque: %s", e)
+        return False
+    return True
+
+
 def observar(datos):
     """
     Apunta sola lo que el equipo cuenta: una alineación o una puesta en estación terminadas bien, y

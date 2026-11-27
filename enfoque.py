@@ -889,7 +889,11 @@ class AyudaBahtinov:
                 elif float(n @ self.normal) < 0:
                     desvio = -desvio            # la misma raya con la normal al revés (ángulo cerca de ±90°)
                 self.desvios.append((t, desvio))
-                while len(self.desvios) > 1 and t - self.desvios[0][0] > ventana:
+                # La ventana guarda siempre los últimos FOTOGRAMAS_CENTRADA: con una estrella menos brillante
+                # que Altair (Deneb, 26-nov) cada fotograma pasa de 1 s y en 2 s no cabían 3, así que nunca
+                # llegaba a «centrada» aunque la cruz estuviera perfecta
+                minimo = FOTOGRAMAS_CENTRADA if modo == "vivo" else 1
+                while len(self.desvios) > minimo and t - self.desvios[0][0] > ventana:
                     self.desvios.popleft()
                 valor = float(np.median([d for __, d in self.desvios]))
                 suficientes = len(self.desvios) >= (FOTOGRAMAS_CENTRADA if modo == "vivo" else 1)

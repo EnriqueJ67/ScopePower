@@ -31,7 +31,14 @@ from idioma import N_
 SIGMA_RASTRO = 2.0          # umbral sobre el fondo, en sigmas del ruido suavizado
 ANCHO_MANCHA = 9            # lo que sobrevive a una apertura de este tamaño es "gordo"
 FRACCION_LONGITUD = 0.20    # longitud mínima del rastro, fracción del lado corto
-HUECO_MAX = 12              # huecos tolerados dentro de una línea (estrellas, parpadeo)
+# Huecos tolerados dentro de una línea (estrellas, parpadeo). Eran 12 px, pero en un campo denso (la Vía
+# Láctea) el rastro cruza muchas estrellas y al borrarlas con su halo quedan huecos de 14 a 21 px: un
+# satélite de 12 sigmas del 26-nov salía en cuatro trozos de menos de 190 px y no llegaba a los 300 de un
+# rastro. Con huecos de hasta 32 px, una recta solo vale si fuera de las estrellas borradas casi todo su
+# recorrido tiene luz (unir trozos sueltos de estrellas y ruido no la da)
+HUECO_MAX_ESTRELLAS = 32
+CUBIERTA_MINIMA = 0.9       # fracción del recorrido, fuera de las estrellas, con luz a ±2 px de la recta (los
+                            # rastros reales dan 0,95–1; las rectas que unen estrellas y ruido, menos de 0,8)
 
 # Luces parásitas
 CELDAS = 12                 # rejilla CELDAS × CELDAS de medianas del fondo
@@ -100,9 +107,14 @@ def detectar_rastro(plano, peq=None):
     lado = min(peq.shape)
     longitud_min = FRACCION_LONGITUD * lado
     lineas = cv2.HoughLinesP(mascara, rho=1, theta=np.pi / 360, threshold=int(longitud_min * 0.5),
-                             minLineLength=int(longitud_min), maxLineGap=HUECO_MAX)
+                             minLineLength=int(longitud_min), maxLineGap=HUECO_MAX_ESTRELLAS)
     if lineas is None:
         return None
+    vecinos = cv2.dilate(mascara, np.ones((5, 5), np.uint8))      # luz a ±2 px de la recta
+    buenas = [s for s in lineas[:, 0, :] if _cubierta(vecinos, gordo, s) >= CUBIERTA_MINIMA]
+    if not buenas:
+        return None
+    lineas = np.array(buenas)[:, None, :]
     x1, y1, x2, y2 = max(lineas[:, 0, :], key=lambda s: np.hypot(s[2] - s[0], s[3] - s[1]))
     longitud = float(np.hypot(x2 - x1, y2 - y1))
     return {
@@ -110,6 +122,20 @@ def detectar_rastro(plano, peq=None):
         "angulo": round(float(np.degrees(np.arctan2(y2 - y1, x2 - x1))) % 180, 1),
         "segmento": [int(2 * x1), int(2 * y1), int(2 * x2), int(2 * y2)],
     }
+
+
+def _cubierta(vecinos, gordo, segmento):
+    """Fracción de los puntos del segmento que no caen en una mancha borrada y tienen luz en `vecinos`."""
+    x1, y1, x2, y2 = (float(v) for v in segmento)
+    n = int(np.hypot(x2 - x1, y2 - y1)) + 1
+    xs = np.rint(np.linspace(x1, x2, n)).astype(int)
+    ys = np.rint(np.linspace(y1, y2, n)).astype(int)
+    alto, ancho = vecinos.shape
+    xs, ys = xs.clip(0, ancho - 1), ys.clip(0, alto - 1)
+    libres = gordo[ys, xs] == 0
+    if libres.sum() < n // 3:
+        return 0.0          # casi todo el recorrido pasa por estrellas: no se puede saber
+    return float(np.mean(vecinos[ys[libres], xs[libres]] > 0))
 
 
 def rejilla_fondo(peq):
