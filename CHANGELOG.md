@@ -3,6 +3,17 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## 1.7.4 · 2026-11-28
+
+Revisión de la 1.7.3: darks nuevos a mitad del apilado, sin cortarlo.
+
+- Nuevo: con el apilado en tiempo real en marcha, el botón «Darks» de la pantalla Apilado lo pausa, espera a
+  que termine la foto en curso, pide poner la tapa, hace los darks con la exposición, la ganancia y el
+  binning de la sesión, a la temperatura que tenga el sensor en ese momento, pide quitar la tapa y sigue
+  apilando. Las fotos siguientes usan solas el dark nuevo; las ya apiladas se quedan como estaban. La app lo
+  ofrece sola cuando el sensor se aleja de la temperatura del dark (pasó el 26-nov: de 17,4 °C a 14,8 °C con
+  un dark de 20 °C). Se puede cancelar antes de tapar (sigue sin darks nuevos) o durante los darks.
+
 ## 1.7.3 · 2026-11-27
 
 Revisión de la 1.7.2: sin las manchas de colores ni la tira del borde en los apilados.
