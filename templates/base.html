@@ -313,6 +313,8 @@
         const t = d.dark_temperatura;
         chip.hidden = !t;
         if (!t) return;
+        // Con el apilado en marcha, a «Pausar y hacer darks» en Apilado; si no, a Calibración: darks
+        chip.href = d.apilado_activo ? "/apilado#pausar-darks" : "/generar-dark";
         document.getElementById("chip-dark-texto").textContent = _("dark {d} °C", { d: fmtNum(t.diferencia, 0) });
         chip.title = _("A las {hora} el sensor estaba a {sensor} °C y el dark más cercano a {dark} °C ({d} °C de diferencia). Toca para hacer darks a esta temperatura.",
             { hora: t.hora, sensor: fmtNum(t.sensor, 1), dark: fmtNum(t.dark, 1), d: fmtNum(t.diferencia, 1) });

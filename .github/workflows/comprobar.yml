@@ -145,6 +145,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_darks_temperatura.py
 
+      - name: Prueba de «Pausar y hacer darks» en mitad del apilado (bucle de verdad, cámara falsa, carpeta temporal)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_pausa_darks.py
+
       - name: Prueba de los avisos de deriva en el apilado y de trípode desnivelado (fotos sintéticas y montura inclinada de mentira)
         env:
           PYTHONIOENCODING: utf-8

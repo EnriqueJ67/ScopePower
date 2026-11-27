@@ -579,6 +579,10 @@ msgstr "The camera is currently at {ganancia}."
 msgid "Ahora mismo no hay nada alto. Busca un objeto por su nombre."
 msgstr "Nothing is high in the sky right now. Search for an object by name."
 
+#: templates/apilado.html
+msgid "Ahora no"
+msgstr "Not now"
+
 #: static/js/asistente.js
 msgid "Ahora tiene {actual}. Vacío = no tocarla."
 msgstr "It's at {actual} now. Empty = leave it alone."
@@ -905,6 +909,14 @@ msgstr "Stacking stopped. Mosaic paused"
 msgid "Apilado detenido. Plan en pausa"
 msgstr "Stacking stopped. Plan paused"
 
+#: pausa_darks.py
+msgid "Apilado en pausa. Pon la tapa del telescopio para hacer los darks"
+msgstr "Stacking paused. Put the cap on the telescope to take the darks"
+
+#: pausa_darks.py
+msgid "Apilado en pausa: esperando a que termine la foto en curso"
+msgstr "Stacking paused: waiting for the current photo to finish"
+
 #: templates/apilado.html templates/home.html
 msgid "Apilado en tiempo real"
 msgstr "Live stacking"
@@ -932,6 +944,14 @@ msgstr "Stacked on the nucleus: sharp comet, stars as trails"
 #: templates/editar_foto.html
 msgid "Apilado por las estrellas: el cometa sale corrido"
 msgstr "Stacked on the stars: the comet comes out smeared"
+
+#: pausa_darks.py
+msgid "Apilado reanudado con los darks nuevos"
+msgstr "Stacking resumed with the new darks"
+
+#: pausa_darks.py
+msgid "Apilado reanudado sin darks nuevos"
+msgstr "Stacking resumed without new darks"
 
 #: apilado_video.py
 msgid "Apilados {usados} de {frames} fotogramas en {s} s"
@@ -1545,6 +1565,10 @@ msgstr "Visible field (zoom)"
 msgid "Campo {ra} {dec}"
 msgstr "Field {ra} {dec}"
 
+#: pausa_darks.py
+msgid "Cancelado: el apilado sigue con los darks que había"
+msgstr "Cancelled: stacking goes on with the darks it had"
+
 #: templates/_asistente.html templates/_guia.html
 #: templates/_puesta_estacion.html templates/alineacion.html
 #: templates/apagar.html templates/apilado.html templates/calibracion.html
@@ -1557,9 +1581,15 @@ msgstr "Cancel"
 msgid "Cancelar centrado"
 msgstr "Cancel centering"
 
+#. js
 #: templates/apilado.html
 msgid "Cancelar darks"
 msgstr "Cancel darks"
+
+#. js
+#: templates/apilado.html
+msgid "Cancelar y seguir sin darks nuevos"
+msgstr "Cancel and go on without new darks"
 
 #: ScopePower.py static/js/asistente.js templates/_asistente.html
 #: templates/imagen.html
@@ -2531,7 +2561,7 @@ msgid "Dark {i}/{n}"
 msgstr "Dark {i}/{n}"
 
 #. js
-#: guia.py
+#: guia.py templates/apilado.html
 msgid "Darks"
 msgstr "Darks"
 
@@ -3074,9 +3104,34 @@ msgstr "Stacking is capturing; pause or stop it before centering"
 msgid "El apilado está capturando; páusalo o detenlo antes de generar darks"
 msgstr "Stacking is capturing; pause or stop it before making darks"
 
+#: ScopePower.py
+msgid "El apilado está en pausa para hacer darks; síguelo desde Apilado"
+msgstr "Stacking is paused to take darks; follow it from Stacking"
+
+#: ScopePower.py
+msgid "El apilado está en pausa para hacer darks; termínalos o cancélalos antes"
+msgstr "Stacking is paused to take darks; finish or cancel them first"
+
+#: pausa_darks.py
+msgid "El apilado no está en marcha"
+msgstr "Stacking is not running"
+
 #: templates/rastros.html
 msgid "El apilado no usa estas fotos. La clasificación es automática y orientativa: un destello de satélite puede parecer un meteoro y un meteoro que cruza un campo tan pequeño puede parecer un satélite. Revisa los <b>posibles meteoros</b> y pasa a la galería los que merezcan la pena."
 msgstr "Stacking doesn't use these shots. The classification is automatic and only a guide: a satellite flare can look like a meteor, and a meteor crossing such a small field can look like a satellite. Check the <b>possible meteors</b> and move the ones worth keeping to the gallery."
+
+#: pausa_darks.py
+msgid "El apilado se ha detenido; no hay nada que reanudar"
+msgstr "Stacking has stopped; there is nothing to resume"
+
+#: pausa_darks.py
+msgid "El apilado se ha detenido; no se hacen darks"
+msgstr "Stacking has stopped; no darks are taken"
+
+#. js
+#: templates/apilado.html
+msgid "El apilado se pausa al terminar la foto en curso, se hacen los darks con la misma exposición, ganancia y binning, y sigue. Las fotos ya apiladas no cambian."
+msgstr "Stacking pauses when the current photo finishes, the darks are taken with the same exposure, gain and binning, and it goes on. The photos already stacked do not change."
 
 #: ScopePower.py
 msgid "El apilador está ocupado; espera a que termine"
@@ -3435,6 +3490,10 @@ msgstr "The night plan is running; stop it before parking"
 msgid "El plan de la noche está en marcha; páusalo o detenlo antes."
 msgstr "The night plan is running; pause or stop it first."
 
+#: ScopePower.py
+msgid "El plan de la noche o el mosaico llevan el apilado; páralos antes de hacer darks"
+msgstr "The night plan or the mosaic is running the stack; stop it before taking darks"
+
 #: guia.py
 msgid "El plan de la noche ya está en marcha"
 msgstr "The night plan is already running"
@@ -3559,6 +3618,11 @@ msgstr "Object tracking is already running"
 #: ScopePower.py
 msgid "El sensor está a {sensor} grados y el dark más cercano a {dark}: conviene hacer darks a esta temperatura"
 msgstr "The sensor is at {sensor} degrees and the closest dark at {dark}: it's worth making darks at this temperature"
+
+#. js
+#: templates/apilado.html
+msgid "El sensor está a {sensor} °C y el dark más cercano a {dark} °C."
+msgstr "The sensor is at {sensor} °C and the closest dark at {dark} °C."
 
 #: guia.py
 msgid "El sensor está ahora a {t} °C."
@@ -3838,6 +3902,10 @@ msgstr "In the constellation Auriga. Associated with a goat in Roman mythology."
 msgid "En pasos de cámara (EV): 0 deja lo más brillante justo en el blanco; a la izquierda más oscuro, a la derecha más claro."
 msgstr "In camera stops (EV): 0 puts the brightest part right at white; to the left darker, to the right brighter."
 
+#: pausa_darks.py
+msgid "En pausa para hacer darks"
+msgstr "Paused to take darks"
+
 #: templates/_asistente.html
 msgid "En una montura altacimutal, entre 10 y 25 s para que las estrellas no se muevan."
 msgstr "On an alt-azimuth mount, between 10 and 25 s so the stars don't trail."
@@ -4019,7 +4087,7 @@ msgstr "Equipment, capture, network and voice. Changes are saved to config.ini."
 
 #. js
 #: ScopePower.py bucle_captura.py foto_continua.py static/js/pad.js
-#: templates/apagar.html templates/configuracion.html
+#: templates/apagar.html templates/apilado.html templates/configuracion.html
 msgid "Error"
 msgstr "Error"
 
@@ -8122,6 +8190,10 @@ msgstr "Invalid camera number in driver “{driver}”"
 msgid "Número de darks"
 msgstr "Number of darks"
 
+#: ScopePower.py
+msgid "Número de darks no válido"
+msgstr "Invalid number of darks"
+
 #: templates/flats.html
 msgid "Número de flats"
 msgstr "Number of flats"
@@ -8429,6 +8501,10 @@ msgstr "Step {n} of {total}"
 msgid "Paso {n} de {total}: {paso}"
 msgstr "Step {n} of {total}: {paso}"
 
+#: templates/apilado.html
+msgid "Pausa el apilado, hace darks a la temperatura actual del sensor y sigue"
+msgstr "Pauses stacking, takes darks at the current sensor temperature and goes on"
+
 #: ScopePower.py
 msgid "Pausa o detén el apilado antes de borrar las sincronizaciones"
 msgstr "Pause or stop stacking before clearing the syncs"
@@ -8441,6 +8517,10 @@ msgstr "Paused while the pad is in use"
 #: templates/constelacion.html
 msgid "Pausar"
 msgstr "Pause"
+
+#: templates/apilado.html
+msgid "Pausar y hacer darks"
+msgstr "Pause and take darks"
 
 #. js
 #: templates/goto.html
@@ -8546,6 +8626,10 @@ msgstr "Pluto"
 msgid "Plutón"
 msgstr "Pluto"
 
+#: pausa_darks.py
+msgid "Pon la tapa del telescopio y pulsa «Tapa puesta»"
+msgstr "Put the cap on the telescope and press “Cap on”"
+
 #: templates/flats.html
 msgid "Pon una camiseta blanca bien estirada (dos capas) sobre la boca del tubo, sin arrugas."
 msgstr "Stretch a white T-shirt tight (two layers) over the front of the tube, with no wrinkles."
@@ -8629,7 +8713,7 @@ msgid "Preparando el timelapse..."
 msgstr "Preparing the timelapse..."
 
 #. js
-#: darks.py flats.py foto_dia.py templates/imagen.html
+#: darks.py flats.py foto_dia.py pausa_darks.py templates/imagen.html
 msgid "Preparando la cámara..."
 msgstr "Preparing the camera..."
 
@@ -8959,6 +9043,14 @@ msgstr "Take the mask off without touching the focus or turning off this switch.
 #: static/js/guia.js templates/apilado.html templates/dark.html
 msgid "Quita la tapa del telescopio antes de hacer fotos."
 msgstr "Take the cap off the telescope before taking photos."
+
+#: templates/apilado.html
+msgid "Quita la tapa del telescopio antes de seguir: si no, las fotos saldrán negras."
+msgstr "Take the cap off the telescope before going on, or the photos will come out black."
+
+#: pausa_darks.py
+msgid "Quita la tapa del telescopio y pulsa «Seguir apilando»"
+msgstr "Take the cap off the telescope and press “Resume stacking”"
 
 #. js
 #: ScopePower.py
@@ -9632,6 +9724,10 @@ msgstr "Focusing is done on a bright star. With the Bahtinov mask on, the Camera
 msgid "Se enfocará con lo que haya ahora en la foto, sea lo que sea."
 msgstr "Focusing will use whatever is in the shot now, whatever it is."
 
+#: ScopePower.py
+msgid "Se están preparando darks: termínalos o cancélalos antes de reanudar"
+msgstr "Darks are being taken: finish or cancel them before resuming"
+
 #. js
 #: templates/configuracion.html
 msgid "Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM)."
@@ -9768,6 +9864,10 @@ msgstr "Tracking finished"
 #: templates/_guia.html templates/planetario.html
 msgid "Seguir"
 msgstr "Continue"
+
+#: templates/apilado.html
+msgid "Seguir apilando"
+msgstr "Resume stacking"
 
 #: templates/planetario.html
 msgid "Seguir el mosaico en la pantalla Apilado"
@@ -10332,6 +10432,10 @@ msgstr "Cover the telescope completely and press OK."
 msgid "Tapa el telescopio completamente y pulsa Generar."
 msgstr "Cover the telescope completely and press Make."
 
+#: templates/apilado.html
+msgid "Tapa el telescopio completamente: la app no puede comprobarlo."
+msgstr "Cover the telescope completely: the app cannot check it."
+
 #: templates/_guia.html
 msgid "Tapa el telescopio completamente: un dark es una foto a oscuras con la misma exposición."
 msgstr "Cover the telescope completely: a dark is a shot in the dark with the same exposure."
@@ -10339,6 +10443,10 @@ msgstr "Cover the telescope completely: a dark is a shot in the dark with the sa
 #: flats.py
 msgid "Tapa el telescopio y pulsa Continuar para los darks de flat"
 msgstr "Cover the telescope and press Continue for the flat darks"
+
+#: templates/apilado.html
+msgid "Tapa puesta"
+msgstr "Cap on"
 
 #: templates/seguimiento.html
 msgid "Telemetría"
@@ -10679,6 +10787,14 @@ msgstr "No shot has been measured yet."
 msgid "Todavía no se ha subido nada: marca una foto con el globo en la Galería."
 msgstr "Nothing uploaded yet: mark a photo with the globe in the Gallery."
 
+#: pausa_darks.py
+msgid "Todavía no toca quitar la tapa"
+msgstr "It is not time to take the cap off yet"
+
+#: pausa_darks.py
+msgid "Todavía no toca tapar el telescopio"
+msgstr "It is not time to cover the telescope yet"
+
 #: templates/visor_video.html
 msgid "Todo el vídeo"
 msgstr "The whole video"
@@ -10703,6 +10819,10 @@ msgstr "All types"
 #: templates/_puesta_estacion.html
 msgid "Tolerancia (′)"
 msgstr "Tolerance (′)"
+
+#: templates/apilado.html
+msgid "Tomas de dark"
+msgstr "Dark frames"
 
 #: editor_fotos.py
 msgid "Toque no válido"
@@ -11371,6 +11491,10 @@ msgstr "A day shot is already in progress"
 msgid "Ya hay una instalación en marcha"
 msgstr "An installation is already running"
 
+#: pausa_darks.py
+msgid "Ya hay una pausa para hacer darks en marcha"
+msgstr "A pause to take darks is already under way"
+
 #: puesta_estacion.py
 msgid "Ya hay una puesta en estación en curso"
 msgstr "A polar alignment is already running"
@@ -11419,7 +11543,7 @@ msgstr "A shot is already being solved; wait for it to finish"
 msgid "Ya se está revelando; espera a que termine."
 msgstr "Already developing; wait for it to finish."
 
-#: darks.py
+#: darks.py pausa_darks.py
 msgid "Ya se están generando darks"
 msgstr "Darks are already being generated"
 
@@ -14966,6 +15090,10 @@ msgstr "⏸ Pause mosaic"
 #: templates/apilado.html
 msgid "⏸ Pausar plan"
 msgstr "⏸ Pause plan"
+
+#: templates/apilado.html
+msgid "⏸ Pausar y hacer darks"
+msgstr "⏸ Pause and take darks"
 
 #: ScopePower.py
 msgid "⏸️ Apilado pausado"

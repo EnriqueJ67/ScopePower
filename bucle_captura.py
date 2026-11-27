@@ -70,6 +70,7 @@ class BucleCaptura:
         self.ultima_captura = ""
         self.inicio = None
         self.esperando = ""     # motivo por el que el bucle está esperando
+        self.parado_en_pausa = False   # el hilo está quieto en la pausa: no expone ni va a exponer (pausa_darks.py)
 
     # ── Control ───────────────────────────────────────────────────────
     def iniciar(self, usar_dark=True):
@@ -168,10 +169,12 @@ class BucleCaptura:
             if motivo:
                 with self._lock:
                     self.esperando = motivo
+                    self.parado_en_pausa = self.pausado
                 self._parar.wait(0.5)
                 continue
             with self._lock:
                 self.esperando = ""
+                self.parado_en_pausa = False
 
             # Dithering: antes de la captura, si toca
             if (self.dithering and self._dither is not None and self.capturas > 0
@@ -234,3 +237,4 @@ class BucleCaptura:
         with self._lock:
             self.activo = False
             self.esperando = ""
+            self.parado_en_pausa = False
