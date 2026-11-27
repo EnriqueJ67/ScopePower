@@ -363,6 +363,18 @@ def main():
     from probar_visor_video import escribir_video
     nombre_v = "Sol_20261025_160129"
     ruta_v = escribir_video(sp._config_video()["carpeta"], nombre_v)
+    # Una Luna posterior va antes que el Sol en el panel de Cámara (por el nombre iba detrás, 26-nov)
+    nombre_luna = "Luna_20261126_202557"
+    ruta_luna = escribir_video(sp._config_video()["carpeta"], nombre_luna)
+    orden = [v.get("nombre") for v in (pedir("/videos").get_json() or {}).get("videos", [])]
+    os.remove(ruta_luna)
+    for extra in (".json", ".mini.jpg"):
+        if os.path.exists(ruta_luna[:-4] + extra):
+            os.remove(ruta_luna[:-4] + extra)
+    bien = orden[:2] == [nombre_luna, nombre_v]
+    print(f"  {'✅' if bien else '❌'} /videos, del más reciente al más antiguo por la fecha del nombre: {orden}")
+    if not bien:
+        fallos.append("orden de los vídeos en Cámara")
     r = pedir("/galeria")
     html = r.get_data(as_text=True)
     bien = f'data-video="{nombre_v}"' in html and "/videos/miniatura/" + nombre_v in html

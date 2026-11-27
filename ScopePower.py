@@ -4948,15 +4948,28 @@ def _nombre_apilado_video(nombre, meta):
     return objeto, f"{editor_fotos.nombre_archivo_objeto(objeto)}_{fecha:%Y%m%d_%H%M%S}_video"
 
 
+def _orden_videos(carpeta):
+    """Los .ser de la carpeta, del más reciente al más antiguo por la fecha del nombre (Objeto_AAAAMMDD_HHMMSS).
+    Por el nombre entero, los del Sol iban siempre antes que los de la Luna (26-nov: el de la Luna no salía
+    entre los tres del panel de Cámara)."""
+    def clave(f):
+        m = re.search(r"(\d{8}_\d{6})\.ser$", f, re.IGNORECASE)
+        if m:
+            return m.group(1)
+        try:
+            return time.strftime("%Y%m%d_%H%M%S", time.localtime(os.path.getmtime(os.path.join(carpeta, f))))
+        except OSError:
+            return ""
+    return sorted((f for f in os.listdir(carpeta) if f.lower().endswith(".ser")), key=clave, reverse=True)
+
+
 @app.route('/videos')
 def videos_lista():
     """Los SER grabados (más recientes primero), el espacio libre y el estado del apilado."""
     conf = _config_video()
     lista = []
     if os.path.isdir(conf["carpeta"]):
-        for f in sorted(os.listdir(conf["carpeta"]), reverse=True):
-            if not f.lower().endswith(".ser"):
-                continue
+        for f in _orden_videos(conf["carpeta"]):
             ruta = os.path.join(conf["carpeta"], f)
             try:
                 info = apilado_video.info_video(ruta)
