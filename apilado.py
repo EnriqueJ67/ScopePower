@@ -24,6 +24,7 @@ import firma
 import rotacion_camara
 import rastros
 import apilado_incremental
+import cosmetica
 import cometa
 import alargamiento
 import cv2
@@ -286,6 +287,8 @@ def leer_config_calidad():
         # Rastros de satélites/aviones y luces parásitas (rastros.py): la foto
         # se puntúa × penalizacion_defectos y no entra en el apilado
         "detectar_rastros": str(c.get("detectar_rastros", "true")).lower() in ("1", "true", "si", "sí", "yes"),
+        # Píxeles calientes y fríos sueltos que el dark no quita (cosmetica.py)
+        "correccion_cosmetica": str(c.get("correccion_cosmetica", "true")).lower() in ("1", "true", "si", "sí", "yes"),
         "detectar_luces": str(c.get("detectar_luces", "true")).lower() in ("1", "true", "si", "sí", "yes"),
         "penalizacion_defectos": float(c.get("penalizacion_defectos", 0.1)),
         # Las fotos descartadas por rastro se guardan aparte (static/fotos/rastros)
@@ -1324,6 +1327,15 @@ class ApiladorEnTiempoReal:
 
             # -- DEMOSAIC con OpenCV (a 16 bits, antes de alinear) --
             if data.ndim == 2:
+                # Píxeles calientes y fríos sueltos que el dark no quita: en el mosaico, antes
+                # de que el paso a color los extienda a sus vecinos (cosmetica.py)
+                if leer_config_calidad()["correccion_cosmetica"]:
+                    try:
+                        data, n_calientes, n_frios = cosmetica.corregir(data)
+                        if n_calientes or n_frios:
+                            print(f"🧹 {os.path.basename(ruta_fits)}: {n_calientes} píxeles calientes y {n_frios} fríos corregidos")
+                    except Exception as e:
+                        print(f"⚠️ No se pudo hacer la corrección cosmética: {e}")
                 raw_uint = np.clip(data, 0, np.iinfo(np.uint16).max).astype(np.uint16)
                 patron = hdr.get("BAYERPAT", "RGGB")
 

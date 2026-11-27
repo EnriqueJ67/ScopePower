@@ -38,14 +38,22 @@ TOLERANCIA_FLANCO = 2.0 # px de desplazamiento del perfil de una estrella que no
 def mascara_valida(M, ancho, alto):
     """
     Píxeles de una foto alineada con la matriz M que tienen dato de verdad: fuera
-    quedan el relleno del warpAffine y el borde de 1 px que la interpolación
-    mezcla con ese relleno.
+    quedan el relleno del warpAffine y el borde que la interpolación mezcla con ese
+    relleno. Se alinea una imagen de unos con la misma interpolación bilineal: vale
+    1 justo donde todas las muestras caen dentro de la foto.
+
+    Antes era el alineado con vecino más próximo erosionado 1 px con el exterior a
+    cero, y la erosión se comía también la primera y la última columna y fila del
+    sensor, que sí tienen dato: ahí solo quedaba la foto de referencia y salía una
+    tira con cinco veces el ruido, que el revelado volvía de colores (Nebulosa del
+    Mago, 26-nov).
     """
     if M is None or np.allclose(M, np.eye(2, 3)):
         return np.ones((alto, ancho), dtype=bool)
-    unos = np.ones((alto, ancho), dtype=np.uint8)
-    dentro = cv2.warpAffine(unos, np.asarray(M, dtype=np.float64), (ancho, alto), flags=cv2.INTER_NEAREST)
-    return cv2.erode(dentro, np.ones((3, 3), np.uint8), borderType=cv2.BORDER_CONSTANT, borderValue=0).astype(bool)
+    unos = np.ones((alto, ancho), dtype=np.float32)
+    dentro = cv2.warpAffine(unos, np.asarray(M, dtype=np.float64), (ancho, alto), flags=cv2.INTER_LINEAR,
+                            borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    return dentro >= 0.999
 
 
 def niveles_iniciales(planos, mascaras):
