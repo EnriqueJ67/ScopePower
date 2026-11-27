@@ -72,7 +72,7 @@ Keep emojis, "..." and `{placeholders}`. Spanish «» quotes become “” in En
 | horizonte · cenit | horizon · zenith |
 | ubicación · observatorio | location · observatory |
 | filtro solar | solar filter |
-| modo día · modo en vivo | day mode · live mode |
+| Sol, Luna y paisaje (antes «modo día») · Sol y Luna (pestaña) · modo en vivo | Sun, Moon & landscape · Sun & Moon (tab) · live mode |
 | cielo ciudad · cielo oscuro | city sky · dark sky |
 | cometa · núcleo | comet · nucleus |
 | estrella doble · cúmulo abierto · cúmulo globular | double star · open cluster · globular cluster |

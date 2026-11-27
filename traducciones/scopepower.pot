@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ScopePower 1.6.0\n"
+"Project-Id-Version: ScopePower 1.7.1\n"
 "Report-Msgid-Bugs-To: https://github.com/EnriqueJ67/ScopePower/issues\n"
 "POT-Creation-Date: 2026-10-15 00:00+0009\n"
 "PO-Revision-Date: 2026-10-15 00:00+0009\n"
@@ -2122,6 +2122,11 @@ msgstr ""
 msgid "Con {focal} mm de focal verás un campo de <b>{ancho}° × {alto}°</b> ({escala}″ por píxel)."
 msgstr ""
 
+#. js
+#: templates/imagen.html
+msgid "Con «Sol, Luna y paisaje» la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado."
+msgstr ""
+
 #: static/js/guia.js
 msgid "Conecta la montura y la cámara para seguir."
 msgstr ""
@@ -2260,11 +2265,6 @@ msgstr ""
 msgid "Continuo"
 msgstr ""
 
-#. js
-#: templates/imagen.html
-msgid "Continuo de día: {objetivo}"
-msgstr ""
-
 #: ScopePower.py
 msgid "Continuo {n}"
 msgstr ""
@@ -2272,6 +2272,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Continuo · foto {n} a las {hora}"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Continuo: {objetivo}"
 msgstr ""
 
 #: templates/bienvenida.html templates/login.html
@@ -2562,11 +2567,6 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Datos no válidos: {e}"
-msgstr ""
-
-#. js
-#: templates/imagen.html
-msgid "De día la exposición se reajusta sola en cada foto (ganancia al mínimo, sin darks); cada una tarda unos segundos de descarga y revelado."
 msgstr ""
 
 #: ScopePower.py
@@ -2919,10 +2919,6 @@ msgstr ""
 msgid "Durará unos {dur}; a 25 fotos por segundo, el vídeo tendrá {s} s."
 msgstr ""
 
-#: templates/imagen.html
-msgid "Día"
-msgstr ""
-
 #. js
 #: guia.py
 msgid "Dónde enfocar"
@@ -3260,7 +3256,7 @@ msgid "El flat corrige el viñeteo y las sombras de polvo del sensor. Se hace fo
 msgstr ""
 
 #: ScopePower.py
-msgid "El guiado es para el Sol o la Luna en modo día."
+msgid "El guiado es para el Sol o la Luna, con «Sol, Luna y paisaje» en Cámara."
 msgstr ""
 
 #: disco.py
@@ -3659,7 +3655,7 @@ msgid "Elementos orbitales del MPC (cometa, sin Internet)"
 msgstr ""
 
 #: disco.py
-msgid "Elige Sol o Luna en el modo día."
+msgid "Elige Sol o Luna en «Sol, Luna y paisaje»."
 msgstr ""
 
 #: guia.py
@@ -4925,11 +4921,6 @@ msgstr ""
 
 #. js
 #: templates/imagen.html
-msgid "Foto de día: {objetivo}"
-msgstr ""
-
-#. js
-#: templates/imagen.html
 msgid "Foto de las {hora}"
 msgstr ""
 
@@ -5051,6 +5042,11 @@ msgstr ""
 #. js
 #: templates/apilado.html
 msgid "Foto {n}: exponiendo"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Foto: {objetivo}"
 msgstr ""
 
 #: templates/visor_video.html
@@ -6850,15 +6846,6 @@ msgstr ""
 msgid "Modo desconocido: {modo}"
 msgstr ""
 
-#: templates/imagen.html
-msgid "Modo día"
-msgstr ""
-
-#. js
-#: templates/imagen.html
-msgid "Modo día: la exposición se ajusta sola. Apunta con GoTo (Sol, Luna) y afina con el control manual."
-msgstr ""
-
 #. js
 #: templates/imagen.html vivo_dia.py
 msgid "Modo en vivo terminado"
@@ -8561,6 +8548,10 @@ msgstr ""
 msgid "Pon una camiseta blanca bien estirada (dos capas) sobre la boca del tubo, sin arrugas."
 msgstr ""
 
+#: disco.py
+msgid "Pon «Sol, Luna y paisaje» en Cámara y haz una foto del Sol o de la Luna."
+msgstr ""
+
 #: templates/seguimiento.html
 msgid "Pone la cámara a binning 1: el mismo campo, con fotogramas cuatro veces mayores (el recorte grabado es de {lado} px del fotograma)"
 msgstr ""
@@ -10156,6 +10147,20 @@ msgstr ""
 msgid "Sol o Luna a mano"
 msgstr ""
 
+#: templates/imagen.html
+msgid "Sol y Luna"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Sol, Luna y paisaje"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "Sol, Luna y paisaje: la exposición se ajusta sola. Un GoTo a la Luna o al Sol lo pone solo; afina el encuadre con el control manual."
+msgstr ""
+
 #: templates/planetario.html
 msgid "Solape (%)"
 msgstr ""
@@ -10175,10 +10180,6 @@ msgstr ""
 
 #: templates/seguimiento.html
 msgid "Solo con el seguimiento iniciado: mueve por el mismo camino que el seguimiento y la vista se refresca mientras tanto. Sin límite de altura: vale para luces lejanas."
-msgstr ""
-
-#: disco.py
-msgid "Solo de día: pon el modo día y haz una foto del Sol o de la Luna."
 msgstr ""
 
 #: templates/configuracion.html
@@ -10842,7 +10843,7 @@ msgid "Una foto cada cierto tiempo y, al final, el vídeo"
 msgstr ""
 
 #: templates/imagen.html
-msgid "Una foto de día cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación del modo día."
+msgid "Una foto cada tantos segundos, con la exposición reajustada en cada una (un eclipse oscurece el disco poco a poco), y luego el vídeo. Usa el objetivo, el campo y la compensación de «Sol, Luna y paisaje»."
 msgstr ""
 
 #: templates/_guia.html
@@ -11821,8 +11822,7 @@ msgstr ""
 msgid "darks"
 msgstr ""
 
-#. js
-#: guia.py templates/imagen.html
+#: guia.py
 msgid "de día"
 msgstr ""
 
@@ -11902,11 +11902,6 @@ msgstr ""
 #. js
 #: anuncio_ip.py
 msgid "dos"
-msgstr ""
-
-#. js
-#: templates/imagen.html
-msgid "día · {objetivo}"
 msgstr ""
 
 #. js
@@ -12187,6 +12182,11 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "exponiendo…"
+msgstr ""
+
+#. js
+#: templates/imagen.html
+msgid "exposición automática · {objetivo}"
 msgstr ""
 
 #: static/js/mosaico.js templates/apilado.html templates/planetario.html

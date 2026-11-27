@@ -3,6 +3,19 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## 1.7.2 · 2026-11-27
+
+Revisión de la 1.7.1: la Luna de noche sin pasar por un «Modo día», y sus vídeos en Cámara.
+
+- Cambiado: el «Modo día» de Cámara se llama ahora «Sol, Luna y paisaje» (y su pestaña, «Sol y Luna»). Es la
+  exposición automática para el Sol, la Luna y el paisaje, y vale igual de noche: para grabar la Luna había que
+  activar un modo llamado «día» en plena noche. Funciona como antes; solo cambia el nombre.
+- Nuevo: un GoTo a la Luna o al Sol pone solo «Sol, Luna y paisaje» con ese objetivo, y un GoTo a cualquier
+  otra cosa lo quita y devuelve la montura al seguimiento sidéreo en cuanto termina de moverse. Con Cámara
+  abierta, se ve al volver a la página. El Sol sigue pidiendo la confirmación del filtro solar antes de exponer.
+- Arreglado: los vídeos de la Luna no salían en el panel de vídeos de Cámara, que enseña los tres últimos. La
+  lista iba por orden alfabético inverso y los del Sol quedaban siempre delante; ahora va por fecha.
+
 ## 1.7.1 · 2026-11-27
 
 Revisión de la 1.7.0 con tres arreglos vistos en la noche del 26-nov.

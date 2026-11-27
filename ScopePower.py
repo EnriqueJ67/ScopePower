@@ -1295,6 +1295,7 @@ def guardar_info_goto(nombre, info=None, ra=None, dec=None, fuente=""):
         f.write(f"\n📅 Fecha y hora UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\n")
     # El apilado en tiempo real carga el preset de procesado de la familia del
     # objeto (Galaxias, Nebulosas, Cúmulos...) si existe uno con ese nombre
+    tipo = ""
     try:
         import procesado
         tipo = apilado.tipo_objeto_goto(nombre)
@@ -1303,6 +1304,44 @@ def guardar_info_goto(nombre, info=None, ra=None, dec=None, fuente=""):
             print(f"🎨 Preset «{cargado}» cargado para {nombre} ({tipo})")
     except Exception as e:
         print(f"⚠️ No se pudo cargar el preset del tipo de objeto: {e}")
+    try:
+        _modo_camara_por_objeto(tipo)
+    except Exception as e:
+        log.warning("No se pudo ajustar el modo de Cámara al objeto del GoTo: %s", e)
+
+
+def _modo_camara_por_objeto(tipo):
+    """
+    Cámara se pone sola en «Sol, Luna y paisaje» (preferencia modo_dia) al hacer GoTo a la Luna o al
+    Sol, con ese objetivo: grabar la Luna de noche pedía activar a mano un modo que se llamaba «Modo
+    día» (26-nov). Con un GoTo a otra cosa, si el modo estaba puesto para el Sol o la Luna se quita y
+    la montura vuelve a seguimiento sidéreo (el vivo la deja en lunar o solar), como al apagarlo a mano.
+    El Sol sigue pidiendo en Cámara la confirmación del filtro solar antes de exponer.
+    """
+    pref = _leer_preferencias()
+    if tipo in ("Luna", "Sol"):
+        objetivo = "luna" if tipo == "Luna" else "sol"
+        if pref.get("modo_dia") != "on" or pref.get("foto_dia_objetivo") != objetivo:
+            _guardar_en_config("Interfaz", {"modo_dia": "on", "foto_dia_objetivo": objetivo})
+            log.info("Cámara en «Sol, Luna y paisaje» con %s por el GoTo", objetivo)
+    elif pref.get("modo_dia") == "on" and pref.get("foto_dia_objetivo") in ("sol", "luna"):
+        _guardar_en_config("Interfaz", {"modo_dia": "off"})
+        log.info("Cámara sale de «Sol, Luna y paisaje» por el GoTo a otro objeto")
+        if montura.esta_conectado():
+            threading.Thread(target=_sidereo_tras_goto, daemon=True, name="sidereo-tras-goto").start()
+
+
+def _sidereo_tras_goto(espera_max=180.0):
+    """Seguimiento sidéreo cuando la montura termina el GoTo (no se cambia la velocidad en pleno movimiento)."""
+    limite = time.time() + espera_max
+    while time.time() < limite:
+        try:
+            if not montura.ejecutar(lambda tel: bool(tel.Slewing), timeout=10):
+                break
+        except Exception:
+            break
+        time.sleep(2)
+    foto_dia.poner_seguimiento(montura, "sidereo")
 
 
 def cambiar_nombre_objeto_goto(nombre):
@@ -3137,7 +3176,7 @@ def disco_guiado():
     f = _foto_en_pantalla()
     objetivo = (f or {}).get("objetivo") or str(datos.get("objetivo") or "")
     if objetivo not in disco.RADIO_KM:
-        return jsonify({"ok": False, "mensaje": _("El guiado es para el Sol o la Luna en modo día.")}), 409
+        return jsonify({"ok": False, "mensaje": _("El guiado es para el Sol o la Luna, con «Sol, Luna y paisaje» en Cámara.")}), 409
     import apuntado_teorico, orientacion_camara
     orientacion = orientacion_camara.ultima()
     if orientacion is None:
@@ -4948,15 +4987,28 @@ def _nombre_apilado_video(nombre, meta):
     return objeto, f"{editor_fotos.nombre_archivo_objeto(objeto)}_{fecha:%Y%m%d_%H%M%S}_video"
 
 
+def _orden_videos(carpeta):
+    """Los .ser de la carpeta, del más reciente al más antiguo por la fecha del nombre (Objeto_AAAAMMDD_HHMMSS).
+    Por el nombre entero, los del Sol iban siempre antes que los de la Luna (26-nov: el de la Luna no salía
+    entre los tres del panel de Cámara)."""
+    def clave(f):
+        m = re.search(r"(\d{8}_\d{6})\.ser$", f, re.IGNORECASE)
+        if m:
+            return m.group(1)
+        try:
+            return time.strftime("%Y%m%d_%H%M%S", time.localtime(os.path.getmtime(os.path.join(carpeta, f))))
+        except OSError:
+            return ""
+    return sorted((f for f in os.listdir(carpeta) if f.lower().endswith(".ser")), key=clave, reverse=True)
+
+
 @app.route('/videos')
 def videos_lista():
     """Los SER grabados (más recientes primero), el espacio libre y el estado del apilado."""
     conf = _config_video()
     lista = []
     if os.path.isdir(conf["carpeta"]):
-        for f in sorted(os.listdir(conf["carpeta"]), reverse=True):
-            if not f.lower().endswith(".ser"):
-                continue
+        for f in _orden_videos(conf["carpeta"]):
             ruta = os.path.join(conf["carpeta"], f)
             try:
                 info = apilado_video.info_video(ruta)
