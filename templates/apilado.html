@@ -13,6 +13,7 @@
         <div class="pagina-acciones">
             <button id="boton-pausa" class="btn btn-warning" onclick="pausarApilado()" style="display: none;">{{ _("⏸ Pausar") }}</button>
             <button id="boton-reanudar" class="btn btn-success" onclick="reanudarApilado()" style="display: none;">{{ _("▶ Reanudar") }}</button>
+            <button id="boton-pausa-darks" class="btn btn-ghost" onclick="PausaDarks.ofrecer()" style="display: none;" title="{{ _('Pausa el apilado, hace darks a la temperatura actual del sensor y sigue') }}"><svg><use href="#i-calibracion"/></svg><span class="oculto-movil">{{ _("Darks") }}</span></button>
             <button id="boton-detener" class="btn btn-secondary" onclick="detenerApilado()" style="display: none;">{{ _("⏹ Detener") }}</button>
             <form method="POST" action="{{ url_for('reiniciar_apilado') }}" onsubmit="return confirmarReinicio()" style="display: inline;">
                 <button class="btn btn-ghost" title="{{ _('Borra las fotos apiladas y empieza de cero') }}"><svg><use href="#i-papelera"/></svg><span class="oculto-movil">{{ _("Reiniciar") }}</span></button>
@@ -73,6 +74,37 @@
             </div>
 
             <div id="darks-error" class="estado err mt-1" style="font-weight: 600;"></div>
+        </div>
+
+        <!-- Pausar y hacer darks a la temperatura actual sin cortar el apilado (pausa_darks.py) -->
+        <div id="pausa-darks" class="card card-acento" hidden>
+            <div class="tile-titulo mb-1">{{ _("Pausar y hacer darks") }}</div>
+            <!-- Oferta: la abre el botón Darks o el aviso de dark lejos de la temperatura -->
+            <div id="pd-oferta" hidden>
+                <p id="pd-oferta-texto" class="estado mb-1"></p>
+                <label class="opcion">{{ _("Tomas de dark") }}
+                    <span style="white-space: nowrap; margin-left: auto;"><input type="number" id="pd-n" class="corto" min="1" max="50" value="10"></span></label>
+                <div class="acciones-grid dos mt-1">
+                    <button class="btn btn-warning" onclick="PausaDarks.iniciar()">{{ _("⏸ Pausar y hacer darks") }}</button>
+                    <button class="btn btn-ghost" onclick="PausaDarks.cerrarOferta()">{{ _("Ahora no") }}</button>
+                </div>
+            </div>
+            <!-- Flujo en marcha -->
+            <div id="pd-flujo" hidden>
+                <p id="pd-mensaje" class="estado" style="font-size: 16px; color: var(--text);"></p>
+                <div id="pd-progreso" hidden>
+                    <div class="progress alta"><div id="pd-barra" class="progress-bar"></div></div>
+                    <p id="pd-cuenta" class="estado mt-1"></p>
+                </div>
+                <div id="pd-aviso-tapa" class="aviso aviso-warn" hidden><svg class="ico"><use href="#i-info"/></svg>{{ _("Tapa el telescopio completamente: la app no puede comprobarlo.") }}</div>
+                <div id="pd-aviso-destapar" class="aviso aviso-ok" hidden><svg class="ico"><use href="#i-ok"/></svg>{{ _("Quita la tapa del telescopio antes de seguir: si no, las fotos saldrán negras.") }}</div>
+                <div class="acciones-grid dos mt-1">
+                    <button id="pd-tapa" class="btn btn-danger" onclick="PausaDarks.accion('tapa-puesta')" hidden>{{ _("Tapa puesta") }}</button>
+                    <button id="pd-seguir" class="btn btn-primary" onclick="PausaDarks.accion('continuar')" hidden><svg><use href="#i-play"/></svg>{{ _("Seguir apilando") }}</button>
+                    <button id="pd-cancelar" class="btn btn-ghost" onclick="PausaDarks.accion('cancelar')"></button>
+                </div>
+            </div>
+            <div id="pd-error" class="estado err mt-1" style="font-weight: 600;"></div>
         </div>
 
         <div class="visor">
@@ -649,6 +681,7 @@
                 ? _("🟦 Flat maestro (bin {bin}) del {fecha} (viñeteo {v} %): se aplicará a cada foto", { bin: fl.binning || fl.binning_pedido || 1, fecha: fl.fecha, v: fl.vinyeteo })
                 : _('ℹ️ Sin flat maestro para bin {bin}: viñeteo y sombras de polvo no se corrigen. <a href="/flats">Generar flat</a>', { bin: fl.binning_pedido || 1 });
             document.getElementById("darks-n").value = d.config.numero_darks || 10;
+            PausaDarks.ponerN(d.config.numero_darks);
             // Un dark con otra ganancia cuenta como "no hay dark": se propone generar nuevos
             const hayDark = d.ultimo && d.ultimo.existe && !darkNoCasa(d.ultimo, d.config);
             document.getElementById("opcion-dark-ultimo").disabled = !hayDark;
@@ -1577,6 +1610,73 @@
 
     // Cada 2 s: leer el estado del servidor (bucle, cuenta atrás, errores) y
     // refrescar la imagen cuando haya un apilado nuevo. Aquí NO se captura nada.
+    // ——— Pausar y hacer darks (pausa_darks.py): el servidor lleva el flujo; aquí solo se pinta ———
+    const PausaDarks = (() => {
+        let ofertaAbierta = location.hash === "#pausar-darks";     // el chip de la cabecera lleva aquí
+        let ofertaCerradaPorAviso = false;                         // «Ahora no» al aviso: no volver a abrirla sola
+        const $ = id => document.getElementById(id);
+        const tarjeta = $("pausa-darks");
+
+        function ofrecer() {
+            ofertaAbierta = true; $("pd-error").textContent = ""; pintarOferta(null);
+            tarjeta.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+        function cerrarOferta() { ofertaAbierta = false; ofertaCerradaPorAviso = true; tarjeta.hidden = true; }
+        function pintarOferta(aviso) {
+            tarjeta.hidden = false; $("pd-oferta").hidden = false; $("pd-flujo").hidden = true;
+            $("pd-oferta-texto").textContent = (aviso
+                ? _("El sensor está a {sensor} °C y el dark más cercano a {dark} °C.", { sensor: fmtNum(aviso.sensor, 1), dark: fmtNum(aviso.dark, 1) }) + " "
+                : "") + _("El apilado se pausa al terminar la foto en curso, se hacen los darks con la misma exposición, ganancia y binning, y sigue. Las fotos ya apiladas no cambian.");
+        }
+        function iniciar() {
+            const n = parseInt($("pd-n").value) || 10;
+            $("pd-error").textContent = "";
+            fetch("/apilado/pausa-darks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ n }) })
+                .then(r => r.json()).then(d => {
+                    if (!d.ok) { $("pd-error").textContent = "❌ " + (d.error || _("No se pudo iniciar")); return; }
+                    ofertaAbierta = false; pintar(d.pausa_darks, true, null);
+                }).catch(err => $("pd-error").textContent = "❌ " + err);
+        }
+        function accion(nombre) {
+            $("pd-error").textContent = "";
+            fetch("/apilado/pausa-darks/" + nombre, { method: "POST" }).then(r => r.json()).then(d => {
+                if (!d.ok) $("pd-error").textContent = "❌ " + (d.error || _("Error"));
+                if (!d.pausa_darks) return;
+                pintar(d.pausa_darks, true, null);
+                if (!d.pausa_darks.activo && d.pausa_darks.mensaje) $("estado-carga").textContent = "▶️ " + d.pausa_darks.mensaje;
+            }).catch(err => $("pd-error").textContent = "❌ " + err);
+        }
+        // p: estado del servidor; activoBucle: el apilado está en marcha; aviso: dark lejos de la temperatura;
+        // captura: la exposición en curso (para la cuenta atrás de cada toma)
+        function pintar(p, activoBucle, aviso, captura) {
+            const enFlujo = !!(p && p.activo);
+            $("boton-pausa-darks").style.display = activoBucle && !enFlujo && !modoPlan ? "inline-flex" : "none";
+            if (!enFlujo) {
+                $("pd-flujo").hidden = true;
+                if (activoBucle && !modoPlan && (ofertaAbierta || (aviso && !ofertaCerradaPorAviso))) pintarOferta(aviso);
+                else tarjeta.hidden = true;
+                return;
+            }
+            tarjeta.hidden = false; $("pd-oferta").hidden = true; $("pd-flujo").hidden = false;
+            // Durante el flujo se sigue con los botones de la tarjeta: Pausar/Reanudar de la cabecera sobran
+            $("boton-pausa").style.display = "none"; $("boton-reanudar").style.display = "none";
+            $("pd-mensaje").textContent = p.mensaje || "";
+            const fase = p.fase;
+            $("pd-progreso").hidden = fase !== "darks";
+            if (fase === "darks") {
+                $("pd-barra").style.width = (p.total ? 100 * p.completadas / p.total : 0) + "%";
+                $("pd-cuenta").textContent = (captura && captura.en_curso) ? _("Quedan {s} s de esta toma", { s: Math.ceil(captura.restante) }) : "";
+            }
+            $("pd-aviso-tapa").hidden = fase !== "poner_tapa";
+            $("pd-aviso-destapar").hidden = fase !== "quitar_tapa";
+            $("pd-tapa").hidden = fase !== "poner_tapa";
+            $("pd-seguir").hidden = fase !== "quitar_tapa";
+            $("pd-cancelar").hidden = fase === "quitar_tapa";
+            $("pd-cancelar").textContent = fase === "darks" ? _("Cancelar darks") : _("Cancelar y seguir sin darks nuevos");
+        }
+        return { ofrecer, cerrarOferta, iniciar, accion, pintar, ponerN: n => { if (n) $("pd-n").value = n; } };
+    })();
+
     let sondeoEstado = null;
     let versionMostrada = null;      // versión del JPG apilado ya cargada
     let versionTomaMostrada = null;  // versión de la miniatura de la última toma
@@ -1626,6 +1726,7 @@
                 // El servidor lo ha detenido (errores seguidos, reinicio desde otra pestaña...)
                 mostrarComoDetenido(b);
             }
+            PausaDarks.pintar(estado.pausa_darks, !!b.activo && !planEnCurso, estado.dark_temperatura, estado.captura);
             // La versión sube solo cuando el JPG del apilado ya está escrito
             if (estado.version !== versionMostrada) {
                 versionMostrada = estado.version;

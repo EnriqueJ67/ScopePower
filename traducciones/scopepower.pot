@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ScopePower 1.7.1\n"
+"Project-Id-Version: ScopePower 1.7.3\n"
 "Report-Msgid-Bugs-To: https://github.com/EnriqueJ67/ScopePower/issues\n"
 "POT-Creation-Date: 2026-10-15 00:00+0009\n"
 "PO-Revision-Date: 2026-10-15 00:00+0009\n"
@@ -577,6 +577,10 @@ msgstr ""
 msgid "Ahora mismo no hay nada alto. Busca un objeto por su nombre."
 msgstr ""
 
+#: templates/apilado.html
+msgid "Ahora no"
+msgstr ""
+
 #: static/js/asistente.js
 msgid "Ahora tiene {actual}. Vacío = no tocarla."
 msgstr ""
@@ -903,6 +907,14 @@ msgstr ""
 msgid "Apilado detenido. Plan en pausa"
 msgstr ""
 
+#: pausa_darks.py
+msgid "Apilado en pausa. Pon la tapa del telescopio para hacer los darks"
+msgstr ""
+
+#: pausa_darks.py
+msgid "Apilado en pausa: esperando a que termine la foto en curso"
+msgstr ""
+
 #: templates/apilado.html templates/home.html
 msgid "Apilado en tiempo real"
 msgstr ""
@@ -929,6 +941,14 @@ msgstr ""
 #. js
 #: templates/editar_foto.html
 msgid "Apilado por las estrellas: el cometa sale corrido"
+msgstr ""
+
+#: pausa_darks.py
+msgid "Apilado reanudado con los darks nuevos"
+msgstr ""
+
+#: pausa_darks.py
+msgid "Apilado reanudado sin darks nuevos"
 msgstr ""
 
 #: apilado_video.py
@@ -1543,6 +1563,10 @@ msgstr ""
 msgid "Campo {ra} {dec}"
 msgstr ""
 
+#: pausa_darks.py
+msgid "Cancelado: el apilado sigue con los darks que había"
+msgstr ""
+
 #: templates/_asistente.html templates/_guia.html
 #: templates/_puesta_estacion.html templates/alineacion.html
 #: templates/apagar.html templates/apilado.html templates/calibracion.html
@@ -1555,8 +1579,14 @@ msgstr ""
 msgid "Cancelar centrado"
 msgstr ""
 
+#. js
 #: templates/apilado.html
 msgid "Cancelar darks"
+msgstr ""
+
+#. js
+#: templates/apilado.html
+msgid "Cancelar y seguir sin darks nuevos"
 msgstr ""
 
 #: ScopePower.py static/js/asistente.js templates/_asistente.html
@@ -2529,7 +2559,7 @@ msgid "Dark {i}/{n}"
 msgstr ""
 
 #. js
-#: guia.py
+#: guia.py templates/apilado.html
 msgid "Darks"
 msgstr ""
 
@@ -3072,8 +3102,33 @@ msgstr ""
 msgid "El apilado está capturando; páusalo o detenlo antes de generar darks"
 msgstr ""
 
+#: ScopePower.py
+msgid "El apilado está en pausa para hacer darks; síguelo desde Apilado"
+msgstr ""
+
+#: ScopePower.py
+msgid "El apilado está en pausa para hacer darks; termínalos o cancélalos antes"
+msgstr ""
+
+#: pausa_darks.py
+msgid "El apilado no está en marcha"
+msgstr ""
+
 #: templates/rastros.html
 msgid "El apilado no usa estas fotos. La clasificación es automática y orientativa: un destello de satélite puede parecer un meteoro y un meteoro que cruza un campo tan pequeño puede parecer un satélite. Revisa los <b>posibles meteoros</b> y pasa a la galería los que merezcan la pena."
+msgstr ""
+
+#: pausa_darks.py
+msgid "El apilado se ha detenido; no hay nada que reanudar"
+msgstr ""
+
+#: pausa_darks.py
+msgid "El apilado se ha detenido; no se hacen darks"
+msgstr ""
+
+#. js
+#: templates/apilado.html
+msgid "El apilado se pausa al terminar la foto en curso, se hacen los darks con la misma exposición, ganancia y binning, y sigue. Las fotos ya apiladas no cambian."
 msgstr ""
 
 #: ScopePower.py
@@ -3433,6 +3488,10 @@ msgstr ""
 msgid "El plan de la noche está en marcha; páusalo o detenlo antes."
 msgstr ""
 
+#: ScopePower.py
+msgid "El plan de la noche o el mosaico llevan el apilado; páralos antes de hacer darks"
+msgstr ""
+
 #: guia.py
 msgid "El plan de la noche ya está en marcha"
 msgstr ""
@@ -3556,6 +3615,11 @@ msgstr ""
 
 #: ScopePower.py
 msgid "El sensor está a {sensor} grados y el dark más cercano a {dark}: conviene hacer darks a esta temperatura"
+msgstr ""
+
+#. js
+#: templates/apilado.html
+msgid "El sensor está a {sensor} °C y el dark más cercano a {dark} °C."
 msgstr ""
 
 #: guia.py
@@ -3836,6 +3900,10 @@ msgstr ""
 msgid "En pasos de cámara (EV): 0 deja lo más brillante justo en el blanco; a la izquierda más oscuro, a la derecha más claro."
 msgstr ""
 
+#: pausa_darks.py
+msgid "En pausa para hacer darks"
+msgstr ""
+
 #: templates/_asistente.html
 msgid "En una montura altacimutal, entre 10 y 25 s para que las estrellas no se muevan."
 msgstr ""
@@ -4017,7 +4085,7 @@ msgstr ""
 
 #. js
 #: ScopePower.py bucle_captura.py foto_continua.py static/js/pad.js
-#: templates/apagar.html templates/configuracion.html
+#: templates/apagar.html templates/apilado.html templates/configuracion.html
 msgid "Error"
 msgstr ""
 
@@ -8120,6 +8188,10 @@ msgstr ""
 msgid "Número de darks"
 msgstr ""
 
+#: ScopePower.py
+msgid "Número de darks no válido"
+msgstr ""
+
 #: templates/flats.html
 msgid "Número de flats"
 msgstr ""
@@ -8427,6 +8499,10 @@ msgstr ""
 msgid "Paso {n} de {total}: {paso}"
 msgstr ""
 
+#: templates/apilado.html
+msgid "Pausa el apilado, hace darks a la temperatura actual del sensor y sigue"
+msgstr ""
+
 #: ScopePower.py
 msgid "Pausa o detén el apilado antes de borrar las sincronizaciones"
 msgstr ""
@@ -8438,6 +8514,10 @@ msgstr ""
 #. js
 #: templates/constelacion.html
 msgid "Pausar"
+msgstr ""
+
+#: templates/apilado.html
+msgid "Pausar y hacer darks"
 msgstr ""
 
 #. js
@@ -8544,6 +8624,10 @@ msgstr ""
 msgid "Plutón"
 msgstr ""
 
+#: pausa_darks.py
+msgid "Pon la tapa del telescopio y pulsa «Tapa puesta»"
+msgstr ""
+
 #: templates/flats.html
 msgid "Pon una camiseta blanca bien estirada (dos capas) sobre la boca del tubo, sin arrugas."
 msgstr ""
@@ -8627,7 +8711,7 @@ msgid "Preparando el timelapse..."
 msgstr ""
 
 #. js
-#: darks.py flats.py foto_dia.py templates/imagen.html
+#: darks.py flats.py foto_dia.py pausa_darks.py templates/imagen.html
 msgid "Preparando la cámara..."
 msgstr ""
 
@@ -8956,6 +9040,14 @@ msgstr ""
 #. js
 #: static/js/guia.js templates/apilado.html templates/dark.html
 msgid "Quita la tapa del telescopio antes de hacer fotos."
+msgstr ""
+
+#: templates/apilado.html
+msgid "Quita la tapa del telescopio antes de seguir: si no, las fotos saldrán negras."
+msgstr ""
+
+#: pausa_darks.py
+msgid "Quita la tapa del telescopio y pulsa «Seguir apilando»"
 msgstr ""
 
 #. js
@@ -9630,6 +9722,10 @@ msgstr ""
 msgid "Se enfocará con lo que haya ahora en la foto, sea lo que sea."
 msgstr ""
 
+#: ScopePower.py
+msgid "Se están preparando darks: termínalos o cancélalos antes de reanudar"
+msgstr ""
+
 #. js
 #: templates/configuracion.html
 msgid "Se fija antes de cada foto, dark, flat y centrado. Vacío = no tocarla (queda la que tenga el driver ASCOM)."
@@ -9765,6 +9861,10 @@ msgstr ""
 
 #: templates/_guia.html templates/planetario.html
 msgid "Seguir"
+msgstr ""
+
+#: templates/apilado.html
+msgid "Seguir apilando"
 msgstr ""
 
 #: templates/planetario.html
@@ -10330,12 +10430,20 @@ msgstr ""
 msgid "Tapa el telescopio completamente y pulsa Generar."
 msgstr ""
 
+#: templates/apilado.html
+msgid "Tapa el telescopio completamente: la app no puede comprobarlo."
+msgstr ""
+
 #: templates/_guia.html
 msgid "Tapa el telescopio completamente: un dark es una foto a oscuras con la misma exposición."
 msgstr ""
 
 #: flats.py
 msgid "Tapa el telescopio y pulsa Continuar para los darks de flat"
+msgstr ""
+
+#: templates/apilado.html
+msgid "Tapa puesta"
 msgstr ""
 
 #: templates/seguimiento.html
@@ -10677,6 +10785,14 @@ msgstr ""
 msgid "Todavía no se ha subido nada: marca una foto con el globo en la Galería."
 msgstr ""
 
+#: pausa_darks.py
+msgid "Todavía no toca quitar la tapa"
+msgstr ""
+
+#: pausa_darks.py
+msgid "Todavía no toca tapar el telescopio"
+msgstr ""
+
 #: templates/visor_video.html
 msgid "Todo el vídeo"
 msgstr ""
@@ -10700,6 +10816,10 @@ msgstr ""
 
 #: templates/_puesta_estacion.html
 msgid "Tolerancia (′)"
+msgstr ""
+
+#: templates/apilado.html
+msgid "Tomas de dark"
 msgstr ""
 
 #: editor_fotos.py
@@ -11369,6 +11489,10 @@ msgstr ""
 msgid "Ya hay una instalación en marcha"
 msgstr ""
 
+#: pausa_darks.py
+msgid "Ya hay una pausa para hacer darks en marcha"
+msgstr ""
+
 #: puesta_estacion.py
 msgid "Ya hay una puesta en estación en curso"
 msgstr ""
@@ -11417,7 +11541,7 @@ msgstr ""
 msgid "Ya se está revelando; espera a que termine."
 msgstr ""
 
-#: darks.py
+#: darks.py pausa_darks.py
 msgid "Ya se están generando darks"
 msgstr ""
 
@@ -14960,6 +15084,10 @@ msgstr ""
 
 #: templates/apilado.html
 msgid "⏸ Pausar plan"
+msgstr ""
+
+#: templates/apilado.html
+msgid "⏸ Pausar y hacer darks"
 msgstr ""
 
 #: ScopePower.py

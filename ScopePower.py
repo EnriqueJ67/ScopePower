@@ -349,6 +349,12 @@ def reanudar():
     motivo = _sin_espacio_en_disco()
     if motivo:
         return "⚠️ " + motivo, 409
+    if pausa_darks.activo:
+        # Con la tapa puesta o los darks en marcha no se puede seguir apilando: la foto saldría negra
+        if pausa_darks.fase in ("poner_tapa", "darks"):
+            return "⚠️ " + _("Se están preparando darks: termínalos o cancélalos antes de reanudar"), 409
+        pausa_darks.cancelar()      # antes de tapar: sigue sin darks nuevos; con la tapa quitada: sigue
+        return _("▶️ Apilado reanudado")
     reanudar_apilado()
     bucle.reanudar()
     return _("▶️ Apilado reanudado")
@@ -405,6 +411,8 @@ def apilado_iniciar():
     otro = _trabajos_en_curso()
     if otro:
         return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=otro)}), 409
+    if pausa_darks.activo:
+        return jsonify({"ok": False, "error": _("El apilado está en pausa para hacer darks; termínalos o cancélalos antes")}), 409
     _arrancar_apilado(nuevo, usar_dark)
     return jsonify({"ok": True, "bucle": bucle.estado()})
 
@@ -437,6 +445,58 @@ def apilado_detener():
     bucle.detener()
     pausar_apilado()
     return jsonify({"ok": True, "bucle": bucle.estado()})
+
+
+# ─── Pausar y hacer darks (pausa_darks.py) ───
+# Pausa el bucle, espera a que acabe la foto en curso, pide la tapa, hace los darks con la
+# exposición, la ganancia y el binning del apilado, pide quitar la tapa y reanuda.
+
+def _respuesta_pausa_darks(accion):
+    try:
+        accion()
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e), "pausa_darks": pausa_darks.estado()}), 409
+    return jsonify({"ok": True, "pausa_darks": pausa_darks.estado(), "bucle": bucle.estado()})
+
+
+@app.route('/apilado/pausa-darks', methods=["GET", "POST"])
+def apilado_pausa_darks():
+    """GET: estado del flujo. POST {"n": tomas (opcional)}: pausar el apilado para hacer darks."""
+    if request.method == "GET":
+        return jsonify(pausa_darks.estado())
+    if plan_sesion.trabajo_plan.en_curso or mosaico.trabajo_mosaico.en_curso:
+        return jsonify({"ok": False, "error": _("El plan de la noche o el mosaico llevan el apilado; páralos antes de hacer darks")}), 409
+    for nombre, trabajo in ((N_("modo en vivo"), vivo_dia.trabajo_vivo), (N_("foto continua"), foto_continua.trabajo_continuo),
+                            (N_("centrado"), centrado.trabajo_centrado)):
+        if trabajo.en_curso:
+            return jsonify({"ok": False, "error": _("Espera a que termine el trabajo de {otro}", otro=_(nombre))}), 409
+    datos = request.get_json(silent=True) or {}
+    n = datos.get("n")
+    try:
+        n = None if n in (None, "") else int(n)
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": _("Número de darks no válido")}), 400
+    if n is not None and 1 <= n <= 50 and n != _config_darks()["numero_darks"]:
+        _guardar_en_config("Dispositivos", {"numero_darks": n})   # se recuerda para la próxima vez
+    return _respuesta_pausa_darks(lambda: pausa_darks.iniciar(n))
+
+
+@app.route('/apilado/pausa-darks/tapa-puesta', methods=["POST"])
+def apilado_pausa_darks_tapa():
+    return _respuesta_pausa_darks(pausa_darks.tapa_puesta)
+
+
+@app.route('/apilado/pausa-darks/continuar', methods=["POST"])
+def apilado_pausa_darks_continuar():
+    motivo = _sin_espacio_en_disco()
+    if motivo:
+        return jsonify({"ok": False, "error": motivo, "pausa_darks": pausa_darks.estado()}), 409
+    return _respuesta_pausa_darks(pausa_darks.continuar)
+
+
+@app.route('/apilado/pausa-darks/cancelar', methods=["POST"])
+def apilado_pausa_darks_cancelar():
+    return _respuesta_pausa_darks(pausa_darks.cancelar)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Dispositivos ASCOM
@@ -595,6 +655,10 @@ _ULTIMA_POSICION_MONTURA = {}
 # versión, para que la web la refresque solo cuando haya una nueva.
 RUTA_ULTIMA_CAPTURA = ruta_absoluta("static/ultima_captura.jpg")
 ULTIMA_CAPTURA = {"version": 0, "hora": "", "exposicion": 0.0, "dark": False}
+# Exposición, ganancia y binning de la última foto del bucle del apilado: con ellos se hacen los
+# darks de «Pausar y hacer darks» (pausa_darks.py), para que casen con las fotos aunque el plan
+# o el mosaico usen otros que los de config.ini
+_PARAMETROS_BUCLE = {}
 
 def _config_dithering():
     cfg = configparser.ConfigParser(strict=False)
@@ -662,6 +726,27 @@ bucle = BucleCaptura(
 )
 _cfg_dither = _config_dithering()
 bucle.configurar_dithering(_cfg_dither["activado"], _cfg_dither["cada_n_fotos"])
+
+
+def _parametros_pausa_darks():
+    """Los de las fotos del apilado en curso; si aún no ha hecho ninguna, los de config.ini."""
+    conf = _config_darks()
+    p = {"exposicion": conf["exposicion"], "ganancia": conf["ganancia"], "binning": conf["binning"]}
+    p.update(_PARAMETROS_BUCLE)
+    p["numero_darks"] = conf["numero_darks"]
+    return p
+
+
+# «Pausar y hacer darks» a la temperatura actual del sensor sin cortar el apilado (pausa_darks.py)
+from pausa_darks import PausaDarks
+pausa_darks = PausaDarks(
+    bucle=bucle, camara=camara, trabajo_darks=darks.trabajo_darks,
+    pausar_apilado=pausar_apilado, reanudar_apilado=reanudar_apilado,
+    parametros=_parametros_pausa_darks,
+    cancelar_captura=lambda: estado_captura.cancelar.set(),
+    captura_en_curso=lambda: estado_captura.como_dict()["en_curso"],
+    decir=lambda texto: voz.decir(texto),
+)
 
 
 def conectar_telescopio():
@@ -1724,6 +1809,8 @@ def estado_conexion():
         "voz": voz.locutor.resumen(),
         # Dark de las últimas fotos lejos de la temperatura del sensor: chip en la cabecera
         "dark_temperatura": darks.aviso_temperatura.estado(),
+        # Con el apilado en marcha el chip lleva a Apilado, a «Pausar y hacer darks»
+        "apilado_activo": bucle.activo,
     })
 
 
@@ -2245,6 +2332,9 @@ def capturar_y_guardar(apilar=False, usar_dark=True, generar_preview=True, descr
     disp = _dispositivos()
     BINNING, FOCAL_LEN = disp["binning"], disp["focal"]     # valores en vivo, no los de arranque
     GANANCIA = disp["ganancia"] if ganancia is None else int(ganancia)
+
+    if en_bucle:
+        _PARAMETROS_BUCLE.update({"exposicion": EXPOSICION, "ganancia": GANANCIA, "binning": BINNING})
 
     # En el bucle del apilado estos avisos se repiten en cada foto: se pueden callar aparte
     categoria_voz = ("capturas", "bucle_apilado") if en_bucle else "capturas"
@@ -4577,6 +4667,8 @@ def estado_apilado():
     estado["captura"] = estado_captura.como_dict()
     estado["camara_ocupada"] = camara.ocupado
     estado["bucle"] = bucle.estado()
+    estado["pausa_darks"] = pausa_darks.estado()
+    estado["dark_temperatura"] = darks.aviso_temperatura.estado()     # para ofrecer «Pausar y hacer darks»
     estado["ultima_toma"] = dict(ULTIMA_CAPTURA)
     estado["plan"] = plan_sesion.trabajo_plan.estado()
     estado["mosaico"] = mosaico.trabajo_mosaico.estado()
@@ -5846,6 +5938,8 @@ def darks_generar():
     n = int(datos.get("n", conf["numero_darks"]))
     if bucle.activo and not bucle.pausado:
         return jsonify({"ok": False, "error": _("El apilado está capturando; páusalo o detenlo antes de generar darks")}), 409
+    if pausa_darks.activo:
+        return jsonify({"ok": False, "error": _("El apilado está en pausa para hacer darks; síguelo desde Apilado")}), 409
     if foto_continua.trabajo_continuo.en_curso:
         return jsonify({"ok": False, "error": _("El modo continuo de Cámara está en marcha; páralo antes")}), 409
     if vivo_dia.trabajo_vivo.en_curso:
