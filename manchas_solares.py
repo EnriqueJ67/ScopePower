@@ -602,7 +602,16 @@ def _direcciones_cielo(nombre, meta, instante, T_jpg, observatorio):
             if mv.get("observatorio"):
                 observatorio = tuple(mv["observatorio"])
     if H is None:
-        o = orientacion_camara.ultima()
+        # Con una montura ecuatorial la H horizontal depende del instante y de la dirección: los de esta foto del Sol
+        apuntado = None
+        if observatorio and len(observatorio) >= 2:
+            try:
+                import disco
+                apuntado = disco.direccion_astro("sol", float(instante), float(observatorio[0]), float(observatorio[1]),
+                                                 float(observatorio[2]) if len(observatorio) > 2 else 0.0)
+            except Exception:
+                apuntado = None
+        o = orientacion_camara.ultima(instante=instante, apuntado=apuntado)
         if o and o.get("H"):
             H, binning = o["H"], o.get("binning_foto", 1)
     if H is None or not observatorio or len(observatorio) < 2:

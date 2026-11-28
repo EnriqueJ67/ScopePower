@@ -111,7 +111,7 @@ def render(wcs, ancho, alto, cielo, fwhm_px=3.0):
 def probar_prevision(mosaico):
     """Previsión de la rejilla sin calibración de la cámara: solape nominal y duración."""
     import orientacion_camara
-    orientacion_camara.ultima = lambda buscar=True: None
+    orientacion_camara.ultima = lambda buscar=True, **kw: None
     campo = {"ancho_px": 3008, "alto_px": 3008, "escala_arcsec": 2.91, "ancho_deg": 2.43, "alto_deg": 2.43}
     fallos = []
     for filas, columnas, solape in ((2, 2, 20), (3, 3, 15), (1, 3, 25)):

@@ -619,6 +619,10 @@ def _activar_seguimiento(tel):
     except Exception as e:
         _montura_info["modo"] = None
         log.info("Modo de la montura desconocido (AlignmentMode): %s", e)
+    # Con una ecuatorial la cámara va fija respecto a AR/Dec: «Apunta aquí», el guiado y el
+    # Sync por el disco rehacen su orientación respecto al horizonte (orientacion_camara.py)
+    import orientacion_camara
+    orientacion_camara.establecer_modo_montura(_montura_info["modo"])
     voz.decir(_("Telescopio conectado"))
     humor.decir("conexion_ok")
     # Al conectar NO se borran las sincronizaciones de SynScan Pro: si se apaga el equipo
@@ -2995,6 +2999,45 @@ def _observatorio():
     return (LATITUD_OBSERVATORIO, LONGITUD_OBSERVATORIO, ALTITUD_OBSERVATORIO)
 
 
+_apuntado_cache = {"t": 0.0, "valor": None}
+
+
+def _apuntado_para_orientacion():
+    """
+    Dónde apunta la montura (ICRS en grados) y su lado del pilar, para la orientación de la
+    cámara con una ecuatorial (orientacion_camara.establecer_apuntado). Se guarda 5 s: el
+    guiado y las páginas lo piden a menudo y la dirección cambia muy despacio.
+    """
+    if time.time() - _apuntado_cache["t"] < 5.0:
+        return _apuntado_cache["valor"]
+    valor = None
+    if montura.esta_conectado():
+        def _leer(tel):
+            lado = None
+            try:
+                lado = int(tel.SideOfPier)
+                lado = lado if lado in (0, 1) else None      # -1 = desconocido
+            except Exception:
+                pass
+            return tel.RightAscension, tel.Declination, lado
+        try:
+            ra_m, dec_m, lado = montura.ejecutar(_leer, timeout=3, conectar=False)
+            ra_i, dec_i = coordenadas.desde_montura(ra_m, dec_m)
+            valor = {"ra": float(ra_i) * 15.0, "dec": float(dec_i), "lado": lado}
+        except Exception as e:
+            log.debug("Orientación: no se pudo leer la posición de la montura (%s)", e)
+    _apuntado_cache.update(t=time.time(), valor=valor)
+    return valor
+
+
+def _registrar_apuntado_orientacion():
+    import orientacion_camara
+    orientacion_camara.establecer_apuntado(_apuntado_para_orientacion)
+
+
+_registrar_apuntado_orientacion()
+
+
 def mover_relativo_horizonte(du, dv):
     """
     Mueve el apuntado (du, dv) grados en el plano tangente horizontal (Δaz·cos alt,
@@ -3109,10 +3152,18 @@ def _leer_captura():
 
 def _medir_disco(foto, objetivo=None):
     import orientacion_camara
-    orientacion = orientacion_camara.ultima()
+    objetivo = objetivo or (foto or {}).get("objetivo")
+    # Con una ecuatorial la orientación depende del instante y de la dirección: las de la foto y el astro
+    instante = float((foto or {}).get("instante") or time.time())
+    apuntado = None
+    if objetivo in disco.RADIO_KM:
+        try:
+            apuntado = disco.direccion_astro(objetivo, instante, *_observatorio())
+        except Exception as e:
+            log.debug("Guiado por el disco: sin la dirección de %s (%s)", objetivo, e)
+    orientacion = orientacion_camara.ultima(instante=instante, apuntado=apuntado)
     if orientacion is None:
         raise disco.SinDisco(_("Todavía no se conoce la orientación de la cámara: hace falta un plate solving de noche."))
-    objetivo = objetivo or (foto or {}).get("objetivo")
     return disco.localizar(foto, orientacion, objetivo, _observatorio(), leer_fits=_leer_captura)
 
 
