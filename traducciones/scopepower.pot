@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ScopePower 1.7.4\n"
+"Project-Id-Version: ScopePower 1.7.5\n"
 "Report-Msgid-Bugs-To: https://github.com/EnriqueJ67/ScopePower/issues\n"
 "POT-Creation-Date: 2026-10-15 00:00+0009\n"
 "PO-Revision-Date: 2026-10-15 00:00+0009\n"
@@ -172,10 +172,6 @@ msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro."
-msgstr ""
-
-#: templates/timelapse.html
-msgid "0 es blanco y negro."
 msgstr ""
 
 #: templates/_pad.html
@@ -365,10 +361,6 @@ msgstr ""
 
 #: templates/rastros.html
 msgid "A la galería"
-msgstr ""
-
-#: templates/timelapse.html
-msgid "A la izquierda más frío (azul), a la derecha más cálido (naranja)."
 msgstr ""
 
 #. js
@@ -862,6 +854,10 @@ msgstr ""
 
 #: ScopePower.py
 msgid "Apagado del equipo"
+msgstr ""
+
+#: templates/timelapse.html
+msgid "Apagado, el vídeo lleva las fotos tal cual (rápido). Encendido, cada foto se revela como en el editor de día: tarda bastante más."
 msgstr ""
 
 #: ScopePower.py
@@ -1908,7 +1904,7 @@ msgstr ""
 
 #. js
 #: ScopePower.py templates/apilado.html templates/editar_dia.html
-#: templates/editar_foto.html
+#: templates/editar_foto.html templates/timelapse.html
 msgid "Color"
 msgstr ""
 
@@ -2672,7 +2668,7 @@ msgstr ""
 msgid "Decirla"
 msgstr ""
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/timelapse.html
 msgid "Deconvolución del disco con el desenfoque medido en su propio limbo, 4 pasadas por punto. Con mucha nitidez el limbo anilla."
 msgstr ""
 
@@ -2817,6 +2813,7 @@ msgid "Destino no válido"
 msgstr ""
 
 #: templates/apilado.html templates/editar_dia.html templates/editar_foto.html
+#: templates/timelapse.html
 msgid "Detalle"
 msgstr ""
 
@@ -3913,11 +3910,7 @@ msgstr ""
 msgid "En la constelación del Cochero. Asociada a una cabra en la mitología romana."
 msgstr ""
 
-#: templates/timelapse.html
-msgid "En pasos de cámara (EV)."
-msgstr ""
-
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/timelapse.html
 msgid "En pasos de cámara (EV): 0 deja lo más brillante justo en el blanco; a la izquierda más oscuro, a la derecha más claro."
 msgstr ""
 
@@ -4844,7 +4837,7 @@ msgstr ""
 msgid "Filtro solar confirmado a las {hora}"
 msgstr ""
 
-#: templates/editar_dia.html templates/luna_3d.html
+#: templates/editar_dia.html templates/luna_3d.html templates/timelapse.html
 msgid "Firma en la foto"
 msgstr ""
 
@@ -6840,10 +6833,6 @@ msgstr ""
 msgid "Medio (1,25°)"
 msgstr ""
 
-#: templates/timelapse.html
-msgid "Medios tonos"
-msgstr ""
-
 #: static/centrado.js
 msgid "Medir"
 msgstr ""
@@ -7224,16 +7213,8 @@ msgstr ""
 msgid "Más altos esta noche"
 msgstr ""
 
-#: templates/timelapse.html
-msgid "Más de 1 aclara los tonos medios sin quemar el disco."
-msgstr ""
-
 #: static/js/luna_anotada.js
 msgid "Más tenue: de noche"
-msgstr ""
-
-#: templates/timelapse.html
-msgid "Máscara de enfoque: realza el limbo y las manchas; mucha saca el ruido."
 msgstr ""
 
 #: templates/configuracion.html
@@ -9206,7 +9187,7 @@ msgstr ""
 msgid "Reafinando {nombre}..."
 msgstr ""
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/timelapse.html
 msgid "Realce del relieve por escalas (cráteres, mares, manchas), solo dentro del disco. Mucho detalle saca también el ruido."
 msgstr ""
 
@@ -9594,6 +9575,10 @@ msgstr ""
 msgid "Revelando..."
 msgstr ""
 
+#: templates/timelapse.html
+msgid "Revelando…"
+msgstr ""
+
 #: templates/imagen.html
 msgid "Revelar"
 msgstr ""
@@ -9601,6 +9586,10 @@ msgstr ""
 #. js
 #: templates/imagen.html
 msgid "Revelar como el apilado"
+msgstr ""
+
+#: templates/timelapse.html
+msgid "Revelar las fotos con estos ajustes"
 msgstr ""
 
 #: ScopePower.py
@@ -9676,7 +9665,7 @@ msgstr ""
 msgid "Saltar este paso"
 msgstr ""
 
-#: templates/apilado.html templates/editar_foto.html templates/timelapse.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Saturación"
 msgstr ""
 
@@ -9692,7 +9681,7 @@ msgstr ""
 msgid "Saturación del revelado rápido de la foto de noche en Cámara (el estirado STF que se ve nada más hacerla)."
 msgstr ""
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/timelapse.html
 msgid "Saturación: 1 es el color natural y 0, blanco y negro. Con 3–5 en la Luna aparecen los tonos de los mares (azules) y las tierras altas (ocres): la «Luna mineral»."
 msgstr ""
 
@@ -10085,10 +10074,6 @@ msgstr ""
 
 #: cuerpos_menores.py
 msgid "Sin Internet: se usan los elementos guardados"
-msgstr ""
-
-#: templates/timelapse.html
-msgid "Sin ajustes"
 msgstr ""
 
 #. js
@@ -10568,10 +10553,6 @@ msgstr[1] ""
 
 #: templates/publico/index.html templates/publico/planetario.html
 msgid "Tema"
-msgstr ""
-
-#: templates/timelapse.html
-msgid "Temperatura"
 msgstr ""
 
 #: templates/apilado.html templates/editar_foto.html

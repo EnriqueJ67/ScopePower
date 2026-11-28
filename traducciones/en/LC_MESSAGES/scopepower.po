@@ -176,10 +176,6 @@ msgstr "0 = same as classic STF (stars and cores saturate to white); higher valu
 msgid "0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro."
 msgstr "0 = as it comes out of the stretch; to the right brighter, to the left darker."
 
-#: templates/timelapse.html
-msgid "0 es blanco y negro."
-msgstr "0 is black and white."
-
 #: templates/_pad.html
 msgid "0,1°/s"
 msgstr "0.1°/s"
@@ -368,10 +364,6 @@ msgstr "Nothing to add at this level. Turn it up a bit."
 #: templates/rastros.html
 msgid "A la galería"
 msgstr "To the gallery"
-
-#: templates/timelapse.html
-msgid "A la izquierda más frío (azul), a la derecha más cálido (naranja)."
-msgstr "Left is cooler (blue), right is warmer (orange)."
 
 #. js
 #: templates/base.html
@@ -865,6 +857,10 @@ msgstr "Shutdown canceled"
 #: ScopePower.py
 msgid "Apagado del equipo"
 msgstr "PC shutdown"
+
+#: templates/timelapse.html
+msgid "Apagado, el vídeo lleva las fotos tal cual (rápido). Encendido, cada foto se revela como en el editor de día: tarda bastante más."
+msgstr "Off, the video uses the photos as they are (fast). On, every photo is developed as in the day editor: it takes much longer."
 
 #: ScopePower.py
 msgid "Apagando el equipo"
@@ -1910,7 +1906,7 @@ msgstr "Key rejected by the hosting"
 
 #. js
 #: ScopePower.py templates/apilado.html templates/editar_dia.html
-#: templates/editar_foto.html
+#: templates/editar_foto.html templates/timelapse.html
 msgid "Color"
 msgstr "Color"
 
@@ -2674,7 +2670,7 @@ msgstr "Speak the corrections aloud"
 msgid "Decirla"
 msgstr "Say it"
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/timelapse.html
 msgid "Deconvolución del disco con el desenfoque medido en su propio limbo, 4 pasadas por punto. Con mucha nitidez el limbo anilla."
 msgstr "Deconvolution of the disc with the blur measured on its own limb, 4 passes per point. Too much sharpness makes the limb ring."
 
@@ -2819,6 +2815,7 @@ msgid "Destino no válido"
 msgstr "Invalid target"
 
 #: templates/apilado.html templates/editar_dia.html templates/editar_foto.html
+#: templates/timelapse.html
 msgid "Detalle"
 msgstr "Detail"
 
@@ -3915,11 +3912,7 @@ msgstr "In that option's text box, paste the ScopePower address (on the telescop
 msgid "En la constelación del Cochero. Asociada a una cabra en la mitología romana."
 msgstr "In the constellation Auriga. Associated with a goat in Roman mythology."
 
-#: templates/timelapse.html
-msgid "En pasos de cámara (EV)."
-msgstr "In camera stops (EV)."
-
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/timelapse.html
 msgid "En pasos de cámara (EV): 0 deja lo más brillante justo en el blanco; a la izquierda más oscuro, a la derecha más claro."
 msgstr "In camera stops (EV): 0 puts the brightest part right at white; to the left darker, to the right brighter."
 
@@ -4846,7 +4839,7 @@ msgstr "Solar filter"
 msgid "Filtro solar confirmado a las {hora}"
 msgstr "Solar filter confirmed at {hora}"
 
-#: templates/editar_dia.html templates/luna_3d.html
+#: templates/editar_dia.html templates/luna_3d.html templates/timelapse.html
 msgid "Firma en la foto"
 msgstr "Signature on the photo"
 
@@ -6842,10 +6835,6 @@ msgstr "Measurement done: error of {t}′"
 msgid "Medio (1,25°)"
 msgstr "Medium (1.25°)"
 
-#: templates/timelapse.html
-msgid "Medios tonos"
-msgstr "Midtones"
-
 #: static/centrado.js
 msgid "Medir"
 msgstr "Measure"
@@ -7226,17 +7215,9 @@ msgstr "Highest now"
 msgid "Más altos esta noche"
 msgstr "Highest tonight"
 
-#: templates/timelapse.html
-msgid "Más de 1 aclara los tonos medios sin quemar el disco."
-msgstr "Above 1 brightens the midtones without burning out the disk."
-
 #: static/js/luna_anotada.js
 msgid "Más tenue: de noche"
 msgstr "Fainter: on the night side"
-
-#: templates/timelapse.html
-msgid "Máscara de enfoque: realza el limbo y las manchas; mucha saca el ruido."
-msgstr "Unsharp mask: brings out the limb and the spots; too much brings out the noise."
 
 #: templates/configuracion.html
 msgid "Máximo de fotos a apilar"
@@ -9208,7 +9189,7 @@ msgstr "Re-sharpened in {s} s"
 msgid "Reafinando {nombre}..."
 msgstr "Re-sharpening {nombre}..."
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/timelapse.html
 msgid "Realce del relieve por escalas (cráteres, mares, manchas), solo dentro del disco. Mucho detalle saca también el ruido."
 msgstr "Multi-scale relief enhancement (craters, maria, sunspots), only inside the disc. A lot of detail brings out the noise too."
 
@@ -9596,6 +9577,10 @@ msgstr "Developing the shot"
 msgid "Revelando..."
 msgstr "Developing..."
 
+#: templates/timelapse.html
+msgid "Revelando…"
+msgstr "Developing…"
+
 #: templates/imagen.html
 msgid "Revelar"
 msgstr "Develop"
@@ -9604,6 +9589,10 @@ msgstr "Develop"
 #: templates/imagen.html
 msgid "Revelar como el apilado"
 msgstr "Develop like stacking"
+
+#: templates/timelapse.html
+msgid "Revelar las fotos con estos ajustes"
+msgstr "Develop the photos with these adjustments"
 
 #: ScopePower.py
 msgid "Revisa los números: exposición en segundos, ganancia y fotos en números enteros"
@@ -9678,7 +9667,7 @@ msgstr "Skipped {objeto}"
 msgid "Saltar este paso"
 msgstr "Skip this step"
 
-#: templates/apilado.html templates/editar_foto.html templates/timelapse.html
+#: templates/apilado.html templates/editar_foto.html
 msgid "Saturación"
 msgstr "Saturation"
 
@@ -9694,7 +9683,7 @@ msgstr "Star saturation"
 msgid "Saturación del revelado rápido de la foto de noche en Cámara (el estirado STF que se ve nada más hacerla)."
 msgstr "Saturation of the quick development of the night shot in Camera (the STF stretch you see right after taking it)."
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/timelapse.html
 msgid "Saturación: 1 es el color natural y 0, blanco y negro. Con 3–5 en la Luna aparecen los tonos de los mares (azules) y las tierras altas (ocres): la «Luna mineral»."
 msgstr "Saturation: 1 is the natural colour and 0, black and white. With 3–5 on the Moon the hues of the maria (blue) and the highlands (ochre) appear: the “mineral Moon”."
 
@@ -10088,10 +10077,6 @@ msgstr "No Internet and no saved elements"
 #: cuerpos_menores.py
 msgid "Sin Internet: se usan los elementos guardados"
 msgstr "No Internet: using the saved elements"
-
-#: templates/timelapse.html
-msgid "Sin ajustes"
-msgstr "No adjustments"
 
 #. js
 #: guia.py
@@ -10571,10 +10556,6 @@ msgstr[1] "Telescope synced. It was off by {n} arcminutes"
 #: templates/publico/index.html templates/publico/planetario.html
 msgid "Tema"
 msgstr "Theme"
-
-#: templates/timelapse.html
-msgid "Temperatura"
-msgstr "Temperature"
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Temperatura de color"

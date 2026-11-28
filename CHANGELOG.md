@@ -19,10 +19,11 @@ Revisión de la 1.7.4: el Sol con la montura en ecuatorial y el vídeo del timel
   28-nov). Los vídeos viejos ofrecen «Rehacer vídeo».
 - Nuevo: con el Sol o la Luna, el disco se centra en cada foto del vídeo, aunque se haya movido por el
   encuadre; y con el Sol se quitan las fotos en que algo lo tapa (árboles, cables, nubes espesas).
-- Nuevo: los timelapses salen en la galería. Su página tiene el vídeo y unos ajustes (exposición,
-  temperatura, medios tonos, contraste, saturación y nitidez) que se ven sobre el primer fotograma y se
-  aplican a todas las fotos al rehacer el vídeo; las fotos no se tocan, así que se puede probar tantas
-  veces como se quiera.
+- Nuevo: los timelapses salen en la galería. Su página tiene el vídeo y los mismos ajustes que el editor
+  de las fotos de día (exposición, contraste, detalle, nitidez, color y firma): se ven sobre el primer
+  fotograma y, con «Revelar las fotos con estos ajustes», se aplican a todas al rehacer el vídeo. Las fotos
+  no se tocan, así que se puede probar tantas veces como se quiera. Revelar tarda bastante más que montar
+  las fotos tal cual (6 minutos las 441 fotos del 28-nov en el PC de casa).
 
 ## 1.7.4 · 2026-11-28
 

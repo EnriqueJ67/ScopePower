@@ -31,6 +31,7 @@ log = logging.getLogger("scopepower.timelapse")
 NOMBRES_VIDEO = ("timelapse.webm", "timelapse.mp4")
 RESUMEN = "timelapse.json"
 MINIATURA_VIDEO = "miniatura_video.jpg"      # primer fotograma del vídeo, pequeño (tarjeta de la galería)
+LOTE_REVELADO = 8               # fotos que se revelan a la vez (en paralelo) antes de escribirlas
 COBERTURA_MINIMA = 0.98         # fracción del disco del Sol que ha de verse limpia
 LADO_DETECCION = 640            # el disco se busca en una copia reducida (rápido en el mini PC)
 RADIO_COBERTURA = 0.85          # el oscurecimiento del limbo no cuenta como «tapado»
@@ -122,66 +123,66 @@ def centrar(img, cx, cy):
     return cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=fondo)
 
 
-# ─── Ajustes de revelado (los mismos para todas las fotos del vídeo) ──────────
-# Se eligen mirando el primer fotograma (página del timelapse en la galería) y se aplican a
-# cada foto al montar; las fotos de la serie no se tocan, así que se puede rehacer el
-# vídeo con otros ajustes tantas veces como se quiera.
-AJUSTES_NEUTROS = {"exposicion": 0.0, "contraste": 1.0, "medios": 1.0, "saturacion": 1.0, "temperatura": 0.0, "nitidez": 0.0}
-LIMITES_AJUSTES = {"exposicion": (-2.0, 2.0), "contraste": (0.5, 2.0), "medios": (0.5, 2.0), "saturacion": (0.0, 2.5),
-                   "temperatura": (-1.0, 1.0), "nitidez": (0.0, 3.0)}
+# ─── Revelado como el del editor de día (los mismos ajustes para todas las fotos) ──────
+# Las fotos de la serie son JPG revelados con la gamma 1/1,6 de foto_dia: se vuelven a
+# lineal y pasan por revelado_dia.revelar con los ajustes del editor de día de la galería
+# (exposición, contraste, detalle, nitidez, color y firma). Se eligen mirando el primer
+# fotograma (página del timelapse en la galería) y se aplican a cada foto al montar; las
+# fotos no se tocan, así que se puede rehacer el vídeo con otros ajustes tantas veces como
+# se quiera. Sin ajustes (None) el vídeo lleva las fotos tal cual, que es mucho más rápido:
+# revelar cuesta ~1,2 s por foto de 1080 px en el PC de casa (se reparte entre núcleos).
+GAMMA_FOTOS = 1.6
 
 
 def ajustes_validos(datos):
-    """Los ajustes de `datos` dentro de sus límites (los que falten, neutros)."""
-    salida = dict(AJUSTES_NEUTROS)
-    for clave, (lo, hi) in LIMITES_AJUSTES.items():
-        try:
-            v = float((datos or {}).get(clave, salida[clave]))
-        except (TypeError, ValueError):
-            continue
-        if math.isfinite(v):
-            salida[clave] = round(min(hi, max(lo, v)), 3)
-    return salida
+    """Los ajustes del editor de día (revelado_dia.normalizar), o None si no se quiere revelar."""
+    import revelado_dia
+    if not isinstance(datos, dict):
+        return None
+    return revelado_dia.normalizar(datos)
 
 
-def son_neutros(ajustes):
-    return all(abs(float(ajustes.get(k, v)) - v) < 1e-6 for k, v in AJUSTES_NEUTROS.items())
-
-
-def _tabla_tonos(a):
-    """
-    Tabla (1, 256, 3) de los ajustes que van canal a canal (exposición, temperatura, medios
-    tonos y contraste): con cv2.LUT cuestan ~1 ms por foto en vez de ~200 ms en coma flotante.
-    """
-    x = np.arange(256, dtype=np.float64) / 255.0
-    canales = []
-    for factor in (1.0 - 0.25 * a["temperatura"], 1.0, 1.0 + 0.25 * a["temperatura"]):     # B, G, R
-        y = np.clip(x * (2.0 ** a["exposicion"]) * factor, 0.0, 1.0)
-        if a["medios"] != 1.0:
-            y = np.power(y, 1.0 / a["medios"])
-        if a["contraste"] != 1.0:
-            y = 0.5 + (y - 0.5) * a["contraste"]
-        canales.append(np.clip(np.rint(y * 255.0), 0, 255))
-    return np.stack(canales, axis=-1).astype(np.uint8).reshape(1, 256, 3)
-
-
-def aplicar_ajustes(img, ajustes):
-    """
-    Foto BGR de 8 bits con los ajustes: exposición (EV), temperatura (−1 frío … +1 cálido),
-    medios tonos (>1 aclara), contraste (alrededor del gris medio), saturación y nitidez
-    (máscara de enfoque).
-    """
+def lineal_de_foto(img):
+    """RGB float32 lineal (0..65535) de una foto BGR de 8 bits de la serie."""
     import cv2
+    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+    return np.power(rgb, GAMMA_FOTOS) * 65535.0
+
+
+def medir_limbo(img):
+    """FWHM del limbo (px) en una foto de la serie, para la nitidez; None si no hay disco."""
+    import apilado_video
+    limbo, __ = apilado_video.medir_limbo(lineal_de_foto(img))
+    return limbo
+
+
+def firma_de_carpeta(carpeta, objetivo=None):
+    """Datos de la firma: los del observatorio, el objeto y la fecha y hora del comienzo del timelapse."""
+    import firma
+    from datetime import datetime
+    meta = {k: v for k, v in firma.datos_observatorio().items() if k != "activa"}
+    nombre = os.path.basename(os.path.normpath(carpeta))
+    objetivo = objetivo or objetivo_de_carpeta(carpeta)
+    meta["objeto"] = {"sol": "Sol", "luna": "Luna"}.get(objetivo, objetivo.capitalize())
+    try:
+        meta["fecha"] = datetime.strptime(nombre[:15], "%Y%m%d_%H%M%S")
+    except ValueError:
+        pass
+    return meta
+
+
+def revelar_foto(img, ajustes, limbo=None, meta_firma=None):
+    """Foto BGR de 8 bits revelada con los ajustes del editor de día (y firmada si lo piden)."""
+    import cv2
+    import revelado_dia
     a = ajustes_validos(ajustes)
-    if son_neutros(a):
+    if a is None:
         return img
-    salida = cv2.LUT(img, _tabla_tonos(a))
-    if a["saturacion"] != 1.0:
-        gris = cv2.cvtColor(cv2.cvtColor(salida, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
-        salida = cv2.addWeighted(salida, a["saturacion"], gris, 1.0 - a["saturacion"], 0.0)
-    if a["nitidez"] > 0:
-        sigma = max(1.0, salida.shape[1] / 800.0)
-        salida = cv2.addWeighted(salida, 1.0 + a["nitidez"], cv2.GaussianBlur(salida, (0, 0), sigma), -a["nitidez"], 0.0)
+    rgb8 = revelado_dia.revelar(lineal_de_foto(img), a, limbo_px=limbo)
+    salida = cv2.cvtColor(rgb8, cv2.COLOR_RGB2BGR)
+    if a.get("firma") and meta_firma is not None:
+        import firma
+        salida = firma.firmar(salida, meta_firma)
     return salida
 
 
@@ -277,6 +278,29 @@ def montar(carpeta, fotos, fps=25, ancho=1080, objetivo=None, alinear=True, quit
                 pass
     quitados, escritos = [], 0
     base = 60 if disco_si else 0
+    a_revelar = ajustes_validos(ajustes)
+    pendientes, limbo, meta_firma = [], None, None
+    piscina = None
+    if a_revelar is not None:
+        from concurrent.futures import ThreadPoolExecutor
+        piscina = ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) - 1)))
+        meta_firma = firma_de_carpeta(carpeta, objetivo) if a_revelar.get("firma") else None
+
+    def _escribir_lote(lote, n):
+        nonlocal limbo
+        if limbo is None and disco_si:
+            limbo = medir_limbo(lote[0]) or 0.0        # una vez, en la primera foto que entra (0: sin disco)
+        for revelada in piscina.map(lambda im: revelar_foto(im, a_revelar, limbo or None, meta_firma), lote):
+            escritor.write(revelada)
+            if n == 0:
+                _miniatura(revelada)
+            n += 1
+        return n
+
+    def _miniatura(img):
+        lado = 320.0 / max(img.shape[:2])
+        cv2.imwrite(os.path.join(carpeta, MINIATURA_VIDEO), cv2.resize(img, None, fx=lado, fy=lado, interpolation=cv2.INTER_AREA),
+                    [cv2.IMWRITE_JPEG_QUALITY, 85])
     try:
         for i, f in enumerate(fotos):
             img = cv2.imread(os.path.join(carpeta, f))
@@ -295,24 +319,33 @@ def montar(carpeta, fotos, fps=25, ancho=1080, objetivo=None, alinear=True, quit
                         quitados.append((f, "tapado {:.0f} %".format(100 * (1 - visible))))
                         continue
                 img = centrar(img, pos[0], pos[1])
-            img = aplicar_ajustes(img, ajustes)
             if img.shape[1] != ancho or img.shape[0] != alto:
                 img = cv2.resize(img, (ancho, alto), interpolation=cv2.INTER_AREA)
+            if a_revelar is not None:
+                pendientes.append(img)
+                if len(pendientes) >= LOTE_REVELADO:
+                    escritos = _escribir_lote(pendientes, escritos)
+                    pendientes = []
+                progreso(base + int((100 - base) * (i + 1) / len(fotos)))
+                continue
             escritor.write(img)
             if escritos == 0:
-                lado = 320.0 / max(img.shape[:2])
-                cv2.imwrite(os.path.join(carpeta, MINIATURA_VIDEO), cv2.resize(img, None, fx=lado, fy=lado, interpolation=cv2.INTER_AREA),
-                            [cv2.IMWRITE_JPEG_QUALITY, 85])
+                _miniatura(img)
             escritos += 1
             progreso(base + int((100 - base) * (i + 1) / len(fotos)))
+        if pendientes:
+            escritos = _escribir_lote(pendientes, escritos)
     finally:
         escritor.release()
+        if piscina is not None:
+            piscina.shutdown(wait=True)
     if escritos < 2:
         raise RuntimeError("Quedan menos de dos fotos útiles para el vídeo ({} quitadas)".format(len(quitados)))
     resumen = {"archivo": nombre, "codec": codec, "fotogramas": escritos, "fotos": len(fotos),
                "quitados": quitados, "centrado": disco_si, "radio_px": round(radio, 1) if radio else None,
                "ancho": ancho, "alto": alto, "fps": fps, "objetivo": objetivo,
-               "alinear": bool(alinear), "quitar_tapadas": bool(quitar_tapadas), "ajustes": ajustes_validos(ajustes)}
+               "alinear": bool(alinear), "quitar_tapadas": bool(quitar_tapadas), "ajustes": a_revelar,
+               "limbo_px": round(limbo, 2) if limbo else None}
     with open(os.path.join(carpeta, RESUMEN), "w", encoding="utf-8") as f:
         json.dump(resumen, f, ensure_ascii=False, indent=1)
     log.info("Vídeo del timelapse: %s (%s, %d de %d fotos, %d quitadas%s)", os.path.join(carpeta, nombre), codec,

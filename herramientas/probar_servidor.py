@@ -121,11 +121,12 @@ def main():
     if not bien:
         fallos.append("tarjeta del timelapse")
     html = pedir(f"/galeria/timelapse/{nombre_tl}").get_data(as_text=True)
-    bien = '<video id="tl-reproductor"' in html and 'id="c-exposicion"' in html and 'id="o-tapadas"' in html
+    bien = ('<video id="tl-reproductor"' in html and 'id="c-detalle"' in html and 'id="c-firma"' in html
+            and 'id="c-revelar"' in html and 'id="o-tapadas"' in html)
     print(f"  {'✅' if bien else '❌'} página con el reproductor, los ajustes y las opciones del Sol")
     if not bien:
         fallos.append("página del timelapse")
-    r = cliente.post(f"/timelapse/vista/{nombre_tl}", json={"ajustes": {"exposicion": 1}})
+    r = cliente.post(f"/timelapse/vista/{nombre_tl}", json={"revelar": True, "ajustes": {"exposicion": 1, "detalle": 1.8}})
     bien = r.status_code == 200 and r.mimetype == "image/jpeg" and r.get_data()[:2] == b"\xff\xd8"
     print(f"  {'✅' if bien else '❌'} vista previa del primer fotograma con los ajustes ({r.status_code}, {r.mimetype})")
     if not bien:

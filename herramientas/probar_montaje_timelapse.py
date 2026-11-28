@@ -8,8 +8,9 @@
 #   - El vídeo se puede leer, con un códec que el navegador reproduce (VP8 o H.264), el
 #     disco queda centrado en todos los fotogramas, se quitan las tapadas y la de sin disco,
 #     y no se amplía por encima del tamaño de las fotos.
-#   - Los ajustes neutros no cambian nada; la exposición aclara; los valores fuera de
-#     límites se recortan; el resumen guarda ajustes y opciones para rehacerlo.
+#   - Sin revelar (ajustes None) las fotos van tal cual. Con los ajustes del editor de día
+#     (revelado_dia): la exposición aclara, color 0 es blanco y negro, los valores fuera de
+#     límites se recortan, y la firma pinta su banda; el resumen guarda ajustes y opciones.
 #   - Sin centrar ni quitar: todos los fotogramas, y el disco donde estaba.
 #
 #   python herramientas\probar_montaje_timelapse.py
@@ -98,31 +99,35 @@ def main():
         comprobar(desvios and max(desvios) < 2.5, "disco en el centro en todos (máx. %.1f px)" % (max(desvios) if desvios else -1))
         with open(os.path.join(carpeta, m.RESUMEN), encoding="utf-8") as f:
             guardado = json.load(f)
-        comprobar(guardado["ajustes"] == m.AJUSTES_NEUTROS and guardado["alinear"] and guardado["quitar_tapadas"],
-                  "el resumen guarda ajustes y opciones")
+        comprobar(guardado["ajustes"] is None and guardado["alinear"] and guardado["quitar_tapadas"],
+                  "el resumen guarda las opciones (sin revelar: fotos tal cual)")
         comprobar(m.video_de(carpeta) == r["archivo"] and m.reproducible(carpeta), "la lista lo da como reproducible")
         comprobar(m.foto_de_muestra(carpeta, fotos) == "foto_0001.jpg", "la foto de muestra es la primera útil")
         mini = cv2.imread(os.path.join(carpeta, m.MINIATURA_VIDEO))
         comprobar(mini is not None and max(mini.shape[:2]) == 320, "miniatura del primer fotograma para la galería")
 
-        print("Ajustes")
+        print("Revelado como el del editor de día")
         img = cv2.imread(os.path.join(carpeta, fotos[0]))
-        comprobar(m.aplicar_ajustes(img, {}) is img, "sin ajustes la foto no cambia")
-        clara = m.aplicar_ajustes(img, {"exposicion": 1.0})
-        comprobar(clara.mean() > img.mean() * 1.5, "+1 EV aclara (%.0f → %.0f)" % (img.mean(), clara.mean()))
-        calida = m.aplicar_ajustes(img, {"temperatura": 1.0})
-        comprobar(calida[..., 2].mean() > img[..., 2].mean() and calida[..., 0].mean() < img[..., 0].mean(), "más cálido: más rojo y menos azul")
-        gris = m.aplicar_ajustes(img, {"saturacion": 0.0})
-        comprobar(np.abs(gris[..., 0].astype(int) - gris[..., 2]).mean() < 2, "saturación 0: blanco y negro")
+        comprobar(m.ajustes_validos(None) is None and m.revelar_foto(img, None) is img, "sin revelar la foto no cambia")
+        limbo = m.medir_limbo(img)
+        comprobar(limbo is not None and 0.5 < limbo < 6, "limbo medido en la foto (%s px)" % (round(limbo, 2) if limbo else None))
+        base = m.revelar_foto(img, {"exposicion": 0.0, "firma": False}, limbo)
+        clara = m.revelar_foto(img, {"exposicion": -1.0, "firma": False}, limbo)
+        comprobar(base.shape == img.shape and base.dtype == np.uint8, "misma forma y 8 bits")
+        comprobar(clara.mean() < base.mean(), "−1 EV oscurece (%.0f → %.0f)" % (base.mean(), clara.mean()))
+        gris = m.revelar_foto(img, {"color": 0.0, "firma": False}, limbo)
+        comprobar(np.abs(gris[..., 0].astype(int) - gris[..., 2]).mean() < 3, "color 0: blanco y negro")
+        firmada = m.revelar_foto(img, {"firma": True}, limbo, {"objeto": "Sol", "autor": "Prueba"})
+        comprobar(np.abs(firmada.astype(int) - base).sum() > 0, "con firma cambia la foto")
         a = m.ajustes_validos({"exposicion": 9, "contraste": "x", "nitidez": -1})
         comprobar(a["exposicion"] == 2.0 and a["contraste"] == 1.0 and a["nitidez"] == 0.0, "valores fuera de límites recortados")
 
         print("Sin centrar ni quitar")
-        r2 = m.montar(carpeta, fotos, fps=10, alinear=False, quitar_tapadas=False, ajustes={"exposicion": 0.5})
+        r2 = m.montar(carpeta, fotos, fps=10, alinear=False, quitar_tapadas=False, ajustes={"exposicion": 0.5, "firma": False})
         comprobar(r2["fotogramas"] == 24 and not r2["quitados"] and not r2["centrado"], "todas las fotos, sin centrar")
         comprobar(len([f for f in os.listdir(carpeta) if f.startswith("timelapse.") and f != m.RESUMEN]) == 1,
                   "queda un solo vídeo en la carpeta")
-        comprobar(m.leer_resumen(carpeta)["ajustes"]["exposicion"] == 0.5, "el resumen guarda los ajustes nuevos")
+        comprobar(m.leer_resumen(carpeta)["ajustes"]["exposicion"] == 0.5, "revelado en paralelo y el resumen guarda los ajustes")
 
         print("Un MP4 viejo (mp4v, sin resumen) no se da por reproducible")
         vieja = os.path.join(tmp, "20261101_100000_sol")

@@ -5519,7 +5519,11 @@ def timelapse_video():
     # Ajustes de revelado y opciones: los de la petición o, si no vienen, los del último montaje
     import montaje_timelapse
     previo = montaje_timelapse.leer_resumen(carpeta)
-    ajustes = montaje_timelapse.ajustes_validos(datos.get("ajustes") if isinstance(datos.get("ajustes"), dict) else previo.get("ajustes"))
+    # «revelar»: con los ajustes del editor de día; sin la clave, como el último montaje (o las fotos tal cual)
+    if "revelar" in datos:
+        ajustes = montaje_timelapse.ajustes_validos(datos.get("ajustes") or {}) if datos.get("revelar") else None
+    else:
+        ajustes = montaje_timelapse.ajustes_validos(previo.get("ajustes"))
     alinear = bool(datos.get("alinear", previo.get("alinear", True)))
     quitar_tapadas = bool(datos.get("quitar_tapadas", previo.get("quitar_tapadas", True)))
     try:
@@ -5572,15 +5576,15 @@ def galeria_timelapse(nombre):
     t = next((x for x in _timelapses_galeria() if x["carpeta"] == nombre), {"objeto": nombre})
     return render_template("timelapse.html", nombre=nombre, objeto=t.get("objeto", nombre), fotos=len(fotos),
                            video=video, reproducible=montaje_timelapse.reproducible(carpeta, video), resumen=resumen,
-                           ajustes=montaje_timelapse.ajustes_validos(resumen.get("ajustes")),
-                           limites=montaje_timelapse.LIMITES_AJUSTES, muestra=montaje_timelapse.foto_de_muestra(carpeta, fotos),
+                           ajustes=editor_dia.revelado_dia.normalizar(resumen.get("ajustes")), revelar=resumen.get("ajustes") is not None,
+                           limites=editor_dia.revelado_dia.LIMITES, muestra=montaje_timelapse.foto_de_muestra(carpeta, fotos),
                            es_disco=montaje_timelapse.objetivo_de_carpeta(nombre) in ("sol", "luna"),
                            es_sol=montaje_timelapse.objetivo_de_carpeta(nombre) == "sol")
 
 
 @app.route('/timelapse/vista/<nombre>', methods=["POST"])
 def timelapse_vista(nombre):
-    """JPG del primer fotograma útil con los ajustes de {"ajustes": {...}} (vista previa, ≤ 900 px)."""
+    """JPG del primer fotograma útil, centrado y, con {"revelar": true}, revelado con {"ajustes": {...}} (≤ 900 px)."""
     if 'usuario' not in session:
         return jsonify({"ok": False}), 401
     import montaje_timelapse
@@ -5602,7 +5606,11 @@ def timelapse_vista(nombre):
     esc = min(1.0, 900.0 / max(img.shape[:2]))
     if esc < 1.0:
         img = cv2.resize(img, None, fx=esc, fy=esc, interpolation=cv2.INTER_AREA)
-    img = montaje_timelapse.aplicar_ajustes(img, datos.get("ajustes") if isinstance(datos.get("ajustes"), dict) else None)
+    if datos.get("revelar"):
+        ajustes = montaje_timelapse.ajustes_validos(datos.get("ajustes") or {})
+        limbo = montaje_timelapse.medir_limbo(img)
+        meta = montaje_timelapse.firma_de_carpeta(carpeta) if ajustes.get("firma") else None
+        img = montaje_timelapse.revelar_foto(img, ajustes, limbo, meta)
     ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 85])
     return Response(buf.tobytes(), mimetype="image/jpeg", headers={"Cache-Control": "no-store"})
 

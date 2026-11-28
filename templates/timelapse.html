@@ -38,6 +38,7 @@
         </section>
         <section class="card">
             <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>{{ _("Primer fotograma con los ajustes") }}</h3>
+            <small class="ayuda" id="tl-muestra-cargando" hidden><span class="spinner"></span> {{ _("Revelando…") }}</small>
             <img id="tl-muestra" class="tl-reproductor" alt="{{ muestra }}">
             <small class="ayuda">{{ _("Es {foto}: así quedarán todas las fotos del vídeo.", foto=muestra) }}</small>
         </section>
@@ -46,22 +47,34 @@
     <div class="columna lateral">
         <section class="card">
             <h3 class="card-title"><svg class="ico"><use href="#i-sol"/></svg>{{ _("Revelado") }}</h3>
-            {% set nombres = {"exposicion": _("Exposición"), "temperatura": _("Temperatura"), "medios": _("Medios tonos"),
-                              "contraste": _("Contraste"), "saturacion": _("Saturación"), "nitidez": _("Nitidez")} %}
-            {% set ayudas = {"exposicion": _("En pasos de cámara (EV)."), "temperatura": _("A la izquierda más frío (azul), a la derecha más cálido (naranja)."),
-                             "medios": _("Más de 1 aclara los tonos medios sin quemar el disco."), "saturacion": _("0 es blanco y negro."),
-                             "nitidez": _("Máscara de enfoque: realza el limbo y las manchas; mucha saca el ruido.")} %}
-            {% for clave in ["exposicion", "temperatura", "medios", "contraste", "saturacion", "nitidez"] %}
+            <!-- Los mismos controles que el editor de día de la galería (revelado_dia.py) -->
+            <label class="interruptor-linea"><input type="checkbox" id="c-revelar" {% if revelar %}checked{% endif %}> {{ _("Revelar las fotos con estos ajustes") }}</label>
+            <small class="ayuda">{{ _("Apagado, el vídeo lleva las fotos tal cual (rápido). Encendido, cada foto se revela como en el editor de día: tarda bastante más.") }}</small>
             <div class="form-group">
-                <div class="rango-titulo"><span>{{ nombres[clave] }}</span><span id="v-{{ clave }}"></span></div>
-                <input type="range" id="c-{{ clave }}" data-clave="{{ clave }}" min="{{ limites[clave][0] }}" max="{{ limites[clave][1] }}"
-                       step="{{ 0.1 if clave in ('exposicion', 'temperatura') else 0.05 }}" value="{{ ajustes[clave] }}">
-                {% if clave in ayudas %}<small class="ayuda">{{ ayudas[clave] }}</small>{% endif %}
+                <div class="rango-titulo"><span>{{ _("Exposición") }}</span><span id="v-exposicion"></span></div>
+                <input type="range" id="c-exposicion" data-clave="exposicion" min="{{ limites.exposicion[0] }}" max="{{ limites.exposicion[1] }}" step="0.1" value="{{ ajustes.exposicion }}">
+                <small class="ayuda">{{ _("En pasos de cámara (EV): 0 deja lo más brillante justo en el blanco; a la izquierda más oscuro, a la derecha más claro.") }}</small>
             </div>
-            {% endfor %}
-            <div class="fila">
-                <button type="button" class="btn btn-ghost" onclick="neutros()">{{ _("Sin ajustes") }}</button>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Contraste") }}</span><span id="v-contraste"></span></div>
+                <input type="range" id="c-contraste" data-clave="contraste" min="{{ limites.contraste[0] }}" max="{{ limites.contraste[1] }}" step="0.05" value="{{ ajustes.contraste }}">
             </div>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Detalle") }}</span><span id="v-detalle"></span></div>
+                <input type="range" id="c-detalle" data-clave="detalle" min="{{ limites.detalle[0] }}" max="{{ limites.detalle[1] }}" step="0.1" value="{{ ajustes.detalle }}">
+                <small class="ayuda">{{ _("Realce del relieve por escalas (cráteres, mares, manchas), solo dentro del disco. Mucho detalle saca también el ruido.") }}</small>
+            </div>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Nitidez") }}</span><span id="v-nitidez"></span></div>
+                <input type="range" id="c-nitidez" data-clave="nitidez" min="{{ limites.nitidez[0] }}" max="{{ limites.nitidez[1] }}" step="0.25" value="{{ ajustes.nitidez }}">
+                <small class="ayuda">{{ _("Deconvolución del disco con el desenfoque medido en su propio limbo, 4 pasadas por punto. Con mucha nitidez el limbo anilla.") }}</small>
+            </div>
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ _("Color") }}</span><span id="v-color"></span></div>
+                <input type="range" id="c-color" data-clave="color" min="{{ limites.color[0] }}" max="{{ limites.color[1] }}" step="0.25" value="{{ ajustes.color }}">
+                <small class="ayuda">{{ _("Saturación: 1 es el color natural y 0, blanco y negro. Con 3–5 en la Luna aparecen los tonos de los mares (azules) y las tierras altas (ocres): la «Luna mineral».") }}</small>
+            </div>
+            <label class="interruptor-linea"><input type="checkbox" id="c-firma" {% if ajustes.firma %}checked{% endif %}> {{ _("Firma en la foto") }}</label>
         </section>
         <section class="card">
             <h3 class="card-title"><svg class="ico"><use href="#i-galeria"/></svg>{{ _("Montaje") }}</h3>
@@ -96,26 +109,29 @@
 
 <script>
     const NOMBRE = {{ nombre|tojson }};
-    const CLAVES = ["exposicion", "temperatura", "medios", "contraste", "saturacion", "nitidez"];
-    const NEUTROS = { exposicion: 0, temperatura: 0, medios: 1, contraste: 1, saturacion: 1, nitidez: 0 };
+    const CLAVES = ["exposicion", "contraste", "detalle", "nitidez", "color"];
     let espera = null, pidiendo = false, otraVez = false, sondeo = null, urlAnterior = null;
 
     function ajustes() {
         const a = {};
         CLAVES.forEach(c => a[c] = parseFloat(document.getElementById("c-" + c).value));
+        a.firma = document.getElementById("c-firma").checked;
         return a;
     }
     function etiquetas() {
         CLAVES.forEach(c => {
             const v = parseFloat(document.getElementById("c-" + c).value);
-            document.getElementById("v-" + c).textContent = (c === "exposicion" && v > 0 ? "+" : "") + v.toLocaleString(IDIOMA.codigo, { maximumFractionDigits: 2 });
+            document.getElementById("v-" + c).textContent = c === "exposicion"
+                ? (v > 0 ? "+" : "") + v.toLocaleString(IDIOMA.codigo, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " EV"
+                : v.toLocaleString(IDIOMA.codigo, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         });
     }
     // Vista previa: una petición cada vez; si se mueve un control mientras tanto, se repite al acabar
     function vista() {
         if (pidiendo) { otraVez = true; return; }
         pidiendo = true;
-        fetch("/timelapse/vista/" + encodeURIComponent(NOMBRE), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ajustes: ajustes(), alinear: marcado("o-alinear", true) }) })
+        document.getElementById("tl-muestra-cargando").hidden = false;
+        fetch("/timelapse/vista/" + encodeURIComponent(NOMBRE), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revelar: revelar(), ajustes: ajustes(), alinear: marcado("o-alinear", true) }) })
             .then(r => r.ok ? r.blob() : Promise.reject(r.status))
             .then(b => {
                 const img = document.getElementById("tl-muestra");
@@ -124,17 +140,21 @@
                 img.src = urlAnterior;
             })
             .catch(() => {})
-            .finally(() => { pidiendo = false; if (otraVez) { otraVez = false; vista(); } });
+            .finally(() => { pidiendo = false; document.getElementById("tl-muestra-cargando").hidden = !otraVez; if (otraVez) { otraVez = false; vista(); } });
     }
-    function cambio() { etiquetas(); clearTimeout(espera); espera = setTimeout(vista, 250); }
-    function neutros() { CLAVES.forEach(c => document.getElementById("c-" + c).value = NEUTROS[c]); cambio(); }
+    function revelar() { return document.getElementById("c-revelar").checked; }
+    // Mover un control enciende el revelado: es lo que se quiere ver
+    function cambio(ev) {
+        if (ev && ev.target && ev.target.type === "range") document.getElementById("c-revelar").checked = true;
+        etiquetas(); clearTimeout(espera); espera = setTimeout(vista, 350);
+    }
 
     function marcado(id, porDefecto) { const e = document.getElementById(id); return e ? e.checked : porDefecto; }
     function rehacer() {
         const est = document.getElementById("tl-estado");
         est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Montando el vídeo…");
         document.getElementById("btn-rehacer").disabled = true;
-        const cuerpo = { carpeta: NOMBRE, fps: parseInt(document.getElementById("o-fps").value) || 25, ajustes: ajustes(),
+        const cuerpo = { carpeta: NOMBRE, fps: parseInt(document.getElementById("o-fps").value) || 25, revelar: revelar(), ajustes: ajustes(),
                          alinear: marcado("o-alinear", true), quitar_tapadas: marcado("o-tapadas", true) };
         fetch("/timelapse/video", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
             .then(r => r.json())
@@ -158,6 +178,7 @@
     }
 
     document.querySelectorAll('input[type="range"]').forEach(r => r.addEventListener("input", cambio));
+    ["c-revelar", "c-firma"].forEach(id => document.getElementById(id).addEventListener("change", cambio));
     const casilla = document.getElementById("o-alinear");
     if (casilla) casilla.addEventListener("change", vista);
     etiquetas();
