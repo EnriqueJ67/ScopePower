@@ -35,7 +35,8 @@ LIMITES = {"exposicion": (-2.0, 2.0), "contraste": (0.5, 2.0), "detalle": (0.0, 
 GAMMA = 1.3                    # curva de tonos (antes 1,6: aplanaba las luces)
 RODILLA = 0.75                 # por encima, las luces se comprimen hacia el blanco sin recortar
 PERCENTIL_BLANCO = 99.995      # lo más brillante de la imagen va al blanco
-UMBRAL_DISCO = 0.04            # fracción del blanco por encima de la cual un píxel es «disco» (no cielo)
+UMBRAL_DISCO = 0.04            # mínimo absoluto (fracción del blanco) para que un píxel sea «disco» (no cielo)
+FRACCION_DISCO = 0.15          # «disco» = más de esta fracción de lo más brillante (deja fuera el resplandor del Sol)
 ESCALAS_DETALLE = ((2.0, 0.8), (4.0, 0.8), (8.0, 0.5))     # (sigma px, ganancia) con detalle = 1
 LIMITE_DETALLE = 0.5           # la capa de detalle no pasa de esta fracción del nivel local (sin anillos)
 SIGMA_CROMA = 1.5              # suavizado de la crominancia antes de saturar (px)
@@ -90,31 +91,64 @@ def luminancia(rgb):
 
 
 def mascara_disco(lum01, escala=1.0):
-    """Peso 0..1 suave: 1 en el disco (o el paisaje), 0 en el cielo; evita el halo del realce."""
+    """
+    1 en el disco (o el paisaje) y 0 en el cielo, sin suavizar: lo que pasa de
+    FRACCION_DISCO de lo más brillante, con los huecos rellenos (las manchas del Sol y
+    los mares de la Luna son del disco).
+
+    28-nov-2026: antes era «más de UMBRAL_DISCO del blanco» suavizado 3 px, y con el Sol
+    entraba el resplandor de alrededor del disco: el realce restaba ahí el brillo del
+    disco desenfocado y dejaba un anillo negro alrededor del limbo (de 27 a 2,5 de 255
+    con detalle 1,8), muy artificial.
+    """
     import cv2
-    m = (lum01 > UMBRAL_DISCO).astype(np.float32)
-    m = cv2.GaussianBlur(m, (0, 0), max(1.0, 3.0 * escala))
-    return np.clip(m, 0.0, 1.0)[..., None]
+    lum = np.asarray(lum01, dtype=np.float32)
+    muestra = lum[::2, ::2] if lum.size > 1_500_000 else lum
+    umbral = max(UMBRAL_DISCO, FRACCION_DISCO * float(np.percentile(muestra, 99.5)))
+    m = (lum > umbral).astype(np.uint8)
+    contornos, __ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(m, contornos, -1, 1, thickness=cv2.FILLED)
+    return m.astype(np.float32)[..., None]
+
+
+def _desenfoque_en(img, sigma, peso, norma):
+    """Desenfoque gaussiano que solo promedia donde `peso` es 1 (convolución normalizada)."""
+    import cv2
+    if peso is None:
+        return cv2.GaussianBlur(img, (0, 0), sigma)
+    suma = cv2.GaussianBlur(img * peso, (0, 0), sigma)
+    n = cv2.GaussianBlur(norma, (0, 0), sigma)[..., None]
+    return np.where(n > 1e-3, suma / np.maximum(n, 1e-3), img)
 
 
 def detalle_local(img01, cantidad, escala=1.0, mascara=None):
     """
     Realce multiescala: a cada escala se suma lo que hay entre dos desenfoques, con la
     ganancia de la escala por `cantidad`, acotado a una fracción del nivel local para no
-    anillar, y solo donde `mascara` lo permite.
+    anillar, y solo donde `mascara` lo permite. Con máscara, los desenfoques solo promedian
+    píxeles del disco: el cielo no entra en la cuenta del borde ni se oscurece.
     """
     import cv2
     if cantidad <= 0:
         return img01
+    peso = None if mascara is None else np.asarray(mascara, dtype=np.float32)
+    norma = None if peso is None else np.ascontiguousarray(peso[..., 0])
+    entrada = None
+    if peso is not None:
+        # El realce entra poco a poco en los últimos píxeles del borde (la transición del limbo):
+        # si no, queda una línea oscura de 1 px alrededor del disco
+        r = max(1, int(round(2 * escala)))
+        dentro = cv2.erode(norma, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1)))
+        entrada = cv2.GaussianBlur(dentro, (0, 0), max(0.6, r * 0.75))[..., None] * peso
     out = img01.copy()
     previa = img01
     for sigma, ganancia in ESCALAS_DETALLE:
-        suave = cv2.GaussianBlur(img01, (0, 0), max(0.6, sigma * escala))
+        suave = _desenfoque_en(img01, max(0.6, sigma * escala), peso, norma)
         capa = previa - suave
         tope = LIMITE_DETALLE * np.abs(suave) + 0.01
         capa = np.clip(capa, -tope, tope)
-        if mascara is not None:
-            capa = capa * mascara
+        if entrada is not None:
+            capa = capa * entrada
         out += float(cantidad) * ganancia * capa
         previa = suave
     return np.clip(out, 0.0, None)
@@ -207,6 +241,18 @@ if __name__ == "__main__":
     cielo = ((xx - 100) ** 2 + (yy - 100) ** 2 > 75 ** 2)
     assert float(np.abs(con - img)[cielo].max()) < 0.02, "el realce no debe tocar el cielo"
     assert float(np.abs(con - img)[70:80, 90:110].mean()) > 0.02, "el realce debe marcar el cráter"
+    # Sol con el limbo desenfocado, resplandor alrededor y una mancha: sin anillo oscuro fuera del
+    # disco (28-nov-2026: con detalle 1,8 el borde exterior bajaba de 27 a 2,5 de 255) y la mancha dentro
+    import cv2
+    r = np.hypot(xx - 100.0, yy - 100.0)
+    sol = cv2.GaussianBlur((r < 60).astype(np.float32), (0, 0), 1.5) * 0.9 + 0.08 * np.exp(-np.clip(r - 60, 0, None) / 25.0)
+    sol[(xx - 85) ** 2 + (yy - 95) ** 2 < 9] *= 0.2                # mancha
+    sol3 = np.dstack([sol] * 3).astype(np.float32)
+    con = detalle_local(sol3, 1.8, 1.0, mascara_disco(luminancia(sol3)))
+    corona = (r > 62) & (r < 70)
+    assert float(con[corona].mean()) > 0.95 * float(sol3[corona].mean()), "anillo oscuro fuera del limbo"
+    assert float(con[(xx - 85) ** 2 + (yy - 95) ** 2 < 9].mean()) < float(sol3[(xx - 85) ** 2 + (yy - 95) ** 2 < 9].mean()), \
+        "la mancha debe seguir dentro de la máscara y marcarse"
     rgb = np.dstack([np.full((50, 50), 0.6), np.full((50, 50), 0.55), np.full((50, 50), 0.5)]).astype(np.float32)
     sat = saturar(rgb, 3.0)
     assert abs(float(luminancia(sat).mean() - luminancia(rgb).mean())) < 0.01

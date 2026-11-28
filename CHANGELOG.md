@@ -17,6 +17,10 @@ Revisión de la 1.7.4: el Sol con la montura en ecuatorial y el vídeo del timel
 - Arreglado: el vídeo del timelapse no se podía ver: se grababa en un MP4 con un códec que Chrome no
   reproduce. Ahora es un WebM (VP8), que se ve en la propia página y ocupa poco (6 MB las 523 fotos del
   28-nov). Los vídeos viejos ofrecen «Rehacer vídeo».
+- Arreglado: en el editor de las fotos de día (y en el timelapse), subir el «Detalle» dejaba un anillo
+  negro alrededor del Sol, muy artificial. El realce tomaba como parte del disco el resplandor de
+  alrededor y lo hundía a negro; ahora solo trabaja dentro del disco (con sus manchas) y el borde queda
+  como con el detalle a 0.
 - Nuevo: con el Sol o la Luna, el disco se centra en cada foto del vídeo, aunque se haya movido por el
   encuadre; y con el Sol se quitan las fotos en que algo lo tapa (árboles, cables, nubes espesas).
 - Nuevo: los timelapses salen en la galería. Su página tiene el vídeo y los mismos ajustes que el editor
