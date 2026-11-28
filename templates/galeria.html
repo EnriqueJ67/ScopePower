@@ -6,7 +6,7 @@
 <div class="pagina-cabecera">
     <div>
         <h1 class="pagina-titulo">{{ _("Galería") }}</h1>
-        <p class="pagina-sub" id="galeria-resumen">{% if imagenes or not videos %}{{ ngettext("{n} imagen guardada desde el apilado.", "{n} imágenes guardadas desde el apilado.", imagenes|length) }}{% endif %}{% if videos %} {{ ngettext("{n} vídeo grabado.", "{n} vídeos grabados.", videos|length) }}{% endif %}</p>
+        <p class="pagina-sub" id="galeria-resumen">{% if imagenes or not n_videos %}{{ ngettext("{n} imagen guardada desde el apilado.", "{n} imágenes guardadas desde el apilado.", imagenes|length) }}{% endif %}{% if videos %} {{ ngettext("{n} vídeo grabado.", "{n} vídeos grabados.", videos|length) }}{% endif %}{% if timelapses %} {{ ngettext("{n} timelapse.", "{n} timelapses.", timelapses|length) }}{% endif %}</p>
     </div>
     <div class="pagina-acciones">
         <!-- Fotos que el apilado descartó por un rastro (aviones, satélites, posibles meteoros) -->
@@ -31,15 +31,15 @@
     </div>
 </div>
 
-{% if filtros|length > 1 or (videos and imagenes) or publicadas %}
+{% if filtros|length > 1 or (n_videos and imagenes) or publicadas %}
 <!-- Filtro por tipo de objeto: un chip por tipo con las fotos y vídeos que hay de cada uno, y otro con solo los vídeos -->
 <div class="galeria-filtros" id="galeria-filtros">
-    <button type="button" class="chip activo" data-tipo="" onclick="filtrarGaleria('')">{{ _("Todas") }} <span class="n">{{ imagenes|length + videos|length }}</span></button>
+    <button type="button" class="chip activo" data-tipo="" onclick="filtrarGaleria('')">{{ _("Todas") }} <span class="n">{{ imagenes|length + n_videos }}</span></button>
     {% for tipo, n in filtros %}
     <button type="button" class="chip" data-tipo="{{ tipo }}" onclick="filtrarGaleria('{{ tipo }}')">{{ _(tipo) }} <span class="n">{{ n }}</span></button>
     {% endfor %}
-    {% if videos %}
-    <button type="button" class="chip" data-tipo="__videos__" onclick="filtrarGaleria('__videos__')">▶ {{ _("Vídeos") }} <span class="n">{{ videos|length }}</span></button>
+    {% if n_videos %}
+    <button type="button" class="chip" data-tipo="__videos__" onclick="filtrarGaleria('__videos__')">▶ {{ _("Vídeos") }} <span class="n">{{ n_videos }}</span></button>
     {% endif %}
     {% if publicadas %}
     <button type="button" class="chip" data-tipo="__publicas__" onclick="filtrarGaleria('__publicas__')"><svg class="ico ico-sm"><use href="#i-publicar"/></svg> {{ _("Públicas") }} <span class="n">{{ publicadas|length }}</span></button>
@@ -72,7 +72,7 @@
 </div>
 {% endif %}
 
-{% if not imagenes and not videos %}
+{% if not imagenes and not n_videos %}
 <div class="card centro">
     <svg class="ico" style="width: 40px; height: 40px; color: var(--text-3);"><use href="#i-galeria"/></svg>
     <p class="card-sub mt-2">{{ _("Todavía no hay imágenes. En Apilado, pulsa <b>Guardar imagen</b> para añadirlas aquí.")|safe }}</p>
@@ -132,6 +132,24 @@
         {% if v.apilado %}
         <a class="foto-editar" href="/galeria/editar-dia/{{ v.apilado }}" title="{{ _('Su apilado: volver a revelarlo o a apilar el vídeo') }}"><svg class="ico"><use href="#i-apilado"/></svg></a>
         {% endif %}
+    </div>
+    {% endfor %}
+    {# Los timelapses de «Sol, Luna y paisaje»: la tarjeta abre su página (vídeo y ajustes para rehacerlo) #}
+    {% for t in timelapses %}
+    <div class="foto tarjeta tarjeta-video tarjeta-timelapse" data-video="timelapse:{{ t.carpeta }}" data-objeto="{{ t.objeto }}" data-fecha="{{ t.fecha ~ t.hora }}" data-tipo="{{ t.tipo }}">
+        <a class="foto-video" href="/galeria/timelapse/{{ t.carpeta }}" title="{{ _('Ver el timelapse y rehacerlo con otros ajustes') }}">
+            <img src="/static/timelapse/{{ t.carpeta }}/{{ t.miniatura or t.primera }}" alt="{{ t.carpeta }}" loading="lazy">
+            <span class="foto-video-insignia"><svg class="ico"><use href="#i-play"/></svg>{{ _("Timelapse") }}{% if t.video and not t.reproducible %} · {{ _("rehacer") }}{% elif not t.video %} · {{ _("sin vídeo") }}{% endif %}</span>
+        </a>
+        <div class="foto-pie">
+            <div class="foto-nombre">{{ t.objeto }}</div>
+            <div class="foto-tipo">{{ _("Timelapse") }} · {{ ngettext("{n} foto", "{n} fotos", t.fotos) }}</div>
+            <div class="foto-fecha">
+                {% if t.fecha|length == 8 %}
+                {% if idioma.idioma_actual() == 'es' %}{{ t.fecha[6:8] }}/{{ t.fecha[4:6] }}/{{ t.fecha[0:4] }}{% else %}{{ t.fecha[0:4] }}-{{ t.fecha[4:6] }}-{{ t.fecha[6:8] }}{% endif %} · {{ t.hora[0:2] }}:{{ t.hora[2:4] }}
+                {% else %}{{ t.carpeta }}{% endif %}
+            </div>
+        </div>
     </div>
     {% endfor %}
 </div>
@@ -202,7 +220,7 @@
     const TITULO_ANOTAR_LUNA = {{ _('Nombres de los mares, cráteres y montes de la Luna encima de la foto')|tojson }};
     const TITULO_ANOTAR_SOL = {{ _('Manchas y grupos encima de la foto, con el Número de Wolf; el conteo se corrige tocando y se guarda')|tojson }};
     const anotable = nombre => CON_FITS.includes(nombre) || CON_LUNA.includes(nombre) || CON_SOL.includes(nombre);
-    const TOTAL_FOTOS = {{ imagenes|length + videos|length }};
+    const TOTAL_FOTOS = {{ imagenes|length + n_videos }};
     const DE_VIDEO = {{ de_video|tojson }};
     const SOLO_VIDEOS = "__videos__";
     const SOLO_PUBLICAS = "__publicas__";

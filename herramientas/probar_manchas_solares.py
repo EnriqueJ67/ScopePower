@@ -291,7 +291,7 @@ def probar_galeria(lum):
     with open(os.path.join(fotos, nombre.replace(".jpg", ".json")), "w", encoding="utf-8") as f:
         json.dump(meta, f)
     # Sin orientación de la cámara guardada: sin coordenadas, pero con conteo
-    orientacion_camara.ultima = lambda buscar=True: None
+    orientacion_camara.ultima = lambda buscar=True, **kw: None
     d = M.objetos_foto(nombre, (40.0, -3.7))
     comprobar(d["ok"] and d["sol"] and d["origen"] == "crudo" and (d["ancho"], d["alto"]) == (jpg.shape[1], jpg.shape[0]),
               f"objetos_foto: {d['origen']}, JPG {d['ancho']}×{d['alto']}")
@@ -305,7 +305,7 @@ def probar_galeria(lum):
     xb, yb, __ = T @ [450 + 0.40 * 400, 450 - 0.30 * 400, 1.0]
     comprobar(any(math.hypot(m["x"] - xb, m["y"] - yb) < 3 for m in d["manchas"]), f"la mancha B está en ({xb:.0f}, {yb:.0f}) del JPG")
     # Con orientación de la cámara: hay coordenadas, y el norte gira con la foto
-    orientacion_camara.ultima = lambda buscar=True: {"H": [[0.001, 0.0], [0.0, -0.001]], "binning_foto": 1}
+    orientacion_camara.ultima = lambda buscar=True, **kw: {"H": [[0.001, 0.0], [0.0, -0.001]], "binning_foto": 1}
     instante = M._fecha_local_de(nombre, meta)
     geo0, c0 = M.contexto_cielo(nombre, meta, instante, np.eye(3), (40.0, -3.7))
     geo90, c90 = M.contexto_cielo(nombre, meta, instante, T, (40.0, -3.7))

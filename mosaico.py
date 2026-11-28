@@ -245,7 +245,8 @@ def wcs_previsto(ra_h, dec_deg, campo, lugar=None, cuando=None):
     ancho, alto = campo["ancho_px"], campo["alto_px"]
     try:
         import orientacion_camara
-        o = orientacion_camara.ultima(buscar=False)
+        # Con una montura ecuatorial la H horizontal se rehace para este apuntado y esta hora
+        o = orientacion_camara.ultima(buscar=False, instante=cuando, apuntado=(ra_deg, float(dec_deg)))
         if o and o.get("H") and lugar is not None:
             from astropy.coordinates import SkyCoord, EarthLocation, AltAz
             from astropy.time import Time

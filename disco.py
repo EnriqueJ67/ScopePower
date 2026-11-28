@@ -98,6 +98,20 @@ def radio_esperado_arcsec(objetivo, instante, lat, lon, alt_m):
     return math.degrees(math.asin(RADIO_KM[objetivo] / distancia_km)) * 3600.0
 
 
+def direccion_astro(objetivo, instante, lat, lon, alt_m):
+    """
+    (ra, dec) en grados hacia el Sol o la Luna vistos desde el observatorio en ese instante
+    (unix): la dirección sin distancia (con distancia, pasar a ICRS daría la del baricentro).
+    Basta para orientar la cámara con una montura ecuatorial (orientacion_camara.ultima).
+    """
+    from astropy.coordinates import EarthLocation, get_body
+    from astropy.time import Time
+    import astropy.units as u
+    lugar = EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=alt_m * u.m)
+    cuerpo = get_body("sun" if objetivo == "sol" else "moon", Time(instante, format="unix"), lugar)
+    return float(cuerpo.ra.deg), float(cuerpo.dec.deg)
+
+
 def pixeles_por_arcsec(vista, orientacion, ancho_img):
     """Píxeles de la imagen analizada por segundo de arco."""
     import apuntado_teorico

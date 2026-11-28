@@ -43,6 +43,45 @@ RUTA_SDK = os.path.join("datos", "orientacion_sdk.json")
 # Resoluciones que quedan en disco (para recuperar la orientación si no hay ninguna guardada)
 INIS_CONOCIDOS = ("static/captura_mono.ini", "static/alineacion_mono.ini", "static/centrado_mono.ini")
 
+# Montura ecuatorial (28-nov-2026, Sol con la montura en ecuatorial): la cámara va fija
+# respecto a AR/Dec, no respecto al horizonte, así que la H horizontal de una foto
+# resuelta solo vale en ese instante y en esa dirección. Con el Sol de ese día la H de
+# la noche del 26 estaba girada 75° (el ángulo paraláctico): «Apunta aquí» llevaba el
+# Sol a otro sitio y cada corrección del guiado giraba el error ~50° y lo agrandaba
+# (2,1′ → 2,8′ → 3,6′ → 4,4′ → 4,9′) hasta perderlo. Con una ecuatorial se guarda
+# también H_eq (fija) y ultima() rehace la H horizontal para el instante y la dirección
+# de uso. ScopePower dice el modo al conectar y cómo leer dónde apunta la montura.
+MODOS_ECUATORIALES = ("ecuatorial", "ecuatorial_alemana")
+_estado = {"modo": None, "apuntado": None}
+
+
+def establecer_modo_montura(modo):
+    """«altacimutal», «ecuatorial», «ecuatorial_alemana» o None (ASCOM AlignmentMode al conectar)."""
+    _estado["modo"] = modo
+
+
+def establecer_apuntado(funcion):
+    """
+    `funcion()` → {"ra": grados ICRS, "dec": grados, "lado": SideOfPier o None} de la
+    montura, o None si no se puede leer. Sirve para rehacer la H en una ecuatorial.
+    """
+    _estado["apuntado"] = funcion
+
+
+def _apuntado_montura():
+    f = _estado["apuntado"]
+    if f is None:
+        return {}
+    try:
+        return f() or {}
+    except Exception as e:
+        log.debug("Sin la posición de la montura para la orientación: %s", e)
+        return {}
+
+
+def es_ecuatorial(modo):
+    return modo in MODOS_ECUATORIALES
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # Orientación respecto a los ejes, desde una resolución de ASTAP
@@ -100,6 +139,37 @@ def matriz_horizontal(wcs, t, lat, lon, alt_m=0.0, centro=(1503.5, 1503.5), paso
     return H, float(alt[0]), float(az[0])
 
 
+def matriz_ecuatorial(wcs, centro=(1503.5, 1503.5), paso=40.0):
+    """
+    H_eq (2×2) tal que (ΔAR·cos Dec, ΔDec) en grados = H_eq · (Δcolumna, Δfila) en
+    píxeles de la foto resuelta. Con una montura ecuatorial la cámara va fija respecto
+    a estos ejes (no respecto al horizonte). Devuelve (H_eq, ra, dec) del centro.
+    """
+    cx, cy = centro
+    pts = wcs.all_pix2world([[cx, cy], [cx + paso, cy], [cx, cy + paso]], 0)
+    ra, dec = pts[:, 0], pts[:, 1]
+    cd = math.cos(math.radians(dec[0]))
+    columna = lambda i: [((ra[i] - ra[0] + 180.0) % 360.0 - 180.0) * cd / paso, (dec[i] - dec[0]) / paso]
+    return np.array([columna(1), columna(2)]).T, float(ra[0]), float(dec[0])
+
+
+def jacobiano_horizontal(ra, dec, t, lugar, paso=0.05):
+    """
+    J (2×2): (Δaz·cos alt, Δalt) = J · (ΔAR·cos Dec, ΔDec), en grados, alrededor de la
+    dirección ICRS (ra, dec) en el instante t (astropy Time) desde `lugar` (EarthLocation).
+    Es el giro del ángulo paraláctico (con su espejo: el AR crece hacia el este), numérico.
+    """
+    from astropy.coordinates import SkyCoord, AltAz
+    import astropy.units as u
+    cd = max(1e-6, math.cos(math.radians(dec)))
+    pts = SkyCoord(ra=[ra, ra + paso / cd, ra] * u.deg, dec=[dec, dec, dec + paso] * u.deg, frame="icrs")
+    h = pts.transform_to(AltAz(obstime=t, location=lugar))
+    az, alt = h.az.deg, h.alt.deg
+    ca = math.cos(math.radians(alt[0]))
+    columna = lambda i: [((az[i] - az[0] + 180.0) % 360.0 - 180.0) * ca / paso, (alt[i] - alt[0]) / paso]
+    return np.array([columna(1), columna(2)]).T
+
+
 def desde_solucion(ruta_ini, ruta_fits=None, observatorio=None, origen=""):
     """Orientación (dict serializable) de una foto resuelta por ASTAP; None si no se resolvió."""
     import anotaciones
@@ -122,15 +192,24 @@ def desde_solucion(ruta_ini, ruta_fits=None, observatorio=None, origen=""):
         ancho, alto = int(round(2 * crpix[0])), int(round(2 * crpix[1]))
     lat, lon, alt_m = observatorio or _observatorio()
     t = instante_de_la_foto(ruta_fits)
-    H, alt, az = matriz_horizontal(wcs, t, lat, lon, alt_m, centro=((ancho - 1) / 2.0, (alto - 1) / 2.0))
-    return {
+    centro = ((ancho - 1) / 2.0, (alto - 1) / 2.0)
+    H, alt, az = matriz_horizontal(wcs, t, lat, lon, alt_m, centro=centro)
+    H_eq, ra, dec = matriz_ecuatorial(wcs, centro=centro)
+    o = {
         "H": H.tolist(), "binning_foto": binning, "ancho": ancho, "alto": alto,
         "escala_arcsec": round(float(escala), 4),
         "angulo_x_deg": round(math.degrees(math.atan2(H[1, 0], H[0, 0])) % 360.0, 2),
         "paridad": int(np.sign(np.linalg.det(H))),
         "alt": round(alt, 2), "az": round(az, 2),
+        "H_eq": H_eq.tolist(), "ra": round(ra, 5), "dec": round(dec, 5),
         "instante_utc": t.isot, "fecha": datetime.now().isoformat(timespec="seconds"), "origen": origen,
     }
+    if _estado["modo"]:
+        o["modo_montura"] = _estado["modo"]
+    lado = _apuntado_montura().get("lado")
+    if lado is not None:
+        o["lado_pilar"] = lado
+    return o
 
 
 def guardar(orientacion, ruta=RUTA):
@@ -169,17 +248,102 @@ def registrar(ruta_ini, origen=""):
         return None
 
 
-def ultima(buscar=True):
-    """La orientación guardada; si no hay, la de la resolución más reciente que quede en disco."""
+def ultima(buscar=True, instante=None, apuntado=None):
+    """
+    La orientación guardada; si no hay, la de la resolución más reciente que quede en disco.
+
+    Con una montura ecuatorial, su "H" es la del instante `instante` (unix, astropy Time o
+    None = ahora) y la dirección `apuntado` ((ra, dec) ICRS en grados; None = donde apunta
+    la montura), sacada de la H_eq fija de la cámara. Si no se sabe dónde apunta, la H de
+    la foto resuelta (y "aviso" lo dice).
+    """
     o = leer()
-    if o is not None or not buscar:
+    if o is None and buscar:
+        candidatos = [r for r in INIS_CONOCIDOS if os.path.exists(r)]
+        for ruta in sorted(candidatos, key=os.path.getmtime, reverse=True):
+            o = registrar(ruta, origen=f"resolución guardada ({os.path.basename(ruta)})")
+            if o is not None:
+                break
+    if o is None:
+        return None
+    modo = _estado["modo"] or o.get("modo_montura")
+    if not es_ecuatorial(modo):
         return o
-    candidatos = [r for r in INIS_CONOCIDOS if os.path.exists(r)]
-    for ruta in sorted(candidatos, key=os.path.getmtime, reverse=True):
-        o = registrar(ruta, origen=f"resolución guardada ({os.path.basename(ruta)})")
-        if o is not None:
-            return o
-    return None
+    try:
+        return para_ecuatorial(o, instante=instante, apuntado=apuntado)
+    except Exception as e:
+        if str(e) != _estado.get("ultimo_aviso"):       # una vez por motivo: las páginas la piden a menudo
+            log.warning("No se pudo rehacer la orientación de la cámara para la montura ecuatorial "
+                        "(se usa la de la foto resuelta): %s", e)
+            _estado["ultimo_aviso"] = str(e)
+        return dict(o, aviso=str(e))
+
+
+def _como_time(instante):
+    from astropy.time import Time
+    if instante is None:
+        return Time.now()
+    if isinstance(instante, Time):
+        return instante
+    return Time(float(instante), format="unix")
+
+
+_cache_h_eq = {}
+
+
+def matriz_ecuatorial_de(o, observatorio=None):
+    """
+    H_eq de una orientación: la guardada o, en las guardadas antes del 28-nov-2026, la
+    que sale de su H horizontal en el instante y la dirección de la foto resuelta (es
+    la misma foto, así que es exacta).
+    """
+    if o.get("H_eq"):
+        return np.array(o["H_eq"], dtype=float)
+    clave = (o.get("instante_utc"), o.get("alt"), o.get("az"), str(o.get("H")))
+    if clave in _cache_h_eq:
+        return _cache_h_eq[clave]
+    from astropy.coordinates import SkyCoord, EarthLocation, AltAz
+    from astropy.time import Time
+    import astropy.units as u
+    lat, lon, alt_m = observatorio or _observatorio()
+    lugar = EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=alt_m * u.m)
+    t = Time(str(o["instante_utc"]).replace(" ", "T"), format="isot", scale="utc")
+    c = SkyCoord(az=float(o["az"]) * u.deg, alt=float(o["alt"]) * u.deg, frame=AltAz(obstime=t, location=lugar)).icrs
+    H_eq = np.linalg.inv(jacobiano_horizontal(float(c.ra.deg), float(c.dec.deg), t, lugar)) @ np.array(o["H"], dtype=float)
+    _cache_h_eq[clave] = H_eq
+    return H_eq
+
+
+def para_ecuatorial(o, instante=None, apuntado=None, observatorio=None):
+    """
+    Copia de la orientación `o` con la H horizontal del instante y la dirección dados,
+    para una cámara fija respecto a AR/Dec (montura ecuatorial). Si la montura ha pasado
+    al otro lado del pilar desde la foto resuelta, la cámara está girada 180°.
+    """
+    from astropy.coordinates import EarthLocation
+    import astropy.units as u
+    lado = None
+    if apuntado is None:
+        m = _apuntado_montura()
+        if m.get("ra") is None:
+            raise ValueError("no se sabe dónde apunta la montura")
+        apuntado, lado = (m["ra"], m["dec"]), m.get("lado")
+    else:
+        lado = _apuntado_montura().get("lado") if o.get("lado_pilar") is not None else None
+    H_eq = matriz_ecuatorial_de(o, observatorio)
+    girada = lado is not None and o.get("lado_pilar") is not None and int(lado) != int(o["lado_pilar"])
+    if girada:
+        H_eq = -H_eq
+    lat, lon, alt_m = observatorio or _observatorio()
+    lugar = EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=alt_m * u.m)
+    t = _como_time(instante)
+    ra, dec = float(apuntado[0]), float(apuntado[1])
+    H = jacobiano_horizontal(ra, dec, t, lugar) @ H_eq
+    nueva = dict(o)
+    nueva.update({"H": H.tolist(), "H_resuelta": o["H"], "marco": "ecuatorial", "pilar_girado": girada,
+                  "angulo_x_deg": round(math.degrees(math.atan2(H[1, 0], H[0, 0])) % 360.0, 2),
+                  "paridad": int(np.sign(np.linalg.det(H)))})
+    return nueva
 
 
 # ═════════════════════════════════════════════════════════════════════════════
