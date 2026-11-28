@@ -95,6 +95,16 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python herramientas/probar_guiado_disco.py
 
+      - name: Prueba de la orientación de la cámara con montura ecuatorial (datos reales del 26 y el 28-nov)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_orientacion_ecuatorial.py
+
+      - name: Prueba del vídeo del timelapse (códec web, disco centrado, fotos tapadas, ajustes)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python herramientas/probar_montaje_timelapse.py
+
       - name: Prueba del dithering (alrededor del punto de partida, por ejes sobre una montura falsa)
         env:
           PYTHONIOENCODING: utf-8

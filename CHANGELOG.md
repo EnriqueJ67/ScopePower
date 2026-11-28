@@ -3,6 +3,27 @@
 Formato: una entrada por versión, con lo nuevo, lo cambiado y lo arreglado. Las fechas son del
 día de la release. El número de versión vive en `version.py`.
 
+## 1.7.5 · 2026-11-28
+
+Revisión de la 1.7.4: el Sol con la montura en ecuatorial y el vídeo del timelapse.
+
+- Arreglado: con la montura en modo ecuatorial, «Centrar este punto» llevaba el Sol a otro sitio y «Mantener el
+  disco centrado» daba bandazos cada vez mayores hasta perderlo (28-nov: 2,1′ → 2,8′ → 3,6′ → 4,4′ → 4,9′). La
+  app calculaba la orientación de la cámara como si fuera fija respecto al horizonte, que solo vale en una
+  altacimutal; en una ecuatorial va fija respecto a AR/Dec y, con el Sol de ese día, la orientación de la
+  noche del 26 estaba girada 75°. Ahora, con una ecuatorial, la orientación se rehace para la hora y la
+  dirección de cada uso (y gira 180° si la montura pasa al otro lado del pilar). Vale también para
+  sincronizar con el disco, el mosaico y la orientación del Sol en el número de Wolf.
+- Arreglado: el vídeo del timelapse no se podía ver: se grababa en un MP4 con un códec que Chrome no
+  reproduce. Ahora es un WebM (VP8), que se ve en la propia página y ocupa poco (6 MB las 523 fotos del
+  28-nov). Los vídeos viejos ofrecen «Rehacer vídeo».
+- Nuevo: con el Sol o la Luna, el disco se centra en cada foto del vídeo, aunque se haya movido por el
+  encuadre; y con el Sol se quitan las fotos en que algo lo tapa (árboles, cables, nubes espesas).
+- Nuevo: los timelapses salen en la galería. Su página tiene el vídeo y unos ajustes (exposición,
+  temperatura, medios tonos, contraste, saturación y nitidez) que se ven sobre el primer fotograma y se
+  aplican a todas las fotos al rehacer el vídeo; las fotos no se tocan, así que se puede probar tantas
+  veces como se quiera.
+
 ## 1.7.4 · 2026-11-28
 
 Revisión de la 1.7.3: darks nuevos a mitad del apilado, sin cortarlo.

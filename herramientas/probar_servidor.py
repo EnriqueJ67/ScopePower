@@ -103,6 +103,42 @@ def main():
         fallos.append("/red/qr.svg")
     pedir("/red/qr.svg?url=http://ejemplo.com/", 404)      # solo direcciones de este PC
 
+    print("Timelapse en la galería: tarjeta, página con los ajustes, vista previa y vídeo WebM:")
+    import cv2
+    import numpy as np
+    import montaje_timelapse
+    nombre_tl = "20261128_135015_sol"
+    carpeta_tl = os.path.join(sp.ruta_absoluta(sp.foto_dia.CARPETA_TIMELAPSE), nombre_tl)
+    os.makedirs(carpeta_tl, exist_ok=True)
+    for i in range(3):
+        img = np.full((200, 200, 3), 10, np.uint8)
+        cv2.circle(img, (90 + 5 * i, 100), 50, (60, 150, 220), -1, lineType=cv2.LINE_AA)
+        cv2.imwrite(os.path.join(carpeta_tl, "foto_%04d.jpg" % (i + 1)), img)
+    montaje_timelapse.montar(carpeta_tl, sp.foto_dia.fotos_timelapse(carpeta_tl), fps=5)
+    html = cliente.get("/galeria").get_data(as_text=True)
+    bien = f'href="/galeria/timelapse/{nombre_tl}"' in html and "tarjeta-timelapse" in html
+    print(f"  {'✅' if bien else '❌'} tarjeta del timelapse en /galeria")
+    if not bien:
+        fallos.append("tarjeta del timelapse")
+    html = pedir(f"/galeria/timelapse/{nombre_tl}").get_data(as_text=True)
+    bien = '<video id="tl-reproductor"' in html and 'id="c-exposicion"' in html and 'id="o-tapadas"' in html
+    print(f"  {'✅' if bien else '❌'} página con el reproductor, los ajustes y las opciones del Sol")
+    if not bien:
+        fallos.append("página del timelapse")
+    r = cliente.post(f"/timelapse/vista/{nombre_tl}", json={"ajustes": {"exposicion": 1}})
+    bien = r.status_code == 200 and r.mimetype == "image/jpeg" and r.get_data()[:2] == b"\xff\xd8"
+    print(f"  {'✅' if bien else '❌'} vista previa del primer fotograma con los ajustes ({r.status_code}, {r.mimetype})")
+    if not bien:
+        fallos.append("vista previa del timelapse")
+    video = montaje_timelapse.video_de(carpeta_tl)
+    r = pedir(f"/static/timelapse/{nombre_tl}/{video}")
+    bien = r.mimetype in ("video/webm", "video/mp4")
+    print(f"  {'✅' if bien else '❌'} {video} se sirve como {r.mimetype}")
+    if not bien:
+        fallos.append("tipo del vídeo del timelapse")
+    pedir("/galeria/timelapse/no_existe_sol", 302)
+    r.close()
+
     print("Pestañas de la columna de controles (static/js/paneles.js):")
     import re
     pedir("/static/js/paneles.js")

@@ -176,6 +176,10 @@ msgstr "0 = same as classic STF (stars and cores saturate to white); higher valu
 msgid "0 = tal cual sale del estirado; a la derecha más claro, a la izquierda más oscuro."
 msgstr "0 = as it comes out of the stretch; to the right brighter, to the left darker."
 
+#: templates/timelapse.html
+msgid "0 es blanco y negro."
+msgstr "0 is black and white."
+
 #: templates/_pad.html
 msgid "0,1°/s"
 msgstr "0.1°/s"
@@ -364,6 +368,10 @@ msgstr "Nothing to add at this level. Turn it up a bit."
 #: templates/rastros.html
 msgid "A la galería"
 msgstr "To the gallery"
+
+#: templates/timelapse.html
+msgid "A la izquierda más frío (azul), a la derecha más cálido (naranja)."
+msgstr "Left is cooler (blue), right is warmer (orange)."
 
 #. js
 #: templates/base.html
@@ -1740,6 +1748,10 @@ msgstr "Centering {objeto} (round {n}/{total}): {mensaje}"
 msgid "Centrar de nuevo"
 msgstr "Center again"
 
+#: templates/timelapse.html
+msgid "Centrar el disco en cada foto"
+msgstr "Center the disk in every photo"
+
 #: templates/planetario.html
 msgid "Centrar el mapa donde apunta la montura"
 msgstr "Center the map where the mount is pointing"
@@ -2315,7 +2327,7 @@ msgstr "Continuous: {objetivo}"
 msgid "Contraseña"
 msgstr "Password"
 
-#: templates/editar_dia.html
+#: templates/editar_dia.html templates/timelapse.html
 msgid "Contraste"
 msgstr "Contrast"
 
@@ -3696,6 +3708,11 @@ msgstr "The video has no frame {i}"
 msgid "El vídeo no tiene ningún fotograma aprovechable"
 msgstr "The video has no usable frame"
 
+#. js
+#: templates/imagen.html
+msgid "El vídeo se montó con un códec que el navegador no reproduce"
+msgstr "The video was made with a codec the browser cannot play"
+
 #: templates/configuracion.html
 msgid "El zoom recorta por los bordes la vista previa y el JPG de la galería; el apilado y el FITS siguen a campo completo."
 msgstr "Zoom crops the edges of the preview and the gallery JPG; stacking and the FITS stay full field."
@@ -3897,6 +3914,10 @@ msgstr "In that option's text box, paste the ScopePower address (on the telescop
 #: templates/constelacion.html
 msgid "En la constelación del Cochero. Asociada a una cabra en la mitología romana."
 msgstr "In the constellation Auriga. Associated with a goat in Roman mythology."
+
+#: templates/timelapse.html
+msgid "En pasos de cámara (EV)."
+msgstr "In camera stops (EV)."
 
 #: templates/editar_dia.html
 msgid "En pasos de cámara (EV): 0 deja lo más brillante justo en el blanco; a la izquierda más oscuro, a la derecha más claro."
@@ -4259,6 +4280,10 @@ msgstr "This is a composite, not a photograph: the shadowed side comes from anot
 msgid "Es una de las cuatro estrellas reales mesopotámicas, junto a Aldebarán, Antares y Fomalhaut. El nombre más común de la estrella, Regulus, procede del latín y significa pequeño rey."
 msgstr "It is one of the four Mesopotamian royal stars, along with Aldebaran, Antares and Fomalhaut. Its most common name, Regulus, comes from Latin and means little king."
 
+#: templates/timelapse.html
+msgid "Es {foto}: así quedarán todas las fotos del vídeo."
+msgstr "This is {foto}: every photo in the video will look like this."
+
 #: luna_3d.py
 msgid "Esa foto no sirve para las estrellas: tiene que ser un apilado de noche de la galería."
 msgstr "That photo cannot be used for the stars: it must be a night stack from the gallery."
@@ -4497,6 +4522,11 @@ msgstr "This browser doesn't provide location."
 msgid "Este navegador no tiene reconocimiento de voz. En Android usa Chrome."
 msgstr "This browser has no speech recognition. On Android, use Chrome."
 
+#. js
+#: templates/imagen.html
+msgid "Este navegador quizá no pueda reproducirlo: OpenCV no tiene un códec web en este PC."
+msgstr "This browser may not be able to play it: OpenCV has no web codec on this PC."
+
 #: guia.py
 msgid "Este paso no se puede saltar"
 msgstr "This step cannot be skipped"
@@ -4512,6 +4542,10 @@ msgstr "This Windows user doesn't have permission to change the time. Run instal
 #: apilado_video.py
 msgid "Este vídeo no tiene un apilado guardado: apílalo primero."
 msgstr "This video has no saved stack: stack it first."
+
+#: templates/timelapse.html
+msgid "Este vídeo se montó con un códec que el navegador no reproduce. Pulsa «Rehacer el vídeo»."
+msgstr "This video was made with a codec the browser cannot play. Press “Remake the video”."
 
 #: templates/apilado.html templates/editar_foto.html
 msgid "Estilo"
@@ -4644,6 +4678,7 @@ msgstr "Export"
 
 #. js
 #: guia.py templates/apilado.html templates/editar_dia.html
+#: templates/timelapse.html
 msgid "Exposición"
 msgstr "Exposure"
 
@@ -5237,7 +5272,7 @@ msgstr "Galaxies, nebulae and clusters: live stacking"
 #: templates/base.html templates/editar_dia.html templates/editar_foto.html
 #: templates/galeria.html templates/home.html templates/luna_3d.html
 #: templates/publico/index.html templates/publico/planetario.html
-#: templates/rastros.html templates/visor_video.html
+#: templates/rastros.html templates/timelapse.html templates/visor_video.html
 msgid "Galería"
 msgstr "Gallery"
 
@@ -6807,6 +6842,10 @@ msgstr "Measurement done: error of {t}′"
 msgid "Medio (1,25°)"
 msgstr "Medium (1.25°)"
 
+#: templates/timelapse.html
+msgid "Medios tonos"
+msgstr "Midtones"
+
 #: static/centrado.js
 msgid "Medir"
 msgstr "Measure"
@@ -6926,7 +6965,7 @@ msgid "Modo simulador activado en config.ini: cámara y montura falsas."
 msgstr "Simulator mode is on in config.ini: fake camera and mount."
 
 #. js
-#: templates/luna_3d.html
+#: templates/luna_3d.html templates/timelapse.html
 msgid "Montaje"
 msgstr "Composite"
 
@@ -6935,12 +6974,12 @@ msgid "Montaje con esta foto: la zona en sombra rellena con otra foto de la Luna
 msgstr "Composite from this photo: the shadowed side filled in with another photo of the Moon, plus halo and stars"
 
 #. js
-#: templates/imagen.html
+#: templates/imagen.html templates/timelapse.html
 msgid "Montando el vídeo…"
 msgstr "Making the video…"
 
 #. js
-#: templates/imagen.html
+#: templates/imagen.html templates/timelapse.html
 msgid "Montando el vídeo… {pct} %"
 msgstr "Making the video… {pct} %"
 
@@ -7187,9 +7226,17 @@ msgstr "Highest now"
 msgid "Más altos esta noche"
 msgstr "Highest tonight"
 
+#: templates/timelapse.html
+msgid "Más de 1 aclara los tonos medios sin quemar el disco."
+msgstr "Above 1 brightens the midtones without burning out the disk."
+
 #: static/js/luna_anotada.js
 msgid "Más tenue: de noche"
 msgstr "Fainter: on the night side"
+
+#: templates/timelapse.html
+msgid "Máscara de enfoque: realza el limbo y las manchas; mucha saca el ruido."
+msgstr "Unsharp mask: brings out the limb and the spots; too much brings out the noise."
 
 #: templates/configuracion.html
 msgid "Máximo de fotos a apilar"
@@ -7302,7 +7349,7 @@ msgid "Ningún objeto del plan cabe esta noche"
 msgstr "No object in the plan fits tonight"
 
 #. js
-#: templates/apilado.html templates/editar_dia.html
+#: templates/apilado.html templates/editar_dia.html templates/timelapse.html
 msgid "Nitidez"
 msgstr "Sharpness"
 
@@ -7454,6 +7501,10 @@ msgstr "There is no flat: vignetting and dust spots will not be corrected"
 #: templates/galeria.html templates/publico/index.html
 msgid "No hay fotos de este tipo."
 msgstr "No photos of this type."
+
+#: ScopePower.py
+msgid "No hay fotos en este timelapse"
+msgstr "There are no photos in this timelapse"
 
 #: ScopePower.py
 msgid "No hay nada que importar: un plan de ScopePower o una lista de nombres"
@@ -7814,10 +7865,6 @@ msgstr "Couldn't convert the point to coordinates: {e}"
 #: disco.py
 msgid "No se pudo corregir: {e}"
 msgstr "Could not correct: {e}"
-
-#: foto_dia.py
-msgid "No se pudo crear el fichero de vídeo"
-msgstr "Could not create the video file"
 
 #: montura_ejes.py
 msgid "No se pudo desactivar el seguimiento en SynScan Pro: {e}"
@@ -8748,6 +8795,10 @@ msgstr "Preset"
 msgid "Preset \"{n}\" cargado · pulsa \"Aplicar a la vista previa\""
 msgstr "Preset “{n}” loaded · press “Apply to preview”"
 
+#: templates/timelapse.html
+msgid "Primer fotograma con los ajustes"
+msgstr "First frame with the adjustments"
+
 #: templates/apilado.html
 msgid "Prioritario: fotografiarlo cuando esté más alto"
 msgstr "Priority: image it when it is highest"
@@ -9086,6 +9137,10 @@ msgstr "Remove this colour"
 msgid "Quitar gradiente de contaminación lumínica"
 msgstr "Remove light pollution gradient"
 
+#: templates/timelapse.html
+msgid "Quitar las fotos en que algo tapa el Sol (árboles, cables, nubes)"
+msgstr "Leave out photos where something covers the Sun (trees, cables, clouds)"
+
 #: templates/configuracion.html
 msgid "Qué ocupa ScopePower"
 msgstr "What ScopePower uses"
@@ -9268,6 +9323,15 @@ msgstr "H II region"
 #: templates/planetario.html
 msgid "Región HII"
 msgstr "H II region"
+
+#: templates/timelapse.html
+msgid "Rehacer el vídeo"
+msgstr "Remake the video"
+
+#. js
+#: templates/imagen.html
+msgid "Rehacer vídeo"
+msgstr "Remake video"
 
 #: ScopePower.py
 msgid "Reiniciado"
@@ -9502,7 +9566,7 @@ msgstr "Develops the shot with the stacking processing, signs it and saves it to
 msgid "Revelada como el apilado en {s} s"
 msgstr "Developed like the stack in {s} s"
 
-#: templates/editar_dia.html templates/imagen.html
+#: templates/editar_dia.html templates/imagen.html templates/timelapse.html
 msgid "Revelado"
 msgstr "Development"
 
@@ -9614,7 +9678,7 @@ msgstr "Skipped {objeto}"
 msgid "Saltar este paso"
 msgstr "Skip this step"
 
-#: templates/apilado.html templates/editar_foto.html
+#: templates/apilado.html templates/editar_foto.html templates/timelapse.html
 msgid "Saturación"
 msgstr "Saturation"
 
@@ -10024,6 +10088,10 @@ msgstr "No Internet and no saved elements"
 #: cuerpos_menores.py
 msgid "Sin Internet: se usan los elementos guardados"
 msgstr "No Internet: using the saved elements"
+
+#: templates/timelapse.html
+msgid "Sin ajustes"
+msgstr "No adjustments"
 
 #. js
 #: guia.py
@@ -10504,6 +10572,10 @@ msgstr[1] "Telescope synced. It was off by {n} arcminutes"
 msgid "Tema"
 msgstr "Theme"
 
+#: templates/timelapse.html
+msgid "Temperatura"
+msgstr "Temperature"
+
 #: templates/apilado.html templates/editar_foto.html
 msgid "Temperatura de color"
 msgstr "Color temperature"
@@ -10580,7 +10652,7 @@ msgstr "Real time"
 msgid "Tienes a medias: {actividad}, paso {n} de {total}."
 msgstr "You have this in progress: {actividad}, step {n} of {total}."
 
-#: templates/_guia.html templates/imagen.html
+#: templates/_guia.html templates/galeria.html templates/imagen.html
 msgid "Timelapse"
 msgstr "Timelapse"
 
@@ -10609,6 +10681,10 @@ msgid "Timelapse terminado: {n} foto en {carpeta}"
 msgid_plural "Timelapse terminado: {n} fotos en {carpeta}"
 msgstr[0] "Timelapse finished: {n} shot in {carpeta}"
 msgstr[1] "Timelapse finished: {n} shots in {carpeta}"
+
+#: templates/timelapse.html
+msgid "Timelapse · {objeto}"
+msgstr "Timelapse · {objeto}"
 
 #. js
 #: templates/imagen.html
@@ -10786,6 +10862,10 @@ msgstr "No shot has been measured yet."
 #: templates/configuracion.html
 msgid "Todavía no se ha subido nada: marca una foto con el globo en la Galería."
 msgstr "Nothing uploaded yet: mark a photo with the globe in the Gallery."
+
+#: templates/timelapse.html
+msgid "Todavía no tiene vídeo. Elige los ajustes y pulsa «Rehacer el vídeo»."
+msgstr "It has no video yet. Choose the adjustments and press “Remake the video”."
 
 #: pausa_darks.py
 msgid "Todavía no toca quitar la tapa"
@@ -11128,6 +11208,10 @@ msgid "Ver el revelado rápido"
 msgstr "View the quick development"
 
 #: templates/galeria.html
+msgid "Ver el timelapse y rehacerlo con otros ajustes"
+msgstr "View the timelapse and remake it with other adjustments"
+
+#: templates/galeria.html
 msgid "Ver el vídeo"
 msgstr "View the video"
 
@@ -11135,6 +11219,11 @@ msgstr "View the video"
 #: templates/galeria.html templates/imagen.html
 msgid "Ver el vídeo fotograma a fotograma"
 msgstr "View the video frame by frame"
+
+#. js
+#: templates/imagen.html
+msgid "Ver el vídeo y rehacerlo con otros ajustes"
+msgstr "View the video and remake it with other adjustments"
 
 #: templates/publico/index.html
 msgid "Ver en el cielo"
@@ -11339,7 +11428,7 @@ msgstr "Goes back to the usual central crop"
 
 #. js
 #: templates/_guia.html templates/galeria.html templates/imagen.html
-#: templates/seguimiento.html
+#: templates/seguimiento.html templates/timelapse.html
 msgid "Vídeo"
 msgstr "Video"
 
@@ -11579,7 +11668,7 @@ msgstr "Zoom (crop)"
 msgid "Zoom por defecto"
 msgstr "Default zoom"
 
-#: templates/imagen.html
+#: templates/imagen.html templates/timelapse.html
 msgid "a {campo} fotos/s"
 msgstr "at {campo} fps"
 
@@ -11594,11 +11683,6 @@ msgstr "open the camera (is another app using it?)"
 #: camara_qhy.py camara_toupcam.py
 msgid "abrir la cámara: el SDK no la abre (¿la tiene otra aplicación?)"
 msgstr "open the camera: the SDK can't open it (is another app using it?)"
-
-#. js
-#: templates/imagen.html
-msgid "abrir o descargar {fichero}"
-msgstr "open or download {fichero}"
 
 #: templates/rastros.html
 msgid "acaba dentro"
@@ -11743,6 +11827,11 @@ msgstr "color calibration"
 #: camara_qhy.py
 msgid "cambiar entre foto y vídeo"
 msgstr "switch between single frame and video"
+
+#. js
+#: templates/imagen.html
+msgid "cambiar los ajustes y rehacerlo"
+msgstr "change the adjustments and remake it"
 
 #: static/js/plan.js
 msgid "campo entero"
@@ -11977,6 +12066,11 @@ msgstr "turned off in the settings"
 msgid "descarga incompleta ({hechos} de {total} MB)"
 msgstr "incomplete download ({hechos} of {total} MB)"
 
+#. js
+#: templates/imagen.html templates/timelapse.html
+msgid "descargar {fichero}"
+msgstr "download {fichero}"
+
 #: static/js/plan.js
 msgid "desde el anochecer"
 msgstr "from nightfall"
@@ -12002,6 +12096,11 @@ msgstr "measured offset: {dx}, {dy} px"
 #: grabador_video.py
 msgid "disco casi lleno ({libre} GB libres, hace falta al menos {minimo} GB)"
 msgstr "disk almost full ({libre} GB free, at least {minimo} GB needed)"
+
+#. js
+#: templates/imagen.html
+msgid "disco centrado"
+msgstr "disk centered"
 
 #: static/js/manchas_solares.js
 msgid "disco cortado: conteo parcial"
@@ -13340,6 +13439,10 @@ msgstr "reducing noise"
 msgid "referencia blanca"
 msgstr "white reference"
 
+#: templates/galeria.html
+msgid "rehacer"
+msgstr "remake"
+
 #: camara_qhy.py
 msgid "reinicializar la cámara"
 msgstr "reinitialize the camera"
@@ -13516,6 +13619,10 @@ msgstr "not cropped"
 msgid "sin tamaño"
 msgstr "no size"
 
+#: templates/galeria.html
+msgid "sin vídeo"
+msgstr "no video"
+
 #: plan_sesion.py
 msgid "sin éxito"
 msgstr "no luck"
@@ -13626,7 +13733,7 @@ msgid "tiempo de espera agotado"
 msgstr "timed out"
 
 #. js
-#: ScopePower.py
+#: ScopePower.py templates/timelapse.html
 msgid "timelapse"
 msgstr "timelapse"
 
@@ -14074,6 +14181,12 @@ msgid_plural "{n} días con conteo"
 msgstr[0] "{n} day with a count"
 msgstr[1] "{n} days with a count"
 
+#: templates/timelapse.html
+msgid "{n} en el vídeo"
+msgid_plural "{n} en el vídeo"
+msgstr[0] "{n} in the video"
+msgstr[1] "{n} in the video"
+
 #: static/js/plan.js
 msgid "{n} esta noche"
 msgstr "{n} tonight"
@@ -14093,7 +14206,8 @@ msgstr[1] "{n} files to upload"
 
 #. js
 #: firma.py static/js/plan.js templates/apilado.html templates/editar_foto.html
-#: templates/imagen.html templates/planetario.html
+#: templates/galeria.html templates/imagen.html templates/planetario.html
+#: templates/timelapse.html
 msgid "{n} foto"
 msgid_plural "{n} fotos"
 msgstr[0] "{n} photo"
@@ -14145,6 +14259,12 @@ msgid "{n} foto pública"
 msgid_plural "{n} fotos públicas"
 msgstr[0] "{n} public photo"
 msgstr[1] "{n} public photos"
+
+#: templates/timelapse.html
+msgid "{n} foto quitada en el último montaje"
+msgid_plural "{n} fotos quitadas en el último montaje"
+msgstr[0] "{n} photo left out in the last video"
+msgstr[1] "{n} photos left out in the last video"
 
 #. js
 #: templates/imagen.html
@@ -14293,11 +14413,24 @@ msgid_plural "{n} quedan para otra noche"
 msgstr[0] "{n} left for another night"
 msgstr[1] "{n} left for another night"
 
+#: templates/timelapse.html
+msgid "{n} quitada"
+msgid_plural "{n} quitadas"
+msgstr[0] "{n} left out"
+msgstr[1] "{n} left out"
+
 #: apilado.py
 msgid "{n} quitada por calidad"
 msgid_plural "{n} quitadas por calidad"
 msgstr[0] "{n} removed for quality"
 msgstr[1] "{n} removed for quality"
+
+#. js
+#: templates/imagen.html
+msgid "{n} quitada porque algo tapaba el Sol"
+msgid_plural "{n} quitadas porque algo tapaba el Sol"
+msgstr[0] "{n} left out because something covered the Sun"
+msgstr[1] "{n} left out because something covered the Sun"
 
 #: ScopePower.py
 msgid "{n} rastro borrado"
@@ -14314,6 +14447,12 @@ msgstr "{n} not aligned"
 #: static/js/puesta_estacion.js templates/apilado.html
 msgid "{n} sin resolver"
 msgstr "{n} unsolved"
+
+#: templates/galeria.html
+msgid "{n} timelapse."
+msgid_plural "{n} timelapses."
+msgstr[0] "{n} timelapse."
+msgstr[1] "{n} timelapses."
 
 #. js
 #: templates/apilado.html templates/calibracion.html templates/dark.html

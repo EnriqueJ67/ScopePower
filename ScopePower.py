@@ -117,6 +117,9 @@ def ruta_absoluta(relativa):
     return os.path.join(os.path.abspath("."), relativa)
 
 
+# El vídeo de los timelapses es WebM: que se sirva como vídeo aunque el registro de Windows no lo conozca
+import mimetypes
+mimetypes.add_type("video/webm", ".webm")
 app = Flask(__name__,
             template_folder=ruta_absoluta("templates"),
             static_folder=ruta_absoluta("static"))
@@ -5513,11 +5516,95 @@ def timelapse_video():
     if not nombre or not os.path.isdir(carpeta):
         return jsonify({"ok": False, "error": _("Carpeta de timelapse desconocida")}), 404
     fps = max(1, min(60, int(datos.get("fps", 25))))
+    # Ajustes de revelado y opciones: los de la petición o, si no vienen, los del último montaje
+    import montaje_timelapse
+    previo = montaje_timelapse.leer_resumen(carpeta)
+    ajustes = montaje_timelapse.ajustes_validos(datos.get("ajustes") if isinstance(datos.get("ajustes"), dict) else previo.get("ajustes"))
+    alinear = bool(datos.get("alinear", previo.get("alinear", True)))
+    quitar_tapadas = bool(datos.get("quitar_tapadas", previo.get("quitar_tapadas", True)))
     try:
-        foto_dia.trabajo_timelapse.montar_video(carpeta, fps=fps)
+        foto_dia.trabajo_timelapse.montar_video(carpeta, fps=fps, ajustes=ajustes, alinear=alinear, quitar_tapadas=quitar_tapadas)
     except RuntimeError as e:
         return jsonify({"ok": False, "error": str(e)}), 409
     return jsonify({"ok": True})
+
+
+def _carpeta_timelapse(nombre):
+    """Ruta de la carpeta de un timelapse por su nombre, o None si no existe (sin salir de la raíz)."""
+    nombre = os.path.basename(str(nombre or ""))
+    carpeta = os.path.join(ruta_absoluta(foto_dia.CARPETA_TIMELAPSE), nombre)
+    return carpeta if nombre and os.path.isdir(carpeta) else None
+
+
+def _timelapses_galeria():
+    """Los timelapses con al menos dos fotos, como tarjetas de la galería."""
+    import montaje_timelapse
+    lista = []
+    for t in foto_dia.listar_timelapses(ruta_absoluta(foto_dia.CARPETA_TIMELAPSE), maximo=10000):
+        if t["fotos"] < 2:
+            continue
+        objetivo = montaje_timelapse.objetivo_de_carpeta(t["carpeta"])
+        nombre_objetivo = foto_dia.OBJETIVOS[objetivo]["nombre"] if objetivo in foto_dia.OBJETIVOS else objetivo
+        objeto = _(nombre_objetivo)
+        objeto = objeto[:1].upper() + objeto[1:]
+        partes = t["carpeta"].split("_")
+        carpeta = os.path.join(ruta_absoluta(foto_dia.CARPETA_TIMELAPSE), t["carpeta"])
+        if os.path.isfile(os.path.join(carpeta, montaje_timelapse.MINIATURA_VIDEO)):
+            t = dict(t, miniatura=montaje_timelapse.MINIATURA_VIDEO)      # la del vídeo, no la última foto
+        lista.append(dict(t, objeto=objeto, tipo=catalogo_offline.categoria_objeto(objeto) or SIN_TIPO,
+                          fecha=partes[0] if len(partes) > 1 else "", hora=partes[1] if len(partes) > 2 else ""))
+    return lista
+
+
+@app.route('/galeria/timelapse/<nombre>')
+def galeria_timelapse(nombre):
+    """Página de un timelapse: el vídeo y los ajustes del revelado para rehacerlo."""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    import montaje_timelapse
+    carpeta = _carpeta_timelapse(nombre)
+    if carpeta is None:
+        return redirect(url_for('galeria'))
+    nombre = os.path.basename(carpeta)
+    fotos = foto_dia.fotos_timelapse(carpeta)
+    resumen = montaje_timelapse.leer_resumen(carpeta)
+    video = montaje_timelapse.video_de(carpeta)
+    t = next((x for x in _timelapses_galeria() if x["carpeta"] == nombre), {"objeto": nombre})
+    return render_template("timelapse.html", nombre=nombre, objeto=t.get("objeto", nombre), fotos=len(fotos),
+                           video=video, reproducible=montaje_timelapse.reproducible(carpeta, video), resumen=resumen,
+                           ajustes=montaje_timelapse.ajustes_validos(resumen.get("ajustes")),
+                           limites=montaje_timelapse.LIMITES_AJUSTES, muestra=montaje_timelapse.foto_de_muestra(carpeta, fotos),
+                           es_disco=montaje_timelapse.objetivo_de_carpeta(nombre) in ("sol", "luna"),
+                           es_sol=montaje_timelapse.objetivo_de_carpeta(nombre) == "sol")
+
+
+@app.route('/timelapse/vista/<nombre>', methods=["POST"])
+def timelapse_vista(nombre):
+    """JPG del primer fotograma útil con los ajustes de {"ajustes": {...}} (vista previa, ≤ 900 px)."""
+    if 'usuario' not in session:
+        return jsonify({"ok": False}), 401
+    import montaje_timelapse
+    carpeta = _carpeta_timelapse(nombre)
+    if carpeta is None:
+        return jsonify({"ok": False, "error": _("Carpeta de timelapse desconocida")}), 404
+    datos = request.get_json(silent=True) or {}
+    muestra = montaje_timelapse.foto_de_muestra(carpeta, foto_dia.fotos_timelapse(carpeta))
+    img = cv2.imread(os.path.join(carpeta, muestra)) if muestra else None
+    if img is None:
+        return jsonify({"ok": False, "error": _("No hay fotos en este timelapse")}), 404
+    # Con el disco centrado, como saldrá en el vídeo
+    resumen = montaje_timelapse.leer_resumen(carpeta)
+    if montaje_timelapse.objetivo_de_carpeta(nombre) in ("sol", "luna") and datos.get("alinear", resumen.get("alinear", True)):
+        radio = resumen.get("radio_px") or montaje_timelapse.radio_de_la_serie([img])
+        pos = montaje_timelapse.localizar(img, radio) if radio else None
+        if pos is not None:
+            img = montaje_timelapse.centrar(img, pos[0], pos[1])
+    esc = min(1.0, 900.0 / max(img.shape[:2]))
+    if esc < 1.0:
+        img = cv2.resize(img, None, fx=esc, fy=esc, interpolation=cv2.INTER_AREA)
+    img = montaje_timelapse.aplicar_ajustes(img, datos.get("ajustes") if isinstance(datos.get("ajustes"), dict) else None)
+    ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return Response(buf.tobytes(), mimetype="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
 # ───────────────────────── Modo continuo de la Foto de prueba ─────────────────────────
@@ -6517,9 +6604,10 @@ def galeria():
     # Los vídeos grabados van como una tarjeta más (abren el visor); los apilados y fotogramas que salen
     # de un vídeo que sigue en el mini PC llevan a él
     videos = _videos_galeria()
+    timelapses = _timelapses_galeria()
     de_video = {f: v for f in imagenes if (v := _video_de_foto(carpeta, f))}
     conteo = {}
-    for t in list(tipos.values()) + [v["tipo"] for v in videos]:
+    for t in list(tipos.values()) + [v["tipo"] for v in videos] + [t["tipo"] for t in timelapses]:
         conteo[t] = conteo.get(t, 0) + 1
     orden = list(catalogo_offline.CATEGORIAS) + [SIN_TIPO]
     filtros = sorted(conteo.items(), key=lambda kv: orden.index(kv[0]) if kv[0] in orden else len(orden))
@@ -6532,7 +6620,7 @@ def galeria():
                            con_luna3d=con_luna3d,
                            serie_wolf=serie_wolf, factor_k=manchas_solares.factor_k(), sol_crudo=sol_crudo, serie_sol=serie_sol,
                            curva_sol=curva_sol, orbita_sol=orbita_sol, n_sol_pendientes=n_sol_pendientes, tipos=tipos, filtros=filtros,
-                           n_rastros=len(lista_rastros), n_meteoros=n_meteoros, videos=videos, de_video=de_video,
+                           n_rastros=len(lista_rastros), n_meteoros=n_meteoros, videos=videos, timelapses=timelapses, n_videos=len(videos) + len(timelapses), de_video=de_video,
                            notas=notas, n_sin_nota=n_sin_nota, partes_nombre=_partes_galeria,
                            publicadas=publicadas, publicar=estado_publicar)
 

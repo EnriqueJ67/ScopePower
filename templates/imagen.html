@@ -358,6 +358,7 @@
     .tl-lista { list-style: none; padding: 0; margin: 0; }
     .tl-lista li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
     .tl-lista img { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: #000; flex: none; }
+    .tl-reproductor { display: block; width: 100%; max-height: 60vh; background: #000; border-radius: 8px; margin: 6px 0; object-fit: contain; }
     .tl-lista .nombre { flex: 1; min-width: 0; }
     .tl-lista .nombre small { display: block; color: var(--text-3); }
     /* Pad dentro del panel: más pequeño que en Control manual, del ancho de la columna como mucho */
@@ -840,8 +841,23 @@
         if (puedeVideo) carpetaTl = e.carpeta;
         const v = e.video;
         const ve = document.getElementById("tl-video-estado");
-        if (v && v.en_curso) { document.getElementById("btn-tl-video").disabled = true; ve.className = "estado mt-1"; ve.innerHTML = '<span class="spinner"></span>' + _("Montando el vídeo… {pct} %", { pct: v.progreso }); }
-        else if (v && v.ruta) { document.getElementById("btn-tl-video").disabled = false; ve.className = "estado ok mt-1"; ve.innerHTML = "✅ " + _("Vídeo listo:") + ` <a href="/static/timelapse/${v.carpeta}/timelapse.mp4" target="_blank">` + _("abrir o descargar {fichero}", { fichero: "timelapse.mp4" }) + "</a>"; }
+        if (v && v.en_curso) { ve.dataset.url = ""; document.getElementById("btn-tl-video").disabled = true; ve.className = "estado mt-1"; ve.innerHTML = '<span class="spinner"></span>' + _("Montando el vídeo… {pct} %", { pct: v.progreso }); }
+        else if (v && v.ruta) {
+            document.getElementById("btn-tl-video").disabled = false;
+            const url = `/static/timelapse/${v.carpeta}/${v.ruta}`;
+            if (ve.dataset.url !== url) {          // no rehacer el reproductor en cada sondeo (se cortaría)
+                ve.dataset.url = url;
+                ve.className = "estado ok mt-1";
+                let detalle = ngettext("{n} foto", "{n} fotos", v.fotogramas || 0);
+                if (v.centrado) detalle += " · " + _("disco centrado");
+                if (v.quitados) detalle += " · " + ngettext("{n} quitada porque algo tapaba el Sol", "{n} quitadas porque algo tapaba el Sol", v.quitados);
+                ve.innerHTML = "✅ " + _("Vídeo listo:") + " " + detalle +
+                    `<video class="tl-reproductor" src="${url}?v=${Date.now()}" controls playsinline loop></video>` +
+                    `<a href="${url}" download>` + _("descargar {fichero}", { fichero: v.ruta }) + "</a> · " +
+                    `<a href="/galeria/timelapse/${v.carpeta}">` + _("cambiar los ajustes y rehacerlo") + "</a>" +
+                    (v.reproducible ? "" : "<br>⚠️ " + _("Este navegador quizá no pueda reproducirlo: OpenCV no tiene un códec web en este PC."));
+            }
+        }
         else if (v && v.error) { document.getElementById("btn-tl-video").disabled = false; ve.className = "estado err mt-1"; ve.textContent = "❌ " + v.error; }
         pintarAnteriores(e.anteriores || []);
         return activo || (v && v.en_curso);
@@ -853,8 +869,10 @@
             // Miniatura pequeña; los timelapses de antes de que existiera van sin imagen (la foto entera pesa varios MB)
             const img = t.miniatura ? `<img src="/static/timelapse/${t.carpeta}/${t.miniatura}" alt="">` : "";
             const fecha = t.carpeta.replace(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})\d{2}_(\w+)$/, IDIOMA.codigo === "es" ? "$3/$2/$1 $4:$5 · $6" : "$1-$2-$3 $4:$5 · $6");
-            const video = t.video ? `<a class="btn btn-sm btn-secondary" href="/static/timelapse/${t.carpeta}/timelapse.mp4" target="_blank">` + _("Vídeo") + "</a>"
-                                  : `<button type="button" class="btn btn-sm btn-ghost" onclick="montarVideo('${t.carpeta}')">` + _("Montar vídeo") + "</button>";
+            // Los MP4 montados antes del 28-nov-2026 llevan un códec que el navegador no abre: se rehacen
+            const video = t.video && t.reproducible ? `<a class="btn btn-sm btn-secondary" href="/galeria/timelapse/${t.carpeta}" title="` + _("Ver el vídeo y rehacerlo con otros ajustes") + `">` + _("Vídeo") + "</a>"
+                        : t.video ? `<button type="button" class="btn btn-sm btn-ghost" onclick="montarVideo('${t.carpeta}')" title="` + _("El vídeo se montó con un códec que el navegador no reproduce") + `">` + _("Rehacer vídeo") + "</button>"
+                        : `<button type="button" class="btn btn-sm btn-ghost" onclick="montarVideo('${t.carpeta}')">` + _("Montar vídeo") + "</button>";
             return `<li>${img}<span class="nombre">${fecha}<small>` + ngettext("{n} foto", "{n} fotos", t.fotos) + `</small></span>${video}</li>`;
         }).join("") + "</ul>";
     }
@@ -864,6 +882,7 @@
         const fps = parseInt(document.getElementById("tl-fps").value) || 25;
         document.getElementById("tl-video").hidden = false;
         const ve = document.getElementById("tl-video-estado");
+        ve.dataset.url = "";
         ve.className = "estado mt-1"; ve.innerHTML = '<span class="spinner"></span>' + _("Montando el vídeo…");
         fetch("/timelapse/video", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ carpeta, fps }) })
             .then(r => r.json())

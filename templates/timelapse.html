@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _("Timelapse · {objeto}", objeto=objeto) }}{% endblock %}
+
+{% block content %}
+<!-- Página de un timelapse de «Sol, Luna y paisaje» (montaje_timelapse.py): el vídeo y los ajustes
+     del revelado, que se eligen mirando el primer fotograma y se aplican a todas las fotos al
+     rehacer el vídeo. Las fotos de la serie no se tocan: se puede rehacer tantas veces como se quiera. -->
+<div class="pagina-cabecera">
+    <div>
+        <h1 class="pagina-titulo">{{ objeto }} · {{ _("timelapse") }}</h1>
+        <p class="pagina-sub">
+            {{ nombre }} · {{ ngettext("{n} foto", "{n} fotos", fotos) }}
+            {% if resumen.fotogramas %} · {{ ngettext("{n} en el vídeo", "{n} en el vídeo", resumen.fotogramas) }}{% endif %}
+            {% if resumen.quitados %} · {{ ngettext("{n} quitada", "{n} quitadas", resumen.quitados|length) }}{% endif %}
+        </p>
+    </div>
+    <div class="pagina-acciones">
+        <a href="/galeria" class="btn btn-secondary"><svg><use href="#i-galeria"/></svg>{{ _("Galería") }}</a>
+    </div>
+</div>
+
+<div class="grid-2 ancha apilado-layout">
+    <div class="columna">
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-play"/></svg>{{ _("Vídeo") }}</h3>
+            <div id="tl-reproductor-caja">
+                {% if video and reproducible %}
+                <video id="tl-reproductor" class="tl-reproductor" src="/static/timelapse/{{ nombre }}/{{ video }}" controls playsinline loop></video>
+                <a href="/static/timelapse/{{ nombre }}/{{ video }}" download>{{ _("descargar {fichero}", fichero=video) }}</a>
+                {% elif video %}
+                <p class="estado warn">⚠️ {{ _("Este vídeo se montó con un códec que el navegador no reproduce. Pulsa «Rehacer el vídeo».") }}</p>
+                {% else %}
+                <p class="estado">{{ _("Todavía no tiene vídeo. Elige los ajustes y pulsa «Rehacer el vídeo».") }}</p>
+                {% endif %}
+            </div>
+            <div id="tl-estado" class="estado mt-1"></div>
+        </section>
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-ajustes"/></svg>{{ _("Primer fotograma con los ajustes") }}</h3>
+            <img id="tl-muestra" class="tl-reproductor" alt="{{ muestra }}">
+            <small class="ayuda">{{ _("Es {foto}: así quedarán todas las fotos del vídeo.", foto=muestra) }}</small>
+        </section>
+    </div>
+
+    <div class="columna lateral">
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-sol"/></svg>{{ _("Revelado") }}</h3>
+            {% set nombres = {"exposicion": _("Exposición"), "temperatura": _("Temperatura"), "medios": _("Medios tonos"),
+                              "contraste": _("Contraste"), "saturacion": _("Saturación"), "nitidez": _("Nitidez")} %}
+            {% set ayudas = {"exposicion": _("En pasos de cámara (EV)."), "temperatura": _("A la izquierda más frío (azul), a la derecha más cálido (naranja)."),
+                             "medios": _("Más de 1 aclara los tonos medios sin quemar el disco."), "saturacion": _("0 es blanco y negro."),
+                             "nitidez": _("Máscara de enfoque: realza el limbo y las manchas; mucha saca el ruido.")} %}
+            {% for clave in ["exposicion", "temperatura", "medios", "contraste", "saturacion", "nitidez"] %}
+            <div class="form-group">
+                <div class="rango-titulo"><span>{{ nombres[clave] }}</span><span id="v-{{ clave }}"></span></div>
+                <input type="range" id="c-{{ clave }}" data-clave="{{ clave }}" min="{{ limites[clave][0] }}" max="{{ limites[clave][1] }}"
+                       step="{{ 0.1 if clave in ('exposicion', 'temperatura') else 0.05 }}" value="{{ ajustes[clave] }}">
+                {% if clave in ayudas %}<small class="ayuda">{{ ayudas[clave] }}</small>{% endif %}
+            </div>
+            {% endfor %}
+            <div class="fila">
+                <button type="button" class="btn btn-ghost" onclick="neutros()">{{ _("Sin ajustes") }}</button>
+            </div>
+        </section>
+        <section class="card">
+            <h3 class="card-title"><svg class="ico"><use href="#i-galeria"/></svg>{{ _("Montaje") }}</h3>
+            {% if es_disco %}
+            <label class="check"><input type="checkbox" id="o-alinear" {% if resumen.get("alinear", True) %}checked{% endif %}> {{ _("Centrar el disco en cada foto") }}</label>
+            {% endif %}
+            {% if es_sol %}
+            <label class="check"><input type="checkbox" id="o-tapadas" {% if resumen.get("quitar_tapadas", True) %}checked{% endif %}> {{ _("Quitar las fotos en que algo tapa el Sol (árboles, cables, nubes)") }}</label>
+            {% endif %}
+            <label style="margin: 0;">{{ _("a {campo} fotos/s", campo='<input type="number" id="o-fps" class="corto" min="1" max="60" value="' ~ (resumen.fps or 25) ~ '" style="width: 64px;">')|safe }}</label>
+            <div class="fila mt-2">
+                <button type="button" id="btn-rehacer" class="btn btn-primary" onclick="rehacer()"><svg><use href="#i-galeria"/></svg>{{ _("Rehacer el vídeo") }}</button>
+            </div>
+            {% if resumen.quitados %}
+            <details class="mt-2">
+                <summary>{{ ngettext("{n} foto quitada en el último montaje", "{n} fotos quitadas en el último montaje", resumen.quitados|length) }}</summary>
+                <ul class="tl-quitadas">
+                    {% for q in resumen.quitados %}<li><a href="/static/timelapse/{{ nombre }}/{{ q[0] }}" target="_blank">{{ q[0] }}</a> · {{ q[1] }}</li>{% endfor %}
+                </ul>
+            </details>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+<style>
+    .tl-reproductor { display: block; width: 100%; max-height: 70vh; background: #000; border-radius: 8px; margin: 6px 0; object-fit: contain; }
+    .tl-quitadas { max-height: 220px; overflow: auto; font-size: 13px; padding-left: 18px; }
+    label.check { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; }
+    label.check input { flex: none; width: 18px; height: 18px; margin-top: 2px; }
+</style>
+
+<script>
+    const NOMBRE = {{ nombre|tojson }};
+    const CLAVES = ["exposicion", "temperatura", "medios", "contraste", "saturacion", "nitidez"];
+    const NEUTROS = { exposicion: 0, temperatura: 0, medios: 1, contraste: 1, saturacion: 1, nitidez: 0 };
+    let espera = null, pidiendo = false, otraVez = false, sondeo = null, urlAnterior = null;
+
+    function ajustes() {
+        const a = {};
+        CLAVES.forEach(c => a[c] = parseFloat(document.getElementById("c-" + c).value));
+        return a;
+    }
+    function etiquetas() {
+        CLAVES.forEach(c => {
+            const v = parseFloat(document.getElementById("c-" + c).value);
+            document.getElementById("v-" + c).textContent = (c === "exposicion" && v > 0 ? "+" : "") + v.toLocaleString(IDIOMA.codigo, { maximumFractionDigits: 2 });
+        });
+    }
+    // Vista previa: una petición cada vez; si se mueve un control mientras tanto, se repite al acabar
+    function vista() {
+        if (pidiendo) { otraVez = true; return; }
+        pidiendo = true;
+        fetch("/timelapse/vista/" + encodeURIComponent(NOMBRE), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ajustes: ajustes(), alinear: marcado("o-alinear", true) }) })
+            .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+            .then(b => {
+                const img = document.getElementById("tl-muestra");
+                if (urlAnterior) URL.revokeObjectURL(urlAnterior);
+                urlAnterior = URL.createObjectURL(b);
+                img.src = urlAnterior;
+            })
+            .catch(() => {})
+            .finally(() => { pidiendo = false; if (otraVez) { otraVez = false; vista(); } });
+    }
+    function cambio() { etiquetas(); clearTimeout(espera); espera = setTimeout(vista, 250); }
+    function neutros() { CLAVES.forEach(c => document.getElementById("c-" + c).value = NEUTROS[c]); cambio(); }
+
+    function marcado(id, porDefecto) { const e = document.getElementById(id); return e ? e.checked : porDefecto; }
+    function rehacer() {
+        const est = document.getElementById("tl-estado");
+        est.className = "estado mt-1"; est.innerHTML = '<span class="spinner"></span>' + _("Montando el vídeo…");
+        document.getElementById("btn-rehacer").disabled = true;
+        const cuerpo = { carpeta: NOMBRE, fps: parseInt(document.getElementById("o-fps").value) || 25, ajustes: ajustes(),
+                         alinear: marcado("o-alinear", true), quitar_tapadas: marcado("o-tapadas", true) };
+        fetch("/timelapse/video", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.ok) { est.className = "estado err mt-1"; est.textContent = "❌ " + d.error; document.getElementById("btn-rehacer").disabled = false; return; }
+                sondeo = setInterval(sondear, 1500);
+            })
+            .catch(e => { est.className = "estado err mt-1"; est.textContent = "❌ " + e; document.getElementById("btn-rehacer").disabled = false; });
+    }
+    function sondear() {
+        fetch("/timelapse/estado").then(r => r.json()).then(e => {
+            const v = e.video || {}, est = document.getElementById("tl-estado");
+            if (v.carpeta !== NOMBRE) return;
+            if (v.en_curso) { est.innerHTML = '<span class="spinner"></span>' + _("Montando el vídeo… {pct} %", { pct: v.progreso }); return; }
+            clearInterval(sondeo); sondeo = null;
+            document.getElementById("btn-rehacer").disabled = false;
+            if (v.error) { est.className = "estado err mt-1"; est.textContent = "❌ " + v.error; return; }
+            // Vídeo nuevo: se recarga la página para ver el reproductor, el resumen y las fotos quitadas
+            location.reload();
+        }).catch(() => {});
+    }
+
+    document.querySelectorAll('input[type="range"]').forEach(r => r.addEventListener("input", cambio));
+    const casilla = document.getElementById("o-alinear");
+    if (casilla) casilla.addEventListener("change", vista);
+    etiquetas();
+    vista();
+</script>
+{% endblock %}

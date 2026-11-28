@@ -1008,43 +1008,42 @@ class TrabajoTimelapse:
                     log.exception("Error en al_terminar del timelapse")
 
     # ── vídeo ──────────────────────────────────────────────────────────
-    def montar_video(self, carpeta, fps=25, ancho=1920):
-        """Junta los JPG de `carpeta` en un MP4 (en un hilo). El estado va en estado()["video"]."""
+    def montar_video(self, carpeta, fps=25, ancho=1080, ajustes=None, alinear=True, quitar_tapadas=True):
+        """Junta los JPG de `carpeta` en un vídeo (en un hilo). El estado va en estado()["video"]."""
         with self._lock:
             if self.video and self.video.get("en_curso"):
                 raise RuntimeError(_("Ya se está montando un vídeo"))
             self.video = {"en_curso": True, "ruta": "", "progreso": 0, "error": "", "carpeta": carpeta}
-        threading.Thread(target=self._montar, name="timelapse-video", daemon=True, args=(carpeta, int(fps), int(ancho))).start()
+        threading.Thread(target=self._montar, name="timelapse-video", daemon=True, args=(carpeta, int(fps), int(ancho), ajustes, alinear, quitar_tapadas)).start()
 
-    def _montar(self, carpeta, fps, ancho):
-        import cv2
-        error, ruta = "", ""
+    def _montar(self, carpeta, fps, ancho, ajustes=None, alinear=True, quitar_tapadas=True):
+        # Vídeo reproducible en el navegador, con el disco del Sol o la Luna centrado y sin las
+        # fotos en que algo tapa el Sol (montaje_timelapse.py)
+        import montaje_timelapse
+        error, ruta, resumen = "", "", None
         try:
             fotos = fotos_timelapse(carpeta)
             if len(fotos) < 2:
                 raise RuntimeError(_("Hacen falta al menos dos fotos para montar un vídeo"))
-            primera = cv2.imread(os.path.join(carpeta, fotos[0]))
-            alto = int(primera.shape[0] * ancho / primera.shape[1])
-            alto -= alto % 2
-            ruta = os.path.join(carpeta, "timelapse.mp4")
-            salida = cv2.VideoWriter(ruta, cv2.VideoWriter_fourcc(*"mp4v"), fps, (ancho, alto))
-            if not salida.isOpened():
-                raise RuntimeError(_("No se pudo crear el fichero de vídeo"))
-            for i, f in enumerate(fotos, 1):
-                img = cv2.imread(os.path.join(carpeta, f))
-                if img is None:
-                    continue
-                salida.write(cv2.resize(img, (ancho, alto), interpolation=cv2.INTER_AREA))
+
+            def progreso(pct):
                 with self._lock:
-                    self.video["progreso"] = int(100 * i / len(fotos))
-            salida.release()
-            log.info("Vídeo montado: %s (%d fotos, %d fps)", ruta, len(fotos), fps)
+                    self.video["progreso"] = int(pct)
+            resumen = montaje_timelapse.montar(carpeta, fotos, fps=fps, ancho=ancho, ajustes=ajustes, alinear=alinear,
+                                               quitar_tapadas=quitar_tapadas, progreso=progreso)
+            ruta = os.path.join(carpeta, resumen["archivo"])
         except Exception as e:
             log.exception("Error montando el vídeo del timelapse")
             error = str(e)
         finally:
             with self._lock:
-                self.video.update({"en_curso": False, "ruta": ruta if not error else "", "error": error, "progreso": 100 if not error else 0})
+                self.video.update({"en_curso": False, "ruta": ruta if not error else "", "error": error,
+                                   "progreso": 100 if not error else 0,
+                                   "archivo": (resumen or {}).get("archivo", ""),
+                                   "fotogramas": (resumen or {}).get("fotogramas", 0),
+                                   "quitados": len((resumen or {}).get("quitados", [])),
+                                   "centrado": bool((resumen or {}).get("centrado")),
+                                   "reproducible": (resumen or {}).get("codec") in ("vp8", "h264")})
 
 
 MINIATURA_TIMELAPSE = "miniatura.jpg"
@@ -1062,6 +1061,7 @@ def listar_timelapses(raiz=None, maximo=10):
     recientes primero. `miniatura` es la imagen pequeña para la lista (la última
     foto entera pesa varios MB); los timelapses antiguos no la tienen.
     """
+    import montaje_timelapse
     raiz = raiz or CARPETA_TIMELAPSE
     salida = []
     if not os.path.isdir(raiz):
@@ -1074,7 +1074,8 @@ def listar_timelapses(raiz=None, maximo=10):
         salida.append({"carpeta": nombre, "fotos": len(fotos), "primera": fotos[0] if fotos else None,
                        "ultima": fotos[-1] if fotos else None,
                        "miniatura": MINIATURA_TIMELAPSE if os.path.isfile(os.path.join(ruta, MINIATURA_TIMELAPSE)) else None,
-                       "video": os.path.isfile(os.path.join(ruta, "timelapse.mp4"))})
+                       "video": montaje_timelapse.video_de(ruta),
+                       "reproducible": montaje_timelapse.reproducible(ruta)})
     return salida
 
 
